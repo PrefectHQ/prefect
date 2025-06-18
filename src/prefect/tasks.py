@@ -249,11 +249,13 @@ def _infer_parent_task_runs(
             elif isinstance(v, PrefectFuture):
                 upstream_state = v.state
             else:
-                upstream_state, _ = flow_run_context.run_results.get(id(v))
-            if upstream_state and upstream_state.is_running():
-                parents.append(
-                    TaskRunResult(id=upstream_state.state_details.task_run_id)
-                )
+                res = flow_run_context.run_results.get(id(v))
+                if res:
+                    upstream_state, _ = res
+                    if upstream_state and upstream_state.is_running():
+                        parents.append(
+                            TaskRunResult(id=upstream_state.state_details.task_run_id)
+                        )
 
     return parents
 

@@ -1565,3 +1565,175 @@ async def test_api_response_with_too_many_nodes(
     response = await client.get(f"/flow_runs/{uuid4()}/graph-v2")
     assert response.status_code == 400, response.text
     assert response.json()["detail"] == "too much, bro"
+
+
+@pytest.fixture
+async def tasks_with_flow_run_inputs(
+    db: PrefectDBInterface,
+    session: AsyncSession,
+    flow_run,  # db.FlowRun,
+    base_time: DateTime,
+) -> tuple:  # tuple[db.TaskRun, db.FlowRun, db.TaskRun]
+    """Create a flow with task -> subflow -> task dependencies where downstream task directly references the subflow."""
+    # Create upstream task
+    upstream_task = db.TaskRun(
+        id=uuid4(),
+        flow_run_id=flow_run.id,
+        name="upstream_task",
+        task_key="upstream_task",
+        dynamic_key="upstream_task",
+        state_type=StateType.COMPLETED,
+        state_name="Completed",
+        expected_start_time=base_time
+        + datetime.timedelta(seconds=1)
+        - datetime.timedelta(microseconds=1),
+        start_time=base_time + datetime.timedelta(seconds=1),
+        end_time=base_time + datetime.timedelta(seconds=2),
+    )
+    session.add(upstream_task)
+
+    # Create subflow wrapper task that depends on upstream task
+    subflow_wrapper_task = db.TaskRun(
+        id=uuid4(),
+        flow_run_id=flow_run.id,
+        name="subflow_wrapper",
+        task_key="subflow_wrapper",
+        dynamic_key="subflow_wrapper",
+        state_type=StateType.COMPLETED,
+        state_name="Completed",
+        expected_start_time=base_time
+        + datetime.timedelta(seconds=3)
+        - datetime.timedelta(microseconds=1),
+        start_time=base_time + datetime.timedelta(seconds=3),
+        end_time=base_time + datetime.timedelta(seconds=10),
+        task_inputs={"param": [{"id": upstream_task.id, "input_type": "task_run"}]},
+    )
+    session.add(subflow_wrapper_task)
+    await session.flush()
+
+    # Create subflow run
+    subflow_run = db.FlowRun(
+        id=uuid4(),
+        flow_id=flow_run.flow_id,
+        state_type=StateType.COMPLETED,
+        state_name="Completed",
+        expected_start_time=base_time
+        + datetime.timedelta(seconds=4)
+        - datetime.timedelta(microseconds=1),
+        start_time=base_time + datetime.timedelta(seconds=4),
+        end_time=base_time + datetime.timedelta(seconds=9),
+        parent_task_run_id=subflow_wrapper_task.id,
+    )
+    session.add(subflow_run)
+
+    # Create downstream task that directly references the subflow run
+    downstream_task = db.TaskRun(
+        id=uuid4(),
+        flow_run_id=flow_run.id,
+        name="downstream_task",
+        task_key="downstream_task",
+        dynamic_key="downstream_task",
+        state_type=StateType.COMPLETED,
+        state_name="Completed",
+        expected_start_time=base_time
+        + datetime.timedelta(seconds=11)
+        - datetime.timedelta(microseconds=1),
+        start_time=base_time + datetime.timedelta(seconds=11),
+        end_time=base_time + datetime.timedelta(seconds=12),
+        task_inputs={"param": [{"id": subflow_run.id, "input_type": "flow_run"}]},
+    )
+    session.add(downstream_task)
+
+    await session.commit()
+
+    return (upstream_task, subflow_run, downstream_task)
+
+
+async def test_task_with_flow_run_input_creates_direct_edge(
+    session: AsyncSession,
+    flow,  # db.Flow,
+    flow_run,  # db.FlowRun,
+    tasks_with_flow_run_inputs: tuple,  # tuple[db.TaskRun, db.FlowRun, db.TaskRun]
+):
+    """Test that tasks with flow_run inputs create direct edges to the flow run."""
+    upstream_task, subflow_run, downstream_task = tasks_with_flow_run_inputs
+
+    graph = await read_flow_run_graph(
+        session=session,
+        flow_run_id=flow_run.id,
+    )
+
+    assert_graph_is_connected(graph)
+
+    # Find nodes in the graph
+    nodes_by_id = {node.id: node for _, node in graph.nodes}
+
+    # Verify upstream task exists and has the subflow as a child
+    assert upstream_task.id in nodes_by_id
+    upstream_node = nodes_by_id[upstream_task.id]
+    assert subflow_run.id in [child.id for child in upstream_node.children]
+
+    # Verify subflow exists and has correct parents and children
+    assert subflow_run.id in nodes_by_id
+    subflow_node = nodes_by_id[subflow_run.id]
+    assert upstream_task.id in [parent.id for parent in subflow_node.parents]
+    assert downstream_task.id in [child.id for child in subflow_node.children]
+
+    # Verify downstream task exists and has the subflow as a direct parent
+    assert downstream_task.id in nodes_by_id
+    downstream_node = nodes_by_id[downstream_task.id]
+    assert subflow_run.id in [parent.id for parent in downstream_node.parents]
+
+    # Ensure the graph shows the direct connection: upstream_task -> subflow_run -> downstream_task
+    assert len(downstream_node.parents) == 1
+    assert downstream_node.parents[0].id == subflow_run.id
+
+
+async def test_mixed_task_and_flow_run_inputs(
+    db: PrefectDBInterface,
+    session: AsyncSession,
+    flow_run,  # db.FlowRun,
+    tasks_with_flow_run_inputs: tuple,  # tuple[db.TaskRun, db.FlowRun, db.TaskRun]
+    base_time: DateTime,
+):
+    """Test that tasks can have mixed inputs from both task runs and flow runs."""
+    upstream_task, subflow_run, _ = tasks_with_flow_run_inputs
+
+    # Create another task that depends on both a task run and a flow run
+    mixed_input_task = db.TaskRun(
+        id=uuid4(),
+        flow_run_id=flow_run.id,
+        name="mixed_input_task",
+        task_key="mixed_input_task",
+        dynamic_key="mixed_input_task",
+        state_type=StateType.COMPLETED,
+        state_name="Completed",
+        expected_start_time=base_time
+        + datetime.timedelta(seconds=13)
+        - datetime.timedelta(microseconds=1),
+        start_time=base_time + datetime.timedelta(seconds=13),
+        end_time=base_time + datetime.timedelta(seconds=14),
+        task_inputs={
+            "task_param": [{"id": upstream_task.id, "input_type": "task_run"}],
+            "flow_param": [{"id": subflow_run.id, "input_type": "flow_run"}],
+        },
+    )
+    session.add(mixed_input_task)
+    await session.commit()
+
+    graph = await read_flow_run_graph(
+        session=session,
+        flow_run_id=flow_run.id,
+    )
+
+    assert_graph_is_connected(graph)
+
+    # Find the mixed input task in the graph
+    nodes_by_id = {node.id: node for _, node in graph.nodes}
+    mixed_node = nodes_by_id[mixed_input_task.id]
+
+    # Verify it has both the task run and flow run as parents
+    parent_ids = {parent.id for parent in mixed_node.parents}
+    assert upstream_task.id in parent_ids
+    assert subflow_run.id in parent_ids
+    assert len(parent_ids) == 2
