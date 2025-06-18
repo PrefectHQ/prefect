@@ -305,7 +305,7 @@ async def propose_state(
     flow_run_id: Optional[UUID] = None,
 ) -> State[Any]:
     """
-    Propose a new state for a flow run or task run, invoking Prefect orchestration logic.
+    Propose a new state for a flow run, invoking Prefect orchestration logic.
 
     If the proposed state is accepted, the provided `state` will be augmented with
      details and returned.
