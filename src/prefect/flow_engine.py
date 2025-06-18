@@ -338,6 +338,7 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
             self._return_value, State
         ):
             _result = self._return_value
+            link_state_to_flow_run_result(self.state, _result)
 
             if asyncio.iscoroutine(_result):
                 # getting the value for a BaseResult may return an awaitable
@@ -904,6 +905,7 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
             self._return_value, State
         ):
             _result = self._return_value
+            link_state_to_flow_run_result(self.state, _result)
 
             if asyncio.iscoroutine(_result):
                 # getting the value for a BaseResult may return an awaitable
@@ -936,7 +938,6 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
         await self.set_state(terminal_state)
         self._return_value = resolved_result
 
-        link_state_to_flow_run_result(terminal_state, resolved_result)
         self._telemetry.end_span_on_success()
 
         return result
