@@ -945,7 +945,7 @@ class Runner:
         """
         self._logger.info("Pausing all deployments...")
         for deployment_id in self._deployment_ids:
-            await self._client.set_deployment_paused_state(deployment_id, True)
+            await self._client.pause_deployment(deployment_id)
             self._logger.debug(f"Paused deployment '{deployment_id}'")
 
         self._logger.info("All deployments have been paused!")
