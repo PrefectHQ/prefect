@@ -60,6 +60,7 @@ from prefect.deployments.steps.core import run_steps
 from prefect.events import DeploymentTriggerTypes, TriggerTypes
 from prefect.exceptions import ObjectNotFound, PrefectHTTPStatusError
 from prefect.flows import load_flow_from_entrypoint
+from prefect.server.schemas.responses import DeploymentResponse
 from prefect.settings import (
     PREFECT_DEFAULT_WORK_POOL_NAME,
     PREFECT_UI_URL,
@@ -394,6 +395,11 @@ async def deploy(
         help="Experimental: One or more SLA configurations for the deployment. May be"
         " removed or modified at any time. Currently only supported on Prefect Cloud.",
     ),
+    keep_ui_params_overrides: bool = typer.Option(
+        False,
+        "--keep-ui",
+        help="Keep params_overrides that were declared in the server UI",
+    ),
 ):
     """
     Create a deployment to deploy a flow from this project.
@@ -435,6 +441,7 @@ async def deploy(
         "param": param,
         "params": params,
         "sla": sla,
+        "keep_ui_params_overrides": keep_ui_params_overrides,
     }
 
     try:
@@ -741,6 +748,22 @@ async def _run_single_deploy(
 
     pull_steps = apply_values(pull_steps, step_outputs, remove_notset=False)
 
+    if deploy_config["keep_ui_params_overrides"] is True:
+        try:
+            full_deployment_name = (
+                f"{deploy_config['flow_name']}/{deploy_config['name']}"
+            )
+            current_deployment: DeploymentResponse = (
+                await client.read_deployment_by_name(full_deployment_name)
+            )
+            for key, value in current_deployment.parameters.items():
+                if key not in deploy_config["parameters"]:
+                    deploy_config["parameters"][key] = value
+        except ObjectNotFound:
+            print(f"Deployment {full_deployment_name} does not exists")
+        except Exception as e:
+            print(f"Exception occurred: {e}")
+
     deployment = RunnerDeployment(
         name=deploy_config["name"],
         flow_name=deploy_config.get("flow_name"),
@@ -916,7 +939,7 @@ def _construct_schedules(
     """
     schedules: list[DeploymentScheduleCreate] = []  # Initialize with empty list
     schedule_configs = deploy_config.get("schedules", NotSet) or []
-
+    # TODO: edit to take data from server
     if schedule_configs is not NotSet:
         schedules = [
             _schedule_config_to_deployment_schedule(schedule_config)
