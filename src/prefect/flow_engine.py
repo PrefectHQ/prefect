@@ -936,6 +936,7 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
         await self.set_state(terminal_state)
         self._return_value = resolved_result
 
+        link_state_to_flow_run_result(terminal_state, resolved_result)
         self._telemetry.end_span_on_success()
 
         return result
