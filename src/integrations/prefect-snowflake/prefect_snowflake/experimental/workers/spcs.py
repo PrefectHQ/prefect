@@ -18,7 +18,7 @@ from slugify import slugify
 from snowflake.connector import SnowflakeConnection
 from snowflake.core import Root
 from snowflake.core.exceptions import NotFoundError
-from snowflake.core.service import JobService, ServiceResource, ServiceSpec
+from snowflake.core.service import JobService, ServiceResource, ServiceSpec, ServiceContainer
 
 from prefect.client.schemas.objects import FlowRun
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
@@ -473,19 +473,19 @@ class SPCSWorker(BaseWorker):
                 service_status = container.service_status
 
                 # If status == PENDING or similar, we'll get an exception if we try to retrieve logs.
-                if configuration.stream_output and service_status["status"] in (
+                if configuration.stream_output and service_status in (
                     "RUNNING",
                     "DONE",
                     "FAILED",
                 ):
                     last_log_time = self._get_and_stream_output(
                         service=service,
-                        service_status=service_status,
+                        container=container,
                         last_log_time=last_log_time,
                     )
 
                 # If status in one of these, the container is no longer running.
-                if service_status["status"] in (
+                if service_status in (
                     "DONE",
                     "FAILED",
                     "SUSPENDING",
@@ -525,43 +525,43 @@ class SPCSWorker(BaseWorker):
     def _get_and_stream_output(
         self,
         service: ServiceResource,
-        service_status: dict[str, Any],
+        container: ServiceContainer,
         last_log_time: datetime,
     ) -> datetime:
         """Fetches logs output from the job container and writes all entries after a given time to stderr.
 
         Args:
             service: The service we want to retrieve logs for.
-            service_status: The status object containing the instance_id and container_name of the service.
+            container: The service container.
             last_log_time: The timestamp of the last output line already streamed.
 
         Returns:
             The time of the most recent output line written by this call.
 
         """
-        logs = self._get_logs(service=service, service_status=service_status)
+        logs = self._get_logs(service=service, container=container)
 
         return self._stream_output(logs, last_log_time)
 
     def _get_logs(
         self,
         service: ServiceResource,
-        service_status: dict[str, Any],
+        container: ServiceContainer,
         max_lines: int = 100,
     ) -> str:
         """Gets the most recent service logs up to a given maximum.
 
         Args:
             service: The service we want to retrieve logs for.
-            service_status: The status object containing the instance_id and container_name of the service.
+            container: The service container.
             max_lines: The number of log lines to pull. Defaults to 100.
 
         Returns:
             A string containing the requested log entries, one per line.
 
         """
-        instance_id = service_status["instance_id"]
-        container_name = service_status["container_name"]
+        instance_id = container.instance_id
+        container_name = container.container_name
 
         return service.get_service_logs(
             instance_id=instance_id, container_name=container_name, num_lines=max_lines
