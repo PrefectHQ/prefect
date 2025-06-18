@@ -188,7 +188,7 @@ class StateDetails(PrefectBaseModel):
 
     def to_run_result(
         self, run_type: RunType
-    ) -> Optional[Union[FlowRunResult | TaskRunResult]]:
+    ) -> Optional[Union[FlowRunResult, TaskRunResult]]:
         if run_type == run_type.FLOW_RUN and self.flow_run_id:
             return FlowRunResult(id=self.flow_run_id)
         elif run_type == run_type.TASK_RUN and self.task_run_id:
