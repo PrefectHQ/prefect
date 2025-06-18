@@ -6,6 +6,7 @@ from uuid import UUID
 
 from httpx import HTTPStatusError, RequestError
 
+from prefect._internal.compatibility.deprecated import deprecated_callable
 from prefect.client.orchestration.base import BaseAsyncClient, BaseClient
 from prefect.exceptions import ObjectNotFound
 
@@ -167,13 +168,29 @@ class DeploymentClient(BaseClient):
 
         return UUID(deployment_id)
 
-    def set_deployment_paused_state(self, deployment_id: UUID, paused: bool) -> None:
+    def _set_deployment_paused_state(self, deployment_id: UUID, paused: bool) -> None:
         self.request(
             "PATCH",
             "/deployments/{id}",
             path_params={"id": deployment_id},
             json={"paused": paused},
         )
+
+    @deprecated_callable(
+        start_date="Jun 2025",
+        help="Use pause_deployment or resume_deployment instead.",
+    )
+    def set_deployment_paused_state(self, deployment_id: UUID, paused: bool) -> None:
+        """
+        DEPRECATED: Use pause_deployment or resume_deployment instead.
+
+        Set the paused state of a deployment.
+
+        Args:
+            deployment_id: the deployment ID to update
+            paused: whether the deployment should be paused
+        """
+        self._set_deployment_paused_state(deployment_id, paused)
 
     def pause_deployment(self, deployment_id: Union[UUID, str]) -> None:
         """
@@ -193,7 +210,7 @@ class DeploymentClient(BaseClient):
                 raise ValueError(f"Invalid deployment ID: {deployment_id}")
 
         try:
-            self.set_deployment_paused_state(deployment_id, paused=True)
+            self._set_deployment_paused_state(deployment_id, paused=True)
         except HTTPStatusError as e:
             if e.response.status_code == 404:
                 raise ObjectNotFound(http_exc=e) from e
@@ -218,7 +235,7 @@ class DeploymentClient(BaseClient):
                 raise ValueError(f"Invalid deployment ID: {deployment_id}")
 
         try:
-            self.set_deployment_paused_state(deployment_id, paused=False)
+            self._set_deployment_paused_state(deployment_id, paused=False)
         except HTTPStatusError as e:
             if e.response.status_code == 404:
                 raise ObjectNotFound(http_exc=e) from e
@@ -810,7 +827,7 @@ class DeploymentAsyncClient(BaseAsyncClient):
 
         return UUID(deployment_id)
 
-    async def set_deployment_paused_state(
+    async def _set_deployment_paused_state(
         self, deployment_id: UUID, paused: bool
     ) -> None:
         await self.request(
@@ -819,6 +836,24 @@ class DeploymentAsyncClient(BaseAsyncClient):
             path_params={"id": deployment_id},
             json={"paused": paused},
         )
+
+    @deprecated_callable(
+        start_date="Jun 2025",
+        help="Use pause_deployment or resume_deployment instead.",
+    )
+    async def set_deployment_paused_state(
+        self, deployment_id: UUID, paused: bool
+    ) -> None:
+        """
+        DEPRECATED: Use pause_deployment or resume_deployment instead.
+
+        Set the paused state of a deployment.
+
+        Args:
+            deployment_id: the deployment ID to update
+            paused: whether the deployment should be paused
+        """
+        await self._set_deployment_paused_state(deployment_id, paused)
 
     async def pause_deployment(self, deployment_id: Union[UUID, str]) -> None:
         """
@@ -838,7 +873,7 @@ class DeploymentAsyncClient(BaseAsyncClient):
                 raise ValueError(f"Invalid deployment ID: {deployment_id}")
 
         try:
-            await self.set_deployment_paused_state(deployment_id, paused=True)
+            await self._set_deployment_paused_state(deployment_id, paused=True)
         except HTTPStatusError as e:
             if e.response.status_code == 404:
                 raise ObjectNotFound(http_exc=e) from e
@@ -863,7 +898,7 @@ class DeploymentAsyncClient(BaseAsyncClient):
                 raise ValueError(f"Invalid deployment ID: {deployment_id}")
 
         try:
-            await self.set_deployment_paused_state(deployment_id, paused=False)
+            await self._set_deployment_paused_state(deployment_id, paused=False)
         except HTTPStatusError as e:
             if e.response.status_code == 404:
                 raise ObjectNotFound(http_exc=e) from e
