@@ -18,8 +18,11 @@ from prefect.client.schemas.filters import (
     TaskRunFilter,
 )
 from prefect.client.schemas.objects import (
+    Constant,
     FlowRun,
-    RunInput,
+    FlowRunResult,
+    Parameter,
+    TaskRunResult,
 )
 from prefect.context import FlowRunContext
 from prefect.flows import Flow
@@ -69,9 +72,9 @@ async def _submit_flow_to_runner(
 
         parent_flow_run_context = FlowRunContext.get()
 
-        task_inputs: dict[str, list[RunInput]] = {
-            k: list(await collect_task_run_inputs(v)) for k, v in parameters.items()
-        }
+        task_inputs: dict[
+            str, list[Union[TaskRunResult, FlowRunResult, Parameter, Constant]]
+        ] = {k: list(await collect_task_run_inputs(v)) for k, v in parameters.items()}
         parameters = await resolve_inputs(parameters)
         dummy_task = Task(name=flow.name, fn=flow.fn, version=flow.version)
         parent_task_run = await client.create_task_run(

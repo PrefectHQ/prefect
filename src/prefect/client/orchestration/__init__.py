@@ -101,7 +101,10 @@ from prefect.client.schemas.filters import (
     WorkQueueFilterName,
 )
 from prefect.client.schemas.objects import (
-    RunInput,
+    TaskRunResult,
+    FlowRunResult,
+    Parameter,
+    Constant,
     TaskRunPolicy,
     WorkQueue,
     WorkQueueStatusDetail,
@@ -776,7 +779,7 @@ class PrefectClient(
         task_inputs: Optional[
             dict[
                 str,
-                list[RunInput],
+                list[Union[TaskRunResult, FlowRunResult, Parameter, Constant]],
             ]
         ] = None,
     ) -> TaskRun:
@@ -1429,7 +1432,14 @@ class SyncPrefectClient(
         task_inputs: Optional[
             dict[
                 str,
-                list[RunInput],
+                list[
+                    Union[
+                        TaskRunResult,
+                        FlowRunResult,
+                        Parameter,
+                        Constant,
+                    ]
+                ],
             ]
         ] = None,
     ) -> TaskRun:

@@ -440,7 +440,14 @@ class TaskRunCreate(ActionBaseModel):
     labels: KeyValueLabelsField = Field(default_factory=dict)
     task_inputs: dict[
         str,
-        list[objects.RunInput,],
+        list[
+            Union[
+                objects.TaskRunResult,
+                objects.FlowRunResult,
+                objects.Parameter,
+                objects.Constant,
+            ]
+        ],
     ] = Field(default_factory=dict)
 
 

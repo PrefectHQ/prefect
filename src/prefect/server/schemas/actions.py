@@ -498,7 +498,14 @@ class TaskRunCreate(ActionBaseModel):
     )
     task_inputs: Dict[
         str,
-        List[schemas.core.RunInput],
+        List[
+            Union[
+                schemas.core.TaskRunResult,
+                schemas.core.FlowRunResult,
+                schemas.core.Parameter,
+                schemas.core.Constant,
+            ]
+        ],
     ] = Field(
         default_factory=dict,
         description="The inputs to the task run.",

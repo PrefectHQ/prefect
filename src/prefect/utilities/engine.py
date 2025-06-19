@@ -24,9 +24,8 @@ from typing_extensions import TypeIs
 import prefect
 import prefect.exceptions
 from prefect._internal.concurrency.cancellation import get_deadline
-from prefect.client.schemas import OrchestrationResult, TaskRun
+from prefect.client.schemas import FlowRunResult, OrchestrationResult, TaskRun
 from prefect.client.schemas.objects import (
-    RunInput,
     RunType,
     TaskRunResult,
 )
@@ -64,7 +63,9 @@ engine_logger: Logger = get_logger("engine")
 T = TypeVar("T")
 
 
-async def collect_task_run_inputs(expr: Any, max_depth: int = -1) -> set[RunInput]:
+async def collect_task_run_inputs(
+    expr: Any, max_depth: int = -1
+) -> set[Union[TaskRunResult, FlowRunResult]]:
     """
     This function recurses through an expression to generate a set of any discernible
     task run inputs it finds in the data structure. It produces a set of all inputs
@@ -77,7 +78,7 @@ async def collect_task_run_inputs(expr: Any, max_depth: int = -1) -> set[RunInpu
     """
     # TODO: This function needs to be updated to detect parameters and constants
 
-    inputs: set[RunInput] = set()
+    inputs: set[Union[TaskRunResult, FlowRunResult]] = set()
 
     def add_futures_and_states_to_inputs(obj: Any) -> None:
         if isinstance(obj, PrefectFuture):
@@ -112,7 +113,7 @@ async def collect_task_run_inputs(expr: Any, max_depth: int = -1) -> set[RunInpu
 
 def collect_task_run_inputs_sync(
     expr: Any, future_cls: Any = PrefectFuture, max_depth: int = -1
-) -> set[RunInput]:
+) -> set[Union[TaskRunResult, FlowRunResult]]:
     """
     This function recurses through an expression to generate a set of any discernible
     task run inputs it finds in the data structure. It produces a set of all inputs
@@ -125,7 +126,7 @@ def collect_task_run_inputs_sync(
     """
     # TODO: This function needs to be updated to detect parameters and constants
 
-    inputs: set[RunInput] = set()
+    inputs: set[Union[TaskRunResult, FlowRunResult]] = set()
 
     def add_futures_and_states_to_inputs(obj: Any) -> None:
         if isinstance(obj, future_cls) and hasattr(obj, "task_run_id"):
