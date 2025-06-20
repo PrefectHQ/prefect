@@ -1,0 +1,55 @@
+---
+title: dev
+sidebarTitle: dev
+---
+
+# `prefect.cli.dev`
+
+
+
+Command line interface for working with Prefect Server
+
+
+## Functions
+
+### `exit_with_error_if_not_editable_install`
+
+```python
+exit_with_error_if_not_editable_install() -> None
+```
+
+### `build_docs`
+
+```python
+build_docs(schema_path: Optional[str] = None)
+```
+
+
+Builds REST API reference documentation for static display.
+
+
+### `build_ui`
+
+```python
+build_ui(no_install: bool = False)
+```
+
+### `build_image`
+
+```python
+build_image(arch: str = typer.Option(None, help=f'The architecture to build the container for. Defaults to the architecture of the host Python. [default: {platform.machine()}]'), python_version: str = typer.Option(None, help=f'The Python version to build the container for. Defaults to the version of the host Python. [default: {python_version_minor()}]'), flavor: str = typer.Option(None, help="An alternative flavor to build, for example 'conda'. Defaults to the standard Python base image"), dry_run: bool = False)
+```
+
+
+Build a docker image for development.
+
+
+### `container`
+
+```python
+container(bg: bool = False, name = 'prefect-dev', api: bool = True, tag: Optional[str] = None)
+```
+
+
+Run a docker container with local code mounted and installed.
+

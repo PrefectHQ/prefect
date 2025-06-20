@@ -1,0 +1,115 @@
+---
+title: flow_run
+sidebarTitle: flow_run
+---
+
+# `prefect.runtime.flow_run`
+
+
+
+Access attributes of the current flow run dynamically.
+
+Note that if a flow run cannot be discovered, all attributes will return empty values.
+
+You can mock the runtime attributes for testing purposes by setting environment variables
+prefixed with `PREFECT__RUNTIME__FLOW_RUN`.
+
+Available attributes:
+    - `id`: the flow run's unique ID
+    - `tags`: the flow run's set of tags
+    - `scheduled_start_time`: the flow run's expected scheduled start time; defaults to now if not present
+    - `name`: the name of the flow run
+    - `flow_name`: the name of the flow
+    - `flow_version`: the version of the flow
+    - `parameters`: the parameters that were passed to this run; note that these do not necessarily
+        include default values set on the flow function, only the parameter values explicitly passed for the run
+    - `parent_flow_run_id`: the ID of the flow run that triggered this run, if any
+    - `parent_deployment_id`: the ID of the deployment that triggered this run, if any
+    - `run_count`: the number of times this flow run has been run
+
+
+## Functions
+
+### `get_id`
+
+```python
+get_id() -> Optional[str]
+```
+
+### `get_tags`
+
+```python
+get_tags() -> List[str]
+```
+
+### `get_run_count`
+
+```python
+get_run_count() -> int
+```
+
+### `get_name`
+
+```python
+get_name() -> Optional[str]
+```
+
+### `get_flow_name`
+
+```python
+get_flow_name() -> Optional[str]
+```
+
+### `get_flow_version`
+
+```python
+get_flow_version() -> Optional[str]
+```
+
+### `get_scheduled_start_time`
+
+```python
+get_scheduled_start_time() -> DateTime
+```
+
+### `get_parameters`
+
+```python
+get_parameters() -> Dict[str, Any]
+```
+
+### `get_parent_flow_run_id`
+
+```python
+get_parent_flow_run_id() -> Optional[str]
+```
+
+### `get_parent_deployment_id`
+
+```python
+get_parent_deployment_id() -> Optional[str]
+```
+
+### `get_root_flow_run_id`
+
+```python
+get_root_flow_run_id() -> str
+```
+
+### `get_flow_run_api_url`
+
+```python
+get_flow_run_api_url() -> Optional[str]
+```
+
+### `get_flow_run_ui_url`
+
+```python
+get_flow_run_ui_url() -> Optional[str]
+```
+
+### `get_job_variables`
+
+```python
+get_job_variables() -> Optional[Dict[str, Any]]
+```

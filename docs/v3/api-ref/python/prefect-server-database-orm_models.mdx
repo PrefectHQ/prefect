@@ -1,0 +1,413 @@
+---
+title: orm_models
+sidebarTitle: orm_models
+---
+
+# `prefect.server.database.orm_models`
+
+## Classes
+
+### `Base`
+
+
+Base SQLAlchemy model that automatically infers the table name
+and provides ID, created, and updated columns
+
+
+### `Flow`
+
+
+SQLAlchemy mixin of a flow.
+
+
+### `FlowRunState`
+
+
+SQLAlchemy mixin of a flow run state.
+
+
+**Methods:**
+
+#### `data`
+
+```python
+data(self) -> Optional[Any]
+```
+
+#### `as_state`
+
+```python
+as_state(self) -> schemas.states.State
+```
+
+### `TaskRunState`
+
+
+SQLAlchemy model of a task run state.
+
+
+**Methods:**
+
+#### `data`
+
+```python
+data(self) -> Optional[Any]
+```
+
+#### `as_state`
+
+```python
+as_state(self) -> schemas.states.State
+```
+
+### `Artifact`
+
+
+SQLAlchemy model of artifacts.
+
+
+### `ArtifactCollection`
+
+### `TaskRunStateCache`
+
+
+SQLAlchemy model of a task run state cache.
+
+
+### `Run`
+
+
+Common columns and logic for FlowRun and TaskRun models
+
+
+**Methods:**
+
+#### `estimated_run_time`
+
+```python
+estimated_run_time(self) -> datetime.timedelta
+```
+
+Total run time is incremented in the database whenever a RUNNING
+state is exited. To give up-to-date estimates, we estimate incremental
+run time for any runs currently in a RUNNING state.
+
+
+#### `estimated_start_time_delta`
+
+```python
+estimated_start_time_delta(self) -> datetime.timedelta
+```
+
+The delta to the expected start time (or "lateness") is computed as
+the difference between the actual start time and expected start time. To
+give up-to-date estimates, we estimate lateness for any runs that don't
+have a start time and are not in a final state and were expected to
+start already.
+
+
+### `FlowRun`
+
+
+SQLAlchemy model of a flow run.
+
+
+**Methods:**
+
+#### `state`
+
+```python
+state(self) -> Optional[FlowRunState]
+```
+
+#### `set_state`
+
+```python
+set_state(self, state: Optional[FlowRunState]) -> None
+```
+
+If a state is assigned to this run, populate its run id.
+
+This would normally be handled by the back-populated SQLAlchemy
+relationship, but because this is a one-to-one pointer to a
+one-to-many relationship, SQLAlchemy can't figure it out.
+
+
+### `TaskRun`
+
+
+SQLAlchemy model of a task run.
+
+
+**Methods:**
+
+#### `state`
+
+```python
+state(self) -> Optional[TaskRunState]
+```
+
+#### `set_state`
+
+```python
+set_state(self, state: Optional[TaskRunState]) -> None
+```
+
+If a state is assigned to this run, populate its run id.
+
+This would normally be handled by the back-populated SQLAlchemy
+relationship, but because this is a one-to-one pointer to a
+one-to-many relationship, SQLAlchemy can't figure it out.
+
+
+### `DeploymentSchedule`
+
+### `Deployment`
+
+
+SQLAlchemy model of a deployment.
+
+
+**Methods:**
+
+#### `job_variables`
+
+```python
+job_variables(self) -> Mapped[dict[str, Any]]
+```
+
+### `Log`
+
+
+SQLAlchemy model of a logging statement.
+
+
+### `ConcurrencyLimit`
+
+### `ConcurrencyLimitV2`
+
+### `BlockType`
+
+### `BlockSchema`
+
+### `BlockSchemaReference`
+
+### `BlockDocument`
+
+### `BlockDocumentReference`
+
+### `Configuration`
+
+### `SavedSearch`
+
+
+SQLAlchemy model of a saved search.
+
+
+### `WorkQueue`
+
+
+SQLAlchemy model of a work queue
+
+
+### `WorkPool`
+
+
+SQLAlchemy model of an worker
+
+
+### `Worker`
+
+
+SQLAlchemy model of an worker
+
+
+### `Agent`
+
+
+SQLAlchemy model of an agent
+
+
+### `Variable`
+
+### `FlowRunInput`
+
+### `CsrfToken`
+
+### `Automation`
+
+**Methods:**
+
+#### `sort_expression`
+
+```python
+sort_expression(cls, value: AutomationSort) -> sa.ColumnExpressionArgument[Any]
+```
+
+Return an expression used to sort Automations
+
+
+### `AutomationBucket`
+
+### `AutomationRelatedResource`
+
+### `CompositeTriggerChildFiring`
+
+### `AutomationEventFollower`
+
+### `Event`
+
+### `EventResource`
+
+### `BaseORMConfiguration`
+
+
+Abstract base class used to inject database-specific ORM configuration into Prefect.
+
+Modifications to core Prefect REST API data structures can have unintended consequences.
+Use with caution.
+
+
+**Methods:**
+
+#### `unique_key`
+
+```python
+unique_key(self) -> tuple[Hashable, ...]
+```
+
+Returns a key used to determine whether to instantiate a new DB interface.
+
+
+#### `versions_dir`
+
+```python
+versions_dir(self) -> Path
+```
+
+Directory containing migrations
+
+
+#### `deployment_unique_upsert_columns`
+
+```python
+deployment_unique_upsert_columns(self) -> _UpsertColumns
+```
+
+Unique columns for upserting a Deployment
+
+
+#### `concurrency_limit_unique_upsert_columns`
+
+```python
+concurrency_limit_unique_upsert_columns(self) -> _UpsertColumns
+```
+
+Unique columns for upserting a ConcurrencyLimit
+
+
+#### `flow_run_unique_upsert_columns`
+
+```python
+flow_run_unique_upsert_columns(self) -> _UpsertColumns
+```
+
+Unique columns for upserting a FlowRun
+
+
+#### `block_type_unique_upsert_columns`
+
+```python
+block_type_unique_upsert_columns(self) -> _UpsertColumns
+```
+
+Unique columns for upserting a BlockType
+
+
+#### `artifact_collection_unique_upsert_columns`
+
+```python
+artifact_collection_unique_upsert_columns(self) -> _UpsertColumns
+```
+
+Unique columns for upserting an ArtifactCollection
+
+
+#### `block_schema_unique_upsert_columns`
+
+```python
+block_schema_unique_upsert_columns(self) -> _UpsertColumns
+```
+
+Unique columns for upserting a BlockSchema
+
+
+#### `flow_unique_upsert_columns`
+
+```python
+flow_unique_upsert_columns(self) -> _UpsertColumns
+```
+
+Unique columns for upserting a Flow
+
+
+#### `saved_search_unique_upsert_columns`
+
+```python
+saved_search_unique_upsert_columns(self) -> _UpsertColumns
+```
+
+Unique columns for upserting a SavedSearch
+
+
+#### `task_run_unique_upsert_columns`
+
+```python
+task_run_unique_upsert_columns(self) -> _UpsertColumns
+```
+
+Unique columns for upserting a TaskRun
+
+
+#### `block_document_unique_upsert_columns`
+
+```python
+block_document_unique_upsert_columns(self) -> _UpsertColumns
+```
+
+Unique columns for upserting a BlockDocument
+
+
+### `AsyncPostgresORMConfiguration`
+
+
+Postgres specific orm configuration
+
+
+**Methods:**
+
+#### `versions_dir`
+
+```python
+versions_dir(self) -> Path
+```
+
+Directory containing migrations
+
+
+### `AioSqliteORMConfiguration`
+
+
+SQLite specific orm configuration
+
+
+**Methods:**
+
+#### `versions_dir`
+
+```python
+versions_dir(self) -> Path
+```
+
+Directory containing migrations
+

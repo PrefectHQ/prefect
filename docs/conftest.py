@@ -63,10 +63,19 @@ project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 
 def pytest_collection_modifyitems(items):
     for item in items:
+        # Skip files in apiref/python directory
+        if "api-ref/python/" in str(item.fspath):
+            item.add_marker(
+                pytest.mark.skip(reason="Skipping API reference Python files")
+            )
+            continue
+
+        # Skip hardcoded files
         for file, reason in SKIP_FILES.items():
             full_path = os.path.join(project_root, file)
             if str(item.fspath) == full_path:
                 item.add_marker(pytest.mark.skip(reason=reason))
+                break
 
 
 @pytest.fixture(autouse=True)

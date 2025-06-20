@@ -1,0 +1,79 @@
+---
+title: filesystems
+sidebarTitle: filesystems
+---
+
+# `prefect.filesystems`
+
+## Classes
+
+### `ReadableFileSystem`
+
+### `WritableFileSystem`
+
+### `ReadableDeploymentStorage`
+
+### `WritableDeploymentStorage`
+
+### `LocalFileSystem`
+
+
+Store data as a file on a local file system.
+
+
+**Methods:**
+
+#### `cast_pathlib`
+
+```python
+cast_pathlib(cls, value: str | Path | None) -> str | None
+```
+
+### `RemoteFileSystem`
+
+
+Store data as a file on a remote file system.
+
+Supports any remote file system supported by `fsspec`. The file system is specified
+using a protocol. For example, "s3://my-bucket/my-folder/" will use S3.
+
+
+**Methods:**
+
+#### `check_basepath`
+
+```python
+check_basepath(cls, value: str) -> str
+```
+
+#### `filesystem`
+
+```python
+filesystem(self) -> fsspec.AbstractFileSystem
+```
+
+### `SMB`
+
+
+Store data as a file on a SMB share.
+
+
+**Methods:**
+
+#### `basepath`
+
+```python
+basepath(self) -> str
+```
+
+#### `filesystem`
+
+```python
+filesystem(self) -> RemoteFileSystem
+```
+
+### `NullFileSystem`
+
+
+A file system that does not store any data.
+

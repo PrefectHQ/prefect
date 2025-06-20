@@ -1,0 +1,137 @@
+---
+title: pydantic
+sidebarTitle: pydantic
+---
+
+# `prefect.utilities.pydantic`
+
+## Functions
+
+### `add_cloudpickle_reduction`
+
+```python
+add_cloudpickle_reduction(__model_cls: Optional[type[M]] = None, **kwargs: Any) -> Union[type[M], Callable[[type[M]], type[M]]]
+```
+
+
+Adds a `__reducer__` to the given class that ensures it is cloudpickle compatible.
+
+Workaround for issues with cloudpickle when using cythonized pydantic which
+throws exceptions when attempting to pickle the class which has "compiled"
+validator methods dynamically attached to it.
+
+We cannot define this utility in the model class itself because the class is the
+type that contains unserializable methods.
+
+Any model using some features of Pydantic (e.g. `Path` validation) with a Cython
+compiled Pydantic installation may encounter pickling issues.
+
+See related issue at https://github.com/cloudpipe/cloudpickle/issues/408
+
+
+### `get_class_fields_only`
+
+```python
+get_class_fields_only(model: type[BaseModel]) -> set[str]
+```
+
+
+Gets all the field names defined on the model class but not any parent classes.
+Any fields that are on the parent but redefined on the subclass are included.
+
+
+### `add_type_dispatch`
+
+```python
+add_type_dispatch(model_cls: type[M]) -> type[M]
+```
+
+
+Extend a Pydantic model to add a 'type' field that is used as a discriminator field
+to dynamically determine the subtype that when deserializing models.
+
+This allows automatic resolution to subtypes of the decorated model.
+
+If a type field already exists, it should be a string literal field that has a
+constant value for each subclass. The default value of this field will be used as
+the dispatch key.
+
+If a type field does not exist, one will be added. In this case, the value of the
+field will be set to the value of the `__dispatch_key__`. The base class should
+define a `__dispatch_key__` class method that is used to determine the unique key
+for each subclass. Alternatively, each subclass can define the `__dispatch_key__`
+as a string literal.
+
+The base class must not define a 'type' field. If it is not desirable to add a field
+to the model and the dispatch key can be tracked separately, the lower level
+utilities in `prefect.utilities.dispatch` should be used directly.
+
+
+### `custom_pydantic_encoder`
+
+```python
+custom_pydantic_encoder(type_encoders: dict[Any, Callable[[type[Any]], Any]], obj: Any) -> Any
+```
+
+### `parse_obj_as`
+
+```python
+parse_obj_as(type_: type[T], data: Any, mode: Literal['python', 'json', 'strings'] = 'python') -> T
+```
+
+
+Parse a given data structure as a Pydantic model via `TypeAdapter`.
+
+Read more about `TypeAdapter` [here](https://docs.pydantic.dev/latest/concepts/type_adapter/).
+
+**Args:**
+- `type_`: The type to parse the data as.
+- `data`: The data to be parsed.
+- `mode`: The mode to use for parsing, either `python`, `json`, or `strings`.
+Defaults to `python`, where `data` should be a Python object (e.g. `dict`).
+
+**Returns:**
+- The parsed `data` as the given `type_`.
+
+
+### `handle_secret_render`
+
+```python
+handle_secret_render(value: object, context: dict[str, Any]) -> object
+```
+
+## Classes
+
+### `PartialModel`
+
+
+A utility for creating a Pydantic model in several steps.
+
+Fields may be set at initialization, via attribute assignment, or at finalization
+when the concrete model is returned.
+
+Pydantic validation does not occur until finalization.
+
+Each field can only be set once and a `ValueError` will be raised on assignment if
+a field already has a value.
+
+
+**Methods:**
+
+#### `finalize`
+
+```python
+finalize(self, **kwargs: Any) -> M
+```
+
+#### `raise_if_already_set`
+
+```python
+raise_if_already_set(self, name: str) -> None
+```
+
+#### `raise_if_not_in_model`
+
+```python
+raise_if_not_in_model(self, name: str) -> None
+```

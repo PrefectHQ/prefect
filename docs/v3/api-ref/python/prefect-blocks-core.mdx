@@ -1,0 +1,282 @@
+---
+title: core
+sidebarTitle: core
+---
+
+# `prefect.blocks.core`
+
+## Functions
+
+### `block_schema_to_key`
+
+```python
+block_schema_to_key(schema: BlockSchema) -> str
+```
+
+
+Defines the unique key used to lookup the Block class for a given schema.
+
+
+### `schema_extra`
+
+```python
+schema_extra(schema: dict[str, Any], model: type['Block']) -> None
+```
+
+
+Customizes Pydantic's schema generation feature to add blocks related information.
+
+
+## Classes
+
+### `InvalidBlockRegistration`
+
+
+Raised on attempted registration of the base Block
+class or a Block interface class
+
+
+### `UnknownBlockType`
+
+
+Raised when a block type is not found in the registry.
+
+
+### `BlockNotSavedError`
+
+
+Raised when a given block is not saved and an operation that requires
+the block to be saved is attempted.
+
+
+### `Block`
+
+
+A base class for implementing a block that wraps an external service.
+
+This class can be defined with an arbitrary set of fields and methods, and
+couples business logic with data contained in an block document.
+`_block_document_name`, `_block_document_id`, `_block_schema_id`, and
+`_block_type_id` are reserved by Prefect as Block metadata fields, but
+otherwise a Block can implement arbitrary logic. Blocks can be instantiated
+without populating these metadata fields, but can only be used interactively,
+not with the Prefect API.
+
+Instead of the __init__ method, a block implementation allows the
+definition of a `block_initialization` method that is called after
+initialization.
+
+
+**Methods:**
+
+#### `block_initialization`
+
+```python
+block_initialization(self) -> None
+```
+
+#### `ser_model`
+
+```python
+ser_model(self, handler: SerializerFunctionWrapHandler, info: SerializationInfo) -> Any
+```
+
+#### `get_block_type_name`
+
+```python
+get_block_type_name(cls) -> str
+```
+
+#### `get_block_type_slug`
+
+```python
+get_block_type_slug(cls) -> str
+```
+
+#### `get_block_capabilities`
+
+```python
+get_block_capabilities(cls) -> FrozenSet[str]
+```
+
+Returns the block capabilities for this Block. Recursively collects all block
+capabilities of all parent classes into a single frozenset.
+
+
+#### `get_block_schema_version`
+
+```python
+get_block_schema_version(cls) -> str
+```
+
+#### `get_description`
+
+```python
+get_description(cls) -> Optional[str]
+```
+
+Returns the description for the current block. Attempts to parse
+description from class docstring if an override is not defined.
+
+
+#### `get_code_example`
+
+```python
+get_code_example(cls) -> Optional[str]
+```
+
+Returns the code example for the given block. Attempts to parse
+code example from the class docstring if an override is not provided.
+
+
+#### `get_block_class_from_schema`
+
+```python
+get_block_class_from_schema(cls: type[Self], schema: BlockSchema) -> type[Self]
+```
+
+Retrieve the block class implementation given a schema.
+
+
+#### `get_block_class_from_key`
+
+```python
+get_block_class_from_key(cls: type[Self], key: str) -> type[Self]
+```
+
+Retrieve the block class implementation given a key.
+
+
+#### `load`
+
+```python
+load(cls, name: str, validate: bool = True, client: Optional['PrefectClient'] = None) -> 'Self'
+```
+
+
+        Retrieves data from the block document with the given name for the block type
+        that corresponds with the current class and returns an instantiated version of
+        the current class with the data stored in the block document.
+
+        If a block document for a given block type is saved with a different schema
+        than the current class calling `load`, a warning will be raised.
+
+        If the current class schema is a subset of the block document schema, the block
+        can be loaded as normal using the default `validate = True`.
+
+        If the current class schema is a superset of the block document schema, `load`
+        must be called with `validate` set to False to prevent a validation error. In
+        this case, the block attributes will default to `None` and must be set manually
+        and saved to a new block document before the block can be used as expected.
+
+        Args:
+            name: The name or slug of the block document. A block document slug is a
+                string with the format &lt;block_type_slug&gt;/&lt;block_document_name&gt;
+            validate: If False, the block document will be loaded without Pydantic
+                validating the block schema. This is useful if the block schema has
+                changed client-side since the block document referred to by `name` was saved.
+            client: The client to use to load the block document. If not provided, the
+                default client will be injected.
+
+        Raises:
+            ValueError: If the requested block document is not found.
+
+        Returns:
+            An instance of the current class hydrated with the data stored in the
+            block document with the specified name.
+
+        Examples:
+            Load from a Block subclass with a block document name:
+            ```python
+            class Custom(Block):
+                message: str
+
+            Custom(message="Hello!").save("my-custom-message")
+
+            loaded_block = Custom.load("my-custom-message")
+            ```
+
+            Load from Block with a block document slug:
+            ```python
+            class Custom(Block):
+                message: str
+
+            Custom(message="Hello!").save("my-custom-message")
+
+            loaded_block = Block.load("custom/my-custom-message")
+            ```
+
+            Migrate a block document to a new schema:
+            ```python
+            # original class
+            class Custom(Block):
+                message: str
+
+            Custom(message="Hello!").save("my-custom-message")
+
+            # Updated class with new required field
+            class Custom(Block):
+                message: str
+                number_of_ducks: int
+
+            loaded_block = Custom.load("my-custom-message", validate=False)
+
+            # Prints UserWarning about schema mismatch
+
+            loaded_block.number_of_ducks = 42
+
+            loaded_block.save("my-custom-message", overwrite=True)
+            ```
+        
+
+#### `is_block_class`
+
+```python
+is_block_class(block: Any) -> TypeGuard[type['Block']]
+```
+
+#### `annotation_refers_to_block_class`
+
+```python
+annotation_refers_to_block_class(annotation: Any) -> bool
+```
+
+#### `get_block_placeholder`
+
+```python
+get_block_placeholder(self) -> str
+```
+
+Returns the block placeholder for the current block which can be used for
+templating.
+
+**Returns:**
+- The block placeholder for the current block in the format
+`prefect.blocks.{block_type_name}.{block_document_name}`
+
+**Raises:**
+- `BlockNotSavedError`: Raised if the block has not been saved.
+
+If a block has not been saved, the return value will be `None`.
+
+
+#### `model_json_schema`
+
+```python
+model_json_schema(cls, by_alias: bool = True, ref_template: str = '#/definitions/{model}', schema_generator: type[GenerateJsonSchema] = GenerateJsonSchema, mode: Literal['validation', 'serialization'] = 'validation') -> dict[str, Any]
+```
+
+TODO\: stop overriding this method - use GenerateSchema in ConfigDict instead?
+
+
+#### `model_validate`
+
+```python
+model_validate(cls: type[Self], obj: dict[str, Any] | Any) -> Self
+```
+
+#### `model_dump`
+
+```python
+model_dump(self) -> dict[str, Any]
+```

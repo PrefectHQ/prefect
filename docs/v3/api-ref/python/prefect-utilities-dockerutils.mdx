@@ -1,0 +1,303 @@
+---
+title: dockerutils
+sidebarTitle: dockerutils
+---
+
+# `prefect.utilities.dockerutils`
+
+## Functions
+
+### `python_version_minor`
+
+```python
+python_version_minor() -> str
+```
+
+### `python_version_micro`
+
+```python
+python_version_micro() -> str
+```
+
+### `get_prefect_image_name`
+
+```python
+get_prefect_image_name(prefect_version: Optional[str] = None, python_version: Optional[str] = None, flavor: Optional[str] = None) -> str
+```
+
+
+Get the Prefect image name matching the current Prefect and Python versions.
+
+**Args:**
+- `prefect_version`: An optional override for the Prefect version.
+- `python_version`: An optional override for the Python version; must be at the
+minor level e.g. '3.9'.
+- `flavor`: An optional alternative image flavor to build, like 'conda'
+
+
+### `silence_docker_warnings`
+
+```python
+silence_docker_warnings() -> Generator[None, None, None]
+```
+
+### `docker_client`
+
+```python
+docker_client() -> Generator['DockerClient', None, None]
+```
+
+
+Get the environmentally-configured Docker client
+
+
+### `build_image`
+
+```python
+build_image(context: Path, dockerfile: str = 'Dockerfile', tag: Optional[str] = None, pull: bool = False, platform: Optional[str] = None, stream_progress_to: Optional[TextIO] = None, **kwargs: Any) -> str
+```
+
+
+Builds a Docker image, returning the image ID
+
+**Args:**
+- `context`: the root directory for the Docker build context
+- `dockerfile`: the path to the Dockerfile, relative to the context
+- `tag`: the tag to give this image
+- `pull`: True to pull the base image during the build
+- `stream_progress_to`: an optional stream (like sys.stdout, or an io.TextIO) that
+will collect the build output as it is reported by Docker
+
+**Returns:**
+- The image ID
+
+
+### `push_image`
+
+```python
+push_image(image_id: str, registry_url: str, name: str, tag: Optional[str] = None, stream_progress_to: Optional[TextIO] = None) -> str
+```
+
+
+Pushes a local image to a Docker registry, returning the registry-qualified tag
+for that image
+
+This assumes that the environment's Docker daemon is already authenticated to the
+given registry, and currently makes no attempt to authenticate.
+
+**Args:**
+- `image_id`: a Docker image ID
+- `registry_url`: the URL of a Docker registry
+- `name`: the name of this image
+- `tag`: the tag to give this image (defaults to a short representation of
+the image's ID)
+- `stream_progress_to`: an optional stream (like sys.stdout, or an io.TextIO) that
+will collect the build output as it is reported by Docker
+
+**Returns:**
+- A registry-qualified tag, like my-registry.example.com/my-image:abcdefg
+
+
+### `to_run_command`
+
+```python
+to_run_command(command: list[str]) -> str
+```
+
+
+Convert a process-style list of command arguments to a single Dockerfile RUN
+instruction.
+
+
+### `parse_image_tag`
+
+```python
+parse_image_tag(name: str) -> tuple[str, Optional[str]]
+```
+
+
+Parse Docker Image String
+
+- If a tag or digest exists, this function parses and returns the image registry and tag/digest,
+  separately as a tuple.
+  - Example 1: 'prefecthq/prefect:latest' -> ('prefecthq/prefect', 'latest')
+  - Example 2: 'hostname.io:5050/folder/subfolder:latest' -> ('hostname.io:5050/folder/subfolder', 'latest')
+  - Example 3: 'prefecthq/prefect@sha256:abc123' -> ('prefecthq/prefect', 'sha256:abc123')
+- Supports parsing Docker Image strings that follow Docker Image Specification v1.1.0
+  - Image building tools typically enforce this standard
+
+**Args:**
+- `name`: Name of Docker Image
+
+
+### `split_repository_path`
+
+```python
+split_repository_path(repository_path: str) -> tuple[Optional[str], str]
+```
+
+
+Splits a Docker repository path into its namespace and repository components.
+
+**Args:**
+- `repository_path`: The Docker repository path to split.
+
+**Returns:**
+- Tuple[Optional\[str], str]: A tuple containing the namespace and repository components.
+- namespace (Optional\[str]): The Docker namespace, combining the registry and organization. None if not present.
+- repository (Optionals[str]): The repository name.
+
+
+### `format_outlier_version_name`
+
+```python
+format_outlier_version_name(version: str) -> str
+```
+
+
+Formats outlier docker version names to pass `packaging.version.parse` validation
+- Current cases are simple, but creates stub for more complicated formatting if eventually needed.
+- Example outlier versions that throw a parsing exception:
+  - "20.10.0-ce" (variant of community edition label)
+  - "20.10.0-ee" (variant of enterprise edition label)
+
+**Args:**
+- `version`: raw docker version value
+
+**Returns:**
+- value that can pass `packaging.version.parse` validation
+
+
+### `generate_default_dockerfile`
+
+```python
+generate_default_dockerfile(context: Optional[Path] = None)
+```
+
+
+Generates a default Dockerfile used for deploying flows. The Dockerfile is written
+to a temporary file and yielded. The temporary file is removed after the context
+manager exits.
+
+**Args:**
+- `-`: The context to use for the Dockerfile. Defaults to
+the current working directory.
+
+
+## Classes
+
+### `BuildError`
+
+
+Raised when a Docker build fails
+
+
+### `ImageBuilder`
+
+
+An interface for preparing Docker build contexts and building images
+
+
+**Methods:**
+
+#### `add_line`
+
+```python
+add_line(self, line: str) -> None
+```
+
+Add a line to this image's Dockerfile
+
+
+#### `add_lines`
+
+```python
+add_lines(self, lines: Iterable[str]) -> None
+```
+
+Add lines to this image's Dockerfile
+
+
+#### `copy`
+
+```python
+copy(self, source: Union[str, Path], destination: Union[str, PurePosixPath]) -> None
+```
+
+Copy a file to this image
+
+
+#### `write_text`
+
+```python
+write_text(self, text: str, destination: Union[str, PurePosixPath]) -> None
+```
+
+#### `build`
+
+```python
+build(self, pull: bool = False, stream_progress_to: Optional[TextIO] = None) -> str
+```
+
+Build the Docker image from the current state of the ImageBuilder
+
+**Args:**
+- `pull`: True to pull the base image during the build
+- `stream_progress_to`: an optional stream (like sys.stdout, or an io.TextIO)
+that will collect the build output as it is reported by Docker
+
+**Returns:**
+- The image ID
+
+
+#### `assert_has_line`
+
+```python
+assert_has_line(self, line: str) -> None
+```
+
+Asserts that the given line is in the Dockerfile
+
+
+#### `assert_line_absent`
+
+```python
+assert_line_absent(self, line: str) -> None
+```
+
+Asserts that the given line is absent from the Dockerfile
+
+
+#### `assert_line_before`
+
+```python
+assert_line_before(self, first: str, second: str) -> None
+```
+
+Asserts that the first line appears before the second line
+
+
+#### `assert_line_after`
+
+```python
+assert_line_after(self, second: str, first: str) -> None
+```
+
+Asserts that the second line appears after the first line
+
+
+#### `assert_has_file`
+
+```python
+assert_has_file(self, source: Path, container_path: PurePosixPath) -> None
+```
+
+Asserts that the given file or directory will be copied into the container
+at the given path
+
+
+### `PushError`
+
+
+Raised when a Docker image push fails
+

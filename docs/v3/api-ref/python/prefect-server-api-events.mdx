@@ -1,0 +1,20 @@
+---
+title: events
+sidebarTitle: events
+---
+
+# `prefect.server.api.events`
+
+## Functions
+
+### `verified_page_token`
+
+```python
+verified_page_token(page_token: str = Query(..., alias='page-token')) -> str
+```
+
+### `generate_next_page_link`
+
+```python
+generate_next_page_link(request: Request, page_token: Optional[str]) -> Optional[str]
+```

@@ -1,0 +1,66 @@
+---
+title: hashing
+sidebarTitle: hashing
+---
+
+# `prefect.utilities.hashing`
+
+## Functions
+
+### `stable_hash`
+
+```python
+stable_hash(*args: Union[str, bytes]) -> str
+```
+
+
+Given some arguments, produces a stable 64-bit hash of their contents.
+
+Supports bytes and strings. Strings will be UTF-8 encoded.
+
+**Args:**
+- `*args`: Items to include in the hash.
+- `hash_algo`: Hash algorithm from hashlib to use.
+
+**Returns:**
+- A hex hash.
+
+
+### `file_hash`
+
+```python
+file_hash(path: str, hash_algo: Callable[..., Any] = _md5) -> str
+```
+
+
+Given a path to a file, produces a stable hash of the file contents.
+
+**Args:**
+- `path`: the path to a file
+- `hash_algo`: Hash algorithm from hashlib to use.
+
+**Returns:**
+- a hash of the file contents
+
+
+### `hash_objects`
+
+```python
+hash_objects(*args: Any, **kwargs: Any) -> Optional[str]
+```
+
+
+Attempt to hash objects by dumping to JSON or serializing with cloudpickle.
+
+**Args:**
+- `*args`: Positional arguments to hash
+- `hash_algo`: Hash algorithm to use
+- `raise_on_failure`: If True, raise exceptions instead of returning None
+- `**kwargs`: Keyword arguments to hash
+
+**Returns:**
+- A hash string or None if hashing failed
+
+**Raises:**
+- `HashError`: If objects cannot be hashed and raise_on_failure is True
+

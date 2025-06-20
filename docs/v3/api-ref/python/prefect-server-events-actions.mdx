@@ -1,0 +1,297 @@
+---
+title: actions
+sidebarTitle: actions
+---
+
+# `prefect.server.events.actions`
+
+
+
+The actions consumer watches for actions that have been triggered by Automations
+and carries them out.  Also includes the various concrete subtypes of Actions
+
+
+## Classes
+
+### `ActionFailed`
+
+### `Action`
+
+
+An Action that may be performed when an Automation is triggered
+
+
+**Methods:**
+
+#### `logging_context`
+
+```python
+logging_context(self, triggered_action: 'TriggeredAction') -> Dict[str, Any]
+```
+
+Common logging context for all actions
+
+
+### `DoNothing`
+
+
+Do nothing when an Automation is triggered
+
+
+### `EmitEventAction`
+
+### `ExternalDataAction`
+
+
+Base class for Actions that require data from an external source such as
+the Orchestration API
+
+
+**Methods:**
+
+#### `reason_from_response`
+
+```python
+reason_from_response(self, response: Response) -> str
+```
+
+### `JinjaTemplateAction`
+
+
+Base class for Actions that use Jinja templates supplied by the user and
+are rendered with a context containing data from the triggered action,
+and the orchestration API.
+
+
+**Methods:**
+
+#### `validate_template`
+
+```python
+validate_template(cls, template: str, field_name: str) -> str
+```
+
+#### `templates_in_dictionary`
+
+```python
+templates_in_dictionary(cls, dict_: dict[Any, Any | dict[Any, Any]]) -> list[tuple[dict[Any, Any], dict[Any, str]]]
+```
+
+#### `instantiate_object`
+
+```python
+instantiate_object(self, model: Type[PrefectBaseModel], data: Dict[str, Any], triggered_action: 'TriggeredAction', resource: Optional['Resource'] = None) -> PrefectBaseModel
+```
+
+### `DeploymentAction`
+
+
+Base class for Actions that operate on Deployments and need to infer them from
+events
+
+
+**Methods:**
+
+#### `selected_deployment_requires_id`
+
+```python
+selected_deployment_requires_id(self) -> Self
+```
+
+### `DeploymentCommandAction`
+
+
+Executes a command against a matching deployment
+
+
+### `RunDeployment`
+
+
+Runs the given deployment with the given parameters
+
+
+**Methods:**
+
+#### `validate_parameters`
+
+```python
+validate_parameters(cls, value: dict[str, Any] | None) -> dict[str, Any] | None
+```
+
+### `PauseDeployment`
+
+
+Pauses the given Deployment
+
+
+### `ResumeDeployment`
+
+
+Resumes the given Deployment
+
+
+### `FlowRunAction`
+
+
+An action that operates on a flow run
+
+
+### `FlowRunStateChangeAction`
+
+
+Changes the state of a flow run associated with the trigger
+
+
+### `ChangeFlowRunState`
+
+
+Changes the state of a flow run associated with the trigger
+
+
+### `CancelFlowRun`
+
+
+Cancels a flow run associated with the trigger
+
+
+### `SuspendFlowRun`
+
+
+Suspends a flow run associated with the trigger
+
+
+### `ResumeFlowRun`
+
+
+Resumes a paused or suspended flow run associated with the trigger
+
+
+### `CallWebhook`
+
+
+Call a webhook when an Automation is triggered.
+
+
+**Methods:**
+
+#### `ensure_payload_is_a_string`
+
+```python
+ensure_payload_is_a_string(cls, value: Union[str, Dict[str, Any], None]) -> Optional[str]
+```
+
+Temporary measure while we migrate payloads from being a dictionary to
+a string template.  This covers both reading from the database where values
+may currently be a dictionary, as well as the API, where older versions of the
+frontend may be sending a JSON object with the single `"message"` key.
+
+
+#### `validate_payload_templates`
+
+```python
+validate_payload_templates(cls, value: Optional[str]) -> Optional[str]
+```
+
+Validate user-provided payload template.
+
+
+### `SendNotification`
+
+
+Send a notification when an Automation is triggered
+
+
+**Methods:**
+
+#### `is_valid_template`
+
+```python
+is_valid_template(cls, value: str, info: ValidationInfo) -> str
+```
+
+### `WorkPoolAction`
+
+
+Base class for Actions that operate on Work Pools and need to infer them from
+events
+
+
+**Methods:**
+
+#### `selected_work_pool_requires_id`
+
+```python
+selected_work_pool_requires_id(self) -> Self
+```
+
+### `WorkPoolCommandAction`
+
+### `PauseWorkPool`
+
+
+Pauses a Work Pool
+
+
+### `ResumeWorkPool`
+
+
+Resumes a Work Pool
+
+
+### `WorkQueueAction`
+
+
+Base class for Actions that operate on Work Queues and need to infer them from
+events
+
+
+**Methods:**
+
+#### `selected_work_queue_requires_id`
+
+```python
+selected_work_queue_requires_id(self) -> Self
+```
+
+### `WorkQueueCommandAction`
+
+### `PauseWorkQueue`
+
+
+Pauses a Work Queue
+
+
+### `ResumeWorkQueue`
+
+
+Resumes a Work Queue
+
+
+### `AutomationAction`
+
+
+Base class for Actions that operate on Automations and need to infer them from
+events
+
+
+**Methods:**
+
+#### `selected_automation_requires_id`
+
+```python
+selected_automation_requires_id(self) -> Self
+```
+
+### `AutomationCommandAction`
+
+### `PauseAutomation`
+
+
+Pauses a Work Queue
+
+
+### `ResumeAutomation`
+
+
+Resumes a Work Queue
+

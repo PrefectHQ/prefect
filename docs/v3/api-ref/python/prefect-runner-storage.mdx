@@ -1,0 +1,301 @@
+---
+title: storage
+sidebarTitle: storage
+---
+
+# `prefect.runner.storage`
+
+## Functions
+
+### `create_storage_from_source`
+
+```python
+create_storage_from_source(source: str, pull_interval: Optional[int] = 60) -> RunnerStorage
+```
+
+
+Creates a storage object from a URL.
+
+**Args:**
+- `url`: The URL to create a storage object from. Supports git and `fsspec`
+URLs.
+- `pull_interval`: The interval at which to pull contents from remote storage to
+local storage
+
+**Returns:**
+- A runner storage compatible object
+
+
+## Classes
+
+### `RunnerStorage`
+
+
+A storage interface for a runner to use to retrieve
+remotely stored flow code.
+
+
+**Methods:**
+
+#### `set_base_path`
+
+```python
+set_base_path(self, path: Path) -> None
+```
+
+Sets the base path to use when pulling contents from remote storage to
+local storage.
+
+
+#### `pull_interval`
+
+```python
+pull_interval(self) -> Optional[int]
+```
+
+The interval at which contents from remote storage should be pulled to
+local storage. If None, remote storage will perform a one-time sync.
+
+
+#### `destination`
+
+```python
+destination(self) -> Path
+```
+
+The local file path to pull contents from remote storage to.
+
+
+#### `to_pull_step`
+
+```python
+to_pull_step(self) -> dict[str, Any] | list[dict[str, Any]]
+```
+
+Returns a dictionary representation of the storage object that can be
+used as a deployment pull step.
+
+
+### `GitCredentials`
+
+### `GitRepository`
+
+
+
+    Pulls the contents of a git repository to the local filesystem.
+
+    Parameters:
+        url: The URL of the git repository to pull from
+        credentials: A dictionary of credentials to use when pulling from the
+            repository. If a username is provided, an access token must also be
+            provided.
+        name: The name of the repository. If not provided, the name will be
+            inferred from the repository URL.
+        branch: The branch to pull from. Defaults to "main".
+        pull_interval: The interval in seconds at which to pull contents from
+            remote storage to local storage. If None, remote storage will perform
+            a one-time sync.
+        directories: The directories to pull from the Git repository (uses git sparse-checkout)
+
+    Examples:
+        Pull the contents of a private git repository to the local filesystem:
+
+        ```python
+        from prefect.runner.storage import GitRepository
+
+        storage = GitRepository(
+            url="https://github.com/org/repo.git",
+            credentials={"username": "oauth2", "access_token": "my-access-token"},
+        )
+
+        await storage.pull_code()
+        ```
+    
+
+**Methods:**
+
+#### `destination`
+
+```python
+destination(self) -> Path
+```
+
+#### `set_base_path`
+
+```python
+set_base_path(self, path: Path) -> None
+```
+
+#### `pull_interval`
+
+```python
+pull_interval(self) -> Optional[int]
+```
+
+#### `to_pull_step`
+
+```python
+to_pull_step(self) -> dict[str, Any]
+```
+
+### `RemoteStorage`
+
+
+
+    Pulls the contents of a remote storage location to the local filesystem.
+
+    Parameters:
+        url: The URL of the remote storage location to pull from. Supports
+            `fsspec` URLs. Some protocols may require an additional `fsspec`
+            dependency to be installed. Refer to the
+            [`fsspec` docs](https://filesystem-spec.readthedocs.io/en/latest/api.html#other-known-implementations)
+            for more details.
+        pull_interval: The interval in seconds at which to pull contents from
+            remote storage to local storage. If None, remote storage will perform
+            a one-time sync.
+        **settings: Any additional settings to pass the `fsspec` filesystem class.
+
+    Examples:
+        Pull the contents of a remote storage location to the local filesystem:
+
+        ```python
+        from prefect.runner.storage import RemoteStorage
+
+        storage = RemoteStorage(url="s3://my-bucket/my-folder")
+
+        await storage.pull_code()
+        ```
+
+        Pull the contents of a remote storage location to the local filesystem
+        with additional settings:
+
+        ```python
+        from prefect.runner.storage import RemoteStorage
+        from prefect.blocks.system import Secret
+
+        storage = RemoteStorage(
+            url="s3://my-bucket/my-folder",
+            # Use Secret blocks to keep credentials out of your code
+            key=Secret.load("my-aws-access-key"),
+            secret=Secret.load("my-aws-secret-key"),
+        )
+
+        await storage.pull_code()
+        ```
+    
+
+**Methods:**
+
+#### `set_base_path`
+
+```python
+set_base_path(self, path: Path) -> None
+```
+
+#### `pull_interval`
+
+```python
+pull_interval(self) -> Optional[int]
+```
+
+The interval at which contents from remote storage should be pulled to
+local storage. If None, remote storage will perform a one-time sync.
+
+
+#### `destination`
+
+```python
+destination(self) -> Path
+```
+
+The local file path to pull contents from remote storage to.
+
+
+#### `to_pull_step`
+
+```python
+to_pull_step(self) -> dict[str, Any]
+```
+
+Returns a dictionary representation of the storage object that can be
+used as a deployment pull step.
+
+
+### `BlockStorageAdapter`
+
+
+A storage adapter for a storage block object to allow it to be used as a
+runner storage object.
+
+
+**Methods:**
+
+#### `set_base_path`
+
+```python
+set_base_path(self, path: Path) -> None
+```
+
+#### `pull_interval`
+
+```python
+pull_interval(self) -> Optional[int]
+```
+
+#### `destination`
+
+```python
+destination(self) -> Path
+```
+
+#### `to_pull_step`
+
+```python
+to_pull_step(self) -> dict[str, Any]
+```
+
+### `LocalStorage`
+
+
+Sets the working directory in the local filesystem.
+Parameters:
+    Path: Local file path to set the working directory for the flow
+Examples:
+    Sets the working directory for the local path to the flow:
+    ```python
+    from prefect.runner.storage import Localstorage
+    storage = LocalStorage(
+        path="/path/to/local/flow_directory",
+    )
+    ```
+
+
+**Methods:**
+
+#### `destination`
+
+```python
+destination(self) -> Path
+```
+
+#### `set_base_path`
+
+```python
+set_base_path(self, path: Path) -> None
+```
+
+#### `pull_interval`
+
+```python
+pull_interval(self) -> Optional[int]
+```
+
+#### `to_pull_step`
+
+```python
+to_pull_step(self) -> dict[str, Any]
+```
+
+Returns a dictionary representation of the storage object that can be
+used as a deployment pull step.
+

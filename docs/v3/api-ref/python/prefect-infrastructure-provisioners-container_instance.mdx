@@ -1,0 +1,51 @@
+---
+title: container_instance
+sidebarTitle: container_instance
+---
+
+# `prefect.infrastructure.provisioners.container_instance`
+
+
+
+This module defines the ContainerInstancePushProvisioner class, which is responsible for provisioning
+infrastructure using Azure Container Instances for Prefect work pools.
+
+The ContainerInstancePushProvisioner class provides methods for provisioning infrastructure and
+interacting with Azure Container Instances.
+
+Classes:
+    AzureCLI: A class to handle Azure CLI commands.
+    ContainerInstancePushProvisioner: A class for provisioning infrastructure using Azure Container Instances.
+
+
+
+## Classes
+
+### `AzureCLI`
+
+
+A class for executing Azure CLI commands and handling their output.
+
+**Args:**
+- `console`: A Rich console object for displaying messages.
+
+
+### `ContainerInstancePushProvisioner`
+
+
+A class responsible for provisioning Azure resources and setting up a push work pool.
+
+
+**Methods:**
+
+#### `console`
+
+```python
+console(self) -> Console
+```
+
+#### `console`
+
+```python
+console(self, value: Console) -> None
+```

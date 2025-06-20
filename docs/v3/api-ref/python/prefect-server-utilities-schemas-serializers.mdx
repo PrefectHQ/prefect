@@ -1,0 +1,35 @@
+---
+title: serializers
+sidebarTitle: serializers
+---
+
+# `prefect.server.utilities.schemas.serializers`
+
+## Functions
+
+### `orjson_dumps`
+
+```python
+orjson_dumps(v: Any) -> str
+```
+
+
+Utility for dumping a value to JSON using orjson.
+
+orjson.dumps returns bytes, to match standard json.dumps we need to decode.
+
+
+### `orjson_dumps_extra_compatible`
+
+```python
+orjson_dumps_extra_compatible(v: Any) -> str
+```
+
+
+Utility for dumping a value to JSON using orjson, but allows for
+1) non-string keys: this is helpful for situations like pandas dataframes,
+which can result in non-string keys
+2) numpy types: for serializing numpy arrays
+
+orjson.dumps returns bytes, to match standard json.dumps we need to decode.
+

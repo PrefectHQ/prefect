@@ -1,0 +1,112 @@
+---
+title: processutils
+sidebarTitle: processutils
+---
+
+# `prefect.utilities.processutils`
+
+## Functions
+
+### `forward_signal_handler`
+
+```python
+forward_signal_handler(pid: int, signum: int, *signums: int) -> None
+```
+
+
+Forward subsequent signum events (e.g. interrupts) to respective signums.
+
+
+### `setup_signal_handlers_server`
+
+```python
+setup_signal_handlers_server(pid: int, process_name: str, print_fn: PrintFn) -> None
+```
+
+
+Handle interrupts of the server gracefully.
+
+
+### `setup_signal_handlers_agent`
+
+```python
+setup_signal_handlers_agent(pid: int, process_name: str, print_fn: PrintFn) -> None
+```
+
+
+Handle interrupts of the agent gracefully.
+
+
+### `setup_signal_handlers_worker`
+
+```python
+setup_signal_handlers_worker(pid: int, process_name: str, print_fn: PrintFn) -> None
+```
+
+
+Handle interrupts of workers gracefully.
+
+
+### `get_sys_executable`
+
+```python
+get_sys_executable() -> str
+```
+
+## Classes
+
+### `StreamReaderWrapper`
+
+### `StreamWriterWrapper`
+
+### `Process`
+
+**Methods:**
+
+#### `terminate`
+
+```python
+terminate(self) -> None
+```
+
+#### `kill`
+
+```python
+kill(self) -> None
+```
+
+#### `send_signal`
+
+```python
+send_signal(self, signal: int) -> None
+```
+
+#### `pid`
+
+```python
+pid(self) -> int
+```
+
+#### `returncode`
+
+```python
+returncode(self) -> Union[int, None]
+```
+
+#### `stdin`
+
+```python
+stdin(self) -> Union[anyio.abc.ByteSendStream, None]
+```
+
+#### `stdout`
+
+```python
+stdout(self) -> Union[anyio.abc.ByteReceiveStream, None]
+```
+
+#### `stderr`
+
+```python
+stderr(self) -> Union[anyio.abc.ByteReceiveStream, None]
+```

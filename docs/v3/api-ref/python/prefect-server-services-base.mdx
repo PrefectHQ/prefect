@@ -1,0 +1,72 @@
+---
+title: base
+sidebarTitle: base
+---
+
+# `prefect.server.services.base`
+
+## Classes
+
+### `Service`
+
+**Methods:**
+
+#### `service_settings`
+
+```python
+service_settings(cls) -> ServicesBaseSetting
+```
+
+The Prefect setting that controls whether the service is enabled
+
+
+#### `environment_variable_name`
+
+```python
+environment_variable_name(cls) -> str
+```
+
+#### `enabled`
+
+```python
+enabled(cls) -> bool
+```
+
+Whether the service is enabled
+
+
+#### `all_services`
+
+```python
+all_services(cls) -> Sequence[type[Self]]
+```
+
+Get list of all service classes
+
+
+#### `enabled_services`
+
+```python
+enabled_services(cls) -> list[type[Self]]
+```
+
+Get list of enabled service classes
+
+
+### `RunInAllServers`
+
+
+A marker class for services that should run in all server processes, both the
+web server and the standalone services process.
+
+
+### `LoopService`
+
+
+Loop services are relatively lightweight maintenance routines that need to run
+periodically.
+
+This class makes it straightforward to design and integrate them. Users only need to
+define the `run_once` coroutine to describe the behavior of the service on each
+loop.
+

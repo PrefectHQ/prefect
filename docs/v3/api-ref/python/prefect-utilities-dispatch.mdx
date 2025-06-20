@@ -1,0 +1,97 @@
+---
+title: dispatch
+sidebarTitle: dispatch
+---
+
+# `prefect.utilities.dispatch`
+
+
+
+Provides methods for performing dynamic dispatch for actions on base type to one of its
+subtypes.
+
+Example:
+
+```python
+@register_base_type
+class Base:
+    @classmethod
+    def __dispatch_key__(cls):
+        return cls.__name__.lower()
+
+
+class Foo(Base):
+    ...
+
+key = get_dispatch_key(Foo)  # 'foo'
+lookup_type(Base, key) # Foo
+```
+
+
+## Functions
+
+### `get_registry_for_type`
+
+```python
+get_registry_for_type(cls: T) -> Optional[dict[str, T]]
+```
+
+
+Get the first matching registry for a class or any of its base classes.
+
+If not found, `None` is returned.
+
+
+### `get_dispatch_key`
+
+```python
+get_dispatch_key(cls_or_instance: Any, allow_missing: bool = False) -> Optional[str]
+```
+
+
+Retrieve the unique dispatch key for a class type or instance.
+
+This key is defined at the `__dispatch_key__` attribute. If it is a callable, it
+will be resolved.
+
+If `allow_missing` is `False`, an exception will be raised if the attribute is not
+defined or the key is null. If `True`, `None` will be returned in these cases.
+
+
+### `register_base_type`
+
+```python
+register_base_type(cls: T) -> T
+```
+
+
+Register a base type allowing child types to be registered for dispatch with
+`register_type`.
+
+The base class may or may not define a `__dispatch_key__` to allow lookups of the
+base type.
+
+
+### `register_type`
+
+```python
+register_type(cls: T) -> T
+```
+
+
+Register a type for lookup with dispatch.
+
+The type or one of its parents must define a unique `__dispatch_key__`.
+
+One of the classes base types must be registered using `register_base_type`.
+
+
+### `lookup_type`
+
+```python
+lookup_type(cls: T, dispatch_key: str) -> T
+```
+
+
+Look up a dispatch key in the type registry for the given class.
+

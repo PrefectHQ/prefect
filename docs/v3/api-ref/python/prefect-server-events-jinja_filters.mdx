@@ -1,0 +1,34 @@
+---
+title: jinja_filters
+sidebarTitle: jinja_filters
+---
+
+# `prefect.server.events.jinja_filters`
+
+## Functions
+
+### `ui_url`
+
+```python
+ui_url(ctx: Mapping[str, Any], obj: Any) -> Optional[str]
+```
+
+
+Return the UI URL for the given object.
+
+
+### `ui_resource_events_url`
+
+```python
+ui_resource_events_url(ctx: Mapping[str, Any], obj: Any) -> Optional[str]
+```
+
+
+Given a Resource or Model, return a UI link to the events page
+filtered for that resource. If an unsupported object is provided,
+return `None`.
+
+Currently supports Automation, Resource, Deployment, Flow, FlowRun, TaskRun, and
+WorkQueue objects. Within a Resource, deployment, flow, flow-run, task-run,
+and work-queue are supported.
+

@@ -1,0 +1,55 @@
+---
+title: user_templates
+sidebarTitle: user_templates
+---
+
+# `prefect.server.utilities.user_templates`
+
+
+Utilities to support safely rendering user-supplied templates
+
+## Functions
+
+### `register_user_template_filters`
+
+```python
+register_user_template_filters(filters: dict[str, Any]) -> None
+```
+
+
+Register additional filters that will be available to user templates
+
+
+### `validate_user_template`
+
+```python
+validate_user_template(template: str) -> None
+```
+
+### `matching_types_in_templates`
+
+```python
+matching_types_in_templates(templates: list[str], types: set[str]) -> list[str]
+```
+
+### `maybe_template`
+
+```python
+maybe_template(possible: str) -> bool
+```
+
+### `render_user_template_sync`
+
+```python
+render_user_template_sync(template: str, context: dict[str, Any]) -> str
+```
+
+## Classes
+
+### `UserTemplateEnvironment`
+
+### `TemplateSecurityError`
+
+
+Raised when extended validation of a template fails.
+

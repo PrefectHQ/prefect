@@ -1,0 +1,46 @@
+---
+title: legacy
+sidebarTitle: legacy
+---
+
+# `prefect.settings.legacy`
+
+## Classes
+
+### `Setting`
+
+
+Mimics the old Setting object for compatibility with existing code.
+
+
+**Methods:**
+
+#### `name`
+
+```python
+name(self) -> str
+```
+
+#### `is_secret`
+
+```python
+is_secret(self) -> bool
+```
+
+#### `default`
+
+```python
+default(self) -> Any
+```
+
+#### `value`
+
+```python
+value(self: Self) -> Any
+```
+
+#### `value_from`
+
+```python
+value_from(self: Self, settings: Settings) -> Any
+```

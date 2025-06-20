@@ -1,0 +1,64 @@
+---
+title: redis
+sidebarTitle: redis
+---
+
+# `prefect.blocks.redis`
+
+## Classes
+
+### `RedisStorageContainer`
+
+
+Block used to interact with Redis as a filesystem
+
+
+**Methods:**
+
+#### `block_initialization`
+
+```python
+block_initialization(self) -> None
+```
+
+#### `from_host`
+
+```python
+from_host(cls, host: str, port: int = 6379, db: int = 0, username: None | str | SecretStr = None, password: None | str | SecretStr = None) -> Self
+```
+
+Create block from hostname, username and password
+
+**Args:**
+- `host`: Redis hostname
+- `username`: Redis username
+- `password`: Redis password
+- `port`: Redis port
+
+**Returns:**
+- `RedisStorageContainer` instance
+
+
+#### `from_connection_string`
+
+```python
+from_connection_string(cls, connection_string: str | SecretStr) -> Self
+```
+
+Create block from a Redis connection string
+
+Supports the following URL schemes:
+- `redis://` creates a TCP socket connection
+- `rediss://` creates a SSL wrapped TCP socket connection
+- `unix://` creates a Unix Domain Socket connection
+
+See [Redis docs](https://redis.readthedocs.io/en/stable/examples
+/connection_examples.html#Connecting-to-Redis-instances-by-specifying-a-URL
+-scheme.) for more info.
+
+**Args:**
+- `connection_string`: Redis connection string
+
+**Returns:**
+- `RedisStorageContainer` instance
+

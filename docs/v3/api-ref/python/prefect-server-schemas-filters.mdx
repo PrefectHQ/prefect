@@ -1,0 +1,601 @@
+---
+title: filters
+sidebarTitle: filters
+---
+
+# `prefect.server.schemas.filters`
+
+
+
+Schemas that define Prefect REST API filtering operations.
+
+Each filter schema includes logic for transforming itself into a SQL `where` clause.
+
+
+## Classes
+
+### `Operator`
+
+
+Operators for combining filter criteria.
+
+
+### `PrefectFilterBaseModel`
+
+
+Base model for Prefect filters
+
+
+**Methods:**
+
+#### `as_sql_filter`
+
+```python
+as_sql_filter(self, db: 'PrefectDBInterface') -> sa.ColumnElement[bool]
+```
+
+Generate SQL filter from provided filter parameters. If no filters parameters are available, return a TRUE filter.
+
+
+### `PrefectOperatorFilterBaseModel`
+
+
+Base model for Prefect filters that combines criteria with a user-provided operator
+
+
+**Methods:**
+
+#### `as_sql_filter`
+
+```python
+as_sql_filter(self, db: 'PrefectDBInterface') -> sa.ColumnElement[bool]
+```
+
+### `FlowFilterId`
+
+
+Filter by `Flow.id`.
+
+
+### `FlowFilterDeployment`
+
+
+Filter by flows by deployment
+
+
+### `FlowFilterName`
+
+
+Filter by `Flow.name`.
+
+
+### `FlowFilterTags`
+
+
+Filter by `Flow.tags`.
+
+
+### `FlowFilter`
+
+
+Filter for flows. Only flows matching all criteria will be returned.
+
+
+### `FlowRunFilterId`
+
+
+Filter by `FlowRun.id`.
+
+
+### `FlowRunFilterName`
+
+
+Filter by `FlowRun.name`.
+
+
+### `FlowRunFilterTags`
+
+
+Filter by `FlowRun.tags`.
+
+
+### `FlowRunFilterDeploymentId`
+
+
+Filter by `FlowRun.deployment_id`.
+
+
+### `FlowRunFilterWorkQueueName`
+
+
+Filter by `FlowRun.work_queue_name`.
+
+
+### `FlowRunFilterStateType`
+
+
+Filter by `FlowRun.state_type`.
+
+
+### `FlowRunFilterStateName`
+
+
+Filter by `FlowRun.state_name`.
+
+
+### `FlowRunFilterState`
+
+
+Filter by `FlowRun.state_type` and `FlowRun.state_name`.
+
+
+### `FlowRunFilterFlowVersion`
+
+
+Filter by `FlowRun.flow_version`.
+
+
+### `FlowRunFilterStartTime`
+
+
+Filter by `FlowRun.start_time`.
+
+
+### `FlowRunFilterEndTime`
+
+
+Filter by `FlowRun.end_time`.
+
+
+### `FlowRunFilterExpectedStartTime`
+
+
+Filter by `FlowRun.expected_start_time`.
+
+
+### `FlowRunFilterNextScheduledStartTime`
+
+
+Filter by `FlowRun.next_scheduled_start_time`.
+
+
+### `FlowRunFilterParentFlowRunId`
+
+
+Filter for subflows of a given flow run
+
+
+### `FlowRunFilterParentTaskRunId`
+
+
+Filter by `FlowRun.parent_task_run_id`.
+
+
+### `FlowRunFilterIdempotencyKey`
+
+
+Filter by FlowRun.idempotency_key.
+
+
+### `FlowRunFilter`
+
+
+Filter flow runs. Only flow runs matching all criteria will be returned
+
+
+**Methods:**
+
+#### `only_filters_on_id`
+
+```python
+only_filters_on_id(self) -> bool
+```
+
+### `TaskRunFilterFlowRunId`
+
+
+Filter by `TaskRun.flow_run_id`.
+
+
+### `TaskRunFilterId`
+
+
+Filter by `TaskRun.id`.
+
+
+### `TaskRunFilterName`
+
+
+Filter by `TaskRun.name`.
+
+
+### `TaskRunFilterTags`
+
+
+Filter by `TaskRun.tags`.
+
+
+### `TaskRunFilterStateType`
+
+
+Filter by `TaskRun.state_type`.
+
+
+### `TaskRunFilterStateName`
+
+
+Filter by `TaskRun.state_name`.
+
+
+### `TaskRunFilterState`
+
+
+Filter by `TaskRun.type` and `TaskRun.name`.
+
+
+### `TaskRunFilterSubFlowRuns`
+
+
+Filter by `TaskRun.subflow_run`.
+
+
+### `TaskRunFilterStartTime`
+
+
+Filter by `TaskRun.start_time`.
+
+
+### `TaskRunFilterExpectedStartTime`
+
+
+Filter by `TaskRun.expected_start_time`.
+
+
+### `TaskRunFilter`
+
+
+Filter task runs. Only task runs matching all criteria will be returned
+
+
+### `DeploymentFilterId`
+
+
+Filter by `Deployment.id`.
+
+
+### `DeploymentFilterName`
+
+
+Filter by `Deployment.name`.
+
+
+### `DeploymentOrFlowNameFilter`
+
+
+Filter by `Deployment.name` or `Flow.name` with a single input string for ilike filtering.
+
+
+### `DeploymentFilterPaused`
+
+
+Filter by `Deployment.paused`.
+
+
+### `DeploymentFilterWorkQueueName`
+
+
+Filter by `Deployment.work_queue_name`.
+
+
+### `DeploymentFilterConcurrencyLimit`
+
+
+DEPRECATED: Prefer `Deployment.concurrency_limit_id` over `Deployment.concurrency_limit`.
+
+
+### `DeploymentFilterTags`
+
+
+Filter by `Deployment.tags`.
+
+
+### `DeploymentFilter`
+
+
+Filter for deployments. Only deployments matching all criteria will be returned.
+
+
+### `DeploymentScheduleFilterActive`
+
+
+Filter by `DeploymentSchedule.active`.
+
+
+### `DeploymentScheduleFilter`
+
+
+Filter for deployments. Only deployments matching all criteria will be returned.
+
+
+### `LogFilterName`
+
+
+Filter by `Log.name`.
+
+
+### `LogFilterLevel`
+
+
+Filter by `Log.level`.
+
+
+### `LogFilterTimestamp`
+
+
+Filter by `Log.timestamp`.
+
+
+### `LogFilterFlowRunId`
+
+
+Filter by `Log.flow_run_id`.
+
+
+### `LogFilterTaskRunId`
+
+
+Filter by `Log.task_run_id`.
+
+
+### `LogFilter`
+
+
+Filter logs. Only logs matching all criteria will be returned
+
+
+### `FilterSet`
+
+
+A collection of filters for common objects
+
+
+### `BlockTypeFilterName`
+
+
+Filter by `BlockType.name`
+
+
+### `BlockTypeFilterSlug`
+
+
+Filter by `BlockType.slug`
+
+
+### `BlockTypeFilter`
+
+
+Filter BlockTypes
+
+
+### `BlockSchemaFilterBlockTypeId`
+
+
+Filter by `BlockSchema.block_type_id`.
+
+
+### `BlockSchemaFilterId`
+
+
+Filter by BlockSchema.id
+
+
+### `BlockSchemaFilterCapabilities`
+
+
+Filter by `BlockSchema.capabilities`
+
+
+### `BlockSchemaFilterVersion`
+
+
+Filter by `BlockSchema.capabilities`
+
+
+### `BlockSchemaFilter`
+
+
+Filter BlockSchemas
+
+
+### `BlockDocumentFilterIsAnonymous`
+
+
+Filter by `BlockDocument.is_anonymous`.
+
+
+### `BlockDocumentFilterBlockTypeId`
+
+
+Filter by `BlockDocument.block_type_id`.
+
+
+### `BlockDocumentFilterId`
+
+
+Filter by `BlockDocument.id`.
+
+
+### `BlockDocumentFilterName`
+
+
+Filter by `BlockDocument.name`.
+
+
+### `BlockDocumentFilter`
+
+
+Filter BlockDocuments. Only BlockDocuments matching all criteria will be returned
+
+
+### `WorkQueueFilterId`
+
+
+Filter by `WorkQueue.id`.
+
+
+### `WorkQueueFilterName`
+
+
+Filter by `WorkQueue.name`.
+
+
+### `WorkQueueFilter`
+
+
+Filter work queues. Only work queues matching all criteria will be
+returned
+
+
+### `WorkPoolFilterId`
+
+
+Filter by `WorkPool.id`.
+
+
+### `WorkPoolFilterName`
+
+
+Filter by `WorkPool.name`.
+
+
+### `WorkPoolFilterType`
+
+
+Filter by `WorkPool.type`.
+
+
+### `WorkPoolFilter`
+
+
+Filter work pools. Only work pools matching all criteria will be returned
+
+
+### `WorkerFilterWorkPoolId`
+
+
+Filter by `Worker.worker_config_id`.
+
+
+### `WorkerFilterStatus`
+
+
+Filter by `Worker.status`.
+
+
+### `WorkerFilterLastHeartbeatTime`
+
+
+Filter by `Worker.last_heartbeat_time`.
+
+
+### `WorkerFilter`
+
+
+Filter by `Worker.last_heartbeat_time`.
+
+
+### `ArtifactFilterId`
+
+
+Filter by `Artifact.id`.
+
+
+### `ArtifactFilterKey`
+
+
+Filter by `Artifact.key`.
+
+
+### `ArtifactFilterFlowRunId`
+
+
+Filter by `Artifact.flow_run_id`.
+
+
+### `ArtifactFilterTaskRunId`
+
+
+Filter by `Artifact.task_run_id`.
+
+
+### `ArtifactFilterType`
+
+
+Filter by `Artifact.type`.
+
+
+### `ArtifactFilter`
+
+
+Filter artifacts. Only artifacts matching all criteria will be returned
+
+
+### `ArtifactCollectionFilterLatestId`
+
+
+Filter by `ArtifactCollection.latest_id`.
+
+
+### `ArtifactCollectionFilterKey`
+
+
+Filter by `ArtifactCollection.key`.
+
+
+### `ArtifactCollectionFilterFlowRunId`
+
+
+Filter by `ArtifactCollection.flow_run_id`.
+
+
+### `ArtifactCollectionFilterTaskRunId`
+
+
+Filter by `ArtifactCollection.task_run_id`.
+
+
+### `ArtifactCollectionFilterType`
+
+
+Filter by `ArtifactCollection.type`.
+
+
+### `ArtifactCollectionFilter`
+
+
+Filter artifact collections. Only artifact collections matching all criteria will be returned
+
+
+### `VariableFilterId`
+
+
+Filter by `Variable.id`.
+
+
+### `VariableFilterName`
+
+
+Filter by `Variable.name`.
+
+
+### `VariableFilterTags`
+
+
+Filter by `Variable.tags`.
+
+
+### `VariableFilter`
+
+
+Filter variables. Only variables matching all criteria will be returned
+

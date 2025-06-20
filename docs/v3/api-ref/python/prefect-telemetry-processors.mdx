@@ -1,0 +1,36 @@
+---
+title: processors
+sidebarTitle: processors
+---
+
+# `prefect.telemetry.processors`
+
+## Classes
+
+### `InFlightSpanProcessor`
+
+**Methods:**
+
+#### `on_start`
+
+```python
+on_start(self, span: 'Span', parent_context: Optional[Context] = None) -> None
+```
+
+#### `on_end`
+
+```python
+on_end(self, span: 'ReadableSpan') -> None
+```
+
+#### `shutdown`
+
+```python
+shutdown(self) -> None
+```
+
+#### `force_flush`
+
+```python
+force_flush(self, timeout_millis: int = 30000) -> bool
+```

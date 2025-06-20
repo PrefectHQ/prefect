@@ -1,0 +1,166 @@
+---
+title: sorting
+sidebarTitle: sorting
+---
+
+# `prefect.server.schemas.sorting`
+
+
+
+Schemas for sorting Prefect REST API objects.
+
+
+## Classes
+
+### `FlowRunSort`
+
+
+Defines flow run sorting options.
+
+
+**Methods:**
+
+#### `as_sql_sort`
+
+```python
+as_sql_sort(self, db: 'PrefectDBInterface') -> Iterable[sa.ColumnElement[Any]]
+```
+
+Return an expression used to sort flow runs
+
+
+### `TaskRunSort`
+
+
+Defines task run sorting options.
+
+
+**Methods:**
+
+#### `as_sql_sort`
+
+```python
+as_sql_sort(self, db: 'PrefectDBInterface') -> Iterable[sa.ColumnElement[Any]]
+```
+
+Return an expression used to sort task runs
+
+
+### `LogSort`
+
+
+Defines log sorting options.
+
+
+**Methods:**
+
+#### `as_sql_sort`
+
+```python
+as_sql_sort(self, db: 'PrefectDBInterface') -> Iterable[sa.ColumnElement[Any]]
+```
+
+Return an expression used to sort task runs
+
+
+### `FlowSort`
+
+
+Defines flow sorting options.
+
+
+**Methods:**
+
+#### `as_sql_sort`
+
+```python
+as_sql_sort(self, db: 'PrefectDBInterface') -> Iterable[sa.ColumnElement[Any]]
+```
+
+Return an expression used to sort task runs
+
+
+### `DeploymentSort`
+
+
+Defines deployment sorting options.
+
+
+**Methods:**
+
+#### `as_sql_sort`
+
+```python
+as_sql_sort(self, db: 'PrefectDBInterface') -> Iterable[sa.ColumnElement[Any]]
+```
+
+Return an expression used to sort task runs
+
+
+### `ArtifactSort`
+
+
+Defines artifact sorting options.
+
+
+**Methods:**
+
+#### `as_sql_sort`
+
+```python
+as_sql_sort(self, db: 'PrefectDBInterface') -> Iterable[sa.ColumnElement[Any]]
+```
+
+Return an expression used to sort task runs
+
+
+### `ArtifactCollectionSort`
+
+
+Defines artifact collection sorting options.
+
+
+**Methods:**
+
+#### `as_sql_sort`
+
+```python
+as_sql_sort(self, db: 'PrefectDBInterface') -> Iterable[sa.ColumnElement[Any]]
+```
+
+Return an expression used to sort task runs
+
+
+### `VariableSort`
+
+
+Defines variables sorting options.
+
+
+**Methods:**
+
+#### `as_sql_sort`
+
+```python
+as_sql_sort(self, db: 'PrefectDBInterface') -> Iterable[sa.ColumnElement[Any]]
+```
+
+Return an expression used to sort task runs
+
+
+### `BlockDocumentSort`
+
+
+Defines block document sorting options.
+
+
+**Methods:**
+
+#### `as_sql_sort`
+
+```python
+as_sql_sort(self, db: 'PrefectDBInterface') -> Iterable[sa.ColumnElement[Any]]
+```
+
+Return an expression used to sort task runs
+

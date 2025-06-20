@@ -1,0 +1,77 @@
+---
+title: root
+sidebarTitle: root
+---
+
+# `prefect.settings.models.root`
+
+## Functions
+
+### `canonical_environment_prefix`
+
+```python
+canonical_environment_prefix(settings: 'Settings') -> str
+```
+
+## Classes
+
+### `Settings`
+
+
+Settings for Prefect using Pydantic settings.
+
+See https://docs.pydantic.dev/latest/concepts/pydantic_settings
+
+
+**Methods:**
+
+#### `post_hoc_settings`
+
+```python
+post_hoc_settings(self) -> Self
+```
+
+refactor on resolution of https://github.com/pydantic/pydantic/issues/9789
+
+we should not be modifying __pydantic_fields_set__ directly, but until we can
+define dependencies between defaults in a first-class way, we need clean up
+post-hoc default assignments to keep set/unset fields correct after instantiation.
+
+
+#### `emit_warnings`
+
+```python
+emit_warnings(self) -> Self
+```
+
+More post-hoc validation of settings, including warnings for misconfigurations.
+
+
+#### `copy_with_update`
+
+```python
+copy_with_update(self: Self, updates: Optional[Mapping['Setting', Any]] = None, set_defaults: Optional[Mapping['Setting', Any]] = None, restore_defaults: Optional[Iterable['Setting']] = None) -> Self
+```
+
+Create a new Settings object with validation.
+
+**Args:**
+- `updates`: A mapping of settings to new values. Existing values for the
+given settings will be overridden.
+- `set_defaults`: A mapping of settings to new default values. Existing values for
+the given settings will only be overridden if they were not set.
+- `restore_defaults`: An iterable of settings to restore to their default values.
+
+**Returns:**
+- A new Settings object.
+
+
+#### `hash_key`
+
+```python
+hash_key(self) -> str
+```
+
+Return a hash key for the settings object.  This is needed since some
+settings may be unhashable, like lists.
+

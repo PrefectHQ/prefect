@@ -1,0 +1,42 @@
+---
+title: names
+sidebarTitle: names
+---
+
+# `prefect.types.names`
+
+## Functions
+
+### `raise_on_name_alphanumeric_dashes_only`
+
+```python
+raise_on_name_alphanumeric_dashes_only(value: str | None, field_name: str = 'value') -> str | None
+```
+
+### `raise_on_name_alphanumeric_underscores_only`
+
+```python
+raise_on_name_alphanumeric_underscores_only(value: str | None, field_name: str = 'value') -> str | None
+```
+
+### `raise_on_name_alphanumeric_dashes_underscores_only`
+
+```python
+raise_on_name_alphanumeric_dashes_underscores_only(value: str, field_name: str = 'value') -> str
+```
+
+### `non_emptyish`
+
+```python
+non_emptyish(value: str) -> str
+```
+
+### `validate_uri`
+
+```python
+validate_uri(value: str) -> str
+```
+
+
+Validate that a string is a valid URI with lowercase protocol.
+

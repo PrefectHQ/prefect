@@ -1,0 +1,63 @@
+---
+title: shell
+sidebarTitle: shell
+---
+
+# `prefect.cli.shell`
+
+
+
+Provides a set of tools for executing shell commands as Prefect flows.
+Includes functionalities for running shell commands ad-hoc or serving them as Prefect flows,
+with options for logging output, scheduling, and deployment customization.
+
+
+## Functions
+
+### `output_stream`
+
+```python
+output_stream(pipe: IO[str], logger_function: Callable[[str], None]) -> None
+```
+
+
+Read from a pipe line by line and log using the provided logging function.
+
+**Args:**
+- `pipe`: A file-like object for reading process output.
+- `logger_function`: A logging function from the logger.
+
+
+### `output_collect`
+
+```python
+output_collect(pipe: IO[str], container: list[str]) -> None
+```
+
+
+Collects output from a subprocess pipe and stores it in a container list.
+
+**Args:**
+- `pipe`: The output pipe of the subprocess, either stdout or stderr.
+- `container`: A list to store the collected output lines.
+
+
+### `run_shell_process`
+
+```python
+run_shell_process(command: str, log_output: bool = True, stream_stdout: bool = False, log_stderr: bool = False, popen_kwargs: Optional[Dict[str, Any]] = None)
+```
+
+
+Asynchronously executes the specified shell command and logs its output.
+
+This function is designed to be used within Prefect flows to run shell commands as part of task execution.
+It handles both the execution of the command and the collection of its output for logging purposes.
+
+**Args:**
+- `command`: The shell command to execute.
+- `log_output`: If True, the output of the command (both stdout and stderr) is logged to Prefect.
+- `stream_stdout`: If True, the stdout of the command is streamed to Prefect logs.
+- `log_stderr`: If True, the stderr of the command is logged to Prefect logs.
+- `popen_kwargs`: Additional keyword arguments to pass to the `subprocess.Popen` call.
+
