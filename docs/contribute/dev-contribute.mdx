@@ -51,28 +51,29 @@ prefect --version
 ```
 </CodeGroup>
 
-To ensure your changes comply with our linting policies, you can optionally set up `pre-commit` hooks to run with every commit:
+To ensure your changes comply with our linting policies, set up `pre-commit` hooks to run with every commit:
 
-<CodeGroup>
-```bash uv
+```bash
 uv run pre-commit install
 ```
-```bash pip and venv
-pre-commit install
+
+You also need to install pre-push hooks to ensure code quality before pushing changes:
+
+```bash
+uv run pre-commit install --hook-type pre-push
 ```
-</CodeGroup>
 
+To manually run the `pre-commit` hooks against all files:
 
-To manually run the `pre-commit` hooks against all files, you can run:
-
-<CodeGroup>
-```bash uv
+```bash
 uv run pre-commit run --all-files
 ```
-```bash pip and venv
-pre-commit run --all-files
+
+To manually run the pre-push hooks:
+
+```bash
+uv run pre-commit run --hook-stage pre-push --all-files
 ```
-</CodeGroup>
 
 <Tip>
   If you're using `uv`, you can run commands with the project's dependencies by prefixing the command with `uv run`.
