@@ -19,7 +19,7 @@ from typing import (
 from typing_extensions import ParamSpec, Self, TypeVar
 
 from prefect._internal.uuid7 import uuid7
-from prefect.client.schemas.objects import TaskRunInput
+from prefect.client.schemas.objects import RunInput
 from prefect.exceptions import MappingLengthMismatch, MappingMissingIterable
 from prefect.futures import (
     PrefectConcurrentFuture,
@@ -81,7 +81,7 @@ class TaskRunner(abc.ABC, Generic[F]):
         task: "Task[P, Coroutine[Any, Any, R]]",
         parameters: dict[str, Any],
         wait_for: Iterable[PrefectFuture[Any]] | None = None,
-        dependencies: dict[str, set[TaskRunInput]] | None = None,
+        dependencies: dict[str, set[RunInput]] | None = None,
     ) -> F: ...
 
     @overload
@@ -91,7 +91,7 @@ class TaskRunner(abc.ABC, Generic[F]):
         task: "Task[Any, R]",
         parameters: dict[str, Any],
         wait_for: Iterable[PrefectFuture[Any]] | None = None,
-        dependencies: dict[str, set[TaskRunInput]] | None = None,
+        dependencies: dict[str, set[RunInput]] | None = None,
     ) -> F: ...
 
     @abc.abstractmethod
@@ -100,7 +100,7 @@ class TaskRunner(abc.ABC, Generic[F]):
         task: "Task[P, R]",
         parameters: dict[str, Any],
         wait_for: Iterable[PrefectFuture[Any]] | None = None,
-        dependencies: dict[str, set[TaskRunInput]] | None = None,
+        dependencies: dict[str, set[RunInput]] | None = None,
     ) -> F: ...
 
     def map(
@@ -262,7 +262,7 @@ class ThreadPoolTaskRunner(TaskRunner[PrefectConcurrentFuture[R]]):
         task: "Task[P, Coroutine[Any, Any, R]]",
         parameters: dict[str, Any],
         wait_for: Iterable[PrefectFuture[Any]] | None = None,
-        dependencies: dict[str, set[TaskRunInput]] | None = None,
+        dependencies: dict[str, set[RunInput]] | None = None,
     ) -> PrefectConcurrentFuture[R]: ...
 
     @overload
@@ -271,7 +271,7 @@ class ThreadPoolTaskRunner(TaskRunner[PrefectConcurrentFuture[R]]):
         task: "Task[Any, R]",
         parameters: dict[str, Any],
         wait_for: Iterable[PrefectFuture[Any]] | None = None,
-        dependencies: dict[str, set[TaskRunInput]] | None = None,
+        dependencies: dict[str, set[RunInput]] | None = None,
     ) -> PrefectConcurrentFuture[R]: ...
 
     def submit(
@@ -279,7 +279,7 @@ class ThreadPoolTaskRunner(TaskRunner[PrefectConcurrentFuture[R]]):
         task: "Task[P, R | Coroutine[Any, Any, R]]",
         parameters: dict[str, Any],
         wait_for: Iterable[PrefectFuture[Any]] | None = None,
-        dependencies: dict[str, set[TaskRunInput]] | None = None,
+        dependencies: dict[str, set[RunInput]] | None = None,
     ) -> PrefectConcurrentFuture[R]:
         """
         Submit a task to the task run engine running in a separate thread.
@@ -415,7 +415,7 @@ class PrefectTaskRunner(TaskRunner[PrefectDistributedFuture[R]]):
         task: "Task[P, Coroutine[Any, Any, R]]",
         parameters: dict[str, Any],
         wait_for: Iterable[PrefectFuture[Any]] | None = None,
-        dependencies: dict[str, set[TaskRunInput]] | None = None,
+        dependencies: dict[str, set[RunInput]] | None = None,
     ) -> PrefectDistributedFuture[R]: ...
 
     @overload
@@ -424,7 +424,7 @@ class PrefectTaskRunner(TaskRunner[PrefectDistributedFuture[R]]):
         task: "Task[Any, R]",
         parameters: dict[str, Any],
         wait_for: Iterable[PrefectFuture[Any]] | None = None,
-        dependencies: dict[str, set[TaskRunInput]] | None = None,
+        dependencies: dict[str, set[RunInput]] | None = None,
     ) -> PrefectDistributedFuture[R]: ...
 
     def submit(
@@ -432,7 +432,7 @@ class PrefectTaskRunner(TaskRunner[PrefectDistributedFuture[R]]):
         task: "Task[P, R]",
         parameters: dict[str, Any],
         wait_for: Iterable[PrefectFuture[Any]] | None = None,
-        dependencies: dict[str, set[TaskRunInput]] | None = None,
+        dependencies: dict[str, set[RunInput]] | None = None,
     ) -> PrefectDistributedFuture[R]:
         """
         Submit a task to the task run engine running in a separate thread.

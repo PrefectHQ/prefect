@@ -643,7 +643,10 @@ class FlowRun(Run):
 
 
 _TaskInput = Union[
-    schemas.core.TaskRunResult, schemas.core.Parameter, schemas.core.Constant
+    schemas.core.TaskRunResult,
+    schemas.core.FlowRunResult,
+    schemas.core.Parameter,
+    schemas.core.Constant,
 ]
 _TaskInputs = dict[str, list[_TaskInput]]
 

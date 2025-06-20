@@ -501,6 +501,7 @@ class TaskRunCreate(ActionBaseModel):
         List[
             Union[
                 schemas.core.TaskRunResult,
+                schemas.core.FlowRunResult,
                 schemas.core.Parameter,
                 schemas.core.Constant,
             ]
