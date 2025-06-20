@@ -1,0 +1,78 @@
+---
+title: responses
+sidebarTitle: responses
+---
+
+# `prefect.client.schemas.responses`
+
+## Classes
+
+### `SetStateStatus`
+
+
+Enumerates return statuses for setting run states.
+
+
+### `StateAcceptDetails`
+
+
+Details associated with an ACCEPT state transition.
+
+
+### `StateRejectDetails`
+
+
+Details associated with a REJECT state transition.
+
+
+### `StateAbortDetails`
+
+
+Details associated with an ABORT state transition.
+
+
+### `StateWaitDetails`
+
+
+Details associated with a WAIT state transition.
+
+
+### `HistoryResponseState`
+
+
+Represents a single state's history over an interval.
+
+
+### `HistoryResponse`
+
+
+Represents a history of aggregation states over an interval
+
+
+### `OrchestrationResult`
+
+
+A container for the output of state orchestration.
+
+
+### `WorkerFlowRunResponse`
+
+### `FlowRunResponse`
+
+### `DeploymentResponse`
+
+**Methods:**
+
+#### `as_related_resource`
+
+```python
+as_related_resource(self, role: str = 'deployment') -> 'RelatedResource'
+```
+
+### `MinimalConcurrencyLimitResponse`
+
+### `GlobalConcurrencyLimitResponse`
+
+
+A response object for global concurrency limits.
+

@@ -1,0 +1,225 @@
+---
+title: runner
+sidebarTitle: runner
+---
+
+# `prefect.deployments.runner`
+
+
+
+Objects for creating and configuring deployments for flows using `serve` functionality.
+
+Example:
+    ```python
+    import time
+    from prefect import flow, serve
+
+
+    @flow
+    def slow_flow(sleep: int = 60):
+        "Sleepy flow - sleeps the provided amount of time (in seconds)."
+        time.sleep(sleep)
+
+
+    @flow
+    def fast_flow():
+        "Fastest flow this side of the Mississippi."
+        return
+
+
+    if __name__ == "__main__":
+        # to_deployment creates RunnerDeployment instances
+        slow_deploy = slow_flow.to_deployment(name="sleeper", interval=45)
+        fast_deploy = fast_flow.to_deployment(name="fast")
+
+        serve(slow_deploy, fast_deploy)
+    ```
+
+
+
+## Classes
+
+### `DeploymentApplyError`
+
+
+Raised when an error occurs while applying a deployment.
+
+
+### `RunnerDeployment`
+
+
+A Prefect RunnerDeployment definition, used for specifying and building deployments.
+
+
+**Methods:**
+
+#### `entrypoint_type`
+
+```python
+entrypoint_type(self) -> EntrypointType
+```
+
+#### `full_name`
+
+```python
+full_name(self) -> str
+```
+
+#### `validate_name`
+
+```python
+validate_name(cls, value: str) -> str
+```
+
+#### `validate_automation_names`
+
+```python
+validate_automation_names(self)
+```
+
+Ensure that each trigger has a name for its automation if none is provided.
+
+
+#### `validate_deployment_parameters`
+
+```python
+validate_deployment_parameters(self) -> Self
+```
+
+Update the parameter schema to mark frozen parameters as readonly.
+
+
+#### `reconcile_paused`
+
+```python
+reconcile_paused(cls, values: dict[str, Any]) -> dict[str, Any]
+```
+
+#### `reconcile_schedules`
+
+```python
+reconcile_schedules(cls, values: dict[str, Any]) -> dict[str, Any]
+```
+
+#### `from_flow`
+
+```python
+from_flow(cls, flow: 'Flow[..., Any]', name: str, interval: Optional[Union[Iterable[Union[int, float, timedelta]], int, float, timedelta]] = None, cron: Optional[Union[Iterable[str], str]] = None, rrule: Optional[Union[Iterable[str], str]] = None, paused: Optional[bool] = None, schedule: Optional[Schedule] = None, schedules: Optional['FlexibleScheduleList'] = None, concurrency_limit: Optional[Union[int, ConcurrencyLimitConfig, None]] = None, parameters: Optional[dict[str, Any]] = None, triggers: Optional[List[Union[DeploymentTriggerTypes, TriggerTypes]]] = None, description: Optional[str] = None, tags: Optional[List[str]] = None, version: Optional[str] = None, version_type: Optional[VersionType] = None, enforce_parameter_schema: bool = True, work_pool_name: Optional[str] = None, work_queue_name: Optional[str] = None, job_variables: Optional[dict[str, Any]] = None, entrypoint_type: EntrypointType = EntrypointType.FILE_PATH, _sla: Optional[Union[SlaTypes, list[SlaTypes]]] = None) -> 'RunnerDeployment'
+```
+
+Configure a deployment for a given flow.
+
+**Args:**
+- `flow`: A flow function to deploy
+- `name`: A name for the deployment
+- `interval`: An interval on which to execute the current flow. Accepts either a number
+or a timedelta object. If a number is given, it will be interpreted as seconds.
+- `cron`: A cron schedule of when to execute runs of this flow.
+- `rrule`: An rrule schedule of when to execute runs of this flow.
+- `paused`: Whether or not to set this deployment as paused.
+- `schedule`: A schedule object defining when to execute runs of this deployment.
+Used to provide additional scheduling options like `timezone` or `parameters`.
+- `schedules`: A list of schedule objects defining when to execute runs of this deployment.
+Used to define multiple schedules or additional scheduling options like `timezone`.
+- `concurrency_limit`: The maximum number of concurrent runs this deployment will allow.
+- `triggers`: A list of triggers that should kick of a run of this flow.
+- `parameters`: A dictionary of default parameter values to pass to runs of this flow.
+- `description`: A description for the created deployment. Defaults to the flow's
+description if not provided.
+- `tags`: A list of tags to associate with the created deployment for organizational
+purposes.
+- `version`: A version for the created deployment. Defaults to the flow's version.
+- `version_type`: The type of version information to use for the deployment.
+- `enforce_parameter_schema`: Whether or not the Prefect API should enforce the
+parameter schema for this deployment.
+- `work_pool_name`: The name of the work pool to use for this deployment.
+- `work_queue_name`: The name of the work queue to use for this deployment's scheduled runs.
+If not provided the default work queue for the work pool will be used.
+- `job_variables`: Settings used to override the values specified default base job template
+of the chosen work pool. Refer to the base job template of the chosen work pool for
+available settings.
+- `_sla`: (Experimental) SLA configuration for the deployment. May be removed or modified at any time. Currently only supported on Prefect Cloud.
+
+
+#### `from_entrypoint`
+
+```python
+from_entrypoint(cls, entrypoint: str, name: str, flow_name: Optional[str] = None, interval: Optional[Union[Iterable[Union[int, float, timedelta]], int, float, timedelta]] = None, cron: Optional[Union[Iterable[str], str]] = None, rrule: Optional[Union[Iterable[str], str]] = None, paused: Optional[bool] = None, schedule: Optional[Schedule] = None, schedules: Optional['FlexibleScheduleList'] = None, concurrency_limit: Optional[Union[int, ConcurrencyLimitConfig, None]] = None, parameters: Optional[dict[str, Any]] = None, triggers: Optional[List[Union[DeploymentTriggerTypes, TriggerTypes]]] = None, description: Optional[str] = None, tags: Optional[List[str]] = None, version: Optional[str] = None, enforce_parameter_schema: bool = True, work_pool_name: Optional[str] = None, work_queue_name: Optional[str] = None, job_variables: Optional[dict[str, Any]] = None, _sla: Optional[Union[SlaTypes, list[SlaTypes]]] = None) -> 'RunnerDeployment'
+```
+
+Configure a deployment for a given flow located at a given entrypoint.
+
+**Args:**
+- `entrypoint`: The path to a file containing a flow and the name of the flow function in
+the format `./path/to/file.py:flow_func_name`.
+- `name`: A name for the deployment
+- `flow_name`: The name of the flow to deploy
+- `interval`: An interval on which to execute the current flow. Accepts either a number
+or a timedelta object. If a number is given, it will be interpreted as seconds.
+- `cron`: A cron schedule of when to execute runs of this flow.
+- `rrule`: An rrule schedule of when to execute runs of this flow.
+- `paused`: Whether or not to set this deployment as paused.
+- `schedules`: A list of schedule objects defining when to execute runs of this deployment.
+Used to define multiple schedules or additional scheduling options like `timezone`.
+- `triggers`: A list of triggers that should kick of a run of this flow.
+- `parameters`: A dictionary of default parameter values to pass to runs of this flow.
+- `description`: A description for the created deployment. Defaults to the flow's
+description if not provided.
+- `tags`: A list of tags to associate with the created deployment for organizational
+purposes.
+- `version`: A version for the created deployment. Defaults to the flow's version.
+- `enforce_parameter_schema`: Whether or not the Prefect API should enforce the
+parameter schema for this deployment.
+- `work_pool_name`: The name of the work pool to use for this deployment.
+- `work_queue_name`: The name of the work queue to use for this deployment's scheduled runs.
+If not provided the default work queue for the work pool will be used.
+- `job_variables`: Settings used to override the values specified default base job template
+of the chosen work pool. Refer to the base job template of the chosen work pool for
+available settings.
+- `_sla`: (Experimental) SLA configuration for the deployment. May be removed or modified at any time. Currently only supported on Prefect Cloud.
+
+
+#### `from_storage`
+
+```python
+from_storage(cls, storage: RunnerStorage, entrypoint: str, name: str, flow_name: Optional[str] = None, interval: Optional[Union[Iterable[Union[int, float, timedelta]], int, float, timedelta]] = None, cron: Optional[Union[Iterable[str], str]] = None, rrule: Optional[Union[Iterable[str], str]] = None, paused: Optional[bool] = None, schedule: Optional[Schedule] = None, schedules: Optional['FlexibleScheduleList'] = None, concurrency_limit: Optional[Union[int, ConcurrencyLimitConfig, None]] = None, parameters: Optional[dict[str, Any]] = None, triggers: Optional[List[Union[DeploymentTriggerTypes, TriggerTypes]]] = None, description: Optional[str] = None, tags: Optional[List[str]] = None, version: Optional[str] = None, version_type: Optional[VersionType] = None, enforce_parameter_schema: bool = True, work_pool_name: Optional[str] = None, work_queue_name: Optional[str] = None, job_variables: Optional[dict[str, Any]] = None, _sla: Optional[Union[SlaTypes, list[SlaTypes]]] = None) -> 'RunnerDeployment'
+```
+
+Create a RunnerDeployment from a flow located at a given entrypoint and stored in a
+local storage location.
+
+**Args:**
+- `entrypoint`: The path to a file containing a flow and the name of the flow function in
+the format `./path/to/file.py:flow_func_name`.
+- `name`: A name for the deployment
+- `flow_name`: The name of the flow to deploy
+- `storage`: A storage object to use for retrieving flow code. If not provided, a
+URL must be provided.
+- `interval`: An interval on which to execute the current flow. Accepts either a number
+or a timedelta object. If a number is given, it will be interpreted as seconds.
+- `cron`: A cron schedule of when to execute runs of this flow.
+- `rrule`: An rrule schedule of when to execute runs of this flow.
+- `paused`: Whether or not the deployment is paused.
+- `schedule`: A schedule object defining when to execute runs of this deployment.
+Used to provide additional scheduling options like `timezone` or `parameters`.
+- `schedules`: A list of schedule objects defining when to execute runs of this deployment.
+Used to provide additional scheduling options like `timezone` or `parameters`.
+- `triggers`: A list of triggers that should kick of a run of this flow.
+- `parameters`: A dictionary of default parameter values to pass to runs of this flow.
+- `description`: A description for the created deployment. Defaults to the flow's
+description if not provided.
+- `tags`: A list of tags to associate with the created deployment for organizational
+purposes.
+- `version`: A version for the created deployment. Defaults to the flow's version.
+- `version_type`: The type of version information to use for the deployment. The version type
+will be inferred if not provided.
+- `enforce_parameter_schema`: Whether or not the Prefect API should enforce the
+parameter schema for this deployment.
+- `work_pool_name`: The name of the work pool to use for this deployment.
+- `work_queue_name`: The name of the work queue to use for this deployment's scheduled runs.
+If not provided the default work queue for the work pool will be used.
+- `job_variables`: Settings used to override the values specified default base job template
+of the chosen work pool. Refer to the base job template of the chosen work pool for
+available settings.
+- `_sla`: (Experimental) SLA configuration for the deployment. May be removed or modified at any time. Currently only supported on Prefect Cloud.
+

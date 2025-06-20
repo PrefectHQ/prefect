@@ -1,0 +1,40 @@
+---
+title: plugins
+sidebarTitle: plugins
+---
+
+# `prefect.plugins`
+
+
+
+Utilities for loading plugins that extend Prefect's functionality.
+
+Plugins are detected by entry point definitions in package setup files.
+
+Currently supported entrypoints:
+    - prefect.collections: Identifies this package as a Prefect collection that
+        should be imported when Prefect is imported.
+
+
+## Functions
+
+### `safe_load_entrypoints`
+
+```python
+safe_load_entrypoints(entrypoints: EntryPoints) -> dict[str, Union[Exception, Any]]
+```
+
+
+Load entry points for a group capturing any exceptions that occur.
+
+
+### `load_prefect_collections`
+
+```python
+load_prefect_collections() -> dict[str, Union[ModuleType, Exception]]
+```
+
+
+Load all Prefect collections that define an entrypoint in the group
+`prefect.collections`.
+

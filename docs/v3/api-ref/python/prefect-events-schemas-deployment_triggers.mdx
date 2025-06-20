@@ -1,0 +1,54 @@
+---
+title: deployment_triggers
+sidebarTitle: deployment_triggers
+---
+
+# `prefect.events.schemas.deployment_triggers`
+
+
+
+Schemas for defining triggers within a Prefect deployment YAML.  This is a separate
+parallel hierarchy for representing triggers so that they can also include the
+information necessary to create an automation.
+
+These triggers should follow the validation rules of the main Trigger class hierarchy as
+closely as possible (because otherwise users will get validation errors creating
+triggers), but we can be more liberal with the defaults here to make it simpler to
+create them from YAML.
+
+
+## Classes
+
+### `BaseDeploymentTrigger`
+
+
+Base class describing a set of criteria that must be satisfied in order to trigger
+an automation.
+
+
+### `DeploymentEventTrigger`
+
+
+A trigger that fires based on the presence or absence of events within a given
+period of time.
+
+
+### `DeploymentMetricTrigger`
+
+
+A trigger that fires based on the results of a metric query.
+
+
+### `DeploymentCompoundTrigger`
+
+
+A composite trigger that requires some number of triggers to have
+fired within the given time period
+
+
+### `DeploymentSequenceTrigger`
+
+
+A composite trigger that requires some number of triggers to have fired
+within the given time period in a specific order
+

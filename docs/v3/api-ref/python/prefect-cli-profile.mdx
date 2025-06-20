@@ -1,0 +1,83 @@
+---
+title: profile
+sidebarTitle: profile
+---
+
+# `prefect.cli.profile`
+
+
+
+Command line interface for working with profiles.
+
+
+## Functions
+
+### `ls`
+
+```python
+ls()
+```
+
+
+List profile names.
+
+
+### `create`
+
+```python
+create(name: str, from_name: str = typer.Option(None, '--from', help='Copy an existing profile.'))
+```
+
+
+Create a new profile.
+
+
+### `delete`
+
+```python
+delete(name: str)
+```
+
+
+Delete the given profile.
+
+
+### `rename`
+
+```python
+rename(name: str, new_name: str)
+```
+
+
+Change the name of a profile.
+
+
+### `inspect`
+
+```python
+inspect(name: Optional[str] = typer.Argument(None, help='Name of profile to inspect; defaults to active profile.'))
+```
+
+
+Display settings from a given profile; defaults to active.
+
+
+### `show_profile_changes`
+
+```python
+show_profile_changes(user_profiles: ProfilesCollection, default_profiles: ProfilesCollection) -> bool
+```
+
+### `populate_defaults`
+
+```python
+populate_defaults()
+```
+
+
+Populate the profiles configuration with default base profiles, preserving existing user profiles.
+
+
+## Classes
+
+### `ConnectionStatus`

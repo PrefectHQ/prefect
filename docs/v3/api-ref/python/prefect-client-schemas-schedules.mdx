@@ -1,0 +1,188 @@
+---
+title: schedules
+sidebarTitle: schedules
+---
+
+# `prefect.client.schemas.schedules`
+
+
+
+Schedule schemas
+
+
+## Functions
+
+### `is_valid_timezone`
+
+```python
+is_valid_timezone(v: str) -> bool
+```
+
+
+Validate that the provided timezone is a valid IANA timezone.
+
+Unfortunately this list is slightly different from the list of valid
+timezones we use for cron and interval timezone validation.
+
+
+### `is_schedule_type`
+
+```python
+is_schedule_type(obj: Any) -> TypeGuard[SCHEDULE_TYPES]
+```
+
+### `construct_schedule`
+
+```python
+construct_schedule(interval: Optional[Union[int, float, datetime.timedelta]] = None, anchor_date: Optional[Union[datetime.datetime, str]] = None, cron: Optional[str] = None, rrule: Optional[str] = None, timezone: Optional[str] = None) -> SCHEDULE_TYPES
+```
+
+
+Construct a schedule from the provided arguments.
+
+**Args:**
+- `interval`: An interval on which to schedule runs. Accepts either a number
+or a timedelta object. If a number is given, it will be interpreted as seconds.
+- `anchor_date`: The start date for an interval schedule.
+- `cron`: A cron schedule for runs.
+- `rrule`: An rrule schedule of when to execute runs of this flow.
+- `timezone`: A timezone to use for the schedule. Defaults to UTC.
+
+
+## Classes
+
+### `IntervalSchedule`
+
+
+A schedule formed by adding `interval` increments to an `anchor_date`. If no
+`anchor_date` is supplied, the current UTC time is used.  If a
+timezone-naive datetime is provided for `anchor_date`, it is assumed to be
+in the schedule's timezone (or UTC). Even if supplied with an IANA timezone,
+anchor dates are always stored as UTC offsets, so a `timezone` can be
+provided to determine localization behaviors like DST boundary handling. If
+none is provided it will be inferred from the anchor date.
+
+NOTE: If the `IntervalSchedule` `anchor_date` or `timezone` is provided in a
+DST-observing timezone, then the schedule will adjust itself appropriately.
+Intervals greater than 24 hours will follow DST conventions, while intervals
+of less than 24 hours will follow UTC intervals. For example, an hourly
+schedule will fire every UTC hour, even across DST boundaries. When clocks
+are set back, this will result in two runs that *appear* to both be
+scheduled for 1am local time, even though they are an hour apart in UTC
+time. For longer intervals, like a daily schedule, the interval schedule
+will adjust for DST boundaries so that the clock-hour remains constant. This
+means that a daily schedule that always fires at 9am will observe DST and
+continue to fire at 9am in the local time zone.
+
+**Args:**
+- `interval`: an interval to schedule on
+- `anchor_date`: an anchor date to schedule increments against;
+if not provided, the current timestamp will be used
+- `timezone`: a valid timezone string
+
+
+**Methods:**
+
+#### `validate_timezone`
+
+```python
+validate_timezone(self)
+```
+
+### `CronSchedule`
+
+
+Cron schedule
+
+NOTE: If the timezone is a DST-observing one, then the schedule will adjust
+itself appropriately. Cron's rules for DST are based on schedule times, not
+intervals. This means that an hourly cron schedule will fire on every new
+schedule hour, not every elapsed hour; for example, when clocks are set back
+this will result in a two-hour pause as the schedule will fire *the first
+time* 1am is reached and *the first time* 2am is reached, 120 minutes later.
+Longer schedules, such as one that fires at 9am every morning, will
+automatically adjust for DST.
+
+**Args:**
+- `cron`: a valid cron string
+- `timezone`: a valid timezone string in IANA tzdata format (for example,
+America/New_York).
+- `day_or`: Control how croniter handles `day` and `day_of_week`
+entries. Defaults to True, matching cron which connects those values using
+OR. If the switch is set to False, the values are connected using AND. This
+behaves like fcron and enables you to e.g. define a job that executes each
+2nd friday of a month by setting the days of month and the weekday.
+
+
+**Methods:**
+
+#### `valid_timezone`
+
+```python
+valid_timezone(cls, v: Optional[str]) -> Optional[str]
+```
+
+#### `valid_cron_string`
+
+```python
+valid_cron_string(cls, v: str) -> str
+```
+
+### `RRuleSchedule`
+
+
+RRule schedule, based on the iCalendar standard
+([RFC 5545](https://datatracker.ietf.org/doc/html/rfc5545)) as
+implemented in `dateutils.rrule`.
+
+RRules are appropriate for any kind of calendar-date manipulation, including
+irregular intervals, repetition, exclusions, week day or day-of-month
+adjustments, and more.
+
+Note that as a calendar-oriented standard, `RRuleSchedules` are sensitive to
+to the initial timezone provided. A 9am daily schedule with a daylight saving
+time-aware start date will maintain a local 9am time through DST boundaries;
+a 9am daily schedule with a UTC start date will maintain a 9am UTC time.
+
+**Args:**
+- `rrule`: a valid RRule string
+- `timezone`: a valid timezone string
+
+
+**Methods:**
+
+#### `validate_rrule_str`
+
+```python
+validate_rrule_str(cls, v: str) -> str
+```
+
+#### `from_rrule`
+
+```python
+from_rrule(cls, rrule: Union[dateutil.rrule.rrule, dateutil.rrule.rruleset]) -> 'RRuleSchedule'
+```
+
+#### `to_rrule`
+
+```python
+to_rrule(self) -> Union[dateutil.rrule.rrule, dateutil.rrule.rruleset]
+```
+
+Since rrule doesn't properly serialize/deserialize timezones, we localize dates
+here
+
+
+#### `valid_timezone`
+
+```python
+valid_timezone(cls, v: Optional[str]) -> str
+```
+
+Validate that the provided timezone is a valid IANA timezone.
+
+Unfortunately this list is slightly different from the list of valid
+timezones we use for cron and interval timezone validation.
+
+
+### `NoSchedule`

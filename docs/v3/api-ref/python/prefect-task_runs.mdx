@@ -1,0 +1,99 @@
+---
+title: task_runs
+sidebarTitle: task_runs
+---
+
+# `prefect.task_runs`
+
+## Classes
+
+### `TaskRunWaiter`
+
+
+A service used for waiting for a task run to finish.
+
+This service listens for task run events and provides a way to wait for a specific
+task run to finish. This is useful for waiting for a task run to finish before
+continuing execution.
+
+The service is a singleton and must be started before use. The service will
+automatically start when the first instance is created. A single websocket
+connection is used to listen for task run events.
+
+The service can be used to wait for a task run to finish by calling
+`TaskRunWaiter.wait_for_task_run` with the task run ID to wait for. The method
+will return when the task run has finished or the timeout has elapsed.
+
+The service will automatically stop when the Python process exits or when the
+global loop thread is stopped.
+
+Example:
+```python
+import asyncio
+from uuid import uuid4
+
+from prefect import task
+from prefect.task_engine import run_task_async
+from prefect.task_runs import TaskRunWaiter
+
+
+@task
+async def test_task():
+    await asyncio.sleep(5)
+    print("Done!")
+
+
+async def main():
+    task_run_id = uuid4()
+    asyncio.create_task(run_task_async(task=test_task, task_run_id=task_run_id))
+
+    await TaskRunWaiter.wait_for_task_run(task_run_id)
+    print("Task run finished")
+
+
+if __name__ == "__main__":
+    asyncio.run(main())
+```
+
+
+**Methods:**
+
+#### `start`
+
+```python
+start(self) -> None
+```
+
+Start the TaskRunWaiter service.
+
+
+#### `stop`
+
+```python
+stop(self) -> None
+```
+
+Stop the TaskRunWaiter service.
+
+
+#### `add_done_callback`
+
+```python
+add_done_callback(cls, task_run_id: uuid.UUID, callback: Callable[[], None]) -> None
+```
+
+Add a callback to be called when a task run finishes.
+
+**Args:**
+- `task_run_id`: The ID of the task run to wait for.
+- `callback`: The callback to call when the task run finishes.
+
+
+#### `instance`
+
+```python
+instance(cls) -> Self
+```
+
+Get the singleton instance of TaskRunWaiter.
+

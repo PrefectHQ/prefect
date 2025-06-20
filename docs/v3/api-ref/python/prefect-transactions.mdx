@@ -1,0 +1,244 @@
+---
+title: transactions
+sidebarTitle: transactions
+---
+
+# `prefect.transactions`
+
+## Functions
+
+### `get_transaction`
+
+```python
+get_transaction() -> BaseTransaction | None
+```
+
+### `transaction`
+
+```python
+transaction(key: str | None = None, store: ResultStore | None = None, commit_mode: CommitMode | None = None, isolation_level: IsolationLevel | None = None, overwrite: bool = False, write_on_commit: bool = True, logger: logging.Logger | LoggingAdapter | None = None) -> Generator[Transaction, None, None]
+```
+
+
+A context manager for opening and managing a transaction.
+
+**Args:**
+- `-`: An identifier to use for the transaction
+- `-`: The store to use for persisting the transaction result. If not provided,
+a default store will be used based on the current run context.
+- `-`: The commit mode controlling when the transaction and
+child transactions are committed
+- `-`: Whether to overwrite an existing transaction record in the store
+- `-`: Whether to write the result to the store on commit. If not provided,
+will default will be determined by the current run context. If no run context is
+available, the value of `PREFECT_RESULTS_PERSIST_BY_DEFAULT` will be used.
+
+
+## Classes
+
+### `IsolationLevel`
+
+### `CommitMode`
+
+### `TransactionState`
+
+### `BaseTransaction`
+
+
+A base model for transaction state.
+
+
+**Methods:**
+
+#### `set`
+
+```python
+set(self, name: str, value: Any) -> None
+```
+
+
+        Set a stored value in the transaction.
+
+        Args:
+            name: The name of the value to set
+            value: The value to set
+
+        Examples:
+            Set a value for use later in the transaction:
+            ```python
+            with transaction() as txn:
+                txn.set("key", "value")
+                ...
+                assert txn.get("key") == "value"
+            ```
+        
+
+#### `get`
+
+```python
+get(self, name: str, default: Any = NotSet) -> Any
+```
+
+
+        Get a stored value from the transaction.
+
+        Child transactions will return values from their parents unless a value with
+        the same name is set in the child transaction.
+
+        Direct changes to returned values will not update the stored value. To update the
+        stored value, use the `set` method.
+
+        Args:
+            name: The name of the value to get
+            default: The default value to return if the value is not found
+
+        Returns:
+            The value from the transaction
+
+        Examples:
+            Get a value from the transaction:
+            ```python
+            with transaction() as txn:
+                txn.set("key", "value")
+                ...
+                assert txn.get("key") == "value"
+            ```
+
+            Get a value from a parent transaction:
+            ```python
+            with transaction() as parent:
+                parent.set("key", "parent_value")
+                with transaction() as child:
+                    assert child.get("key") == "parent_value"
+            ```
+
+            Update a stored value:
+            ```python
+            with transaction() as txn:
+                txn.set("key", [1, 2, 3])
+                value = txn.get("key")
+                value.append(4)
+                # Stored value is not updated until `.set` is called
+                assert value == [1, 2, 3, 4]
+                assert txn.get("key") == [1, 2, 3]
+
+                txn.set("key", value)
+                assert txn.get("key") == [1, 2, 3, 4]
+            ```
+        
+
+#### `is_committed`
+
+```python
+is_committed(self) -> bool
+```
+
+#### `is_rolled_back`
+
+```python
+is_rolled_back(self) -> bool
+```
+
+#### `is_staged`
+
+```python
+is_staged(self) -> bool
+```
+
+#### `is_pending`
+
+```python
+is_pending(self) -> bool
+```
+
+#### `is_active`
+
+```python
+is_active(self) -> bool
+```
+
+#### `prepare_transaction`
+
+```python
+prepare_transaction(self) -> None
+```
+
+Helper method to prepare transaction state and validate configuration.
+
+
+#### `add_child`
+
+```python
+add_child(self, transaction: Self) -> None
+```
+
+#### `get_parent`
+
+```python
+get_parent(self) -> Self | None
+```
+
+#### `stage`
+
+```python
+stage(self, value: Any, on_rollback_hooks: Optional[list[Callable[..., Any]]] = None, on_commit_hooks: Optional[list[Callable[..., Any]]] = None) -> None
+```
+
+Stage a value to be committed later.
+
+
+#### `get_active`
+
+```python
+get_active(cls: Type[Self]) -> Optional[Self]
+```
+
+### `Transaction`
+
+
+A model representing the state of a transaction.
+
+
+**Methods:**
+
+#### `begin`
+
+```python
+begin(self) -> None
+```
+
+#### `read`
+
+```python
+read(self) -> ResultRecord[Any] | None
+```
+
+#### `reset`
+
+```python
+reset(self) -> None
+```
+
+#### `commit`
+
+```python
+commit(self) -> bool
+```
+
+#### `run_hook`
+
+```python
+run_hook(self, hook: Callable[..., Any], hook_type: str) -> None
+```
+
+#### `rollback`
+
+```python
+rollback(self) -> bool
+```
+
+### `AsyncTransaction`
+
+
+A model representing the state of an asynchronous transaction.
+

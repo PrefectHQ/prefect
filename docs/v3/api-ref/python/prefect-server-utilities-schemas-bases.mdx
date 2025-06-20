@@ -1,0 +1,120 @@
+---
+title: bases
+sidebarTitle: bases
+---
+
+# `prefect.server.utilities.schemas.bases`
+
+## Functions
+
+### `get_class_fields_only`
+
+```python
+get_class_fields_only(model: type[BaseModel]) -> set[str]
+```
+
+
+Gets all the field names defined on the model class but not any parent classes.
+Any fields that are on the parent but redefined on the subclass are included.
+
+
+## Classes
+
+### `PrefectDescriptorBase`
+
+
+A base class for descriptor objects used with PrefectBaseModel
+
+Pydantic needs to be told about any kind of non-standard descriptor
+objects used on a model, in order for these not to be treated as a field
+type instead.
+
+This base class is registered as an ignored type with PrefectBaseModel
+and any classes that inherit from it will also be ignored. This allows
+such descriptors to be used as properties, methods or other bound
+descriptor use cases.
+
+
+### `PrefectBaseModel`
+
+
+A base pydantic.BaseModel for all Prefect schemas and pydantic models.
+
+As the basis for most Prefect schemas, this base model ignores extra
+fields that are passed to it at instantiation. Because adding new fields to
+API payloads is not considered a breaking change, this ensures that any
+Prefect client loading data from a server running a possibly-newer version
+of Prefect will be able to process those new fields gracefully.
+
+
+**Methods:**
+
+#### `reset_fields`
+
+```python
+reset_fields(self: Self) -> Self
+```
+
+Reset the fields of the model that are in the `_reset_fields` set.
+
+**Returns:**
+- A new instance of the model with the reset fields.
+
+
+#### `model_dump_for_orm`
+
+```python
+model_dump_for_orm(self) -> dict[str, Any]
+```
+
+Prefect extension to `BaseModel.model_dump`.  Generate a Python dictionary
+representation of the model suitable for passing to SQLAlchemy model
+constructors, `INSERT` statements, etc.  The critical difference here is that
+this method will return any nested BaseModel objects as `BaseModel` instances,
+rather than serialized Python dictionaries.
+
+Accepts the standard Pydantic `model_dump` arguments, except for `mode` (which
+is always "python"), `round_trip`, and `warnings`.
+
+Usage docs: https://docs.pydantic.dev/2.6/concepts/serialization/#modelmodel_dump
+
+**Args:**
+- `include`: A list of fields to include in the output.
+- `exclude`: A list of fields to exclude from the output.
+- `by_alias`: Whether to use the field's alias in the dictionary key if defined.
+- `exclude_unset`: Whether to exclude fields that have not been explicitly set.
+- `exclude_defaults`: Whether to exclude fields that are set to their default
+value.
+- `exclude_none`: Whether to exclude fields that have a value of `None`.
+
+**Returns:**
+- A dictionary representation of the model, suitable for passing
+- to SQLAlchemy model constructors, INSERT statements, etc.
+
+
+### `IDBaseModel`
+
+
+A PrefectBaseModel with an auto-generated UUID ID value.
+
+The ID is reset on copy() and not included in equality comparisons.
+
+
+### `TimeSeriesBaseModel`
+
+
+A PrefectBaseModel with a time-oriented UUIDv7 ID value.  Used for models that
+operate like timeseries, such as runs, states, and logs.
+
+
+### `ORMBaseModel`
+
+
+A PrefectBaseModel with an auto-generated UUID ID value and created /
+updated timestamps, intended for compatibility with our standard ORM models.
+
+The ID, created, and updated fields are reset on copy() and not included in
+equality comparisons.
+
+
+### `ActionBaseModel`

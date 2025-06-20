@@ -1,0 +1,370 @@
+---
+title: states
+sidebarTitle: states
+---
+
+# `prefect.server.schemas.states`
+
+
+
+State schemas.
+
+
+## Functions
+
+### `Scheduled`
+
+```python
+Scheduled(scheduled_time: Optional[DateTime] = None, cls: type[_State] = State, **kwargs: Any) -> _State
+```
+
+
+Convenience function for creating `Scheduled` states.
+
+**Returns:**
+- a Scheduled state
+
+
+### `Completed`
+
+```python
+Completed(cls: type[_State] = State, **kwargs: Any) -> _State
+```
+
+
+Convenience function for creating `Completed` states.
+
+**Returns:**
+- a Completed state
+
+
+### `Running`
+
+```python
+Running(cls: type[_State] = State, **kwargs: Any) -> _State
+```
+
+
+Convenience function for creating `Running` states.
+
+**Returns:**
+- a Running state
+
+
+### `Failed`
+
+```python
+Failed(cls: type[_State] = State, **kwargs: Any) -> _State
+```
+
+
+Convenience function for creating `Failed` states.
+
+**Returns:**
+- a Failed state
+
+
+### `Crashed`
+
+```python
+Crashed(cls: type[_State] = State, **kwargs: Any) -> _State
+```
+
+
+Convenience function for creating `Crashed` states.
+
+**Returns:**
+- a Crashed state
+
+
+### `Cancelling`
+
+```python
+Cancelling(cls: type[_State] = State, **kwargs: Any) -> _State
+```
+
+
+Convenience function for creating `Cancelling` states.
+
+**Returns:**
+- a Cancelling state
+
+
+### `Cancelled`
+
+```python
+Cancelled(cls: type[_State] = State, **kwargs: Any) -> _State
+```
+
+
+Convenience function for creating `Cancelled` states.
+
+**Returns:**
+- a Cancelled state
+
+
+### `Pending`
+
+```python
+Pending(cls: type[_State] = State, **kwargs: Any) -> _State
+```
+
+
+Convenience function for creating `Pending` states.
+
+**Returns:**
+- a Pending state
+
+
+### `Paused`
+
+```python
+Paused(cls: type[_State] = State, timeout_seconds: Optional[int] = None, pause_expiration_time: Optional[DateTime] = None, reschedule: bool = False, pause_key: Optional[str] = None, **kwargs: Any) -> _State
+```
+
+
+Convenience function for creating `Paused` states.
+
+**Returns:**
+- a Paused state
+
+
+### `Suspended`
+
+```python
+Suspended(cls: type[_State] = State, timeout_seconds: Optional[int] = None, pause_expiration_time: Optional[DateTime] = None, pause_key: Optional[str] = None, **kwargs: Any) -> _State
+```
+
+
+Convenience function for creating `Suspended` states.
+
+**Returns:**
+- a Suspended state
+
+
+### `AwaitingRetry`
+
+```python
+AwaitingRetry(cls: type[_State] = State, scheduled_time: Optional[DateTime] = None, **kwargs: Any) -> _State
+```
+
+
+Convenience function for creating `AwaitingRetry` states.
+
+**Returns:**
+- an AwaitingRetry state
+
+
+### `AwaitingConcurrencySlot`
+
+```python
+AwaitingConcurrencySlot(cls: type[_State] = State, scheduled_time: Optional[DateTime] = None, **kwargs: Any) -> _State
+```
+
+
+Convenience function for creating `AwaitingConcurrencySlot` states.
+
+**Returns:**
+- an AwaitingConcurrencySlot state
+
+
+### `Retrying`
+
+```python
+Retrying(cls: type[_State] = State, **kwargs: Any) -> _State
+```
+
+
+Convenience function for creating `Retrying` states.
+
+**Returns:**
+- a Retrying state
+
+
+### `Late`
+
+```python
+Late(cls: type[_State] = State, scheduled_time: Optional[DateTime] = None, **kwargs: Any) -> _State
+```
+
+
+Convenience function for creating `Late` states.
+
+**Returns:**
+- a Late state
+
+
+## Classes
+
+### `StateType`
+
+
+Enumeration of state types.
+
+
+### `CountByState`
+
+**Methods:**
+
+#### `check_key`
+
+```python
+check_key(cls, value: Optional[Any], info: ValidationInfo) -> Optional[Any]
+```
+
+### `StateDetails`
+
+### `StateBaseModel`
+
+**Methods:**
+
+#### `orm_dict`
+
+```python
+orm_dict(self, *args: Any, **kwargs: Any) -> dict[str, Any]
+```
+
+This method is used as a convenience method for constructing fixtues by first
+building a `State` schema object and converting it into an ORM-compatible
+format. Because the `data` field is not writable on ORM states, this method
+omits the `data` field entirely for the purposes of constructing an ORM model.
+If state data is required, an artifact must be created separately.
+
+
+### `State`
+
+
+Represents the state of a run.
+
+
+**Methods:**
+
+#### `from_orm_without_result`
+
+```python
+from_orm_without_result(cls, orm_state: Union['ORMFlowRunState', 'ORMTaskRunState'], with_data: Optional[Any] = None) -> Self
+```
+
+During orchestration, ORM states can be instantiated prior to inserting results
+into the artifact table and the `data` field will not be eagerly loaded. In
+these cases, sqlalchemy will attempt to lazily load the the relationship, which
+will fail when called within a synchronous pydantic method.
+
+This method will construct a `State` object from an ORM model without a loaded
+artifact and attach data passed using the `with_data` argument to the `data`
+field.
+
+
+#### `default_name_from_type`
+
+```python
+default_name_from_type(self) -> Self
+```
+
+If a name is not provided, use the type
+
+
+#### `default_scheduled_start_time`
+
+```python
+default_scheduled_start_time(self) -> Self
+```
+
+#### `is_scheduled`
+
+```python
+is_scheduled(self) -> bool
+```
+
+#### `is_pending`
+
+```python
+is_pending(self) -> bool
+```
+
+#### `is_running`
+
+```python
+is_running(self) -> bool
+```
+
+#### `is_completed`
+
+```python
+is_completed(self) -> bool
+```
+
+#### `is_failed`
+
+```python
+is_failed(self) -> bool
+```
+
+#### `is_crashed`
+
+```python
+is_crashed(self) -> bool
+```
+
+#### `is_cancelled`
+
+```python
+is_cancelled(self) -> bool
+```
+
+#### `is_cancelling`
+
+```python
+is_cancelling(self) -> bool
+```
+
+#### `is_final`
+
+```python
+is_final(self) -> bool
+```
+
+#### `is_paused`
+
+```python
+is_paused(self) -> bool
+```
+
+#### `fresh_copy`
+
+```python
+fresh_copy(self, **kwargs: Any) -> Self
+```
+
+Return a fresh copy of the state with a new ID.
+
+
+#### `result`
+
+```python
+result(self, raise_on_failure: Literal[True] = ...) -> Any
+```
+
+#### `result`
+
+```python
+result(self, raise_on_failure: Literal[False] = False) -> Union[Any, Exception]
+```
+
+#### `result`
+
+```python
+result(self, raise_on_failure: bool = ...) -> Union[Any, Exception]
+```
+
+#### `result`
+
+```python
+result(self, raise_on_failure: bool = True) -> Union[Any, Exception]
+```
+
+#### `to_state_create`
+
+```python
+to_state_create(self) -> 'StateCreate'
+```

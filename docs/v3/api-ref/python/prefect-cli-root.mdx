@@ -1,0 +1,51 @@
+---
+title: root
+sidebarTitle: root
+---
+
+# `prefect.cli.root`
+
+
+
+Base `prefect` command-line application
+
+
+## Functions
+
+### `version_callback`
+
+```python
+version_callback(value: bool) -> None
+```
+
+### `is_interactive`
+
+```python
+is_interactive() -> bool
+```
+
+### `main`
+
+```python
+main(ctx: typer.Context, version: bool = typer.Option(None, '--version', '-v', callback=version_callback, help='Display the current version.', is_eager=True), profile: str = typer.Option(None, '--profile', '-p', help='Select a profile for this CLI run.', is_eager=True), prompt: bool = SettingsOption(prefect.settings.PREFECT_CLI_PROMPT, help='Force toggle prompts for this CLI run.'))
+```
+
+### `get_prefect_integrations`
+
+```python
+get_prefect_integrations() -> dict[str, str]
+```
+
+
+Get information about installed Prefect integrations.
+
+
+### `display`
+
+```python
+display(object: dict[str, Any], nesting: int = 0) -> None
+```
+
+
+Recursive display of a dictionary with nesting.
+

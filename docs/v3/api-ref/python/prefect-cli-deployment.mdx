@@ -1,0 +1,42 @@
+---
+title: deployment
+sidebarTitle: deployment
+---
+
+# `prefect.cli.deployment`
+
+
+
+Command line interface for working with deployments.
+
+
+## Functions
+
+### `str_presenter`
+
+```python
+str_presenter(dumper: yaml.Dumper | yaml.representer.SafeRepresenter, data: str) -> yaml.ScalarNode
+```
+
+
+configures yaml for dumping multiline strings
+Ref: https://stackoverflow.com/questions/8640959/how-can-i-control-what-scalar-form-pyyaml-uses-for-my-data
+
+
+### `assert_deployment_name_format`
+
+```python
+assert_deployment_name_format(name: str) -> None
+```
+
+## Classes
+
+### `RichTextIO`
+
+**Methods:**
+
+#### `write`
+
+```python
+write(self, content: str) -> None
+```

@@ -1,0 +1,72 @@
+---
+title: clients
+sidebarTitle: clients
+---
+
+# `prefect.server.events.clients`
+
+## Classes
+
+### `EventsClient`
+
+
+The abstract interface for a Prefect Events client
+
+
+### `NullEventsClient`
+
+
+A no-op implementation of the Prefect Events client for testing
+
+
+### `AssertingEventsClient`
+
+
+An implementation of the Prefect Events client that records all events sent
+to it for inspection during tests.
+
+
+**Methods:**
+
+#### `reset`
+
+```python
+reset(cls) -> None
+```
+
+Reset all captured instances and their events.  For use this between tests
+
+
+#### `emitted_events_count`
+
+```python
+emitted_events_count(cls) -> int
+```
+
+#### `assert_emitted_event_count`
+
+```python
+assert_emitted_event_count(cls, count: int) -> None
+```
+
+Assert that the given number of events were emitted.
+
+
+#### `assert_emitted_event_with`
+
+```python
+assert_emitted_event_with(cls, event: Optional[str] = None, resource: Optional[Dict[str, LabelValue]] = None, related: Optional[List[Dict[str, LabelValue]]] = None, payload: Optional[Dict[str, Any]] = None) -> None
+```
+
+Assert that an event was emitted containing the given properties.
+
+
+#### `assert_no_emitted_event_with`
+
+```python
+assert_no_emitted_event_with(cls, event: Optional[str] = None, resource: Optional[Dict[str, LabelValue]] = None, related: Optional[List[Dict[str, LabelValue]]] = None, payload: Optional[Dict[str, Any]] = None) -> None
+```
+
+### `PrefectServerEventsClient`
+
+### `PrefectServerEventsAPIClient`

@@ -33,6 +33,18 @@ clean: check-uv
     deactivate || true
     rm -rf .venv
 
+# Generate API reference documentation for all modules
+api-ref-all:
+    uvx --with-editable . --refresh-package mdxify mdxify@latest --all --root-module prefect --output-dir docs/v3/api-ref/python
+
+# Generate API reference for specific modules (e.g., just api-ref prefect.flows prefect.tasks)
+api-ref *MODULES:
+    uvx --with-editable . --refresh-package mdxify mdxify@latest {{MODULES}} --root-module prefect --output-dir docs/v3/api-ref/python
+
+# Clean up API reference documentation
+api-ref-clean:
+    rm -rf docs/python-sdk
+
 # TODO: consider these for GHA (https://just.systems/man/en/github-actions.html)
 
 # - uses: extractions/setup-just@v2

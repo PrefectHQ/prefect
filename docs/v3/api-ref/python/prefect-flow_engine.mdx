@@ -1,0 +1,245 @@
+---
+title: flow_engine
+sidebarTitle: flow_engine
+---
+
+# `prefect.flow_engine`
+
+## Functions
+
+### `load_flow_run`
+
+```python
+load_flow_run(flow_run_id: UUID) -> FlowRun
+```
+
+### `load_flow`
+
+```python
+load_flow(flow_run: FlowRun) -> Flow[..., Any]
+```
+
+### `load_flow_and_flow_run`
+
+```python
+load_flow_and_flow_run(flow_run_id: UUID) -> tuple[FlowRun, Flow[..., Any]]
+```
+
+### `run_flow_sync`
+
+```python
+run_flow_sync(flow: Flow[P, R], flow_run: Optional[FlowRun] = None, parameters: Optional[Dict[str, Any]] = None, wait_for: Optional[Iterable[PrefectFuture[Any]]] = None, return_type: Literal['state', 'result'] = 'result', context: Optional[dict[str, Any]] = None) -> Union[R, State, None]
+```
+
+### `run_generator_flow_sync`
+
+```python
+run_generator_flow_sync(flow: Flow[P, R], flow_run: Optional[FlowRun] = None, parameters: Optional[Dict[str, Any]] = None, wait_for: Optional[Iterable[PrefectFuture[Any]]] = None, return_type: Literal['state', 'result'] = 'result', context: Optional[dict[str, Any]] = None) -> Generator[R, None, None]
+```
+
+### `run_flow`
+
+```python
+run_flow(flow: Flow[P, R], flow_run: Optional[FlowRun] = None, parameters: Optional[Dict[str, Any]] = None, wait_for: Optional[Iterable[PrefectFuture[R]]] = None, return_type: Literal['state', 'result'] = 'result', error_logger: Optional[logging.Logger] = None, context: Optional[dict[str, Any]] = None) -> R | State | None | Coroutine[Any, Any, R | State | None] | Generator[R, None, None] | AsyncGenerator[R, None]
+```
+
+### `run_flow_in_subprocess`
+
+```python
+run_flow_in_subprocess(flow: 'Flow[..., Any]', flow_run: 'FlowRun | None' = None, parameters: dict[str, Any] | None = None, wait_for: Iterable[PrefectFuture[Any]] | None = None, context: dict[str, Any] | None = None) -> multiprocessing.context.SpawnProcess
+```
+
+
+Run a flow in a subprocess.
+
+Note the result of the flow will only be accessible if the flow is configured to
+persist its result.
+
+**Args:**
+- `flow`: The flow to run.
+- `flow_run`: The flow run object containing run metadata.
+- `parameters`: The parameters to use when invoking the flow.
+- `wait_for`: The futures to wait for before starting the flow.
+- `context`: A serialized context to hydrate before running the flow. If not provided,
+the current context will be used. A serialized context should be provided if
+this function is called in a separate memory space from the parent run (e.g.
+in a subprocess or on another machine).
+
+**Returns:**
+- A multiprocessing.context.SpawnProcess representing the process that is running the flow.
+
+
+## Classes
+
+### `FlowRunTimeoutError`
+
+
+Raised when a flow run exceeds its defined timeout.
+
+
+### `BaseFlowRunEngine`
+
+**Methods:**
+
+#### `state`
+
+```python
+state(self) -> State
+```
+
+#### `is_running`
+
+```python
+is_running(self) -> bool
+```
+
+#### `is_pending`
+
+```python
+is_pending(self) -> bool
+```
+
+#### `cancel_all_tasks`
+
+```python
+cancel_all_tasks(self) -> None
+```
+
+### `FlowRunEngine`
+
+**Methods:**
+
+#### `client`
+
+```python
+client(self) -> SyncPrefectClient
+```
+
+#### `begin_run`
+
+```python
+begin_run(self) -> State
+```
+
+#### `set_state`
+
+```python
+set_state(self, state: State, force: bool = False) -> State
+```
+
+
+
+
+#### `result`
+
+```python
+result(self, raise_on_failure: bool = True) -> 'Union[R, State, None]'
+```
+
+#### `handle_success`
+
+```python
+handle_success(self, result: R) -> R
+```
+
+#### `handle_exception`
+
+```python
+handle_exception(self, exc: Exception, msg: Optional[str] = None, result_store: Optional[ResultStore] = None) -> State
+```
+
+#### `handle_timeout`
+
+```python
+handle_timeout(self, exc: TimeoutError) -> None
+```
+
+#### `handle_crash`
+
+```python
+handle_crash(self, exc: BaseException) -> None
+```
+
+#### `load_subflow_run`
+
+```python
+load_subflow_run(self, parent_task_run: TaskRun, client: SyncPrefectClient, context: FlowRunContext) -> Union[FlowRun, None]
+```
+
+This method attempts to load an existing flow run for a subflow task
+run, if appropriate.
+
+If the parent task run is in a final but not COMPLETED state, and not
+being rerun, then we attempt to load an existing flow run instead of
+creating a new one. This will prevent the engine from running the
+subflow again.
+
+If no existing flow run is found, or if the subflow should be rerun,
+then no flow run is returned.
+
+
+#### `create_flow_run`
+
+```python
+create_flow_run(self, client: SyncPrefectClient) -> FlowRun
+```
+
+#### `call_hooks`
+
+```python
+call_hooks(self, state: Optional[State] = None) -> None
+```
+
+#### `setup_run_context`
+
+```python
+setup_run_context(self, client: Optional[SyncPrefectClient] = None)
+```
+
+#### `initialize_run`
+
+```python
+initialize_run(self)
+```
+
+Enters a client context and creates a flow run if needed.
+
+
+#### `start`
+
+```python
+start(self) -> Generator[None, None, None]
+```
+
+#### `run_context`
+
+```python
+run_context(self)
+```
+
+#### `call_flow_fn`
+
+```python
+call_flow_fn(self) -> Union[R, Coroutine[Any, Any, R]]
+```
+
+Convenience method to call the flow function. Returns a coroutine if the
+flow is async.
+
+
+### `AsyncFlowRunEngine`
+
+
+Async version of the flow run engine.
+
+NOTE: This has not been fully asyncified yet which may lead to async flows
+not being fully asyncified.
+
+
+**Methods:**
+
+#### `client`
+
+```python
+client(self) -> PrefectClient
+```
