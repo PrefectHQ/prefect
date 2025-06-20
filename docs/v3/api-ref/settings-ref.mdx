@@ -1607,6 +1607,33 @@ The maximum number of artifacts to show on a flow run graph on the v2 API
 `PREFECT_SERVER_FLOW_RUN_GRAPH_MAX_ARTIFACTS`, `PREFECT_API_MAX_FLOW_RUN_GRAPH_ARTIFACTS`
 
 ---
+## ServerLogsSettings
+Settings for controlling behavior of the logs subsystem
+### `stream_out_enabled`
+Whether or not to stream logs out to the API via websockets.
+
+**Type**: `boolean`
+
+**Default**: `False`
+
+**TOML dotted key path**: `server.logs.stream_out_enabled`
+
+**Supported environment variables**:
+`PREFECT_SERVER_LOGS_STREAM_OUT_ENABLED`
+
+### `stream_publishing_enabled`
+Whether or not to publish logs to the streaming system.
+
+**Type**: `boolean`
+
+**Default**: `False`
+
+**TOML dotted key path**: `server.logs.stream_publishing_enabled`
+
+**Supported environment variables**:
+`PREFECT_SERVER_LOGS_STREAM_PUBLISHING_ENABLED`
+
+---
 ## ServerServicesCancellationCleanupSettings
 Settings for controlling the cancellation cleanup service
 ### `enabled`
@@ -2271,6 +2298,13 @@ Settings for controlling flow run graph behavior
 **Type**: [ServerFlowRunGraphSettings](#serverflowrungraphsettings)
 
 **TOML dotted key path**: `server.flow_run_graph`
+
+### `logs`
+Settings for controlling server logs behavior
+
+**Type**: [ServerLogsSettings](#serverlogssettings)
+
+**TOML dotted key path**: `server.logs`
 
 ### `services`
 Settings for controlling server services behavior
