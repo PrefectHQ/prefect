@@ -34,6 +34,7 @@ from prefect._internal.compatibility.migration import getattr_migration
 from prefect.assets import Asset
 from prefect.client.orchestration import PrefectClient, SyncPrefectClient, get_client
 from prefect.client.schemas import FlowRun, TaskRun
+from prefect.client.schemas.objects import RunType
 from prefect.events.worker import EventsWorker
 from prefect.exceptions import MissingContextError
 from prefect.results import (
@@ -363,7 +364,7 @@ class EngineContext(RunContext):
         flow: The flow instance associated with the run
         flow_run: The API metadata for the flow run
         task_runner: The task runner instance being used for the flow run
-        task_run_results: A mapping of result ids to task run states for this flow run
+        run_results: A mapping of result ids to run states for this flow run
         log_prints: Whether to log print statements from the flow run
         parameters: The parameters passed to the flow run
         detached: Flag indicating if context has been serialized and sent to remote infrastructure
@@ -394,9 +395,10 @@ class EngineContext(RunContext):
     # Counter for flow pauses
     observed_flow_pauses: dict[str, int] = Field(default_factory=dict)
 
-    # Tracking for result from task runs in this flow run for dependency tracking
-    # Holds the ID of the object returned by the task run and task run state
-    task_run_results: dict[int, State] = Field(default_factory=dict)
+    # Tracking for result from task runs and sub flows in this flow run for
+    # dependency tracking. Holds the ID of the object returned by
+    # the run and state
+    run_results: dict[int, tuple[State, RunType]] = Field(default_factory=dict)
 
     # Tracking information needed to track asset linage between
     # tasks and materialization

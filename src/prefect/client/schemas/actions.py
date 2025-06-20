@@ -443,6 +443,7 @@ class TaskRunCreate(ActionBaseModel):
         list[
             Union[
                 objects.TaskRunResult,
+                objects.FlowRunResult,
                 objects.Parameter,
                 objects.Constant,
             ]

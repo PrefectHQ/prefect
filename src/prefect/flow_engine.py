@@ -105,7 +105,7 @@ from prefect.utilities.callables import (
 from prefect.utilities.collections import visit_collection
 from prefect.utilities.engine import (
     capture_sigterm,
-    link_state_to_result,
+    link_state_to_flow_run_result,
     propose_state,
     propose_state_sync,
     resolve_to_final_result,
@@ -338,6 +338,7 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
             self._return_value, State
         ):
             _result = self._return_value
+            link_state_to_flow_run_result(self.state, _result)
 
             if asyncio.iscoroutine(_result):
                 # getting the value for a BaseResult may return an awaitable
@@ -373,6 +374,7 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
         self.set_state(terminal_state)
         self._return_value = resolved_result
 
+        link_state_to_flow_run_result(terminal_state, resolved_result)
         self._telemetry.end_span_on_success()
 
         return result
@@ -903,6 +905,7 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
             self._return_value, State
         ):
             _result = self._return_value
+            link_state_to_flow_run_result(self.state, _result)
 
             if asyncio.iscoroutine(_result):
                 # getting the value for a BaseResult may return an awaitable
@@ -1426,7 +1429,7 @@ def run_generator_flow_sync(
                     while True:
                         gen_result = next(gen)
                         # link the current state to the result for dependency tracking
-                        link_state_to_result(engine.state, gen_result)
+                        link_state_to_flow_run_result(engine.state, gen_result)
                         yield gen_result
                 except StopIteration as exc:
                     engine.handle_success(exc.value)
@@ -1468,7 +1471,7 @@ async def run_generator_flow_async(
                         # can't use anext in Python < 3.10
                         gen_result = await gen.__anext__()
                         # link the current state to the result for dependency tracking
-                        link_state_to_result(engine.state, gen_result)
+                        link_state_to_flow_run_result(engine.state, gen_result)
                         yield gen_result
                 except (StopAsyncIteration, GeneratorExit) as exc:
                     await engine.handle_success(None)
