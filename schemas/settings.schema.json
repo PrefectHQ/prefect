@@ -443,22 +443,14 @@
                     "type": "string"
                 },
                 "config_path": {
-                    "anyOf": [
-                        {
-                            "format": "path",
-                            "type": "string"
-                        },
-                        {
-                            "type": "null"
-                        }
-                    ],
-                    "default": null,
-                    "description": "The path to a custom YAML logging configuration file.",
+                    "description": "A path to a logging configuration file. Defaults to <home>/logging.yml",
+                    "format": "path",
                     "supported_environment_variables": [
                         "PREFECT_LOGGING_CONFIG_PATH",
                         "PREFECT_LOGGING_SETTINGS_PATH"
                     ],
-                    "title": "Config Path"
+                    "title": "Config Path",
+                    "type": "string"
                 },
                 "extra_loggers": {
                     "anyOf": [
@@ -613,22 +605,14 @@
                     "title": "Default Storage Block"
                 },
                 "local_storage_path": {
-                    "anyOf": [
-                        {
-                            "format": "path",
-                            "type": "string"
-                        },
-                        {
-                            "type": "null"
-                        }
-                    ],
-                    "default": null,
-                    "description": "The path to a directory to store results in.",
+                    "description": "The default location for locally persisted results. Defaults to <home>/storage.",
+                    "format": "path",
                     "supported_environment_variables": [
                         "PREFECT_RESULTS_LOCAL_STORAGE_PATH",
                         "PREFECT_LOCAL_STORAGE_PATH"
                     ],
-                    "title": "Local Storage Path"
+                    "title": "Local Storage Path",
+                    "type": "string"
                 }
             },
             "title": "ResultsSettings",
@@ -1980,22 +1964,14 @@
                     "type": "boolean"
                 },
                 "memo_store_path": {
-                    "anyOf": [
-                        {
-                            "format": "path",
-                            "type": "string"
-                        },
-                        {
-                            "type": "null"
-                        }
-                    ],
-                    "default": null,
-                    "description": "The path to the memo store file.",
+                    "description": "Path to the memo store file. Defaults to <home>/memo_store.toml",
+                    "format": "path",
                     "supported_environment_variables": [
                         "PREFECT_SERVER_MEMO_STORE_PATH",
                         "PREFECT_MEMO_STORE_PATH"
                     ],
-                    "title": "Memo Store Path"
+                    "title": "Memo Store Path",
+                    "type": "string"
                 },
                 "deployment_schedule_max_scheduled_runs": {
                     "default": 50,
@@ -2471,21 +2447,13 @@
             "type": "string"
         },
         "profiles_path": {
-            "anyOf": [
-                {
-                    "format": "path",
-                    "type": "string"
-                },
-                {
-                    "type": "null"
-                }
-            ],
-            "default": null,
-            "description": "The path to a profiles configuration file.",
+            "description": "The path to a profiles configuration file. Supports $PREFECT_HOME templating. Defaults to <home>/profiles.toml.",
+            "format": "path",
             "supported_environment_variables": [
                 "PREFECT_PROFILES_PATH"
             ],
-            "title": "Profiles Path"
+            "title": "Profiles Path",
+            "type": "string"
         },
         "debug_mode": {
             "default": false,
