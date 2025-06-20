@@ -92,7 +92,7 @@ import distributed.deploy
 import distributed.deploy.cluster
 from typing_extensions import ParamSpec
 
-from prefect.client.schemas.objects import State, TaskRunInput
+from prefect.client.schemas.objects import RunInput, State
 from prefect.futures import PrefectFuture, PrefectFutureList, PrefectWrappedFuture
 from prefect.logging.loggers import get_logger
 from prefect.task_runners import TaskRunner
@@ -405,7 +405,7 @@ class DaskTaskRunner(TaskRunner):
         task: "Task[P, Coroutine[Any, Any, R]]",
         parameters: dict[str, Any],
         wait_for: Iterable[PrefectDaskFuture[R]] | None = None,
-        dependencies: dict[str, Set[TaskRunInput]] | None = None,
+        dependencies: dict[str, Set[RunInput]] | None = None,
     ) -> PrefectDaskFuture[R]: ...
 
     @overload
@@ -414,7 +414,7 @@ class DaskTaskRunner(TaskRunner):
         task: "Task[Any, R]",
         parameters: dict[str, Any],
         wait_for: Iterable[PrefectDaskFuture[R]] | None = None,
-        dependencies: dict[str, Set[TaskRunInput]] | None = None,
+        dependencies: dict[str, Set[RunInput]] | None = None,
     ) -> PrefectDaskFuture[R]: ...
 
     def submit(
@@ -422,7 +422,7 @@ class DaskTaskRunner(TaskRunner):
         task: "Union[Task[P, R], Task[P, Coroutine[Any, Any, R]]]",
         parameters: dict[str, Any],
         wait_for: Iterable[PrefectDaskFuture[R]] | None = None,
-        dependencies: dict[str, Set[TaskRunInput]] | None = None,
+        dependencies: dict[str, Set[RunInput]] | None = None,
     ) -> PrefectDaskFuture[R]:
         if not self._started:
             raise RuntimeError(

@@ -47,8 +47,8 @@ from prefect.cache_policies import DEFAULT, NO_CACHE, CachePolicy
 from prefect.client.orchestration import get_client
 from prefect.client.schemas import TaskRun
 from prefect.client.schemas.objects import (
+    RunInput,
     StateDetails,
-    TaskRunInput,
     TaskRunPolicy,
     TaskRunResult,
 )
@@ -244,12 +244,17 @@ def _infer_parent_task_runs(
     # tracked within the same flow run.
     if flow_run_context:
         for v in parameters.values():
+            upstream_state = None
+
             if isinstance(v, State):
                 upstream_state = v
             elif isinstance(v, PrefectFuture):
                 upstream_state = v.state
             else:
-                upstream_state = flow_run_context.task_run_results.get(id(v))
+                res = flow_run_context.run_results.get(id(v))
+                if res:
+                    upstream_state, _ = res
+
             if upstream_state and upstream_state.is_running():
                 parents.append(
                     TaskRunResult(id=upstream_state.state_details.task_run_id)
@@ -840,7 +845,7 @@ class Task(Generic[P, R]):
         flow_run_context: Optional[FlowRunContext] = None,
         parent_task_run_context: Optional[TaskRunContext] = None,
         wait_for: Optional[OneOrManyFutureOrResult[Any]] = None,
-        extra_task_inputs: Optional[dict[str, set[TaskRunInput]]] = None,
+        extra_task_inputs: Optional[dict[str, set[RunInput]]] = None,
         deferred: bool = False,
     ) -> TaskRun:
         from prefect.utilities._engine import dynamic_key_for_task_run
@@ -943,7 +948,7 @@ class Task(Generic[P, R]):
         flow_run_context: Optional[FlowRunContext] = None,
         parent_task_run_context: Optional[TaskRunContext] = None,
         wait_for: Optional[OneOrManyFutureOrResult[Any]] = None,
-        extra_task_inputs: Optional[dict[str, set[TaskRunInput]]] = None,
+        extra_task_inputs: Optional[dict[str, set[RunInput]]] = None,
         deferred: bool = False,
     ) -> TaskRun:
         from prefect.utilities._engine import dynamic_key_for_task_run
@@ -1530,7 +1535,7 @@ class Task(Generic[P, R]):
         args: Optional[tuple[Any, ...]] = None,
         kwargs: Optional[dict[str, Any]] = None,
         wait_for: Optional[Iterable[PrefectFuture[R]]] = None,
-        dependencies: Optional[dict[str, set[TaskRunInput]]] = None,
+        dependencies: Optional[dict[str, set[RunInput]]] = None,
     ) -> PrefectDistributedFuture[R]:
         """
         Create a pending task run for a task worker to execute.

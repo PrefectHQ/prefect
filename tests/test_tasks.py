@@ -2569,7 +2569,7 @@ class TestTaskRunTags:
         def my_task():
             return "foo"
 
-        task_state = my_flow()
+        task_state, _ = my_flow()
         await events_pipeline.process_events()
         task_run = await prefect_client.read_task_run(
             task_state.state_details.task_run_id

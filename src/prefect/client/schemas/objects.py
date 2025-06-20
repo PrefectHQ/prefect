@@ -81,6 +81,11 @@ DEFAULT_BLOCK_SCHEMA_VERSION: Literal["non-versioned"] = "non-versioned"
 DEFAULT_AGENT_WORK_POOL_NAME: Literal["default-agent-pool"] = "default-agent-pool"
 
 
+class RunType(AutoEnum):
+    FLOW_RUN = "flow_run"
+    TASK_RUN = "task_run"
+
+
 class StateType(AutoEnum):
     """Enumeration of state types."""
 
@@ -164,7 +169,6 @@ class ConcurrencyLimitConfig(PrefectBaseModel):
 class StateDetails(PrefectBaseModel):
     flow_run_id: Optional[UUID] = None
     task_run_id: Optional[UUID] = None
-    # for task runs that represent subflows, the subflow's run ID
     child_flow_run_id: Optional[UUID] = None
     scheduled_time: Optional[DateTime] = None
     cache_key: Optional[str] = None
@@ -181,6 +185,16 @@ class StateDetails(PrefectBaseModel):
     task_parameters_id: Optional[UUID] = None
     # Captures the trace_id and span_id of the span where this state was created
     traceparent: Optional[str] = None
+
+    def to_run_result(
+        self, run_type: RunType
+    ) -> Optional[Union[FlowRunResult, TaskRunResult]]:
+        if run_type == run_type.FLOW_RUN and self.flow_run_id:
+            return FlowRunResult(id=self.flow_run_id)
+        elif run_type == run_type.TASK_RUN and self.task_run_id:
+            return TaskRunResult(id=self.task_run_id)
+        else:
+            return None
 
 
 def data_discriminator(x: Any) -> str:
@@ -734,7 +748,7 @@ class TaskRunPolicy(PrefectBaseModel):
         return validate_not_negative(v)
 
 
-class TaskRunInput(PrefectBaseModel):
+class RunInput(PrefectBaseModel):
     """
     Base class for classes that represent inputs to task runs, which
     could include, constants, parameters, or other task runs.
@@ -747,21 +761,26 @@ class TaskRunInput(PrefectBaseModel):
         input_type: str
 
 
-class TaskRunResult(TaskRunInput):
+class TaskRunResult(RunInput):
     """Represents a task run result input to another task run."""
 
     input_type: Literal["task_run"] = "task_run"
     id: UUID
 
 
-class Parameter(TaskRunInput):
+class FlowRunResult(RunInput):
+    input_type: Literal["flow_run"] = "flow_run"
+    id: UUID
+
+
+class Parameter(RunInput):
     """Represents a parameter input to a task run."""
 
     input_type: Literal["parameter"] = "parameter"
     name: str
 
 
-class Constant(TaskRunInput):
+class Constant(RunInput):
     """Represents constant input value to a task run."""
 
     input_type: Literal["constant"] = "constant"
@@ -811,7 +830,9 @@ class TaskRun(TimeSeriesBaseModel, ObjectBaseModel):
     state_id: Optional[UUID] = Field(
         default=None, description="The id of the current task run state."
     )
-    task_inputs: dict[str, list[Union[TaskRunResult, Parameter, Constant]]] = Field(
+    task_inputs: dict[
+        str, list[Union[TaskRunResult, FlowRunResult, Parameter, Constant]]
+    ] = Field(
         default_factory=dict,
         description=(
             "Tracks the source of inputs to a task run. Used for internal bookkeeping. "
