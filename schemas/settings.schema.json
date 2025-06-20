@@ -1467,6 +1467,31 @@
             "title": "ServerFlowRunGraphSettings",
             "type": "object"
         },
+        "ServerLogsSettings": {
+            "description": "Settings for controlling behavior of the logs subsystem",
+            "properties": {
+                "stream_out_enabled": {
+                    "default": false,
+                    "description": "Whether or not to stream logs out to the API via websockets.",
+                    "supported_environment_variables": [
+                        "PREFECT_SERVER_LOGS_STREAM_OUT_ENABLED"
+                    ],
+                    "title": "Stream Out Enabled",
+                    "type": "boolean"
+                },
+                "stream_publishing_enabled": {
+                    "default": false,
+                    "description": "Whether or not to publish logs to the streaming system.",
+                    "supported_environment_variables": [
+                        "PREFECT_SERVER_LOGS_STREAM_PUBLISHING_ENABLED"
+                    ],
+                    "title": "Stream Publishing Enabled",
+                    "type": "boolean"
+                }
+            },
+            "title": "ServerLogsSettings",
+            "type": "object"
+        },
         "ServerServicesCancellationCleanupSettings": {
             "description": "Settings for controlling the cancellation cleanup service",
             "properties": {
@@ -2007,6 +2032,11 @@
                 "flow_run_graph": {
                     "$ref": "#/$defs/ServerFlowRunGraphSettings",
                     "description": "Settings for controlling flow run graph behavior",
+                    "supported_environment_variables": []
+                },
+                "logs": {
+                    "$ref": "#/$defs/ServerLogsSettings",
+                    "description": "Settings for controlling server logs behavior",
                     "supported_environment_variables": []
                 },
                 "services": {
