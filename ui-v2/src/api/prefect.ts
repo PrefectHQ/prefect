@@ -3401,6 +3401,8 @@ export interface components {
             name?: components["schemas"]["AutomationFilterName"] | null;
             /** @description Filter criteria for `Automation.created` */
             created?: components["schemas"]["AutomationFilterCreated"] | null;
+            /** @description Filter criteria for `Automation.tags` */
+            tags?: components["schemas"]["AutomationFilterTags"] | null;
         };
         /**
          * AutomationFilterCreated
@@ -3423,6 +3425,32 @@ export interface components {
              * @description Only include automations with names that match any of these strings
              */
             any_?: string[] | null;
+        };
+        /**
+         * AutomationFilterTags
+         * @description Filter by `Automation.tags`.
+         */
+        AutomationFilterTags: {
+            /**
+             * @description Operator for combining filter criteria. Defaults to 'and_'.
+             * @default and_
+             */
+            operator: components["schemas"]["Operator"];
+            /**
+             * All
+             * @description A list of tags. Automations will be returned only if their tags are a superset of the list
+             */
+            all_?: string[] | null;
+            /**
+             * Any
+             * @description A list of tags. Automations will be returned if their tags contain any of the tags in the list
+             */
+            any_?: string[] | null;
+            /**
+             * Is Null
+             * @description If true, only include automations without tags
+             */
+            is_null_?: boolean | null;
         };
         /** AutomationPartialUpdate */
         AutomationPartialUpdate: {
@@ -4576,7 +4604,7 @@ export interface components {
              * @default 0
              */
             offset: number;
-            logs?: components["schemas"]["LogFilter"];
+            logs?: components["schemas"]["LogFilter"] | null;
             /** @default TIMESTAMP_ASC */
             sort: components["schemas"]["LogSort"];
             /**
