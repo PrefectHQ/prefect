@@ -568,6 +568,54 @@ class TestReadDeployments:
         )
         assert {res.id for res in result} == {deployment_id_1}
 
+    async def test_read_deployment_filters_by_id_not_any(
+        self, filter_data, deployment_id_1, deployment_id_2, deployment_id_3, session
+    ):
+        # Test excluding a single deployment
+        result = await models.deployments.read_deployments(
+            session=session,
+            deployment_filter=filters.DeploymentFilter(
+                id=filters.DeploymentFilterId(not_any_=[deployment_id_1]),
+            ),
+        )
+        assert {res.id for res in result} == {deployment_id_2, deployment_id_3}
+
+        # Test excluding multiple deployments
+        result = await models.deployments.read_deployments(
+            session=session,
+            deployment_filter=filters.DeploymentFilter(
+                id=filters.DeploymentFilterId(
+                    not_any_=[deployment_id_1, deployment_id_2]
+                ),
+            ),
+        )
+        assert {res.id for res in result} == {deployment_id_3}
+
+        # Test combining any_ and not_any_
+        result = await models.deployments.read_deployments(
+            session=session,
+            deployment_filter=filters.DeploymentFilter(
+                id=filters.DeploymentFilterId(
+                    any_=[deployment_id_1, deployment_id_2, deployment_id_3],
+                    not_any_=[deployment_id_2],
+                ),
+            ),
+        )
+        assert {res.id for res in result} == {deployment_id_1, deployment_id_3}
+
+        # Test empty not_any_ list (should return all deployments)
+        result = await models.deployments.read_deployments(
+            session=session,
+            deployment_filter=filters.DeploymentFilter(
+                id=filters.DeploymentFilterId(not_any_=[]),
+            ),
+        )
+        assert {res.id for res in result} == {
+            deployment_id_1,
+            deployment_id_2,
+            deployment_id_3,
+        }
+
     async def test_read_deployment_filters_by_name(
         self, filter_data, deployment_id_2, session
     ):
