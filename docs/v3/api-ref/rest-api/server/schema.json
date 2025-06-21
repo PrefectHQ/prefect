@@ -15480,6 +15480,22 @@
                         ],
                         "title": "Any",
                         "description": "A list of deployment ids to include"
+                    },
+                    "not_any_": {
+                        "anyOf": [
+                            {
+                                "items": {
+                                    "type": "string",
+                                    "format": "uuid"
+                                },
+                                "type": "array"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Not Any",
+                        "description": "A list of deployment ids to exclude"
                     }
                 },
                 "additionalProperties": false,
@@ -19738,6 +19754,26 @@
                 ],
                 "title": "FlowRunResponse"
             },
+            "FlowRunResult": {
+                "properties": {
+                    "input_type": {
+                        "type": "string",
+                        "const": "flow_run",
+                        "title": "Input Type",
+                        "default": "flow_run"
+                    },
+                    "id": {
+                        "type": "string",
+                        "format": "uuid",
+                        "title": "Id"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "id"
+                ],
+                "title": "FlowRunResult"
+            },
             "FlowRunSort": {
                 "type": "string",
                 "enum": [
@@ -22321,6 +22357,9 @@
                                         "$ref": "#/components/schemas/TaskRunResult"
                                     },
                                     {
+                                        "$ref": "#/components/schemas/FlowRunResult"
+                                    },
+                                    {
                                         "$ref": "#/components/schemas/Parameter"
                                     },
                                     {
@@ -22618,6 +22657,9 @@
                                 "anyOf": [
                                     {
                                         "$ref": "#/components/schemas/TaskRunResult"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/FlowRunResult"
                                     },
                                     {
                                         "$ref": "#/components/schemas/Parameter"
@@ -23294,7 +23336,20 @@
                     "task_inputs": {
                         "additionalProperties": {
                             "items": {
-                                "$ref": "#/components/schemas/TaskRunResult"
+                                "anyOf": [
+                                    {
+                                        "$ref": "#/components/schemas/TaskRunResult"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/FlowRunResult"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/Parameter"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/Constant"
+                                    }
+                                ]
                             },
                             "type": "array"
                         },
@@ -23613,6 +23668,9 @@
                                 "anyOf": [
                                     {
                                         "$ref": "#/components/schemas/TaskRunResult"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/FlowRunResult"
                                     },
                                     {
                                         "$ref": "#/components/schemas/Parameter"

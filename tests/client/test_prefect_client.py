@@ -45,6 +45,7 @@ from prefect.client.schemas.filters import (
     ArtifactFilter,
     ArtifactFilterKey,
     DeploymentFilter,
+    DeploymentFilterId,
     DeploymentFilterTags,
     FlowFilter,
     FlowRunFilter,
@@ -837,6 +838,57 @@ async def test_read_deployment_by_any_tag(
         assert deployment_responses[0].name == "moisturized-deployment"
     else:
         assert len(deployment_responses) == 0
+
+
+async def test_read_deployments_with_id_not_any_filter(prefect_client):
+    """Test the DeploymentFilterId.not_any_ filter for pagination use case."""
+
+    @flow
+    def test_flow():
+        pass
+
+    flow_id = await prefect_client.create_flow(test_flow)
+
+    # Create multiple deployments
+    deployment_ids = []
+    for i in range(5):
+        deployment_id = await prefect_client.create_deployment(
+            flow_id=flow_id,
+            name=f"deployment-{i}",
+        )
+        deployment_ids.append(deployment_id)
+
+    # Test excluding specific deployments
+    deployments = await prefect_client.read_deployments(
+        deployment_filter=DeploymentFilter(
+            id=DeploymentFilterId(not_any_=[deployment_ids[0], deployment_ids[1]])
+        )
+    )
+    result_ids = {d.id for d in deployments}
+    assert deployment_ids[0] not in result_ids
+    assert deployment_ids[1] not in result_ids
+    assert all(deployment_ids[i] in result_ids for i in range(2, 5))
+
+    # Test pagination use case - fetch deployments iteratively
+    found_deployments = []
+    while True:
+        exclude_ids = [d.id for d in found_deployments]
+        new_deployments = await prefect_client.read_deployments(
+            deployment_filter=DeploymentFilter(
+                id=DeploymentFilterId(not_any_=exclude_ids) if exclude_ids else None
+            ),
+            limit=2,
+        )
+        if not new_deployments:
+            break
+        found_deployments.extend(new_deployments)
+        if len(new_deployments) < 2:
+            break
+
+    # Verify we got all deployments through pagination
+    assert len(found_deployments) >= 5
+    found_ids = {d.id for d in found_deployments}
+    assert all(dep_id in found_ids for dep_id in deployment_ids)
 
 
 async def test_create_then_delete_deployment(prefect_client):
