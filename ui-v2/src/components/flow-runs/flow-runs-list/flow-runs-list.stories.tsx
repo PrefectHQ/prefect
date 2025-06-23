@@ -7,10 +7,10 @@ import {
 	toastDecorator,
 } from "@/storybook/utils";
 import { randNumber } from "@ngneat/falso";
-import { fn } from "@storybook/test";
 import { buildApiUrl } from "@tests/utils/handlers";
 import { http, HttpResponse } from "msw";
 import { useMemo, useState } from "react";
+import { fn } from "storybook/test";
 import { FlowRunsFilters } from "./flow-runs-filters";
 import type { FlowRunState } from "./flow-runs-filters/state-filters.constants";
 import { FlowRunsList } from "./flow-runs-list";

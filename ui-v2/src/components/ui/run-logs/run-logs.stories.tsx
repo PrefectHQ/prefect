@@ -1,6 +1,6 @@
 import { createFakeLog, createFakeTaskRun } from "@/mocks";
 import type { Meta, StoryObj } from "@storybook/react";
-import { fn } from "@storybook/test";
+import { fn } from "storybook/test";
 
 import { RunLogs } from ".";
 
