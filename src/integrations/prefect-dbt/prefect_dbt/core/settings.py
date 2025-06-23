@@ -8,10 +8,14 @@ from dbt_common.events.base_types import EventLevel
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from prefect.settings import get_current_settings
+
 
 class PrefectDbtSettings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="DBT_")
 
     profiles_dir: Path = Field(default=Path.home() / ".dbt")
     project_dir: Path = Field(default_factory=Path.cwd)
-    log_level: EventLevel = Field(default=EventLevel.INFO)
+    log_level: EventLevel = Field(
+        default=EventLevel(get_current_settings().logging.level)
+    )

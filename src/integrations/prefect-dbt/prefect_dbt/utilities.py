@@ -39,3 +39,9 @@ def load_profiles_yml(profiles_dir: Optional[str]) -> Dict[str, Any]:
 
     with open(profiles_path, "r") as f:
         return yaml.safe_load(f)
+
+
+def format_resource_id(adapter_type: str, relation_name: str) -> str:
+    """Format a relation name to be a valid asset key."""
+    relation_name = relation_name.replace('"', "").replace(".", "/")
+    return f"{adapter_type}://{relation_name}"
