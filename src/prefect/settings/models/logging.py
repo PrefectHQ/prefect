@@ -15,7 +15,7 @@ from typing_extensions import Self
 from prefect.settings.base import PrefectBaseSettings, build_settings_config
 from prefect.types import LogLevel, validate_set_T_from_delim_string
 
-from ._defaults import calculate_default_logging_config_path
+from ._defaults import default_logging_config_path
 
 
 def max_log_size_smaller_than_batch_size(values: dict[str, Any]) -> dict[str, Any]:
@@ -98,7 +98,7 @@ class LoggingSettings(PrefectBaseSettings):
     )
 
     config_path: Path = Field(
-        default_factory=calculate_default_logging_config_path,
+        default_factory=default_logging_config_path,
         description="A path to a logging configuration file. Defaults to <home>/logging.yml",
         validation_alias=AliasChoices(
             AliasPath("config_path"),

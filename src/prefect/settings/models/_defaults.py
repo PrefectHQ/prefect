@@ -9,8 +9,8 @@ if TYPE_CHECKING:
     from prefect.settings.models.root import Settings
 
 
-def calculate_default_profiles_path(values: dict[str, Any]) -> Path:
-    """Calculate default profiles_path based on home directory."""
+def default_profiles_path(values: dict[str, Any]) -> Path:
+    """Default profiles_path based on home directory."""
     home = values.get("home", Path("~/.prefect").expanduser())
     if not isinstance(home, Path):
         home = Path("~/.prefect").expanduser()
@@ -49,24 +49,24 @@ def substitute_home_template(v: Any, info: ValidationInfo) -> Any:
     return path_str
 
 
-def calculate_default_local_storage_path(values: dict[str, Any]) -> Path:
-    """Calculate default local_storage_path based on home directory."""
+def default_local_storage_path(values: dict[str, Any]) -> Path:
+    """Default local_storage_path based on home directory."""
     home = values.get("home")
     if not isinstance(home, Path):
         home = Path("~/.prefect").expanduser()
     return home / "storage"
 
 
-def calculate_default_memo_store_path(values: dict[str, Any]) -> Path:
-    """Calculate default memo_store_path based on home directory."""
+def default_memo_store_path(values: dict[str, Any]) -> Path:
+    """Default memo_store_path based on home directory."""
     home = values.get("home")
     if not isinstance(home, Path):
         home = Path("~/.prefect").expanduser()
     return home / "memo_store.toml"
 
 
-def calculate_default_logging_config_path(values: dict[str, Any]) -> Path:
-    """Calculate default logging_config_path based on home directory."""
+def default_logging_config_path(values: dict[str, Any]) -> Path:
+    """Default logging_config_path based on home directory."""
     home = values.get("home")
     if not isinstance(home, Path):
         home = Path("~/.prefect").expanduser()

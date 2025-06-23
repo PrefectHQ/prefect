@@ -23,8 +23,8 @@ from prefect.utilities.collections import deep_merge_dicts, set_in_dict
 
 from ._defaults import (
     calculate_default_database_connection_url,
-    calculate_default_profiles_path,
     calculate_default_ui_url,
+    default_profiles_path,
     substitute_home_template,
 )
 from .api import APISettings
@@ -59,7 +59,7 @@ class Settings(PrefectBaseSettings):
     )
 
     profiles_path: Annotated[Path, BeforeValidator(substitute_home_template)] = Field(
-        default_factory=calculate_default_profiles_path,
+        default_factory=default_profiles_path,
         description=(
             "The path to a profiles configuration file. Supports $PREFECT_HOME templating."
             " Defaults to <home>/profiles.toml."
@@ -184,11 +184,11 @@ class Settings(PrefectBaseSettings):
 
     @model_validator(mode="after")
     def post_hoc_settings(self) -> Self:
-        """refactor on resolution of https://github.com/pydantic/pydantic/issues/9789
+        """Handle remaining complex default assignments that aren't yet migrated to dependent settings.
 
-        we should not be modifying __pydantic_fields_set__ directly, but until we can
-        define dependencies between defaults in a first-class way, we need clean up
-        post-hoc default assignments to keep set/unset fields correct after instantiation.
+        With Pydantic 2.10's dependent settings feature, we've migrated simple path-based defaults
+        to use default_factory. The remaining items here require access to the full Settings instance
+        or have complex interdependencies that will be migrated in future PRs.
         """
         if self.ui_url is None:
             self.ui_url = calculate_default_ui_url(self)

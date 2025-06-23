@@ -8,7 +8,7 @@ from pydantic_settings import SettingsConfigDict
 
 from prefect.settings.base import PrefectBaseSettings, build_settings_config
 
-from ._defaults import calculate_default_local_storage_path
+from ._defaults import default_local_storage_path
 
 
 class ResultsSettings(PrefectBaseSettings):
@@ -39,7 +39,7 @@ class ResultsSettings(PrefectBaseSettings):
     )
 
     local_storage_path: Path = Field(
-        default_factory=calculate_default_local_storage_path,
+        default_factory=default_local_storage_path,
         description="The default location for locally persisted results. Defaults to <home>/storage.",
         validation_alias=AliasChoices(
             AliasPath("local_storage_path"),
