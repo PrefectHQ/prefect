@@ -17,5 +17,5 @@ class PrefectDbtSettings(BaseSettings):
     profiles_dir: Path = Field(default=Path.home() / ".dbt")
     project_dir: Path = Field(default_factory=Path.cwd)
     log_level: EventLevel = Field(
-        default=EventLevel(get_current_settings().logging.level)
+        default=EventLevel(get_current_settings().logging.level.lower())
     )
