@@ -14,7 +14,7 @@ from dbt.artifacts.schemas.results import (
     TestStatus,
 )
 from dbt.artifacts.schemas.run import RunExecutionResult
-from dbt.cli.main import dbtRunner, dbtRunnerResult
+from dbt.cli.main import dbtRunner
 from dbt.contracts.graph.manifest import Manifest
 from dbt.contracts.graph.nodes import ManifestNode
 from dbt_common.events.base_types import EventLevel, EventMsg
@@ -25,11 +25,8 @@ from prefect.assets import Asset, AssetProperties
 from prefect.cache_policies import NO_CACHE
 from prefect.client.orchestration import PrefectClient
 from prefect.context import AssetContext, hydrated_context, serialize_context
-from prefect.events.related import related_resources_from_run_context
 from prefect.exceptions import MissingContextError
 from prefect.tasks import MaterializingTask, Task, TaskOptions
-from prefect.utilities.asyncutils import run_coro_as_sync
-from prefect_dbt.core.profiles import aresolve_profiles_yml, resolve_profiles_yml
 from prefect_dbt.core.settings import PrefectDbtSettings
 from prefect_dbt.core.task_state import TaskState
 from prefect_dbt.utilities import format_resource_id
@@ -108,6 +105,7 @@ class PrefectDbtRunner:
         self._manifest: Optional[Manifest] = manifest
         self.client = client or get_client()
         self.raise_on_failure = raise_on_failure
+        self.include_compiled_code = False
 
     @property
     def manifest(self) -> Manifest:
@@ -182,10 +180,7 @@ class PrefectDbtRunner:
                 / manifest_node.original_file_path
             )
             compiled_code = ""
-            if (
-                os.path.exists(compiled_code_path)
-                and self.settings.include_compiled_code
-            ):
+            if os.path.exists(compiled_code_path) and self.include_compiled_code:
                 with open(compiled_code_path, "r") as f:
                     code_content = f.read()
                     compiled_code = (
@@ -230,7 +225,7 @@ class PrefectDbtRunner:
                     upstream_compiled_code = ""
                     if (
                         os.path.exists(upstream_compiled_code_path)
-                        and self.settings.include_compiled_code
+                        and self.include_compiled_code
                     ):
                         with open(upstream_compiled_code_path, "r") as f:
                             upstream_code_content = f.read()
@@ -363,7 +358,8 @@ class PrefectDbtRunner:
         return node_started_callback
 
     def _create_node_finished_callback(
-        self, task_state: TaskState, context: dict[str, Any]
+        self,
+        task_state: TaskState,
     ) -> Callable[[EventMsg], None]:
         """Creates a callback function for ending tasks when nodes finish."""
 
@@ -392,90 +388,29 @@ class PrefectDbtRunner:
 
         return node_finished_callback
 
-    async def ainvoke(self, args: list[str], **kwargs: Any) -> dbtRunnerResult:
-        """Asynchronously invokes a dbt command."""
-        context = serialize_context()
-        task_state = TaskState()
-
-        related_prefect_context = await related_resources_from_run_context(self.client)
-
-        invoke_kwargs = {
-            "project_dir": kwargs.pop("project_dir", self.settings.project_dir),
-            "profiles_dir": kwargs.pop("profiles_dir", self.settings.profiles_dir),
-            "log_level": kwargs.pop(
-                "log_level",
-                "none" if related_prefect_context else self.settings.log_level,
-            ),
-            **kwargs,
-        }
-
-        async with aresolve_profiles_yml(invoke_kwargs["profiles_dir"]) as profiles_dir:
-            invoke_kwargs["profiles_dir"] = profiles_dir
-
-            callbacks = [
-                self._create_logging_callback(
-                    task_state, self.settings.log_level, context
-                ),
-                self._create_node_started_callback(task_state, context),
-                self._create_node_finished_callback(task_state, context),
-            ]
-            res = dbtRunner(callbacks=callbacks).invoke(args, **invoke_kwargs)  # type: ignore[reportUnknownMemberType]
-
-            if not res.success and res.exception:
-                raise ValueError(
-                    f"Failed to invoke dbt command '{''.join(args)}': {res.exception}"
-                )
-            elif not res.success and self.raise_on_failure:
-                assert isinstance(res.result, RunExecutionResult), (
-                    "Expected run execution result from failed dbt invoke"
-                )
-
-                failure_results = [
-                    FAILURE_MSG.format(
-                        resource_type=result.node.resource_type.title(),
-                        resource_name=result.node.name,
-                        status=result.status,
-                        message=result.message,
-                    )
-                    for result in res.result.results
-                    if result.status in FAILURE_STATUSES
-                ]
-                raise ValueError(
-                    f"Failures detected during invocation of dbt command '{''.join(args)}':\n{os.linesep.join(failure_results)}"
-                )
-            return res
-
     def invoke(self, args: list[str], **kwargs: Any):
-        """Synchronously invokes a dbt command."""
+        """Invokes a dbt command."""
         context = serialize_context()
         task_state = TaskState()
 
-        related_prefect_context = run_coro_as_sync(
-            related_resources_from_run_context(self.client),
-        )
-        assert related_prefect_context is not None
-
-        invoke_kwargs = {
-            "project_dir": kwargs.pop("project_dir", self.settings.project_dir),
-            "profiles_dir": kwargs.pop("profiles_dir", self.settings.profiles_dir),
-            "log_level": kwargs.pop(
-                "log_level",
-                "none" if related_prefect_context else self.settings.log_level,
-            ),
-            **kwargs,
-        }
-
-        with resolve_profiles_yml(invoke_kwargs["profiles_dir"]) as profiles_dir:
-            invoke_kwargs["profiles_dir"] = profiles_dir
-
+        with self.settings.resolve_profiles_yml() as profiles_dir:
             callbacks = [
                 self._create_logging_callback(
                     task_state, self.settings.log_level, context
                 ),
                 self._create_node_started_callback(task_state, context),
-                self._create_node_finished_callback(task_state, context),
+                self._create_node_finished_callback(task_state),
             ]
-            res = dbtRunner(callbacks=callbacks).invoke(args, **invoke_kwargs)  # type: ignore[reportUnknownMemberType]
+
+            res = dbtRunner(callbacks=callbacks).invoke(  # type: ignore[reportUnknownMemberType]
+                args,
+                **{
+                    "profiles_dir": profiles_dir,
+                    "project_dir": self.settings.project_dir,
+                    "log_level": self.settings.log_level,
+                    **kwargs,
+                },
+            )
 
             if not res.success and res.exception:
                 raise ValueError(
