@@ -69,7 +69,6 @@ class TaskState:
         self._task_results: dict[str, Any] = {}
         self._node_status: dict[str, dict[str, Any]] = {}
         self._node_complete: dict[str, bool] = {}
-        self._node_results: dict[str, Any] = {}
         self._node_dependencies: dict[str, list[str]] = {}
         # self._task_threads: dict[str, threading.Thread] = {}
 
@@ -77,19 +76,6 @@ class TaskState:
         """Start a task for a node."""
         self._tasks[node_id] = task
         self._node_complete[node_id] = False
-
-    def get_task(self, node_id: str) -> Task[Any, Any] | None:
-        """Get the task for a node."""
-        return self._tasks.get(node_id)
-
-    def end_task(self, node_id: str) -> None:
-        """End a task for a node."""
-        self._tasks.pop(node_id, None)
-        self._task_loggers.pop(node_id, None)
-        self._node_complete[node_id] = True
-        # thread = self._task_threads.pop(node_id, None)
-        # if thread and thread.is_alive():
-        #     thread.join()
 
     def set_task_logger(self, node_id: str, logger: Any) -> None:
         """Set the logger for a task."""
@@ -126,14 +112,6 @@ class TaskState:
         """Get the result for a task."""
         return self._task_results.get(node_id)
 
-    def set_node_result(self, node_id: str, result: Any) -> None:
-        """Set the result for a node."""
-        self._node_results[node_id] = result
-
-    def get_node_result(self, node_id: str) -> Any | None:
-        """Get the result for a node."""
-        return self._node_results.get(node_id)
-
     def set_node_dependencies(self, node_id: str, dependencies: list[str]) -> None:
         """Set the dependencies for a node."""
         self._node_dependencies[node_id] = dependencies
@@ -141,10 +119,6 @@ class TaskState:
     def get_node_dependencies(self, node_id: str) -> list[str]:
         """Get the dependencies for a node."""
         return self._node_dependencies.get(node_id, [])
-
-    def get_all_nodes(self) -> list[str]:
-        """Get all node IDs that have results."""
-        return list(self._node_results.keys())
 
     def run_task_in_thread(
         self,
@@ -518,7 +492,6 @@ class PrefectDbtRunner:
                             task_state.set_node_status(
                                 node_id, event_data, event_message
                             )
-                            task_state.end_task(node_id)
                     except Exception as e:
                         print(e)
 
