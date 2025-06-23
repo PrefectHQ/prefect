@@ -22,9 +22,9 @@ from prefect.settings.models.worker import WorkerSettings
 from prefect.utilities.collections import deep_merge_dicts, set_in_dict
 
 from ._defaults import (
-    calculate_default_database_connection_url,
-    calculate_default_ui_url,
+    default_database_connection_url,
     default_profiles_path,
+    default_ui_url,
     substitute_home_template,
 )
 from .api import APISettings
@@ -191,7 +191,7 @@ class Settings(PrefectBaseSettings):
         or have complex interdependencies that will be migrated in future PRs.
         """
         if self.ui_url is None:
-            self.ui_url = calculate_default_ui_url(self)
+            self.ui_url = default_ui_url(self)
             self.__pydantic_fields_set__.remove("ui_url")
         if self.server.ui.api_url is None:
             if self.api.url:
@@ -210,9 +210,7 @@ class Settings(PrefectBaseSettings):
 
         # Set default database connection URL if not provided
         if self.server.database.connection_url is None:
-            self.server.database.connection_url = (
-                calculate_default_database_connection_url(self)
-            )
+            self.server.database.connection_url = default_database_connection_url(self)
             self.server.database.__pydantic_fields_set__.remove("connection_url")
         db_url = self.server.database.connection_url.get_secret_value()
         if (

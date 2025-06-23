@@ -73,7 +73,7 @@ def default_logging_config_path(values: dict[str, Any]) -> Path:
     return home / "logging.yml"
 
 
-def calculate_default_database_connection_url(settings: "Settings") -> SecretStr:
+def default_database_connection_url(settings: "Settings") -> SecretStr:
     value: str = f"sqlite+aiosqlite:///{settings.home}/prefect.db"
     if settings.server.database.driver == "postgresql+asyncpg":
         required = [
@@ -121,7 +121,7 @@ def calculate_default_database_connection_url(settings: "Settings") -> SecretStr
     return SecretStr(value)
 
 
-def calculate_default_ui_url(settings: "Settings") -> str | None:
+def default_ui_url(settings: "Settings") -> str | None:
     value = settings.ui_url
     if value is not None:
         return value
