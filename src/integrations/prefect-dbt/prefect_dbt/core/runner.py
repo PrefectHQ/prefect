@@ -317,12 +317,10 @@ class PrefectDbtRunner:
             compiled_code = ""
             if os.path.exists(compiled_code_path):
                 with open(compiled_code_path, "r") as f:
-                    compiled_code = f.read()
-                    compiled_code = f"""\n ### Compiled code\n
-                                        ```sql
-                                        {compiled_code.strip()}
-                                        ```
-                                    """
+                    code_content = f.read()
+                    compiled_code = (
+                        f"\n ### Compiled code\n```sql\n{code_content.strip()}\n```"
+                    )
 
             asset_id = format_resource_id(adapter_type, manifest_node.relation_name)
 
@@ -362,12 +360,8 @@ class PrefectDbtRunner:
                     upstream_compiled_code = ""
                     if os.path.exists(upstream_compiled_code_path):
                         with open(upstream_compiled_code_path, "r") as f:
-                            upstream_compiled_code = f.read()
-                            upstream_compiled_code = f"""\n ### Compiled code\n
-                                                        ```sql
-                                                        {upstream_compiled_code.strip()}
-                                                        ```
-                                                    """
+                            upstream_code_content = f.read()
+                            upstream_compiled_code = f"\n ### Compiled code\n```sql\n{upstream_code_content.strip()}\n```"
 
                     upstream_asset = Asset(
                         key=upstream_asset_id,
