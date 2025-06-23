@@ -2035,3 +2035,19 @@ class MaterializingTask(Task[P, R]):
             Asset(key=a) if isinstance(a, str) else a for a in assets
         ]
         self.materialized_by = materialized_by
+
+    def with_options(
+        self,
+        assets: Optional[Sequence[Union[str, Asset]]] = None,
+        **task_kwargs: Unpack[TaskOptions],
+    ) -> "MaterializingTask[P, R]":
+        new_task = cast("MaterializingTask[P, R]", super().with_options(**task_kwargs))
+
+        new_task.assets = (
+            [Asset(key=a) if isinstance(a, str) else a for a in assets]
+            if assets is not None
+            else self.assets
+        )
+        new_task.materialized_by = self.materialized_by
+
+        return new_task
