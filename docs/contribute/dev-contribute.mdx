@@ -51,16 +51,10 @@ prefect --version
 ```
 </CodeGroup>
 
-To ensure your changes comply with our linting policies, set up `pre-commit` hooks to run with every commit:
+To ensure your changes comply with our linting policies, set up `pre-commit` and `pre-push` hooks to run with every commit:
 
 ```bash
 uv run pre-commit install
-```
-
-You also need to install pre-push hooks to ensure code quality before pushing changes:
-
-```bash
-uv run pre-commit install --hook-type pre-push
 ```
 
 To manually run the `pre-commit` hooks against all files:
