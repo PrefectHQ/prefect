@@ -19,3 +19,7 @@ class PrefectDbtSettings(BaseSettings):
     log_level: EventLevel = Field(
         default=EventLevel(get_current_settings().logging.level.lower())
     )
+    include_compiled_code: bool = Field(
+        default=False,
+        description="Include the compiled code of dbt models in asset descriptions",
+    )

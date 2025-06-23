@@ -315,7 +315,10 @@ class PrefectDbtRunner:
                 / manifest_node.original_file_path
             )
             compiled_code = ""
-            if os.path.exists(compiled_code_path):
+            if (
+                os.path.exists(compiled_code_path)
+                and self.settings.include_compiled_code
+            ):
                 with open(compiled_code_path, "r") as f:
                     code_content = f.read()
                     compiled_code = (
@@ -358,7 +361,10 @@ class PrefectDbtRunner:
                         / upstream_manifest_node.original_file_path
                     )
                     upstream_compiled_code = ""
-                    if os.path.exists(upstream_compiled_code_path):
+                    if (
+                        os.path.exists(upstream_compiled_code_path)
+                        and self.settings.include_compiled_code
+                    ):
                         with open(upstream_compiled_code_path, "r") as f:
                             upstream_code_content = f.read()
                             upstream_compiled_code = f"\n ### Compiled code\n```sql\n{upstream_code_content.strip()}\n```"
