@@ -1,0 +1,17 @@
+---
+title: middleware
+sidebarTitle: middleware
+---
+
+# `prefect.server.api.middleware`
+
+## Classes
+
+### `CsrfMiddleware`
+
+
+Middleware for CSRF protection. This middleware will check for a CSRF token
+in the headers of any POST, PUT, PATCH, or DELETE request. If the token is
+not present or does not match the token stored in the database for the
+client, the request will be rejected with a 403 status code.
+

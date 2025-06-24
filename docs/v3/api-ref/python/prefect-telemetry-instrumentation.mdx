@@ -1,0 +1,20 @@
+---
+title: instrumentation
+sidebarTitle: instrumentation
+---
+
+# `prefect.telemetry.instrumentation`
+
+## Functions
+
+### `extract_account_and_workspace_id`
+
+```python
+extract_account_and_workspace_id(url: str) -> tuple[UUID, UUID]
+```
+
+### `setup_exporters`
+
+```python
+setup_exporters(api_url: str, api_key: str) -> 'tuple[TracerProvider, MeterProvider, LoggerProvider]'
+```

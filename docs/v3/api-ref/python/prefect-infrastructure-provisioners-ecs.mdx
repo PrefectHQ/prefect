@@ -1,0 +1,145 @@
+---
+title: ecs
+sidebarTitle: ecs
+---
+
+# `prefect.infrastructure.provisioners.ecs`
+
+## Functions
+
+### `console_context`
+
+```python
+console_context(value: Console) -> Generator[None, None, None]
+```
+
+## Classes
+
+### `IamPolicyResource`
+
+
+Represents an IAM policy resource for managing ECS tasks.
+
+**Args:**
+- `policy_name`: The name of the IAM policy. Defaults to "prefect-ecs-policy".
+
+
+**Methods:**
+
+#### `next_steps`
+
+```python
+next_steps(self) -> list[str]
+```
+
+### `IamUserResource`
+
+
+Represents an IAM user resource for managing ECS tasks.
+
+**Args:**
+- `user_name`: The desired name of the IAM user.
+
+
+**Methods:**
+
+#### `next_steps`
+
+```python
+next_steps(self) -> list[str]
+```
+
+### `CredentialsBlockResource`
+
+**Methods:**
+
+#### `next_steps`
+
+```python
+next_steps(self) -> list[str]
+```
+
+### `AuthenticationResource`
+
+**Methods:**
+
+#### `resources`
+
+```python
+resources(self) -> list['ExecutionRoleResource | IamUserResource | IamPolicyResource | CredentialsBlockResource']
+```
+
+#### `next_steps`
+
+```python
+next_steps(self) -> list[str]
+```
+
+### `ClusterResource`
+
+**Methods:**
+
+#### `next_steps`
+
+```python
+next_steps(self) -> list[str]
+```
+
+### `VpcResource`
+
+**Methods:**
+
+#### `next_steps`
+
+```python
+next_steps(self) -> list[str]
+```
+
+### `ContainerRepositoryResource`
+
+**Methods:**
+
+#### `next_steps`
+
+```python
+next_steps(self) -> list[str | Panel]
+```
+
+### `ExecutionRoleResource`
+
+**Methods:**
+
+#### `next_steps`
+
+```python
+next_steps(self) -> list[str]
+```
+
+### `ElasticContainerServicePushProvisioner`
+
+
+An infrastructure provisioner for ECS push work pools.
+
+
+**Methods:**
+
+#### `console`
+
+```python
+console(self) -> Console
+```
+
+#### `console`
+
+```python
+console(self, value: Console) -> None
+```
+
+#### `is_boto3_installed`
+
+```python
+is_boto3_installed() -> bool
+```
+
+Check if boto3 is installed.
+

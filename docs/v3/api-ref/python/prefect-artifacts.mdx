@@ -1,0 +1,270 @@
+---
+title: artifacts
+sidebarTitle: artifacts
+---
+
+# `prefect.artifacts`
+
+
+
+Interface for creating and reading artifacts.
+
+
+## Functions
+
+### `create_link_artifact`
+
+```python
+create_link_artifact(link: str, link_text: str | None = None, key: str | None = None, description: str | None = None, client: 'PrefectClient | None' = None) -> UUID
+```
+
+
+Create a link artifact.
+
+**Args:**
+- `link`: The link to create.
+- `link_text`: The link text.
+- `key`: A user-provided string identifier.
+Required for the artifact to show in the Artifacts page in the UI.
+The key must only contain lowercase letters, numbers, and dashes.
+- `description`: A user-specified description of the artifact.
+
+**Returns:**
+- The table artifact ID.
+
+
+### `create_markdown_artifact`
+
+```python
+create_markdown_artifact(markdown: str, key: str | None = None, description: str | None = None) -> UUID
+```
+
+
+Create a markdown artifact.
+
+**Args:**
+- `markdown`: The markdown to create.
+- `key`: A user-provided string identifier.
+Required for the artifact to show in the Artifacts page in the UI.
+The key must only contain lowercase letters, numbers, and dashes.
+- `description`: A user-specified description of the artifact.
+
+**Returns:**
+- The table artifact ID.
+
+
+### `create_table_artifact`
+
+```python
+create_table_artifact(table: dict[str, list[Any]] | list[dict[str, Any]] | list[list[Any]], key: str | None = None, description: str | None = None) -> UUID
+```
+
+
+Create a table artifact.
+
+**Args:**
+- `table`: The table to create.
+- `key`: A user-provided string identifier.
+Required for the artifact to show in the Artifacts page in the UI.
+The key must only contain lowercase letters, numbers, and dashes.
+- `description`: A user-specified description of the artifact.
+
+**Returns:**
+- The table artifact ID.
+
+
+### `create_progress_artifact`
+
+```python
+create_progress_artifact(progress: float, key: str | None = None, description: str | None = None) -> UUID
+```
+
+
+Create a progress artifact.
+
+**Args:**
+- `progress`: The percentage of progress represented by a float between 0 and 100.
+- `key`: A user-provided string identifier.
+Required for the artifact to show in the Artifacts page in the UI.
+The key must only contain lowercase letters, numbers, and dashes.
+- `description`: A user-specified description of the artifact.
+
+**Returns:**
+- The progress artifact ID.
+
+
+### `update_progress_artifact`
+
+```python
+update_progress_artifact(artifact_id: UUID, progress: float, description: str | None = None, client: 'PrefectClient | None' = None) -> UUID
+```
+
+
+Update a progress artifact.
+
+**Args:**
+- `artifact_id`: The ID of the artifact to update.
+- `progress`: The percentage of progress represented by a float between 0 and 100.
+- `description`: A user-specified description of the artifact.
+
+**Returns:**
+- The progress artifact ID.
+
+
+### `create_image_artifact`
+
+```python
+create_image_artifact(image_url: str, key: str | None = None, description: str | None = None) -> UUID
+```
+
+
+Create an image artifact.
+
+**Args:**
+- `image_url`: The URL of the image to display.
+- `key`: A user-provided string identifier.
+Required for the artifact to show in the Artifacts page in the UI.
+The key must only contain lowercase letters, numbers, and dashes.
+- `description`: A user-specified description of the artifact.
+
+**Returns:**
+- The image artifact ID.
+
+
+## Classes
+
+### `Artifact`
+
+
+An artifact is a piece of data that is created by a flow or task run.
+https://docs.prefect.io/latest/develop/artifacts
+
+**Args:**
+- `type`: A string identifying the type of artifact.
+- `key`: A user-provided string identifier.
+The key must only contain lowercase letters, numbers, and dashes.
+- `description`: A user-specified description of the artifact.
+- `data`: A JSON payload that allows for a result to be retrieved.
+
+
+**Methods:**
+
+#### `create`
+
+```python
+create(self: Self, client: 'PrefectClient | None' = None) -> 'ArtifactResponse'
+```
+
+A method to create an artifact.
+
+**Args:**
+- `client`: The PrefectClient
+
+**Returns:**
+- - The created artifact.
+
+
+#### `get`
+
+```python
+get(cls, key: str | None = None, client: 'PrefectClient | None' = None) -> 'ArtifactResponse | None'
+```
+
+A method to get an artifact.
+
+**Args:**
+- `key`: The key of the artifact to get.
+- `client`: A client to use when calling the Prefect API.
+
+**Returns:**
+- The artifact (if found).
+
+
+#### `get_or_create`
+
+```python
+get_or_create(cls, key: str | None = None, description: str | None = None, data: dict[str, Any] | Any | None = None, client: 'PrefectClient | None' = None, **kwargs: Any) -> tuple['ArtifactResponse', bool]
+```
+
+A method to get or create an artifact.
+
+**Args:**
+- `key`: The key of the artifact to get or create.
+- `description`: The description of the artifact to create.
+- `data`: The data of the artifact to create.
+- `client`: The PrefectClient
+- `**kwargs`: Additional keyword arguments to use when creating the artifact.
+
+**Returns:**
+- The artifact, either retrieved or created.
+
+
+#### `format`
+
+```python
+format(self) -> str | float | int | dict[str, Any]
+```
+
+### `LinkArtifact`
+
+**Methods:**
+
+#### `format`
+
+```python
+format(self) -> str
+```
+
+### `MarkdownArtifact`
+
+**Methods:**
+
+#### `format`
+
+```python
+format(self) -> str
+```
+
+### `TableArtifact`
+
+**Methods:**
+
+#### `format`
+
+```python
+format(self) -> str
+```
+
+### `ProgressArtifact`
+
+**Methods:**
+
+#### `format`
+
+```python
+format(self) -> float
+```
+
+### `ImageArtifact`
+
+
+An artifact that will display an image from a publicly accessible URL in the UI.
+
+**Args:**
+- `image_url`: The URL of the image to display.
+
+
+**Methods:**
+
+#### `format`
+
+```python
+format(self) -> str
+```
+
+This method is used to format the artifact data so it can be properly sent
+to the API when the .create() method is called.
+
+**Returns:**
+- The image URL.
+

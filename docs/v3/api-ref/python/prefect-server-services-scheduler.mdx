@@ -1,0 +1,55 @@
+---
+title: scheduler
+sidebarTitle: scheduler
+---
+
+# `prefect.server.services.scheduler`
+
+
+
+The Scheduler service.
+
+
+## Classes
+
+### `TryAgain`
+
+
+Internal control-flow exception used to retry the Scheduler's main loop
+
+
+### `Scheduler`
+
+
+Schedules flow runs from deployments.
+
+
+**Methods:**
+
+#### `service_settings`
+
+```python
+service_settings(cls) -> ServicesBaseSetting
+```
+
+### `RecentDeploymentsScheduler`
+
+
+Schedules deployments that were updated very recently
+
+This scheduler can run on a tight loop and ensure that runs from
+newly-created or updated deployments are rapidly scheduled without having to
+wait for the "main" scheduler to complete its loop.
+
+Note that scheduling is idempotent, so its ok for this scheduler to attempt
+to schedule the same deployments as the main scheduler. It's purpose is to
+accelerate scheduling for any deployments that users are interacting with.
+
+
+**Methods:**
+
+#### `service_settings`
+
+```python
+service_settings(cls) -> ServicesBaseSetting
+```

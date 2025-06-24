@@ -1,0 +1,66 @@
+---
+title: utils
+sidebarTitle: utils
+---
+
+# `prefect.runner.utils`
+
+## Functions
+
+### `inject_schemas_into_openapi`
+
+```python
+inject_schemas_into_openapi(webserver: FastAPI, schemas_to_inject: dict[Hashable, Any]) -> dict[str, Any]
+```
+
+
+Augments the webserver's OpenAPI schema with additional schemas from deployments / flows / tasks.
+
+**Args:**
+- `webserver`: The FastAPI instance representing the webserver.
+- `schemas_to_inject`: A dictionary of OpenAPI schemas to integrate.
+
+**Returns:**
+- The augmented OpenAPI schema dictionary.
+
+
+### `merge_definitions`
+
+```python
+merge_definitions(injected_schemas: dict[Hashable, Any], openapi_schema: dict[str, Any]) -> dict[str, Any]
+```
+
+
+Integrates definitions from injected schemas into the OpenAPI components.
+
+**Args:**
+- `injected_schemas`: A dictionary of deployment-specific schemas.
+- `openapi_schema`: The base OpenAPI schema to update.
+
+
+### `update_refs_in_schema`
+
+```python
+update_refs_in_schema(schema_item: dict[str, Any] | list[Any], new_ref: str) -> None
+```
+
+
+Recursively replaces `$ref` with a new reference base in a schema item.
+
+**Args:**
+- `schema_item`: A schema or part of a schema to update references in.
+- `new_ref`: The new base string to replace in `$ref` values.
+
+
+### `update_refs_to_components`
+
+```python
+update_refs_to_components(openapi_schema: dict[str, Any]) -> dict[str, Any]
+```
+
+
+Updates all `$ref` fields in the OpenAPI schema to reference the components section.
+
+**Args:**
+- `openapi_schema`: The OpenAPI schema to modify `$ref` fields in.
+

@@ -1,0 +1,23 @@
+---
+title: materialize
+sidebarTitle: materialize
+---
+
+# `prefect.assets.materialize`
+
+## Functions
+
+### `materialize`
+
+```python
+materialize(*assets: Union[str, Asset], **task_kwargs: Unpack[TaskOptions]) -> Callable[[Callable[P, R]], MaterializingTask[P, R]]
+```
+
+
+Decorator for materializing assets.
+
+**Args:**
+- `*assets`: Assets to materialize
+- `by`: An optional tool that is ultimately responsible for materializing the asset e.g. "dbt" or "spark"
+- `**task_kwargs`: Additional task configuration
+

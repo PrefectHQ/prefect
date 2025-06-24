@@ -1,0 +1,41 @@
+---
+title: dependencies
+sidebarTitle: dependencies
+---
+
+# `prefect.server.orchestration.dependencies`
+
+
+
+Injected orchestration dependencies
+
+
+## Functions
+
+### `temporary_task_policy`
+
+```python
+temporary_task_policy(tmp_task_policy: type[TaskRunOrchestrationPolicy])
+```
+
+### `temporary_flow_policy`
+
+```python
+temporary_flow_policy(tmp_flow_policy: type[FlowRunOrchestrationPolicy])
+```
+
+### `temporary_task_orchestration_parameters`
+
+```python
+temporary_task_orchestration_parameters(tmp_orchestration_parameters: dict[str, Any])
+```
+
+### `temporary_flow_orchestration_parameters`
+
+```python
+temporary_flow_orchestration_parameters(tmp_orchestration_parameters: dict[str, Any])
+```
+
+## Classes
+
+### `OrchestrationDependencies`

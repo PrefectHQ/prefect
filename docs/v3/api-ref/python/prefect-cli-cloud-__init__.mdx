@@ -1,0 +1,72 @@
+---
+title: __init__
+sidebarTitle: __init__
+---
+
+# `prefect.cli.cloud`
+
+
+
+Command line interface for interacting with Prefect Cloud
+
+
+## Functions
+
+### `set_login_api_ready_event`
+
+```python
+set_login_api_ready_event() -> None
+```
+
+### `receive_login`
+
+```python
+receive_login(payload: LoginSuccess) -> None
+```
+
+### `receive_failure`
+
+```python
+receive_failure(payload: LoginFailed) -> None
+```
+
+### `confirm_logged_in`
+
+```python
+confirm_logged_in() -> None
+```
+
+### `get_current_workspace`
+
+```python
+get_current_workspace(workspaces: Iterable[Workspace]) -> Workspace | None
+```
+
+### `prompt_select_from_list`
+
+```python
+prompt_select_from_list(console: Console, prompt: str, options: list[str] | list[tuple[T, str]]) -> str | T
+```
+
+
+Given a list of options, display the values to user in a table and prompt them
+to select one.
+
+**Args:**
+- `options`: A list of options to present to the user.
+A list of tuples can be passed as key value pairs. If a value is chosen, the
+key will be returned.
+
+**Returns:**
+- the selected option
+
+
+## Classes
+
+### `LoginSuccess`
+
+### `LoginFailed`
+
+### `LoginResult`
+
+### `ServerExit`

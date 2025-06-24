@@ -1,0 +1,35 @@
+---
+title: work_pool
+sidebarTitle: work_pool
+---
+
+# `prefect.cli.work_pool`
+
+
+
+Command line interface for working with work queues.
+
+
+## Functions
+
+### `set_work_pool_as_default`
+
+```python
+set_work_pool_as_default(name: str) -> None
+```
+
+### `has_provisioner_for_type`
+
+```python
+has_provisioner_for_type(work_pool_type: str) -> bool
+```
+
+
+Check if there is a provisioner for the given work pool type.
+
+**Args:**
+- `work_pool_type`: The type of the work pool.
+
+**Returns:**
+- True if a provisioner exists for the given type, False otherwise.
+

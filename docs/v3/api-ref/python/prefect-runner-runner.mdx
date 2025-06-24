@@ -1,0 +1,91 @@
+---
+title: runner
+sidebarTitle: runner
+---
+
+# `prefect.runner.runner`
+
+
+
+Runners are responsible for managing the execution of all deployments.
+
+When creating a deployment using either `flow.serve` or the `serve` utility,
+they also will poll for scheduled runs.
+
+Example:
+    ```python
+    import time
+    from prefect import flow, serve
+
+
+    @flow
+    def slow_flow(sleep: int = 60):
+        "Sleepy flow - sleeps the provided amount of time (in seconds)."
+        time.sleep(sleep)
+
+
+    @flow
+    def fast_flow():
+        "Fastest flow this side of the Mississippi."
+        return
+
+
+    if __name__ == "__main__":
+        slow_deploy = slow_flow.to_deployment(name="sleeper", interval=45)
+        fast_deploy = fast_flow.to_deployment(name="fast")
+
+        # serve generates a Runner instance
+        serve(slow_deploy, fast_deploy)
+    ```
+
+
+
+## Classes
+
+### `ProcessMapEntry`
+
+### `Runner`
+
+**Methods:**
+
+#### `handle_sigterm`
+
+```python
+handle_sigterm(self, *args: Any, **kwargs: Any) -> None
+```
+
+Gracefully shuts down the runner when a SIGTERM is received.
+
+
+#### `execute_in_background`
+
+```python
+execute_in_background(self, func: Callable[..., Any], *args: Any, **kwargs: Any) -> 'concurrent.futures.Future[Any]'
+```
+
+Executes a function in the background.
+
+
+#### `reschedule_current_flow_runs`
+
+```python
+reschedule_current_flow_runs(self) -> None
+```
+
+Reschedules all flow runs that are currently running.
+
+This should only be called when the runner is shutting down because it kill all
+child processes and short-circuit the crash detection logic.
+
+
+#### `has_slots_available`
+
+```python
+has_slots_available(self) -> bool
+```
+
+Determine if the flow run limit has been reached.
+
+**Returns:**
+- - bool: True if the limit has not been reached, False otherwise.
+

@@ -1,0 +1,314 @@
+---
+title: actions
+sidebarTitle: actions
+---
+
+# `prefect.client.schemas.actions`
+
+## Classes
+
+### `StateCreate`
+
+
+Data used by the Prefect REST API to create a new state.
+
+
+### `FlowCreate`
+
+
+Data used by the Prefect REST API to create a flow.
+
+
+### `FlowUpdate`
+
+
+Data used by the Prefect REST API to update a flow.
+
+
+### `DeploymentScheduleCreate`
+
+**Methods:**
+
+#### `validate_active`
+
+```python
+validate_active(cls, v: Any, handler: Callable[[Any], Any]) -> bool
+```
+
+#### `validate_max_scheduled_runs`
+
+```python
+validate_max_scheduled_runs(cls, v: Optional[int]) -> Optional[int]
+```
+
+#### `from_schedule`
+
+```python
+from_schedule(cls, schedule: Schedule) -> 'DeploymentScheduleCreate'
+```
+
+### `DeploymentScheduleUpdate`
+
+**Methods:**
+
+#### `validate_max_scheduled_runs`
+
+```python
+validate_max_scheduled_runs(cls, v: Optional[int]) -> Optional[int]
+```
+
+### `DeploymentCreate`
+
+
+Data used by the Prefect REST API to create a deployment.
+
+
+**Methods:**
+
+#### `remove_old_fields`
+
+```python
+remove_old_fields(cls, values: dict[str, Any]) -> dict[str, Any]
+```
+
+#### `convert_to_strings`
+
+```python
+convert_to_strings(cls, values: Optional[Union[str, list[str]]]) -> Union[str, list[str]]
+```
+
+#### `check_valid_configuration`
+
+```python
+check_valid_configuration(self, base_job_template: dict[str, Any]) -> None
+```
+
+Check that the combination of base_job_template defaults
+and job_variables conforms to the specified schema.
+
+
+### `DeploymentUpdate`
+
+
+Data used by the Prefect REST API to update a deployment.
+
+
+**Methods:**
+
+#### `remove_old_fields`
+
+```python
+remove_old_fields(cls, values: dict[str, Any]) -> dict[str, Any]
+```
+
+#### `check_valid_configuration`
+
+```python
+check_valid_configuration(self, base_job_template: dict[str, Any]) -> None
+```
+
+Check that the combination of base_job_template defaults
+and job_variables conforms to the specified schema.
+
+
+### `DeploymentBranch`
+
+**Methods:**
+
+#### `validate_branch_length`
+
+```python
+validate_branch_length(cls, v: str) -> str
+```
+
+### `FlowRunUpdate`
+
+
+Data used by the Prefect REST API to update a flow run.
+
+
+### `TaskRunCreate`
+
+
+Data used by the Prefect REST API to create a task run
+
+
+### `TaskRunUpdate`
+
+
+Data used by the Prefect REST API to update a task run
+
+
+### `FlowRunCreate`
+
+
+Data used by the Prefect REST API to create a flow run.
+
+
+### `DeploymentFlowRunCreate`
+
+
+Data used by the Prefect REST API to create a flow run from a deployment.
+
+
+**Methods:**
+
+#### `convert_parameters_to_plain_data`
+
+```python
+convert_parameters_to_plain_data(cls, values: dict[str, Any]) -> dict[str, Any]
+```
+
+### `SavedSearchCreate`
+
+
+Data used by the Prefect REST API to create a saved search.
+
+
+### `ConcurrencyLimitCreate`
+
+
+Data used by the Prefect REST API to create a concurrency limit.
+
+
+### `ConcurrencyLimitV2Create`
+
+
+Data used by the Prefect REST API to create a v2 concurrency limit.
+
+
+### `ConcurrencyLimitV2Update`
+
+
+Data used by the Prefect REST API to update a v2 concurrency limit.
+
+
+### `BlockTypeCreate`
+
+
+Data used by the Prefect REST API to create a block type.
+
+
+### `BlockTypeUpdate`
+
+
+Data used by the Prefect REST API to update a block type.
+
+
+**Methods:**
+
+#### `updatable_fields`
+
+```python
+updatable_fields(cls) -> set[str]
+```
+
+### `BlockSchemaCreate`
+
+
+Data used by the Prefect REST API to create a block schema.
+
+
+### `BlockDocumentCreate`
+
+
+Data used by the Prefect REST API to create a block document.
+
+
+**Methods:**
+
+#### `validate_name_is_present_if_not_anonymous`
+
+```python
+validate_name_is_present_if_not_anonymous(cls, values: dict[str, Any]) -> dict[str, Any]
+```
+
+### `BlockDocumentUpdate`
+
+
+Data used by the Prefect REST API to update a block document.
+
+
+### `BlockDocumentReferenceCreate`
+
+
+Data used to create block document reference.
+
+
+### `LogCreate`
+
+
+Data used by the Prefect REST API to create a log.
+
+
+**Methods:**
+
+#### `model_dump`
+
+```python
+model_dump(self, *args: Any, **kwargs: Any) -> dict[str, Any]
+```
+
+The worker_id field is only included in logs sent to Prefect Cloud.
+If it's unset, we should not include it in the log payload.
+
+
+### `WorkPoolCreate`
+
+
+Data used by the Prefect REST API to create a work pool.
+
+
+### `WorkPoolUpdate`
+
+
+Data used by the Prefect REST API to update a work pool.
+
+
+### `WorkQueueCreate`
+
+
+Data used by the Prefect REST API to create a work queue.
+
+
+### `WorkQueueUpdate`
+
+
+Data used by the Prefect REST API to update a work queue.
+
+
+### `ArtifactCreate`
+
+
+Data used by the Prefect REST API to create an artifact.
+
+
+### `ArtifactUpdate`
+
+
+Data used by the Prefect REST API to update an artifact.
+
+
+### `VariableCreate`
+
+
+Data used by the Prefect REST API to create a Variable.
+
+
+### `VariableUpdate`
+
+
+Data used by the Prefect REST API to update a Variable.
+
+
+### `GlobalConcurrencyLimitCreate`
+
+
+Data used by the Prefect REST API to create a global concurrency limit.
+
+
+### `GlobalConcurrencyLimitUpdate`
+
+
+Data used by the Prefect REST API to update a global concurrency limit.
+

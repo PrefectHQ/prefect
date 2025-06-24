@@ -1,0 +1,348 @@
+---
+title: interface
+sidebarTitle: interface
+---
+
+# `prefect.server.database.interface`
+
+## Classes
+
+### `DBSingleton`
+
+
+Ensures that only one database interface is created per unique key
+
+
+### `PrefectDBInterface`
+
+
+An interface for backend-specific SqlAlchemy actions and ORM models.
+
+The REST API can be configured to run against different databases in order maintain
+performance at different scales. This interface integrates database- and dialect-
+specific configuration into a unified interface that the orchestration engine runs
+against.
+
+
+**Methods:**
+
+#### `dialect`
+
+```python
+dialect(self) -> type[sa.engine.Dialect]
+```
+
+#### `Base`
+
+```python
+Base(self) -> type[orm_models.Base]
+```
+
+Base class for orm models
+
+
+#### `Flow`
+
+```python
+Flow(self) -> type[orm_models.Flow]
+```
+
+A flow orm model
+
+
+#### `FlowRun`
+
+```python
+FlowRun(self) -> type[orm_models.FlowRun]
+```
+
+A flow run orm model
+
+
+#### `FlowRunState`
+
+```python
+FlowRunState(self) -> type[orm_models.FlowRunState]
+```
+
+A flow run state orm model
+
+
+#### `TaskRun`
+
+```python
+TaskRun(self) -> type[orm_models.TaskRun]
+```
+
+A task run orm model
+
+
+#### `TaskRunState`
+
+```python
+TaskRunState(self) -> type[orm_models.TaskRunState]
+```
+
+A task run state orm model
+
+
+#### `Artifact`
+
+```python
+Artifact(self) -> type[orm_models.Artifact]
+```
+
+An artifact orm model
+
+
+#### `ArtifactCollection`
+
+```python
+ArtifactCollection(self) -> type[orm_models.ArtifactCollection]
+```
+
+An artifact collection orm model
+
+
+#### `TaskRunStateCache`
+
+```python
+TaskRunStateCache(self) -> type[orm_models.TaskRunStateCache]
+```
+
+A task run state cache orm model
+
+
+#### `Deployment`
+
+```python
+Deployment(self) -> type[orm_models.Deployment]
+```
+
+A deployment orm model
+
+
+#### `DeploymentSchedule`
+
+```python
+DeploymentSchedule(self) -> type[orm_models.DeploymentSchedule]
+```
+
+A deployment schedule orm model
+
+
+#### `SavedSearch`
+
+```python
+SavedSearch(self) -> type[orm_models.SavedSearch]
+```
+
+A saved search orm model
+
+
+#### `WorkPool`
+
+```python
+WorkPool(self) -> type[orm_models.WorkPool]
+```
+
+A work pool orm model
+
+
+#### `Worker`
+
+```python
+Worker(self) -> type[orm_models.Worker]
+```
+
+A worker process orm model
+
+
+#### `Log`
+
+```python
+Log(self) -> type[orm_models.Log]
+```
+
+A log orm model
+
+
+#### `ConcurrencyLimit`
+
+```python
+ConcurrencyLimit(self) -> type[orm_models.ConcurrencyLimit]
+```
+
+A concurrency model
+
+
+#### `ConcurrencyLimitV2`
+
+```python
+ConcurrencyLimitV2(self) -> type[orm_models.ConcurrencyLimitV2]
+```
+
+A v2 concurrency model
+
+
+#### `CsrfToken`
+
+```python
+CsrfToken(self) -> type[orm_models.CsrfToken]
+```
+
+A csrf token model
+
+
+#### `WorkQueue`
+
+```python
+WorkQueue(self) -> type[orm_models.WorkQueue]
+```
+
+A work queue model
+
+
+#### `Agent`
+
+```python
+Agent(self) -> type[orm_models.Agent]
+```
+
+An agent model
+
+
+#### `BlockType`
+
+```python
+BlockType(self) -> type[orm_models.BlockType]
+```
+
+A block type model
+
+
+#### `BlockSchema`
+
+```python
+BlockSchema(self) -> type[orm_models.BlockSchema]
+```
+
+A block schema model
+
+
+#### `BlockSchemaReference`
+
+```python
+BlockSchemaReference(self) -> type[orm_models.BlockSchemaReference]
+```
+
+A block schema reference model
+
+
+#### `BlockDocument`
+
+```python
+BlockDocument(self) -> type[orm_models.BlockDocument]
+```
+
+A block document model
+
+
+#### `BlockDocumentReference`
+
+```python
+BlockDocumentReference(self) -> type[orm_models.BlockDocumentReference]
+```
+
+A block document reference model
+
+
+#### `Configuration`
+
+```python
+Configuration(self) -> type[orm_models.Configuration]
+```
+
+An configuration model
+
+
+#### `Variable`
+
+```python
+Variable(self) -> type[orm_models.Variable]
+```
+
+A variable model
+
+
+#### `FlowRunInput`
+
+```python
+FlowRunInput(self) -> type[orm_models.FlowRunInput]
+```
+
+A flow run input model
+
+
+#### `Automation`
+
+```python
+Automation(self) -> type[orm_models.Automation]
+```
+
+An automation model
+
+
+#### `AutomationBucket`
+
+```python
+AutomationBucket(self) -> type[orm_models.AutomationBucket]
+```
+
+An automation bucket model
+
+
+#### `AutomationRelatedResource`
+
+```python
+AutomationRelatedResource(self) -> type[orm_models.AutomationRelatedResource]
+```
+
+An automation related resource model
+
+
+#### `CompositeTriggerChildFiring`
+
+```python
+CompositeTriggerChildFiring(self) -> type[orm_models.CompositeTriggerChildFiring]
+```
+
+A model capturing a composite trigger's child firing
+
+
+#### `AutomationEventFollower`
+
+```python
+AutomationEventFollower(self) -> type[orm_models.AutomationEventFollower]
+```
+
+A model capturing one event following another event
+
+
+#### `Event`
+
+```python
+Event(self) -> type[orm_models.Event]
+```
+
+An event model
+
+
+#### `EventResource`
+
+```python
+EventResource(self) -> type[orm_models.EventResource]
+```
+
+An event resource model
+

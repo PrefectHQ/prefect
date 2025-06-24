@@ -1,0 +1,43 @@
+---
+title: formatters
+sidebarTitle: formatters
+---
+
+# `prefect.logging.formatters`
+
+## Functions
+
+### `format_exception_info`
+
+```python
+format_exception_info(exc_info: ExceptionInfoType) -> dict[str, Any]
+```
+
+## Classes
+
+### `JsonFormatter`
+
+
+Formats log records as a JSON string.
+
+The format may be specified as "pretty" to format the JSON with indents and
+newlines.
+
+
+**Methods:**
+
+#### `format`
+
+```python
+format(self, record: logging.LogRecord) -> str
+```
+
+### `PrefectFormatter`
+
+**Methods:**
+
+#### `formatMessage`
+
+```python
+formatMessage(self, record: logging.LogRecord) -> str
+```

@@ -1,0 +1,48 @@
+---
+title: context
+sidebarTitle: context
+---
+
+# `prefect.settings.context`
+
+## Functions
+
+### `get_current_settings`
+
+```python
+get_current_settings() -> Settings
+```
+
+
+Returns a settings object populated with values from the current settings context
+or, if no settings context is active, the environment.
+
+
+### `temporary_settings`
+
+```python
+temporary_settings(updates: Optional[Mapping['Setting', Any]] = None, set_defaults: Optional[Mapping['Setting', Any]] = None, restore_defaults: Optional[Iterable['Setting']] = None) -> Generator[Settings, None, None]
+```
+
+
+Temporarily override the current settings by entering a new profile.
+
+See `Settings.copy_with_update` for details on different argument behavior.
+
+**Examples:**
+
+>>> from prefect.settings import PREFECT_API_URL
+>>>
+>>> with temporary_settings(updates={PREFECT_API_URL: "foo"}):
+>>>    assert PREFECT_API_URL.value() == "foo"
+>>>
+>>>    with temporary_settings(set_defaults={PREFECT_API_URL: "bar"}):
+>>>         assert PREFECT_API_URL.value() == "foo"
+>>>
+>>>    with temporary_settings(restore_defaults={PREFECT_API_URL}):
+>>>         assert PREFECT_API_URL.value() is None
+>>>
+>>>         with temporary_settings(set_defaults={PREFECT_API_URL: "bar"})
+>>>             assert PREFECT_API_URL.value() == "bar"
+>>> assert PREFECT_API_URL.value() is None
+

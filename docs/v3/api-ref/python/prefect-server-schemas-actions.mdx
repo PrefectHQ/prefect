@@ -1,0 +1,358 @@
+---
+title: actions
+sidebarTitle: actions
+---
+
+# `prefect.server.schemas.actions`
+
+
+
+Reduced schemas for accepting API actions.
+
+
+## Functions
+
+### `validate_base_job_template`
+
+```python
+validate_base_job_template(v: dict[str, Any]) -> dict[str, Any]
+```
+
+## Classes
+
+### `ActionBaseModel`
+
+### `FlowCreate`
+
+
+Data used by the Prefect REST API to create a flow.
+
+
+### `FlowUpdate`
+
+
+Data used by the Prefect REST API to update a flow.
+
+
+### `DeploymentScheduleCreate`
+
+**Methods:**
+
+#### `validate_max_scheduled_runs`
+
+```python
+validate_max_scheduled_runs(cls, v: PositiveInteger | None) -> PositiveInteger | None
+```
+
+### `DeploymentScheduleUpdate`
+
+**Methods:**
+
+#### `validate_max_scheduled_runs`
+
+```python
+validate_max_scheduled_runs(cls, v: PositiveInteger | None) -> PositiveInteger | None
+```
+
+### `DeploymentCreate`
+
+
+Data used by the Prefect REST API to create a deployment.
+
+
+**Methods:**
+
+#### `check_valid_configuration`
+
+```python
+check_valid_configuration(self, base_job_template: dict[str, Any]) -> None
+```
+
+Check that the combination of base_job_template defaults and job_variables
+conforms to the specified schema.
+
+NOTE: This method does not hydrate block references in default values within the
+base job template to validate them. Failing to do this can cause user-facing
+errors. Instead of this method, use `validate_job_variables_for_deployment`
+function from `prefect_cloud.orion.api.validation`.
+
+
+#### `remove_old_fields`
+
+```python
+remove_old_fields(cls, values: dict[str, Any]) -> dict[str, Any]
+```
+
+### `DeploymentUpdate`
+
+
+Data used by the Prefect REST API to update a deployment.
+
+
+**Methods:**
+
+#### `remove_old_fields`
+
+```python
+remove_old_fields(cls, values: dict[str, Any]) -> dict[str, Any]
+```
+
+#### `check_valid_configuration`
+
+```python
+check_valid_configuration(self, base_job_template: dict[str, Any]) -> None
+```
+
+Check that the combination of base_job_template defaults and job_variables
+conforms to the schema specified in the base_job_template.
+
+NOTE: This method does not hydrate block references in default values within the
+base job template to validate them. Failing to do this can cause user-facing
+errors. Instead of this method, use `validate_job_variables_for_deployment`
+function from `prefect_cloud.orion.api.validation`.
+
+
+### `FlowRunUpdate`
+
+
+Data used by the Prefect REST API to update a flow run.
+
+
+**Methods:**
+
+#### `set_name`
+
+```python
+set_name(cls, name: str) -> str
+```
+
+### `StateCreate`
+
+
+Data used by the Prefect REST API to create a new state.
+
+
+**Methods:**
+
+#### `default_name_from_type`
+
+```python
+default_name_from_type(self)
+```
+
+If a name is not provided, use the type
+
+
+#### `default_scheduled_start_time`
+
+```python
+default_scheduled_start_time(self)
+```
+
+### `TaskRunCreate`
+
+
+Data used by the Prefect REST API to create a task run
+
+
+**Methods:**
+
+#### `set_name`
+
+```python
+set_name(cls, name: str) -> str
+```
+
+#### `validate_cache_key`
+
+```python
+validate_cache_key(cls, cache_key: str | None) -> str | None
+```
+
+### `TaskRunUpdate`
+
+
+Data used by the Prefect REST API to update a task run
+
+
+**Methods:**
+
+#### `set_name`
+
+```python
+set_name(cls, name: str) -> str
+```
+
+### `FlowRunCreate`
+
+
+Data used by the Prefect REST API to create a flow run.
+
+
+**Methods:**
+
+#### `set_name`
+
+```python
+set_name(cls, name: str) -> str
+```
+
+### `DeploymentFlowRunCreate`
+
+
+Data used by the Prefect REST API to create a flow run from a deployment.
+
+
+**Methods:**
+
+#### `set_name`
+
+```python
+set_name(cls, name: str) -> str
+```
+
+### `SavedSearchCreate`
+
+
+Data used by the Prefect REST API to create a saved search.
+
+
+### `ConcurrencyLimitCreate`
+
+
+Data used by the Prefect REST API to create a concurrency limit.
+
+
+### `ConcurrencyLimitV2Create`
+
+
+Data used by the Prefect REST API to create a v2 concurrency limit.
+
+
+### `ConcurrencyLimitV2Update`
+
+
+Data used by the Prefect REST API to update a v2 concurrency limit.
+
+
+### `BlockTypeCreate`
+
+
+Data used by the Prefect REST API to create a block type.
+
+
+### `BlockTypeUpdate`
+
+
+Data used by the Prefect REST API to update a block type.
+
+
+**Methods:**
+
+#### `updatable_fields`
+
+```python
+updatable_fields(cls) -> set[str]
+```
+
+### `BlockSchemaCreate`
+
+
+Data used by the Prefect REST API to create a block schema.
+
+
+### `BlockDocumentCreate`
+
+
+Data used by the Prefect REST API to create a block document.
+
+
+**Methods:**
+
+#### `validate_name_is_present_if_not_anonymous`
+
+```python
+validate_name_is_present_if_not_anonymous(cls, values: dict[str, Any]) -> dict[str, Any]
+```
+
+### `BlockDocumentUpdate`
+
+
+Data used by the Prefect REST API to update a block document.
+
+
+### `BlockDocumentReferenceCreate`
+
+
+Data used to create block document reference.
+
+
+**Methods:**
+
+#### `validate_parent_and_ref_are_different`
+
+```python
+validate_parent_and_ref_are_different(cls, values)
+```
+
+### `LogCreate`
+
+
+Data used by the Prefect REST API to create a log.
+
+
+### `WorkPoolCreate`
+
+
+Data used by the Prefect REST API to create a work pool.
+
+
+### `WorkPoolUpdate`
+
+
+Data used by the Prefect REST API to update a work pool.
+
+
+### `WorkQueueCreate`
+
+
+Data used by the Prefect REST API to create a work queue.
+
+
+### `WorkQueueUpdate`
+
+
+Data used by the Prefect REST API to update a work queue.
+
+
+### `ArtifactCreate`
+
+
+Data used by the Prefect REST API to create an artifact.
+
+
+**Methods:**
+
+#### `from_result`
+
+```python
+from_result(cls, data: Any | dict[str, Any]) -> 'ArtifactCreate'
+```
+
+### `ArtifactUpdate`
+
+
+Data used by the Prefect REST API to update an artifact.
+
+
+### `VariableCreate`
+
+
+Data used by the Prefect REST API to create a Variable.
+
+
+### `VariableUpdate`
+
+
+Data used by the Prefect REST API to update a Variable.
+

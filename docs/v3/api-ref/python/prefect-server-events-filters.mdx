@@ -1,0 +1,195 @@
+---
+title: filters
+sidebarTitle: filters
+---
+
+# `prefect.server.events.filters`
+
+## Classes
+
+### `AutomationFilterCreated`
+
+
+Filter by `Automation.created`.
+
+
+### `AutomationFilterName`
+
+
+Filter by `Automation.created`.
+
+
+### `AutomationFilterTags`
+
+
+Filter by `Automation.tags`.
+
+
+### `AutomationFilter`
+
+### `EventDataFilter`
+
+
+A base class for filtering event data.
+
+
+**Methods:**
+
+#### `get_filters`
+
+```python
+get_filters(self) -> list['EventDataFilter']
+```
+
+#### `includes`
+
+```python
+includes(self, event: Event) -> bool
+```
+
+Does the given event match the criteria of this filter?
+
+
+#### `excludes`
+
+```python
+excludes(self, event: Event) -> bool
+```
+
+Would the given filter exclude this event?
+
+
+#### `build_where_clauses`
+
+```python
+build_where_clauses(self) -> Sequence['ColumnExpressionArgument[bool]']
+```
+
+Convert the criteria to a WHERE clause.
+
+
+### `EventOccurredFilter`
+
+**Methods:**
+
+#### `clamp`
+
+```python
+clamp(self, max_duration: timedelta) -> None
+```
+
+Limit how far the query can look back based on the given duration
+
+
+#### `includes`
+
+```python
+includes(self, event: Event) -> bool
+```
+
+#### `build_where_clauses`
+
+```python
+build_where_clauses(self, db: PrefectDBInterface) -> Sequence['ColumnExpressionArgument[bool]']
+```
+
+### `EventNameFilter`
+
+**Methods:**
+
+#### `includes`
+
+```python
+includes(self, event: Event) -> bool
+```
+
+#### `build_where_clauses`
+
+```python
+build_where_clauses(self, db: PrefectDBInterface) -> Sequence['ColumnExpressionArgument[bool]']
+```
+
+### `LabelSet`
+
+### `LabelOperations`
+
+### `EventResourceFilter`
+
+**Methods:**
+
+#### `includes`
+
+```python
+includes(self, event: Event) -> bool
+```
+
+#### `build_where_clauses`
+
+```python
+build_where_clauses(self, db: PrefectDBInterface) -> Sequence['ColumnExpressionArgument[bool]']
+```
+
+### `EventRelatedFilter`
+
+**Methods:**
+
+#### `build_where_clauses`
+
+```python
+build_where_clauses(self, db: PrefectDBInterface) -> Sequence['ColumnExpressionArgument[bool]']
+```
+
+### `EventAnyResourceFilter`
+
+**Methods:**
+
+#### `includes`
+
+```python
+includes(self, event: Event) -> bool
+```
+
+#### `build_where_clauses`
+
+```python
+build_where_clauses(self, db: PrefectDBInterface) -> Sequence['ColumnExpressionArgument[bool]']
+```
+
+### `EventIDFilter`
+
+**Methods:**
+
+#### `includes`
+
+```python
+includes(self, event: Event) -> bool
+```
+
+#### `build_where_clauses`
+
+```python
+build_where_clauses(self, db: PrefectDBInterface) -> Sequence['ColumnExpressionArgument[bool]']
+```
+
+### `EventOrder`
+
+### `EventFilter`
+
+**Methods:**
+
+#### `build_where_clauses`
+
+```python
+build_where_clauses(self, db: PrefectDBInterface) -> Sequence['ColumnExpressionArgument[bool]']
+```
+
+#### `logical_limit`
+
+```python
+logical_limit(self) -> int
+```
+
+The logical limit for this query, which is a maximum number of rows that it
+_could_ return (regardless of what the caller has requested).  May be used as
+an optimization for DB queries
+

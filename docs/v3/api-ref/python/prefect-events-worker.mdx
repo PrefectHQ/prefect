@@ -1,0 +1,44 @@
+---
+title: worker
+sidebarTitle: worker
+---
+
+# `prefect.events.worker`
+
+## Functions
+
+### `should_emit_events`
+
+```python
+should_emit_events() -> bool
+```
+
+### `emit_events_to_cloud`
+
+```python
+emit_events_to_cloud() -> bool
+```
+
+### `should_emit_events_to_running_server`
+
+```python
+should_emit_events_to_running_server() -> bool
+```
+
+### `should_emit_events_to_ephemeral_server`
+
+```python
+should_emit_events_to_ephemeral_server() -> bool
+```
+
+## Classes
+
+### `EventsWorker`
+
+**Methods:**
+
+#### `instance`
+
+```python
+instance(cls: Type[Self], client_type: Optional[Type[EventsClient]] = None) -> Self
+```

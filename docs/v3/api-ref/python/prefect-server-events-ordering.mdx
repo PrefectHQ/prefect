@@ -1,0 +1,23 @@
+---
+title: ordering
+sidebarTitle: ordering
+---
+
+# `prefect.server.events.ordering`
+
+
+
+Manages the partial causal ordering of events for a particular consumer.  This module
+maintains a buffer of events to be processed, aiming to process them in the order they
+occurred causally.
+
+
+## Classes
+
+### `EventArrivedEarly`
+
+### `MaxDepthExceeded`
+
+### `event_handler`
+
+### `CausalOrdering`

@@ -1,0 +1,139 @@
+---
+title: responses
+sidebarTitle: responses
+---
+
+# `prefect.server.schemas.responses`
+
+
+
+Schemas for special responses from the Prefect REST API.
+
+
+## Classes
+
+### `SetStateStatus`
+
+
+Enumerates return statuses for setting run states.
+
+
+### `StateAcceptDetails`
+
+
+Details associated with an ACCEPT state transition.
+
+
+### `StateRejectDetails`
+
+
+Details associated with a REJECT state transition.
+
+
+### `StateAbortDetails`
+
+
+Details associated with an ABORT state transition.
+
+
+### `StateWaitDetails`
+
+
+Details associated with a WAIT state transition.
+
+
+### `HistoryResponseState`
+
+
+Represents a single state's history over an interval.
+
+
+### `HistoryResponse`
+
+
+Represents a history of aggregation states over an interval
+
+
+**Methods:**
+
+#### `validate_timestamps`
+
+```python
+validate_timestamps(cls, values: dict) -> dict
+```
+
+### `OrchestrationResult`
+
+
+A container for the output of state orchestration.
+
+
+### `WorkerFlowRunResponse`
+
+### `FlowRunResponse`
+
+**Methods:**
+
+#### `model_validate`
+
+```python
+model_validate(cls: Type[Self], obj: Any) -> Self
+```
+
+### `TaskRunResponse`
+
+### `DeploymentResponse`
+
+**Methods:**
+
+#### `model_validate`
+
+```python
+model_validate(cls: Type[Self], obj: Any) -> Self
+```
+
+### `WorkQueueResponse`
+
+**Methods:**
+
+#### `model_validate`
+
+```python
+model_validate(cls: Type[Self], obj: Any) -> Self
+```
+
+### `WorkQueueWithStatus`
+
+
+Combines a work queue and its status details into a single object
+
+
+### `WorkerResponse`
+
+**Methods:**
+
+#### `model_validate`
+
+```python
+model_validate(cls: Type[Self], obj: Any) -> Self
+```
+
+### `GlobalConcurrencyLimitResponse`
+
+
+A response object for global concurrency limits.
+
+
+### `FlowPaginationResponse`
+
+### `FlowRunPaginationResponse`
+
+### `TaskRunPaginationResponse`
+
+### `DeploymentPaginationResponse`
+
+### `SchemaValuePropertyError`
+
+### `SchemaValueIndexError`
+
+### `SchemaValuesValidationResponse`

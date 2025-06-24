@@ -1,0 +1,41 @@
+---
+title: telemetry
+sidebarTitle: telemetry
+---
+
+# `prefect.server.services.telemetry`
+
+
+
+The Telemetry service.
+
+
+## Classes
+
+### `Telemetry`
+
+
+Sends anonymous data to Prefect to help us improve
+
+It can be toggled off with the PREFECT_SERVER_ANALYTICS_ENABLED setting.
+
+
+**Methods:**
+
+#### `service_settings`
+
+```python
+service_settings(cls) -> ServicesBaseSetting
+```
+
+#### `environment_variable_name`
+
+```python
+environment_variable_name(cls) -> str
+```
+
+#### `enabled`
+
+```python
+enabled(cls) -> bool
+```

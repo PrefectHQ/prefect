@@ -1,0 +1,132 @@
+---
+title: automations
+sidebarTitle: automations
+---
+
+# `prefect.automations`
+
+## Classes
+
+### `Automation`
+
+**Methods:**
+
+#### `create`
+
+```python
+create(self: Self) -> Self
+```
+
+Create a new automation.
+
+Examples:
+
+```python
+auto_to_create = Automation(
+    name="woodchonk",
+    trigger=EventTrigger(
+        expect={"animal.walked"},
+        match={
+            "genus": "Marmota",
+            "species": "monax",
+        },
+        posture="Reactive",
+        threshold=3,
+        within=timedelta(seconds=10),
+    ),
+    actions=[CancelFlowRun()]
+)
+created_automation = auto_to_create.create()
+```
+
+
+#### `update`
+
+```python
+update(self: Self)
+```
+
+Updates an existing automation.
+
+Examples:
+
+
+```python
+auto = Automation.read(id=123)
+auto.name = "new name"
+auto.update()
+```
+
+
+#### `read`
+
+```python
+read(cls, id: Optional[UUID] = None, name: Optional[str] = None) -> Self
+```
+
+Read an automation by ID or name.
+
+Examples:
+
+```python
+automation = Automation.read(name="woodchonk")
+```
+
+```python
+automation = Automation.read(id=UUID("b3514963-02b1-47a5-93d1-6eeb131041cb"))
+```
+
+
+#### `delete`
+
+```python
+delete(self: Self) -> bool
+```
+
+Delete an automation.
+
+Examples:
+
+```python
+auto = Automation.read(id = 123)
+auto.delete()
+```
+
+
+#### `disable`
+
+```python
+disable(self: Self) -> bool
+```
+
+Disable an automation.
+
+**Raises:**
+- `ValueError`: If the automation does not have an id
+- `PrefectHTTPStatusError`: If the automation cannot be disabled
+
+Example:
+```python
+auto = Automation.read(id = 123)
+auto.disable()
+```
+
+
+#### `enable`
+
+```python
+enable(self: Self) -> bool
+```
+
+Enable an automation.
+
+**Raises:**
+- `ValueError`: If the automation does not have an id
+- `PrefectHTTPStatusError`: If the automation cannot be enabled
+
+Example:
+```python
+auto = Automation.read(id = 123)
+auto.enable()
+```
+

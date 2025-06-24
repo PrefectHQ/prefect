@@ -1,0 +1,58 @@
+---
+title: stream
+sidebarTitle: stream
+---
+
+# `prefect.server.logs.stream`
+
+
+
+Log streaming for live log distribution via websockets.
+
+
+## Functions
+
+### `log_matches_filter`
+
+```python
+log_matches_filter(log: Log, filter: LogFilter) -> bool
+```
+
+
+Check if a log matches the given filter criteria.
+
+**Args:**
+- `log`: The log to check
+- `filter`: The filter to apply
+
+**Returns:**
+- True if the log matches the filter, False otherwise
+
+
+## Classes
+
+### `LogDistributor`
+
+
+Service for distributing logs to websocket subscribers
+
+
+**Methods:**
+
+#### `service_settings`
+
+```python
+service_settings(cls) -> ServicesBaseSetting
+```
+
+#### `environment_variable_name`
+
+```python
+environment_variable_name(cls) -> str
+```
+
+#### `enabled`
+
+```python
+enabled(cls) -> bool
+```

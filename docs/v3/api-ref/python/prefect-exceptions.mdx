@@ -1,0 +1,335 @@
+---
+title: exceptions
+sidebarTitle: exceptions
+---
+
+# `prefect.exceptions`
+
+
+
+Prefect-specific exceptions.
+
+
+## Functions
+
+### `exception_traceback`
+
+```python
+exception_traceback(exc: Exception) -> str
+```
+
+
+Convert an exception to a printable string with a traceback
+
+
+## Classes
+
+### `PrefectException`
+
+
+Base exception type for Prefect errors.
+
+
+### `CrashedRun`
+
+
+Raised when the result from a crashed run is retrieved.
+
+This occurs when a string is attached to the state instead of an exception or if
+the state's data is null.
+
+
+### `FailedRun`
+
+
+Raised when the result from a failed run is retrieved and an exception is not
+attached.
+
+This occurs when a string is attached to the state instead of an exception or if
+the state's data is null.
+
+
+### `CancelledRun`
+
+
+Raised when the result from a cancelled run is retrieved and an exception
+is not attached.
+
+This occurs when a string is attached to the state instead of an exception
+or if the state's data is null.
+
+
+### `PausedRun`
+
+
+Raised when the result from a paused run is retrieved.
+
+
+### `UnfinishedRun`
+
+
+Raised when the result from a run that is not finished is retrieved.
+
+For example, if a run is in a SCHEDULED, PENDING, CANCELLING, or RUNNING state.
+
+
+### `MissingFlowError`
+
+
+Raised when a given flow name is not found in the expected script.
+
+
+### `UnspecifiedFlowError`
+
+
+Raised when multiple flows are found in the expected script and no name is given.
+
+
+### `MissingResult`
+
+
+Raised when a result is missing from a state; often when result persistence is
+disabled and the state is retrieved from the API.
+
+
+### `ScriptError`
+
+
+Raised when a script errors during evaluation while attempting to load data
+
+
+### `ParameterTypeError`
+
+
+Raised when a parameter does not pass Pydantic type validation.
+
+
+**Methods:**
+
+#### `from_validation_error`
+
+```python
+from_validation_error(cls, exc: ValidationError) -> Self
+```
+
+### `ParameterBindError`
+
+
+Raised when args and kwargs cannot be converted to parameters.
+
+
+**Methods:**
+
+#### `from_bind_failure`
+
+```python
+from_bind_failure(cls, fn: Callable[..., Any], exc: TypeError, call_args: tuple[Any, ...], call_kwargs: dict[str, Any]) -> Self
+```
+
+### `SignatureMismatchError`
+
+
+Raised when parameters passed to a function do not match its signature.
+
+
+**Methods:**
+
+#### `from_bad_params`
+
+```python
+from_bad_params(cls, expected_params: list[str], provided_params: list[str]) -> Self
+```
+
+### `ObjectNotFound`
+
+
+Raised when the client receives a 404 (not found) from the API.
+
+
+### `ObjectAlreadyExists`
+
+
+Raised when the client receives a 409 (conflict) from the API.
+
+
+### `UpstreamTaskError`
+
+
+Raised when a task relies on the result of another task but that task is not
+'COMPLETE'
+
+
+### `MissingContextError`
+
+
+Raised when a method is called that requires a task or flow run context to be
+active but one cannot be found.
+
+
+### `MissingProfileError`
+
+
+Raised when a profile name does not exist.
+
+
+### `ReservedArgumentError`
+
+
+Raised when a function used with Prefect has an argument with a name that is
+reserved for a Prefect feature
+
+
+### `InvalidNameError`
+
+
+Raised when a name contains characters that are not permitted.
+
+
+### `PrefectSignal`
+
+
+Base type for signal-like exceptions that should never be caught by users.
+
+
+### `Abort`
+
+
+Raised when the API sends an 'ABORT' instruction during state proposal.
+
+Indicates that the run should exit immediately.
+
+
+### `Pause`
+
+
+Raised when a flow run is PAUSED and needs to exit for resubmission.
+
+
+### `ExternalSignal`
+
+
+Base type for external signal-like exceptions that should never be caught by users.
+
+
+### `TerminationSignal`
+
+
+Raised when a flow run receives a termination signal.
+
+
+### `PrefectHTTPStatusError`
+
+
+Raised when client receives a `Response` that contains an HTTPStatusError.
+
+Used to include API error details in the error messages that the client provides users.
+
+
+**Methods:**
+
+#### `from_httpx_error`
+
+```python
+from_httpx_error(cls: type[Self], httpx_error: HTTPStatusError) -> Self
+```
+
+Generate a `PrefectHTTPStatusError` from an `httpx.HTTPStatusError`.
+
+
+### `MappingLengthMismatch`
+
+
+Raised when attempting to call Task.map with arguments of different lengths.
+
+
+### `MappingMissingIterable`
+
+
+Raised when attempting to call Task.map with all static arguments
+
+
+### `BlockMissingCapabilities`
+
+
+Raised when a block does not have required capabilities for a given operation.
+
+
+### `ProtectedBlockError`
+
+
+Raised when an operation is prevented due to block protection.
+
+
+### `InvalidRepositoryURLError`
+
+
+Raised when an incorrect URL is provided to a GitHub filesystem block.
+
+
+### `InfrastructureError`
+
+
+A base class for exceptions related to infrastructure blocks
+
+
+### `InfrastructureNotFound`
+
+
+Raised when infrastructure is missing, likely because it has exited or been
+deleted.
+
+
+### `InfrastructureNotAvailable`
+
+
+Raised when infrastructure is not accessible from the current machine. For example,
+if a process was spawned on another machine it cannot be managed.
+
+
+### `NotPausedError`
+
+
+Raised when attempting to unpause a run that isn't paused.
+
+
+### `FlowPauseTimeout`
+
+
+Raised when a flow pause times out
+
+
+### `FlowRunWaitTimeout`
+
+
+Raised when a flow run takes longer than a given timeout
+
+
+### `PrefectImportError`
+
+
+An error raised when a Prefect object cannot be imported due to a move or removal.
+
+
+### `SerializationError`
+
+
+Raised when an object cannot be serialized.
+
+
+### `ConfigurationError`
+
+
+Raised when a configuration is invalid.
+
+
+### `ProfileSettingsValidationError`
+
+
+Raised when a profile settings are invalid.
+
+
+### `HashError`
+
+
+Raised when hashing objects fails
+

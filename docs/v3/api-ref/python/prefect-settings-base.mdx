@@ -1,0 +1,54 @@
+---
+title: base
+sidebarTitle: base
+---
+
+# `prefect.settings.base`
+
+## Functions
+
+### `build_settings_config`
+
+```python
+build_settings_config(path: tuple[str, ...] = tuple(), frozen: bool = False) -> PrefectSettingsConfigDict
+```
+
+## Classes
+
+### `PrefectBaseSettings`
+
+**Methods:**
+
+#### `settings_customise_sources`
+
+```python
+settings_customise_sources(cls, settings_cls: type[BaseSettings], init_settings: PydanticBaseSettingsSource, env_settings: PydanticBaseSettingsSource, dotenv_settings: PydanticBaseSettingsSource, file_secret_settings: PydanticBaseSettingsSource) -> tuple[PydanticBaseSettingsSource, ...]
+```
+
+Define an order for Prefect settings sources.
+
+The order of the returned callables decides the priority of inputs; first item is the highest priority.
+
+See https://docs.pydantic.dev/latest/concepts/pydantic_settings/#customise-settings-sources
+
+
+#### `to_environment_variables`
+
+```python
+to_environment_variables(self, exclude_unset: bool = False, include_secrets: bool = True, include_aliases: bool = False) -> dict[str, str]
+```
+
+Convert the settings object to a dictionary of environment variables.
+
+
+#### `ser_model`
+
+```python
+ser_model(self, handler: SerializerFunctionWrapHandler, info: SerializationInfo) -> Any
+```
+
+### `PrefectSettingsConfigDict`
+
+
+Configuration for the behavior of Prefect settings models.
+

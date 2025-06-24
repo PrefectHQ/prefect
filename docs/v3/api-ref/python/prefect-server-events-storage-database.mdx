@@ -1,0 +1,32 @@
+---
+title: database
+sidebarTitle: database
+---
+
+# `prefect.server.events.storage.database`
+
+## Functions
+
+### `build_distinct_queries`
+
+```python
+build_distinct_queries(db: PrefectDBInterface, events_filter: EventFilter) -> list[sa.Column['ORMEvent']]
+```
+
+### `get_max_query_parameters`
+
+```python
+get_max_query_parameters() -> int
+```
+
+### `get_number_of_event_fields`
+
+```python
+get_number_of_event_fields() -> int
+```
+
+### `get_number_of_resource_fields`
+
+```python
+get_number_of_resource_fields() -> int
+```

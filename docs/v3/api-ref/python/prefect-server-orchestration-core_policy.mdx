@@ -1,0 +1,356 @@
+---
+title: core_policy
+sidebarTitle: core_policy
+---
+
+# `prefect.server.orchestration.core_policy`
+
+
+
+Orchestration logic that fires on state transitions.
+
+`CoreFlowPolicy` and `CoreTaskPolicy` contain all default orchestration rules that
+Prefect enforces on a state transition.
+
+
+## Classes
+
+### `CoreFlowPolicyWithoutDeploymentConcurrency`
+
+
+Orchestration rules that run against flow-run-state transitions in priority order.
+
+
+**Methods:**
+
+#### `priority`
+
+```python
+priority() -> list[Union[type[BaseUniversalTransform[orm_models.FlowRun, core.FlowRunPolicy],], type[BaseOrchestrationRule[orm_models.FlowRun, core.FlowRunPolicy]]]]
+```
+
+### `CoreFlowPolicy`
+
+
+Orchestration rules that run against flow-run-state transitions in priority order.
+
+
+**Methods:**
+
+#### `priority`
+
+```python
+priority() -> list[Union[type[BaseUniversalTransform[orm_models.FlowRun, core.FlowRunPolicy]], type[BaseOrchestrationRule[orm_models.FlowRun, core.FlowRunPolicy]]]]
+```
+
+### `CoreTaskPolicy`
+
+
+Orchestration rules that run against task-run-state transitions in priority order.
+
+
+**Methods:**
+
+#### `priority`
+
+```python
+priority() -> list[Union[type[BaseUniversalTransform[orm_models.TaskRun, core.TaskRunPolicy]], type[BaseOrchestrationRule[orm_models.TaskRun, core.TaskRunPolicy]]]]
+```
+
+### `ClientSideTaskOrchestrationPolicy`
+
+
+Orchestration rules that run against task-run-state transitions in priority order,
+specifically for clients doing client-side orchestration.
+
+
+**Methods:**
+
+#### `priority`
+
+```python
+priority() -> list[Union[type[BaseUniversalTransform[orm_models.TaskRun, core.TaskRunPolicy]], type[BaseOrchestrationRule[orm_models.TaskRun, core.TaskRunPolicy]]]]
+```
+
+### `BackgroundTaskPolicy`
+
+
+Orchestration rules that run against task-run-state transitions in priority order.
+
+
+**Methods:**
+
+#### `priority`
+
+```python
+priority() -> list[type[BaseUniversalTransform[orm_models.TaskRun, core.TaskRunPolicy]] | type[BaseOrchestrationRule[orm_models.TaskRun, core.TaskRunPolicy]]]
+```
+
+### `MinimalFlowPolicy`
+
+**Methods:**
+
+#### `priority`
+
+```python
+priority() -> list[Union[type[BaseUniversalTransform[orm_models.FlowRun, core.FlowRunPolicy]], type[BaseOrchestrationRule[orm_models.FlowRun, core.FlowRunPolicy]]]]
+```
+
+### `MarkLateRunsPolicy`
+
+**Methods:**
+
+#### `priority`
+
+```python
+priority() -> list[Union[type[BaseUniversalTransform[orm_models.FlowRun, core.FlowRunPolicy]], type[BaseOrchestrationRule[orm_models.FlowRun, core.FlowRunPolicy]]]]
+```
+
+### `MinimalTaskPolicy`
+
+**Methods:**
+
+#### `priority`
+
+```python
+priority() -> list[Union[type[BaseUniversalTransform[orm_models.TaskRun, core.TaskRunPolicy]], type[BaseOrchestrationRule[orm_models.TaskRun, core.TaskRunPolicy]]]]
+```
+
+### `SecureTaskConcurrencySlots`
+
+
+Checks relevant concurrency slots are available before entering a Running state.
+
+This rule checks if concurrency limits have been set on the tags associated with a
+TaskRun. If so, a concurrency slot will be secured against each concurrency limit
+before being allowed to transition into a running state. If a concurrency limit has
+been reached, the client will be instructed to delay the transition for the duration
+specified by the "PREFECT_TASK_RUN_TAG_CONCURRENCY_SLOT_WAIT_SECONDS" setting
+before trying again. If the concurrency limit set on a tag is 0, the transition will
+be aborted to prevent deadlocks.
+
+
+### `ReleaseTaskConcurrencySlots`
+
+
+Releases any concurrency slots held by a run upon exiting a Running or
+Cancelling state.
+
+
+### `SecureFlowConcurrencySlots`
+
+
+Enforce deployment concurrency limits.
+
+This rule enforces concurrency limits on deployments. If a deployment has a concurrency limit,
+this rule will prevent more than that number of flow runs from being submitted concurrently
+based on the concurrency limit behavior configured for the deployment.
+
+We use the PENDING state as the target transition because this allows workers to secure a slot
+before provisioning dynamic infrastructure to run a flow. If a slot isn't available, the worker
+won't provision infrastructure.
+
+
+### `ReleaseFlowConcurrencySlots`
+
+
+Releases deployment concurrency slots held by a flow run.
+
+This rule releases a concurrency slot for a deployment when a flow run
+transitions out of the Running or Cancelling state.
+
+
+### `CacheInsertion`
+
+
+Caches completed states with cache keys after they are validated.
+
+
+### `CacheRetrieval`
+
+
+Rejects running states if a completed state has been cached.
+
+This rule rejects transitions into a running state with a cache key if the key
+has already been associated with a completed state in the cache table. The client
+will be instructed to transition into the cached completed state instead.
+
+
+### `RetryFailedFlows`
+
+
+Rejects failed states and schedules a retry if the retry limit has not been reached.
+
+This rule rejects transitions into a failed state if `retries` has been
+set and the run count has not reached the specified limit. The client will be
+instructed to transition into a scheduled state to retry flow execution.
+
+
+### `RetryFailedTasks`
+
+
+Rejects failed states and schedules a retry if the retry limit has not been reached.
+
+This rule rejects transitions into a failed state if `retries` has been
+set, the run count has not reached the specified limit, and the client
+asserts it is a retriable task run. The client will be instructed to
+transition into a scheduled state to retry task execution.
+
+
+### `EnqueueScheduledTasks`
+
+
+Enqueues background task runs when they are scheduled
+
+
+### `RenameReruns`
+
+
+Name the states if they have run more than once.
+
+In the special case where the initial state is an "AwaitingRetry" scheduled state,
+the proposed state will be renamed to "Retrying" instead.
+
+
+### `CopyScheduledTime`
+
+
+Ensures scheduled time is copied from scheduled states to pending states.
+
+If a new scheduled time has been proposed on the pending state, the scheduled time
+on the scheduled state will be ignored.
+
+
+### `WaitForScheduledTime`
+
+
+Prevents transitions to running states from happening too early.
+
+This rule enforces that all scheduled states will only start with the machine clock
+used by the Prefect REST API instance. This rule will identify transitions from scheduled
+states that are too early and nullify them. Instead, no state will be written to the
+database and the client will be sent an instruction to wait for `delay_seconds`
+before attempting the transition again.
+
+
+### `CopyTaskParametersID`
+
+
+Ensures a task's parameters ID is copied from Scheduled to Pending and from
+Pending to Running states.
+
+If a parameters ID has been included on the proposed state, the parameters ID
+on the initial state will be ignored.
+
+
+### `HandlePausingFlows`
+
+
+Governs runs attempting to enter a Paused/Suspended state
+
+
+### `HandleResumingPausedFlows`
+
+
+Governs runs attempting to leave a Paused state
+
+
+### `UpdateFlowRunTrackerOnTasks`
+
+
+Tracks the flow run attempt a task run state is associated with.
+
+
+### `HandleTaskTerminalStateTransitions`
+
+
+We do not allow tasks to leave terminal states if:
+- The task is completed and has a persisted result
+- The task is going to CANCELLING / PAUSED / CRASHED
+
+We reset the run count when a task leaves a terminal state for a non-terminal state
+which resets task run retries; this is particularly relevant for flow run retries.
+
+
+### `HandleFlowTerminalStateTransitions`
+
+
+We do not allow flows to leave terminal states if:
+- The flow is completed and has a persisted result
+- The flow is going to CANCELLING / PAUSED / CRASHED
+- The flow is going to scheduled and has no deployment
+
+We reset the pause metadata when a flow leaves a terminal state for a non-terminal
+state. This resets pause behavior during manual flow run retries.
+
+
+### `PreventPendingTransitions`
+
+
+Prevents transitions to PENDING.
+
+This rule is only used for flow runs.
+
+This is intended to prevent race conditions during duplicate submissions of runs.
+Before a run is submitted to its execution environment, it should be placed in a
+PENDING state. If two workers attempt to submit the same run, one of them should
+encounter a PENDING -> PENDING transition and abort orchestration of the run.
+
+Similarly, if the execution environment starts quickly the run may be in a RUNNING
+state when the second worker attempts the PENDING transition. We deny these state
+changes as well to prevent duplicate submission. If a run has transitioned to a
+RUNNING state a worker should not attempt to submit it again unless it has moved
+into a terminal state.
+
+CANCELLING and CANCELLED runs should not be allowed to transition to PENDING.
+For re-runs of deployed runs, they should transition to SCHEDULED first.
+For re-runs of ad-hoc runs, they should transition directly to RUNNING.
+
+
+### `EnsureOnlyScheduledFlowsMarkedLate`
+
+### `PreventRunningTasksFromStoppedFlows`
+
+
+Prevents running tasks from stopped flows.
+
+A running state implies execution, but also the converse. This rule ensures that a
+flow's tasks cannot be run unless the flow is also running.
+
+
+### `EnforceCancellingToCancelledTransition`
+
+
+Rejects transitions from Cancelling to any terminal state except for Cancelled.
+
+
+### `BypassCancellingFlowRunsWithNoInfra`
+
+
+Rejects transitions from Scheduled to Cancelling, and instead sets the state to Cancelled,
+if the flow run has no associated infrastructure process ID. Also Rejects transitions from
+Paused to Cancelling if the Paused state's details indicates the flow run has been suspended,
+exiting the flow and tearing down infra.
+
+The `Cancelling` state is used to clean up infrastructure. If there is not infrastructure
+to clean up, we can transition directly to `Cancelled`. Runs that are `Resuming` are in a
+`Scheduled` state that were previously `Suspended` and do not yet have infrastructure.
+
+Runs that are `AwaitingRetry` are a `Scheduled` state that may have associated infrastructure.
+
+
+### `PreventDuplicateTransitions`
+
+
+Prevent duplicate transitions from being made right after one another.
+
+This rule allows for clients to set an optional transition_id on a state. If the
+run's next transition has the same transition_id, the transition will be
+rejected and the existing state will be returned.
+
+This allows for clients to make state transition requests without worrying about
+the following case:
+- A client making a state transition request
+- The server accepts transition and commits the transition
+- The client is unable to receive the response and retries the request
+

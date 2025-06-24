@@ -1,0 +1,37 @@
+---
+title: core
+sidebarTitle: core
+---
+
+# `prefect.assets.core`
+
+## Functions
+
+### `add_asset_metadata`
+
+```python
+add_asset_metadata(asset: str | Asset, metadata: dict[str, Any]) -> None
+```
+
+## Classes
+
+### `AssetProperties`
+
+
+Metadata properties to configure on an Asset
+
+
+### `Asset`
+
+
+Assets are objects that represent materialized data,
+providing a way to track lineage and dependencies.
+
+
+**Methods:**
+
+#### `add_metadata`
+
+```python
+add_metadata(self, metadata: dict[str, Any]) -> None
+```

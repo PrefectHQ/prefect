@@ -1,0 +1,84 @@
+---
+title: dependencies
+sidebarTitle: dependencies
+---
+
+# `prefect.server.api.dependencies`
+
+
+
+Utilities for injecting FastAPI dependencies.
+
+
+## Functions
+
+### `provide_request_api_version`
+
+```python
+provide_request_api_version(x_prefect_api_version: str = Header(None)) -> Version | None
+```
+
+### `LimitBody`
+
+```python
+LimitBody() -> Any
+```
+
+
+A `fastapi.Depends` factory for pulling a `limit: int` parameter from the
+request body while determining the default from the current settings.
+
+
+### `get_created_by`
+
+```python
+get_created_by(prefect_automation_id: Optional[UUID] = Header(None, include_in_schema=False), prefect_automation_name: Optional[str] = Header(None, include_in_schema=False)) -> Optional[schemas.core.CreatedBy]
+```
+
+
+A dependency that returns the provenance information to use when creating objects
+during this API call.
+
+
+### `get_updated_by`
+
+```python
+get_updated_by(prefect_automation_id: Optional[UUID] = Header(None, include_in_schema=False), prefect_automation_name: Optional[str] = Header(None, include_in_schema=False)) -> Optional[schemas.core.UpdatedBy]
+```
+
+
+A dependency that returns the provenance information to use when updating objects
+during this API call.
+
+
+### `is_ephemeral_request`
+
+```python
+is_ephemeral_request(request: Request) -> bool
+```
+
+
+A dependency that returns whether the request is to an ephemeral server.
+
+
+### `get_prefect_client_version`
+
+```python
+get_prefect_client_version(user_agent: Annotated[Optional[str], Header(include_in_schema=False)] = None) -> Optional[str]
+```
+
+
+Attempts to parse out the Prefect client version from the User-Agent header.
+
+
+## Classes
+
+### `EnforceMinimumAPIVersion`
+
+
+FastAPI Dependency used to check compatibility between the version of the api
+and a given request.
+
+Looks for the header 'X-PREFECT-API-VERSION' in the request and compares it
+to the api's version. Rejects requests that are lower than the minimum version.
+

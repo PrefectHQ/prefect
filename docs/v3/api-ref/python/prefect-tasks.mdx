@@ -1,0 +1,770 @@
+---
+title: tasks
+sidebarTitle: tasks
+---
+
+# `prefect.tasks`
+
+
+
+Module containing the base workflow task class and decorator - for most use cases, using the [`@task` decorator][prefect.tasks.task] is preferred.
+
+
+## Functions
+
+### `task_input_hash`
+
+```python
+task_input_hash(context: 'TaskRunContext', arguments: dict[str, Any]) -> Optional[str]
+```
+
+
+A task cache key implementation which hashes all inputs to the task using a JSON or
+cloudpickle serializer. If any arguments are not JSON serializable, the pickle
+serializer is used as a fallback. If cloudpickle fails, this will return a null key
+indicating that a cache key could not be generated for the given inputs.
+
+**Args:**
+- `context`: the active `TaskRunContext`
+- `arguments`: a dictionary of arguments to be passed to the underlying task
+
+**Returns:**
+- a string hash if hashing succeeded, else `None`
+
+
+### `exponential_backoff`
+
+```python
+exponential_backoff(backoff_factor: float) -> Callable[[int], list[float]]
+```
+
+
+A task retry backoff utility that configures exponential backoff for task retries.
+The exponential backoff design matches the urllib3 implementation.
+
+**Args:**
+- `backoff_factor`: the base delay for the first retry, subsequent retries will
+increase the delay time by powers of 2.
+
+**Returns:**
+- a callable that can be passed to the task constructor
+
+
+### `task`
+
+```python
+task(__fn: Optional[Callable[P, R]] = None)
+```
+
+
+Decorator to designate a function as a task in a Prefect workflow.
+
+This decorator may be used for asynchronous or synchronous functions.
+
+**Args:**
+- `name`: An optional name for the task; if not provided, the name will be inferred
+from the given function.
+- `description`: An optional string description for the task.
+- `tags`: An optional set of tags to be associated with runs of this task. These
+tags are combined with any tags defined by a `prefect.tags` context at
+task runtime.
+- `version`: An optional string specifying the version of this task definition
+- `cache_key_fn`: An optional callable that, given the task run context and call
+parameters, generates a string key; if the key matches a previous completed
+state, that state result will be restored instead of running the task again.
+- `cache_expiration`: An optional amount of time indicating how long cached states
+for this task should be restorable; if not provided, cached states will
+never expire.
+- `task_run_name`: An optional name to distinguish runs of this task; this name can be provided
+as a string template with the task's keyword arguments as variables,
+or a function that returns a string.
+- `retries`: An optional number of times to retry on task run failure
+- `retry_delay_seconds`: Optionally configures how long to wait before retrying the
+task after failure. This is only applicable if `retries` is nonzero. This
+setting can either be a number of seconds, a list of retry delays, or a
+callable that, given the total number of retries, generates a list of retry
+delays. If a number of seconds, that delay will be applied to all retries.
+If a list, each retry will wait for the corresponding delay before retrying.
+When passing a callable or a list, the number of
+configured retry delays cannot exceed 50.
+- `retry_jitter_factor`: An optional factor that defines the factor to which a
+retry can be jittered in order to avoid a "thundering herd".
+- `persist_result`: A toggle indicating whether the result of this task
+should be persisted to result storage. Defaults to `None`, which
+indicates that the global default should be used (which is `True` by
+default).
+- `result_storage`: An optional block to use to persist the result of this task.
+Defaults to the value set in the flow the task is called in.
+- `result_storage_key`: An optional key to store the result in storage at when persisted.
+Defaults to a unique identifier.
+- `result_serializer`: An optional serializer to use to serialize the result of this
+task for persistence. Defaults to the value set in the flow the task is
+called in.
+- `timeout_seconds`: An optional number of seconds indicating a maximum runtime for
+the task. If the task exceeds this runtime, it will be marked as failed.
+- `log_prints`: If set, `print` statements in the task will be redirected to the
+Prefect logger for the task run. Defaults to `None`, which indicates
+that the value from the flow should be used.
+- `refresh_cache`: If set, cached results for the cache key are not used.
+Defaults to `None`, which indicates that a cached result from a previous
+execution with matching cache key is used.
+- `on_failure`: An optional list of callables to run when the task enters a failed state.
+- `on_completion`: An optional list of callables to run when the task enters a completed state.
+- `retry_condition_fn`: An optional callable run when a task run returns a Failed state. Should
+return `True` if the task should continue to its retry policy (e.g. `retries=3`), and `False` if the task
+should end as failed. Defaults to `None`, indicating the task should always continue
+to its retry policy.
+- `viz_return_value`: An optional value to return when the task dependency tree is visualized.
+- `asset_deps`: An optional list of upstream assets that this task depends on.
+
+**Returns:**
+- A callable `Task` object which, when called, will submit the task for execution.
+
+**Examples:**
+
+Define a simple task
+>>> @task
+>>> def add(x, y):
+>>>     return x + y
+Define an async task
+>>> @task
+>>> async def add(x, y):
+>>>     return x + y
+Define a task with tags and a description
+>>> @task(tags={"a", "b"}, description="This task is empty but its my first!")
+>>> def my_task():
+>>>     pass
+Define a task with a custom name
+>>> @task(name="The Ultimate Task")
+>>> def my_task():
+>>>     pass
+Define a task that retries 3 times with a 5 second delay between attempts
+>>> from random import randint
+>>>
+>>> @task(retries=3, retry_delay_seconds=5)
+>>> def my_task():
+>>>     x = randint(0, 5)
+>>>     if x >= 3:  # Make a task that fails sometimes
+>>>         raise ValueError("Retry me please!")
+>>>     return x
+Define a task that is cached for a day based on its inputs
+>>> from prefect.tasks import task_input_hash
+>>> from datetime import timedelta
+>>>
+>>> @task(cache_key_fn=task_input_hash, cache_expiration=timedelta(days=1))
+>>> def my_task():
+>>>     return "hello"
+
+
+## Classes
+
+### `TaskRunNameCallbackWithParameters`
+
+**Methods:**
+
+#### `is_callback_with_parameters`
+
+```python
+is_callback_with_parameters(cls, callable: Callable[..., str]) -> TypeIs[Self]
+```
+
+### `TaskOptions`
+
+
+A TypedDict representing all available task configuration options.
+
+This can be used with `Unpack` to provide type hints for **kwargs.
+
+
+### `Task`
+
+
+A Prefect task definition.
+
+!!! note
+    We recommend using [the `@task` decorator][prefect.tasks.task] for most use-cases.
+
+Wraps a function with an entrypoint to the Prefect engine. Calling this class within a flow function
+creates a new task run.
+
+To preserve the input and output types, we use the generic type variables P and R for "Parameters" and
+"Returns" respectively.
+
+**Args:**
+- `fn`: The function defining the task.
+- `name`: An optional name for the task; if not provided, the name will be inferred
+from the given function.
+- `description`: An optional string description for the task.
+- `tags`: An optional set of tags to be associated with runs of this task. These
+tags are combined with any tags defined by a `prefect.tags` context at
+task runtime.
+- `version`: An optional string specifying the version of this task definition
+- `cache_policy`: A cache policy that determines the level of caching for this task
+- `cache_key_fn`: An optional callable that, given the task run context and call
+parameters, generates a string key; if the key matches a previous completed
+state, that state result will be restored instead of running the task again.
+- `cache_expiration`: An optional amount of time indicating how long cached states
+for this task should be restorable; if not provided, cached states will
+never expire.
+- `task_run_name`: An optional name to distinguish runs of this task; this name can be provided
+as a string template with the task's keyword arguments as variables,
+or a function that returns a string.
+- `retries`: An optional number of times to retry on task run failure.
+- `retry_delay_seconds`: Optionally configures how long to wait before retrying the
+task after failure. This is only applicable if `retries` is nonzero. This
+setting can either be a number of seconds, a list of retry delays, or a
+callable that, given the total number of retries, generates a list of retry
+delays. If a number of seconds, that delay will be applied to all retries.
+If a list, each retry will wait for the corresponding delay before retrying.
+When passing a callable or a list, the number of configured retry delays
+cannot exceed 50.
+- `retry_jitter_factor`: An optional factor that defines the factor to which a retry
+can be jittered in order to avoid a "thundering herd".
+- `persist_result`: A toggle indicating whether the result of this task
+should be persisted to result storage. Defaults to `None`, which
+indicates that the global default should be used (which is `True` by
+default).
+- `result_storage`: An optional block to use to persist the result of this task.
+Defaults to the value set in the flow the task is called in.
+- `result_storage_key`: An optional key to store the result in storage at when persisted.
+Defaults to a unique identifier.
+- `result_serializer`: An optional serializer to use to serialize the result of this
+task for persistence. Defaults to the value set in the flow the task is
+called in.
+- `timeout_seconds`: An optional number of seconds indicating a maximum runtime for
+the task. If the task exceeds this runtime, it will be marked as failed.
+- `log_prints`: If set, `print` statements in the task will be redirected to the
+Prefect logger for the task run. Defaults to `None`, which indicates
+that the value from the flow should be used.
+- `refresh_cache`: If set, cached results for the cache key are not used.
+Defaults to `None`, which indicates that a cached result from a previous
+execution with matching cache key is used.
+- `on_failure`: An optional list of callables to run when the task enters a failed state.
+- `on_completion`: An optional list of callables to run when the task enters a completed state.
+- `on_commit`: An optional list of callables to run when the task's idempotency record is committed.
+- `on_rollback`: An optional list of callables to run when the task rolls back.
+- `retry_condition_fn`: An optional callable run when a task run returns a Failed state. Should
+return `True` if the task should continue to its retry policy (e.g. `retries=3`), and `False` if the task
+should end as failed. Defaults to `None`, indicating the task should always continue
+to its retry policy.
+- `viz_return_value`: An optional value to return when the task dependency tree is visualized.
+- `asset_deps`: An optional list of upstream assets that this task depends on.
+
+
+**Methods:**
+
+#### `ismethod`
+
+```python
+ismethod(self) -> bool
+```
+
+#### `isclassmethod`
+
+```python
+isclassmethod(self) -> bool
+```
+
+#### `isstaticmethod`
+
+```python
+isstaticmethod(self) -> bool
+```
+
+#### `with_options`
+
+```python
+with_options(self) -> 'Task[P, R]'
+```
+
+Create a new task from the current object, updating provided options.
+
+**Args:**
+- `name`: A new name for the task.
+- `description`: A new description for the task.
+- `tags`: A new set of tags for the task. If given, existing tags are ignored,
+not merged.
+- `cache_key_fn`: A new cache key function for the task.
+- `cache_expiration`: A new cache expiration time for the task.
+- `task_run_name`: An optional name to distinguish runs of this task; this name can be provided
+as a string template with the task's keyword arguments as variables,
+or a function that returns a string.
+- `retries`: A new number of times to retry on task run failure.
+- `retry_delay_seconds`: Optionally configures how long to wait before retrying
+the task after failure. This is only applicable if `retries` is nonzero.
+This setting can either be a number of seconds, a list of retry delays,
+or a callable that, given the total number of retries, generates a list
+of retry delays. If a number of seconds, that delay will be applied to
+all retries. If a list, each retry will wait for the corresponding delay
+before retrying. When passing a callable or a list, the number of
+configured retry delays cannot exceed 50.
+- `retry_jitter_factor`: An optional factor that defines the factor to which a
+retry can be jittered in order to avoid a "thundering herd".
+- `persist_result`: A new option for enabling or disabling result persistence.
+- `result_storage`: A new storage type to use for results.
+- `result_serializer`: A new serializer to use for results.
+- `result_storage_key`: A new key for the persisted result to be stored at.
+- `timeout_seconds`: A new maximum time for the task to complete in seconds.
+- `log_prints`: A new option for enabling or disabling redirection of `print` statements.
+- `refresh_cache`: A new option for enabling or disabling cache refresh.
+- `on_completion`: A new list of callables to run when the task enters a completed state.
+- `on_failure`: A new list of callables to run when the task enters a failed state.
+- `retry_condition_fn`: An optional callable run when a task run returns a Failed state.
+Should return `True` if the task should continue to its retry policy, and `False`
+if the task should end as failed. Defaults to `None`, indicating the task should
+always continue to its retry policy.
+- `viz_return_value`: An optional value to return when the task dependency tree is visualized.
+
+**Returns:**
+- A new `Task` instance.
+
+Examples:
+
+    Create a new task from an existing task and update the name
+
+    >>> @task(name="My task")
+    >>> def my_task():
+    >>>     return 1
+    >>>
+    >>> new_task = my_task.with_options(name="My new task")
+
+    Create a new task from an existing task and update the retry settings
+
+    >>> from random import randint
+    >>>
+    >>> @task(retries=1, retry_delay_seconds=5)
+    >>> def my_task():
+    >>>     x = randint(0, 5)
+    >>>     if x >= 3:  # Make a task that fails sometimes
+    >>>         raise ValueError("Retry me please!")
+    >>>     return x
+    >>>
+    >>> new_task = my_task.with_options(retries=5, retry_delay_seconds=2)
+
+    Use a task with updated options within a flow
+
+    >>> @task(name="My task")
+    >>> def my_task():
+    >>>     return 1
+    >>>
+    >>> @flow
+    >>> my_flow():
+    >>>     new_task = my_task.with_options(name="My new task")
+    >>>     new_task()
+
+
+#### `on_completion`
+
+```python
+on_completion(self, fn: StateHookCallable) -> StateHookCallable
+```
+
+#### `on_failure`
+
+```python
+on_failure(self, fn: StateHookCallable) -> StateHookCallable
+```
+
+#### `on_commit`
+
+```python
+on_commit(self, fn: Callable[['Transaction'], None]) -> Callable[['Transaction'], None]
+```
+
+#### `on_rollback`
+
+```python
+on_rollback(self, fn: Callable[['Transaction'], None]) -> Callable[['Transaction'], None]
+```
+
+#### `submit`
+
+```python
+submit(self: 'Task[P, R]', *args: P.args, **kwargs: P.kwargs) -> PrefectFuture[R]
+```
+
+#### `submit`
+
+```python
+submit(self: 'Task[P, Coroutine[Any, Any, R]]', *args: P.args, **kwargs: P.kwargs) -> PrefectFuture[R]
+```
+
+#### `submit`
+
+```python
+submit(self: 'Task[P, R]', *args: P.args, **kwargs: P.kwargs) -> PrefectFuture[R]
+```
+
+#### `submit`
+
+```python
+submit(self: 'Task[P, Coroutine[Any, Any, R]]', *args: P.args, **kwargs: P.kwargs) -> State[R]
+```
+
+#### `submit`
+
+```python
+submit(self: 'Task[P, R]', *args: P.args, **kwargs: P.kwargs) -> State[R]
+```
+
+#### `submit`
+
+```python
+submit(self: 'Union[Task[P, R], Task[P, Coroutine[Any, Any, R]]]', *args: Any, **kwargs: Any)
+```
+
+Submit a run of the task to the engine.
+
+Will create a new task run in the backing API and submit the task to the flow's
+task runner. This call only blocks execution while the task is being submitted,
+once it is submitted, the flow function will continue executing.
+
+This method is always synchronous, even if the underlying user function is asynchronous.
+
+**Args:**
+- `*args`: Arguments to run the task with
+- `return_state`: Return the result of the flow run wrapped in a
+Prefect State.
+- `wait_for`: Upstream task futures to wait for before starting the task
+- `**kwargs`: Keyword arguments to run the task with
+
+**Returns:**
+- If `return_state` is False a future allowing asynchronous access to
+the state of the task
+- If `return_state` is True a future wrapped in a Prefect State allowing asynchronous access to
+the state of the task
+
+Examples:
+
+    Define a task
+
+    >>> from prefect import task
+    >>> @task
+    >>> def my_task():
+    >>>     return "hello"
+
+    Run a task in a flow
+
+    >>> from prefect import flow
+    >>> @flow
+    >>> def my_flow():
+    >>>     my_task.submit()
+
+    Wait for a task to finish
+
+    >>> @flow
+    >>> def my_flow():
+    >>>     my_task.submit().wait()
+
+    Use the result from a task in a flow
+
+    >>> @flow
+    >>> def my_flow():
+    >>>     print(my_task.submit().result())
+    >>>
+    >>> my_flow()
+    hello
+
+    Run an async task in an async flow
+
+    >>> @task
+    >>> async def my_async_task():
+    >>>     pass
+    >>>
+    >>> @flow
+    >>> async def my_flow():
+    >>>     my_async_task.submit()
+
+    Run a sync task in an async flow
+
+    >>> @flow
+    >>> async def my_flow():
+    >>>     my_task.submit()
+
+    Enforce ordering between tasks that do not exchange data
+    >>> @task
+    >>> def task_1():
+    >>>     pass
+    >>>
+    >>> @task
+    >>> def task_2():
+    >>>     pass
+    >>>
+    >>> @flow
+    >>> def my_flow():
+    >>>     x = task_1.submit()
+    >>>
+    >>>     # task 2 will wait for task_1 to complete
+    >>>     y = task_2.submit(wait_for=[x])
+
+
+#### `map`
+
+```python
+map(self: 'Task[P, R]', *args: Any, **kwargs: Any) -> list[State[R]]
+```
+
+#### `map`
+
+```python
+map(self: 'Task[P, R]', *args: Any, **kwargs: Any) -> PrefectFutureList[R]
+```
+
+#### `map`
+
+```python
+map(self: 'Task[P, R]', *args: Any, **kwargs: Any) -> list[State[R]]
+```
+
+#### `map`
+
+```python
+map(self: 'Task[P, R]', *args: Any, **kwargs: Any) -> PrefectFutureList[R]
+```
+
+#### `map`
+
+```python
+map(self: 'Task[P, Coroutine[Any, Any, R]]', *args: Any, **kwargs: Any) -> list[State[R]]
+```
+
+#### `map`
+
+```python
+map(self: 'Task[P, Coroutine[Any, Any, R]]', *args: Any, **kwargs: Any) -> PrefectFutureList[R]
+```
+
+#### `map`
+
+```python
+map(self, *args: Any, **kwargs: Any) -> Union[list[State[R]], PrefectFutureList[R]]
+```
+
+Submit a mapped run of the task to a worker.
+
+Must be called within a flow run context. Will return a list of futures
+that should be waited on before exiting the flow context to ensure all
+mapped tasks have completed.
+
+Must be called with at least one iterable and all iterables must be
+the same length. Any arguments that are not iterable will be treated as
+a static value and each task run will receive the same value.
+
+Will create as many task runs as the length of the iterable(s) in the
+backing API and submit the task runs to the flow's task runner. This
+call blocks if given a future as input while the future is resolved. It
+also blocks while the tasks are being submitted, once they are
+submitted, the flow function will continue executing.
+
+This method is always synchronous, even if the underlying user function is asynchronous.
+
+**Args:**
+- `*args`: Iterable and static arguments to run the tasks with
+- `return_state`: Return a list of Prefect States that wrap the results
+of each task run.
+- `wait_for`: Upstream task futures to wait for before starting the
+task
+- `**kwargs`: Keyword iterable arguments to run the task with
+
+**Returns:**
+- A list of futures allowing asynchronous access to the state of the
+- tasks
+
+Examples:
+
+    Define a task
+
+    >>> from prefect import task
+    >>> @task
+    >>> def my_task(x):
+    >>>     return x + 1
+
+    Create mapped tasks
+
+    >>> from prefect import flow
+    >>> @flow
+    >>> def my_flow():
+    >>>     return my_task.map([1, 2, 3])
+
+    Wait for all mapped tasks to finish
+
+    >>> @flow
+    >>> def my_flow():
+    >>>     futures = my_task.map([1, 2, 3])
+    >>>     futures.wait():
+    >>>     # Now all of the mapped tasks have finished
+    >>>     my_task(10)
+
+    Use the result from mapped tasks in a flow
+
+    >>> @flow
+    >>> def my_flow():
+    >>>     futures = my_task.map([1, 2, 3])
+    >>>     for x in futures.result():
+    >>>         print(x)
+    >>> my_flow()
+    2
+    3
+    4
+
+    Enforce ordering between tasks that do not exchange data
+    >>> @task
+    >>> def task_1(x):
+    >>>     pass
+    >>>
+    >>> @task
+    >>> def task_2(y):
+    >>>     pass
+    >>>
+    >>> @flow
+    >>> def my_flow():
+    >>>     x = task_1.submit()
+    >>>
+    >>>     # task 2 will wait for task_1 to complete
+    >>>     y = task_2.map([1, 2, 3], wait_for=[x])
+    >>>     return y
+
+    Use a non-iterable input as a constant across mapped tasks
+    >>> @task
+    >>> def display(prefix, item):
+    >>>    print(prefix, item)
+    >>>
+    >>> @flow
+    >>> def my_flow():
+    >>>     return display.map("Check it out: ", [1, 2, 3])
+    >>>
+    >>> my_flow()
+    Check it out: 1
+    Check it out: 2
+    Check it out: 3
+
+    Use `unmapped` to treat an iterable argument as a constant
+    >>> from prefect import unmapped
+    >>>
+    >>> @task
+    >>> def add_n_to_items(items, n):
+    >>>     return [item + n for item in items]
+    >>>
+    >>> @flow
+    >>> def my_flow():
+    >>>     return add_n_to_items.map(unmapped([10, 20]), n=[1, 2, 3])
+    >>>
+    >>> my_flow()
+    [[11, 21], [12, 22], [13, 23]]
+
+
+#### `apply_async`
+
+```python
+apply_async(self, args: Optional[tuple[Any, ...]] = None, kwargs: Optional[dict[str, Any]] = None, wait_for: Optional[Iterable[PrefectFuture[R]]] = None, dependencies: Optional[dict[str, set[TaskRunInput]]] = None) -> PrefectDistributedFuture[R]
+```
+
+Create a pending task run for a task worker to execute.
+
+**Args:**
+- `args`: Arguments to run the task with
+- `kwargs`: Keyword arguments to run the task with
+
+**Returns:**
+- A PrefectDistributedFuture object representing the pending task run
+
+Examples:
+
+    Define a task
+
+    >>> from prefect import task
+    >>> @task
+    >>> def my_task(name: str = "world"):
+    >>>     return f"hello {name}"
+
+    Create a pending task run for the task
+
+    >>> from prefect import flow
+    >>> @flow
+    >>> def my_flow():
+    >>>     my_task.apply_async(("marvin",))
+
+    Wait for a task to finish
+
+    >>> @flow
+    >>> def my_flow():
+    >>>     my_task.apply_async(("marvin",)).wait()
+
+
+    >>> @flow
+    >>> def my_flow():
+    >>>     print(my_task.apply_async(("marvin",)).result())
+    >>>
+    >>> my_flow()
+    hello marvin
+
+    TODO\: Enforce ordering between tasks that do not exchange data
+    >>> @task
+    >>> def task_1():
+    >>>     pass
+    >>>
+    >>> @task
+    >>> def task_2():
+    >>>     pass
+    >>>
+    >>> @flow
+    >>> def my_flow():
+    >>>     x = task_1.apply_async()
+    >>>
+    >>>     # task 2 will wait for task_1 to complete
+    >>>     y = task_2.apply_async(wait_for=[x])
+
+
+#### `delay`
+
+```python
+delay(self, *args: P.args, **kwargs: P.kwargs) -> PrefectDistributedFuture[R]
+```
+
+An alias for `apply_async` with simpler calling semantics.
+
+Avoids having to use explicit "args" and "kwargs" arguments. Arguments
+will pass through as-is to the task.
+
+Examples:
+
+        Define a task
+
+        >>> from prefect import task
+        >>> @task
+        >>> def my_task(name: str = "world"):
+        >>>     return f"hello {name}"
+
+        Create a pending task run for the task
+
+        >>> from prefect import flow
+        >>> @flow
+        >>> def my_flow():
+        >>>     my_task.delay("marvin")
+
+        Wait for a task to finish
+
+        >>> @flow
+        >>> def my_flow():
+        >>>     my_task.delay("marvin").wait()
+
+        Use the result from a task in a flow
+
+        >>> @flow
+        >>> def my_flow():
+        >>>     print(my_task.delay("marvin").result())
+        >>>
+        >>> my_flow()
+        hello marvin
+
+
+### `MaterializingTask`
+
+
+A task that materializes Assets.
+
+**Args:**
+- `assets`: List of Assets that this task materializes (can be str or Asset)
+- `materialized_by`: An optional tool that materialized the asset e.g. "dbt" or "spark"
+- `**task_kwargs`: All other Task arguments
+

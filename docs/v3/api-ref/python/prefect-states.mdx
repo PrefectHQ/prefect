@@ -1,0 +1,275 @@
+---
+title: states
+sidebarTitle: states
+---
+
+# `prefect.states`
+
+## Functions
+
+### `to_state_create`
+
+```python
+to_state_create(state: State) -> 'StateCreate'
+```
+
+
+Convert the state to a `StateCreate` type which can be used to set the state of
+a run in the API.
+
+This method will drop this state's `data` if it is not a result type. Only
+results should be sent to the API. Other data is only available locally.
+
+
+### `format_exception`
+
+```python
+format_exception(exc: BaseException, tb: TracebackType = None) -> str
+```
+
+### `is_state_iterable`
+
+```python
+is_state_iterable(obj: Any) -> TypeGuard[Iterable[State]]
+```
+
+
+Check if a the given object is an iterable of states types
+
+Supported iterables are:
+- set
+- list
+- tuple
+
+Other iterables will return `False` even if they contain states.
+
+
+### `Scheduled`
+
+```python
+Scheduled(cls: Type['State[R]'] = State, scheduled_time: Optional[datetime.datetime] = None, **kwargs: Any) -> 'State[R]'
+```
+
+
+Convenience function for creating `Scheduled` states.
+
+**Returns:**
+- a Scheduled state
+
+
+### `Completed`
+
+```python
+Completed(cls: Type['State[R]'] = State, **kwargs: Any) -> 'State[R]'
+```
+
+
+Convenience function for creating `Completed` states.
+
+**Returns:**
+- a Completed state
+
+
+### `Running`
+
+```python
+Running(cls: Type['State[R]'] = State, **kwargs: Any) -> 'State[R]'
+```
+
+
+Convenience function for creating `Running` states.
+
+**Returns:**
+- a Running state
+
+
+### `Failed`
+
+```python
+Failed(cls: Type['State[R]'] = State, **kwargs: Any) -> 'State[R]'
+```
+
+
+Convenience function for creating `Failed` states.
+
+**Returns:**
+- a Failed state
+
+
+### `Crashed`
+
+```python
+Crashed(cls: Type['State[R]'] = State, **kwargs: Any) -> 'State[R]'
+```
+
+
+Convenience function for creating `Crashed` states.
+
+**Returns:**
+- a Crashed state
+
+
+### `Cancelling`
+
+```python
+Cancelling(cls: Type['State[R]'] = State, **kwargs: Any) -> 'State[R]'
+```
+
+
+Convenience function for creating `Cancelling` states.
+
+**Returns:**
+- a Cancelling state
+
+
+### `Cancelled`
+
+```python
+Cancelled(cls: Type['State[R]'] = State, **kwargs: Any) -> 'State[R]'
+```
+
+
+Convenience function for creating `Cancelled` states.
+
+**Returns:**
+- a Cancelled state
+
+
+### `Pending`
+
+```python
+Pending(cls: Type['State[R]'] = State, **kwargs: Any) -> 'State[R]'
+```
+
+
+Convenience function for creating `Pending` states.
+
+**Returns:**
+- a Pending state
+
+
+### `Paused`
+
+```python
+Paused(cls: Type['State[R]'] = State, timeout_seconds: Optional[int] = None, pause_expiration_time: Optional[datetime.datetime] = None, reschedule: bool = False, pause_key: Optional[str] = None, **kwargs: Any) -> 'State[R]'
+```
+
+
+Convenience function for creating `Paused` states.
+
+**Returns:**
+- a Paused state
+
+
+### `Suspended`
+
+```python
+Suspended(cls: Type['State[R]'] = State, timeout_seconds: Optional[int] = None, pause_expiration_time: Optional[datetime.datetime] = None, pause_key: Optional[str] = None, **kwargs: Any) -> 'State[R]'
+```
+
+
+Convenience function for creating `Suspended` states.
+
+**Returns:**
+- a Suspended state
+
+
+### `AwaitingRetry`
+
+```python
+AwaitingRetry(cls: Type['State[R]'] = State, scheduled_time: Optional[datetime.datetime] = None, **kwargs: Any) -> 'State[R]'
+```
+
+
+Convenience function for creating `AwaitingRetry` states.
+
+**Returns:**
+- an AwaitingRetry state
+
+
+### `AwaitingConcurrencySlot`
+
+```python
+AwaitingConcurrencySlot(cls: Type['State[R]'] = State, scheduled_time: Optional[datetime.datetime] = None, **kwargs: Any) -> 'State[R]'
+```
+
+
+Convenience function for creating `AwaitingConcurrencySlot` states.
+
+**Returns:**
+- an AwaitingConcurrencySlot state
+
+
+### `Retrying`
+
+```python
+Retrying(cls: Type['State[R]'] = State, **kwargs: Any) -> 'State[R]'
+```
+
+
+Convenience function for creating `Retrying` states.
+
+**Returns:**
+- a Retrying state
+
+
+### `Late`
+
+```python
+Late(cls: Type['State[R]'] = State, scheduled_time: Optional[datetime.datetime] = None, **kwargs: Any) -> 'State[R]'
+```
+
+
+Convenience function for creating `Late` states.
+
+**Returns:**
+- a Late state
+
+
+## Classes
+
+### `StateGroup`
+
+**Methods:**
+
+#### `fail_count`
+
+```python
+fail_count(self) -> int
+```
+
+#### `all_completed`
+
+```python
+all_completed(self) -> bool
+```
+
+#### `any_cancelled`
+
+```python
+any_cancelled(self) -> bool
+```
+
+#### `any_failed`
+
+```python
+any_failed(self) -> bool
+```
+
+#### `any_paused`
+
+```python
+any_paused(self) -> bool
+```
+
+#### `all_final`
+
+```python
+all_final(self) -> bool
+```
+
+#### `counts_message`
+
+```python
+counts_message(self) -> str
+```

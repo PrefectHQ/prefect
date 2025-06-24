@@ -1,0 +1,100 @@
+---
+title: filesystem
+sidebarTitle: filesystem
+---
+
+# `prefect.utilities.filesystem`
+
+
+
+Utilities for working with file systems
+
+
+## Functions
+
+### `create_default_ignore_file`
+
+```python
+create_default_ignore_file(path: str) -> bool
+```
+
+
+Creates default ignore file in the provided path if one does not already exist; returns boolean specifying
+whether a file was created.
+
+
+### `filter_files`
+
+```python
+filter_files(root: str = '.', ignore_patterns: Optional[Iterable[AnyStr]] = None, include_dirs: bool = True) -> set[str]
+```
+
+
+This function accepts a root directory path and a list of file patterns to ignore, and returns
+a list of files that excludes those that should be ignored.
+
+The specification matches that of [.gitignore files](https://git-scm.com/docs/gitignore).
+
+
+### `tmpchdir`
+
+```python
+tmpchdir(path: str)
+```
+
+
+Change current-working directories for the duration of the context,
+with special handling for UNC paths on Windows.
+
+
+### `filename`
+
+```python
+filename(path: str) -> str
+```
+
+
+Extract the file name from a path with remote file system support
+
+
+### `is_local_path`
+
+```python
+is_local_path(path: Union[str, pathlib.Path, Any]) -> bool
+```
+
+
+Check if the given path points to a local or remote file system
+
+
+### `to_display_path`
+
+```python
+to_display_path(path: Union[pathlib.Path, str], relative_to: Optional[Union[pathlib.Path, str]] = None) -> str
+```
+
+
+Convert a path to a displayable path. The absolute path or relative path to the
+current (or given) directory will be returned, whichever is shorter.
+
+
+### `relative_path_to_current_platform`
+
+```python
+relative_path_to_current_platform(path_str: str) -> Path
+```
+
+
+Converts a relative path generated on any platform to a relative path for the
+current platform.
+
+
+### `get_open_file_limit`
+
+```python
+get_open_file_limit() -> int
+```
+
+
+Get the maximum number of open files allowed for the current process
+

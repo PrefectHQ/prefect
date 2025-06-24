@@ -1,0 +1,42 @@
+---
+title: cloud
+sidebarTitle: cloud
+---
+
+# `prefect.client.cloud`
+
+## Functions
+
+### `get_cloud_client`
+
+```python
+get_cloud_client(host: Optional[str] = None, api_key: Optional[str] = None, httpx_settings: Optional[dict[str, Any]] = None, infer_cloud_url: bool = False) -> 'CloudClient'
+```
+
+
+Needs a docstring.
+
+
+## Classes
+
+### `CloudUnauthorizedError`
+
+
+Raised when the CloudClient receives a 401 or 403 from the Cloud API.
+
+
+### `CloudClient`
+
+**Methods:**
+
+#### `account_base_url`
+
+```python
+account_base_url(self) -> str
+```
+
+#### `workspace_base_url`
+
+```python
+workspace_base_url(self) -> str
+```
