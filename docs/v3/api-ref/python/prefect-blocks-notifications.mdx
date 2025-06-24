@@ -30,33 +30,33 @@ A base class for sending notifications using Apprise, through webhook URLs.
 ### `SlackWebhook`
 
 
+Enables sending notifications via a provided Slack webhook.
 
-    Enables sending notifications via a provided Slack webhook.
+**Examples:**
 
-    Examples:
-        Load a saved Slack webhook and send a message:
-        ```python
-        from prefect.blocks.notifications import SlackWebhook
+Load a saved Slack webhook and send a message:
+```python
+from prefect.blocks.notifications import SlackWebhook
 
-        slack_webhook_block = SlackWebhook.load("BLOCK_NAME")
-        slack_webhook_block.notify("Hello from Prefect!")
-        ```
-    
+slack_webhook_block = SlackWebhook.load("BLOCK_NAME")
+slack_webhook_block.notify("Hello from Prefect!")
+```
+
 
 ### `MicrosoftTeamsWebhook`
 
 
+Enables sending notifications via a provided Microsoft Teams webhook.
 
-    Enables sending notifications via a provided Microsoft Teams webhook.
+**Examples:**
 
-    Examples:
-        Load a saved Teams webhook and send a message:
-        ```python
-        from prefect.blocks.notifications import MicrosoftTeamsWebhook
-        teams_webhook_block = MicrosoftTeamsWebhook.load("BLOCK_NAME")
-        teams_webhook_block.notify("Hello from Prefect!")
-        ```
-    
+Load a saved Teams webhook and send a message:
+```python
+from prefect.blocks.notifications import MicrosoftTeamsWebhook
+teams_webhook_block = MicrosoftTeamsWebhook.load("BLOCK_NAME")
+teams_webhook_block.notify("Hello from Prefect!")
+```
+
 
 **Methods:**
 
@@ -72,19 +72,19 @@ see https://github.com/caronc/apprise/pull/1172
 ### `PagerDutyWebHook`
 
 
+Enables sending notifications via a provided PagerDuty webhook.
+See [Apprise notify_pagerduty docs](https://github.com/caronc/apprise/wiki/Notify_pagerduty)
+for more info on formatting the URL.
 
-    Enables sending notifications via a provided PagerDuty webhook.
-    See [Apprise notify_pagerduty docs](https://github.com/caronc/apprise/wiki/Notify_pagerduty)
-    for more info on formatting the URL.
+**Examples:**
 
-    Examples:
-        Load a saved PagerDuty webhook and send a message:
-        ```python
-        from prefect.blocks.notifications import PagerDutyWebHook
-        pagerduty_webhook_block = PagerDutyWebHook.load("BLOCK_NAME")
-        pagerduty_webhook_block.notify("Hello from Prefect!")
-        ```
-    
+Load a saved PagerDuty webhook and send a message:
+```python
+from prefect.blocks.notifications import PagerDutyWebHook
+pagerduty_webhook_block = PagerDutyWebHook.load("BLOCK_NAME")
+pagerduty_webhook_block.notify("Hello from Prefect!")
+```
+
 
 **Methods:**
 
@@ -98,16 +98,17 @@ block_initialization(self) -> None
 
 
 Enables sending notifications via Twilio SMS.
-    Find more on sending Twilio SMS messages in the [docs](https://www.twilio.com/docs/sms).
+Find more on sending Twilio SMS messages in the [docs](https://www.twilio.com/docs/sms).
 
-    Examples:
-        Load a saved `TwilioSMS` block and send a message:
-        ```python
-        from prefect.blocks.notifications import TwilioSMS
-        twilio_webhook_block = TwilioSMS.load("BLOCK_NAME")
-        twilio_webhook_block.notify("Hello from Prefect!")
-        ```
-    
+**Examples:**
+
+Load a saved `TwilioSMS` block and send a message:
+```python
+from prefect.blocks.notifications import TwilioSMS
+twilio_webhook_block = TwilioSMS.load("BLOCK_NAME")
+twilio_webhook_block.notify("Hello from Prefect!")
+```
+
 
 **Methods:**
 
@@ -120,19 +121,19 @@ block_initialization(self) -> None
 ### `OpsgenieWebhook`
 
 
+Enables sending notifications via a provided Opsgenie webhook.
+See [Apprise notify_opsgenie docs](https://github.com/caronc/apprise/wiki/Notify_opsgenie)
+for more info on formatting the URL.
 
-    Enables sending notifications via a provided Opsgenie webhook.
-    See [Apprise notify_opsgenie docs](https://github.com/caronc/apprise/wiki/Notify_opsgenie)
-    for more info on formatting the URL.
+**Examples:**
 
-    Examples:
-        Load a saved Opsgenie webhook and send a message:
-        ```python
-        from prefect.blocks.notifications import OpsgenieWebhook
-        opsgenie_webhook_block = OpsgenieWebhook.load("BLOCK_NAME")
-        opsgenie_webhook_block.notify("Hello from Prefect!")
-        ```
-    
+Load a saved Opsgenie webhook and send a message:
+```python
+from prefect.blocks.notifications import OpsgenieWebhook
+opsgenie_webhook_block = OpsgenieWebhook.load("BLOCK_NAME")
+opsgenie_webhook_block.notify("Hello from Prefect!")
+```
+
 
 **Methods:**
 
@@ -145,21 +146,20 @@ block_initialization(self) -> None
 ### `MattermostWebhook`
 
 
+Enables sending notifications via a provided Mattermost webhook.
+See [Apprise notify_Mattermost docs](https://github.com/caronc/apprise/wiki/Notify_Mattermost) # noqa
 
-    Enables sending notifications via a provided Mattermost webhook.
-    See [Apprise notify_Mattermost docs](https://github.com/caronc/apprise/wiki/Notify_Mattermost) # noqa
+**Examples:**
 
+Load a saved Mattermost webhook and send a message:
+```python
+from prefect.blocks.notifications import MattermostWebhook
 
-    Examples:
-        Load a saved Mattermost webhook and send a message:
-        ```python
-        from prefect.blocks.notifications import MattermostWebhook
+mattermost_webhook_block = MattermostWebhook.load("BLOCK_NAME")
 
-        mattermost_webhook_block = MattermostWebhook.load("BLOCK_NAME")
+mattermost_webhook_block.notify("Hello from Prefect!")
+```
 
-        mattermost_webhook_block.notify("Hello from Prefect!")
-        ```
-    
 
 **Methods:**
 
@@ -172,20 +172,20 @@ block_initialization(self) -> None
 ### `DiscordWebhook`
 
 
+Enables sending notifications via a provided Discord webhook.
+See [Apprise notify_Discord docs](https://github.com/caronc/apprise/wiki/Notify_Discord) # noqa
 
-    Enables sending notifications via a provided Discord webhook.
-    See [Apprise notify_Discord docs](https://github.com/caronc/apprise/wiki/Notify_Discord) # noqa
+**Examples:**
 
-    Examples:
-        Load a saved Discord webhook and send a message:
-        ```python
-        from prefect.blocks.notifications import DiscordWebhook
+Load a saved Discord webhook and send a message:
+```python
+from prefect.blocks.notifications import DiscordWebhook
 
-        discord_webhook_block = DiscordWebhook.load("BLOCK_NAME")
+discord_webhook_block = DiscordWebhook.load("BLOCK_NAME")
 
-        discord_webhook_block.notify("Hello from Prefect!")
-        ```
-    
+discord_webhook_block.notify("Hello from Prefect!")
+```
+
 
 **Methods:**
 
@@ -198,23 +198,23 @@ block_initialization(self) -> None
 ### `CustomWebhookNotificationBlock`
 
 
+Enables sending notifications via any custom webhook.
 
-    Enables sending notifications via any custom webhook.
+All nested string param contains `{{key}}` will be substituted with value from context/secrets.
 
-    All nested string param contains `{{key}}` will be substituted with value from context/secrets.
+Context values include: `subject`, `body` and `name`.
 
-    Context values include: `subject`, `body` and `name`.
+**Examples:**
 
-    Examples:
-        Load a saved custom webhook and send a message:
-        ```python
-        from prefect.blocks.notifications import CustomWebhookNotificationBlock
+Load a saved custom webhook and send a message:
+```python
+from prefect.blocks.notifications import CustomWebhookNotificationBlock
 
-        custom_webhook_block = CustomWebhookNotificationBlock.load("BLOCK_NAME")
+custom_webhook_block = CustomWebhookNotificationBlock.load("BLOCK_NAME")
 
-        custom_webhook_block.notify("Hello from Prefect!")
-        ```
-    
+custom_webhook_block.notify("Hello from Prefect!")
+```
+
 
 **Methods:**
 
@@ -227,20 +227,20 @@ block_initialization(self) -> None
 ### `SendgridEmail`
 
 
+Enables sending notifications via any sendgrid account.
+See [Apprise Notify_sendgrid docs](https://github.com/caronc/apprise/wiki/Notify_Sendgrid)
 
-    Enables sending notifications via any sendgrid account.
-    See [Apprise Notify_sendgrid docs](https://github.com/caronc/apprise/wiki/Notify_Sendgrid)
+**Examples:**
 
-    Examples:
-        Load a saved Sendgrid and send a email message:
-        ```python
-        from prefect.blocks.notifications import SendgridEmail
+Load a saved Sendgrid and send a email message:
+```python
+from prefect.blocks.notifications import SendgridEmail
 
-        sendgrid_block = SendgridEmail.load("BLOCK_NAME")
+sendgrid_block = SendgridEmail.load("BLOCK_NAME")
 
-        sendgrid_block.notify("Hello from Prefect!")
-        ```
-    
+sendgrid_block.notify("Hello from Prefect!")
+```
+
 
 **Methods:**
 

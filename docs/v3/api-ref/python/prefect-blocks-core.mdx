@@ -153,81 +153,81 @@ Retrieve the block class implementation given a key.
 load(cls, name: str, validate: bool = True, client: Optional['PrefectClient'] = None) -> 'Self'
 ```
 
+Retrieves data from the block document with the given name for the block type
+that corresponds with the current class and returns an instantiated version of
+the current class with the data stored in the block document.
 
-        Retrieves data from the block document with the given name for the block type
-        that corresponds with the current class and returns an instantiated version of
-        the current class with the data stored in the block document.
+If a block document for a given block type is saved with a different schema
+than the current class calling `load`, a warning will be raised.
 
-        If a block document for a given block type is saved with a different schema
-        than the current class calling `load`, a warning will be raised.
+If the current class schema is a subset of the block document schema, the block
+can be loaded as normal using the default `validate = True`.
 
-        If the current class schema is a subset of the block document schema, the block
-        can be loaded as normal using the default `validate = True`.
+If the current class schema is a superset of the block document schema, `load`
+must be called with `validate` set to False to prevent a validation error. In
+this case, the block attributes will default to `None` and must be set manually
+and saved to a new block document before the block can be used as expected.
 
-        If the current class schema is a superset of the block document schema, `load`
-        must be called with `validate` set to False to prevent a validation error. In
-        this case, the block attributes will default to `None` and must be set manually
-        and saved to a new block document before the block can be used as expected.
+**Args:**
+- `name`: The name or slug of the block document. A block document slug is a
+string with the format &lt;block_type_slug&gt;/&lt;block_document_name&gt;
+- `validate`: If False, the block document will be loaded without Pydantic
+validating the block schema. This is useful if the block schema has
+changed client-side since the block document referred to by `name` was saved.
+- `client`: The client to use to load the block document. If not provided, the
+default client will be injected.
 
-        Args:
-            name: The name or slug of the block document. A block document slug is a
-                string with the format &lt;block_type_slug&gt;/&lt;block_document_name&gt;
-            validate: If False, the block document will be loaded without Pydantic
-                validating the block schema. This is useful if the block schema has
-                changed client-side since the block document referred to by `name` was saved.
-            client: The client to use to load the block document. If not provided, the
-                default client will be injected.
+**Raises:**
+- `ValueError`: If the requested block document is not found.
 
-        Raises:
-            ValueError: If the requested block document is not found.
+**Returns:**
+- An instance of the current class hydrated with the data stored in the
+- block document with the specified name.
 
-        Returns:
-            An instance of the current class hydrated with the data stored in the
-            block document with the specified name.
+**Examples:**
 
-        Examples:
-            Load from a Block subclass with a block document name:
-            ```python
-            class Custom(Block):
-                message: str
+Load from a Block subclass with a block document name:
+```python
+class Custom(Block):
+    message: str
 
-            Custom(message="Hello!").save("my-custom-message")
+Custom(message="Hello!").save("my-custom-message")
 
-            loaded_block = Custom.load("my-custom-message")
-            ```
+loaded_block = Custom.load("my-custom-message")
+```
 
-            Load from Block with a block document slug:
-            ```python
-            class Custom(Block):
-                message: str
+Load from Block with a block document slug:
+```python
+class Custom(Block):
+    message: str
 
-            Custom(message="Hello!").save("my-custom-message")
+Custom(message="Hello!").save("my-custom-message")
 
-            loaded_block = Block.load("custom/my-custom-message")
-            ```
+loaded_block = Block.load("custom/my-custom-message")
+```
 
-            Migrate a block document to a new schema:
-            ```python
-            # original class
-            class Custom(Block):
-                message: str
+Migrate a block document to a new schema:
+```python
+# original class
+class Custom(Block):
+    message: str
 
-            Custom(message="Hello!").save("my-custom-message")
+Custom(message="Hello!").save("my-custom-message")
 
-            # Updated class with new required field
-            class Custom(Block):
-                message: str
-                number_of_ducks: int
+# Updated class with new required field
+class Custom(Block):
+    message: str
+    number_of_ducks: int
 
-            loaded_block = Custom.load("my-custom-message", validate=False)
+loaded_block = Custom.load("my-custom-message", validate=False)
 
-            # Prints UserWarning about schema mismatch
+# Prints UserWarning about schema mismatch
 
-            loaded_block.number_of_ducks = 42
+loaded_block.number_of_ducks = 42
 
-            loaded_block.save("my-custom-message", overwrite=True)
-            ```
-        
+loaded_block.save("my-custom-message", overwrite=True)
+```
+
 
 #### `is_block_class`
 

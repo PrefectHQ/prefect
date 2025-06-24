@@ -14,16 +14,16 @@ collect_task_run_inputs_sync(expr: Any, future_cls: Any = PrefectFuture, max_dep
 ```
 
 
+This function recurses through an expression to generate a set of any discernible
+task run inputs it finds in the data structure. It produces a set of all inputs
+found.
 
-    This function recurses through an expression to generate a set of any discernible
-    task run inputs it finds in the data structure. It produces a set of all inputs
-    found.
+**Examples:**
 
-    Examples:
-        >>> task_inputs = {
-        >>>    k: collect_task_run_inputs_sync(v) for k, v in parameters.items()
-        >>> }
-    
+>>> task_inputs = {
+>>>    k: collect_task_run_inputs_sync(v) for k, v in parameters.items()
+>>> }
+
 
 ### `capture_sigterm`
 

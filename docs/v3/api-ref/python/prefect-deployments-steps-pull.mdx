@@ -36,82 +36,82 @@ git_clone(repository: str, branch: Optional[str] = None, commit_sha: Optional[st
 ```
 
 
+Clones a git repository into the current working directory.
 
-    Clones a git repository into the current working directory.
+**Args:**
+- `repository`: the URL of the repository to clone
+- `branch`: the branch to clone; if not provided, the default branch will be used
+- `commit_sha`: the commit SHA to clone; if not provided, the default branch will be used
+- `include_submodules`: whether to include git submodules when cloning the repository
+- `access_token`: an access token to use for cloning the repository; if not provided
+the repository will be cloned using the default git credentials
+- `credentials`: a GitHubCredentials, GitLabCredentials, or BitBucketCredentials block can be used to specify the
+credentials to use for cloning the repository.
+- `directories`: Specify directories you want to be included (uses git sparse-checkout)
 
-    Args:
-        repository: the URL of the repository to clone
-        branch: the branch to clone; if not provided, the default branch will be used
-        commit_sha: the commit SHA to clone; if not provided, the default branch will be used
-        include_submodules (bool): whether to include git submodules when cloning the repository
-        access_token: an access token to use for cloning the repository; if not provided
-            the repository will be cloned using the default git credentials
-        credentials: a GitHubCredentials, GitLabCredentials, or BitBucketCredentials block can be used to specify the
-            credentials to use for cloning the repository.
-        directories: Specify directories you want to be included (uses git sparse-checkout)
+**Returns:**
+- a dictionary containing a `directory` key of the new directory that was created
 
-    Returns:
-        dict: a dictionary containing a `directory` key of the new directory that was created
+**Raises:**
+- `subprocess.CalledProcessError`: if the git clone command fails for any reason
 
-    Raises:
-        subprocess.CalledProcessError: if the git clone command fails for any reason
+**Examples:**
 
-    Examples:
-        Clone a public repository:
-        ```yaml
-        pull:
-            - prefect.deployments.steps.git_clone:
-                repository: https://github.com/PrefectHQ/prefect.git
-        ```
+Clone a public repository:
+```yaml
+pull:
+    - prefect.deployments.steps.git_clone:
+        repository: https://github.com/PrefectHQ/prefect.git
+```
 
-        Clone a branch of a public repository:
-        ```yaml
-        pull:
-            - prefect.deployments.steps.git_clone:
-                repository: https://github.com/PrefectHQ/prefect.git
-                branch: my-branch
-        ```
+Clone a branch of a public repository:
+```yaml
+pull:
+    - prefect.deployments.steps.git_clone:
+        repository: https://github.com/PrefectHQ/prefect.git
+        branch: my-branch
+```
 
-        Clone a private repository using a GitHubCredentials block:
-        ```yaml
-        pull:
-            - prefect.deployments.steps.git_clone:
-                repository: https://github.com/org/repo.git
-                credentials: "{{ prefect.blocks.github-credentials.my-github-credentials-block }}"
-        ```
+Clone a private repository using a GitHubCredentials block:
+```yaml
+pull:
+    - prefect.deployments.steps.git_clone:
+        repository: https://github.com/org/repo.git
+        credentials: "{{ prefect.blocks.github-credentials.my-github-credentials-block }}"
+```
 
-        Clone a private repository using an access token:
-        ```yaml
-        pull:
-            - prefect.deployments.steps.git_clone:
-                repository: https://github.com/org/repo.git
-                access_token: "{{ prefect.blocks.secret.github-access-token }}" # Requires creation of a Secret block
-        ```
-        Note that you will need to [create a Secret block](/concepts/blocks/#using-existing-block-types) to store the
-        value of your git credentials. You can also store a username/password combo or token prefix (e.g. `x-token-auth`)
-        in your secret block. Refer to your git providers documentation for the correct authentication schema.
+Clone a private repository using an access token:
+```yaml
+pull:
+    - prefect.deployments.steps.git_clone:
+        repository: https://github.com/org/repo.git
+        access_token: "{{ prefect.blocks.secret.github-access-token }}" # Requires creation of a Secret block
+```
+Note that you will need to [create a Secret block](/concepts/blocks/#using-existing-block-types) to store the
+value of your git credentials. You can also store a username/password combo or token prefix (e.g. `x-token-auth`)
+in your secret block. Refer to your git providers documentation for the correct authentication schema.
 
-        Clone a repository with submodules:
-        ```yaml
-        pull:
-            - prefect.deployments.steps.git_clone:
-                repository: https://github.com/org/repo.git
-                include_submodules: true
-        ```
+Clone a repository with submodules:
+```yaml
+pull:
+    - prefect.deployments.steps.git_clone:
+        repository: https://github.com/org/repo.git
+        include_submodules: true
+```
 
-        Clone a repository with an SSH key (note that the SSH key must be added to the worker
-        before executing flows):
-        ```yaml
-        pull:
-            - prefect.deployments.steps.git_clone:
-                repository: git@github.com:org/repo.git
-        ```
+Clone a repository with an SSH key (note that the SSH key must be added to the worker
+before executing flows):
+```yaml
+pull:
+    - prefect.deployments.steps.git_clone:
+        repository: git@github.com:org/repo.git
+```
 
-        Clone a repository using sparse-checkout (allows specific folders of the repository to be checked out)
-        ```yaml
-        pull:
-            - prefect.deployments.steps.git_clone:
-                repository: https://github.com/org/repo.git
-                directories: ["dir_1", "dir_2", "prefect"]
-        ```
-    
+Clone a repository using sparse-checkout (allows specific folders of the repository to be checked out)
+```yaml
+pull:
+    - prefect.deployments.steps.git_clone:
+        repository: https://github.com/org/repo.git
+        directories: ["dir_1", "dir_2", "prefect"]
+```
+

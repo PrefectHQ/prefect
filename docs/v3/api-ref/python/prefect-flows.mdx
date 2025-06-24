@@ -46,8 +46,8 @@ load_flow_from_entrypoint(entrypoint: str, use_placeholder_flow: bool = True) ->
 Extract a flow object from a script at an entrypoint by running all of the code in the file.
 
 **Args:**
-- `entrypoint`: a string in the format `<path_to_script>:<flow_func_name>`
-or a string in the format `<path_to_script>:<class_name>.<flow_method_name>`
+- `entrypoint`: a string in the format `<path_to_script>\:<flow_func_name>`
+or a string in the format `<path_to_script>\:<class_name>.<flow_method_name>`
 or a module path to a flow function
 - `use_placeholder_flow`: if True, use a placeholder Flow object if the actual flow object
 cannot be loaded from the entrypoint (e.g. dependencies are missing)
@@ -77,48 +77,48 @@ serve(*args: 'RunnerDeployment', **kwargs: Any) -> None
 ```
 
 
+Serve the provided list of deployments.
 
-    Serve the provided list of deployments.
+**Args:**
+- `*args`: A list of deployments to serve.
+- `pause_on_shutdown`: A boolean for whether or not to automatically pause
+deployment schedules on shutdown.
+- `print_starting_message`: Whether or not to print message to the console
+on startup.
+- `limit`: The maximum number of runs that can be executed concurrently.
+- `**kwargs`: Additional keyword arguments to pass to the runner.
 
-    Args:
-        *args: A list of deployments to serve.
-        pause_on_shutdown: A boolean for whether or not to automatically pause
-            deployment schedules on shutdown.
-        print_starting_message: Whether or not to print message to the console
-            on startup.
-        limit: The maximum number of runs that can be executed concurrently.
-        **kwargs: Additional keyword arguments to pass to the runner.
+**Examples:**
 
-    Examples:
-        Prepare two deployments and serve them:
+Prepare two deployments and serve them:
 
-        ```python
-        import datetime
+```python
+import datetime
 
-        from prefect import flow, serve
+from prefect import flow, serve
 
-        @flow
-        def my_flow(name):
-            print(f"hello {name}")
+@flow
+def my_flow(name):
+    print(f"hello {name}")
 
-        @flow
-        def my_other_flow(name):
-            print(f"goodbye {name}")
+@flow
+def my_other_flow(name):
+    print(f"goodbye {name}")
 
-        if __name__ == "__main__":
-            # Run once a day
-            hello_deploy = my_flow.to_deployment(
-                "hello", tags=["dev"], interval=datetime.timedelta(days=1)
-            )
+if __name__ == "__main__":
+    # Run once a day
+    hello_deploy = my_flow.to_deployment(
+        "hello", tags=["dev"], interval=datetime.timedelta(days=1)
+    )
 
-            # Run every Sunday at 4:00 AM
-            bye_deploy = my_other_flow.to_deployment(
-                "goodbye", tags=["dev"], cron="0 4 * * sun"
-            )
+    # Run every Sunday at 4:00 AM
+    bye_deploy = my_other_flow.to_deployment(
+        "goodbye", tags=["dev"], cron="0 4 * * sun"
+    )
 
-            serve(hello_deploy, bye_deploy)
-        ```
-    
+    serve(hello_deploy, bye_deploy)
+```
+
 
 ### `load_placeholder_flow`
 
@@ -134,7 +134,7 @@ This is useful when a flow can't be loaded due to missing dependencies or
 other issues but the base metadata defining the flow is still needed.
 
 **Args:**
-- `entrypoint`: a string in the format `<path_to_script>:<flow_func_name>`
+- `entrypoint`: a string in the format `<path_to_script>\:<flow_func_name>`
 or a module path to a flow function
 - `raises`: an exception to raise when the flow is called
 
@@ -149,9 +149,9 @@ safe_load_flow_from_entrypoint(entrypoint: str) -> Optional[Flow[P, Any]]
 Safely load a Prefect flow from an entrypoint string. Returns None if loading fails.
 
 **Args:**
-- `entrypoint`: A string identifying the flow to load. Can be in one of the following formats:
-- `<path_to_script>:<flow_func_name>`
-- `<path_to_script>:<class_name>.<flow_method_name>`
+- `entrypoint`: A string identifying the flow to load. Can be in one of the following formats\:
+- `<path_to_script>\:<flow_func_name>`
+- `<path_to_script>\:<class_name>.<flow_method_name>`
 - `<module_path>.<flow_func_name>`
 
 **Returns:**
@@ -172,7 +172,7 @@ Loads the source code of the entrypoint and extracts the flow arguments
 from the `flow` decorator.
 
 **Args:**
-- `entrypoint`: a string in the format `<path_to_script>:<flow_func_name>`
+- `entrypoint`: a string in the format `<path_to_script>\:<flow_func_name>`
 or a module path to a flow function
 
 
@@ -186,7 +186,7 @@ is_entrypoint_async(entrypoint: str) -> bool
 Determine if the function specified in the entrypoint is asynchronous.
 
 **Args:**
-- `entrypoint`: A string in the format `<path_to_script>:<func_name>` or
+- `entrypoint`: A string in the format `<path_to_script>\:<func_name>` or
 a module path to a function.
 
 **Returns:**
@@ -233,7 +233,7 @@ Flow execution may continue until the next task is called.
 - `validate_parameters`: By default, parameters passed to flows are validated by
 Pydantic. This will check that input values conform to the annotated types
 on the function. Where possible, values will be coerced into the correct
-type; for example, if a parameter is defined as `x: int` and "5" is passed,
+type; for example, if a parameter is defined as `x\: int` and "5" is passed,
 it will be resolved to `5`. If set to `False`, no validation will be
 performed on flow parameters.
 - `retries`: An optional number of times to retry on flow run failure.
@@ -320,23 +320,29 @@ Examples:
 
     Create a new flow from an existing flow and update the name:
 
-    >>> @flow(name="My flow")
-    >>> def my_flow():
-    >>>     return 1
-    >>>
-    >>> new_flow = my_flow.with_options(name="My new flow")
+    ```python
+    from prefect import flow
+
+    @flow(name="My flow")
+    def my_flow():
+        return 1
+
+    new_flow = my_flow.with_options(name="My new flow")
+    ```
 
     Create a new flow from an existing flow, update the task runner, and call
     it without an intermediate variable:
 
-    >>> from prefect.task_runners import ThreadPoolTaskRunner
-    >>>
-    >>> @flow
-    >>> def my_flow(x, y):
-    >>>     return x + y
-    >>>
-    >>> state = my_flow.with_options(task_runner=ThreadPoolTaskRunner)(1, 3)
-    >>> assert state.result() == 4
+    ```python
+    from prefect.task_runners import ThreadPoolTaskRunner
+
+    @flow
+    def my_flow(x, y):
+        return x + y
+
+    state = my_flow.with_options(task_runner=ThreadPoolTaskRunner)(1, 3)
+    assert state.result() == 4
+    ```
 
 
 #### `validate_parameters`
@@ -374,61 +380,61 @@ integers during API roundtrips.
 to_deployment(self, name: str, interval: Optional[Union[Iterable[Union[int, float, datetime.timedelta]], int, float, datetime.timedelta]] = None, cron: Optional[Union[Iterable[str], str]] = None, rrule: Optional[Union[Iterable[str], str]] = None, paused: Optional[bool] = None, schedule: Optional[Schedule] = None, schedules: Optional['FlexibleScheduleList'] = None, concurrency_limit: Optional[Union[int, ConcurrencyLimitConfig, None]] = None, parameters: Optional[dict[str, Any]] = None, triggers: Optional[list[Union[DeploymentTriggerTypes, TriggerTypes]]] = None, description: Optional[str] = None, tags: Optional[list[str]] = None, version: Optional[str] = None, version_type: Optional[VersionType] = None, enforce_parameter_schema: bool = True, work_pool_name: Optional[str] = None, work_queue_name: Optional[str] = None, job_variables: Optional[dict[str, Any]] = None, entrypoint_type: EntrypointType = EntrypointType.FILE_PATH, _sla: Optional[Union[SlaTypes, list[SlaTypes]]] = None) -> 'RunnerDeployment'
 ```
 
+Creates a runner deployment object for this flow.
 
-        Creates a runner deployment object for this flow.
+**Args:**
+- `name`: The name to give the created deployment.
+- `interval`: An interval on which to execute the new deployment. Accepts either a number
+or a timedelta object. If a number is given, it will be interpreted as seconds.
+- `cron`: A cron schedule of when to execute runs of this deployment.
+- `rrule`: An rrule schedule of when to execute runs of this deployment.
+- `paused`: Whether or not to set this deployment as paused.
+- `schedule`: A schedule object defining when to execute runs of this deployment.
+Used to provide additional scheduling options like `timezone` or `parameters`.
+- `schedules`: A list of schedule objects defining when to execute runs of this deployment.
+Used to define multiple schedules or additional scheduling options such as `timezone`.
+- `concurrency_limit`: The maximum number of runs of this deployment that can run at the same time.
+- `parameters`: A dictionary of default parameter values to pass to runs of this deployment.
+- `triggers`: A list of triggers that will kick off runs of this deployment.
+- `description`: A description for the created deployment. Defaults to the flow's
+description if not provided.
+- `tags`: A list of tags to associate with the created deployment for organizational
+purposes.
+- `version`: A version for the created deployment. Defaults to the flow's version.
+- `version_type`: The type of version to use for the created deployment. The version type
+will be inferred if not provided.
+- `enforce_parameter_schema`: Whether or not the Prefect API should enforce the
+parameter schema for the created deployment.
+- `work_pool_name`: The name of the work pool to use for this deployment.
+- `work_queue_name`: The name of the work queue to use for this deployment's scheduled runs.
+If not provided the default work queue for the work pool will be used.
+- `job_variables`: Settings used to override the values specified default base job template
+of the chosen work pool. Refer to the base job template of the chosen work pool for
+- `entrypoint_type`: Type of entrypoint to use for the deployment. When using a module path
+entrypoint, ensure that the module will be importable in the execution environment.
+- `_sla`: (Experimental) SLA configuration for the deployment. May be removed or modified at any time. Currently only supported on Prefect Cloud.
 
-        Args:
-            name: The name to give the created deployment.
-            interval: An interval on which to execute the new deployment. Accepts either a number
-                or a timedelta object. If a number is given, it will be interpreted as seconds.
-            cron: A cron schedule of when to execute runs of this deployment.
-            rrule: An rrule schedule of when to execute runs of this deployment.
-            paused: Whether or not to set this deployment as paused.
-            schedule: A schedule object defining when to execute runs of this deployment.
-                Used to provide additional scheduling options like `timezone` or `parameters`.
-            schedules: A list of schedule objects defining when to execute runs of this deployment.
-                Used to define multiple schedules or additional scheduling options such as `timezone`.
-            concurrency_limit: The maximum number of runs of this deployment that can run at the same time.
-            parameters: A dictionary of default parameter values to pass to runs of this deployment.
-            triggers: A list of triggers that will kick off runs of this deployment.
-            description: A description for the created deployment. Defaults to the flow's
-                description if not provided.
-            tags: A list of tags to associate with the created deployment for organizational
-                purposes.
-            version: A version for the created deployment. Defaults to the flow's version.
-            version_type: The type of version to use for the created deployment. The version type
-                will be inferred if not provided.
-            enforce_parameter_schema: Whether or not the Prefect API should enforce the
-                parameter schema for the created deployment.
-            work_pool_name: The name of the work pool to use for this deployment.
-            work_queue_name: The name of the work queue to use for this deployment's scheduled runs.
-                If not provided the default work queue for the work pool will be used.
-            job_variables: Settings used to override the values specified default base job template
-                of the chosen work pool. Refer to the base job template of the chosen work pool for
-            entrypoint_type: Type of entrypoint to use for the deployment. When using a module path
-                entrypoint, ensure that the module will be importable in the execution environment.
-            _sla: (Experimental) SLA configuration for the deployment. May be removed or modified at any time. Currently only supported on Prefect Cloud.
+**Examples:**
 
-        Examples:
-            Prepare two deployments and serve them:
+Prepare two deployments and serve them:
 
-            ```python
-            from prefect import flow, serve
+```python
+from prefect import flow, serve
 
-            @flow
-            def my_flow(name):
-                print(f"hello {name}")
+@flow
+def my_flow(name):
+    print(f"hello {name}")
 
-            @flow
-            def my_other_flow(name):
-                print(f"goodbye {name}")
+@flow
+def my_other_flow(name):
+    print(f"goodbye {name}")
 
-            if __name__ == "__main__":
-                hello_deploy = my_flow.to_deployment("hello", tags=["dev"])
-                bye_deploy = my_other_flow.to_deployment("goodbye", tags=["dev"])
-                serve(hello_deploy, bye_deploy)
-            ```
-        
+if __name__ == "__main__":
+    hello_deploy = my_flow.to_deployment("hello", tags=["dev"])
+    bye_deploy = my_other_flow.to_deployment("goodbye", tags=["dev"])
+    serve(hello_deploy, bye_deploy)
+```
+
 
 #### `on_completion`
 
@@ -466,69 +472,69 @@ on_failure(self, fn: FlowStateHook[P, R]) -> FlowStateHook[P, R]
 serve(self, name: Optional[str] = None, interval: Optional[Union[Iterable[Union[int, float, datetime.timedelta]], int, float, datetime.timedelta]] = None, cron: Optional[Union[Iterable[str], str]] = None, rrule: Optional[Union[Iterable[str], str]] = None, paused: Optional[bool] = None, schedule: Optional[Schedule] = None, schedules: Optional['FlexibleScheduleList'] = None, global_limit: Optional[Union[int, ConcurrencyLimitConfig, None]] = None, triggers: Optional[list[Union[DeploymentTriggerTypes, TriggerTypes]]] = None, parameters: Optional[dict[str, Any]] = None, description: Optional[str] = None, tags: Optional[list[str]] = None, version: Optional[str] = None, enforce_parameter_schema: bool = True, pause_on_shutdown: bool = True, print_starting_message: bool = True, limit: Optional[int] = None, webserver: bool = False, entrypoint_type: EntrypointType = EntrypointType.FILE_PATH) -> None
 ```
 
+Creates a deployment for this flow and starts a runner to monitor for scheduled work.
 
-        Creates a deployment for this flow and starts a runner to monitor for scheduled work.
+**Args:**
+- `name`: The name to give the created deployment. Defaults to the name of the flow.
+- `interval`: An interval on which to execute the deployment. Accepts a number or a
+timedelta object to create a single schedule. If a number is given, it will be
+interpreted as seconds. Also accepts an iterable of numbers or timedelta to create
+multiple schedules.
+- `cron`: A cron schedule string of when to execute runs of this deployment.
+Also accepts an iterable of cron schedule strings to create multiple schedules.
+- `rrule`: An rrule schedule string of when to execute runs of this deployment.
+Also accepts an iterable of rrule schedule strings to create multiple schedules.
+- `triggers`: A list of triggers that will kick off runs of this deployment.
+- `paused`: Whether or not to set this deployment as paused.
+- `schedule`: A schedule object defining when to execute runs of this deployment.
+Used to provide additional scheduling options like `timezone` or `parameters`.
+- `schedules`: A list of schedule objects defining when to execute runs of this deployment.
+Used to define multiple schedules or additional scheduling options like `timezone`.
+- `global_limit`: The maximum number of concurrent runs allowed across all served flow instances associated with the same deployment.
+- `parameters`: A dictionary of default parameter values to pass to runs of this deployment.
+- `description`: A description for the created deployment. Defaults to the flow's
+description if not provided.
+- `tags`: A list of tags to associate with the created deployment for organizational
+purposes.
+- `version`: A version for the created deployment. Defaults to the flow's version.
+- `enforce_parameter_schema`: Whether or not the Prefect API should enforce the
+parameter schema for the created deployment.
+- `pause_on_shutdown`: If True, provided schedule will be paused when the serve function is stopped.
+If False, the schedules will continue running.
+- `print_starting_message`: Whether or not to print the starting message when flow is served.
+- `limit`: The maximum number of runs that can be executed concurrently by the created runner; only applies to this served flow. To apply a limit across multiple served flows, use `global_limit`.
+- `webserver`: Whether or not to start a monitoring webserver for this flow.
+- `entrypoint_type`: Type of entrypoint to use for the deployment. When using a module path
+entrypoint, ensure that the module will be importable in the execution environment.
 
-        Args:
-            name: The name to give the created deployment. Defaults to the name of the flow.
-            interval: An interval on which to execute the deployment. Accepts a number or a
-                timedelta object to create a single schedule. If a number is given, it will be
-                interpreted as seconds. Also accepts an iterable of numbers or timedelta to create
-                multiple schedules.
-            cron: A cron schedule string of when to execute runs of this deployment.
-                Also accepts an iterable of cron schedule strings to create multiple schedules.
-            rrule: An rrule schedule string of when to execute runs of this deployment.
-                Also accepts an iterable of rrule schedule strings to create multiple schedules.
-            triggers: A list of triggers that will kick off runs of this deployment.
-            paused: Whether or not to set this deployment as paused.
-            schedule: A schedule object defining when to execute runs of this deployment.
-                Used to provide additional scheduling options like `timezone` or `parameters`.
-            schedules: A list of schedule objects defining when to execute runs of this deployment.
-                Used to define multiple schedules or additional scheduling options like `timezone`.
-            global_limit: The maximum number of concurrent runs allowed across all served flow instances associated with the same deployment.
-            parameters: A dictionary of default parameter values to pass to runs of this deployment.
-            description: A description for the created deployment. Defaults to the flow's
-                description if not provided.
-            tags: A list of tags to associate with the created deployment for organizational
-                purposes.
-            version: A version for the created deployment. Defaults to the flow's version.
-            enforce_parameter_schema: Whether or not the Prefect API should enforce the
-                parameter schema for the created deployment.
-            pause_on_shutdown: If True, provided schedule will be paused when the serve function is stopped.
-                If False, the schedules will continue running.
-            print_starting_message: Whether or not to print the starting message when flow is served.
-            limit: The maximum number of runs that can be executed concurrently by the created runner; only applies to this served flow. To apply a limit across multiple served flows, use `global_limit`.
-            webserver: Whether or not to start a monitoring webserver for this flow.
-            entrypoint_type: Type of entrypoint to use for the deployment. When using a module path
-                entrypoint, ensure that the module will be importable in the execution environment.
+**Examples:**
 
-        Examples:
-            Serve a flow:
+Serve a flow:
 
-            ```python
-            from prefect import flow
+```python
+from prefect import flow
 
-            @flow
-            def my_flow(name):
-                print(f"hello {name}")
+@flow
+def my_flow(name):
+    print(f"hello {name}")
 
-            if __name__ == "__main__":
-                my_flow.serve("example-deployment")
-            ```
+if __name__ == "__main__":
+    my_flow.serve("example-deployment")
+```
 
-            Serve a flow and run it every hour:
+Serve a flow and run it every hour:
 
-            ```python
-            from prefect import flow
+```python
+from prefect import flow
 
-            @flow
-            def my_flow(name):
-                print(f"hello {name}")
+@flow
+def my_flow(name):
+    print(f"hello {name}")
 
-            if __name__ == "__main__":
-                my_flow.serve("example-deployment", interval=3600)
-            ```
-        
+if __name__ == "__main__":
+    my_flow.serve("example-deployment", interval=3600)
+```
+
 
 #### `from_source`
 
@@ -536,75 +542,75 @@ serve(self, name: Optional[str] = None, interval: Optional[Union[Iterable[Union[
 from_source(cls, source: Union[str, Path, 'RunnerStorage', ReadableDeploymentStorage], entrypoint: str) -> 'Flow[..., Any]'
 ```
 
+Loads a flow from a remote source.
 
-        Loads a flow from a remote source.
+**Args:**
+- `source`: Either a URL to a git repository or a storage object.
+- `entrypoint`: The path to a file containing a flow and the name of the flow function in
+the format `./path/to/file.py\:flow_func_name`.
 
-        Args:
-            source: Either a URL to a git repository or a storage object.
-            entrypoint:  The path to a file containing a flow and the name of the flow function in
-                the format `./path/to/file.py:flow_func_name`.
+**Returns:**
+- A new `Flow` instance.
 
-        Returns:
-            A new `Flow` instance.
+**Examples:**
 
-        Examples:
-            Load a flow from a public git repository:
+Load a flow from a public git repository:
 
 
-            ```python
-            from prefect import flow
-            from prefect.runner.storage import GitRepository
-            from prefect.blocks.system import Secret
+```python
+from prefect import flow
+from prefect.runner.storage import GitRepository
+from prefect.blocks.system import Secret
 
-            my_flow = flow.from_source(
-                source="https://github.com/org/repo.git",
-                entrypoint="flows.py:my_flow",
-            )
+my_flow = flow.from_source(
+    source="https://github.com/org/repo.git",
+    entrypoint="flows.py:my_flow",
+)
 
-            my_flow()
-            ```
+my_flow()
+```
 
-            Load a flow from a private git repository using an access token stored in a `Secret` block:
+Load a flow from a private git repository using an access token stored in a `Secret` block:
 
-            ```python
-            from prefect import flow
-            from prefect.runner.storage import GitRepository
-            from prefect.blocks.system import Secret
+```python
+from prefect import flow
+from prefect.runner.storage import GitRepository
+from prefect.blocks.system import Secret
 
-            my_flow = flow.from_source(
-                source=GitRepository(
-                    url="https://github.com/org/repo.git",
-                    credentials={"access_token": Secret.load("github-access-token")}
-                ),
-                entrypoint="flows.py:my_flow",
-            )
+my_flow = flow.from_source(
+    source=GitRepository(
+        url="https://github.com/org/repo.git",
+        credentials={"access_token": Secret.load("github-access-token")}
+    ),
+    entrypoint="flows.py:my_flow",
+)
 
-            my_flow()
-            ```
+my_flow()
+```
 
-            Load a flow from a local directory:
+Load a flow from a local directory:
 
-            ``` python
-            # from_local_source.py
+``` python
+# from_local_source.py
 
-            from pathlib import Path
-            from prefect import flow
+from pathlib import Path
+from prefect import flow
 
-            @flow(log_prints=True)
-            def my_flow(name: str = "world"):
-                print(f"Hello {name}! I'm a flow from a Python script!")
+@flow(log_prints=True)
+def my_flow(name: str = "world"):
+    print(f"Hello {name}! I'm a flow from a Python script!")
 
-            if __name__ == "__main__":
-                my_flow.from_source(
-                    source=str(Path(__file__).parent),
-                    entrypoint="from_local_source.py:my_flow",
-                ).deploy(
-                    name="my-deployment",
-                    parameters=dict(name="Marvin"),
-                    work_pool_name="local",
-                )
-            ```
-        
+if __name__ == "__main__":
+    my_flow.from_source(
+        source=str(Path(__file__).parent),
+        entrypoint="from_local_source.py:my_flow",
+    ).deploy(
+        name="my-deployment",
+        parameters=dict(name="Marvin"),
+        work_pool_name="local",
+    )
+```
+
 
 ### `FlowDecorator`
 
@@ -622,36 +628,33 @@ A flow that is bound to running on a specific infrastructure.
 submit(self, *args: P.args, **kwargs: P.kwargs) -> PrefectFlowRunFuture[R]
 ```
 
+Submit the flow to run on remote infrastructure.
 
-        EXPERIMENTAL: This method is experimental and may be removed or changed in future
-            releases.
+**Args:**
+- `*args`: Positional arguments to pass to the flow.
+- `**kwargs`: Keyword arguments to pass to the flow.
 
-        Submit the flow to run on remote infrastructure.
+**Returns:**
+- A `PrefectFlowRunFuture` that can be used to retrieve the result of the flow run.
 
-        Args:
-            *args: Positional arguments to pass to the flow.
-            **kwargs: Keyword arguments to pass to the flow.
+**Examples:**
 
-        Returns:
-            A `PrefectFlowRunFuture` that can be used to retrieve the result of the flow run.
+Submit a flow to run on Kubernetes:
 
-        Examples:
-            Submit a flow to run on Kubernetes:
+```python
+from prefect import flow
+from prefect_kubernetes.experimental import kubernetes
 
-            ```python
-            from prefect import flow
-            from prefect_kubernetes.experimental import kubernetes
+@kubernetes(work_pool="my-kubernetes-work-pool")
+@flow
+def my_flow(x: int, y: int):
+    return x + y
 
-            @kubernetes(work_pool="my-kubernetes-work-pool")
-            @flow
-            def my_flow(x: int, y: int):
-                return x + y
+future = my_flow.submit(x=1, y=2)
+result = future.result()
+print(result)
+```
 
-            future = my_flow.submit(x=1, y=2)
-            result = future.result()
-            print(result)
-            ```
-        
 
 #### `with_options`
 

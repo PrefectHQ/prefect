@@ -151,7 +151,7 @@ Configure a deployment for a given flow located at a given entrypoint.
 
 **Args:**
 - `entrypoint`: The path to a file containing a flow and the name of the flow function in
-the format `./path/to/file.py:flow_func_name`.
+the format `./path/to/file.py\:flow_func_name`.
 - `name`: A name for the deployment
 - `flow_name`: The name of the flow to deploy
 - `interval`: An interval on which to execute the current flow. Accepts either a number
@@ -190,7 +190,7 @@ local storage location.
 
 **Args:**
 - `entrypoint`: The path to a file containing a flow and the name of the flow function in
-the format `./path/to/file.py:flow_func_name`.
+the format `./path/to/file.py\:flow_func_name`.
 - `name`: A name for the deployment
 - `flow_name`: The name of the flow to deploy
 - `storage`: A storage object to use for retrieving flow code. If not provided, a
