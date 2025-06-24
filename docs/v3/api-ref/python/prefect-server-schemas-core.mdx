@@ -88,11 +88,11 @@ validate_configured_retry_delays(cls, v: int | float | list[int] | list[float] |
 validate_jitter_factor(cls, v: float | None) -> float | None
 ```
 
-### `TaskRunInput`
+### `RunInput`
 
 
-Base class for classes that represent inputs to task runs, which
-could include, constants, parameters, or other task runs.
+Base class for classes that represent inputs to runs, which
+could include, constants, parameters, task runs or flow runs.
 
 
 ### `TaskRunResult`
@@ -100,6 +100,8 @@ could include, constants, parameters, or other task runs.
 
 Represents a task run result input to another task run.
 
+
+### `FlowRunResult`
 
 ### `Parameter`
 

@@ -10,7 +10,7 @@ sidebarTitle: engine
 ### `collect_task_run_inputs_sync`
 
 ```python
-collect_task_run_inputs_sync(expr: Any, future_cls: Any = PrefectFuture, max_depth: int = -1) -> set[TaskRunInput]
+collect_task_run_inputs_sync(expr: Any, future_cls: Any = PrefectFuture, max_depth: int = -1) -> set[Union[TaskRunResult, FlowRunResult]]
 ```
 
 
@@ -34,11 +34,11 @@ capture_sigterm() -> Generator[None, Any, None]
 ### `propose_state_sync`
 
 ```python
-propose_state_sync(client: 'SyncPrefectClient', state: State[Any], force: bool = False, task_run_id: Optional[UUID] = None, flow_run_id: Optional[UUID] = None) -> State[Any]
+propose_state_sync(client: 'SyncPrefectClient', state: State[Any], flow_run_id: UUID, force: bool = False) -> State[Any]
 ```
 
 
-Propose a new state for a flow run or task run, invoking Prefect orchestration logic.
+Propose a new state for a flow run, invoking Prefect orchestration logic.
 
 If the proposed state is accepted, the provided `state` will be augmented with
  details and returned.
@@ -53,16 +53,14 @@ If the proposed state results in an ABORT instruction from the Prefect API, an
 error will be raised.
 
 **Args:**
-- `state`: a new state for the task or flow run
-- `task_run_id`: an optional task run id, used when proposing task run states
+- `state`: a new state for the flow run
 - `flow_run_id`: an optional flow run id, used when proposing flow run states
 
 **Returns:**
-- a [State model][prefect.client.schemas.objects.State] representation of the
-flow or task run state
+- a State model representation of the flow run state
 
 **Raises:**
-- `ValueError`: if neither task_run_id or flow_run_id is provided
+- `ValueError`: if flow_run_id is not provided
 - `prefect.exceptions.Abort`: if an ABORT instruction is received from
 the Prefect API
 
@@ -70,7 +68,7 @@ the Prefect API
 ### `get_state_for_result`
 
 ```python
-get_state_for_result(obj: Any) -> Optional[State]
+get_state_for_result(obj: Any) -> Optional[tuple[State, RunType]]
 ```
 
 
@@ -79,10 +77,30 @@ Get the state related to a result object.
 `link_state_to_result` must have been called first.
 
 
+### `link_state_to_flow_run_result`
+
+```python
+link_state_to_flow_run_result(state: State, result: Any) -> None
+```
+
+
+Creates a link between a state and flow run result
+
+
+### `link_state_to_task_run_result`
+
+```python
+link_state_to_task_run_result(state: State, result: Any) -> None
+```
+
+
+Creates a link between a state and task run result
+
+
 ### `link_state_to_result`
 
 ```python
-link_state_to_result(state: State, result: Any) -> None
+link_state_to_result(state: State, result: Any, run_type: RunType) -> None
 ```
 
 

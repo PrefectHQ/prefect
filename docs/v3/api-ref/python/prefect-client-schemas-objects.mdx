@@ -15,6 +15,8 @@ data_discriminator(x: Any) -> str
 
 ## Classes
 
+### `RunType`
+
 ### `StateType`
 
 
@@ -72,6 +74,14 @@ Class for storing the concurrency limit config in database.
 
 
 ### `StateDetails`
+
+**Methods:**
+
+#### `to_run_result`
+
+```python
+to_run_result(self, run_type: RunType) -> Optional[Union[FlowRunResult, TaskRunResult]]
+```
 
 ### `State`
 
@@ -313,7 +323,7 @@ validate_configured_retry_delays(cls, v: Optional[int | float | list[int] | list
 validate_jitter_factor(cls, v: Optional[float]) -> Optional[float]
 ```
 
-### `TaskRunInput`
+### `RunInput`
 
 
 Base class for classes that represent inputs to task runs, which
@@ -325,6 +335,8 @@ could include, constants, parameters, or other task runs.
 
 Represents a task run result input to another task run.
 
+
+### `FlowRunResult`
 
 ### `Parameter`
 
