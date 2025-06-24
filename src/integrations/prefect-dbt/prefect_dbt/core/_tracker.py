@@ -106,30 +106,27 @@ class NodeTaskTracker:
         """Run a task in a separate thread."""
 
         def run_task():
-            try:
-                with hydrated_context(context):
-                    states: list[State] = []
-                    dependencies = self.get_node_dependencies(node_id)
-                    for dep_id in dependencies:
-                        state = self.get_task_result(dep_id)
-                        if state:
-                            states.append(state)
-
-                    state = run_task_sync(
-                        task,
-                        parameters=parameters,
-                        wait_for=states,
-                        context=context,
-                        return_type="state",
-                    )
-
-                    # Wait for the task to complete
+            with hydrated_context(context):
+                states: list[State] = []
+                dependencies = self.get_node_dependencies(node_id)
+                for dep_id in dependencies:
+                    state = self.get_task_result(dep_id)
                     if state:
-                        self.set_task_result(node_id, state)
-                    else:
-                        self.set_task_result(node_id, None)
-            except Exception as e:
-                self.set_task_result(node_id, e)
+                        states.append(state)
+
+                state = run_task_sync(
+                    task,
+                    parameters=parameters,
+                    wait_for=states,
+                    context=context,
+                    return_type="state",
+                )
+
+                # Wait for the task to complete
+                if state:
+                    self.set_task_result(node_id, state)
+                else:
+                    self.set_task_result(node_id, None)
 
         thread = threading.Thread(target=run_task)
         thread.daemon = True

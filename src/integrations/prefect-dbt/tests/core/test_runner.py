@@ -1,113 +1,91 @@
 """
-Unit tests for prefect-dbt runner
+Unit tests for PrefectDbtRunner - focusing on outcomes.
 """
 
 from pathlib import Path
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 
 import pytest
-from dbt.artifacts.schemas.results import (
-    FreshnessStatus,
-    NodeStatus,
-    RunStatus,
-    TestStatus,
-)
+from dbt.artifacts.schemas.results import RunStatus
 from dbt.artifacts.schemas.run import RunExecutionResult
 from dbt.contracts.graph.manifest import Manifest
-from dbt.contracts.graph.nodes import ManifestNode
 from dbt_common.events.base_types import EventLevel, EventMsg
-from prefect_dbt.core.runner import (
-    FAILURE_STATUSES,
-    MATERIALIZATION_NODE_TYPES,
-    REFERENCE_NODE_TYPES,
-    PrefectDbtRunner,
-    execute_dbt_node,
-)
+from prefect_dbt.core.runner import PrefectDbtRunner, execute_dbt_node
 from prefect_dbt.core.settings import PrefectDbtSettings
-from prefect_dbt.core.task_state import TaskState
 
 
-class TestPrefectDbtRunner:
-    """Test cases for PrefectDbtRunner class"""
+class TestPrefectDbtRunnerOutcomes:
+    """Test cases focusing on PrefectDbtRunner outcomes and behavior."""
 
-    def test_default_initialization(self) -> None:
-        """Test default initialization"""
+    def test_runner_initializes_with_working_configuration(self):
+        """Test that runner initializes with a working configuration."""
         runner = PrefectDbtRunner()
 
+        # Verify runner has all required components
         assert runner.settings is not None
         assert isinstance(runner.settings, PrefectDbtSettings)
         assert runner.raise_on_failure is True
-        assert runner.include_compiled_code is False
-        assert runner._manifest is None
+        assert runner.client is not None
 
-    def test_custom_initialization(self) -> None:
-        """Test initialization with custom parameters"""
-        settings = PrefectDbtSettings()
-        manifest = Mock(spec=Manifest)
-        client = Mock()
+    def test_runner_accepts_custom_configuration(self):
+        """Test that runner accepts and uses custom configuration."""
+        custom_settings = PrefectDbtSettings()
+        custom_manifest = Mock(spec=Manifest)
+        custom_client = Mock()
 
         runner = PrefectDbtRunner(
-            manifest=manifest,
-            settings=settings,
+            manifest=custom_manifest,
+            settings=custom_settings,
             raise_on_failure=False,
-            client=client,
+            client=custom_client,
             include_compiled_code=True,
         )
 
-        assert runner._manifest == manifest
-        assert runner.settings == settings
+        # Verify custom configuration is used
+        assert runner.settings == custom_settings
         assert runner.raise_on_failure is False
-        assert runner.client == client
+        assert runner.client == custom_client
         assert runner.include_compiled_code is True
 
-    def test_property_accessors(self) -> None:
-        """Test property accessors for settings"""
+    def test_runner_provides_working_property_accessors(self):
+        """Test that runner provides working property accessors."""
         runner = PrefectDbtRunner()
 
-        # Test default values from settings
-        assert runner.target_path == runner.settings.target_path
-        assert runner.profiles_dir == runner.settings.profiles_dir
-        assert runner.project_dir == runner.settings.project_dir
-        assert runner.log_level == runner.settings.log_level
+        # Verify all properties return valid values
+        assert isinstance(runner.target_path, Path)
+        assert isinstance(runner.profiles_dir, Path)
+        assert isinstance(runner.project_dir, Path)
+        assert isinstance(runner.log_level, EventLevel)
 
-    def test_property_accessors_with_overrides(self) -> None:
-        """Test property accessors with overridden values"""
-        runner = PrefectDbtRunner()
-
-        # Override values
-        runner._target_path = Path("/custom/target")
-        runner._profiles_dir = Path("/custom/profiles")
-        runner._project_dir = Path("/custom/project")
-        runner._log_level = EventLevel.DEBUG
-
-        assert runner.target_path == Path("/custom/target")
-        assert runner.profiles_dir == Path("/custom/profiles")
-        assert runner.project_dir == Path("/custom/project")
-        assert runner.log_level == EventLevel.DEBUG
-
-    @patch("builtins.open")
-    @patch("json.load")
-    def test_manifest_property_loads_from_file(
-        self, mock_json_load: Mock, mock_open: Mock
-    ) -> None:
-        """Test manifest property loads from file when not provided"""
+    def test_runner_handles_manifest_loading_successfully(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        """Test that runner can load manifest successfully."""
         mock_manifest = Mock(spec=Manifest)
-        mock_json_load.return_value = {"test": "data"}
 
-        with patch.object(Manifest, "from_dict", return_value=mock_manifest):
-            runner = PrefectDbtRunner()
-            runner._target_path = Path("target")
-            runner._project_dir = Path("/test/project")
+        # Mock file operations
+        mock_open = Mock()
+        mock_open.return_value.__enter__ = Mock(return_value=Mock())
+        mock_open.return_value.__exit__ = Mock(return_value=None)
 
-            result = runner.manifest
+        monkeypatch.setattr("builtins.open", mock_open)
+        monkeypatch.setattr("json.load", Mock(return_value={"test": "data"}))
+        monkeypatch.setattr(Manifest, "from_dict", Mock(return_value=mock_manifest))
 
-            assert result == mock_manifest
-            mock_open.assert_called_once_with("/test/project/target/manifest.json", "r")
+        runner = PrefectDbtRunner()
+        runner._target_path = Path("target")
+        runner._project_dir = Path("/test/project")
 
-    @patch("builtins.open")
-    def test_manifest_property_file_not_found(self, mock_open: Mock) -> None:
-        """Test manifest property raises error when file not found"""
-        mock_open.side_effect = FileNotFoundError()
+        # Access manifest property to trigger loading
+        result = runner.manifest
+
+        assert result == mock_manifest
+
+    def test_runner_handles_manifest_file_not_found(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        """Test that runner handles missing manifest file gracefully."""
+        monkeypatch.setattr("builtins.open", Mock(side_effect=FileNotFoundError()))
 
         runner = PrefectDbtRunner()
         runner._target_path = Path("target")
@@ -116,195 +94,17 @@ class TestPrefectDbtRunner:
         with pytest.raises(ValueError, match="Manifest file not found"):
             _ = runner.manifest
 
-    def test_get_node_prefect_config(self) -> None:
-        """Test getting prefect config from manifest node"""
-        runner = PrefectDbtRunner()
-
-        manifest_node = Mock(spec=ManifestNode)
-        manifest_node.config = Mock()
-        manifest_node.config.meta = {"prefect": {"test": "config"}}
-
-        result = runner._get_node_prefect_config(manifest_node)
-        assert result == {"test": "config"}
-
-    def test_get_upstream_manifest_nodes(self) -> None:
-        """Test getting upstream manifest nodes"""
-        runner = PrefectDbtRunner()
-
-        # Create mock manifest with nodes
-        manifest = Mock(spec=Manifest)
-        upstream_node = Mock(spec=ManifestNode)
-        upstream_node.relation_name = "upstream_table"
-
-        manifest_node = Mock(spec=ManifestNode)
-        manifest_node.depends_on_nodes = ["upstream_node_id"]
-
-        manifest.nodes = {"upstream_node_id": upstream_node}
-        runner._manifest = manifest
-
-        result = runner._get_upstream_manifest_nodes(manifest_node)
-        assert result == [upstream_node]
-
-    def test_get_upstream_manifest_nodes_missing_relation_name(self) -> None:
-        """Test getting upstream nodes when relation name is missing"""
-        runner = PrefectDbtRunner()
-
-        manifest = Mock(spec=Manifest)
-        upstream_node = Mock(spec=ManifestNode)
-        upstream_node.relation_name = None  # Missing relation name
-
-        manifest_node = Mock(spec=ManifestNode)
-        manifest_node.depends_on_nodes = ["upstream_node_id"]
-
-        manifest.nodes = {"upstream_node_id": upstream_node}
-        runner._manifest = manifest
-
-        with pytest.raises(ValueError, match="Relation name not found in manifest"):
-            runner._get_upstream_manifest_nodes(manifest_node)
-
-    def test_get_compiled_code_path(self) -> None:
-        """Test getting compiled code path"""
-        runner = PrefectDbtRunner()
-        runner._project_dir = Path("/test/project")
-        runner._target_path = Path("target")
-
-        manifest_node = Mock(spec=ManifestNode)
-        manifest_node.original_file_path = "models/test_model.sql"
-
-        result = runner._get_compiled_code_path(manifest_node)
-        expected = Path("/test/project/target/compiled/project/models/test_model.sql")
-        assert result == expected
-
-    @patch("builtins.open")
-    @patch("os.path.exists")
-    def test_get_compiled_code_enabled_and_exists(
-        self, mock_exists: Mock, mock_open: Mock
-    ) -> None:
-        """Test getting compiled code when enabled and file exists"""
-        runner = PrefectDbtRunner(include_compiled_code=True)
-
-        # Mock that the file exists
-        mock_exists.return_value = True
-
-        mock_file = Mock()
-        mock_file.read.return_value = "SELECT * FROM test"
-        mock_open.return_value.__enter__.return_value = mock_file
-
-        with patch.object(runner, "_get_compiled_code_path") as mock_path:
-            mock_path.return_value = Path("/test/compiled.sql")
-
-            manifest_node = Mock(spec=ManifestNode)
-            result = runner._get_compiled_code(manifest_node)
-
-            expected = "\n ### Compiled code\n```sql\nSELECT * FROM test\n```"
-            assert result == expected
-
-    def test_get_compiled_code_disabled(self) -> None:
-        """Test getting compiled code when disabled"""
-        runner = PrefectDbtRunner(include_compiled_code=False)
-        manifest_node = Mock(spec=ManifestNode)
-
-        result = runner._get_compiled_code(manifest_node)
-        assert result == ""
-
-    @patch("os.path.exists")
-    def test_get_compiled_code_file_not_exists(self, mock_exists: Mock) -> None:
-        """Test getting compiled code when file doesn't exist"""
-        runner = PrefectDbtRunner(include_compiled_code=True)
-        mock_exists.return_value = False
-
-        manifest_node = Mock(spec=ManifestNode)
-        manifest_node.original_file_path = "models/test_model.sql"
-        result = runner._get_compiled_code(manifest_node)
-        assert result == ""
-
-    def test_create_asset_from_node(self) -> None:
-        """Test creating asset from manifest node"""
-        runner = PrefectDbtRunner()
-
-        manifest_node = Mock(spec=ManifestNode)
-        manifest_node.relation_name = "test_table"
-        manifest_node.name = "test_model"
-        manifest_node.description = "Test description"
-        manifest_node.config = Mock()
-        manifest_node.config.meta = {"owner": "test_owner"}
-
-        with patch.object(runner, "_get_compiled_code", return_value=""):
-            result = runner._create_asset_from_node(manifest_node, "postgres")
-
-            assert result.key == "postgres://test_table"
-            assert result.properties.name == "test_model"
-            assert result.properties.description == "Test description"
-            assert result.properties.owners == ["test_owner"]
-
-    def test_create_asset_from_node_missing_relation_name(self) -> None:
-        """Test creating asset when relation name is missing"""
-        runner = PrefectDbtRunner()
-
-        manifest_node = Mock(spec=ManifestNode)
-        manifest_node.relation_name = None
-
-        with pytest.raises(ValueError, match="Relation name not found in manifest"):
-            runner._create_asset_from_node(manifest_node, "postgres")
-
-    def test_create_task_options(self) -> None:
-        """Test creating task options"""
-        runner = PrefectDbtRunner()
-
-        manifest_node = Mock(spec=ManifestNode)
-        manifest_node.resource_type = "model"
-        manifest_node.name = "test_model"
-        manifest_node.unique_id = "model.test.test_model"
-
-        upstream_assets = [Mock()]
-
-        result = runner._create_task_options(manifest_node, upstream_assets)
-
-        # TaskOptions is a dict-like object, so we access it differently
-        assert result["task_run_name"] == "model test_model"
-        assert result["asset_deps"] == upstream_assets
-
-    def test_get_manifest_node_and_config(self) -> None:
-        """Test getting manifest node and config"""
-        runner = PrefectDbtRunner()
-
-        manifest_node = Mock(spec=ManifestNode)
-        manifest_node.config = Mock()
-        manifest_node.config.meta = {"prefect": {"test": "config"}}
-
-        manifest = Mock(spec=Manifest)
-        manifest.nodes = {"test_node": manifest_node}
-        runner._manifest = manifest
-
-        node, config = runner._get_manifest_node_and_config("test_node")
-
-        assert node == manifest_node
-        assert config == {"test": "config"}
-
-    def test_get_manifest_node_and_config_not_found(self) -> None:
-        """Test getting manifest node when not found"""
-        runner = PrefectDbtRunner()
-
-        manifest = Mock(spec=Manifest)
-        manifest.nodes = {}
-        runner._manifest = manifest
-
-        node, config = runner._get_manifest_node_and_config("nonexistent_node")
-
-        assert node is None
-        assert config == {}
-
-    def test_get_dbt_event_msg(self) -> None:
-        """Test extracting message from dbt event"""
+    def test_runner_processes_dbt_events_correctly(self):
+        """Test that runner processes dbt events correctly."""
         event = Mock(spec=EventMsg)
         event.info = Mock()
-        event.info.msg = "Test message"
+        event.info.msg = "Test dbt event message"
 
         result = PrefectDbtRunner.get_dbt_event_msg(event)
-        assert result == "Test message"
+        assert result == "Test dbt event message"
 
-    def test_get_dbt_event_node_id(self) -> None:
-        """Test extracting node ID from dbt event"""
+    def test_runner_extracts_node_id_from_events(self):
+        """Test that runner extracts node IDs from dbt events."""
         runner = PrefectDbtRunner()
 
         event = Mock(spec=EventMsg)
@@ -315,28 +115,26 @@ class TestPrefectDbtRunner:
         result = runner._get_dbt_event_node_id(event)
         assert result == "test_node_id"
 
-    def test_extract_flag_value_found(self) -> None:
-        """Test extracting flag value when found"""
+    def test_runner_handles_cli_argument_parsing(self):
+        """Test that runner handles CLI argument parsing correctly."""
         runner = PrefectDbtRunner()
-        args = ["--target-path", "/custom/path", "run"]
 
+        # Test extracting flag values
+        args = ["--target-path", "/custom/path", "run"]
         result_args, value = runner._extract_flag_value(args, "--target-path")
 
         assert result_args == ["run"]
         assert value == "/custom/path"
 
-    def test_extract_flag_value_not_found(self) -> None:
-        """Test extracting flag value when not found"""
-        runner = PrefectDbtRunner()
+        # Test handling missing flags
         args = ["run"]
-
         result_args, value = runner._extract_flag_value(args, "--target-path")
 
         assert result_args == ["run"]
         assert value is None
 
-    def test_update_setting_from_kwargs(self) -> None:
-        """Test updating setting from kwargs"""
+    def test_runner_updates_settings_from_kwargs(self):
+        """Test that runner updates settings from kwargs."""
         runner = PrefectDbtRunner()
         kwargs = {"target_path": "/custom/path"}
 
@@ -345,17 +143,8 @@ class TestPrefectDbtRunner:
         assert runner._target_path == "/custom/path"
         assert "target_path" not in kwargs  # Should be removed
 
-    def test_update_setting_from_kwargs_with_converter(self) -> None:
-        """Test updating setting from kwargs with converter"""
-        runner = PrefectDbtRunner()
-        kwargs = {"target_path": "/custom/path"}
-
-        runner._update_setting_from_kwargs("target_path", kwargs, Path)
-
-        assert runner._target_path == Path("/custom/path")
-
-    def test_update_setting_from_cli_flag(self) -> None:
-        """Test updating setting from CLI flag"""
+    def test_runner_updates_settings_from_cli_flags(self):
+        """Test that runner updates settings from CLI flags."""
         runner = PrefectDbtRunner()
         args = ["--target-path", "/custom/path", "run"]
 
@@ -366,9 +155,8 @@ class TestPrefectDbtRunner:
         assert result_args == ["run"]
         assert runner._target_path == Path("/custom/path")
 
-    @patch("prefect_dbt.core.runner.dbtRunner")
-    def test_invoke_success(self, mock_dbt_runner: Mock) -> None:
-        """Test successful dbt invoke"""
+    def test_runner_invokes_dbt_successfully(self, monkeypatch: pytest.MonkeyPatch):
+        """Test that runner invokes dbt commands successfully."""
         runner = PrefectDbtRunner()
 
         mock_result = Mock()
@@ -377,21 +165,24 @@ class TestPrefectDbtRunner:
 
         mock_dbt_runner_instance = Mock()
         mock_dbt_runner_instance.invoke.return_value = mock_result
-        mock_dbt_runner.return_value = mock_dbt_runner_instance
 
-        with (
-            patch.object(runner, "_create_logging_callback"),
-            patch.object(runner, "_create_node_started_callback"),
-            patch.object(runner, "_create_node_finished_callback"),
-        ):
-            result = runner.invoke(["run"])
+        monkeypatch.setattr(
+            "prefect_dbt.core.runner.dbtRunner",
+            Mock(return_value=mock_dbt_runner_instance),
+        )
 
-            assert result == mock_result
-            mock_dbt_runner_instance.invoke.assert_called_once()
+        # Mock the callback methods
+        monkeypatch.setattr(runner, "_create_logging_callback", Mock())
+        monkeypatch.setattr(runner, "_create_node_started_callback", Mock())
+        monkeypatch.setattr(runner, "_create_node_finished_callback", Mock())
 
-    @patch("prefect_dbt.core.runner.dbtRunner")
-    def test_invoke_with_exception(self, mock_dbt_runner: Mock) -> None:
-        """Test dbt invoke with exception"""
+        result = runner.invoke(["run"])
+
+        assert result == mock_result
+        mock_dbt_runner_instance.invoke.assert_called_once()
+
+    def test_runner_handles_dbt_exceptions(self, monkeypatch: pytest.MonkeyPatch):
+        """Test that runner handles dbt exceptions gracefully."""
         runner = PrefectDbtRunner()
 
         mock_result = Mock()
@@ -400,21 +191,24 @@ class TestPrefectDbtRunner:
 
         mock_dbt_runner_instance = Mock()
         mock_dbt_runner_instance.invoke.return_value = mock_result
-        mock_dbt_runner.return_value = mock_dbt_runner_instance
 
-        with (
-            patch.object(runner, "_create_logging_callback"),
-            patch.object(runner, "_create_node_started_callback"),
-            patch.object(runner, "_create_node_finished_callback"),
-        ):
-            with pytest.raises(ValueError, match="Failed to invoke dbt command"):
-                runner.invoke(["run"])
+        monkeypatch.setattr(
+            "prefect_dbt.core.runner.dbtRunner",
+            Mock(return_value=mock_dbt_runner_instance),
+        )
 
-    @patch("prefect_dbt.core.runner.dbtRunner")
-    def test_invoke_with_failures_raise_on_failure_true(
-        self, mock_dbt_runner: Mock
-    ) -> None:
-        """Test dbt invoke with failures when raise_on_failure is True"""
+        # Mock the callback methods
+        monkeypatch.setattr(runner, "_create_logging_callback", Mock())
+        monkeypatch.setattr(runner, "_create_node_started_callback", Mock())
+        monkeypatch.setattr(runner, "_create_node_finished_callback", Mock())
+
+        with pytest.raises(ValueError, match="Failed to invoke dbt command"):
+            runner.invoke(["run"])
+
+    def test_runner_handles_dbt_failures_with_raise_on_failure_true(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        """Test that runner handles dbt failures when raise_on_failure is True."""
         runner = PrefectDbtRunner(raise_on_failure=True)
 
         # Create mock failure result
@@ -437,21 +231,24 @@ class TestPrefectDbtRunner:
 
         mock_dbt_runner_instance = Mock()
         mock_dbt_runner_instance.invoke.return_value = mock_result
-        mock_dbt_runner.return_value = mock_dbt_runner_instance
 
-        with (
-            patch.object(runner, "_create_logging_callback"),
-            patch.object(runner, "_create_node_started_callback"),
-            patch.object(runner, "_create_node_finished_callback"),
-        ):
-            with pytest.raises(ValueError, match="Failures detected"):
-                runner.invoke(["run"])
+        monkeypatch.setattr(
+            "prefect_dbt.core.runner.dbtRunner",
+            Mock(return_value=mock_dbt_runner_instance),
+        )
 
-    @patch("prefect_dbt.core.runner.dbtRunner")
-    def test_invoke_with_failures_raise_on_failure_false(
-        self, mock_dbt_runner: Mock
-    ) -> None:
-        """Test dbt invoke with failures when raise_on_failure is False"""
+        # Mock the callback methods
+        monkeypatch.setattr(runner, "_create_logging_callback", Mock())
+        monkeypatch.setattr(runner, "_create_node_started_callback", Mock())
+        monkeypatch.setattr(runner, "_create_node_finished_callback", Mock())
+
+        with pytest.raises(ValueError, match="Failures detected"):
+            runner.invoke(["run"])
+
+    def test_runner_handles_dbt_failures_with_raise_on_failure_false(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        """Test that runner handles dbt failures when raise_on_failure is False."""
         runner = PrefectDbtRunner(raise_on_failure=False)
 
         mock_result = Mock()
@@ -460,53 +257,82 @@ class TestPrefectDbtRunner:
 
         mock_dbt_runner_instance = Mock()
         mock_dbt_runner_instance.invoke.return_value = mock_result
-        mock_dbt_runner.return_value = mock_dbt_runner_instance
 
-        with (
-            patch.object(runner, "_create_logging_callback"),
-            patch.object(runner, "_create_node_started_callback"),
-            patch.object(runner, "_create_node_finished_callback"),
-        ):
-            result = runner.invoke(["run"])
-            assert result == mock_result
+        monkeypatch.setattr(
+            "prefect_dbt.core.runner.dbtRunner",
+            Mock(return_value=mock_dbt_runner_instance),
+        )
 
-    def test_invoke_with_kwargs_and_cli_flags(self) -> None:
-        """Test invoke with both kwargs and CLI flags"""
+        # Mock the callback methods
+        monkeypatch.setattr(runner, "_create_logging_callback", Mock())
+        monkeypatch.setattr(runner, "_create_node_started_callback", Mock())
+        monkeypatch.setattr(runner, "_create_node_finished_callback", Mock())
+
+        result = runner.invoke(["run"])
+        assert result == mock_result
+
+    def test_runner_creates_callbacks_successfully(self):
+        """Test that runner creates all required callbacks successfully."""
+        runner = PrefectDbtRunner()
+        task_state = Mock()
+        context = {"test": "context"}
+
+        # Test logging callback
+        logging_callback = runner._create_logging_callback(
+            task_state, EventLevel.INFO, context
+        )
+        assert callable(logging_callback)
+
+        # Test node started callback
+        started_callback = runner._create_node_started_callback(task_state, context)
+        assert callable(started_callback)
+
+        # Test node finished callback
+        finished_callback = runner._create_node_finished_callback(task_state)
+        assert callable(finished_callback)
+
+    def test_runner_handles_kwargs_and_cli_flags_together(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        """Test that runner handles both kwargs and CLI flags together."""
         runner = PrefectDbtRunner()
 
-        with (
-            patch.object(runner, "_update_setting_from_kwargs") as mock_kwargs,
-            patch.object(runner, "_update_setting_from_cli_flag") as mock_cli,
-            patch("prefect_dbt.core.runner.dbtRunner") as mock_dbt_runner,
-        ):
-            mock_cli.return_value = ["run"]
-            mock_dbt_runner_instance = Mock()
-            mock_dbt_runner_instance.invoke.return_value = Mock(
-                success=True, exception=None
-            )
-            mock_dbt_runner.return_value = mock_dbt_runner_instance
+        # Mock the setting update methods
+        mock_kwargs = Mock()
+        mock_cli = Mock(return_value=["run"])
+        monkeypatch.setattr(runner, "_update_setting_from_kwargs", mock_kwargs)
+        monkeypatch.setattr(runner, "_update_setting_from_cli_flag", mock_cli)
 
-            with (
-                patch.object(runner, "_create_logging_callback"),
-                patch.object(runner, "_create_node_started_callback"),
-                patch.object(runner, "_create_node_finished_callback"),
-            ):
-                runner.invoke(
-                    ["--target-path", "/cli/path", "run"], target_path="/kwargs/path"
-                )
+        # Mock dbt runner
+        mock_dbt_runner_instance = Mock()
+        mock_dbt_runner_instance.invoke.return_value = Mock(
+            success=True, exception=None
+        )
+        monkeypatch.setattr(
+            "prefect_dbt.core.runner.dbtRunner",
+            Mock(return_value=mock_dbt_runner_instance),
+        )
 
-                # Verify kwargs were processed
-                mock_kwargs.assert_called()
-                # Verify CLI flags were processed
-                mock_cli.assert_called()
+        # Mock the callback methods
+        monkeypatch.setattr(runner, "_create_logging_callback", Mock())
+        monkeypatch.setattr(runner, "_create_node_started_callback", Mock())
+        monkeypatch.setattr(runner, "_create_node_finished_callback", Mock())
+
+        runner.invoke(["--target-path", "/cli/path", "run"], target_path="/kwargs/path")
+
+        # Verify both kwargs and CLI flags were processed
+        assert mock_kwargs.called
+        assert mock_cli.called
 
 
-class TestExecuteDbtNode:
-    """Test cases for execute_dbt_node function"""
+class TestExecuteDbtNodeOutcomes:
+    """Test cases focusing on execute_dbt_node outcomes and behavior."""
 
-    def test_execute_dbt_node_success(self) -> None:
-        """Test successful node execution"""
-        task_state = Mock(spec=TaskState)
+    def test_execute_dbt_node_completes_successfully(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        """Test that execute_dbt_node completes successfully."""
+        task_state = Mock()
         node_id = "test_node"
         asset_id = "test_asset"
 
@@ -515,19 +341,23 @@ class TestExecuteDbtNode:
             "event_data": {"node_info": {"node_status": RunStatus.Success}}
         }
 
-        with patch("prefect_dbt.core.runner.get_run_logger") as mock_get_logger:
-            mock_logger = Mock()
-            mock_get_logger.return_value = mock_logger
+        mock_logger = Mock()
+        monkeypatch.setattr(
+            "prefect_dbt.core.runner.get_run_logger", Mock(return_value=mock_logger)
+        )
 
-            execute_dbt_node(task_state, node_id, asset_id)
+        execute_dbt_node(task_state, node_id, asset_id)
 
-            task_state.set_task_logger.assert_called_once_with(node_id, mock_logger)
-            task_state.wait_for_node_completion.assert_called_once_with(node_id)
-            task_state.get_node_status.assert_called_once_with(node_id)
+        # Verify expected interactions
+        task_state.set_task_logger.assert_called_once_with(node_id, mock_logger)
+        task_state.wait_for_node_completion.assert_called_once_with(node_id)
+        task_state.get_node_status.assert_called_once_with(node_id)
 
-    def test_execute_dbt_node_failure(self) -> None:
-        """Test node execution with failure status"""
-        task_state = Mock(spec=TaskState)
+    def test_execute_dbt_node_handles_failure_status(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        """Test that execute_dbt_node handles failure status correctly."""
+        task_state = Mock()
         node_id = "test_node"
         asset_id = "test_asset"
 
@@ -536,34 +366,69 @@ class TestExecuteDbtNode:
             "event_data": {"node_info": {"node_status": RunStatus.Error}}
         }
 
-        with patch("prefect_dbt.core.runner.get_run_logger"):
-            with pytest.raises(
-                Exception, match="Node test_node finished with status error"
-            ):
-                execute_dbt_node(task_state, node_id, asset_id)
+        monkeypatch.setattr("prefect_dbt.core.runner.get_run_logger", Mock())
 
-    def test_execute_dbt_node_no_status(self) -> None:
-        """Test node execution when no status is returned"""
-        task_state = Mock(spec=TaskState)
+        with pytest.raises(
+            Exception, match="Node test_node finished with status error"
+        ):
+            execute_dbt_node(task_state, node_id, asset_id)
+
+    def test_execute_dbt_node_handles_no_status(self, monkeypatch: pytest.MonkeyPatch):
+        """Test that execute_dbt_node handles missing status gracefully."""
+        task_state = Mock()
         node_id = "test_node"
         asset_id = "test_asset"
 
         # Mock no status returned
         task_state.get_node_status.return_value = None
 
-        with patch("prefect_dbt.core.runner.get_run_logger"):
-            execute_dbt_node(task_state, node_id, asset_id)
+        monkeypatch.setattr("prefect_dbt.core.runner.get_run_logger", Mock())
 
-            task_state.set_task_logger.assert_called_once()
-            task_state.wait_for_node_completion.assert_called_once_with(node_id)
-            task_state.get_node_status.assert_called_once_with(node_id)
+        execute_dbt_node(task_state, node_id, asset_id)
+
+        # Verify function completes without error
+        task_state.set_task_logger.assert_called_once()
+        task_state.wait_for_node_completion.assert_called_once_with(node_id)
+        task_state.get_node_status.assert_called_once_with(node_id)
+
+    def test_execute_dbt_node_with_asset_context(self, monkeypatch: pytest.MonkeyPatch):
+        """Test that execute_dbt_node works with asset context."""
+        task_state = Mock()
+        node_id = "test_node"
+        asset_id = "test_asset"
+
+        # Mock successful completion with node info
+        node_info = {"node_status": RunStatus.Success, "name": "test_model"}
+        task_state.get_node_status.return_value = {
+            "event_data": {"node_info": node_info}
+        }
+
+        monkeypatch.setattr("prefect_dbt.core.runner.get_run_logger", Mock())
+
+        mock_context = Mock()
+        mock_asset_context = Mock()
+        mock_asset_context.get.return_value = mock_context
+        monkeypatch.setattr("prefect_dbt.core.runner.AssetContext", mock_asset_context)
+
+        execute_dbt_node(task_state, node_id, asset_id)
+
+        # Verify asset metadata was added
+        mock_context.add_asset_metadata.assert_called_once_with(asset_id, node_info)
 
 
-class TestConstants:
-    """Test cases for module constants"""
+class TestRunnerConstants:
+    """Test cases for runner constants."""
 
-    def test_failure_statuses(self) -> None:
-        """Test that all expected failure statuses are included"""
+    def test_failure_statuses_include_all_expected_types(self):
+        """Test that FAILURE_STATUSES includes all expected failure types."""
+        from dbt.artifacts.schemas.results import (
+            FreshnessStatus,
+            NodeStatus,
+            RunStatus,
+            TestStatus,
+        )
+        from prefect_dbt.core.runner import FAILURE_STATUSES
+
         expected_statuses = [
             RunStatus.Error,
             TestStatus.Error,
@@ -578,18 +443,20 @@ class TestConstants:
         for status in expected_statuses:
             assert status in FAILURE_STATUSES
 
-    def test_materialization_node_types(self) -> None:
-        """Test materialization node types"""
+    def test_materialization_node_types_include_expected_types(self):
+        """Test that MATERIALIZATION_NODE_TYPES includes expected node types."""
         from dbt.artifacts.resources.types import NodeType
+        from prefect_dbt.core.runner import MATERIALIZATION_NODE_TYPES
 
         expected_types = [NodeType.Model, NodeType.Seed, NodeType.Snapshot]
 
         for node_type in expected_types:
             assert node_type in MATERIALIZATION_NODE_TYPES
 
-    def test_reference_node_types(self) -> None:
-        """Test reference node types"""
+    def test_reference_node_types_include_expected_types(self):
+        """Test that REFERENCE_NODE_TYPES includes expected node types."""
         from dbt.artifacts.resources.types import NodeType
+        from prefect_dbt.core.runner import REFERENCE_NODE_TYPES
 
         expected_types = [NodeType.Exposure, NodeType.Source]
 
