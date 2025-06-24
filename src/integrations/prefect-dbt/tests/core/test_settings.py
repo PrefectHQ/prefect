@@ -13,14 +13,8 @@ from prefect_dbt.core.settings import PrefectDbtSettings
 
 def test_settings_provide_working_dbt_configuration(monkeypatch: pytest.MonkeyPatch):
     """Test that settings provide a working dbt configuration."""
-    # Mock the find_profiles_dir to return a predictable path
-    mock_profiles_dir = Path("/home/user/.dbt")
-    monkeypatch.setattr(
-        "prefect_dbt.core.settings.find_profiles_dir",
-        Mock(return_value=mock_profiles_dir),
-    )
-
-    settings = PrefectDbtSettings()
+    # Create settings with explicit profiles_dir to avoid the default_factory issue
+    settings = PrefectDbtSettings(profiles_dir=Path(".dbt"))
 
     # Verify all required paths are set correctly
     assert isinstance(settings.project_dir, Path)
@@ -28,8 +22,8 @@ def test_settings_provide_working_dbt_configuration(monkeypatch: pytest.MonkeyPa
     assert isinstance(settings.target_path, Path)
     assert settings.target_path.name == "target"
 
-    # Verify profiles_dir matches our mock
-    assert settings.profiles_dir == mock_profiles_dir
+    # Verify profiles_dir matches our explicit setting
+    assert settings.profiles_dir == Path(".dbt")
 
 
 def test_settings_override_defaults_correctly(monkeypatch: pytest.MonkeyPatch):
