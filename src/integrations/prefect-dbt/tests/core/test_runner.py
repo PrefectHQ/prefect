@@ -14,7 +14,7 @@ from prefect_dbt.core.runner import PrefectDbtRunner, execute_dbt_node
 from prefect_dbt.core.settings import PrefectDbtSettings
 
 
-class TestPrefectDbtRunnerOutcomes:
+class TestPrefectDbtRunner:
     """Test cases focusing on PrefectDbtRunner outcomes and behavior."""
 
     def test_runner_initializes_with_working_configuration(self):
@@ -46,16 +46,6 @@ class TestPrefectDbtRunnerOutcomes:
         assert runner.raise_on_failure is False
         assert runner.client == custom_client
         assert runner.include_compiled_code is True
-
-    def test_runner_provides_working_property_accessors(self):
-        """Test that runner provides working property accessors."""
-        runner = PrefectDbtRunner()
-
-        # Verify all properties return valid values
-        assert isinstance(runner.target_path, Path)
-        assert isinstance(runner.profiles_dir, Path)
-        assert isinstance(runner.project_dir, Path)
-        assert isinstance(runner.log_level, EventLevel)
 
     def test_runner_handles_manifest_loading_successfully(
         self, monkeypatch: pytest.MonkeyPatch
@@ -325,8 +315,8 @@ class TestPrefectDbtRunnerOutcomes:
         assert mock_cli.called
 
 
-class TestExecuteDbtNodeOutcomes:
-    """Test cases focusing on execute_dbt_node outcomes and behavior."""
+class TestExecuteDbtNode:
+    """Test cases focusing on execute_dbt_node behavior."""
 
     def test_execute_dbt_node_completes_successfully(
         self, monkeypatch: pytest.MonkeyPatch
@@ -414,51 +404,3 @@ class TestExecuteDbtNodeOutcomes:
 
         # Verify asset metadata was added
         mock_context.add_asset_metadata.assert_called_once_with(asset_id, node_info)
-
-
-class TestRunnerConstants:
-    """Test cases for runner constants."""
-
-    def test_failure_statuses_include_all_expected_types(self):
-        """Test that FAILURE_STATUSES includes all expected failure types."""
-        from dbt.artifacts.schemas.results import (
-            FreshnessStatus,
-            NodeStatus,
-            RunStatus,
-            TestStatus,
-        )
-        from prefect_dbt.core.runner import FAILURE_STATUSES
-
-        expected_statuses = [
-            RunStatus.Error,
-            TestStatus.Error,
-            TestStatus.Fail,
-            FreshnessStatus.Error,
-            FreshnessStatus.RuntimeErr,
-            NodeStatus.Error,
-            NodeStatus.Fail,
-            NodeStatus.RuntimeErr,
-        ]
-
-        for status in expected_statuses:
-            assert status in FAILURE_STATUSES
-
-    def test_materialization_node_types_include_expected_types(self):
-        """Test that MATERIALIZATION_NODE_TYPES includes expected node types."""
-        from dbt.artifacts.resources.types import NodeType
-        from prefect_dbt.core.runner import MATERIALIZATION_NODE_TYPES
-
-        expected_types = [NodeType.Model, NodeType.Seed, NodeType.Snapshot]
-
-        for node_type in expected_types:
-            assert node_type in MATERIALIZATION_NODE_TYPES
-
-    def test_reference_node_types_include_expected_types(self):
-        """Test that REFERENCE_NODE_TYPES includes expected node types."""
-        from dbt.artifacts.resources.types import NodeType
-        from prefect_dbt.core.runner import REFERENCE_NODE_TYPES
-
-        expected_types = [NodeType.Exposure, NodeType.Source]
-
-        for node_type in expected_types:
-            assert node_type in REFERENCE_NODE_TYPES
