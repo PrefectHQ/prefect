@@ -3,7 +3,7 @@ State for managing tasks across callbacks.
 """
 
 import threading
-from typing import Any
+from typing import Any, Union
 
 from prefect.client.schemas.objects import State
 from prefect.context import hydrated_context
@@ -33,7 +33,7 @@ class TaskState:
         """Set the logger for a task."""
         self._task_loggers[node_id] = logger
 
-    def get_task_logger(self, node_id: str) -> Any | None:
+    def get_task_logger(self, node_id: str) -> Union[Any, None]:
         """Get the logger for a task."""
         return self._task_loggers.get(node_id)
 
@@ -51,7 +51,7 @@ class TaskState:
         if node_id in self._node_events:
             self._node_events[node_id].set()
 
-    def get_node_status(self, node_id: str) -> dict[str, Any] | None:
+    def get_node_status(self, node_id: str) -> Union[dict[str, Any], None]:
         """Get the status for a node."""
         return self._node_status.get(node_id)
 
@@ -60,7 +60,7 @@ class TaskState:
         return self._node_complete.get(node_id, False)
 
     def wait_for_node_completion(
-        self, node_id: str, timeout: float | None = None
+        self, node_id: str, timeout: Union[float, None] = None
     ) -> bool:
         """Wait for a node to complete using threading.Event.
 
@@ -81,7 +81,7 @@ class TaskState:
         """Set the result for a task."""
         self._task_results[node_id] = result
 
-    def get_task_result(self, node_id: str) -> Any | None:
+    def get_task_result(self, node_id: str) -> Union[Any, None]:
         """Get the result for a task."""
         return self._task_results.get(node_id)
 
