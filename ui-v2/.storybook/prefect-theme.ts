@@ -1,4 +1,4 @@
-import { create } from "@storybook/theming";
+import { create } from "storybook/theming";
 import LogoDark from "./logos/logo-dark.svg";
 import LogoLight from "./logos/logo-light.svg";
 

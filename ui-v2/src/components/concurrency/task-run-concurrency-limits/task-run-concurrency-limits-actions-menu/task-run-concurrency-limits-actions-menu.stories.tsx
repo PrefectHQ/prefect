@@ -1,7 +1,7 @@
 import { toastDecorator } from "@/storybook/utils";
 import type { Meta, StoryObj } from "@storybook/react";
 
-import { fn } from "@storybook/test";
+import { fn } from "storybook/test";
 import { TaskRunConcurrencyLimitsActionsMenu } from "./task-run-concurrency-limits-actions-menu";
 
 const meta = {

@@ -32,3 +32,5 @@ oss_schema.json
 
 # Log code
 !src/api/logs/
+
+storybook-static

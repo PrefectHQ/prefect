@@ -1,7 +1,7 @@
 import { createFakeTaskRunConcurrencyLimit } from "@/mocks";
 import { routerDecorator, toastDecorator } from "@/storybook/utils";
 import type { Meta, StoryObj } from "@storybook/react";
-import { fn } from "@storybook/test";
+import { fn } from "storybook/test";
 import { Table as TaskRunConcurrencyLimitsDataTable } from "./task-run-concurrency-limits-data-table";
 
 const MOCK_DATA = [

@@ -1,8 +1,8 @@
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import type { ReactRenderer } from "@storybook/react";
-import type { DecoratorFunction } from "@storybook/types";
 import { useEffect, useState } from "react";
+import type { DecoratorFunction } from "storybook/internal/types";
 
 export const ModeDecorator: DecoratorFunction<ReactRenderer> = (Story) => {
 	const [isDarkMode, setIsDarkMode] = useState(false);

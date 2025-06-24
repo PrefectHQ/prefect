@@ -1,7 +1,7 @@
 import type { ReactRenderer } from "@storybook/react";
-import type { DecoratorFunction } from "@storybook/types";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
+import type { DecoratorFunction } from "storybook/internal/types";
 
 const queryClient = new QueryClient();
 

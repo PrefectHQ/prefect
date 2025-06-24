@@ -2,7 +2,7 @@ import { routerDecorator, toastDecorator } from "@/storybook/utils";
 import type { Meta, StoryObj } from "@storybook/react";
 
 import { createFakeAutomation } from "@/mocks";
-import { fn } from "@storybook/test";
+import { fn } from "storybook/test";
 import { AutomationsActionsMenu } from "./automations-actions-menu";
 
 const MOCK_DATA = createFakeAutomation();

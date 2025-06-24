@@ -1,7 +1,7 @@
 import { createFakeTaskRunConcurrencyLimit } from "@/mocks";
 import { reactQueryDecorator } from "@/storybook/utils";
 import type { Meta, StoryObj } from "@storybook/react";
-import { fn } from "@storybook/test";
+import { fn } from "storybook/test";
 import { TaskRunConcurrencyLimitsResetDialog } from "./task-run-concurrency-limits-reset-dialog";
 
 const meta = {
