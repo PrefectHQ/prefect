@@ -7,43 +7,43 @@ sidebarTitle: flow_engine
 
 ## Functions
 
-### `load_flow_run`
+### `load_flow_run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/flow_engine.py#L124" target="_blank">↗</a></sup>
 
 ```python
 load_flow_run(flow_run_id: UUID) -> FlowRun
 ```
 
-### `load_flow`
+### `load_flow` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/flow_engine.py#L130" target="_blank">↗</a></sup>
 
 ```python
 load_flow(flow_run: FlowRun) -> Flow[..., Any]
 ```
 
-### `load_flow_and_flow_run`
+### `load_flow_and_flow_run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/flow_engine.py#L146" target="_blank">↗</a></sup>
 
 ```python
 load_flow_and_flow_run(flow_run_id: UUID) -> tuple[FlowRun, Flow[..., Any]]
 ```
 
-### `run_flow_sync`
+### `run_flow_sync` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/flow_engine.py#L1354" target="_blank">↗</a></sup>
 
 ```python
 run_flow_sync(flow: Flow[P, R], flow_run: Optional[FlowRun] = None, parameters: Optional[Dict[str, Any]] = None, wait_for: Optional[Iterable[PrefectFuture[Any]]] = None, return_type: Literal['state', 'result'] = 'result', context: Optional[dict[str, Any]] = None) -> Union[R, State, None]
 ```
 
-### `run_generator_flow_sync`
+### `run_generator_flow_sync` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/flow_engine.py#L1402" target="_blank">↗</a></sup>
 
 ```python
 run_generator_flow_sync(flow: Flow[P, R], flow_run: Optional[FlowRun] = None, parameters: Optional[Dict[str, Any]] = None, wait_for: Optional[Iterable[PrefectFuture[Any]]] = None, return_type: Literal['state', 'result'] = 'result', context: Optional[dict[str, Any]] = None) -> Generator[R, None, None]
 ```
 
-### `run_flow`
+### `run_flow` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/flow_engine.py#L1486" target="_blank">↗</a></sup>
 
 ```python
 run_flow(flow: Flow[P, R], flow_run: Optional[FlowRun] = None, parameters: Optional[Dict[str, Any]] = None, wait_for: Optional[Iterable[PrefectFuture[R]]] = None, return_type: Literal['state', 'result'] = 'result', error_logger: Optional[logging.Logger] = None, context: Optional[dict[str, Any]] = None) -> R | State | None | Coroutine[Any, Any, R | State | None] | Generator[R, None, None] | AsyncGenerator[R, None]
 ```
 
-### `run_flow_in_subprocess`
+### `run_flow_in_subprocess` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/flow_engine.py#L1559" target="_blank">↗</a></sup>
 
 ```python
 run_flow_in_subprocess(flow: 'Flow[..., Any]', flow_run: 'FlowRun | None' = None, parameters: dict[str, Any] | None = None, wait_for: Iterable[PrefectFuture[Any]] | None = None, context: dict[str, Any] | None = None) -> multiprocessing.context.SpawnProcess
@@ -71,57 +71,57 @@ in a subprocess or on another machine).
 
 ## Classes
 
-### `FlowRunTimeoutError`
+### `FlowRunTimeoutError` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/flow_engine.py#L120" target="_blank">↗</a></sup>
 
 
 Raised when a flow run exceeds its defined timeout.
 
 
-### `BaseFlowRunEngine`
+### `BaseFlowRunEngine` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/flow_engine.py#L153" target="_blank">↗</a></sup>
 
 **Methods:**
 
-#### `state`
+#### `state` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/flow_engine.py#L178" target="_blank">↗</a></sup>
 
 ```python
 state(self) -> State
 ```
 
-#### `is_running`
+#### `is_running` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/flow_engine.py#L181" target="_blank">↗</a></sup>
 
 ```python
 is_running(self) -> bool
 ```
 
-#### `is_pending`
+#### `is_pending` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/flow_engine.py#L186" target="_blank">↗</a></sup>
 
 ```python
 is_pending(self) -> bool
 ```
 
-#### `cancel_all_tasks`
+#### `cancel_all_tasks` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/flow_engine.py#L191" target="_blank">↗</a></sup>
 
 ```python
 cancel_all_tasks(self) -> None
 ```
 
-### `FlowRunEngine`
+### `FlowRunEngine` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/flow_engine.py#L230" target="_blank">↗</a></sup>
 
 **Methods:**
 
-#### `client`
+#### `client` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/flow_engine.py#L236" target="_blank">↗</a></sup>
 
 ```python
 client(self) -> SyncPrefectClient
 ```
 
-#### `begin_run`
+#### `begin_run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/flow_engine.py#L280" target="_blank">↗</a></sup>
 
 ```python
 begin_run(self) -> State
 ```
 
-#### `set_state`
+#### `set_state` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/flow_engine.py#L319" target="_blank">↗</a></sup>
 
 ```python
 set_state(self, state: State, force: bool = False) -> State
@@ -130,37 +130,37 @@ set_state(self, state: State, force: bool = False) -> State
 
 
 
-#### `result`
+#### `result` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/flow_engine.py#L336" target="_blank">↗</a></sup>
 
 ```python
 result(self, raise_on_failure: bool = True) -> 'Union[R, State, None]'
 ```
 
-#### `handle_success`
+#### `handle_success` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/flow_engine.py#L362" target="_blank">↗</a></sup>
 
 ```python
 handle_success(self, result: R) -> R
 ```
 
-#### `handle_exception`
+#### `handle_exception` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/flow_engine.py#L382" target="_blank">↗</a></sup>
 
 ```python
 handle_exception(self, exc: Exception, msg: Optional[str] = None, result_store: Optional[ResultStore] = None) -> State
 ```
 
-#### `handle_timeout`
+#### `handle_timeout` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/flow_engine.py#L415" target="_blank">↗</a></sup>
 
 ```python
 handle_timeout(self, exc: TimeoutError) -> None
 ```
 
-#### `handle_crash`
+#### `handle_crash` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/flow_engine.py#L433" target="_blank">↗</a></sup>
 
 ```python
 handle_crash(self, exc: BaseException) -> None
 ```
 
-#### `load_subflow_run`
+#### `load_subflow_run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/flow_engine.py#L442" target="_blank">↗</a></sup>
 
 ```python
 load_subflow_run(self, parent_task_run: TaskRun, client: SyncPrefectClient, context: FlowRunContext) -> Union[FlowRun, None]
@@ -178,25 +178,25 @@ If no existing flow run is found, or if the subflow should be rerun,
 then no flow run is returned.
 
 
-#### `create_flow_run`
+#### `create_flow_run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/flow_engine.py#L491" target="_blank">↗</a></sup>
 
 ```python
 create_flow_run(self, client: SyncPrefectClient) -> FlowRun
 ```
 
-#### `call_hooks`
+#### `call_hooks` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/flow_engine.py#L526" target="_blank">↗</a></sup>
 
 ```python
 call_hooks(self, state: Optional[State] = None) -> None
 ```
 
-#### `setup_run_context`
+#### `setup_run_context` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/flow_engine.py#L583" target="_blank">↗</a></sup>
 
 ```python
 setup_run_context(self, client: Optional[SyncPrefectClient] = None)
 ```
 
-#### `initialize_run`
+#### `initialize_run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/flow_engine.py#L665" target="_blank">↗</a></sup>
 
 ```python
 initialize_run(self)
@@ -205,19 +205,19 @@ initialize_run(self)
 Enters a client context and creates a flow run if needed.
 
 
-#### `start`
+#### `start` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/flow_engine.py#L741" target="_blank">↗</a></sup>
 
 ```python
 start(self) -> Generator[None, None, None]
 ```
 
-#### `run_context`
+#### `run_context` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/flow_engine.py#L753" target="_blank">↗</a></sup>
 
 ```python
 run_context(self)
 ```
 
-#### `call_flow_fn`
+#### `call_flow_fn` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/flow_engine.py#L772" target="_blank">↗</a></sup>
 
 ```python
 call_flow_fn(self) -> Union[R, Coroutine[Any, Any, R]]
@@ -227,7 +227,7 @@ Convenience method to call the flow function. Returns a coroutine if the
 flow is async.
 
 
-### `AsyncFlowRunEngine`
+### `AsyncFlowRunEngine` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/flow_engine.py#L790" target="_blank">↗</a></sup>
 
 
 Async version of the flow run engine.
@@ -238,7 +238,7 @@ not being fully asyncified.
 
 **Methods:**
 
-#### `client`
+#### `client` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/flow_engine.py#L803" target="_blank">↗</a></sup>
 
 ```python
 client(self) -> PrefectClient

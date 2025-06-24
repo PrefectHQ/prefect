@@ -7,29 +7,29 @@ sidebarTitle: processors
 
 ## Classes
 
-### `InFlightSpanProcessor`
+### `InFlightSpanProcessor` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/telemetry/processors.py#L13" target="_blank">↗</a></sup>
 
 **Methods:**
 
-#### `on_start`
+#### `on_start` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/telemetry/processors.py#L41" target="_blank">↗</a></sup>
 
 ```python
 on_start(self, span: 'Span', parent_context: Optional[Context] = None) -> None
 ```
 
-#### `on_end`
+#### `on_end` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/telemetry/processors.py#L47" target="_blank">↗</a></sup>
 
 ```python
 on_end(self, span: 'ReadableSpan') -> None
 ```
 
-#### `shutdown`
+#### `shutdown` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/telemetry/processors.py#L54" target="_blank">↗</a></sup>
 
 ```python
 shutdown(self) -> None
 ```
 
-#### `force_flush`
+#### `force_flush` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/telemetry/processors.py#L59" target="_blank">↗</a></sup>
 
 ```python
 force_flush(self, timeout_millis: int = 30000) -> bool

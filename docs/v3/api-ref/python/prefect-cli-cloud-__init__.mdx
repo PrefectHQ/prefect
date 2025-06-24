@@ -12,37 +12,37 @@ Command line interface for interacting with Prefect Cloud
 
 ## Functions
 
-### `set_login_api_ready_event`
+### `set_login_api_ready_event` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/cloud/__init__.py#L71" target="_blank">↗</a></sup>
 
 ```python
 set_login_api_ready_event() -> None
 ```
 
-### `receive_login`
+### `receive_login` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/cloud/__init__.py#L115" target="_blank">↗</a></sup>
 
 ```python
 receive_login(payload: LoginSuccess) -> None
 ```
 
-### `receive_failure`
+### `receive_failure` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/cloud/__init__.py#L121" target="_blank">↗</a></sup>
 
 ```python
 receive_failure(payload: LoginFailed) -> None
 ```
 
-### `confirm_logged_in`
+### `confirm_logged_in` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/cloud/__init__.py#L163" target="_blank">↗</a></sup>
 
 ```python
 confirm_logged_in() -> None
 ```
 
-### `get_current_workspace`
+### `get_current_workspace` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/cloud/__init__.py#L172" target="_blank">↗</a></sup>
 
 ```python
 get_current_workspace(workspaces: Iterable[Workspace]) -> Workspace | None
 ```
 
-### `prompt_select_from_list`
+### `prompt_select_from_list` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/cloud/__init__.py#L197" target="_blank">↗</a></sup>
 
 ```python
 prompt_select_from_list(console: Console, prompt: str, options: list[str] | list[tuple[T, str]]) -> str | T
@@ -63,10 +63,10 @@ key will be returned.
 
 ## Classes
 
-### `LoginSuccess`
+### `LoginSuccess` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/cloud/__init__.py#L97" target="_blank">↗</a></sup>
 
-### `LoginFailed`
+### `LoginFailed` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/cloud/__init__.py#L101" target="_blank">↗</a></sup>
 
-### `LoginResult`
+### `LoginResult` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/cloud/__init__.py#L105" target="_blank">↗</a></sup>
 
-### `ServerExit`
+### `ServerExit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/cloud/__init__.py#L110" target="_blank">↗</a></sup>
