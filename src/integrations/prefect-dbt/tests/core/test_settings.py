@@ -13,18 +13,19 @@ from prefect_dbt.core.settings import PrefectDbtSettings
 
 def test_settings_provide_working_dbt_configuration(monkeypatch: pytest.MonkeyPatch):
     """Test that settings provide a working dbt configuration."""
+    # Mock the find_profiles_dir to return a predictable path
+    mock_profiles_dir = Path("/home/user/.dbt")
     monkeypatch.setattr(
         "prefect_dbt.core.settings.find_profiles_dir",
-        Mock(return_value=Path("/home/user/.dbt")),
+        Mock(return_value=mock_profiles_dir),
     )
 
     settings = PrefectDbtSettings()
 
     # Verify all required paths are available and valid
     assert settings.project_dir.exists() or str(settings.project_dir) == str(Path.cwd())
-    assert settings.profiles_dir.exists() or str(settings.profiles_dir) == str(
-        Path("/home/user/.dbt")
-    )
+    # Check that profiles_dir matches what we mocked, not a hardcoded path
+    assert settings.profiles_dir == mock_profiles_dir
     assert isinstance(settings.target_path, Path)
     assert settings.target_path.name == "target"
 
