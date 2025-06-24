@@ -1,6 +1,7 @@
 import { showToast } from '@prefecthq/prefect-design'
 import { AxiosError, AxiosInstance, isAxiosError } from 'axios'
 import { ref } from 'vue'
+import ApiStatusToast from '@/components/ApiStatusToast.vue'
 
 const interceptedStatuses = [503]
 const interceptedCodes = ['ERR_NETWORK']
@@ -19,10 +20,9 @@ export function setupApiStatusInterceptor(axiosInstance: AxiosInstance): void {
   }
 
   function interceptor(error: AxiosError): Promise<AxiosError> {
-    console.log('running interceptor')
     if (isInterceptedError(error) && !shown.value) {
       shown.value = true
-      showToast('Service unavailable', 'error', { dismissible: true })
+      showToast(ApiStatusToast, 'error', { dismissible: true, timeout: false })
       ejectInterceptor()
     }
     return Promise.reject(error)
