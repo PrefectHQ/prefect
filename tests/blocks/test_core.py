@@ -11,6 +11,7 @@ from packaging.version import Version
 from pydantic import BaseModel, Field, SecretBytes, SecretStr, ValidationError
 from pydantic import Secret as PydanticSecret
 from pydantic_core import to_json
+from pydantic_extra_types.semantic_version import SemanticVersion
 
 import prefect
 from prefect.blocks.core import Block, InvalidBlockRegistration
@@ -2036,8 +2037,6 @@ class TestSaveBlock:
 
     async def test_save_block_with_semantic_version(self):
         """Test that blocks with SemanticVersion fields can be saved and loaded."""
-        pytest.importorskip("pydantic_extra_types.semantic_version")
-        from pydantic_extra_types.semantic_version import SemanticVersion
 
         class BlockWithSemanticVersion(Block):
             version: SemanticVersion
