@@ -7,7 +7,7 @@ sidebarTitle: math
 
 ## Functions
 
-### `poisson_interval`
+### `poisson_interval` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/math.py#L5" target="_blank">↗</a></sup>
 
 ```python
 poisson_interval(average_interval: float, lower: float = 0, upper: float = 1) -> float
@@ -21,13 +21,13 @@ method. Can optionally be passed a lower and upper bound between (0, 1] to clamp
 the potential output values.
 
 
-### `exponential_cdf`
+### `exponential_cdf` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/math.py#L21" target="_blank">↗</a></sup>
 
 ```python
 exponential_cdf(x: float, average_interval: float) -> float
 ```
 
-### `lower_clamp_multiple`
+### `lower_clamp_multiple` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/math.py#L26" target="_blank">↗</a></sup>
 
 ```python
 lower_clamp_multiple(k: float) -> float
@@ -43,7 +43,7 @@ c * average_interval) where the probability mass between the lower bound and the
 median is equal to the probability mass between the median and the upper bound.
 
 
-### `clamped_poisson_interval`
+### `clamped_poisson_interval` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/math.py#L43" target="_blank">↗</a></sup>
 
 ```python
 clamped_poisson_interval(average_interval: float, clamping_factor: float = 0.3) -> float
@@ -56,7 +56,7 @@ The upper bound for this random variate is: average_interval * (1 + clamping_fac
 A lower bound is picked so that the average interval remains approximately fixed.
 
 
-### `bounded_poisson_interval`
+### `bounded_poisson_interval` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/math.py#L64" target="_blank">↗</a></sup>
 
 ```python
 bounded_poisson_interval(lower_bound: float, upper_bound: float) -> float

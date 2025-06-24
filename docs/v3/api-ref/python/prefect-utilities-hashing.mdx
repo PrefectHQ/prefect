@@ -7,7 +7,7 @@ sidebarTitle: hashing
 
 ## Functions
 
-### `stable_hash`
+### `stable_hash` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/hashing.py#L14" target="_blank">↗</a></sup>
 
 ```python
 stable_hash(*args: Union[str, bytes]) -> str
@@ -26,7 +26,7 @@ Supports bytes and strings. Strings will be UTF-8 encoded.
 - A hex hash.
 
 
-### `file_hash`
+### `file_hash` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/hashing.py#L34" target="_blank">↗</a></sup>
 
 ```python
 file_hash(path: str, hash_algo: Callable[..., Any] = _md5) -> str
@@ -43,7 +43,7 @@ Given a path to a file, produces a stable hash of the file contents.
 - a hash of the file contents
 
 
-### `hash_objects`
+### `hash_objects` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/hashing.py#L48" target="_blank">↗</a></sup>
 
 ```python
 hash_objects(*args: Any, **kwargs: Any) -> Optional[str]

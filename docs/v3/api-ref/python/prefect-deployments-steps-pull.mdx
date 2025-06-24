@@ -12,7 +12,7 @@ Core set of steps for specifying a Prefect project pull step.
 
 ## Functions
 
-### `set_working_directory`
+### `set_working_directory` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/deployments/steps/pull.py#L24" target="_blank">↗</a></sup>
 
 ```python
 set_working_directory(directory: str) -> dict[str, str]
@@ -29,7 +29,7 @@ Sets the working directory; works with both absolute and relative paths.
 directory that was set
 
 
-### `git_clone`
+### `git_clone` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/deployments/steps/pull.py#L100" target="_blank">↗</a></sup>
 
 ```python
 git_clone(repository: str, branch: Optional[str] = None, commit_sha: Optional[str] = None, include_submodules: bool = False, access_token: Optional[str] = None, credentials: Optional['Block'] = None, directories: Optional[list[str]] = None) -> dict[str, str]

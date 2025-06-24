@@ -7,7 +7,7 @@ sidebarTitle: server
 
 ## Functions
 
-### `build_healthcheck_server`
+### `build_healthcheck_server` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/workers/server.py#L14" target="_blank">↗</a></sup>
 
 ```python
 build_healthcheck_server(worker: BaseWorker[Any, Any, Any], query_interval_seconds: float, log_level: str = 'error') -> uvicorn.Server
@@ -21,7 +21,7 @@ Build a healthcheck FastAPI server for a worker.
 - `log_level`: the log
 
 
-### `start_healthcheck_server`
+### `start_healthcheck_server` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/workers/server.py#L54" target="_blank">↗</a></sup>
 
 ```python
 start_healthcheck_server(worker: BaseWorker[Any, Any, Any], query_interval_seconds: float, log_level: str = 'error') -> None

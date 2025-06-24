@@ -7,13 +7,13 @@ sidebarTitle: task_run_recorder
 
 ## Functions
 
-### `causal_ordering`
+### `causal_ordering` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/services/task_run_recorder.py#L41" target="_blank">↗</a></sup>
 
 ```python
 causal_ordering() -> CausalOrdering
 ```
 
-### `task_run_from_event`
+### `task_run_from_event` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/services/task_run_recorder.py#L68" target="_blank">↗</a></sup>
 
 ```python
 task_run_from_event(event: ReceivedEvent) -> TaskRun
@@ -21,7 +21,7 @@ task_run_from_event(event: ReceivedEvent) -> TaskRun
 
 ## Classes
 
-### `TaskRunRecorder`
+### `TaskRunRecorder` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/services/task_run_recorder.py#L192" target="_blank">↗</a></sup>
 
 
 Constructs task runs and states from client-emitted events
@@ -29,19 +29,19 @@ Constructs task runs and states from client-emitted events
 
 **Methods:**
 
-#### `service_settings`
+#### `service_settings` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/services/task_run_recorder.py#L199" target="_blank">↗</a></sup>
 
 ```python
 service_settings(cls) -> ServicesBaseSetting
 ```
 
-#### `started_event`
+#### `started_event` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/services/task_run_recorder.py#L207" target="_blank">↗</a></sup>
 
 ```python
 started_event(self) -> asyncio.Event
 ```
 
-#### `started_event`
+#### `started_event` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/services/task_run_recorder.py#L213" target="_blank">↗</a></sup>
 
 ```python
 started_event(self, value: asyncio.Event) -> None

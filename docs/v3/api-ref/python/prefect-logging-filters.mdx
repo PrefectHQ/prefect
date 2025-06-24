@@ -7,7 +7,7 @@ sidebarTitle: filters
 
 ## Functions
 
-### `redact_substr`
+### `redact_substr` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/logging/filters.py#L8" target="_blank">↗</a></sup>
 
 ```python
 redact_substr(obj: Any, substr: str) -> Any
@@ -26,7 +26,7 @@ Redact a string from a potentially nested object.
 
 ## Classes
 
-### `ObfuscateApiKeyFilter`
+### `ObfuscateApiKeyFilter` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/logging/filters.py#L29" target="_blank">↗</a></sup>
 
 
 A logging filter that obfuscates any string that matches the obfuscate_string function.
@@ -34,7 +34,7 @@ A logging filter that obfuscates any string that matches the obfuscate_string fu
 
 **Methods:**
 
-#### `filter`
+#### `filter` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/logging/filters.py#L34" target="_blank">↗</a></sup>
 
 ```python
 filter(self, record: logging.LogRecord) -> bool

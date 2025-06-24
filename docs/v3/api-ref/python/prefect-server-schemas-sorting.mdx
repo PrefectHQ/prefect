@@ -12,7 +12,7 @@ Schemas for sorting Prefect REST API objects.
 
 ## Classes
 
-### `FlowRunSort`
+### `FlowRunSort` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/schemas/sorting.py#L21" target="_blank">↗</a></sup>
 
 
 Defines flow run sorting options.
@@ -20,7 +20,7 @@ Defines flow run sorting options.
 
 **Methods:**
 
-#### `as_sql_sort`
+#### `as_sql_sort` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/schemas/sorting.py#L35" target="_blank">↗</a></sup>
 
 ```python
 as_sql_sort(self, db: 'PrefectDBInterface') -> Iterable[sa.ColumnElement[Any]]
@@ -29,7 +29,7 @@ as_sql_sort(self, db: 'PrefectDBInterface') -> Iterable[sa.ColumnElement[Any]]
 Return an expression used to sort flow runs
 
 
-### `TaskRunSort`
+### `TaskRunSort` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/schemas/sorting.py#L61" target="_blank">↗</a></sup>
 
 
 Defines task run sorting options.
@@ -37,7 +37,7 @@ Defines task run sorting options.
 
 **Methods:**
 
-#### `as_sql_sort`
+#### `as_sql_sort` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/schemas/sorting.py#L73" target="_blank">↗</a></sup>
 
 ```python
 as_sql_sort(self, db: 'PrefectDBInterface') -> Iterable[sa.ColumnElement[Any]]
@@ -46,7 +46,7 @@ as_sql_sort(self, db: 'PrefectDBInterface') -> Iterable[sa.ColumnElement[Any]]
 Return an expression used to sort task runs
 
 
-### `LogSort`
+### `LogSort` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/schemas/sorting.py#L89" target="_blank">↗</a></sup>
 
 
 Defines log sorting options.
@@ -54,7 +54,7 @@ Defines log sorting options.
 
 **Methods:**
 
-#### `as_sql_sort`
+#### `as_sql_sort` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/schemas/sorting.py#L96" target="_blank">↗</a></sup>
 
 ```python
 as_sql_sort(self, db: 'PrefectDBInterface') -> Iterable[sa.ColumnElement[Any]]
@@ -63,7 +63,7 @@ as_sql_sort(self, db: 'PrefectDBInterface') -> Iterable[sa.ColumnElement[Any]]
 Return an expression used to sort task runs
 
 
-### `FlowSort`
+### `FlowSort` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/schemas/sorting.py#L105" target="_blank">↗</a></sup>
 
 
 Defines flow sorting options.
@@ -71,7 +71,7 @@ Defines flow sorting options.
 
 **Methods:**
 
-#### `as_sql_sort`
+#### `as_sql_sort` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/schemas/sorting.py#L114" target="_blank">↗</a></sup>
 
 ```python
 as_sql_sort(self, db: 'PrefectDBInterface') -> Iterable[sa.ColumnElement[Any]]
@@ -80,7 +80,7 @@ as_sql_sort(self, db: 'PrefectDBInterface') -> Iterable[sa.ColumnElement[Any]]
 Return an expression used to sort task runs
 
 
-### `DeploymentSort`
+### `DeploymentSort` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/schemas/sorting.py#L125" target="_blank">↗</a></sup>
 
 
 Defines deployment sorting options.
@@ -88,7 +88,7 @@ Defines deployment sorting options.
 
 **Methods:**
 
-#### `as_sql_sort`
+#### `as_sql_sort` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/schemas/sorting.py#L134" target="_blank">↗</a></sup>
 
 ```python
 as_sql_sort(self, db: 'PrefectDBInterface') -> Iterable[sa.ColumnElement[Any]]
@@ -97,7 +97,7 @@ as_sql_sort(self, db: 'PrefectDBInterface') -> Iterable[sa.ColumnElement[Any]]
 Return an expression used to sort task runs
 
 
-### `ArtifactSort`
+### `ArtifactSort` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/schemas/sorting.py#L145" target="_blank">↗</a></sup>
 
 
 Defines artifact sorting options.
@@ -105,7 +105,7 @@ Defines artifact sorting options.
 
 **Methods:**
 
-#### `as_sql_sort`
+#### `as_sql_sort` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/schemas/sorting.py#L155" target="_blank">↗</a></sup>
 
 ```python
 as_sql_sort(self, db: 'PrefectDBInterface') -> Iterable[sa.ColumnElement[Any]]
@@ -114,7 +114,7 @@ as_sql_sort(self, db: 'PrefectDBInterface') -> Iterable[sa.ColumnElement[Any]]
 Return an expression used to sort task runs
 
 
-### `ArtifactCollectionSort`
+### `ArtifactCollectionSort` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/schemas/sorting.py#L167" target="_blank">↗</a></sup>
 
 
 Defines artifact collection sorting options.
@@ -122,7 +122,7 @@ Defines artifact collection sorting options.
 
 **Methods:**
 
-#### `as_sql_sort`
+#### `as_sql_sort` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/schemas/sorting.py#L177" target="_blank">↗</a></sup>
 
 ```python
 as_sql_sort(self, db: 'PrefectDBInterface') -> Iterable[sa.ColumnElement[Any]]
@@ -131,7 +131,7 @@ as_sql_sort(self, db: 'PrefectDBInterface') -> Iterable[sa.ColumnElement[Any]]
 Return an expression used to sort task runs
 
 
-### `VariableSort`
+### `VariableSort` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/schemas/sorting.py#L189" target="_blank">↗</a></sup>
 
 
 Defines variables sorting options.
@@ -139,7 +139,7 @@ Defines variables sorting options.
 
 **Methods:**
 
-#### `as_sql_sort`
+#### `as_sql_sort` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/schemas/sorting.py#L198" target="_blank">↗</a></sup>
 
 ```python
 as_sql_sort(self, db: 'PrefectDBInterface') -> Iterable[sa.ColumnElement[Any]]
@@ -148,7 +148,7 @@ as_sql_sort(self, db: 'PrefectDBInterface') -> Iterable[sa.ColumnElement[Any]]
 Return an expression used to sort task runs
 
 
-### `BlockDocumentSort`
+### `BlockDocumentSort` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/schemas/sorting.py#L209" target="_blank">↗</a></sup>
 
 
 Defines block document sorting options.
@@ -156,7 +156,7 @@ Defines block document sorting options.
 
 **Methods:**
 
-#### `as_sql_sort`
+#### `as_sql_sort` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/schemas/sorting.py#L217" target="_blank">↗</a></sup>
 
 ```python
 as_sql_sort(self, db: 'PrefectDBInterface') -> Iterable[sa.ColumnElement[Any]]

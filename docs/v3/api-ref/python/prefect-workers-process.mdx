@@ -24,28 +24,28 @@ checkout out the [Prefect docs](/concepts/work-pools/).
 
 ## Classes
 
-### `ProcessJobConfiguration`
+### `ProcessJobConfiguration` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/workers/process.py#L53" target="_blank">↗</a></sup>
 
 **Methods:**
 
-#### `validate_working_dir`
+#### `validate_working_dir` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/workers/process.py#L59" target="_blank">↗</a></sup>
 
 ```python
 validate_working_dir(cls, v: Path | str | None) -> Path | None
 ```
 
-#### `prepare_for_flow_run`
+#### `prepare_for_flow_run` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/workers/process.py#L64" target="_blank">↗</a></sup>
 
 ```python
 prepare_for_flow_run(self, flow_run: 'FlowRun', deployment: 'DeploymentResponse | None' = None, flow: 'APIFlow | None' = None, work_pool: 'WorkPool | None' = None, worker_name: str | None = None) -> None
 ```
 
-### `ProcessVariables`
+### `ProcessVariables` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/workers/process.py#L90" target="_blank">↗</a></sup>
 
-### `ProcessWorkerResult`
+### `ProcessWorkerResult` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/workers/process.py#L109" target="_blank">↗</a></sup>
 
 
 Contains information about the final state of a completed process
 
 
-### `ProcessWorker`
+### `ProcessWorker` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/workers/process.py#L113" target="_blank">↗</a></sup>

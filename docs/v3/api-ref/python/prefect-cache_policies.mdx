@@ -7,7 +7,7 @@ sidebarTitle: cache_policies
 
 ## Classes
 
-### `CachePolicy`
+### `CachePolicy` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/cache_policies.py#L46" target="_blank">↗</a></sup>
 
 
 Base class for all cache policies.
@@ -15,7 +15,7 @@ Base class for all cache policies.
 
 **Methods:**
 
-#### `from_cache_key_fn`
+#### `from_cache_key_fn` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/cache_policies.py#L60" target="_blank">↗</a></sup>
 
 ```python
 from_cache_key_fn(cls, cache_key_fn: Callable[['TaskRunContext', Dict[str, Any]], Optional[str]]) -> 'CacheKeyFnPolicy'
@@ -24,7 +24,7 @@ from_cache_key_fn(cls, cache_key_fn: Callable[['TaskRunContext', Dict[str, Any]]
 Given a function generates a key policy.
 
 
-#### `configure`
+#### `configure` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/cache_policies.py#L68" target="_blank">↗</a></sup>
 
 ```python
 configure(self, key_storage: Union['WritableFileSystem', str, Path, None] = None, lock_manager: Optional['LockManager'] = None, isolation_level: Union[Literal['READ_COMMITTED', 'SERIALIZABLE'], 'IsolationLevel', None] = None) -> Self
@@ -44,13 +44,13 @@ the current isolation level will be used.
 - A new cache policy with the given key storage, lock manager, and isolation level.
 
 
-#### `compute_key`
+#### `compute_key` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/cache_policies.py#L99" target="_blank">↗</a></sup>
 
 ```python
 compute_key(self, task_ctx: TaskRunContext, inputs: dict[str, Any], flow_parameters: dict[str, Any], **kwargs: Any) -> Optional[str]
 ```
 
-### `CacheKeyFnPolicy`
+### `CacheKeyFnPolicy` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/cache_policies.py#L155" target="_blank">↗</a></sup>
 
 
 This policy accepts a custom function with signature f(task_run_context, task_parameters, flow_parameters) -> str
@@ -59,13 +59,13 @@ and uses it to compute a task run cache key.
 
 **Methods:**
 
-#### `compute_key`
+#### `compute_key` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/cache_policies.py#L166" target="_blank">↗</a></sup>
 
 ```python
 compute_key(self, task_ctx: TaskRunContext, inputs: dict[str, Any], flow_parameters: dict[str, Any], **kwargs: Any) -> Optional[str]
 ```
 
-### `CompoundCachePolicy`
+### `CompoundCachePolicy` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/cache_policies.py#L178" target="_blank">↗</a></sup>
 
 
 This policy is constructed from two or more other cache policies and works by computing the keys
@@ -76,13 +76,13 @@ Any keys that return `None` will be ignored.
 
 **Methods:**
 
-#### `compute_key`
+#### `compute_key` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/cache_policies.py#L205" target="_blank">↗</a></sup>
 
 ```python
 compute_key(self, task_ctx: TaskRunContext, inputs: dict[str, Any], flow_parameters: dict[str, Any], **kwargs: Any) -> Optional[str]
 ```
 
-### `TaskSource`
+### `TaskSource` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/cache_policies.py#L278" target="_blank">↗</a></sup>
 
 
 Policy for computing a cache key based on the source code of the task.
@@ -92,13 +92,13 @@ This policy only considers raw lines of code in the task, and not the source cod
 
 **Methods:**
 
-#### `compute_key`
+#### `compute_key` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/cache_policies.py#L285" target="_blank">↗</a></sup>
 
 ```python
 compute_key(self, task_ctx: TaskRunContext, inputs: Optional[dict[str, Any]], flow_parameters: Optional[dict[str, Any]], **kwargs: Any) -> Optional[str]
 ```
 
-### `FlowParameters`
+### `FlowParameters` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/cache_policies.py#L307" target="_blank">↗</a></sup>
 
 
 Policy that computes the cache key based on a hash of the flow parameters.
@@ -106,13 +106,13 @@ Policy that computes the cache key based on a hash of the flow parameters.
 
 **Methods:**
 
-#### `compute_key`
+#### `compute_key` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/cache_policies.py#L312" target="_blank">↗</a></sup>
 
 ```python
 compute_key(self, task_ctx: TaskRunContext, inputs: dict[str, Any], flow_parameters: dict[str, Any], **kwargs: Any) -> Optional[str]
 ```
 
-### `RunId`
+### `RunId` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/cache_policies.py#L325" target="_blank">↗</a></sup>
 
 
 Returns either the prevailing flow run ID, or if not found, the prevailing task
@@ -121,13 +121,13 @@ run ID.
 
 **Methods:**
 
-#### `compute_key`
+#### `compute_key` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/cache_policies.py#L331" target="_blank">↗</a></sup>
 
 ```python
 compute_key(self, task_ctx: TaskRunContext, inputs: dict[str, Any], flow_parameters: dict[str, Any], **kwargs: Any) -> Optional[str]
 ```
 
-### `Inputs`
+### `Inputs` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/cache_policies.py#L347" target="_blank">↗</a></sup>
 
 
 Policy that computes a cache key based on a hash of the runtime inputs provided to the task..
@@ -135,7 +135,7 @@ Policy that computes a cache key based on a hash of the runtime inputs provided 
 
 **Methods:**
 
-#### `compute_key`
+#### `compute_key` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/cache_policies.py#L354" target="_blank">↗</a></sup>
 
 ```python
 compute_key(self, task_ctx: TaskRunContext, inputs: dict[str, Any], flow_parameters: dict[str, Any], **kwargs: Any) -> Optional[str]

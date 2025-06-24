@@ -7,7 +7,7 @@ sidebarTitle: redis
 
 ## Classes
 
-### `RedisStorageContainer`
+### `RedisStorageContainer` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/blocks/redis.py#L23" target="_blank">↗</a></sup>
 
 
 Block used to interact with Redis as a filesystem
@@ -15,13 +15,13 @@ Block used to interact with Redis as a filesystem
 
 **Methods:**
 
-#### `block_initialization`
+#### `block_initialization` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/blocks/redis.py#L66" target="_blank">↗</a></sup>
 
 ```python
 block_initialization(self) -> None
 ```
 
-#### `from_host`
+#### `from_host` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/blocks/redis.py#L121" target="_blank">↗</a></sup>
 
 ```python
 from_host(cls, host: str, port: int = 6379, db: int = 0, username: None | str | SecretStr = None, password: None | str | SecretStr = None) -> Self
@@ -39,7 +39,7 @@ Create block from hostname, username and password
 - `RedisStorageContainer` instance
 
 
-#### `from_connection_string`
+#### `from_connection_string` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/blocks/redis.py#L147" target="_blank">↗</a></sup>
 
 ```python
 from_connection_string(cls, connection_string: str | SecretStr) -> Self

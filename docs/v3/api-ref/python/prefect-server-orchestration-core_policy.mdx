@@ -15,7 +15,7 @@ Prefect enforces on a state transition.
 
 ## Classes
 
-### `CoreFlowPolicyWithoutDeploymentConcurrency`
+### `CoreFlowPolicyWithoutDeploymentConcurrency` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L56" target="_blank">↗</a></sup>
 
 
 Orchestration rules that run against flow-run-state transitions in priority order.
@@ -23,13 +23,13 @@ Orchestration rules that run against flow-run-state transitions in priority orde
 
 **Methods:**
 
-#### `priority`
+#### `priority` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L62" target="_blank">↗</a></sup>
 
 ```python
 priority() -> list[Union[type[BaseUniversalTransform[orm_models.FlowRun, core.FlowRunPolicy],], type[BaseOrchestrationRule[orm_models.FlowRun, core.FlowRunPolicy]]]]
 ```
 
-### `CoreFlowPolicy`
+### `CoreFlowPolicy` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L94" target="_blank">↗</a></sup>
 
 
 Orchestration rules that run against flow-run-state transitions in priority order.
@@ -37,13 +37,13 @@ Orchestration rules that run against flow-run-state transitions in priority orde
 
 **Methods:**
 
-#### `priority`
+#### `priority` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L100" target="_blank">↗</a></sup>
 
 ```python
 priority() -> list[Union[type[BaseUniversalTransform[orm_models.FlowRun, core.FlowRunPolicy]], type[BaseOrchestrationRule[orm_models.FlowRun, core.FlowRunPolicy]]]]
 ```
 
-### `CoreTaskPolicy`
+### `CoreTaskPolicy` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L134" target="_blank">↗</a></sup>
 
 
 Orchestration rules that run against task-run-state transitions in priority order.
@@ -51,13 +51,13 @@ Orchestration rules that run against task-run-state transitions in priority orde
 
 **Methods:**
 
-#### `priority`
+#### `priority` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L140" target="_blank">↗</a></sup>
 
 ```python
 priority() -> list[Union[type[BaseUniversalTransform[orm_models.TaskRun, core.TaskRunPolicy]], type[BaseOrchestrationRule[orm_models.TaskRun, core.TaskRunPolicy]]]]
 ```
 
-### `ClientSideTaskOrchestrationPolicy`
+### `ClientSideTaskOrchestrationPolicy` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L171" target="_blank">↗</a></sup>
 
 
 Orchestration rules that run against task-run-state transitions in priority order,
@@ -66,13 +66,13 @@ specifically for clients doing client-side orchestration.
 
 **Methods:**
 
-#### `priority`
+#### `priority` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L178" target="_blank">↗</a></sup>
 
 ```python
 priority() -> list[Union[type[BaseUniversalTransform[orm_models.TaskRun, core.TaskRunPolicy]], type[BaseOrchestrationRule[orm_models.TaskRun, core.TaskRunPolicy]]]]
 ```
 
-### `BackgroundTaskPolicy`
+### `BackgroundTaskPolicy` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L208" target="_blank">↗</a></sup>
 
 
 Orchestration rules that run against task-run-state transitions in priority order.
@@ -80,43 +80,43 @@ Orchestration rules that run against task-run-state transitions in priority orde
 
 **Methods:**
 
-#### `priority`
+#### `priority` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L214" target="_blank">↗</a></sup>
 
 ```python
 priority() -> list[type[BaseUniversalTransform[orm_models.TaskRun, core.TaskRunPolicy]] | type[BaseOrchestrationRule[orm_models.TaskRun, core.TaskRunPolicy]]]
 ```
 
-### `MinimalFlowPolicy`
+### `MinimalFlowPolicy` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L245" target="_blank">↗</a></sup>
 
 **Methods:**
 
-#### `priority`
+#### `priority` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L247" target="_blank">↗</a></sup>
 
 ```python
 priority() -> list[Union[type[BaseUniversalTransform[orm_models.FlowRun, core.FlowRunPolicy]], type[BaseOrchestrationRule[orm_models.FlowRun, core.FlowRunPolicy]]]]
 ```
 
-### `MarkLateRunsPolicy`
+### `MarkLateRunsPolicy` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L260" target="_blank">↗</a></sup>
 
 **Methods:**
 
-#### `priority`
+#### `priority` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L262" target="_blank">↗</a></sup>
 
 ```python
 priority() -> list[Union[type[BaseUniversalTransform[orm_models.FlowRun, core.FlowRunPolicy]], type[BaseOrchestrationRule[orm_models.FlowRun, core.FlowRunPolicy]]]]
 ```
 
-### `MinimalTaskPolicy`
+### `MinimalTaskPolicy` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L274" target="_blank">↗</a></sup>
 
 **Methods:**
 
-#### `priority`
+#### `priority` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L276" target="_blank">↗</a></sup>
 
 ```python
 priority() -> list[Union[type[BaseUniversalTransform[orm_models.TaskRun, core.TaskRunPolicy]], type[BaseOrchestrationRule[orm_models.TaskRun, core.TaskRunPolicy]]]]
 ```
 
-### `SecureTaskConcurrencySlots`
+### `SecureTaskConcurrencySlots` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L287" target="_blank">↗</a></sup>
 
 
 Checks relevant concurrency slots are available before entering a Running state.
@@ -130,14 +130,14 @@ before trying again. If the concurrency limit set on a tag is 0, the transition 
 be aborted to prevent deadlocks.
 
 
-### `ReleaseTaskConcurrencySlots`
+### `ReleaseTaskConcurrencySlots` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L369" target="_blank">↗</a></sup>
 
 
 Releases any concurrency slots held by a run upon exiting a Running or
 Cancelling state.
 
 
-### `SecureFlowConcurrencySlots`
+### `SecureFlowConcurrencySlots` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L398" target="_blank">↗</a></sup>
 
 
 Enforce deployment concurrency limits.
@@ -151,7 +151,7 @@ before provisioning dynamic infrastructure to run a flow. If a slot isn't availa
 won't provision infrastructure.
 
 
-### `ReleaseFlowConcurrencySlots`
+### `ReleaseFlowConcurrencySlots` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L514" target="_blank">↗</a></sup>
 
 
 Releases deployment concurrency slots held by a flow run.
@@ -160,13 +160,13 @@ This rule releases a concurrency slot for a deployment when a flow run
 transitions out of the Running or Cancelling state.
 
 
-### `CacheInsertion`
+### `CacheInsertion` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L572" target="_blank">↗</a></sup>
 
 
 Caches completed states with cache keys after they are validated.
 
 
-### `CacheRetrieval`
+### `CacheRetrieval` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L618" target="_blank">↗</a></sup>
 
 
 Rejects running states if a completed state has been cached.
@@ -176,7 +176,7 @@ has already been associated with a completed state in the cache table. The clien
 will be instructed to transition into the cached completed state instead.
 
 
-### `RetryFailedFlows`
+### `RetryFailedFlows` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L668" target="_blank">↗</a></sup>
 
 
 Rejects failed states and schedules a retry if the retry limit has not been reached.
@@ -186,7 +186,7 @@ set and the run count has not reached the specified limit. The client will be
 instructed to transition into a scheduled state to retry flow execution.
 
 
-### `RetryFailedTasks`
+### `RetryFailedTasks` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L744" target="_blank">↗</a></sup>
 
 
 Rejects failed states and schedules a retry if the retry limit has not been reached.
@@ -197,13 +197,13 @@ asserts it is a retriable task run. The client will be instructed to
 transition into a scheduled state to retry task execution.
 
 
-### `EnqueueScheduledTasks`
+### `EnqueueScheduledTasks` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L796" target="_blank">↗</a></sup>
 
 
 Enqueues background task runs when they are scheduled
 
 
-### `RenameReruns`
+### `RenameReruns` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L827" target="_blank">↗</a></sup>
 
 
 Name the states if they have run more than once.
@@ -212,7 +212,7 @@ In the special case where the initial state is an "AwaitingRetry" scheduled stat
 the proposed state will be renamed to "Retrying" instead.
 
 
-### `CopyScheduledTime`
+### `CopyScheduledTime` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L857" target="_blank">↗</a></sup>
 
 
 Ensures scheduled time is copied from scheduled states to pending states.
@@ -221,7 +221,7 @@ If a new scheduled time has been proposed on the pending state, the scheduled ti
 on the scheduled state will be ignored.
 
 
-### `WaitForScheduledTime`
+### `WaitForScheduledTime` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L887" target="_blank">↗</a></sup>
 
 
 Prevents transitions to running states from happening too early.
@@ -233,7 +233,7 @@ database and the client will be sent an instruction to wait for `delay_seconds`
 before attempting the transition again.
 
 
-### `CopyTaskParametersID`
+### `CopyTaskParametersID` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L929" target="_blank">↗</a></sup>
 
 
 Ensures a task's parameters ID is copied from Scheduled to Pending and from
@@ -243,25 +243,25 @@ If a parameters ID has been included on the proposed state, the parameters ID
 on the initial state will be ignored.
 
 
-### `HandlePausingFlows`
+### `HandlePausingFlows` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L956" target="_blank">↗</a></sup>
 
 
 Governs runs attempting to enter a Paused/Suspended state
 
 
-### `HandleResumingPausedFlows`
+### `HandleResumingPausedFlows` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L1022" target="_blank">↗</a></sup>
 
 
 Governs runs attempting to leave a Paused state
 
 
-### `UpdateFlowRunTrackerOnTasks`
+### `UpdateFlowRunTrackerOnTasks` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L1096" target="_blank">↗</a></sup>
 
 
 Tracks the flow run attempt a task run state is associated with.
 
 
-### `HandleTaskTerminalStateTransitions`
+### `HandleTaskTerminalStateTransitions` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L1123" target="_blank">↗</a></sup>
 
 
 We do not allow tasks to leave terminal states if:
@@ -272,7 +272,7 @@ We reset the run count when a task leaves a terminal state for a non-terminal st
 which resets task run retries; this is particularly relevant for flow run retries.
 
 
-### `HandleFlowTerminalStateTransitions`
+### `HandleFlowTerminalStateTransitions` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L1187" target="_blank">↗</a></sup>
 
 
 We do not allow flows to leave terminal states if:
@@ -284,7 +284,7 @@ We reset the pause metadata when a flow leaves a terminal state for a non-termin
 state. This resets pause behavior during manual flow run retries.
 
 
-### `PreventPendingTransitions`
+### `PreventPendingTransitions` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L1265" target="_blank">↗</a></sup>
 
 
 Prevents transitions to PENDING.
@@ -307,9 +307,9 @@ For re-runs of deployed runs, they should transition to SCHEDULED first.
 For re-runs of ad-hoc runs, they should transition directly to RUNNING.
 
 
-### `EnsureOnlyScheduledFlowsMarkedLate`
+### `EnsureOnlyScheduledFlowsMarkedLate` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L1314" target="_blank">↗</a></sup>
 
-### `PreventRunningTasksFromStoppedFlows`
+### `PreventRunningTasksFromStoppedFlows` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L1336" target="_blank">↗</a></sup>
 
 
 Prevents running tasks from stopped flows.
@@ -318,13 +318,13 @@ A running state implies execution, but also the converse. This rule ensures that
 flow's tasks cannot be run unless the flow is also running.
 
 
-### `EnforceCancellingToCancelledTransition`
+### `EnforceCancellingToCancelledTransition` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L1383" target="_blank">↗</a></sup>
 
 
 Rejects transitions from Cancelling to any terminal state except for Cancelled.
 
 
-### `BypassCancellingFlowRunsWithNoInfra`
+### `BypassCancellingFlowRunsWithNoInfra` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L1407" target="_blank">↗</a></sup>
 
 
 Rejects transitions from Scheduled to Cancelling, and instead sets the state to Cancelled,
@@ -339,7 +339,7 @@ to clean up, we can transition directly to `Cancelled`. Runs that are `Resuming`
 Runs that are `AwaitingRetry` are a `Scheduled` state that may have associated infrastructure.
 
 
-### `PreventDuplicateTransitions`
+### `PreventDuplicateTransitions` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L1451" target="_blank">↗</a></sup>
 
 
 Prevent duplicate transitions from being made right after one another.

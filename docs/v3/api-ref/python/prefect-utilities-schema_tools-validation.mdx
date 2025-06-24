@@ -7,43 +7,43 @@ sidebarTitle: validation
 
 ## Functions
 
-### `is_valid_schema`
+### `is_valid_schema` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/schema_tools/validation.py#L65" target="_blank">↗</a></sup>
 
 ```python
 is_valid_schema(schema: ObjectSchema, preprocess: bool = True) -> None
 ```
 
-### `validate`
+### `validate` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/schema_tools/validation.py#L74" target="_blank">↗</a></sup>
 
 ```python
 validate(obj: dict[str, Any], schema: ObjectSchema, raise_on_error: bool = False, preprocess: bool = True, ignore_required: bool = False, allow_none_with_default: bool = False) -> list[JSONSchemaValidationError]
 ```
 
-### `is_valid`
+### `is_valid` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/schema_tools/validation.py#L112" target="_blank">↗</a></sup>
 
 ```python
 is_valid(obj: dict[str, Any], schema: ObjectSchema) -> bool
 ```
 
-### `prioritize_placeholder_errors`
+### `prioritize_placeholder_errors` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/schema_tools/validation.py#L117" target="_blank">↗</a></sup>
 
 ```python
 prioritize_placeholder_errors(errors: list[JSONSchemaValidationError]) -> list[JSONSchemaValidationError]
 ```
 
-### `build_error_obj`
+### `build_error_obj` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/schema_tools/validation.py#L141" target="_blank">↗</a></sup>
 
 ```python
 build_error_obj(errors: list[JSONSchemaValidationError]) -> dict[str, Any]
 ```
 
-### `process_properties`
+### `process_properties` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/schema_tools/validation.py#L232" target="_blank">↗</a></sup>
 
 ```python
 process_properties(properties: dict[str, dict[str, Any]], required_fields: list[str], allow_none_with_default: bool = False) -> None
 ```
 
-### `preprocess_schema`
+### `preprocess_schema` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/schema_tools/validation.py#L246" target="_blank">↗</a></sup>
 
 ```python
 preprocess_schema(schema: ObjectSchema, allow_none_with_default: bool = False) -> ObjectSchema
@@ -51,6 +51,6 @@ preprocess_schema(schema: ObjectSchema, allow_none_with_default: bool = False) -
 
 ## Classes
 
-### `CircularSchemaRefError`
+### `CircularSchemaRefError` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/schema_tools/validation.py#L18" target="_blank">↗</a></sup>
 
-### `ValidationError`
+### `ValidationError` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/schema_tools/validation.py#L22" target="_blank">↗</a></sup>

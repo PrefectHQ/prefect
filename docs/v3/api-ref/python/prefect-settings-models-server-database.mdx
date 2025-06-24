@@ -7,7 +7,7 @@ sidebarTitle: database
 
 ## Functions
 
-### `warn_on_database_password_value_without_usage`
+### `warn_on_database_password_value_without_usage` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/settings/models/server/database.py#L324" target="_blank">↗</a></sup>
 
 ```python
 warn_on_database_password_value_without_usage(settings: ServerDatabaseSettings) -> None
@@ -19,28 +19,28 @@ Validator for settings warning if the database password is set but not used.
 
 ## Classes
 
-### `SQLAlchemyTLSSettings`
+### `SQLAlchemyTLSSettings` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/settings/models/server/database.py#L18" target="_blank">↗</a></sup>
 
 
 Settings for controlling SQLAlchemy mTLS context when
 using a PostgreSQL database.
 
 
-### `SQLAlchemyConnectArgsSettings`
+### `SQLAlchemyConnectArgsSettings` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/settings/models/server/database.py#L54" target="_blank">↗</a></sup>
 
 
 Settings for controlling SQLAlchemy connection behavior; note that these settings only take effect when
 using a PostgreSQL database.
 
 
-### `SQLAlchemySettings`
+### `SQLAlchemySettings` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/settings/models/server/database.py#L89" target="_blank">↗</a></sup>
 
 
 Settings for controlling SQLAlchemy behavior; note that these settings only take effect when
 using a PostgreSQL database.
 
 
-### `ServerDatabaseSettings`
+### `ServerDatabaseSettings` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/settings/models/server/database.py#L135" target="_blank">↗</a></sup>
 
 
 Settings for controlling server database behavior
@@ -48,7 +48,7 @@ Settings for controlling server database behavior
 
 **Methods:**
 
-#### `set_deprecated_sqlalchemy_settings_on_child_model_and_warn`
+#### `set_deprecated_sqlalchemy_settings_on_child_model_and_warn` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/settings/models/server/database.py#L289" target="_blank">↗</a></sup>
 
 ```python
 set_deprecated_sqlalchemy_settings_on_child_model_and_warn(cls, values: dict[str, Any]) -> dict[str, Any]
@@ -57,7 +57,7 @@ set_deprecated_sqlalchemy_settings_on_child_model_and_warn(cls, values: dict[str
 Set deprecated settings on the child model.
 
 
-#### `emit_warnings`
+#### `emit_warnings` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/settings/models/server/database.py#L318" target="_blank">↗</a></sup>
 
 ```python
 emit_warnings(self) -> Self

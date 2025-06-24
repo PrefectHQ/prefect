@@ -12,25 +12,25 @@ Base `prefect` command-line application
 
 ## Functions
 
-### `version_callback`
+### `version_callback` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/cli/root.py#L32" target="_blank">↗</a></sup>
 
 ```python
 version_callback(value: bool) -> None
 ```
 
-### `is_interactive`
+### `is_interactive` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/cli/root.py#L38" target="_blank">↗</a></sup>
 
 ```python
 is_interactive() -> bool
 ```
 
-### `main`
+### `main` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/cli/root.py#L44" target="_blank">↗</a></sup>
 
 ```python
 main(ctx: typer.Context, version: bool = typer.Option(None, '--version', '-v', callback=version_callback, help='Display the current version.', is_eager=True), profile: str = typer.Option(None, '--profile', '-p', help='Select a profile for this CLI run.', is_eager=True), prompt: bool = SettingsOption(prefect.settings.PREFECT_CLI_PROMPT, help='Force toggle prompts for this CLI run.'))
 ```
 
-### `get_prefect_integrations`
+### `get_prefect_integrations` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/cli/root.py#L149" target="_blank">↗</a></sup>
 
 ```python
 get_prefect_integrations() -> dict[str, str]
@@ -40,7 +40,7 @@ get_prefect_integrations() -> dict[str, str]
 Get information about installed Prefect integrations.
 
 
-### `display`
+### `display` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/cli/root.py#L168" target="_blank">↗</a></sup>
 
 ```python
 display(object: dict[str, Any], nesting: int = 0) -> None

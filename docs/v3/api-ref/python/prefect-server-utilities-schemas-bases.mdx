@@ -7,7 +7,7 @@ sidebarTitle: bases
 
 ## Functions
 
-### `get_class_fields_only`
+### `get_class_fields_only` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/utilities/schemas/bases.py#L22" target="_blank">↗</a></sup>
 
 ```python
 get_class_fields_only(model: type[BaseModel]) -> set[str]
@@ -20,7 +20,7 @@ Any fields that are on the parent but redefined on the subclass are included.
 
 ## Classes
 
-### `PrefectDescriptorBase`
+### `PrefectDescriptorBase` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/utilities/schemas/bases.py#L31" target="_blank">↗</a></sup>
 
 
 A base class for descriptor objects used with PrefectBaseModel
@@ -35,7 +35,7 @@ such descriptors to be used as properties, methods or other bound
 descriptor use cases.
 
 
-### `PrefectBaseModel`
+### `PrefectBaseModel` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/utilities/schemas/bases.py#L60" target="_blank">↗</a></sup>
 
 
 A base pydantic.BaseModel for all Prefect schemas and pydantic models.
@@ -49,7 +49,7 @@ of Prefect will be able to process those new fields gracefully.
 
 **Methods:**
 
-#### `reset_fields`
+#### `reset_fields` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/utilities/schemas/bases.py#L109" target="_blank">↗</a></sup>
 
 ```python
 reset_fields(self: Self) -> Self
@@ -61,7 +61,7 @@ Reset the fields of the model that are in the `_reset_fields` set.
 - A new instance of the model with the reset fields.
 
 
-#### `model_dump_for_orm`
+#### `model_dump_for_orm` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/utilities/schemas/bases.py#L125" target="_blank">↗</a></sup>
 
 ```python
 model_dump_for_orm(self) -> dict[str, Any]
@@ -92,7 +92,7 @@ value.
 - to SQLAlchemy model constructors, INSERT statements, etc.
 
 
-### `IDBaseModel`
+### `IDBaseModel` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/utilities/schemas/bases.py#L192" target="_blank">↗</a></sup>
 
 
 A PrefectBaseModel with an auto-generated UUID ID value.
@@ -100,14 +100,14 @@ A PrefectBaseModel with an auto-generated UUID ID value.
 The ID is reset on copy() and not included in equality comparisons.
 
 
-### `TimeSeriesBaseModel`
+### `TimeSeriesBaseModel` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/utilities/schemas/bases.py#L207" target="_blank">↗</a></sup>
 
 
 A PrefectBaseModel with a time-oriented UUIDv7 ID value.  Used for models that
 operate like timeseries, such as runs, states, and logs.
 
 
-### `ORMBaseModel`
+### `ORMBaseModel` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/utilities/schemas/bases.py#L216" target="_blank">↗</a></sup>
 
 
 A PrefectBaseModel with an auto-generated UUID ID value and created /
@@ -117,4 +117,4 @@ The ID, created, and updated fields are reset on copy() and not included in
 equality comparisons.
 
 
-### `ActionBaseModel`
+### `ActionBaseModel` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/utilities/schemas/bases.py#L238" target="_blank">↗</a></sup>

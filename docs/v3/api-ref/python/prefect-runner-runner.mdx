@@ -42,13 +42,13 @@ Example:
 
 ## Classes
 
-### `ProcessMapEntry`
+### `ProcessMapEntry` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/runner/runner.py#L142" target="_blank">↗</a></sup>
 
-### `Runner`
+### `Runner` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/runner/runner.py#L147" target="_blank">↗</a></sup>
 
 **Methods:**
 
-#### `handle_sigterm`
+#### `handle_sigterm` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/runner/runner.py#L405" target="_blank">↗</a></sup>
 
 ```python
 handle_sigterm(self, *args: Any, **kwargs: Any) -> None
@@ -57,7 +57,7 @@ handle_sigterm(self, *args: Any, **kwargs: Any) -> None
 Gracefully shuts down the runner when a SIGTERM is received.
 
 
-#### `execute_in_background`
+#### `execute_in_background` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/runner/runner.py#L503" target="_blank">↗</a></sup>
 
 ```python
 execute_in_background(self, func: Callable[..., Any], *args: Any, **kwargs: Any) -> 'concurrent.futures.Future[Any]'
@@ -66,7 +66,7 @@ execute_in_background(self, func: Callable[..., Any], *args: Any, **kwargs: Any)
 Executes a function in the background.
 
 
-#### `reschedule_current_flow_runs`
+#### `reschedule_current_flow_runs` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/runner/runner.py#L903" target="_blank">↗</a></sup>
 
 ```python
 reschedule_current_flow_runs(self) -> None
@@ -78,7 +78,7 @@ This should only be called when the runner is shutting down because it kill all
 child processes and short-circuit the crash detection logic.
 
 
-#### `has_slots_available`
+#### `has_slots_available` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/runner/runner.py#L1150" target="_blank">↗</a></sup>
 
 ```python
 has_slots_available(self) -> bool

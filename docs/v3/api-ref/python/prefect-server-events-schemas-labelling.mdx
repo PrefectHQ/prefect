@@ -7,7 +7,7 @@ sidebarTitle: labelling
 
 ## Classes
 
-### `LabelDiver`
+### `LabelDiver` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/events/schemas/labelling.py#L6" target="_blank">↗</a></sup>
 
 
 The LabelDiver supports templating use cases for any Labelled object, by
@@ -23,41 +23,41 @@ example:
     assert str(diver.hello.world.again) == 'bar'
 
 
-### `Labelled`
+### `Labelled` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/events/schemas/labelling.py#L74" target="_blank">↗</a></sup>
 
 **Methods:**
 
-#### `keys`
+#### `keys` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/events/schemas/labelling.py#L75" target="_blank">↗</a></sup>
 
 ```python
 keys(self) -> Iterable[str]
 ```
 
-#### `items`
+#### `items` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/events/schemas/labelling.py#L78" target="_blank">↗</a></sup>
 
 ```python
 items(self) -> Iterable[Tuple[str, str]]
 ```
 
-#### `get`
+#### `get` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/events/schemas/labelling.py#L91" target="_blank">↗</a></sup>
 
 ```python
 get(self, label: str, default: Optional[str] = None) -> Optional[str]
 ```
 
-#### `as_label_value_array`
+#### `as_label_value_array` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/events/schemas/labelling.py#L94" target="_blank">↗</a></sup>
 
 ```python
 as_label_value_array(self) -> List[Dict[str, str]]
 ```
 
-#### `labels`
+#### `labels` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/events/schemas/labelling.py#L98" target="_blank">↗</a></sup>
 
 ```python
 labels(self) -> LabelDiver
 ```
 
-#### `has_all_labels`
+#### `has_all_labels` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/events/schemas/labelling.py#L101" target="_blank">↗</a></sup>
 
 ```python
 has_all_labels(self, labels: Dict[str, str]) -> bool

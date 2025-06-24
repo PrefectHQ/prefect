@@ -7,7 +7,7 @@ sidebarTitle: ecs
 
 ## Functions
 
-### `console_context`
+### `console_context` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/infrastructure/provisioners/ecs.py#L48" target="_blank">↗</a></sup>
 
 ```python
 console_context(value: Console) -> Generator[None, None, None]
@@ -15,7 +15,7 @@ console_context(value: Console) -> Generator[None, None, None]
 
 ## Classes
 
-### `IamPolicyResource`
+### `IamPolicyResource` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/infrastructure/provisioners/ecs.py#L56" target="_blank">↗</a></sup>
 
 
 Represents an IAM policy resource for managing ECS tasks.
@@ -26,13 +26,13 @@ Represents an IAM policy resource for managing ECS tasks.
 
 **Methods:**
 
-#### `next_steps`
+#### `next_steps` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/infrastructure/provisioners/ecs.py#L162" target="_blank">↗</a></sup>
 
 ```python
 next_steps(self) -> list[str]
 ```
 
-### `IamUserResource`
+### `IamUserResource` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/infrastructure/provisioners/ecs.py#L166" target="_blank">↗</a></sup>
 
 
 Represents an IAM user resource for managing ECS tasks.
@@ -43,79 +43,79 @@ Represents an IAM user resource for managing ECS tasks.
 
 **Methods:**
 
-#### `next_steps`
+#### `next_steps` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/infrastructure/provisioners/ecs.py#L240" target="_blank">↗</a></sup>
 
 ```python
 next_steps(self) -> list[str]
 ```
 
-### `CredentialsBlockResource`
+### `CredentialsBlockResource` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/infrastructure/provisioners/ecs.py#L244" target="_blank">↗</a></sup>
 
 **Methods:**
 
-#### `next_steps`
+#### `next_steps` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/infrastructure/provisioners/ecs.py#L366" target="_blank">↗</a></sup>
 
 ```python
 next_steps(self) -> list[str]
 ```
 
-### `AuthenticationResource`
+### `AuthenticationResource` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/infrastructure/provisioners/ecs.py#L370" target="_blank">↗</a></sup>
 
 **Methods:**
 
-#### `resources`
+#### `resources` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/infrastructure/provisioners/ecs.py#L426" target="_blank">↗</a></sup>
 
 ```python
 resources(self) -> list['ExecutionRoleResource | IamUserResource | IamPolicyResource | CredentialsBlockResource']
 ```
 
-#### `next_steps`
+#### `next_steps` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/infrastructure/provisioners/ecs.py#L520" target="_blank">↗</a></sup>
 
 ```python
 next_steps(self) -> list[str]
 ```
 
-### `ClusterResource`
+### `ClusterResource` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/infrastructure/provisioners/ecs.py#L528" target="_blank">↗</a></sup>
 
 **Methods:**
 
-#### `next_steps`
+#### `next_steps` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/infrastructure/provisioners/ecs.py#L605" target="_blank">↗</a></sup>
 
 ```python
 next_steps(self) -> list[str]
 ```
 
-### `VpcResource`
+### `VpcResource` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/infrastructure/provisioners/ecs.py#L609" target="_blank">↗</a></sup>
 
 **Methods:**
 
-#### `next_steps`
+#### `next_steps` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/infrastructure/provisioners/ecs.py#L843" target="_blank">↗</a></sup>
 
 ```python
 next_steps(self) -> list[str]
 ```
 
-### `ContainerRepositoryResource`
+### `ContainerRepositoryResource` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/infrastructure/provisioners/ecs.py#L847" target="_blank">↗</a></sup>
 
 **Methods:**
 
-#### `next_steps`
+#### `next_steps` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/infrastructure/provisioners/ecs.py#L993" target="_blank">↗</a></sup>
 
 ```python
 next_steps(self) -> list[str | Panel]
 ```
 
-### `ExecutionRoleResource`
+### `ExecutionRoleResource` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/infrastructure/provisioners/ecs.py#L997" target="_blank">↗</a></sup>
 
 **Methods:**
 
-#### `next_steps`
+#### `next_steps` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/infrastructure/provisioners/ecs.py#L1102" target="_blank">↗</a></sup>
 
 ```python
 next_steps(self) -> list[str]
 ```
 
-### `ElasticContainerServicePushProvisioner`
+### `ElasticContainerServicePushProvisioner` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/infrastructure/provisioners/ecs.py#L1106" target="_blank">↗</a></sup>
 
 
 An infrastructure provisioner for ECS push work pools.
@@ -123,19 +123,19 @@ An infrastructure provisioner for ECS push work pools.
 
 **Methods:**
 
-#### `console`
+#### `console` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/infrastructure/provisioners/ecs.py#L1115" target="_blank">↗</a></sup>
 
 ```python
 console(self) -> Console
 ```
 
-#### `console`
+#### `console` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/infrastructure/provisioners/ecs.py#L1119" target="_blank">↗</a></sup>
 
 ```python
 console(self, value: Console) -> None
 ```
 
-#### `is_boto3_installed`
+#### `is_boto3_installed` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/infrastructure/provisioners/ecs.py#L1130" target="_blank">↗</a></sup>
 
 ```python
 is_boto3_installed() -> bool

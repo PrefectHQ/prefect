@@ -12,13 +12,13 @@ Utilities for working with Flow.visualize()
 
 ## Functions
 
-### `get_task_viz_tracker`
+### `get_task_viz_tracker` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/visualization.py#L35" target="_blank">↗</a></sup>
 
 ```python
 get_task_viz_tracker() -> Optional['TaskVizTracker']
 ```
 
-### `track_viz_task`
+### `track_viz_task` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/visualization.py#L57" target="_blank">↗</a></sup>
 
 ```python
 track_viz_task(is_async: bool, task_name: str, parameters: dict[str, Any], viz_return_value: Optional[Any] = None) -> Union[Coroutine[Any, Any, Any], Any]
@@ -28,7 +28,7 @@ track_viz_task(is_async: bool, task_name: str, parameters: dict[str, Any], viz_r
 Return a result if sync otherwise return a coroutine that returns the result
 
 
-### `build_task_dependencies`
+### `build_task_dependencies` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/visualization.py#L152" target="_blank">↗</a></sup>
 
 ```python
 build_task_dependencies(task_run_tracker: TaskVizTracker) -> graphviz.Digraph
@@ -51,7 +51,7 @@ Raises:
   specifying a `viz_return_value`.
 
 
-### `visualize_task_dependencies`
+### `visualize_task_dependencies` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/visualization.py#L189" target="_blank">↗</a></sup>
 
 ```python
 visualize_task_dependencies(graph: graphviz.Digraph, flow_run_name: str) -> None
@@ -76,29 +76,29 @@ Raises:
 
 ## Classes
 
-### `FlowVisualizationError`
+### `FlowVisualizationError` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/visualization.py#L15" target="_blank">↗</a></sup>
 
-### `VisualizationUnsupportedError`
+### `VisualizationUnsupportedError` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/visualization.py#L19" target="_blank">↗</a></sup>
 
-### `TaskVizTrackerState`
+### `TaskVizTrackerState` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/visualization.py#L23" target="_blank">↗</a></sup>
 
-### `GraphvizImportError`
+### `GraphvizImportError` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/visualization.py#L27" target="_blank">↗</a></sup>
 
-### `GraphvizExecutableNotFoundError`
+### `GraphvizExecutableNotFoundError` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/visualization.py#L31" target="_blank">↗</a></sup>
 
-### `VizTask`
+### `VizTask` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/visualization.py#L104" target="_blank">↗</a></sup>
 
-### `TaskVizTracker`
+### `TaskVizTracker` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/visualization.py#L114" target="_blank">↗</a></sup>
 
 **Methods:**
 
-#### `add_task`
+#### `add_task` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/visualization.py#L120" target="_blank">↗</a></sup>
 
 ```python
 add_task(self, task: VizTask) -> None
 ```
 
-#### `link_viz_return_value_to_viz_task`
+#### `link_viz_return_value_to_viz_task` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/visualization.py#L136" target="_blank">↗</a></sup>
 
 ```python
 link_viz_return_value_to_viz_task(self, viz_return_value: Any, viz_task: VizTask) -> None

@@ -7,7 +7,7 @@ sidebarTitle: urls
 
 ## Functions
 
-### `validate_restricted_url`
+### `validate_restricted_url` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/urls.py#L68" target="_blank">↗</a></sup>
 
 ```python
 validate_restricted_url(url: str) -> None
@@ -26,7 +26,7 @@ or in-cluster Kubernetes services)
 - `ValueError`: If the URL is a restricted URL.
 
 
-### `convert_class_to_name`
+### `convert_class_to_name` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/urls.py#L116" target="_blank">↗</a></sup>
 
 ```python
 convert_class_to_name(obj: Any) -> str
@@ -36,7 +36,7 @@ convert_class_to_name(obj: Any) -> str
 Convert CamelCase class name to dash-separated lowercase name
 
 
-### `url_for`
+### `url_for` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/urls.py#L125" target="_blank">↗</a></sup>
 
 ```python
 url_for(obj: Union['PrefectFuture[Any]', 'Block', 'Variable', 'Automation', 'Resource', 'ReceivedEvent', BaseModel, str], obj_id: Optional[Union[str, UUID]] = None, url_type: URLType = 'ui', default_base_url: Optional[str] = None, **additional_format_kwargs: Any) -> Optional[str]

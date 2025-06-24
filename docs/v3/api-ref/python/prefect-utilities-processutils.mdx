@@ -7,7 +7,7 @@ sidebarTitle: processutils
 
 ## Functions
 
-### `forward_signal_handler`
+### `forward_signal_handler` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/processutils.py#L383" target="_blank">↗</a></sup>
 
 ```python
 forward_signal_handler(pid: int, signum: int, *signums: int) -> None
@@ -17,7 +17,7 @@ forward_signal_handler(pid: int, signum: int, *signums: int) -> None
 Forward subsequent signum events (e.g. interrupts) to respective signums.
 
 
-### `setup_signal_handlers_server`
+### `setup_signal_handlers_server` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/processutils.py#L418" target="_blank">↗</a></sup>
 
 ```python
 setup_signal_handlers_server(pid: int, process_name: str, print_fn: PrintFn) -> None
@@ -27,7 +27,7 @@ setup_signal_handlers_server(pid: int, process_name: str, print_fn: PrintFn) -> 
 Handle interrupts of the server gracefully.
 
 
-### `setup_signal_handlers_agent`
+### `setup_signal_handlers_agent` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/processutils.py#L437" target="_blank">↗</a></sup>
 
 ```python
 setup_signal_handlers_agent(pid: int, process_name: str, print_fn: PrintFn) -> None
@@ -37,7 +37,7 @@ setup_signal_handlers_agent(pid: int, process_name: str, print_fn: PrintFn) -> N
 Handle interrupts of the agent gracefully.
 
 
-### `setup_signal_handlers_worker`
+### `setup_signal_handlers_worker` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/processutils.py#L455" target="_blank">↗</a></sup>
 
 ```python
 setup_signal_handlers_worker(pid: int, process_name: str, print_fn: PrintFn) -> None
@@ -47,7 +47,7 @@ setup_signal_handlers_worker(pid: int, process_name: str, print_fn: PrintFn) -> 
 Handle interrupts of workers gracefully.
 
 
-### `get_sys_executable`
+### `get_sys_executable` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/processutils.py#L475" target="_blank">↗</a></sup>
 
 ```python
 get_sys_executable() -> str
@@ -55,57 +55,57 @@ get_sys_executable() -> str
 
 ## Classes
 
-### `StreamReaderWrapper`
+### `StreamReaderWrapper` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/processutils.py#L61" target="_blank">↗</a></sup>
 
-### `StreamWriterWrapper`
+### `StreamWriterWrapper` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/processutils.py#L75" target="_blank">↗</a></sup>
 
-### `Process`
+### `Process` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/processutils.py#L86" target="_blank">↗</a></sup>
 
 **Methods:**
 
-#### `terminate`
+#### `terminate` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/processutils.py#L105" target="_blank">↗</a></sup>
 
 ```python
 terminate(self) -> None
 ```
 
-#### `kill`
+#### `kill` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/processutils.py#L108" target="_blank">↗</a></sup>
 
 ```python
 kill(self) -> None
 ```
 
-#### `send_signal`
+#### `send_signal` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/processutils.py#L111" target="_blank">↗</a></sup>
 
 ```python
 send_signal(self, signal: int) -> None
 ```
 
-#### `pid`
+#### `pid` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/processutils.py#L115" target="_blank">↗</a></sup>
 
 ```python
 pid(self) -> int
 ```
 
-#### `returncode`
+#### `returncode` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/processutils.py#L119" target="_blank">↗</a></sup>
 
 ```python
 returncode(self) -> Union[int, None]
 ```
 
-#### `stdin`
+#### `stdin` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/processutils.py#L123" target="_blank">↗</a></sup>
 
 ```python
 stdin(self) -> Union[anyio.abc.ByteSendStream, None]
 ```
 
-#### `stdout`
+#### `stdout` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/processutils.py#L127" target="_blank">↗</a></sup>
 
 ```python
 stdout(self) -> Union[anyio.abc.ByteReceiveStream, None]
 ```
 
-#### `stderr`
+#### `stderr` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/processutils.py#L131" target="_blank">↗</a></sup>
 
 ```python
 stderr(self) -> Union[anyio.abc.ByteReceiveStream, None]

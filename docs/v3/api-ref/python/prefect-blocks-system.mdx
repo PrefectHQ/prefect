@@ -7,25 +7,25 @@ sidebarTitle: system
 
 ## Classes
 
-### `JSON`
+### `JSON` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/blocks/system.py#L34" target="_blank">↗</a></sup>
 
 
 A block that represents JSON. Deprecated, please use Variables to store JSON data instead.
 
 
-### `String`
+### `String` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/blocks/system.py#L63" target="_blank">↗</a></sup>
 
 
 A block that represents a string. Deprecated, please use Variables to store string data instead.
 
 
-### `DateTime`
+### `DateTime` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/blocks/system.py#L92" target="_blank">↗</a></sup>
 
 
 A block that represents a datetime. Deprecated, please use Variables to store datetime data instead.
 
 
-### `Secret`
+### `Secret` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/blocks/system.py#L120" target="_blank">↗</a></sup>
 
 
 A block that represents a secret value. The value stored in this block will be obfuscated when
@@ -34,13 +34,13 @@ this block is viewed or edited in the UI.
 
 **Methods:**
 
-#### `validate_value`
+#### `validate_value` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/blocks/system.py#L158" target="_blank">↗</a></sup>
 
 ```python
 validate_value(cls, value: Union[T, SecretStr, PydanticSecret[T]]) -> Union[SecretStr, PydanticSecret[T]]
 ```
 
-#### `get`
+#### `get` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/blocks/system.py#L166" target="_blank">↗</a></sup>
 
 ```python
 get(self) -> T | str

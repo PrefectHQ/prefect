@@ -7,20 +7,20 @@ sidebarTitle: orm_models
 
 ## Classes
 
-### `Base`
+### `Base` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/database/orm_models.py#L57" target="_blank">↗</a></sup>
 
 
 Base SQLAlchemy model that automatically infers the table name
 and provides ID, created, and updated columns
 
 
-### `Flow`
+### `Flow` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/database/orm_models.py#L138" target="_blank">↗</a></sup>
 
 
 SQLAlchemy mixin of a flow.
 
 
-### `FlowRunState`
+### `FlowRunState` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/database/orm_models.py#L161" target="_blank">↗</a></sup>
 
 
 SQLAlchemy mixin of a flow run state.
@@ -28,19 +28,19 @@ SQLAlchemy mixin of a flow run state.
 
 **Methods:**
 
-#### `data`
+#### `data` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/database/orm_models.py#L195" target="_blank">↗</a></sup>
 
 ```python
 data(self) -> Optional[Any]
 ```
 
-#### `as_state`
+#### `as_state` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/database/orm_models.py#L208" target="_blank">↗</a></sup>
 
 ```python
 as_state(self) -> schemas.states.State
 ```
 
-### `TaskRunState`
+### `TaskRunState` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/database/orm_models.py#L224" target="_blank">↗</a></sup>
 
 
 SQLAlchemy model of a task run state.
@@ -48,33 +48,33 @@ SQLAlchemy model of a task run state.
 
 **Methods:**
 
-#### `data`
+#### `data` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/database/orm_models.py#L259" target="_blank">↗</a></sup>
 
 ```python
 data(self) -> Optional[Any]
 ```
 
-#### `as_state`
+#### `as_state` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/database/orm_models.py#L272" target="_blank">↗</a></sup>
 
 ```python
 as_state(self) -> schemas.states.State
 ```
 
-### `Artifact`
+### `Artifact` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/database/orm_models.py#L288" target="_blank">↗</a></sup>
 
 
 SQLAlchemy model of artifacts.
 
 
-### `ArtifactCollection`
+### `ArtifactCollection` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/database/orm_models.py#L329" target="_blank">↗</a></sup>
 
-### `TaskRunStateCache`
+### `TaskRunStateCache` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/database/orm_models.py#L353" target="_blank">↗</a></sup>
 
 
 SQLAlchemy model of a task run state cache.
 
 
-### `Run`
+### `Run` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/database/orm_models.py#L374" target="_blank">↗</a></sup>
 
 
 Common columns and logic for FlowRun and TaskRun models
@@ -82,7 +82,7 @@ Common columns and logic for FlowRun and TaskRun models
 
 **Methods:**
 
-#### `estimated_run_time`
+#### `estimated_run_time` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/database/orm_models.py#L397" target="_blank">↗</a></sup>
 
 ```python
 estimated_run_time(self) -> datetime.timedelta
@@ -93,7 +93,7 @@ state is exited. To give up-to-date estimates, we estimate incremental
 run time for any runs currently in a RUNNING state.
 
 
-#### `estimated_start_time_delta`
+#### `estimated_start_time_delta` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/database/orm_models.py#L431" target="_blank">↗</a></sup>
 
 ```python
 estimated_start_time_delta(self) -> datetime.timedelta
@@ -106,7 +106,7 @@ have a start time and are not in a final state and were expected to
 start already.
 
 
-### `FlowRun`
+### `FlowRun` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/database/orm_models.py#L475" target="_blank">↗</a></sup>
 
 
 SQLAlchemy model of a flow run.
@@ -114,13 +114,13 @@ SQLAlchemy model of a flow run.
 
 **Methods:**
 
-#### `state`
+#### `state` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/database/orm_models.py#L540" target="_blank">↗</a></sup>
 
 ```python
 state(self) -> Optional[FlowRunState]
 ```
 
-#### `set_state`
+#### `set_state` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/database/orm_models.py#L553" target="_blank">↗</a></sup>
 
 ```python
 set_state(self, state: Optional[FlowRunState]) -> None
@@ -133,7 +133,7 @@ relationship, but because this is a one-to-one pointer to a
 one-to-many relationship, SQLAlchemy can't figure it out.
 
 
-### `TaskRun`
+### `TaskRun` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/database/orm_models.py#L654" target="_blank">↗</a></sup>
 
 
 SQLAlchemy model of a task run.
@@ -141,13 +141,13 @@ SQLAlchemy model of a task run.
 
 **Methods:**
 
-#### `state`
+#### `state` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/database/orm_models.py#L693" target="_blank">↗</a></sup>
 
 ```python
 state(self) -> Optional[TaskRunState]
 ```
 
-#### `set_state`
+#### `set_state` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/database/orm_models.py#L706" target="_blank">↗</a></sup>
 
 ```python
 set_state(self, state: Optional[TaskRunState]) -> None
@@ -160,9 +160,9 @@ relationship, but because this is a one-to-one pointer to a
 one-to-many relationship, SQLAlchemy can't figure it out.
 
 
-### `DeploymentSchedule`
+### `DeploymentSchedule` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/database/orm_models.py#L777" target="_blank">↗</a></sup>
 
-### `Deployment`
+### `Deployment` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/database/orm_models.py#L810" target="_blank">↗</a></sup>
 
 
 SQLAlchemy model of a deployment.
@@ -170,75 +170,75 @@ SQLAlchemy model of a deployment.
 
 **Methods:**
 
-#### `job_variables`
+#### `job_variables` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/database/orm_models.py#L831" target="_blank">↗</a></sup>
 
 ```python
 job_variables(self) -> Mapped[dict[str, Any]]
 ```
 
-### `Log`
+### `Log` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/database/orm_models.py#L919" target="_blank">↗</a></sup>
 
 
 SQLAlchemy model of a logging statement.
 
 
-### `ConcurrencyLimit`
+### `ConcurrencyLimit` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/database/orm_models.py#L942" target="_blank">↗</a></sup>
 
-### `ConcurrencyLimitV2`
+### `ConcurrencyLimitV2` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/database/orm_models.py#L952" target="_blank">↗</a></sup>
 
-### `BlockType`
+### `BlockType` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/database/orm_models.py#L965" target="_blank">↗</a></sup>
 
-### `BlockSchema`
+### `BlockSchema` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/database/orm_models.py#L986" target="_blank">↗</a></sup>
 
-### `BlockSchemaReference`
+### `BlockSchemaReference` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/database/orm_models.py#L1018" target="_blank">↗</a></sup>
 
-### `BlockDocument`
+### `BlockDocument` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/database/orm_models.py#L1030" target="_blank">↗</a></sup>
 
-### `BlockDocumentReference`
+### `BlockDocumentReference` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/database/orm_models.py#L1079" target="_blank">↗</a></sup>
 
-### `Configuration`
+### `Configuration` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/database/orm_models.py#L1091" target="_blank">↗</a></sup>
 
-### `SavedSearch`
+### `SavedSearch` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/database/orm_models.py#L1098" target="_blank">↗</a></sup>
 
 
 SQLAlchemy model of a saved search.
 
 
-### `WorkQueue`
+### `WorkQueue` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/database/orm_models.py#L1109" target="_blank">↗</a></sup>
 
 
 SQLAlchemy model of a work queue
 
 
-### `WorkPool`
+### `WorkPool` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/database/orm_models.py#L1146" target="_blank">↗</a></sup>
 
 
 SQLAlchemy model of an worker
 
 
-### `Worker`
+### `Worker` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/database/orm_models.py#L1183" target="_blank">↗</a></sup>
 
 
 SQLAlchemy model of an worker
 
 
-### `Agent`
+### `Agent` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/database/orm_models.py#L1212" target="_blank">↗</a></sup>
 
 
 SQLAlchemy model of an agent
 
 
-### `Variable`
+### `Variable` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/database/orm_models.py#L1228" target="_blank">↗</a></sup>
 
-### `FlowRunInput`
+### `FlowRunInput` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/database/orm_models.py#L1236" target="_blank">↗</a></sup>
 
-### `CsrfToken`
+### `CsrfToken` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/database/orm_models.py#L1248" target="_blank">↗</a></sup>
 
-### `Automation`
+### `Automation` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/database/orm_models.py#L1254" target="_blank">↗</a></sup>
 
 **Methods:**
 
-#### `sort_expression`
+#### `sort_expression` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/database/orm_models.py#L1278" target="_blank">↗</a></sup>
 
 ```python
 sort_expression(cls, value: AutomationSort) -> sa.ColumnExpressionArgument[Any]
@@ -247,19 +247,19 @@ sort_expression(cls, value: AutomationSort) -> sa.ColumnExpressionArgument[Any]
 Return an expression used to sort Automations
 
 
-### `AutomationBucket`
+### `AutomationBucket` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/database/orm_models.py#L1289" target="_blank">↗</a></sup>
 
-### `AutomationRelatedResource`
+### `AutomationRelatedResource` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/database/orm_models.py#L1327" target="_blank">↗</a></sup>
 
-### `CompositeTriggerChildFiring`
+### `CompositeTriggerChildFiring` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/database/orm_models.py#L1351" target="_blank">↗</a></sup>
 
-### `AutomationEventFollower`
+### `AutomationEventFollower` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/database/orm_models.py#L1374" target="_blank">↗</a></sup>
 
-### `Event`
+### `Event` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/database/orm_models.py#L1396" target="_blank">↗</a></sup>
 
-### `EventResource`
+### `EventResource` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/database/orm_models.py#L1445" target="_blank">↗</a></sup>
 
-### `BaseORMConfiguration`
+### `BaseORMConfiguration` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/database/orm_models.py#L1508" target="_blank">↗</a></sup>
 
 
 Abstract base class used to inject database-specific ORM configuration into Prefect.
@@ -270,7 +270,7 @@ Use with caution.
 
 **Methods:**
 
-#### `unique_key`
+#### `unique_key` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/database/orm_models.py#L1516" target="_blank">↗</a></sup>
 
 ```python
 unique_key(self) -> tuple[Hashable, ...]
@@ -279,7 +279,7 @@ unique_key(self) -> tuple[Hashable, ...]
 Returns a key used to determine whether to instantiate a new DB interface.
 
 
-#### `versions_dir`
+#### `versions_dir` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/database/orm_models.py#L1524" target="_blank">↗</a></sup>
 
 ```python
 versions_dir(self) -> Path
@@ -288,7 +288,7 @@ versions_dir(self) -> Path
 Directory containing migrations
 
 
-#### `deployment_unique_upsert_columns`
+#### `deployment_unique_upsert_columns` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/database/orm_models.py#L1529" target="_blank">↗</a></sup>
 
 ```python
 deployment_unique_upsert_columns(self) -> _UpsertColumns
@@ -297,7 +297,7 @@ deployment_unique_upsert_columns(self) -> _UpsertColumns
 Unique columns for upserting a Deployment
 
 
-#### `concurrency_limit_unique_upsert_columns`
+#### `concurrency_limit_unique_upsert_columns` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/database/orm_models.py#L1534" target="_blank">↗</a></sup>
 
 ```python
 concurrency_limit_unique_upsert_columns(self) -> _UpsertColumns
@@ -306,7 +306,7 @@ concurrency_limit_unique_upsert_columns(self) -> _UpsertColumns
 Unique columns for upserting a ConcurrencyLimit
 
 
-#### `flow_run_unique_upsert_columns`
+#### `flow_run_unique_upsert_columns` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/database/orm_models.py#L1539" target="_blank">↗</a></sup>
 
 ```python
 flow_run_unique_upsert_columns(self) -> _UpsertColumns
@@ -315,7 +315,7 @@ flow_run_unique_upsert_columns(self) -> _UpsertColumns
 Unique columns for upserting a FlowRun
 
 
-#### `block_type_unique_upsert_columns`
+#### `block_type_unique_upsert_columns` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/database/orm_models.py#L1544" target="_blank">↗</a></sup>
 
 ```python
 block_type_unique_upsert_columns(self) -> _UpsertColumns
@@ -324,7 +324,7 @@ block_type_unique_upsert_columns(self) -> _UpsertColumns
 Unique columns for upserting a BlockType
 
 
-#### `artifact_collection_unique_upsert_columns`
+#### `artifact_collection_unique_upsert_columns` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/database/orm_models.py#L1549" target="_blank">↗</a></sup>
 
 ```python
 artifact_collection_unique_upsert_columns(self) -> _UpsertColumns
@@ -333,7 +333,7 @@ artifact_collection_unique_upsert_columns(self) -> _UpsertColumns
 Unique columns for upserting an ArtifactCollection
 
 
-#### `block_schema_unique_upsert_columns`
+#### `block_schema_unique_upsert_columns` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/database/orm_models.py#L1554" target="_blank">↗</a></sup>
 
 ```python
 block_schema_unique_upsert_columns(self) -> _UpsertColumns
@@ -342,7 +342,7 @@ block_schema_unique_upsert_columns(self) -> _UpsertColumns
 Unique columns for upserting a BlockSchema
 
 
-#### `flow_unique_upsert_columns`
+#### `flow_unique_upsert_columns` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/database/orm_models.py#L1559" target="_blank">↗</a></sup>
 
 ```python
 flow_unique_upsert_columns(self) -> _UpsertColumns
@@ -351,7 +351,7 @@ flow_unique_upsert_columns(self) -> _UpsertColumns
 Unique columns for upserting a Flow
 
 
-#### `saved_search_unique_upsert_columns`
+#### `saved_search_unique_upsert_columns` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/database/orm_models.py#L1564" target="_blank">↗</a></sup>
 
 ```python
 saved_search_unique_upsert_columns(self) -> _UpsertColumns
@@ -360,7 +360,7 @@ saved_search_unique_upsert_columns(self) -> _UpsertColumns
 Unique columns for upserting a SavedSearch
 
 
-#### `task_run_unique_upsert_columns`
+#### `task_run_unique_upsert_columns` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/database/orm_models.py#L1569" target="_blank">↗</a></sup>
 
 ```python
 task_run_unique_upsert_columns(self) -> _UpsertColumns
@@ -369,7 +369,7 @@ task_run_unique_upsert_columns(self) -> _UpsertColumns
 Unique columns for upserting a TaskRun
 
 
-#### `block_document_unique_upsert_columns`
+#### `block_document_unique_upsert_columns` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/database/orm_models.py#L1578" target="_blank">↗</a></sup>
 
 ```python
 block_document_unique_upsert_columns(self) -> _UpsertColumns
@@ -378,7 +378,7 @@ block_document_unique_upsert_columns(self) -> _UpsertColumns
 Unique columns for upserting a BlockDocument
 
 
-### `AsyncPostgresORMConfiguration`
+### `AsyncPostgresORMConfiguration` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/database/orm_models.py#L1583" target="_blank">↗</a></sup>
 
 
 Postgres specific orm configuration
@@ -386,7 +386,7 @@ Postgres specific orm configuration
 
 **Methods:**
 
-#### `versions_dir`
+#### `versions_dir` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/database/orm_models.py#L1587" target="_blank">↗</a></sup>
 
 ```python
 versions_dir(self) -> Path
@@ -395,7 +395,7 @@ versions_dir(self) -> Path
 Directory containing migrations
 
 
-### `AioSqliteORMConfiguration`
+### `AioSqliteORMConfiguration` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/database/orm_models.py#L1599" target="_blank">↗</a></sup>
 
 
 SQLite specific orm configuration
@@ -403,7 +403,7 @@ SQLite specific orm configuration
 
 **Methods:**
 
-#### `versions_dir`
+#### `versions_dir` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/database/orm_models.py#L1603" target="_blank">↗</a></sup>
 
 ```python
 versions_dir(self) -> Path

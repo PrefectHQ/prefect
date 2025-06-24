@@ -15,13 +15,13 @@ allow the Prefect REST API to seamlessly switch between the two.
 
 ## Functions
 
-### `db_injector`
+### `db_injector` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/utilities/database.py#L77" target="_blank">↗</a></sup>
 
 ```python
 db_injector(func: Union[_DBMethod[T, P, R], _DBFunction[P, R]]) -> Union[_Method[T, P, R], _Function[P, R]]
 ```
 
-### `generate_uuid_postgresql`
+### `generate_uuid_postgresql` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/utilities/database.py#L96" target="_blank">↗</a></sup>
 
 ```python
 generate_uuid_postgresql(element: GenerateUUID, compiler: SQLCompiler, **kwargs: Any) -> str
@@ -31,7 +31,7 @@ generate_uuid_postgresql(element: GenerateUUID, compiler: SQLCompiler, **kwargs:
 Generates a random UUID in Postgres; requires the pgcrypto extension.
 
 
-### `generate_uuid_sqlite`
+### `generate_uuid_sqlite` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/utilities/database.py#L107" target="_blank">↗</a></sup>
 
 ```python
 generate_uuid_sqlite(element: GenerateUUID, compiler: SQLCompiler, **kwargs: Any) -> str
@@ -44,7 +44,7 @@ sufficient for our purposes of having a random client-generated ID
 that is compatible with a UUID spec.
 
 
-### `bindparams_from_clause`
+### `bindparams_from_clause` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/utilities/database.py#L327" target="_blank">↗</a></sup>
 
 ```python
 bindparams_from_clause(query: sa.ClauseElement) -> dict[str, sa.BindParameter[Any]]
@@ -54,19 +54,19 @@ bindparams_from_clause(query: sa.ClauseElement) -> dict[str, sa.BindParameter[An
 Retrieve all non-anonymous bind parameters defined in a SQL clause
 
 
-### `datetime_or_interval_add_postgresql`
+### `datetime_or_interval_add_postgresql` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/utilities/database.py#L425" target="_blank">↗</a></sup>
 
 ```python
 datetime_or_interval_add_postgresql(element: Union[date_add, interval_add, date_diff], compiler: SQLCompiler, **kwargs: Any) -> str
 ```
 
-### `date_diff_seconds_postgresql`
+### `date_diff_seconds_postgresql` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/utilities/database.py#L435" target="_blank">↗</a></sup>
 
 ```python
 date_diff_seconds_postgresql(element: date_diff_seconds, compiler: SQLCompiler, **kwargs: Any) -> str
 ```
 
-### `current_timestamp_sqlite`
+### `current_timestamp_sqlite` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/utilities/database.py#L507" target="_blank">↗</a></sup>
 
 ```python
 current_timestamp_sqlite(element: functions.now, compiler: SQLCompiler, **kwargs: Any) -> str
@@ -76,31 +76,31 @@ current_timestamp_sqlite(element: functions.now, compiler: SQLCompiler, **kwargs
 Generates the current timestamp for SQLite
 
 
-### `date_add_sqlite`
+### `date_add_sqlite` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/utilities/database.py#L515" target="_blank">↗</a></sup>
 
 ```python
 date_add_sqlite(element: date_add, compiler: SQLCompiler, **kwargs: Any) -> str
 ```
 
-### `interval_add_sqlite`
+### `interval_add_sqlite` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/utilities/database.py#L523" target="_blank">↗</a></sup>
 
 ```python
 interval_add_sqlite(element: interval_add, compiler: SQLCompiler, **kwargs: Any) -> str
 ```
 
-### `date_diff_sqlite`
+### `date_diff_sqlite` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/utilities/database.py#L532" target="_blank">↗</a></sup>
 
 ```python
 date_diff_sqlite(element: date_diff, compiler: SQLCompiler, **kwargs: Any) -> str
 ```
 
-### `date_diff_seconds_sqlite`
+### `date_diff_seconds_sqlite` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/utilities/database.py#L539" target="_blank">↗</a></sup>
 
 ```python
 date_diff_seconds_sqlite(element: date_diff_seconds, compiler: SQLCompiler, **kwargs: Any) -> str
 ```
 
-### `sqlite_json_operators`
+### `sqlite_json_operators` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/utilities/database.py#L690" target="_blank">↗</a></sup>
 
 ```python
 sqlite_json_operators(element: sa.BinaryExpression[Any], compiler: SQLCompiler, override_operator: Optional[OperatorType] = None, **kwargs: Any) -> str
@@ -110,13 +110,13 @@ sqlite_json_operators(element: sa.BinaryExpression[Any], compiler: SQLCompiler, 
 Intercept the PostgreSQL-only JSON / JSONB operators and translate them to SQLite
 
 
-### `sqlite_greatest_as_max`
+### `sqlite_greatest_as_max` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/utilities/database.py#L709" target="_blank">↗</a></sup>
 
 ```python
 sqlite_greatest_as_max(element: greatest[Any], compiler: SQLCompiler, **kwargs: Any) -> str
 ```
 
-### `get_dialect`
+### `get_dialect` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/utilities/database.py#L727" target="_blank">↗</a></sup>
 
 ```python
 get_dialect(obj: Union[str, Session, sa.Engine]) -> type[sa.Dialect]
@@ -131,7 +131,7 @@ SQLite or Postgres.
 
 ## Classes
 
-### `GenerateUUID`
+### `GenerateUUID` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/utilities/database.py#L85" target="_blank">↗</a></sup>
 
 
 Platform-independent UUID default generator.
@@ -139,7 +139,7 @@ Note the actual functionality for this class is specified in the
 `compiles`-decorated functions below
 
 
-### `Timestamp`
+### `Timestamp` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/utilities/database.py#L133" target="_blank">↗</a></sup>
 
 
 TypeDecorator that ensures that timestamps have a timezone.
@@ -150,25 +150,25 @@ as naive timestamps without timezones) and recovered as UTC.
 
 **Methods:**
 
-#### `load_dialect_impl`
+#### `load_dialect_impl` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/utilities/database.py#L143" target="_blank">↗</a></sup>
 
 ```python
 load_dialect_impl(self, dialect: sa.Dialect) -> TypeEngine[Any]
 ```
 
-#### `process_bind_param`
+#### `process_bind_param` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/utilities/database.py#L155" target="_blank">↗</a></sup>
 
 ```python
 process_bind_param(self, value: Optional[datetime.datetime], dialect: sa.Dialect) -> Optional[datetime.datetime]
 ```
 
-#### `process_result_value`
+#### `process_result_value` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/utilities/database.py#L170" target="_blank">↗</a></sup>
 
 ```python
 process_result_value(self, value: Optional[datetime.datetime], dialect: sa.Dialect) -> Optional[datetime.datetime]
 ```
 
-### `UUID`
+### `UUID` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/utilities/database.py#L183" target="_blank">↗</a></sup>
 
 
 Platform-independent UUID type.
@@ -180,25 +180,25 @@ hyphens.
 
 **Methods:**
 
-#### `load_dialect_impl`
+#### `load_dialect_impl` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/utilities/database.py#L195" target="_blank">↗</a></sup>
 
 ```python
 load_dialect_impl(self, dialect: sa.Dialect) -> TypeEngine[Any]
 ```
 
-#### `process_bind_param`
+#### `process_bind_param` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/utilities/database.py#L201" target="_blank">↗</a></sup>
 
 ```python
 process_bind_param(self, value: Optional[Union[str, uuid.UUID]], dialect: sa.Dialect) -> Optional[str]
 ```
 
-#### `process_result_value`
+#### `process_result_value` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/utilities/database.py#L213" target="_blank">↗</a></sup>
 
 ```python
 process_result_value(self, value: Optional[Union[str, uuid.UUID]], dialect: sa.Dialect) -> Optional[uuid.UUID]
 ```
 
-### `JSON`
+### `JSON` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/utilities/database.py#L224" target="_blank">↗</a></sup>
 
 
 JSON type that returns SQLAlchemy's dialect-specific JSON types, where
@@ -210,13 +210,13 @@ to SQL compilation
 
 **Methods:**
 
-#### `load_dialect_impl`
+#### `load_dialect_impl` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/utilities/database.py#L238" target="_blank">↗</a></sup>
 
 ```python
 load_dialect_impl(self, dialect: sa.Dialect) -> TypeEngine[Any]
 ```
 
-#### `process_bind_param`
+#### `process_bind_param` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/utilities/database.py#L246" target="_blank">↗</a></sup>
 
 ```python
 process_bind_param(self, value: Optional[Any], dialect: sa.Dialect) -> Optional[Any]
@@ -225,7 +225,7 @@ process_bind_param(self, value: Optional[Any], dialect: sa.Dialect) -> Optional[
 Prepares the given value to be used as a JSON field in a parameter binding
 
 
-### `Pydantic`
+### `Pydantic` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/utilities/database.py#L267" target="_blank">↗</a></sup>
 
 
 A pydantic type that converts inserted parameters to
@@ -234,40 +234,40 @@ json and converts read values to the pydantic type.
 
 **Methods:**
 
-#### `process_bind_param`
+#### `process_bind_param` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/utilities/database.py#L306" target="_blank">↗</a></sup>
 
 ```python
 process_bind_param(self, value: Optional[T], dialect: sa.Dialect) -> Optional[str]
 ```
 
-#### `process_result_value`
+#### `process_result_value` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/utilities/database.py#L320" target="_blank">↗</a></sup>
 
 ```python
 process_result_value(self, value: Optional[Any], dialect: sa.Dialect) -> Optional[T]
 ```
 
-### `date_add`
+### `date_add` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/utilities/database.py#L346" target="_blank">↗</a></sup>
 
 
 Platform-independent way to add a timestamp and an interval
 
 
-### `interval_add`
+### `interval_add` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/utilities/database.py#L365" target="_blank">↗</a></sup>
 
 
 Platform-independent way to add two intervals.
 
 
-### `date_diff`
+### `date_diff` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/utilities/database.py#L384" target="_blank">↗</a></sup>
 
 
 Platform-independent difference of two timestamps. Computes d1 - d2.
 
 
-### `date_diff_seconds`
+### `date_diff_seconds` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/utilities/database.py#L401" target="_blank">↗</a></sup>
 
 
 Platform-independent calculation of the number of seconds between two timestamps or from 'now'
 
 
-### `greatest`
+### `greatest` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/utilities/database.py#L704" target="_blank">↗</a></sup>

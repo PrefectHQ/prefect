@@ -7,7 +7,7 @@ sidebarTitle: abstract
 
 ## Classes
 
-### `CredentialsBlock`
+### `CredentialsBlock` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/blocks/abstract.py#L37" target="_blank">↗</a></sup>
 
 
 Stores credentials for an external system and exposes a client for interacting
@@ -19,7 +19,7 @@ interacting with the corresponding external system.
 
 **Methods:**
 
-#### `logger`
+#### `logger` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/blocks/abstract.py#L47" target="_blank">↗</a></sup>
 
 ```python
 logger(self) -> LoggerOrAdapter
@@ -34,7 +34,7 @@ Else, it returns a default logger labeled with the class's name.
 - The run logger or a default logger with the class's name.
 
 
-#### `get_client`
+#### `get_client` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/blocks/abstract.py#L63" target="_blank">↗</a></sup>
 
 ```python
 get_client(self, *args: Any, **kwargs: Any) -> Any
@@ -47,13 +47,13 @@ a `client_type` keyword argument to get the desired client
 within the service.
 
 
-### `NotificationError`
+### `NotificationError` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/blocks/abstract.py#L73" target="_blank">↗</a></sup>
 
 
 Raised if a notification block fails to send a notification.
 
 
-### `NotificationBlock`
+### `NotificationBlock` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/blocks/abstract.py#L80" target="_blank">↗</a></sup>
 
 
 Block that represents a resource in an external system that is able to send notifications.
@@ -61,7 +61,7 @@ Block that represents a resource in an external system that is able to send noti
 
 **Methods:**
 
-#### `logger`
+#### `logger` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/blocks/abstract.py#L89" target="_blank">↗</a></sup>
 
 ```python
 logger(self) -> LoggerOrAdapter
@@ -76,7 +76,7 @@ Else, it returns a default logger labeled with the class's name.
 - The run logger or a default logger with the class's name.
 
 
-#### `raise_on_failure`
+#### `raise_on_failure` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/blocks/abstract.py#L117" target="_blank">↗</a></sup>
 
 ```python
 raise_on_failure(self) -> Generator[None, None, None]
@@ -86,7 +86,7 @@ Context manager that, while active, causes the block to raise errors if it
 encounters a failure sending notifications.
 
 
-### `JobRun`
+### `JobRun` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/blocks/abstract.py#L129" target="_blank">↗</a></sup>
 
 
 Represents a job run in an external system. Allows waiting
@@ -95,7 +95,7 @@ for the job run's completion and fetching its results.
 
 **Methods:**
 
-#### `logger`
+#### `logger` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/blocks/abstract.py#L136" target="_blank">↗</a></sup>
 
 ```python
 logger(self) -> LoggerOrAdapter
@@ -110,7 +110,7 @@ Else, it returns a default logger labeled with the class's name.
 - The run logger or a default logger with the class's name.
 
 
-### `JobBlock`
+### `JobBlock` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/blocks/abstract.py#L164" target="_blank">↗</a></sup>
 
 
 Block that represents an entity in an external service
@@ -119,7 +119,7 @@ that can trigger a long running execution.
 
 **Methods:**
 
-#### `logger`
+#### `logger` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/blocks/abstract.py#L171" target="_blank">↗</a></sup>
 
 ```python
 logger(self) -> LoggerOrAdapter
@@ -134,7 +134,7 @@ Else, it returns a default logger labeled with the class's name.
 - The run logger or a default logger with the class's name.
 
 
-### `DatabaseBlock`
+### `DatabaseBlock` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/blocks/abstract.py#L199" target="_blank">↗</a></sup>
 
 
 An abstract block type that represents a database and
@@ -152,7 +152,7 @@ implementations is recommended.
 
 **Methods:**
 
-#### `logger`
+#### `logger` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/blocks/abstract.py#L215" target="_blank">↗</a></sup>
 
 ```python
 logger(self) -> LoggerOrAdapter
@@ -167,7 +167,7 @@ Else, it returns a default logger labeled with the class's name.
 - The run logger or a default logger with the class's name.
 
 
-### `ObjectStorageBlock`
+### `ObjectStorageBlock` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/blocks/abstract.py#L361" target="_blank">↗</a></sup>
 
 
 Block that represents a resource in an external service that can store
@@ -176,7 +176,7 @@ objects.
 
 **Methods:**
 
-#### `logger`
+#### `logger` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/blocks/abstract.py#L368" target="_blank">↗</a></sup>
 
 ```python
 logger(self) -> LoggerOrAdapter
@@ -191,7 +191,7 @@ Else, it returns a default logger labeled with the class's name.
 - The run logger or a default logger with the class's name.
 
 
-### `SecretBlock`
+### `SecretBlock` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/blocks/abstract.py#L494" target="_blank">↗</a></sup>
 
 
 Block that represents a resource that can store and retrieve secrets.
@@ -199,7 +199,7 @@ Block that represents a resource that can store and retrieve secrets.
 
 **Methods:**
 
-#### `logger`
+#### `logger` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/blocks/abstract.py#L500" target="_blank">↗</a></sup>
 
 ```python
 logger(self) -> LoggerOrAdapter

@@ -12,7 +12,7 @@ Schedule schemas
 
 ## Classes
 
-### `IntervalSchedule`
+### `IntervalSchedule` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/schemas/schedules.py#L71" target="_blank">↗</a></sup>
 
 
 A schedule formed by adding `interval` increments to an `anchor_date`. If no
@@ -44,13 +44,13 @@ if not provided, the current timestamp will be used.
 
 **Methods:**
 
-#### `validate_timezone`
+#### `validate_timezone` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/schemas/schedules.py#L110" target="_blank">↗</a></sup>
 
 ```python
 validate_timezone(self)
 ```
 
-### `CronSchedule`
+### `CronSchedule` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/schemas/schedules.py#L302" target="_blank">↗</a></sup>
 
 
 Cron schedule
@@ -77,19 +77,19 @@ behaves like fcron and enables you to e.g. define a job that executes each
 
 **Methods:**
 
-#### `validate_timezone`
+#### `validate_timezone` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/schemas/schedules.py#L338" target="_blank">↗</a></sup>
 
 ```python
 validate_timezone(self)
 ```
 
-#### `valid_cron_string`
+#### `valid_cron_string` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/schemas/schedules.py#L344" target="_blank">↗</a></sup>
 
 ```python
 valid_cron_string(cls, v: str) -> str
 ```
 
-### `RRuleSchedule`
+### `RRuleSchedule` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/schemas/schedules.py#L477" target="_blank">↗</a></sup>
 
 
 RRule schedule, based on the iCalendar standard
@@ -112,19 +112,19 @@ a 9am daily schedule with a UTC start date will maintain a 9am UTC time.
 
 **Methods:**
 
-#### `validate_rrule_str`
+#### `validate_rrule_str` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/schemas/schedules.py#L504" target="_blank">↗</a></sup>
 
 ```python
 validate_rrule_str(cls, v: str) -> str
 ```
 
-#### `from_rrule`
+#### `from_rrule` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/schemas/schedules.py#L508" target="_blank">↗</a></sup>
 
 ```python
 from_rrule(cls, rrule: dateutil.rrule.rrule | dateutil.rrule.rruleset) -> 'RRuleSchedule'
 ```
 
-#### `to_rrule`
+#### `to_rrule` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/schemas/schedules.py#L565" target="_blank">↗</a></sup>
 
 ```python
 to_rrule(self) -> dateutil.rrule.rrule

@@ -7,7 +7,7 @@ sidebarTitle: engine
 
 ## Functions
 
-### `collect_task_run_inputs_sync`
+### `collect_task_run_inputs_sync` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/engine.py#L114" target="_blank">↗</a></sup>
 
 ```python
 collect_task_run_inputs_sync(expr: Any, future_cls: Any = PrefectFuture, max_depth: int = -1) -> set[Union[TaskRunResult, FlowRunResult]]
@@ -25,13 +25,13 @@ found.
 >>> }
 
 
-### `capture_sigterm`
+### `capture_sigterm` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/engine.py#L167" target="_blank">↗</a></sup>
 
 ```python
 capture_sigterm() -> Generator[None, Any, None]
 ```
 
-### `propose_state_sync`
+### `propose_state_sync` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/engine.py#L408" target="_blank">↗</a></sup>
 
 ```python
 propose_state_sync(client: 'SyncPrefectClient', state: State[Any], flow_run_id: UUID, force: bool = False) -> State[Any]
@@ -65,7 +65,7 @@ error will be raised.
 the Prefect API
 
 
-### `get_state_for_result`
+### `get_state_for_result` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/engine.py#L502" target="_blank">↗</a></sup>
 
 ```python
 get_state_for_result(obj: Any) -> Optional[tuple[State, RunType]]
@@ -77,7 +77,7 @@ Get the state related to a result object.
 `link_state_to_result` must have been called first.
 
 
-### `link_state_to_flow_run_result`
+### `link_state_to_flow_run_result` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/engine.py#L513" target="_blank">↗</a></sup>
 
 ```python
 link_state_to_flow_run_result(state: State, result: Any) -> None
@@ -87,7 +87,7 @@ link_state_to_flow_run_result(state: State, result: Any) -> None
 Creates a link between a state and flow run result
 
 
-### `link_state_to_task_run_result`
+### `link_state_to_task_run_result` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/engine.py#L518" target="_blank">↗</a></sup>
 
 ```python
 link_state_to_task_run_result(state: State, result: Any) -> None
@@ -97,7 +97,7 @@ link_state_to_task_run_result(state: State, result: Any) -> None
 Creates a link between a state and task run result
 
 
-### `link_state_to_result`
+### `link_state_to_result` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/engine.py#L523" target="_blank">↗</a></sup>
 
 ```python
 link_state_to_result(state: State, result: Any, run_type: RunType) -> None
@@ -136,19 +136,19 @@ We do not set an attribute, e.g. `__prefect_state__`, on the result because:
 - We cannot set this attribute on Python built-ins.
 
 
-### `should_log_prints`
+### `should_log_prints` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/engine.py#L584" target="_blank">↗</a></sup>
 
 ```python
 should_log_prints(flow_or_task: Union['Flow[..., Any]', 'Task[..., Any]']) -> bool
 ```
 
-### `emit_task_run_state_change_event`
+### `emit_task_run_state_change_event` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/engine.py#L614" target="_blank">↗</a></sup>
 
 ```python
 emit_task_run_state_change_event(task_run: TaskRun, initial_state: Optional[State[Any]], validated_state: State[Any], follows: Optional[Event] = None) -> Optional[Event]
 ```
 
-### `resolve_to_final_result`
+### `resolve_to_final_result` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/engine.py#L704" target="_blank">↗</a></sup>
 
 ```python
 resolve_to_final_result(expr: Any, context: dict[str, Any]) -> Any
@@ -159,7 +159,7 @@ Resolve any `PrefectFuture`, or `State` types nested in parameters into
 data. Designed to be use with `visit_collection`.
 
 
-### `resolve_inputs_sync`
+### `resolve_inputs_sync` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/engine.py#L775" target="_blank">↗</a></sup>
 
 ```python
 resolve_inputs_sync(parameters: dict[str, Any], return_data: bool = True, max_depth: int = -1) -> dict[str, Any]
