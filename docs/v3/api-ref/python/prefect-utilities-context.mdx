@@ -1,0 +1,39 @@
+---
+title: context
+sidebarTitle: context
+---
+
+# `prefect.utilities.context`
+
+## Functions
+
+### `temporary_context`
+
+```python
+temporary_context(context: Context) -> Generator[None, Any, None]
+```
+
+### `get_task_run_id`
+
+```python
+get_task_run_id() -> Optional[UUID]
+```
+
+### `get_flow_run_id`
+
+```python
+get_flow_run_id() -> Optional[UUID]
+```
+
+### `get_task_and_flow_run_ids`
+
+```python
+get_task_and_flow_run_ids() -> tuple[Optional[UUID], Optional[UUID]]
+```
+
+
+Get the task run and flow run ids from the context, if available.
+
+**Returns:**
+- tuple\[Optional\[UUID], Optional\[UUID]]: a tuple of the task run id and flow run id
+

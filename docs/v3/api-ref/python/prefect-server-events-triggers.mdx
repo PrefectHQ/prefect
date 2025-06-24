@@ -1,0 +1,46 @@
+---
+title: triggers
+sidebarTitle: triggers
+---
+
+# `prefect.server.events.triggers`
+
+
+
+The triggers consumer watches events streaming in from the event bus and decides whether
+to act on them based on the automations that users have set up.
+
+
+## Functions
+
+### `find_interested_triggers`
+
+```python
+find_interested_triggers(event: ReceivedEvent) -> Collection[EventTrigger]
+```
+
+### `load_automation`
+
+```python
+load_automation(automation: Optional[Automation]) -> None
+```
+
+
+Loads the given automation into memory so that it is available for evaluations
+
+
+### `forget_automation`
+
+```python
+forget_automation(automation_id: UUID) -> None
+```
+
+
+Unloads the given automation from memory
+
+
+### `causal_ordering`
+
+```python
+causal_ordering() -> CausalOrdering
+```

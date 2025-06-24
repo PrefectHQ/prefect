@@ -1,0 +1,239 @@
+---
+title: task_engine
+sidebarTitle: task_engine
+---
+
+# `prefect.task_engine`
+
+## Functions
+
+### `run_task_sync`
+
+```python
+run_task_sync(task: 'Task[P, R]', task_run_id: Optional[UUID] = None, task_run: Optional[TaskRun] = None, parameters: Optional[dict[str, Any]] = None, wait_for: Optional['OneOrManyFutureOrResult[Any]'] = None, return_type: Literal['state', 'result'] = 'result', dependencies: Optional[dict[str, set[RunInput]]] = None, context: Optional[dict[str, Any]] = None) -> Union[R, State, None]
+```
+
+### `run_generator_task_sync`
+
+```python
+run_generator_task_sync(task: 'Task[P, R]', task_run_id: Optional[UUID] = None, task_run: Optional[TaskRun] = None, parameters: Optional[dict[str, Any]] = None, wait_for: Optional['OneOrManyFutureOrResult[Any]'] = None, return_type: Literal['state', 'result'] = 'result', dependencies: Optional[dict[str, set[RunInput]]] = None, context: Optional[dict[str, Any]] = None) -> Generator[R, None, None]
+```
+
+### `run_task`
+
+```python
+run_task(task: 'Task[P, Union[R, Coroutine[Any, Any, R]]]', task_run_id: Optional[UUID] = None, task_run: Optional[TaskRun] = None, parameters: Optional[dict[str, Any]] = None, wait_for: Optional['OneOrManyFutureOrResult[Any]'] = None, return_type: Literal['state', 'result'] = 'result', dependencies: Optional[dict[str, set[RunInput]]] = None, context: Optional[dict[str, Any]] = None) -> Union[R, State, None, Coroutine[Any, Any, Union[R, State, None]]]
+```
+
+
+Runs the provided task.
+
+**Args:**
+- `task`: The task to run
+- `task_run_id`: The ID of the task run; if not provided, a new task run
+will be created
+- `task_run`: The task run object; if not provided, a new task run
+will be created
+- `parameters`: The parameters to pass to the task
+- `wait_for`: A list of futures to wait for before running the task
+- `return_type`: The return type to return; either "state" or "result"
+- `dependencies`: A dictionary of task run inputs to use for dependency tracking
+- `context`: A dictionary containing the context to use for the task run; only
+required if the task is running on in a remote environment
+
+**Returns:**
+- The result of the task run
+
+
+## Classes
+
+### `TaskRunTimeoutError`
+
+
+Raised when a task run exceeds its timeout.
+
+
+### `BaseTaskRunEngine`
+
+**Methods:**
+
+#### `state`
+
+```python
+state(self) -> State
+```
+
+#### `is_cancelled`
+
+```python
+is_cancelled(self) -> bool
+```
+
+#### `compute_transaction_key`
+
+```python
+compute_transaction_key(self) -> Optional[str]
+```
+
+#### `record_terminal_state_timing`
+
+```python
+record_terminal_state_timing(self, state: State) -> None
+```
+
+#### `is_running`
+
+```python
+is_running(self) -> bool
+```
+
+Whether or not the engine is currently running a task.
+
+
+#### `log_finished_message`
+
+```python
+log_finished_message(self) -> None
+```
+
+#### `handle_rollback`
+
+```python
+handle_rollback(self, txn: Transaction) -> None
+```
+
+### `SyncTaskRunEngine`
+
+**Methods:**
+
+#### `client`
+
+```python
+client(self) -> SyncPrefectClient
+```
+
+#### `can_retry`
+
+```python
+can_retry(self, exc_or_state: Exception | State[R]) -> bool
+```
+
+#### `call_hooks`
+
+```python
+call_hooks(self, state: Optional[State] = None) -> None
+```
+
+#### `begin_run`
+
+```python
+begin_run(self) -> None
+```
+
+#### `set_state`
+
+```python
+set_state(self, state: State[R], force: bool = False) -> State[R]
+```
+
+#### `result`
+
+```python
+result(self, raise_on_failure: bool = True) -> 'Union[R, State, None]'
+```
+
+#### `handle_success`
+
+```python
+handle_success(self, result: R, transaction: Transaction) -> Union[ResultRecord[R], None, Coroutine[Any, Any, R], R]
+```
+
+#### `handle_retry`
+
+```python
+handle_retry(self, exc_or_state: Exception | State[R]) -> bool
+```
+
+Handle any task run retries.
+
+- If the task has retries left, and the retry condition is met, set the task to retrying and return True.
+- If the task has a retry delay, place in AwaitingRetry state with a delayed scheduled time.
+- If the task has no retries left, or the retry condition is not met, return False.
+
+
+#### `handle_exception`
+
+```python
+handle_exception(self, exc: Exception) -> None
+```
+
+#### `handle_timeout`
+
+```python
+handle_timeout(self, exc: TimeoutError) -> None
+```
+
+#### `handle_crash`
+
+```python
+handle_crash(self, exc: BaseException) -> None
+```
+
+#### `setup_run_context`
+
+```python
+setup_run_context(self, client: Optional[SyncPrefectClient] = None)
+```
+
+#### `asset_context`
+
+```python
+asset_context(self)
+```
+
+#### `initialize_run`
+
+```python
+initialize_run(self, task_run_id: Optional[UUID] = None, dependencies: Optional[dict[str, set[RunInput]]] = None) -> Generator[Self, Any, Any]
+```
+
+Enters a client context and creates a task run if needed.
+
+
+#### `start`
+
+```python
+start(self, task_run_id: Optional[UUID] = None, dependencies: Optional[dict[str, set[RunInput]]] = None) -> Generator[None, None, None]
+```
+
+#### `transaction_context`
+
+```python
+transaction_context(self) -> Generator[Transaction, None, None]
+```
+
+#### `run_context`
+
+```python
+run_context(self)
+```
+
+#### `call_task_fn`
+
+```python
+call_task_fn(self, transaction: Transaction) -> Union[ResultRecord[Any], None, Coroutine[Any, Any, R], R]
+```
+
+Convenience method to call the task function. Returns a coroutine if the
+task is async.
+
+
+### `AsyncTaskRunEngine`
+
+**Methods:**
+
+#### `client`
+
+```python
+client(self) -> PrefectClient
+```

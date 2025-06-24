@@ -1,0 +1,58 @@
+---
+title: policies
+sidebarTitle: policies
+---
+
+# `prefect.server.orchestration.policies`
+
+
+
+Policies are collections of orchestration rules and transforms.
+
+Prefect implements (most) orchestration with logic that governs a Prefect flow or task
+changing state. Policies organize of orchestration logic both to provide an ordering
+mechanism as well as provide observability into the orchestration process.
+
+While Prefect's orchestration rules can gracefully run independently of one another, ordering can still have an impact on
+the observed behavior of the system. For example, it makes no sense to secure a
+concurrency slot for a run if a cached state exists. Furthermore, policies, provide a
+mechanism to configure and observe exactly what logic will fire against a transition.
+
+
+## Classes
+
+### `BaseOrchestrationPolicy`
+
+
+An abstract base class used to organize orchestration rules in priority order.
+
+Different collections of orchestration rules might be used to govern various kinds
+of transitions. For example, flow-run states and task-run states might require
+different orchestration logic.
+
+
+**Methods:**
+
+#### `priority`
+
+```python
+priority() -> list[type[BaseUniversalTransform[T, RP] | BaseOrchestrationRule[T, RP]]]
+```
+
+A list of orchestration rules in priority order.
+
+
+#### `compile_transition_rules`
+
+```python
+compile_transition_rules(cls, from_state: states.StateType | None = None, to_state: states.StateType | None = None) -> list[type[BaseUniversalTransform[T, RP] | BaseOrchestrationRule[T, RP]]]
+```
+
+Returns rules in policy that are valid for the specified state transition.
+
+
+### `TaskRunOrchestrationPolicy`
+
+### `FlowRunOrchestrationPolicy`
+
+### `GenericOrchestrationPolicy`

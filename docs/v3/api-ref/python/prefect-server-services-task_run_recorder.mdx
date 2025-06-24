@@ -1,0 +1,48 @@
+---
+title: task_run_recorder
+sidebarTitle: task_run_recorder
+---
+
+# `prefect.server.services.task_run_recorder`
+
+## Functions
+
+### `causal_ordering`
+
+```python
+causal_ordering() -> CausalOrdering
+```
+
+### `task_run_from_event`
+
+```python
+task_run_from_event(event: ReceivedEvent) -> TaskRun
+```
+
+## Classes
+
+### `TaskRunRecorder`
+
+
+Constructs task runs and states from client-emitted events
+
+
+**Methods:**
+
+#### `service_settings`
+
+```python
+service_settings(cls) -> ServicesBaseSetting
+```
+
+#### `started_event`
+
+```python
+started_event(self) -> asyncio.Event
+```
+
+#### `started_event`
+
+```python
+started_event(self, value: asyncio.Event) -> None
+```

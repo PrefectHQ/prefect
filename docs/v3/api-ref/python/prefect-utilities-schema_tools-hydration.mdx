@@ -1,0 +1,168 @@
+---
+title: hydration
+sidebarTitle: hydration
+---
+
+# `prefect.utilities.schema_tools.hydration`
+
+## Functions
+
+### `handler`
+
+```python
+handler(kind: PrefectKind) -> Callable[[Handler], Handler]
+```
+
+### `call_handler`
+
+```python
+call_handler(kind: PrefectKind, obj: dict[str, Any], ctx: HydrationContext) -> Any
+```
+
+### `null_handler`
+
+```python
+null_handler(obj: dict[str, Any], ctx: HydrationContext)
+```
+
+### `json_handler`
+
+```python
+json_handler(obj: dict[str, Any], ctx: HydrationContext)
+```
+
+### `jinja_handler`
+
+```python
+jinja_handler(obj: dict[str, Any], ctx: HydrationContext) -> Any
+```
+
+### `workspace_variable_handler`
+
+```python
+workspace_variable_handler(obj: dict[str, Any], ctx: HydrationContext) -> Any
+```
+
+### `hydrate`
+
+```python
+hydrate(obj: dict[str, Any], ctx: Optional[HydrationContext] = None) -> dict[str, Any]
+```
+
+## Classes
+
+### `HydrationContext`
+
+### `Placeholder`
+
+**Methods:**
+
+#### `is_error`
+
+```python
+is_error(self) -> bool
+```
+
+### `RemoveValue`
+
+### `HydrationError`
+
+**Methods:**
+
+#### `is_error`
+
+```python
+is_error(self) -> bool
+```
+
+#### `message`
+
+```python
+message(self) -> str
+```
+
+### `KeyNotFound`
+
+**Methods:**
+
+#### `message`
+
+```python
+message(self) -> str
+```
+
+#### `key`
+
+```python
+key(self) -> str
+```
+
+### `ValueNotFound`
+
+**Methods:**
+
+#### `key`
+
+```python
+key(self) -> str
+```
+
+### `TemplateNotFound`
+
+**Methods:**
+
+#### `key`
+
+```python
+key(self) -> str
+```
+
+### `VariableNameNotFound`
+
+**Methods:**
+
+#### `key`
+
+```python
+key(self) -> str
+```
+
+### `InvalidJSON`
+
+**Methods:**
+
+#### `message`
+
+```python
+message(self) -> str
+```
+
+### `InvalidJinja`
+
+**Methods:**
+
+#### `message`
+
+```python
+message(self) -> str
+```
+
+### `WorkspaceVariableNotFound`
+
+**Methods:**
+
+#### `variable_name`
+
+```python
+variable_name(self) -> str
+```
+
+#### `message`
+
+```python
+message(self) -> str
+```
+
+### `WorkspaceVariable`
+
+### `ValidJinja`

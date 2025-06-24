@@ -1,0 +1,110 @@
+---
+title: filters
+sidebarTitle: filters
+---
+
+# `prefect.events.filters`
+
+## Classes
+
+### `AutomationFilterCreated`
+
+
+Filter by `Automation.created`.
+
+
+### `AutomationFilterName`
+
+
+Filter by `Automation.created`.
+
+
+### `AutomationFilter`
+
+### `EventDataFilter`
+
+
+A base class for filtering event data.
+
+
+**Methods:**
+
+#### `get_filters`
+
+```python
+get_filters(self) -> list['EventDataFilter']
+```
+
+#### `includes`
+
+```python
+includes(self, event: Event) -> bool
+```
+
+Does the given event match the criteria of this filter?
+
+
+#### `excludes`
+
+```python
+excludes(self, event: Event) -> bool
+```
+
+Would the given filter exclude this event?
+
+
+### `EventOccurredFilter`
+
+**Methods:**
+
+#### `includes`
+
+```python
+includes(self, event: Event) -> bool
+```
+
+### `EventNameFilter`
+
+**Methods:**
+
+#### `includes`
+
+```python
+includes(self, event: Event) -> bool
+```
+
+### `EventResourceFilter`
+
+**Methods:**
+
+#### `includes`
+
+```python
+includes(self, event: Event) -> bool
+```
+
+### `EventRelatedFilter`
+
+### `EventAnyResourceFilter`
+
+**Methods:**
+
+#### `includes`
+
+```python
+includes(self, event: Event) -> bool
+```
+
+### `EventIDFilter`
+
+**Methods:**
+
+#### `includes`
+
+```python
+includes(self, event: Event) -> bool
+```
+
+### `EventOrder`
+
+### `EventFilter`

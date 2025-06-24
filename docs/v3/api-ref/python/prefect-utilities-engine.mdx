@@ -1,0 +1,177 @@
+---
+title: engine
+sidebarTitle: engine
+---
+
+# `prefect.utilities.engine`
+
+## Functions
+
+### `collect_task_run_inputs_sync`
+
+```python
+collect_task_run_inputs_sync(expr: Any, future_cls: Any = PrefectFuture, max_depth: int = -1) -> set[Union[TaskRunResult, FlowRunResult]]
+```
+
+
+This function recurses through an expression to generate a set of any discernible
+task run inputs it finds in the data structure. It produces a set of all inputs
+found.
+
+**Examples:**
+
+>>> task_inputs = {
+>>>    k: collect_task_run_inputs_sync(v) for k, v in parameters.items()
+>>> }
+
+
+### `capture_sigterm`
+
+```python
+capture_sigterm() -> Generator[None, Any, None]
+```
+
+### `propose_state_sync`
+
+```python
+propose_state_sync(client: 'SyncPrefectClient', state: State[Any], flow_run_id: UUID, force: bool = False) -> State[Any]
+```
+
+
+Propose a new state for a flow run, invoking Prefect orchestration logic.
+
+If the proposed state is accepted, the provided `state` will be augmented with
+ details and returned.
+
+If the proposed state is rejected, a new state returned by the Prefect API will be
+returned.
+
+If the proposed state results in a WAIT instruction from the Prefect API, the
+function will sleep and attempt to propose the state again.
+
+If the proposed state results in an ABORT instruction from the Prefect API, an
+error will be raised.
+
+**Args:**
+- `state`: a new state for the flow run
+- `flow_run_id`: an optional flow run id, used when proposing flow run states
+
+**Returns:**
+- a State model representation of the flow run state
+
+**Raises:**
+- `ValueError`: if flow_run_id is not provided
+- `prefect.exceptions.Abort`: if an ABORT instruction is received from
+the Prefect API
+
+
+### `get_state_for_result`
+
+```python
+get_state_for_result(obj: Any) -> Optional[tuple[State, RunType]]
+```
+
+
+Get the state related to a result object.
+
+`link_state_to_result` must have been called first.
+
+
+### `link_state_to_flow_run_result`
+
+```python
+link_state_to_flow_run_result(state: State, result: Any) -> None
+```
+
+
+Creates a link between a state and flow run result
+
+
+### `link_state_to_task_run_result`
+
+```python
+link_state_to_task_run_result(state: State, result: Any) -> None
+```
+
+
+Creates a link between a state and task run result
+
+
+### `link_state_to_result`
+
+```python
+link_state_to_result(state: State, result: Any, run_type: RunType) -> None
+```
+
+
+Caches a link between a state and a result and its components using
+the `id` of the components to map to the state. The cache is persisted to the
+current flow run context since task relationships are limited to within a flow run.
+
+This allows dependency tracking to occur when results are passed around.
+Note: Because `id` is used, we cannot cache links between singleton objects.
+
+We only cache the relationship between components 1-layer deep.
+Example:
+    Given the result [1, ["a","b"], ("c",)], the following elements will be
+    mapped to the state:
+    - [1, ["a","b"], ("c",)]
+    - ["a","b"]
+    - ("c",)
+
+    Note: the int `1` will not be mapped to the state because it is a singleton.
+
+Other Notes:
+We do not hash the result because:
+- If changes are made to the object in the flow between task calls, we can still
+  track that they are related.
+- Hashing can be expensive.
+- Not all objects are hashable.
+
+We do not set an attribute, e.g. `__prefect_state__`, on the result because:
+
+- Mutating user's objects is dangerous.
+- Unrelated equality comparisons can break unexpectedly.
+- The field can be preserved on copy.
+- We cannot set this attribute on Python built-ins.
+
+
+### `should_log_prints`
+
+```python
+should_log_prints(flow_or_task: Union['Flow[..., Any]', 'Task[..., Any]']) -> bool
+```
+
+### `emit_task_run_state_change_event`
+
+```python
+emit_task_run_state_change_event(task_run: TaskRun, initial_state: Optional[State[Any]], validated_state: State[Any], follows: Optional[Event] = None) -> Optional[Event]
+```
+
+### `resolve_to_final_result`
+
+```python
+resolve_to_final_result(expr: Any, context: dict[str, Any]) -> Any
+```
+
+
+Resolve any `PrefectFuture`, or `State` types nested in parameters into
+data. Designed to be use with `visit_collection`.
+
+
+### `resolve_inputs_sync`
+
+```python
+resolve_inputs_sync(parameters: dict[str, Any], return_data: bool = True, max_depth: int = -1) -> dict[str, Any]
+```
+
+
+Resolve any `Quote`, `PrefectFuture`, or `State` types nested in parameters into
+data.
+
+**Returns:**
+- A copy of the parameters with resolved data
+
+**Raises:**
+- `UpstreamTaskError`: If any of the upstream states are not `COMPLETED`
+

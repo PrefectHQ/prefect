@@ -1,0 +1,96 @@
+---
+title: __init__
+sidebarTitle: __init__
+---
+
+# `prefect.server.utilities.messaging`
+
+## Functions
+
+### `create_cache`
+
+```python
+create_cache() -> Cache
+```
+
+
+Creates a new cache with the applications default settings.
+
+**Returns:**
+- a new Cache instance
+
+
+### `create_publisher`
+
+```python
+create_publisher(topic: str, cache: Optional[Cache] = None, deduplicate_by: Optional[str] = None) -> Publisher
+```
+
+
+Creates a new publisher with the applications default settings.
+Args:
+    topic: the topic to publish to
+Returns:
+    a new Consumer instance
+
+
+### `create_consumer`
+
+```python
+create_consumer(topic: str, **kwargs: Any) -> Consumer
+```
+
+
+Creates a new consumer with the applications default settings.
+Args:
+    topic: the topic to consume from
+Returns:
+    a new Consumer instance
+
+
+## Classes
+
+### `Message`
+
+
+A protocol representing a message sent to a message broker.
+
+
+**Methods:**
+
+#### `data`
+
+```python
+data(self) -> Union[str, bytes]
+```
+
+#### `attributes`
+
+```python
+attributes(self) -> Mapping[str, Any]
+```
+
+### `Cache`
+
+### `Publisher`
+
+### `CapturedMessage`
+
+### `CapturingPublisher`
+
+### `StopConsumer`
+
+
+Exception to raise to stop a consumer.
+
+
+### `Consumer`
+
+
+Abstract base class for consumers that receive messages from a message broker and
+call a handler function for each message received.
+
+
+### `CacheModule`
+
+### `BrokerModule`

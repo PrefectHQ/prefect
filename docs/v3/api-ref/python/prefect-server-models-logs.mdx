@@ -1,0 +1,20 @@
+---
+title: logs
+sidebarTitle: logs
+---
+
+# `prefect.server.models.logs`
+
+
+
+Functions for interacting with log ORM objects.
+Intended for internal use by the Prefect REST API.
+
+
+## Functions
+
+### `split_logs_into_batches`
+
+```python
+split_logs_into_batches(logs: Sequence[schemas.actions.LogCreate]) -> Generator[Tuple[LogCreate, ...], None, None]
+```

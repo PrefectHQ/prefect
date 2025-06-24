@@ -1,0 +1,203 @@
+---
+title: task_runners
+sidebarTitle: task_runners
+---
+
+# `prefect.task_runners`
+
+## Classes
+
+### `TaskRunner`
+
+
+Abstract base class for task runners.
+
+A task runner is responsible for submitting tasks to the task run engine running
+in an execution environment. Submitted tasks are non-blocking and return a future
+object that can be used to wait for the task to complete and retrieve the result.
+
+Task runners are context managers and should be used in a `with` block to ensure
+proper cleanup of resources.
+
+
+**Methods:**
+
+#### `name`
+
+```python
+name(self) -> str
+```
+
+The name of this task runner
+
+
+#### `duplicate`
+
+```python
+duplicate(self) -> Self
+```
+
+Return a new instance of this task runner with the same configuration.
+
+
+#### `submit`
+
+```python
+submit(self, task: 'Task[P, Coroutine[Any, Any, R]]', parameters: dict[str, Any], wait_for: Iterable[PrefectFuture[Any]] | None = None, dependencies: dict[str, set[RunInput]] | None = None) -> F
+```
+
+#### `submit`
+
+```python
+submit(self, task: 'Task[Any, R]', parameters: dict[str, Any], wait_for: Iterable[PrefectFuture[Any]] | None = None, dependencies: dict[str, set[RunInput]] | None = None) -> F
+```
+
+#### `submit`
+
+```python
+submit(self, task: 'Task[P, R]', parameters: dict[str, Any], wait_for: Iterable[PrefectFuture[Any]] | None = None, dependencies: dict[str, set[RunInput]] | None = None) -> F
+```
+
+#### `map`
+
+```python
+map(self, task: 'Task[P, R]', parameters: dict[str, Any | unmapped[Any] | allow_failure[Any]], wait_for: Iterable[PrefectFuture[R]] | None = None) -> PrefectFutureList[F]
+```
+
+Submit multiple tasks to the task run engine.
+
+**Args:**
+- `task`: The task to submit.
+- `parameters`: The parameters to use when running the task.
+- `wait_for`: A list of futures that the task depends on.
+
+**Returns:**
+- An iterable of future objects that can be used to wait for the tasks to
+- complete and retrieve the results.
+
+
+### `ThreadPoolTaskRunner`
+
+
+A task runner that executes tasks in a separate thread pool.
+
+
+**Methods:**
+
+#### `duplicate`
+
+```python
+duplicate(self) -> 'ThreadPoolTaskRunner[R]'
+```
+
+#### `submit`
+
+```python
+submit(self, task: 'Task[P, Coroutine[Any, Any, R]]', parameters: dict[str, Any], wait_for: Iterable[PrefectFuture[Any]] | None = None, dependencies: dict[str, set[RunInput]] | None = None) -> PrefectConcurrentFuture[R]
+```
+
+#### `submit`
+
+```python
+submit(self, task: 'Task[Any, R]', parameters: dict[str, Any], wait_for: Iterable[PrefectFuture[Any]] | None = None, dependencies: dict[str, set[RunInput]] | None = None) -> PrefectConcurrentFuture[R]
+```
+
+#### `submit`
+
+```python
+submit(self, task: 'Task[P, R | Coroutine[Any, Any, R]]', parameters: dict[str, Any], wait_for: Iterable[PrefectFuture[Any]] | None = None, dependencies: dict[str, set[RunInput]] | None = None) -> PrefectConcurrentFuture[R]
+```
+
+Submit a task to the task run engine running in a separate thread.
+
+**Args:**
+- `task`: The task to submit.
+- `parameters`: The parameters to use when running the task.
+- `wait_for`: A list of futures that the task depends on.
+
+**Returns:**
+- A future object that can be used to wait for the task to complete and
+- retrieve the result.
+
+
+#### `map`
+
+```python
+map(self, task: 'Task[P, Coroutine[Any, Any, R]]', parameters: dict[str, Any], wait_for: Iterable[PrefectFuture[Any]] | None = None) -> PrefectFutureList[PrefectConcurrentFuture[R]]
+```
+
+#### `map`
+
+```python
+map(self, task: 'Task[Any, R]', parameters: dict[str, Any], wait_for: Iterable[PrefectFuture[Any]] | None = None) -> PrefectFutureList[PrefectConcurrentFuture[R]]
+```
+
+#### `map`
+
+```python
+map(self, task: 'Task[P, R]', parameters: dict[str, Any], wait_for: Iterable[PrefectFuture[Any]] | None = None) -> PrefectFutureList[PrefectConcurrentFuture[R]]
+```
+
+#### `cancel_all`
+
+```python
+cancel_all(self) -> None
+```
+
+### `PrefectTaskRunner`
+
+**Methods:**
+
+#### `duplicate`
+
+```python
+duplicate(self) -> 'PrefectTaskRunner[R]'
+```
+
+#### `submit`
+
+```python
+submit(self, task: 'Task[P, Coroutine[Any, Any, R]]', parameters: dict[str, Any], wait_for: Iterable[PrefectFuture[Any]] | None = None, dependencies: dict[str, set[RunInput]] | None = None) -> PrefectDistributedFuture[R]
+```
+
+#### `submit`
+
+```python
+submit(self, task: 'Task[Any, R]', parameters: dict[str, Any], wait_for: Iterable[PrefectFuture[Any]] | None = None, dependencies: dict[str, set[RunInput]] | None = None) -> PrefectDistributedFuture[R]
+```
+
+#### `submit`
+
+```python
+submit(self, task: 'Task[P, R]', parameters: dict[str, Any], wait_for: Iterable[PrefectFuture[Any]] | None = None, dependencies: dict[str, set[RunInput]] | None = None) -> PrefectDistributedFuture[R]
+```
+
+Submit a task to the task run engine running in a separate thread.
+
+**Args:**
+- `task`: The task to submit.
+- `parameters`: The parameters to use when running the task.
+- `wait_for`: A list of futures that the task depends on.
+
+**Returns:**
+- A future object that can be used to wait for the task to complete and
+- retrieve the result.
+
+
+#### `map`
+
+```python
+map(self, task: 'Task[P, Coroutine[Any, Any, R]]', parameters: dict[str, Any], wait_for: Iterable[PrefectFuture[Any]] | None = None) -> PrefectFutureList[PrefectDistributedFuture[R]]
+```
+
+#### `map`
+
+```python
+map(self, task: 'Task[Any, R]', parameters: dict[str, Any], wait_for: Iterable[PrefectFuture[Any]] | None = None) -> PrefectFutureList[PrefectDistributedFuture[R]]
+```
+
+#### `map`
+
+```python
+map(self, task: 'Task[P, R]', parameters: dict[str, Any], wait_for: Iterable[PrefectFuture[Any]] | None = None) -> PrefectFutureList[PrefectDistributedFuture[R]]
+```

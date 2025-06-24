@@ -1,0 +1,176 @@
+---
+title: automations
+sidebarTitle: automations
+---
+
+# `prefect.events.schemas.automations`
+
+## Classes
+
+### `Posture`
+
+### `Trigger`
+
+
+Base class describing a set of criteria that must be satisfied in order to trigger
+an automation.
+
+
+**Methods:**
+
+#### `describe_for_cli`
+
+```python
+describe_for_cli(self, indent: int = 0) -> str
+```
+
+Return a human-readable description of this trigger for the CLI
+
+
+#### `set_deployment_id`
+
+```python
+set_deployment_id(self, deployment_id: UUID) -> None
+```
+
+#### `owner_resource`
+
+```python
+owner_resource(self) -> Optional[str]
+```
+
+#### `actions`
+
+```python
+actions(self) -> List[ActionTypes]
+```
+
+#### `as_automation`
+
+```python
+as_automation(self) -> 'AutomationCore'
+```
+
+### `ResourceTrigger`
+
+
+Base class for triggers that may filter by the labels of resources.
+
+
+### `EventTrigger`
+
+
+A trigger that fires based on the presence or absence of events within a given
+period of time.
+
+
+**Methods:**
+
+#### `enforce_minimum_within_for_proactive_triggers`
+
+```python
+enforce_minimum_within_for_proactive_triggers(cls, data: Dict[str, Any]) -> Dict[str, Any]
+```
+
+#### `describe_for_cli`
+
+```python
+describe_for_cli(self, indent: int = 0) -> str
+```
+
+Return a human-readable description of this trigger for the CLI
+
+
+### `MetricTriggerOperator`
+
+### `PrefectMetric`
+
+### `MetricTriggerQuery`
+
+
+Defines a subset of the Trigger subclass, which is specific
+to Metric automations, that specify the query configurations
+and breaching conditions for the Automation
+
+
+**Methods:**
+
+#### `enforce_minimum_range`
+
+```python
+enforce_minimum_range(cls, value: timedelta) -> timedelta
+```
+
+### `MetricTrigger`
+
+
+A trigger that fires based on the results of a metric query.
+
+
+**Methods:**
+
+#### `describe_for_cli`
+
+```python
+describe_for_cli(self, indent: int = 0) -> str
+```
+
+Return a human-readable description of this trigger for the CLI
+
+
+### `CompositeTrigger`
+
+
+Requires some number of triggers to have fired within the given time period.
+
+
+### `CompoundTrigger`
+
+
+A composite trigger that requires some number of triggers to have
+fired within the given time period
+
+
+**Methods:**
+
+#### `validate_require`
+
+```python
+validate_require(self) -> Self
+```
+
+#### `describe_for_cli`
+
+```python
+describe_for_cli(self, indent: int = 0) -> str
+```
+
+Return a human-readable description of this trigger for the CLI
+
+
+### `SequenceTrigger`
+
+
+A composite trigger that requires some number of triggers to have fired
+within the given time period in a specific order
+
+
+**Methods:**
+
+#### `describe_for_cli`
+
+```python
+describe_for_cli(self, indent: int = 0) -> str
+```
+
+Return a human-readable description of this trigger for the CLI
+
+
+### `AutomationCore`
+
+
+Defines an action a user wants to take when a certain number of events
+do or don't happen to the matching resources
+
+
+### `Automation`

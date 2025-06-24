@@ -1,0 +1,647 @@
+---
+title: objects
+sidebarTitle: objects
+---
+
+# `prefect.client.schemas.objects`
+
+## Functions
+
+### `data_discriminator`
+
+```python
+data_discriminator(x: Any) -> str
+```
+
+## Classes
+
+### `RunType`
+
+### `StateType`
+
+
+Enumeration of state types.
+
+
+### `WorkPoolStatus`
+
+
+Enumeration of work pool statuses.
+
+
+**Methods:**
+
+#### `display_name`
+
+```python
+display_name(self) -> str
+```
+
+### `WorkerStatus`
+
+
+Enumeration of worker statuses.
+
+
+### `DeploymentStatus`
+
+
+Enumeration of deployment statuses.
+
+
+### `WorkQueueStatus`
+
+
+Enumeration of work queue statuses.
+
+
+### `ConcurrencyLimitStrategy`
+
+
+Enumeration of concurrency limit strategies.
+
+
+### `ConcurrencyOptions`
+
+
+Class for storing the concurrency config in database.
+
+
+### `ConcurrencyLimitConfig`
+
+
+Class for storing the concurrency limit config in database.
+
+
+### `StateDetails`
+
+**Methods:**
+
+#### `to_run_result`
+
+```python
+to_run_result(self, run_type: RunType) -> Optional[Union[FlowRunResult, TaskRunResult]]
+```
+
+### `State`
+
+
+The state of a run.
+
+
+**Methods:**
+
+#### `result`
+
+```python
+result(self: 'State[R]', raise_on_failure: Literal[True] = ..., retry_result_failure: bool = ...) -> R
+```
+
+#### `result`
+
+```python
+result(self: 'State[R]', raise_on_failure: Literal[False] = False, retry_result_failure: bool = ...) -> Union[R, Exception]
+```
+
+#### `result`
+
+```python
+result(self: 'State[R]', raise_on_failure: bool = ..., retry_result_failure: bool = ...) -> Union[R, Exception]
+```
+
+#### `result`
+
+```python
+result(self, raise_on_failure: bool = True, retry_result_failure: bool = True) -> Union[R, Exception]
+```
+
+Retrieve the result attached to this state.
+
+**Args:**
+- `raise_on_failure`: a boolean specifying whether to raise an exception
+if the state is of type `FAILED` and the underlying data is an exception. When flow
+was run in a different memory space (using `run_deployment`), this will only raise
+if `fetch` is `True`.
+- `retry_result_failure`: a boolean specifying whether to retry on failures to
+load the result from result storage
+
+**Raises:**
+- `TypeError`: If the state is failed but the result is not an exception.
+
+**Returns:**
+- The result of the run
+
+**Examples:**
+
+Get the result from a flow state
+>>> @flow
+>>> def my_flow():
+>>>     return "hello"
+>>> my_flow(return_state=True).result()
+hello
+Get the result from a failed state
+>>> @flow
+>>> def my_flow():
+>>>     raise ValueError("oh no!")
+>>> state = my_flow(return_state=True)  # Error is wrapped in FAILED state
+>>> state.result()  # Raises `ValueError`
+Get the result from a failed state without erroring
+>>> @flow
+>>> def my_flow():
+>>>     raise ValueError("oh no!")
+>>> state = my_flow(return_state=True)
+>>> result = state.result(raise_on_failure=False)
+>>> print(result)
+ValueError("oh no!")
+Get the result from a flow state in an async context
+>>> @flow
+>>> async def my_flow():
+>>>     return "hello"
+>>> state = await my_flow(return_state=True)
+>>> await state.result()
+hello
+Get the result with `raise_on_failure` from a flow run in a different memory space
+>>> @flow
+>>> async def my_flow():
+>>>     raise ValueError("oh no!")
+>>> my_flow.deploy("my_deployment/my_flow")
+>>> flow_run = run_deployment("my_deployment/my_flow")
+>>> await flow_run.state.result(raise_on_failure=True) # Raises `ValueError("oh no!")`
+
+
+#### `default_name_from_type`
+
+```python
+default_name_from_type(self) -> Self
+```
+
+If a name is not provided, use the type
+
+
+#### `default_scheduled_start_time`
+
+```python
+default_scheduled_start_time(self) -> Self
+```
+
+#### `set_unpersisted_results_to_none`
+
+```python
+set_unpersisted_results_to_none(self) -> Self
+```
+
+#### `is_scheduled`
+
+```python
+is_scheduled(self) -> bool
+```
+
+#### `is_pending`
+
+```python
+is_pending(self) -> bool
+```
+
+#### `is_running`
+
+```python
+is_running(self) -> bool
+```
+
+#### `is_completed`
+
+```python
+is_completed(self) -> bool
+```
+
+#### `is_failed`
+
+```python
+is_failed(self) -> bool
+```
+
+#### `is_crashed`
+
+```python
+is_crashed(self) -> bool
+```
+
+#### `is_cancelled`
+
+```python
+is_cancelled(self) -> bool
+```
+
+#### `is_cancelling`
+
+```python
+is_cancelling(self) -> bool
+```
+
+#### `is_final`
+
+```python
+is_final(self) -> bool
+```
+
+#### `is_paused`
+
+```python
+is_paused(self) -> bool
+```
+
+#### `model_copy`
+
+```python
+model_copy(self) -> Self
+```
+
+Copying API models should return an object that could be inserted into the
+database again. The 'timestamp' is reset using the default factory.
+
+
+#### `fresh_copy`
+
+```python
+fresh_copy(self, **kwargs: Any) -> Self
+```
+
+Return a fresh copy of the state with a new ID.
+
+
+### `FlowRunPolicy`
+
+
+Defines of how a flow run should be orchestrated.
+
+
+**Methods:**
+
+#### `populate_deprecated_fields`
+
+```python
+populate_deprecated_fields(cls, values: Any) -> Any
+```
+
+### `FlowRun`
+
+**Methods:**
+
+#### `set_default_name`
+
+```python
+set_default_name(cls, name: Optional[str]) -> str
+```
+
+### `TaskRunPolicy`
+
+
+Defines of how a task run should retry.
+
+
+**Methods:**
+
+#### `populate_deprecated_fields`
+
+```python
+populate_deprecated_fields(self)
+```
+
+If deprecated fields are provided, populate the corresponding new fields
+to preserve orchestration behavior.
+
+
+#### `validate_configured_retry_delays`
+
+```python
+validate_configured_retry_delays(cls, v: Optional[int | float | list[int] | list[float]]) -> Optional[int | float | list[int] | list[float]]
+```
+
+#### `validate_jitter_factor`
+
+```python
+validate_jitter_factor(cls, v: Optional[float]) -> Optional[float]
+```
+
+### `RunInput`
+
+
+Base class for classes that represent inputs to task runs, which
+could include, constants, parameters, or other task runs.
+
+
+### `TaskRunResult`
+
+
+Represents a task run result input to another task run.
+
+
+### `FlowRunResult`
+
+### `Parameter`
+
+
+Represents a parameter input to a task run.
+
+
+### `Constant`
+
+
+Represents constant input value to a task run.
+
+
+### `TaskRun`
+
+**Methods:**
+
+#### `set_default_name`
+
+```python
+set_default_name(cls, name: Optional[str]) -> Name
+```
+
+### `Workspace`
+
+
+A Prefect Cloud workspace.
+
+Expected payload for each workspace returned by the `me/workspaces` route.
+
+
+**Methods:**
+
+#### `handle`
+
+```python
+handle(self) -> str
+```
+
+The full handle of the workspace as `account_handle` / `workspace_handle`
+
+
+#### `api_url`
+
+```python
+api_url(self) -> str
+```
+
+Generate the API URL for accessing this workspace
+
+
+#### `ui_url`
+
+```python
+ui_url(self) -> str
+```
+
+Generate the UI URL for accessing this workspace
+
+
+### `IPAllowlistEntry`
+
+### `IPAllowlist`
+
+
+A Prefect Cloud IP allowlist.
+
+Expected payload for an IP allowlist from the Prefect Cloud API.
+
+
+### `IPAllowlistMyAccessResponse`
+
+
+Expected payload for an IP allowlist access response from the Prefect Cloud API.
+
+
+### `BlockType`
+
+
+An ORM representation of a block type
+
+
+### `BlockSchema`
+
+
+A representation of a block schema.
+
+
+### `BlockDocument`
+
+
+An ORM representation of a block document.
+
+
+**Methods:**
+
+#### `validate_name_is_present_if_not_anonymous`
+
+```python
+validate_name_is_present_if_not_anonymous(cls, values: dict[str, Any]) -> dict[str, Any]
+```
+
+#### `serialize_data`
+
+```python
+serialize_data(self, handler: SerializerFunctionWrapHandler, info: SerializationInfo) -> Any
+```
+
+### `Flow`
+
+
+An ORM representation of flow data.
+
+
+### `DeploymentSchedule`
+
+### `VersionInfo`
+
+### `BranchingScheduleHandling`
+
+### `DeploymentBranchingOptions`
+
+### `Deployment`
+
+
+An ORM representation of deployment data.
+
+
+### `ConcurrencyLimit`
+
+
+An ORM representation of a concurrency limit.
+
+
+### `BlockSchemaReference`
+
+
+An ORM representation of a block schema reference.
+
+
+### `BlockDocumentReference`
+
+
+An ORM representation of a block document reference.
+
+
+**Methods:**
+
+#### `validate_parent_and_ref_are_different`
+
+```python
+validate_parent_and_ref_are_different(cls, values: Any) -> Any
+```
+
+### `Configuration`
+
+
+An ORM representation of account info.
+
+
+### `SavedSearchFilter`
+
+
+A filter for a saved search model. Intended for use by the Prefect UI.
+
+
+### `SavedSearch`
+
+
+An ORM representation of saved search data. Represents a set of filter criteria.
+
+
+### `Log`
+
+
+An ORM representation of log data.
+
+
+### `QueueFilter`
+
+
+Filter criteria definition for a work queue.
+
+
+### `WorkQueue`
+
+
+An ORM representation of a work queue
+
+
+### `WorkQueueHealthPolicy`
+
+**Methods:**
+
+#### `evaluate_health_status`
+
+```python
+evaluate_health_status(self, late_runs_count: int, last_polled: datetime.datetime | None = None) -> bool
+```
+
+Given empirical information about the state of the work queue, evaluate its health status.
+
+**Args:**
+- `late_runs`: the count of late runs for the work queue.
+- `last_polled`: the last time the work queue was polled, if available.
+
+**Returns:**
+- whether or not the work queue is healthy.
+
+
+### `WorkQueueStatusDetail`
+
+### `Agent`
+
+
+An ORM representation of an agent
+
+
+### `WorkPoolStorageConfiguration`
+
+
+A work pool storage configuration
+
+
+### `WorkPool`
+
+
+An ORM representation of a work pool
+
+
+**Methods:**
+
+#### `is_push_pool`
+
+```python
+is_push_pool(self) -> bool
+```
+
+#### `is_managed_pool`
+
+```python
+is_managed_pool(self) -> bool
+```
+
+#### `helpful_error_for_missing_default_queue_id`
+
+```python
+helpful_error_for_missing_default_queue_id(cls, v: Optional[UUID]) -> UUID
+```
+
+### `Worker`
+
+
+An ORM representation of a worker
+
+
+### `Artifact`
+
+**Methods:**
+
+#### `validate_metadata_length`
+
+```python
+validate_metadata_length(cls, v: Optional[dict[str, str]]) -> Optional[dict[str, str]]
+```
+
+### `ArtifactCollection`
+
+### `Variable`
+
+### `FlowRunInput`
+
+**Methods:**
+
+#### `decoded_value`
+
+```python
+decoded_value(self) -> Any
+```
+
+Decode the value of the input.
+
+**Returns:**
+- the decoded value
+
+
+### `GlobalConcurrencyLimit`
+
+
+An ORM representation of a global concurrency limit
+
+
+### `CsrfToken`
+
+### `Integration`
+
+
+A representation of an installed Prefect integration.
+
+
+### `WorkerMetadata`
+
+
+Worker metadata.
+
+We depend on the structure of `integrations`, but otherwise, worker classes
+should support flexible metadata.
+

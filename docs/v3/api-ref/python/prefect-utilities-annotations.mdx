@@ -1,0 +1,124 @@
+---
+title: annotations
+sidebarTitle: annotations
+---
+
+# `prefect.utilities.annotations`
+
+## Classes
+
+### `BaseAnnotation`
+
+
+Base class for Prefect annotation types.
+
+Inherits from `tuple` for unpacking support in other tools.
+
+
+**Methods:**
+
+#### `unwrap`
+
+```python
+unwrap(self) -> T
+```
+
+#### `rewrap`
+
+```python
+rewrap(self, value: T) -> Self
+```
+
+### `unmapped`
+
+
+Wrapper for iterables.
+
+Indicates that this input should be sent as-is to all runs created during a mapping
+operation instead of being split.
+
+
+### `allow_failure`
+
+
+Wrapper for states or futures.
+
+Indicates that the upstream run for this input can be failed.
+
+Generally, Prefect will not allow a downstream run to start if any of its inputs
+are failed. This annotation allows you to opt into receiving a failed input
+downstream.
+
+If the input is from a failed run, the attached exception will be passed to your
+function.
+
+
+### `quote`
+
+
+Simple wrapper to mark an expression as a different type so it will not be coerced
+by Prefect. For example, if you want to return a state from a flow without having
+the flow assume that state.
+
+quote will also instruct prefect to ignore introspection of the wrapped object
+when passed as flow or task parameter. Parameter introspection can be a
+significant performance hit when the object is a large collection,
+e.g. a large dictionary or DataFrame, and each element needs to be visited. This
+will disable task dependency tracking for the wrapped object, but likely will
+increase performance.
+
+```
+@task
+def my_task(df):
+    ...
+
+@flow
+def my_flow():
+    my_task(quote(df))
+```
+
+
+**Methods:**
+
+#### `unquote`
+
+```python
+unquote(self) -> T
+```
+
+### `Quote`
+
+### `NotSet`
+
+
+Singleton to distinguish `None` from a value that is not provided by the user.
+
+
+### `freeze`
+
+
+Wrapper for parameters in deployments.
+
+Indicates that this parameter should be frozen in the UI and not editable
+when creating flow runs from this deployment.
+
+Example:
+```python
+@flow
+def my_flow(customer_id: str):
+    # flow logic
+
+deployment = my_flow.deploy(parameters={"customer_id": freeze("customer123")})
+```
+
+
+**Methods:**
+
+#### `unfreeze`
+
+```python
+unfreeze(self) -> T
+```
+
+Return the unwrapped value.
+

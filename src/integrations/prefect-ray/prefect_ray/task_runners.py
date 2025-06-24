@@ -87,7 +87,7 @@ from uuid import UUID, uuid4
 
 from typing_extensions import ParamSpec, Self
 
-from prefect.client.schemas.objects import TaskRunInput
+from prefect.client.schemas.objects import RunInput
 from prefect.context import serialize_context
 from prefect.futures import PrefectFuture, PrefectFutureList, PrefectWrappedFuture
 from prefect.logging.loggers import get_logger
@@ -227,7 +227,7 @@ class RayTaskRunner(TaskRunner[PrefectRayFuture[R]]):
         task: "Task[P, Coroutine[Any, Any, R]]",
         parameters: dict[str, Any],
         wait_for: Iterable[PrefectFuture[Any]] | None = None,
-        dependencies: dict[str, set[TaskRunInput]] | None = None,
+        dependencies: dict[str, set[RunInput]] | None = None,
     ) -> PrefectRayFuture[R]: ...
 
     @overload
@@ -236,7 +236,7 @@ class RayTaskRunner(TaskRunner[PrefectRayFuture[R]]):
         task: "Task[P, R]",
         parameters: dict[str, Any],
         wait_for: Iterable[PrefectFuture[Any]] | None = None,
-        dependencies: dict[str, set[TaskRunInput]] | None = None,
+        dependencies: dict[str, set[RunInput]] | None = None,
     ) -> PrefectRayFuture[R]: ...
 
     def submit(
@@ -244,7 +244,7 @@ class RayTaskRunner(TaskRunner[PrefectRayFuture[R]]):
         task: Task[P, R],
         parameters: dict[str, Any],
         wait_for: Iterable[PrefectFuture[Any]] | None = None,
-        dependencies: dict[str, set[TaskRunInput]] | None = None,
+        dependencies: dict[str, set[RunInput]] | None = None,
     ):
         if not self._started:
             raise RuntimeError(
@@ -342,7 +342,7 @@ class RayTaskRunner(TaskRunner[PrefectRayFuture[R]]):
         context: dict[str, Any],
         parameters: dict[str, Any],
         wait_for: Iterable[PrefectFuture[Any]] | None = None,
-        dependencies: dict[str, set[TaskRunInput]] | None = None,
+        dependencies: dict[str, set[RunInput]] | None = None,
     ) -> Any:
         """Resolves Ray futures before calling the actual Prefect task function.
 

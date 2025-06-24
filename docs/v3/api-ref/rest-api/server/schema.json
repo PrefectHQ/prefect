@@ -10628,6 +10628,17 @@
                             }
                         ],
                         "description": "Filter criteria for `Automation.created`"
+                    },
+                    "tags": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/AutomationFilterTags"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "description": "Filter criteria for `Automation.tags`"
                     }
                 },
                 "additionalProperties": false,
@@ -10677,6 +10688,73 @@
                 "type": "object",
                 "title": "AutomationFilterName",
                 "description": "Filter by `Automation.created`."
+            },
+            "AutomationFilterTags": {
+                "properties": {
+                    "operator": {
+                        "$ref": "#/components/schemas/Operator",
+                        "description": "Operator for combining filter criteria. Defaults to 'and_'.",
+                        "default": "and_"
+                    },
+                    "all_": {
+                        "anyOf": [
+                            {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "All",
+                        "description": "A list of tags. Automations will be returned only if their tags are a superset of the list",
+                        "examples": [
+                            [
+                                "tag-1",
+                                "tag-2"
+                            ]
+                        ]
+                    },
+                    "any_": {
+                        "anyOf": [
+                            {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Any",
+                        "description": "A list of tags. Automations will be returned if their tags contain any of the tags in the list",
+                        "examples": [
+                            [
+                                "tag-1",
+                                "tag-2"
+                            ]
+                        ]
+                    },
+                    "is_null_": {
+                        "anyOf": [
+                            {
+                                "type": "boolean"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Is Null",
+                        "description": "If true, only include automations without tags"
+                    }
+                },
+                "additionalProperties": false,
+                "type": "object",
+                "title": "AutomationFilterTags",
+                "description": "Filter by `Automation.tags`."
             },
             "AutomationPartialUpdate": {
                 "properties": {
@@ -13596,7 +13674,14 @@
                         "default": 0
                     },
                     "logs": {
-                        "$ref": "#/components/schemas/LogFilter"
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/LogFilter"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
                     },
                     "sort": {
                         "$ref": "#/components/schemas/LogSort",
@@ -15395,6 +15480,22 @@
                         ],
                         "title": "Any",
                         "description": "A list of deployment ids to include"
+                    },
+                    "not_any_": {
+                        "anyOf": [
+                            {
+                                "items": {
+                                    "type": "string",
+                                    "format": "uuid"
+                                },
+                                "type": "array"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Not Any",
+                        "description": "A list of deployment ids to exclude"
                     }
                 },
                 "additionalProperties": false,
@@ -19653,6 +19754,26 @@
                 ],
                 "title": "FlowRunResponse"
             },
+            "FlowRunResult": {
+                "properties": {
+                    "input_type": {
+                        "type": "string",
+                        "const": "flow_run",
+                        "title": "Input Type",
+                        "default": "flow_run"
+                    },
+                    "id": {
+                        "type": "string",
+                        "format": "uuid",
+                        "title": "Id"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "id"
+                ],
+                "title": "FlowRunResult"
+            },
             "FlowRunSort": {
                 "type": "string",
                 "enum": [
@@ -22236,6 +22357,9 @@
                                         "$ref": "#/components/schemas/TaskRunResult"
                                     },
                                     {
+                                        "$ref": "#/components/schemas/FlowRunResult"
+                                    },
+                                    {
                                         "$ref": "#/components/schemas/Parameter"
                                     },
                                     {
@@ -22533,6 +22657,9 @@
                                 "anyOf": [
                                     {
                                         "$ref": "#/components/schemas/TaskRunResult"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/FlowRunResult"
                                     },
                                     {
                                         "$ref": "#/components/schemas/Parameter"
@@ -23209,7 +23336,20 @@
                     "task_inputs": {
                         "additionalProperties": {
                             "items": {
-                                "$ref": "#/components/schemas/TaskRunResult"
+                                "anyOf": [
+                                    {
+                                        "$ref": "#/components/schemas/TaskRunResult"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/FlowRunResult"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/Parameter"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/Constant"
+                                    }
+                                ]
                             },
                             "type": "array"
                         },
@@ -23528,6 +23668,9 @@
                                 "anyOf": [
                                     {
                                         "$ref": "#/components/schemas/TaskRunResult"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/FlowRunResult"
                                     },
                                     {
                                         "$ref": "#/components/schemas/Parameter"

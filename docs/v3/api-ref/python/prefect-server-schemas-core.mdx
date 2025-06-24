@@ -1,0 +1,332 @@
+---
+title: core
+sidebarTitle: core
+---
+
+# `prefect.server.schemas.core`
+
+
+
+Full schemas of Prefect REST API objects.
+
+
+## Classes
+
+### `Flow`
+
+
+An ORM representation of flow data.
+
+
+### `FlowRunPolicy`
+
+
+Defines of how a flow run should retry.
+
+
+**Methods:**
+
+#### `populate_deprecated_fields`
+
+```python
+populate_deprecated_fields(cls, values: dict[str, Any]) -> dict[str, Any]
+```
+
+### `CreatedBy`
+
+### `UpdatedBy`
+
+### `ConcurrencyLimitStrategy`
+
+
+Enumeration of concurrency collision strategies.
+
+
+### `ConcurrencyOptions`
+
+
+Class for storing the concurrency config in database.
+
+
+### `FlowRun`
+
+
+An ORM representation of flow run data.
+
+
+**Methods:**
+
+#### `set_name`
+
+```python
+set_name(cls, name: str) -> str
+```
+
+### `TaskRunPolicy`
+
+
+Defines of how a task run should retry.
+
+
+**Methods:**
+
+#### `populate_deprecated_fields`
+
+```python
+populate_deprecated_fields(cls, values: dict[str, Any]) -> dict[str, Any]
+```
+
+#### `validate_configured_retry_delays`
+
+```python
+validate_configured_retry_delays(cls, v: int | float | list[int] | list[float] | None) -> int | float | list[int] | list[float] | None
+```
+
+#### `validate_jitter_factor`
+
+```python
+validate_jitter_factor(cls, v: float | None) -> float | None
+```
+
+### `RunInput`
+
+
+Base class for classes that represent inputs to runs, which
+could include, constants, parameters, task runs or flow runs.
+
+
+### `TaskRunResult`
+
+
+Represents a task run result input to another task run.
+
+
+### `FlowRunResult`
+
+### `Parameter`
+
+
+Represents a parameter input to a task run.
+
+
+### `Constant`
+
+
+Represents constant input value to a task run.
+
+
+### `TaskRun`
+
+
+An ORM representation of task run data.
+
+
+**Methods:**
+
+#### `set_name`
+
+```python
+set_name(cls, name: str) -> str
+```
+
+#### `validate_cache_key`
+
+```python
+validate_cache_key(cls, cache_key: str) -> str
+```
+
+### `DeploymentSchedule`
+
+**Methods:**
+
+#### `validate_max_scheduled_runs`
+
+```python
+validate_max_scheduled_runs(cls, v: int) -> int
+```
+
+### `VersionInfo`
+
+### `Deployment`
+
+
+An ORM representation of deployment data.
+
+
+### `ConcurrencyLimit`
+
+
+An ORM representation of a concurrency limit.
+
+
+### `ConcurrencyLimitV2`
+
+
+An ORM representation of a v2 concurrency limit.
+
+
+### `BlockType`
+
+
+An ORM representation of a block type
+
+
+### `BlockSchema`
+
+
+An ORM representation of a block schema.
+
+
+### `BlockSchemaReference`
+
+
+An ORM representation of a block schema reference.
+
+
+### `BlockDocument`
+
+
+An ORM representation of a block document.
+
+
+**Methods:**
+
+#### `validate_name_is_present_if_not_anonymous`
+
+```python
+validate_name_is_present_if_not_anonymous(cls, values: dict[str, Any]) -> dict[str, Any]
+```
+
+### `BlockDocumentReference`
+
+
+An ORM representation of a block document reference.
+
+
+**Methods:**
+
+#### `validate_parent_and_ref_are_different`
+
+```python
+validate_parent_and_ref_are_different(cls, values: dict[str, Any]) -> dict[str, Any]
+```
+
+### `Configuration`
+
+
+An ORM representation of account info.
+
+
+### `SavedSearchFilter`
+
+
+A filter for a saved search model. Intended for use by the Prefect UI.
+
+
+### `SavedSearch`
+
+
+An ORM representation of saved search data. Represents a set of filter criteria.
+
+
+### `Log`
+
+
+An ORM representation of log data.
+
+
+### `QueueFilter`
+
+
+Filter criteria definition for a work queue.
+
+
+### `WorkQueue`
+
+
+An ORM representation of a work queue
+
+
+### `WorkQueueHealthPolicy`
+
+**Methods:**
+
+#### `evaluate_health_status`
+
+```python
+evaluate_health_status(self, late_runs_count: int, last_polled: Optional[DateTime] = None) -> bool
+```
+
+Given empirical information about the state of the work queue, evaluate its health status.
+
+**Args:**
+- `late_runs`: the count of late runs for the work queue.
+- `last_polled`: the last time the work queue was polled, if available.
+
+**Returns:**
+- whether or not the work queue is healthy.
+
+
+### `WorkQueueStatusDetail`
+
+### `Agent`
+
+
+An ORM representation of an agent
+
+
+### `WorkPoolStorageConfiguration`
+
+
+A representation of a work pool's storage configuration
+
+
+### `WorkPool`
+
+
+An ORM representation of a work pool
+
+
+**Methods:**
+
+#### `helpful_error_for_missing_default_queue_id`
+
+```python
+helpful_error_for_missing_default_queue_id(cls, v: UUID | None) -> UUID
+```
+
+#### `model_validate`
+
+```python
+model_validate(cls: Type[Self], obj: Any) -> Self
+```
+
+### `Worker`
+
+
+An ORM representation of a worker
+
+
+### `Artifact`
+
+**Methods:**
+
+#### `from_result`
+
+```python
+from_result(cls, data: Any | dict[str, Any]) -> 'Artifact'
+```
+
+#### `validate_metadata_length`
+
+```python
+validate_metadata_length(cls, v: dict[str, str]) -> dict[str, str]
+```
+
+### `ArtifactCollection`
+
+### `Variable`
+
+### `FlowRunInput`
+
+### `CsrfToken`

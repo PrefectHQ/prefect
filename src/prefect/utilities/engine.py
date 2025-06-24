@@ -24,8 +24,11 @@ from typing_extensions import TypeIs
 import prefect
 import prefect.exceptions
 from prefect._internal.concurrency.cancellation import get_deadline
-from prefect.client.schemas import OrchestrationResult, TaskRun
-from prefect.client.schemas.objects import TaskRunInput, TaskRunResult
+from prefect.client.schemas import FlowRunResult, OrchestrationResult, TaskRun
+from prefect.client.schemas.objects import (
+    RunType,
+    TaskRunResult,
+)
 from prefect.client.schemas.responses import (
     SetStateStatus,
     StateAbortDetails,
@@ -60,7 +63,9 @@ engine_logger: Logger = get_logger("engine")
 T = TypeVar("T")
 
 
-async def collect_task_run_inputs(expr: Any, max_depth: int = -1) -> set[TaskRunResult]:
+async def collect_task_run_inputs(
+    expr: Any, max_depth: int = -1
+) -> set[Union[TaskRunResult, FlowRunResult]]:
     """
     This function recurses through an expression to generate a set of any discernible
     task run inputs it finds in the data structure. It produces a set of all inputs
@@ -73,7 +78,7 @@ async def collect_task_run_inputs(expr: Any, max_depth: int = -1) -> set[TaskRun
     """
     # TODO: This function needs to be updated to detect parameters and constants
 
-    inputs: set[TaskRunResult] = set()
+    inputs: set[Union[TaskRunResult, FlowRunResult]] = set()
 
     def add_futures_and_states_to_inputs(obj: Any) -> None:
         if isinstance(obj, PrefectFuture):
@@ -89,9 +94,12 @@ async def collect_task_run_inputs(expr: Any, max_depth: int = -1) -> set[TaskRun
         elif isinstance(obj, quote):
             raise StopVisiting
         else:
-            state = get_state_for_result(obj)
-            if state and state.state_details.task_run_id:
-                inputs.add(TaskRunResult(id=state.state_details.task_run_id))
+            res = get_state_for_result(obj)
+            if res:
+                state, run_type = res
+                run_result = state.state_details.to_run_result(run_type)
+                if run_result:
+                    inputs.add(run_result)
 
     visit_collection(
         expr,
@@ -105,7 +113,7 @@ async def collect_task_run_inputs(expr: Any, max_depth: int = -1) -> set[TaskRun
 
 def collect_task_run_inputs_sync(
     expr: Any, future_cls: Any = PrefectFuture, max_depth: int = -1
-) -> set[TaskRunInput]:
+) -> set[Union[TaskRunResult, FlowRunResult]]:
     """
     This function recurses through an expression to generate a set of any discernible
     task run inputs it finds in the data structure. It produces a set of all inputs
@@ -118,7 +126,7 @@ def collect_task_run_inputs_sync(
     """
     # TODO: This function needs to be updated to detect parameters and constants
 
-    inputs: set[TaskRunInput] = set()
+    inputs: set[Union[TaskRunResult, FlowRunResult]] = set()
 
     def add_futures_and_states_to_inputs(obj: Any) -> None:
         if isinstance(obj, future_cls) and hasattr(obj, "task_run_id"):
@@ -138,9 +146,12 @@ def collect_task_run_inputs_sync(
         elif isinstance(obj, quote):
             raise StopVisiting
         else:
-            state = get_state_for_result(obj)
-            if state and state.state_details.task_run_id:
-                inputs.add(TaskRunResult(id=state.state_details.task_run_id))
+            res = get_state_for_result(obj)
+            if res:
+                state, run_type = res
+                run_result = state.state_details.to_run_result(run_type)
+                if run_result:
+                    inputs.add(run_result)
 
     visit_collection(
         expr,
@@ -299,12 +310,11 @@ def _is_result_record(data: Any) -> TypeIs[ResultRecord[Any]]:
 async def propose_state(
     client: "PrefectClient",
     state: State[Any],
+    flow_run_id: UUID,
     force: bool = False,
-    task_run_id: Optional[UUID] = None,
-    flow_run_id: Optional[UUID] = None,
 ) -> State[Any]:
     """
-    Propose a new state for a flow run or task run, invoking Prefect orchestration logic.
+    Propose a new state for a flow run, invoking Prefect orchestration logic.
 
     If the proposed state is accepted, the provided `state` will be augmented with
      details and returned.
@@ -319,25 +329,21 @@ async def propose_state(
     error will be raised.
 
     Args:
-        state: a new state for the task or flow run
-        task_run_id: an optional task run id, used when proposing task run states
+        state: a new state for a flow run
         flow_run_id: an optional flow run id, used when proposing flow run states
 
     Returns:
-        a [State model][prefect.client.schemas.objects.State] representation of the
-            flow or task run state
+        a State model representation of the flow run state
 
     Raises:
-        ValueError: if neither task_run_id or flow_run_id is provided
         prefect.exceptions.Abort: if an ABORT instruction is received from
             the Prefect API
     """
 
-    # Determine if working with a task run or flow run
-    if not task_run_id and not flow_run_id:
-        raise ValueError("You must provide either a `task_run_id` or `flow_run_id`")
+    if not flow_run_id:
+        raise ValueError("You must provide a `flow_run_id`")
 
-    # Handle task and sub-flow tracing
+    # Handle sub-flow tracing
     if state.is_final():
         result: Any
         if _is_result_record(state.data):
@@ -345,7 +351,7 @@ async def propose_state(
         else:
             result = state.data
 
-        link_state_to_result(state, result)
+        link_state_to_flow_run_result(state, result)
 
     # Handle repeated WAITs in a loop instead of recursively, to avoid
     # reaching max recursion depth in extreme cases.
@@ -364,18 +370,8 @@ async def propose_state(
             response = await set_state_func()
         return response
 
-    # Attempt to set the state
-    if task_run_id:
-        set_state = partial(client.set_task_run_state, task_run_id, state, force=force)
-        response = await set_state_and_handle_waits(set_state)
-    elif flow_run_id:
-        set_state = partial(client.set_flow_run_state, flow_run_id, state, force=force)
-        response = await set_state_and_handle_waits(set_state)
-    else:
-        raise ValueError(
-            "Neither flow run id or task run id were provided. At least one must "
-            "be given."
-        )
+    set_state = partial(client.set_flow_run_state, flow_run_id, state, force=force)
+    response = await set_state_and_handle_waits(set_state)
 
     # Parse the response to return the new state
     if response.status == SetStateStatus.ACCEPT:
@@ -412,12 +408,11 @@ async def propose_state(
 def propose_state_sync(
     client: "SyncPrefectClient",
     state: State[Any],
+    flow_run_id: UUID,
     force: bool = False,
-    task_run_id: Optional[UUID] = None,
-    flow_run_id: Optional[UUID] = None,
 ) -> State[Any]:
     """
-    Propose a new state for a flow run or task run, invoking Prefect orchestration logic.
+    Propose a new state for a flow run, invoking Prefect orchestration logic.
 
     If the proposed state is accepted, the provided `state` will be augmented with
      details and returned.
@@ -432,32 +427,26 @@ def propose_state_sync(
     error will be raised.
 
     Args:
-        state: a new state for the task or flow run
-        task_run_id: an optional task run id, used when proposing task run states
+        state: a new state for the flow run
         flow_run_id: an optional flow run id, used when proposing flow run states
 
     Returns:
-        a [State model][prefect.client.schemas.objects.State] representation of the
-            flow or task run state
+        a State model representation of the flow run state
 
     Raises:
-        ValueError: if neither task_run_id or flow_run_id is provided
+        ValueError: if flow_run_id is not provided
         prefect.exceptions.Abort: if an ABORT instruction is received from
             the Prefect API
     """
 
-    # Determine if working with a task run or flow run
-    if not task_run_id and not flow_run_id:
-        raise ValueError("You must provide either a `task_run_id` or `flow_run_id`")
-
-    # Handle task and sub-flow tracing
+    # Handle sub-flow tracing
     if state.is_final():
         if _is_result_record(state.data):
             result = state.data.result
         else:
             result = state.data
 
-        link_state_to_result(state, result)
+        link_state_to_flow_run_result(state, result)
 
     # Handle repeated WAITs in a loop instead of recursively, to avoid
     # reaching max recursion depth in extreme cases.
@@ -477,17 +466,8 @@ def propose_state_sync(
         return response
 
     # Attempt to set the state
-    if task_run_id:
-        set_state = partial(client.set_task_run_state, task_run_id, state, force=force)
-        response = set_state_and_handle_waits(set_state)
-    elif flow_run_id:
-        set_state = partial(client.set_flow_run_state, flow_run_id, state, force=force)
-        response = set_state_and_handle_waits(set_state)
-    else:
-        raise ValueError(
-            "Neither flow run id or task run id were provided. At least one must "
-            "be given."
-        )
+    set_state = partial(client.set_flow_run_state, flow_run_id, state, force=force)
+    response = set_state_and_handle_waits(set_state)
 
     # Parse the response to return the new state
     if response.status == SetStateStatus.ACCEPT:
@@ -519,7 +499,7 @@ def propose_state_sync(
         )
 
 
-def get_state_for_result(obj: Any) -> Optional[State]:
+def get_state_for_result(obj: Any) -> Optional[tuple[State, RunType]]:
     """
     Get the state related to a result object.
 
@@ -527,10 +507,20 @@ def get_state_for_result(obj: Any) -> Optional[State]:
     """
     flow_run_context = FlowRunContext.get()
     if flow_run_context:
-        return flow_run_context.task_run_results.get(id(obj))
+        return flow_run_context.run_results.get(id(obj))
 
 
-def link_state_to_result(state: State, result: Any) -> None:
+def link_state_to_flow_run_result(state: State, result: Any) -> None:
+    """Creates a link between a state and flow run result"""
+    link_state_to_result(state, result, RunType.FLOW_RUN)
+
+
+def link_state_to_task_run_result(state: State, result: Any) -> None:
+    """Creates a link between a state and task run result"""
+    link_state_to_result(state, result, RunType.TASK_RUN)
+
+
+def link_state_to_result(state: State, result: Any, run_type: RunType) -> None:
     """
     Caches a link between a state and a result and its components using
     the `id` of the components to map to the state. The cache is persisted to the
@@ -586,7 +576,7 @@ def link_state_to_result(state: State, result: Any) -> None:
             ):
                 state.state_details.untrackable_result = True
                 return
-            flow_run_context.task_run_results[id(obj)] = linked_state
+            flow_run_context.run_results[id(obj)] = (linked_state, run_type)
 
         visit_collection(expr=result, visit_fn=link_if_trackable, max_depth=1)
 

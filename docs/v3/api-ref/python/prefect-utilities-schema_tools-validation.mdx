@@ -1,0 +1,56 @@
+---
+title: validation
+sidebarTitle: validation
+---
+
+# `prefect.utilities.schema_tools.validation`
+
+## Functions
+
+### `is_valid_schema`
+
+```python
+is_valid_schema(schema: ObjectSchema, preprocess: bool = True) -> None
+```
+
+### `validate`
+
+```python
+validate(obj: dict[str, Any], schema: ObjectSchema, raise_on_error: bool = False, preprocess: bool = True, ignore_required: bool = False, allow_none_with_default: bool = False) -> list[JSONSchemaValidationError]
+```
+
+### `is_valid`
+
+```python
+is_valid(obj: dict[str, Any], schema: ObjectSchema) -> bool
+```
+
+### `prioritize_placeholder_errors`
+
+```python
+prioritize_placeholder_errors(errors: list[JSONSchemaValidationError]) -> list[JSONSchemaValidationError]
+```
+
+### `build_error_obj`
+
+```python
+build_error_obj(errors: list[JSONSchemaValidationError]) -> dict[str, Any]
+```
+
+### `process_properties`
+
+```python
+process_properties(properties: dict[str, dict[str, Any]], required_fields: list[str], allow_none_with_default: bool = False) -> None
+```
+
+### `preprocess_schema`
+
+```python
+preprocess_schema(schema: ObjectSchema, allow_none_with_default: bool = False) -> ObjectSchema
+```
+
+## Classes
+
+### `CircularSchemaRefError`
+
+### `ValidationError`

@@ -1,5 +1,5 @@
 """
-Module containing the base workflow class and decorator - for most use cases, using the [`@flow` decorator][prefect.flows.flow] is preferred.
+Module containing the base workflow class and decorator - for most use cases, using the `@flow` decorator is preferred.
 """
 
 from __future__ import annotations
@@ -144,9 +144,6 @@ logger: "logging.Logger" = get_logger("flows")
 class Flow(Generic[P, R]):
     """
     A Prefect workflow definition.
-
-    !!! note
-        We recommend using the [`@flow` decorator][prefect.flows.flow] for most use-cases.
 
     Wraps a function with an entrypoint to the Prefect engine. To preserve the input
     and output types, we use the generic type variables `P` and `R` for "Parameters" and
@@ -500,23 +497,29 @@ class Flow(Generic[P, R]):
 
             Create a new flow from an existing flow and update the name:
 
-            >>> @flow(name="My flow")
-            >>> def my_flow():
-            >>>     return 1
-            >>>
-            >>> new_flow = my_flow.with_options(name="My new flow")
+            ```python
+            from prefect import flow
+
+            @flow(name="My flow")
+            def my_flow():
+                return 1
+
+            new_flow = my_flow.with_options(name="My new flow")
+            ```
 
             Create a new flow from an existing flow, update the task runner, and call
             it without an intermediate variable:
 
-            >>> from prefect.task_runners import ThreadPoolTaskRunner
-            >>>
-            >>> @flow
-            >>> def my_flow(x, y):
-            >>>     return x + y
-            >>>
-            >>> state = my_flow.with_options(task_runner=ThreadPoolTaskRunner)(1, 3)
-            >>> assert state.result() == 4
+            ```python
+            from prefect.task_runners import ThreadPoolTaskRunner
+
+            @flow
+            def my_flow(x, y):
+                return x + y
+
+            state = my_flow.with_options(task_runner=ThreadPoolTaskRunner)(1, 3)
+            assert state.result() == 4
+            ```
         """
         new_task_runner = (
             task_runner() if isinstance(task_runner, type) else task_runner
@@ -1653,22 +1656,27 @@ class Flow(Generic[P, R]):
 
             Define a flow
 
-            >>> @flow
-            >>> def my_flow(name):
-            >>>     print(f"hello {name}")
-            >>>     return f"goodbye {name}"
+            ```python
+            @flow
+            def my_flow(name):
+                print(f"hello {name}")
+                return f"goodbye {name}"
+            ```
 
             Run a flow
 
-            >>> my_flow("marvin")
-            hello marvin
-            "goodbye marvin"
+            ```python
+            my_flow("marvin")
+            ```
 
             Run a flow with additional tags
 
-            >>> from prefect import tags
-            >>> with tags("db", "blue"):
-            >>>     my_flow("foo")
+            ```python
+            from prefect import tags
+
+            with tags("db", "blue"):
+                my_flow("foo")
+            ```
         """
         from prefect.utilities.visualization import (
             get_task_viz_tracker,
@@ -1907,36 +1915,47 @@ class FlowDecorator:
         Examples:
             Define a simple flow
 
-            >>> from prefect import flow
-            >>> @flow
-            >>> def add(x, y):
-            >>>     return x + y
+            ```python
+            from prefect import flow
+
+            @flow
+            def add(x, y):
+                return x + y
+            ```
 
             Define an async flow
 
-            >>> @flow
-            >>> async def add(x, y):
-            >>>     return x + y
+            ```python
+            @flow
+            async def add(x, y):
+                return x + y
+            ```
 
             Define a flow with a version and description
 
-            >>> @flow(version="first-flow", description="This flow is empty!")
-            >>> def my_flow():
-            >>>     pass
+            ```python
+            @flow(version="first-flow", description="This flow is empty!")
+            def my_flow():
+                pass
+            ```
 
             Define a flow with a custom name
 
-            >>> @flow(name="The Ultimate Flow")
-            >>> def my_flow():
-            >>>     pass
+            ```python
+            @flow(name="The Ultimate Flow")
+            def my_flow():
+                pass
+            ```
 
             Define a flow that submits its tasks to dask
 
-            >>> from prefect_dask.task_runners import DaskTaskRunner
-            >>>
-            >>> @flow(task_runner=DaskTaskRunner)
-            >>> def my_flow():
-            >>>     pass
+            ```python
+            from prefect_dask.task_runners import DaskTaskRunner
+
+            @flow(task_runner=DaskTaskRunner)
+            def my_flow():
+                pass
+            ```
         """
         if __fn:
             return Flow(

@@ -3401,6 +3401,8 @@ export interface components {
             name?: components["schemas"]["AutomationFilterName"] | null;
             /** @description Filter criteria for `Automation.created` */
             created?: components["schemas"]["AutomationFilterCreated"] | null;
+            /** @description Filter criteria for `Automation.tags` */
+            tags?: components["schemas"]["AutomationFilterTags"] | null;
         };
         /**
          * AutomationFilterCreated
@@ -3423,6 +3425,32 @@ export interface components {
              * @description Only include automations with names that match any of these strings
              */
             any_?: string[] | null;
+        };
+        /**
+         * AutomationFilterTags
+         * @description Filter by `Automation.tags`.
+         */
+        AutomationFilterTags: {
+            /**
+             * @description Operator for combining filter criteria. Defaults to 'and_'.
+             * @default and_
+             */
+            operator: components["schemas"]["Operator"];
+            /**
+             * All
+             * @description A list of tags. Automations will be returned only if their tags are a superset of the list
+             */
+            all_?: string[] | null;
+            /**
+             * Any
+             * @description A list of tags. Automations will be returned if their tags contain any of the tags in the list
+             */
+            any_?: string[] | null;
+            /**
+             * Is Null
+             * @description If true, only include automations without tags
+             */
+            is_null_?: boolean | null;
         };
         /** AutomationPartialUpdate */
         AutomationPartialUpdate: {
@@ -4576,7 +4604,7 @@ export interface components {
              * @default 0
              */
             offset: number;
-            logs?: components["schemas"]["LogFilter"];
+            logs?: components["schemas"]["LogFilter"] | null;
             /** @default TIMESTAMP_ASC */
             sort: components["schemas"]["LogSort"];
             /**
@@ -5452,6 +5480,11 @@ export interface components {
              * @description A list of deployment ids to include
              */
             any_?: string[] | null;
+            /**
+             * Not Any
+             * @description A list of deployment ids to exclude
+             */
+            not_any_?: string[] | null;
         };
         /**
          * DeploymentFilterName
@@ -7256,6 +7289,20 @@ export interface components {
                 [key: string]: unknown;
             } | null;
         };
+        /** FlowRunResult */
+        FlowRunResult: {
+            /**
+             * Input Type
+             * @default flow_run
+             * @constant
+             */
+            input_type: "flow_run";
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+        };
         /**
          * FlowRunSort
          * @description Defines flow run sorting options.
@@ -8574,7 +8621,7 @@ export interface components {
              * @description Tracks the source of inputs to a task run. Used for internal bookkeeping.
              */
             task_inputs?: {
-                [key: string]: (components["schemas"]["TaskRunResult"] | components["schemas"]["Parameter"] | components["schemas"]["Constant"])[];
+                [key: string]: (components["schemas"]["TaskRunResult"] | components["schemas"]["FlowRunResult"] | components["schemas"]["Parameter"] | components["schemas"]["Constant"])[];
             };
             /** @description The type of the current task run state. */
             state_type?: components["schemas"]["StateType"] | null;
@@ -8701,7 +8748,7 @@ export interface components {
              * @description The inputs to the task run.
              */
             task_inputs?: {
-                [key: string]: (components["schemas"]["TaskRunResult"] | components["schemas"]["Parameter"] | components["schemas"]["Constant"])[];
+                [key: string]: (components["schemas"]["TaskRunResult"] | components["schemas"]["FlowRunResult"] | components["schemas"]["Parameter"] | components["schemas"]["Constant"])[];
             };
         };
         /**
@@ -8984,7 +9031,7 @@ export interface components {
              * @description Inputs provided to the task run.
              */
             task_inputs?: {
-                [key: string]: components["schemas"]["TaskRunResult"][];
+                [key: string]: (components["schemas"]["TaskRunResult"] | components["schemas"]["FlowRunResult"] | components["schemas"]["Parameter"] | components["schemas"]["Constant"])[];
             };
             /**
              * Context
@@ -9123,7 +9170,7 @@ export interface components {
              * @description Tracks the source of inputs to a task run. Used for internal bookkeeping.
              */
             task_inputs?: {
-                [key: string]: (components["schemas"]["TaskRunResult"] | components["schemas"]["Parameter"] | components["schemas"]["Constant"])[];
+                [key: string]: (components["schemas"]["TaskRunResult"] | components["schemas"]["FlowRunResult"] | components["schemas"]["Parameter"] | components["schemas"]["Constant"])[];
             };
             /** @description The type of the current task run state. */
             state_type?: components["schemas"]["StateType"] | null;

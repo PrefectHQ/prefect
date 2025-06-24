@@ -1,0 +1,64 @@
+---
+title: labelling
+sidebarTitle: labelling
+---
+
+# `prefect.events.schemas.labelling`
+
+## Classes
+
+### `LabelDiver`
+
+
+The LabelDiver supports templating use cases for any Labelled object, by
+presenting the labels as a graph of objects that may be accessed by attribute.  For
+example:
+
+    diver = LabelDiver({
+        'hello.world': 'foo',
+        'hello.world.again': 'bar'
+    })
+
+    assert str(diver.hello.world) == 'foo'
+    assert str(diver.hello.world.again) == 'bar'
+
+
+### `Labelled`
+
+**Methods:**
+
+#### `keys`
+
+```python
+keys(self) -> Iterable[str]
+```
+
+#### `items`
+
+```python
+items(self) -> Iterable[Tuple[str, str]]
+```
+
+#### `get`
+
+```python
+get(self, label: str, default: Optional[str] = None) -> Optional[str]
+```
+
+#### `as_label_value_array`
+
+```python
+as_label_value_array(self) -> List[Dict[str, str]]
+```
+
+#### `labels`
+
+```python
+labels(self) -> LabelDiver
+```
+
+#### `has_all_labels`
+
+```python
+has_all_labels(self, labels: Dict[str, str]) -> bool
+```

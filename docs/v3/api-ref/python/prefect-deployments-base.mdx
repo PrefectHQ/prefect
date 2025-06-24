@@ -1,0 +1,69 @@
+---
+title: base
+sidebarTitle: base
+---
+
+# `prefect.deployments.base`
+
+
+
+Core primitives for managing Prefect deployments via `prefect deploy`, providing a minimally opinionated
+build system for managing flows and deployments.
+
+To get started, follow along with [the deloyments tutorial](/tutorials/deployments/).
+
+
+## Functions
+
+### `create_default_prefect_yaml`
+
+```python
+create_default_prefect_yaml(path: str, name: Optional[str] = None, contents: Optional[Dict[str, Any]] = None) -> bool
+```
+
+
+Creates default `prefect.yaml` file in the provided path if one does not already exist;
+returns boolean specifying whether a file was created.
+
+**Args:**
+- `name`: the name of the project; if not provided, the current directory name
+will be used
+- `contents`: a dictionary of contents to write to the file; if not provided,
+defaults will be used
+
+
+### `configure_project_by_recipe`
+
+```python
+configure_project_by_recipe(recipe: str, **formatting_kwargs: Any) -> dict[str, Any] | type[NotSet]
+```
+
+
+Given a recipe name, returns a dictionary representing base configuration options.
+
+**Args:**
+- `recipe`: the name of the recipe to use
+- `formatting_kwargs`: additional keyword arguments to format the recipe
+
+**Raises:**
+- `ValueError`: if provided recipe name does not exist.
+
+
+### `initialize_project`
+
+```python
+initialize_project(name: Optional[str] = None, recipe: Optional[str] = None, inputs: Optional[Dict[str, Any]] = None) -> List[str]
+```
+
+
+Initializes a basic project structure with base files.  If no name is provided, the name
+of the current directory is used.  If no recipe is provided, one is inferred.
+
+**Args:**
+- `name`: the name of the project; if not provided, the current directory name
+- `recipe`: the name of the recipe to use; if not provided, one is inferred
+- `inputs`: a dictionary of inputs to use when formatting the recipe
+
+**Returns:**
+- List[str]: a list of files / directories that were created
+

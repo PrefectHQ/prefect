@@ -45,6 +45,7 @@ from prefect.client.schemas.filters import (
     ArtifactFilter,
     ArtifactFilterKey,
     DeploymentFilter,
+    DeploymentFilterId,
     DeploymentFilterTags,
     FlowFilter,
     FlowRunFilter,
@@ -837,6 +838,57 @@ async def test_read_deployment_by_any_tag(
         assert deployment_responses[0].name == "moisturized-deployment"
     else:
         assert len(deployment_responses) == 0
+
+
+async def test_read_deployments_with_id_not_any_filter(prefect_client):
+    """Test the DeploymentFilterId.not_any_ filter for pagination use case."""
+
+    @flow
+    def test_flow():
+        pass
+
+    flow_id = await prefect_client.create_flow(test_flow)
+
+    # Create multiple deployments
+    deployment_ids = []
+    for i in range(5):
+        deployment_id = await prefect_client.create_deployment(
+            flow_id=flow_id,
+            name=f"deployment-{i}",
+        )
+        deployment_ids.append(deployment_id)
+
+    # Test excluding specific deployments
+    deployments = await prefect_client.read_deployments(
+        deployment_filter=DeploymentFilter(
+            id=DeploymentFilterId(not_any_=[deployment_ids[0], deployment_ids[1]])
+        )
+    )
+    result_ids = {d.id for d in deployments}
+    assert deployment_ids[0] not in result_ids
+    assert deployment_ids[1] not in result_ids
+    assert all(deployment_ids[i] in result_ids for i in range(2, 5))
+
+    # Test pagination use case - fetch deployments iteratively
+    found_deployments = []
+    while True:
+        exclude_ids = [d.id for d in found_deployments]
+        new_deployments = await prefect_client.read_deployments(
+            deployment_filter=DeploymentFilter(
+                id=DeploymentFilterId(not_any_=exclude_ids) if exclude_ids else None
+            ),
+            limit=2,
+        )
+        if not new_deployments:
+            break
+        found_deployments.extend(new_deployments)
+        if len(new_deployments) < 2:
+            break
+
+    # Verify we got all deployments through pagination
+    assert len(found_deployments) >= 5
+    found_ids = {d.id for d in found_deployments}
+    assert all(dep_id in found_ids for dep_id in deployment_ids)
 
 
 async def test_create_then_delete_deployment(prefect_client):
@@ -1933,6 +1985,35 @@ async def test_update_deployment_paused(
     assert deployment.paused == after_update
 
 
+async def test_pause_and_resume_deployment(prefect_client, flow_run):
+    # Create deployment in unpaused state
+    deployment_id = await prefect_client.create_deployment(
+        flow_id=flow_run.flow_id,
+        name="test-deployment",
+        paused=False,
+    )
+    deployment = await prefect_client.read_deployment(deployment_id)
+    assert deployment.paused is False
+
+    # Test pause with UUID
+    await prefect_client.pause_deployment(deployment_id)
+    deployment = await prefect_client.read_deployment(deployment_id)
+    assert deployment.paused is True
+
+    # Test resume with string ID
+    await prefect_client.resume_deployment(str(deployment_id))
+    deployment = await prefect_client.read_deployment(deployment_id)
+    assert deployment.paused is False
+
+    # Test error cases
+    with pytest.raises(ValueError, match="Invalid deployment ID"):
+        await prefect_client.pause_deployment("not-a-uuid")
+
+    fake_id = "00000000-0000-0000-0000-000000000000"
+    with pytest.raises(prefect.exceptions.ObjectNotFound):
+        await prefect_client.pause_deployment(fake_id)
+
+
 class TestWorkPools:
     async def test_read_work_pools(self, prefect_client):
         # default pool shows up when running the test class or individuals, but not when running
@@ -2820,6 +2901,34 @@ class TestSyncClient:
         version = sync_prefect_client.api_version()
         assert prefect.__version__
         assert version == prefect.__version__
+
+    def test_pause_and_resume_deployment(self, sync_prefect_client, flow):
+        # Create deployment in unpaused state
+        deployment_id = sync_prefect_client.create_deployment(
+            flow_id=flow.id,
+            name="test-deployment",
+            paused=False,
+        )
+        deployment = sync_prefect_client.read_deployment(deployment_id)
+        assert deployment.paused is False
+
+        # Test pause with UUID
+        sync_prefect_client.pause_deployment(deployment_id)
+        deployment = sync_prefect_client.read_deployment(deployment_id)
+        assert deployment.paused is True
+
+        # Test resume with string ID
+        sync_prefect_client.resume_deployment(str(deployment_id))
+        deployment = sync_prefect_client.read_deployment(deployment_id)
+        assert deployment.paused is False
+
+        # Test error cases
+        with pytest.raises(ValueError, match="Invalid deployment ID"):
+            sync_prefect_client.pause_deployment("not-a-uuid")
+
+        fake_id = "00000000-0000-0000-0000-000000000000"
+        with pytest.raises(prefect.exceptions.ObjectNotFound):
+            sync_prefect_client.pause_deployment(fake_id)
 
 
 class TestSyncClientRaiseForAPIVersionMismatch:

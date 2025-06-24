@@ -462,6 +462,9 @@ class DeploymentFilterId(PrefectBaseModel):
     any_: Optional[List[UUID]] = Field(
         default=None, description="A list of deployment ids to include"
     )
+    not_any_: Optional[List[UUID]] = Field(
+        default=None, description="A list of deployment ids to exclude"
+    )
 
 
 class DeploymentFilterName(PrefectBaseModel):

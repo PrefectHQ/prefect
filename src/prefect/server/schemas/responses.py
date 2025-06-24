@@ -372,9 +372,17 @@ class TaskRunResponse(ORMBaseModel):
     parameters: dict[str, Any] = Field(
         default_factory=dict, description="Parameters for the task run."
     )
-    task_inputs: dict[str, list[schemas.core.TaskRunResult]] = Field(
-        default_factory=dict, description="Inputs provided to the task run."
-    )
+    task_inputs: dict[
+        str,
+        list[
+            Union[
+                schemas.core.TaskRunResult,
+                schemas.core.FlowRunResult,
+                schemas.core.Parameter,
+                schemas.core.Constant,
+            ]
+        ],
+    ] = Field(default_factory=dict, description="Inputs provided to the task run.")
     context: dict[str, Any] = Field(
         default_factory=dict,
         description="Additional context for the task run.",

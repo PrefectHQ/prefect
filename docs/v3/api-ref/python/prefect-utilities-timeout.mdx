@@ -1,0 +1,26 @@
+---
+title: timeout
+sidebarTitle: timeout
+---
+
+# `prefect.utilities.timeout`
+
+## Functions
+
+### `fail_if_not_timeout_error`
+
+```python
+fail_if_not_timeout_error(timeout_exc_type: type[Exception]) -> None
+```
+
+### `timeout_async`
+
+```python
+timeout_async(seconds: Optional[float] = None, timeout_exc_type: type[TimeoutError] = TimeoutError)
+```
+
+### `timeout`
+
+```python
+timeout(seconds: Optional[float] = None, timeout_exc_type: type[TimeoutError] = TimeoutError)
+```

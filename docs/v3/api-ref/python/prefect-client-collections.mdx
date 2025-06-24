@@ -1,0 +1,26 @@
+---
+title: collections
+sidebarTitle: collections
+---
+
+# `prefect.client.collections`
+
+## Functions
+
+### `get_collections_metadata_client`
+
+```python
+get_collections_metadata_client(httpx_settings: Optional[Dict[str, Any]] = None) -> 'CollectionsMetadataClient'
+```
+
+
+Creates a client that can be used to fetch metadata for
+Prefect collections.
+
+Will return a `CloudClient` if profile is set to connect
+to Prefect Cloud, otherwise will return an `OrchestrationClient`.
+
+
+## Classes
+
+### `CollectionsMetadataClient`

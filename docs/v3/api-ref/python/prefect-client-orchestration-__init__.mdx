@@ -1,0 +1,263 @@
+---
+title: __init__
+sidebarTitle: __init__
+---
+
+# `prefect.client.orchestration`
+
+## Functions
+
+### `get_client`
+
+```python
+get_client(httpx_settings: Optional[dict[str, Any]] = None, sync_client: bool = False) -> Union['SyncPrefectClient', 'PrefectClient']
+```
+
+
+Retrieve a HTTP client for communicating with the Prefect REST API.
+
+The client must be context managed; for example:
+
+```python
+async with get_client() as client:
+    await client.hello()
+```
+
+To return a synchronous client, pass sync_client=True:
+
+```python
+with get_client(sync_client=True) as client:
+    client.hello()
+```
+
+
+## Classes
+
+### `PrefectClient`
+
+
+An asynchronous client for interacting with the [Prefect REST API](/api-ref/rest-api/).
+
+**Args:**
+- `api`: the REST API URL or FastAPI application to connect to
+- `api_key`: An optional API key for authentication.
+- `api_version`: The API version this client is compatible with.
+- `httpx_settings`: An optional dictionary of settings to pass to the underlying
+`httpx.AsyncClient`
+
+Examples:
+
+    Say hello to a Prefect REST API
+
+    &lt;div class="terminal"&gt;
+    ```
+    >>> async with get_client() as client:
+    >>>     response = await client.hello()
+    >>>
+    >>> print(response.json())
+    👋
+    ```
+    &lt;/div&gt;
+
+
+**Methods:**
+
+#### `api_url`
+
+```python
+api_url(self) -> httpx.URL
+```
+
+Get the base URL for the API.
+
+
+#### `client_version`
+
+```python
+client_version(self) -> str
+```
+
+#### `loop`
+
+```python
+loop(self) -> asyncio.AbstractEventLoop | None
+```
+
+### `SyncPrefectClient`
+
+
+A synchronous client for interacting with the [Prefect REST API](/api-ref/rest-api/).
+
+**Args:**
+- `api`: the REST API URL or FastAPI application to connect to
+- `api_key`: An optional API key for authentication.
+- `api_version`: The API version this client is compatible with.
+- `httpx_settings`: An optional dictionary of settings to pass to the underlying
+`httpx.Client`
+
+Examples:
+
+    Say hello to a Prefect REST API
+
+    &lt;div class="terminal"&gt;
+    ```
+    >>> with get_client(sync_client=True) as client:
+    >>>     response = client.hello()
+    >>>
+    >>> print(response.json())
+    👋
+    ```
+    &lt;/div&gt;
+
+
+**Methods:**
+
+#### `api_url`
+
+```python
+api_url(self) -> httpx.URL
+```
+
+Get the base URL for the API.
+
+
+#### `api_healthcheck`
+
+```python
+api_healthcheck(self) -> Optional[Exception]
+```
+
+Attempts to connect to the API and returns the encountered exception if not
+successful.
+
+If successful, returns `None`.
+
+
+#### `hello`
+
+```python
+hello(self) -> httpx.Response
+```
+
+Send a GET request to /hello for testing purposes.
+
+
+#### `api_version`
+
+```python
+api_version(self) -> str
+```
+
+#### `client_version`
+
+```python
+client_version(self) -> str
+```
+
+#### `raise_for_api_version_mismatch`
+
+```python
+raise_for_api_version_mismatch(self) -> None
+```
+
+#### `set_task_run_name`
+
+```python
+set_task_run_name(self, task_run_id: UUID, name: str) -> httpx.Response
+```
+
+#### `create_task_run`
+
+```python
+create_task_run(self, task: 'TaskObject[P, R]', flow_run_id: Optional[UUID], dynamic_key: str, id: Optional[UUID] = None, name: Optional[str] = None, extra_tags: Optional[Iterable[str]] = None, state: Optional[prefect.states.State[R]] = None, task_inputs: Optional[dict[str, list[Union[TaskRunResult, FlowRunResult, Parameter, Constant]]]] = None) -> TaskRun
+```
+
+Create a task run
+
+**Args:**
+- `task`: The Task to run
+- `flow_run_id`: The flow run id with which to associate the task run
+- `dynamic_key`: A key unique to this particular run of a Task within the flow
+- `id`: An optional ID for the task run. If not provided, one will be generated
+server-side.
+- `name`: An optional name for the task run
+- `extra_tags`: an optional list of extra tags to apply to the task run in
+addition to `task.tags`
+- `state`: The initial state for the run. If not provided, defaults to
+`Pending` for now. Should always be a `Scheduled` type.
+- `task_inputs`: the set of inputs passed to the task
+
+**Returns:**
+- The created task run.
+
+
+#### `read_task_run`
+
+```python
+read_task_run(self, task_run_id: UUID) -> TaskRun
+```
+
+Query the Prefect API for a task run by id.
+
+**Args:**
+- `task_run_id`: the task run ID of interest
+
+**Returns:**
+- a Task Run model representation of the task run
+
+
+#### `read_task_runs`
+
+```python
+read_task_runs(self) -> list[TaskRun]
+```
+
+Query the Prefect API for task runs. Only task runs matching all criteria will
+be returned.
+
+**Args:**
+- `flow_filter`: filter criteria for flows
+- `flow_run_filter`: filter criteria for flow runs
+- `task_run_filter`: filter criteria for task runs
+- `deployment_filter`: filter criteria for deployments
+- `sort`: sort criteria for the task runs
+- `limit`: a limit for the task run query
+- `offset`: an offset for the task run query
+
+**Returns:**
+- a list of Task Run model representations
+of the task runs
+
+
+#### `set_task_run_state`
+
+```python
+set_task_run_state(self, task_run_id: UUID, state: prefect.states.State[Any], force: bool = False) -> OrchestrationResult[Any]
+```
+
+Set the state of a task run.
+
+**Args:**
+- `task_run_id`: the id of the task run
+- `state`: the state to set
+- `force`: if True, disregard orchestration logic when setting the state,
+forcing the Prefect API to accept the state
+
+**Returns:**
+- an OrchestrationResult model representation of state orchestration output
+
+
+#### `read_task_run_states`
+
+```python
+read_task_run_states(self, task_run_id: UUID) -> list[prefect.states.State]
+```
+
+Query for the states of a task run
+
+**Args:**
+- `task_run_id`: the id of the task run
+
+**Returns:**
+- a list of State model representations of the task run states
+
