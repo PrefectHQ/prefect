@@ -7,10 +7,10 @@ import {
 	toastDecorator,
 } from "@/storybook/utils";
 import type { Meta, StoryObj } from "@storybook/react";
-import { fn } from "@storybook/test";
 import { buildApiUrl } from "@tests/utils/handlers";
 import { http, HttpResponse } from "msw";
 import { type ComponentProps, useMemo, useState } from "react";
+import { fn } from "storybook/test";
 import { DeploymentsDataTable } from ".";
 
 export default {

@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react";
-import { fn } from "@storybook/test";
+import { fn } from "storybook/test";
 
 import { AutomationWizardSchema } from "@/components/automations/automations-wizard/automation-schema";
 import { Form } from "@/components/ui/form";

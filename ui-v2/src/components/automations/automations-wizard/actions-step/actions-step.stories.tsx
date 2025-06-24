@@ -11,10 +11,10 @@ import {
 } from "@/mocks";
 import { reactQueryDecorator } from "@/storybook/utils";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { fn } from "@storybook/test";
 import { buildApiUrl } from "@tests/utils/handlers";
 import { http, HttpResponse } from "msw";
 import { useForm } from "react-hook-form";
+import { fn } from "storybook/test";
 import { ActionsStep } from "./actions-step";
 
 const MOCK_AUTOMATIONS_DATA = Array.from({ length: 5 }, createFakeAutomation);

@@ -3,7 +3,7 @@ import type { JSX } from "react";
 import type { Meta, StoryObj } from "@storybook/react";
 
 import { Icon } from "@/components/ui/icons";
-import { fn } from "@storybook/test";
+import { fn } from "storybook/test";
 import { Button } from "./button";
 import { DocsLink } from "./docs-link";
 import {

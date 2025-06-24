@@ -1,4 +1,4 @@
-import { addons } from "@storybook/manager-api";
+import { addons } from "storybook/manager-api";
 
 import favicon from "../public/ico/favicon-16x16-dark.png";
 import { prefectLightTheme } from "./prefect-theme";

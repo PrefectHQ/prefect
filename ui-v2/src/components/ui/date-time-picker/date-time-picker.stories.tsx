@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react";
 
-import { fn } from "@storybook/test";
+import { fn } from "storybook/test";
 import { DateTimePicker } from "./date-time-picker";
 
 const meta = {
