@@ -344,7 +344,26 @@ def handle_secret_render(value: object, context: dict[str, Any]) -> object:
             else obfuscate(value)
         )
     elif isinstance(value, BaseModel):
-        return value.model_dump(context=context)
+        # Pass the serialization mode if available in context
+        mode = context.get("serialization_mode", "python")
+        if mode == "json":
+            # For JSON mode with nested models, we need to recursively process fields
+            # because regular Pydantic models don't understand include_secrets
+            from functools import partial
+
+            from prefect.utilities.collections import visit_collection
+
+            json_data = value.model_dump(mode="json")
+            for field_name in type(value).model_fields:
+                field_value = getattr(value, field_name)
+                json_data[field_name] = visit_collection(
+                    expr=field_value,
+                    visit_fn=partial(handle_secret_render, context=context),
+                    return_data=True,
+                )
+            return json_data
+        else:
+            return value.model_dump(context=context)
     return value
 
 
