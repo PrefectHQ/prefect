@@ -1,1327 +1,597 @@
-import logging
+"""
+Unit tests for prefect-dbt runner
+"""
+
 from pathlib import Path
-from unittest.mock import ANY, Mock, patch
+from unittest.mock import Mock, patch
 
 import pytest
-from dbt.artifacts.resources.types import NodeType
-from dbt.artifacts.schemas.catalog import CatalogArtifact
-from dbt.artifacts.schemas.results import RunStatus, TestStatus
+from dbt.artifacts.schemas.results import (
+    FreshnessStatus,
+    NodeStatus,
+    RunStatus,
+    TestStatus,
+)
 from dbt.artifacts.schemas.run import RunExecutionResult
-from dbt.cli.main import dbtRunnerResult
 from dbt.contracts.graph.manifest import Manifest
 from dbt.contracts.graph.nodes import ManifestNode
-from dbt_common.events.base_types import EventLevel
-from prefect_dbt.core.runner import PrefectDbtRunner
+from dbt_common.events.base_types import EventLevel, EventMsg
+from prefect_dbt.core.runner import (
+    FAILURE_STATUSES,
+    MATERIALIZATION_NODE_TYPES,
+    REFERENCE_NODE_TYPES,
+    PrefectDbtRunner,
+    execute_dbt_node,
+)
 from prefect_dbt.core.settings import PrefectDbtSettings
-
-from prefect import flow
-from prefect.events.schemas.events import RelatedResource
+from prefect_dbt.core.task_state import TaskState
 
 
-@pytest.fixture
-def mock_dbt_runner():
-    with patch("prefect_dbt.core.runner.dbtRunner") as mock_runner:
-        mock_instance = Mock()
-        mock_runner.return_value = mock_instance
+class TestPrefectDbtRunner:
+    """Test cases for PrefectDbtRunner class"""
 
-        # Setup default successful result
-        result = Mock(spec=dbtRunnerResult)
-        result.success = True
-        # Create a Mock that inherits from Manifest
-        manifest_mock = Mock(spec=Manifest)
-        manifest_mock.metadata = Mock()
-        manifest_mock.metadata.adapter_type = "postgres"
-        result.result = manifest_mock
-        mock_instance.invoke.return_value = result
-
-        yield mock_instance
-
-
-@pytest.fixture
-def settings():
-    return PrefectDbtSettings(
-        profiles_dir=Path("./tests/dbt_configs").resolve(),
-        project_dir=Path("./tests/dbt_configs").resolve(),
-        log_level=EventLevel.DEBUG,
-    )
-
-
-@pytest.fixture
-def mock_manifest():
-    """Create a mock manifest with different node types."""
-    manifest = Mock(spec=Manifest)
-    # Create the metadata structure
-    manifest.metadata = Mock()
-    manifest.metadata.adapter_type = "postgres"
-    return manifest
-
-
-@pytest.fixture
-def mock_nodes():
-    """Create mock nodes of different types."""
-    model_node = Mock()
-    model_node.relation_name = '"schema"."model_table"'
-    model_node.depends_on_nodes = []
-    model_node.config.meta = {}
-    model_node.resource_type = NodeType.Model
-    model_node.unique_id = "model.test.model"
-    model_node.name = "model"
-
-    seed_node = Mock()
-    seed_node.relation_name = '"schema"."seed_table"'
-    seed_node.depends_on_nodes = []
-    seed_node.config.meta = {}
-    seed_node.resource_type = NodeType.Seed
-    seed_node.unique_id = "seed.test.seed"
-    seed_node.name = "seed"
-
-    exposure_node = Mock()
-    exposure_node.relation_name = '"schema"."exposure_table"'
-    exposure_node.depends_on_nodes = []
-    exposure_node.config.meta = {}
-    exposure_node.resource_type = NodeType.Exposure
-    exposure_node.unique_id = "exposure.test.exposure"
-    exposure_node.name = "exposure"
-
-    test_node = Mock()
-    test_node.relation_name = '"schema"."test_table"'
-    test_node.depends_on_nodes = []
-    test_node.config.meta = {}
-    test_node.resource_type = NodeType.Test
-    test_node.unique_id = "test.test.test"
-    test_node.name = "test"
-
-    return {
-        "model": model_node,
-        "seed": seed_node,
-        "exposure": exposure_node,
-        "test": test_node,
-    }
-
-
-@pytest.fixture
-def mock_manifest_with_nodes(mock_manifest, mock_nodes):
-    """Create a mock manifest populated with test nodes."""
-    mock_manifest.nodes = {
-        "model.test.model": mock_nodes["model"],
-        "seed.test.seed": mock_nodes["seed"],
-        "exposure.test.exposure": mock_nodes["exposure"],
-        "test.test.test": mock_nodes["test"],
-    }
-    return mock_manifest
-
-
-class TestPrefectDbtRunnerInitialization:
-    def test_runner_initialization(self, settings):
-        manifest = Mock()
-        client = Mock()
-
-        runner = PrefectDbtRunner(manifest=manifest, settings=settings, client=client)
-
-        assert runner.manifest == manifest
-        assert runner.settings == settings
-        assert runner.client == client
-
-    def test_runner_default_initialization(self):
+    def test_default_initialization(self) -> None:
+        """Test default initialization"""
         runner = PrefectDbtRunner()
 
-        assert runner.manifest is None
+        assert runner.settings is not None
         assert isinstance(runner.settings, PrefectDbtSettings)
-        assert runner.client is not None
-
-
-class TestPrefectDbtRunnerParse:
-    def test_parse_success(self, mock_dbt_runner, settings):
-        runner = PrefectDbtRunner(settings=settings)
-        runner.parse()
-
-        mock_dbt_runner.invoke.assert_called_once_with(
-            ["parse"],
-            profiles_dir=ANY,
-            project_dir=settings.project_dir,
-            log_level=EventLevel.DEBUG,
-        )
-        assert runner.manifest is not None
-
-    def test_parse_failure(self, mock_dbt_runner, settings):
-        mock_dbt_runner.invoke.return_value.success = False
-        mock_dbt_runner.invoke.return_value.exception = "Parse error"
-
-        runner = PrefectDbtRunner(settings=settings)
-
-        with pytest.raises(ValueError, match="Failed to load manifest"):
-            runner.parse()
-
-
-class TestPrefectDbtRunnerInvoke:
-    # Basic invocation tests
-    def test_invoke_with_custom_kwargs(self, mock_dbt_runner, settings):
-        runner = PrefectDbtRunner(settings=settings)
-
-        runner.invoke(["run"], vars={"custom_var": "value"}, threads=4)
-
-        call_kwargs = mock_dbt_runner.invoke.call_args.kwargs
-        assert call_kwargs["vars"] == {"custom_var": "value"}
-        assert call_kwargs["threads"] == 4
-        assert call_kwargs["profiles_dir"] == ANY
-        assert call_kwargs["project_dir"] == settings.project_dir
-
-    @pytest.mark.asyncio
-    async def test_ainvoke_with_custom_kwargs(self, mock_dbt_runner, settings):
-        runner = PrefectDbtRunner(settings=settings)
-
-        await runner.ainvoke(["run"], vars={"custom_var": "value"}, threads=4)
-
-        call_kwargs = mock_dbt_runner.invoke.call_args.kwargs
-        assert call_kwargs["vars"] == {"custom_var": "value"}
-        assert call_kwargs["threads"] == 4
-        assert call_kwargs["profiles_dir"] == ANY
-        assert call_kwargs["project_dir"] == settings.project_dir
-
-    # Parsing tests
-    def test_invoke_with_parsing(self, mock_dbt_runner, settings):
-        runner = PrefectDbtRunner(settings=settings)
-
-        runner.invoke(["run"])
-
-        assert mock_dbt_runner.invoke.call_count == 2
-        parse_call = mock_dbt_runner.invoke.call_args_list[0]
-        assert parse_call.args[0] == ["parse"]
-
-        run_call = mock_dbt_runner.invoke.call_args_list[1]
-        assert run_call.args[0] == ["run"]
-
-    @pytest.mark.asyncio
-    async def test_ainvoke_with_parsing(self, mock_dbt_runner, settings):
-        runner = PrefectDbtRunner(settings=settings)
-
-        await runner.ainvoke(["run"])
-
-        assert mock_dbt_runner.invoke.call_count == 2
-        parse_call = mock_dbt_runner.invoke.call_args_list[0]
-        assert parse_call.args[0] == ["parse"]
-
-        run_call = mock_dbt_runner.invoke.call_args_list[1]
-        assert run_call.args[0] == ["run"]
-
-    # Single failure tests
-    def test_invoke_raises_on_failure(self, mock_dbt_runner, settings):
-        runner = PrefectDbtRunner(settings=settings)
-
-        # Setup successful parse result first
-        parse_result = Mock(spec=dbtRunnerResult)
-        parse_result.success = True
-        manifest_mock = Mock(Manifest)
-        parse_result.result = manifest_mock
-
-        # Mock a failed run result
-        run_result = Mock(spec=dbtRunnerResult)
-        run_result.success = False
-        run_result.exception = None
-        run_result.result = Mock(spec=RunExecutionResult)
-
-        # Create a failed node result
-        node_result = Mock()
-        node_result.status = RunStatus.Error
-        node_result.node.resource_type = NodeType.Model
-        node_result.node.name = "failed_model"
-        node_result.message = "Something went wrong"
-
-        run_result.result.results = [node_result]
-
-        # Set up the side effects to return parse_result for parse command and run_result for run command
-        def side_effect(args, **kwargs):
-            if args == ["parse"]:
-                return parse_result
-            elif args == ["run"]:
-                return run_result
-            return Mock()
-
-        mock_dbt_runner.invoke.side_effect = side_effect
-
-        with pytest.raises(
-            ValueError, match="Failures detected during invocation of dbt command 'run'"
-        ):
-            runner.invoke(["run"])
-
-    @pytest.mark.asyncio
-    async def test_ainvoke_raises_on_failure(self, mock_dbt_runner, settings):
-        runner = PrefectDbtRunner(settings=settings)
-
-        # Setup successful parse result first
-        parse_result = Mock(spec=dbtRunnerResult)
-        parse_result.success = True
-        manifest_mock = Mock(Manifest)
-        parse_result.result = manifest_mock
-
-        # Mock a failed result
-        run_result = Mock(spec=dbtRunnerResult)
-        run_result.success = False
-        run_result.exception = None
-        run_result.result = Mock(spec=RunExecutionResult)
-        # Create a failed node result
-        node_result = Mock()
-        node_result.status = RunStatus.Error
-        node_result.node.resource_type = NodeType.Model
-        node_result.node.name = "failed_model"
-        node_result.message = "Something went wrong"
-
-        run_result.result.results = [node_result]
-
-        def side_effect(args, **kwargs):
-            if args == ["parse"]:
-                return parse_result
-            elif args == ["run"]:
-                return run_result
-            return Mock()
-
-        mock_dbt_runner.invoke.side_effect = side_effect
-
-        with pytest.raises(
-            ValueError, match="Failures detected during invocation of dbt command 'run'"
-        ):
-            await runner.ainvoke(["run"])
-
-    # Multiple failures tests
-    def test_invoke_multiple_failures(self, mock_dbt_runner, settings):
-        runner = PrefectDbtRunner(settings=settings)
-
-        # Setup successful parse result first
-        parse_result = Mock(spec=dbtRunnerResult)
-        parse_result.success = True
-        manifest_mock = Mock(Manifest)
-        parse_result.result = manifest_mock
-
-        # Mock a failed result with multiple failures
-        run_result = Mock(spec=dbtRunnerResult)
-        run_result.success = False
-        run_result.exception = None
-        run_result.result = Mock(spec=RunExecutionResult)
-
-        # Create multiple failed node results
-        failed_model = Mock()
-        failed_model.status = RunStatus.Error
-        failed_model.node.resource_type = NodeType.Model
-        failed_model.node.name = "failed_model"
-        failed_model.message = "Model error"
-
-        failed_test = Mock()
-        failed_test.status = TestStatus.Fail
-        failed_test.node.resource_type = NodeType.Test
-        failed_test.node.name = "failed_test"
-        failed_test.message = "Test failed"
-
-        run_result.result.results = [failed_model, failed_test]
-
-        def side_effect(args, **kwargs):
-            if args == ["parse"]:
-                return parse_result
-            elif args == ["run"]:
-                return run_result
-            return Mock()
-
-        mock_dbt_runner.invoke.side_effect = side_effect
-
-        with pytest.raises(ValueError) as exc_info:
-            runner.invoke(["run"])
-
-        error_message = str(exc_info.value)
-        assert 'Model failed_model errored with message: "Model error"' in error_message
-        assert 'Test failed_test failed with message: "Test failed"' in error_message
-
-    @pytest.mark.asyncio
-    async def test_ainvoke_multiple_failures(self, mock_dbt_runner, settings):
-        runner = PrefectDbtRunner(settings=settings)
-
-        # Setup successful parse result first
-        parse_result = Mock(spec=dbtRunnerResult)
-        parse_result.success = True
-        manifest_mock = Mock(Manifest)
-        parse_result.result = manifest_mock
-
-        # Mock a failed result with multiple failures
-        run_result = Mock(spec=dbtRunnerResult)
-        run_result.success = False
-        run_result.exception = None
-        run_result.result = Mock(spec=RunExecutionResult)
-
-        # Create multiple failed node results
-        failed_model = Mock()
-        failed_model.status = RunStatus.Error
-        failed_model.node.resource_type = NodeType.Model
-        failed_model.node.name = "failed_model"
-        failed_model.message = "Model error"
-
-        failed_test = Mock()
-        failed_test.status = TestStatus.Fail
-        failed_test.node.resource_type = NodeType.Test
-        failed_test.node.name = "failed_test"
-        failed_test.message = "Test failed"
-
-        run_result.result.results = [failed_model, failed_test]
-
-        def side_effect(args, **kwargs):
-            if args == ["parse"]:
-                return parse_result
-            elif args == ["run"]:
-                return run_result
-            return Mock()
-
-        mock_dbt_runner.invoke.side_effect = side_effect
-
-        with pytest.raises(ValueError) as exc_info:
-            await runner.ainvoke(["run"])
-
-        error_message = str(exc_info.value)
-        assert 'Model failed_model errored with message: "Model error"' in error_message
-        assert 'Test failed_test failed with message: "Test failed"' in error_message
-
-    # No raise on failure tests
-    def test_invoke_no_raise_on_failure(self, mock_dbt_runner, settings):
-        runner = PrefectDbtRunner(settings=settings, raise_on_failure=False)
-
-        # Setup successful parse result first
-        parse_result = Mock(spec=dbtRunnerResult)
-        parse_result.success = True
-        manifest_mock = Mock(Manifest)
-        parse_result.result = manifest_mock
-
-        # Mock a failed result
-        run_result = Mock(spec=dbtRunnerResult)
-        run_result.success = False
-        run_result.exception = None
-
-        # Create a failed node result
-        node_result = Mock()
-        node_result.status = RunStatus.Error
-        node_result.node.resource_type = NodeType.Model
-        node_result.node.name = "failed_model"
-        node_result.message = "Something went wrong"
-
-        run_result.result.results = [node_result]
-
-        def side_effect(args, **kwargs):
-            if args == ["parse"]:
-                return parse_result
-            elif args == ["run"]:
-                return run_result
-            return Mock()
-
-        mock_dbt_runner.invoke.side_effect = side_effect
-
-        # Should not raise an exception
-        result = runner.invoke(["run"])
-        assert result.success is False
-
-    @pytest.mark.asyncio
-    async def test_ainvoke_no_raise_on_failure(self, mock_dbt_runner, settings):
-        runner = PrefectDbtRunner(settings=settings, raise_on_failure=False)
-
-        # Setup successful parse result first
-        parse_result = Mock(spec=dbtRunnerResult)
-        parse_result.success = True
-        manifest_mock = Mock(Manifest)
-        parse_result.result = manifest_mock
-
-        # Mock a failed result
-        run_result = Mock(spec=dbtRunnerResult)
-        run_result.success = False
-        run_result.exception = None
-
-        # Create a failed node result
-        node_result = Mock()
-        node_result.status = RunStatus.Error
-        node_result.node.resource_type = NodeType.Model
-        node_result.node.name = "failed_model"
-        node_result.message = "Something went wrong"
-
-        run_result.result.results = [node_result]
-
-        def side_effect(args, **kwargs):
-            if args == ["parse"]:
-                return parse_result
-            elif args == ["run"]:
-                return run_result
-            return Mock()
-
-        mock_dbt_runner.invoke.side_effect = side_effect
-
-        # Should not raise an exception
-        result = await runner.ainvoke(["run"])
-        assert result.success is False
-
-    @pytest.mark.parametrize(
-        "command,expected_type,requires_manifest",
-        [
-            (["run"], RunExecutionResult, True),
-            (["test"], RunExecutionResult, True),
-            (["seed"], RunExecutionResult, True),
-            (["snapshot"], RunExecutionResult, True),
-            (["build"], RunExecutionResult, True),
-            (["compile"], RunExecutionResult, True),
-            (["run-operation"], RunExecutionResult, True),
-            (["parse"], Manifest, False),
-            (["docs", "generate"], CatalogArtifact, True),
-            (["list"], list, True),
-            (["ls"], list, True),
-            (["debug"], bool, False),
-            (["clean"], None, False),
-            (["deps"], None, False),
-            (["init"], None, False),
-            (["source"], None, True),
-        ],
-    )
-    def test_invoke_command_return_types(
-        self, mock_dbt_runner, settings, command, expected_type, requires_manifest
-    ):
-        """Test that different dbt commands return the expected result types."""
-        runner = PrefectDbtRunner(settings=settings)
-
-        # Mock parse result if needed
-        parse_result = Mock(spec=dbtRunnerResult)
-        parse_result.success = True
-        manifest = Mock(spec=Manifest)  # Create the manifest
-        manifest.metadata = Mock()  # Add required metadata
-        manifest.metadata.adapter_type = "postgres"
-        parse_result.result = manifest  # Set the actual manifest
-
-        # Mock command result
-        command_result = Mock(spec=dbtRunnerResult)
-        command_result.success = True
-        command_result.exception = None
-
-        # Set appropriate result based on command
-        if expected_type is None:
-            command_result.result = None
-        elif expected_type is bool:
-            command_result.result = True
-        elif expected_type is list:
-            command_result.result = ["item1", "item2"]
-        else:
-            command_result.result = Mock(spec=expected_type)
-
-        def side_effect(args, **kwargs):
-            if args == ["parse"]:
-                return parse_result
-            return command_result
-
-        mock_dbt_runner.invoke.side_effect = side_effect
-
-        result = runner.invoke(command)
-
-        assert result.success
-        if expected_type is None:
-            assert result.result is None
-        elif expected_type is bool:
-            assert isinstance(result.result, bool)
-        elif expected_type is list:
-            assert isinstance(result.result, list)
-            assert all(isinstance(item, str) for item in result.result)
-        else:
-            assert isinstance(result.result, expected_type)
-
-        # Verify call count and order
-        if requires_manifest:
-            assert mock_dbt_runner.invoke.call_count == 2
-            assert mock_dbt_runner.invoke.call_args_list[0].args[0] == ["parse"]
-            assert mock_dbt_runner.invoke.call_args_list[1].args[0] == command
-        else:
-            mock_dbt_runner.invoke.assert_called_once()
-            assert mock_dbt_runner.invoke.call_args.args[0] == command
-
-    @pytest.mark.asyncio
-    @pytest.mark.parametrize(
-        "command,expected_type,requires_manifest",
-        [
-            (["run"], RunExecutionResult, True),
-            (["test"], RunExecutionResult, True),
-            (["seed"], RunExecutionResult, True),
-            (["snapshot"], RunExecutionResult, True),
-            (["build"], RunExecutionResult, True),
-            (["compile"], RunExecutionResult, True),
-            (["run-operation"], RunExecutionResult, True),
-            (["parse"], Manifest, False),
-            (["docs", "generate"], CatalogArtifact, True),
-            (["list"], list, True),
-            (["ls"], list, True),
-            (["debug"], bool, False),
-            (["clean"], None, False),
-            (["deps"], None, False),
-            (["init"], None, False),
-            (["source"], None, True),
-        ],
-    )
-    async def test_ainvoke_command_return_types(
-        self, mock_dbt_runner, settings, command, expected_type, requires_manifest
-    ):
-        """Test that different dbt commands return the expected result types when called asynchronously."""
-        runner = PrefectDbtRunner(settings=settings)
-
-        # Mock parse result if needed
-        parse_result = Mock(spec=dbtRunnerResult)
-        parse_result.success = True
-        parse_result.result = Mock(spec=Manifest)
-
-        # Mock command result
-        command_result = Mock(spec=dbtRunnerResult)
-        command_result.success = True
-        command_result.exception = None
-
-        # Set appropriate result based on command
-        if expected_type is None:
-            command_result.result = None
-        elif expected_type is bool:
-            command_result.result = True
-        elif expected_type is list:
-            command_result.result = ["item1", "item2"]
-        else:
-            command_result.result = Mock(spec=expected_type)
-
-        def side_effect(args, **kwargs):
-            if args == ["parse"]:
-                return parse_result
-            return command_result
-
-        mock_dbt_runner.invoke.side_effect = side_effect
-
-        result = await runner.ainvoke(command)
-
-        assert result.success
-        if expected_type is None:
-            assert result.result is None
-        elif expected_type is bool:
-            assert isinstance(result.result, bool)
-        elif expected_type is list:
-            assert isinstance(result.result, list)
-            assert all(isinstance(item, str) for item in result.result)
-        else:
-            assert isinstance(result.result, expected_type)
-
-        # Verify call count and order
-        if requires_manifest:
-            assert mock_dbt_runner.invoke.call_count == 2
-            assert mock_dbt_runner.invoke.call_args_list[0].args[0] == ["parse"]
-            assert mock_dbt_runner.invoke.call_args_list[1].args[0] == command
-        else:
-            mock_dbt_runner.invoke.assert_called_once()
-            assert mock_dbt_runner.invoke.call_args.args[0] == command
-
-    def test_invoke_with_manifest_requiring_commands(self, mock_dbt_runner, settings):
-        """Test that commands requiring manifest trigger parse if manifest not provided."""
-        runner = PrefectDbtRunner(settings=settings)
-
-        # Mock parse result
-        parse_result = Mock(spec=dbtRunnerResult)
-        parse_result.success = True
-        parse_result.result = Mock(spec=Manifest)
-
-        # Mock run result
-        run_result = Mock(spec=dbtRunnerResult)
-        run_result.success = True
-        run_result.result = Mock(spec=RunExecutionResult)
-
-        def side_effect(args, **kwargs):
-            if args == ["parse"]:
-                return parse_result
-            return run_result
-
-        mock_dbt_runner.invoke.side_effect = side_effect
-
-        # Test with command that requires manifest
-        runner.invoke(["run"])
-        assert mock_dbt_runner.invoke.call_count == 2
-        assert mock_dbt_runner.invoke.call_args_list[0].args[0] == ["parse"]
-        assert mock_dbt_runner.invoke.call_args_list[1].args[0] == ["run"]
-
-        # Reset mock
-        mock_dbt_runner.invoke.reset_mock()
-        mock_dbt_runner.invoke.side_effect = side_effect
-
-        # Test with command that doesn't require manifest
-        runner.invoke(["clean"])
-        assert mock_dbt_runner.invoke.call_count == 1
-        assert mock_dbt_runner.invoke.call_args_list[0].args[0] == ["clean"]
-
-    def test_invoke_with_preloaded_manifest(self, mock_dbt_runner, settings):
-        """Test that commands don't trigger parse when manifest is preloaded."""
+        assert runner.raise_on_failure is True
+        assert runner.include_compiled_code is False
+        assert runner._manifest is None
+
+    def test_custom_initialization(self) -> None:
+        """Test initialization with custom parameters"""
+        settings = PrefectDbtSettings()
         manifest = Mock(spec=Manifest)
-        runner = PrefectDbtRunner(settings=settings, manifest=manifest)
+        client = Mock()
 
-        # Mock run result
-        run_result = Mock(spec=dbtRunnerResult)
-        run_result.success = True
-        run_result.result = Mock(spec=RunExecutionResult)
-        mock_dbt_runner.invoke.return_value = run_result
-
-        # Test with command that normally requires manifest
-        runner.invoke(["run"])
-
-        # Should not call parse since manifest was preloaded
-        mock_dbt_runner.invoke.assert_called_once()
-        assert mock_dbt_runner.invoke.call_args.args[0] == ["run"]
-
-    def test_invoke_debug_command(self, mock_dbt_runner, settings):
-        """Test the dbt debug command which has unique behavior."""
-        runner = PrefectDbtRunner(settings=settings)
-
-        # Mock debug result
-        debug_result = Mock(spec=dbtRunnerResult)
-        debug_result.success = True
-        # debug command doesn't return a specific result type
-        debug_result.result = None
-        mock_dbt_runner.invoke.return_value = debug_result
-
-        result = runner.invoke(["debug"])
-
-        assert result.success
-        assert result.result is None
-        mock_dbt_runner.invoke.assert_called_once_with(
-            ["debug"],
-            project_dir=settings.project_dir,
-            profiles_dir=ANY,
-            log_level=ANY,
+        runner = PrefectDbtRunner(
+            manifest=manifest,
+            settings=settings,
+            raise_on_failure=False,
+            client=client,
+            include_compiled_code=True,
         )
 
-    @pytest.mark.parametrize(
-        "command,expected_type",
-        [
-            (["run"], RunExecutionResult),
-            (["test"], RunExecutionResult),
-            (["seed"], RunExecutionResult),
-            (["snapshot"], RunExecutionResult),
-            (["build"], RunExecutionResult),
-            (["compile"], RunExecutionResult),
-            (["run-operation"], RunExecutionResult),
-            (["parse"], Manifest),
-            (["docs", "generate"], CatalogArtifact),
-            (["list"], list),
-            (["ls"], list),
-            (["debug"], bool),
-            (["clean"], type(None)),
-            (["deps"], type(None)),
-            (["init"], type(None)),
-            (["source"], type(None)),
-        ],
-    )
-    def test_failure_result_types(
-        self, mock_dbt_runner, settings, command, expected_type
-    ):
-        """Test that failed commands return the expected result types."""
-        runner = PrefectDbtRunner(settings=settings, raise_on_failure=False)
+        assert runner._manifest == manifest
+        assert runner.settings == settings
+        assert runner.raise_on_failure is False
+        assert runner.client == client
+        assert runner.include_compiled_code is True
 
-        # Mock parse result if needed for manifest loading
-        parse_result = Mock(spec=dbtRunnerResult)
-        parse_result.success = True
+    def test_property_accessors(self) -> None:
+        """Test property accessors for settings"""
+        runner = PrefectDbtRunner()
+
+        # Test default values from settings
+        assert runner.target_path == runner.settings.target_path
+        assert runner.profiles_dir == runner.settings.profiles_dir
+        assert runner.project_dir == runner.settings.project_dir
+        assert runner.log_level == runner.settings.log_level
+
+    def test_property_accessors_with_overrides(self) -> None:
+        """Test property accessors with overridden values"""
+        runner = PrefectDbtRunner()
+
+        # Override values
+        runner._target_path = Path("/custom/target")
+        runner._profiles_dir = Path("/custom/profiles")
+        runner._project_dir = Path("/custom/project")
+        runner._log_level = EventLevel.DEBUG
+
+        assert runner.target_path == Path("/custom/target")
+        assert runner.profiles_dir == Path("/custom/profiles")
+        assert runner.project_dir == Path("/custom/project")
+        assert runner.log_level == EventLevel.DEBUG
+
+    @patch("builtins.open")
+    @patch("json.load")
+    def test_manifest_property_loads_from_file(
+        self, mock_json_load: Mock, mock_open: Mock
+    ) -> None:
+        """Test manifest property loads from file when not provided"""
+        mock_manifest = Mock(spec=Manifest)
+        mock_json_load.return_value = {"test": "data"}
+
+        with patch.object(Manifest, "from_dict", return_value=mock_manifest):
+            runner = PrefectDbtRunner()
+            runner._target_path = Path("target")
+            runner._project_dir = Path("/test/project")
+
+            result = runner.manifest
+
+            assert result == mock_manifest
+            mock_open.assert_called_once_with("/test/project/target/manifest.json", "r")
+
+    @patch("builtins.open")
+    def test_manifest_property_file_not_found(self, mock_open: Mock) -> None:
+        """Test manifest property raises error when file not found"""
+        mock_open.side_effect = FileNotFoundError()
+
+        runner = PrefectDbtRunner()
+        runner._target_path = Path("target")
+        runner._project_dir = Path("/test/project")
+
+        with pytest.raises(ValueError, match="Manifest file not found"):
+            _ = runner.manifest
+
+    def test_get_node_prefect_config(self) -> None:
+        """Test getting prefect config from manifest node"""
+        runner = PrefectDbtRunner()
+
+        manifest_node = Mock(spec=ManifestNode)
+        manifest_node.config = Mock()
+        manifest_node.config.meta = {"prefect": {"test": "config"}}
+
+        result = runner._get_node_prefect_config(manifest_node)
+        assert result == {"test": "config"}
+
+    def test_get_upstream_manifest_nodes(self) -> None:
+        """Test getting upstream manifest nodes"""
+        runner = PrefectDbtRunner()
+
+        # Create mock manifest with nodes
         manifest = Mock(spec=Manifest)
-        manifest.metadata = Mock()
-        manifest.metadata.adapter_type = "postgres"
-        parse_result.result = manifest
+        upstream_node = Mock(spec=ManifestNode)
+        upstream_node.relation_name = "upstream_table"
 
-        # Mock failed command result
-        command_result = Mock(spec=dbtRunnerResult)
-        command_result.success = False
-        command_result.exception = None
+        manifest_node = Mock(spec=ManifestNode)
+        manifest_node.depends_on_nodes = ["upstream_node_id"]
 
-        # Set appropriate result based on command
-        if expected_type is type(None):
-            command_result.result = None
-        elif expected_type is bool:
-            command_result.result = False
-        elif expected_type is list:
-            command_result.result = []
-        else:
-            command_result.result = Mock(spec=expected_type)
-            if expected_type == RunExecutionResult:
-                # Add failed results for RunExecutionResult
-                failed_node = Mock()
-                failed_node.status = RunStatus.Error
-                failed_node.node = Mock()
-                failed_node.node.resource_type = NodeType.Model
-                failed_node.node.name = "failed_model"
-                failed_node.message = "Test failure"
-                command_result.result.results = [failed_node]
+        manifest.nodes = {"upstream_node_id": upstream_node}
+        runner._manifest = manifest
 
-        def side_effect(args, **kwargs):
-            if args == ["parse"] and command != [
-                "parse"
-            ]:  # Only return successful parse when loading manifest
-                return parse_result
-            return command_result
+        result = runner._get_upstream_manifest_nodes(manifest_node)
+        assert result == [upstream_node]
 
-        mock_dbt_runner.invoke.side_effect = side_effect
+    def test_get_upstream_manifest_nodes_missing_relation_name(self) -> None:
+        """Test getting upstream nodes when relation name is missing"""
+        runner = PrefectDbtRunner()
 
-        result = runner.invoke(command)
-
-        assert not result.success
-        if expected_type is type(None):
-            assert result.result is None
-        else:
-            assert isinstance(result.result, expected_type)
-
-    @pytest.mark.asyncio
-    @pytest.mark.parametrize(
-        "command,expected_type",
-        [
-            (["run"], RunExecutionResult),
-            (["test"], RunExecutionResult),
-            (["seed"], RunExecutionResult),
-            (["snapshot"], RunExecutionResult),
-            (["build"], RunExecutionResult),
-            (["compile"], RunExecutionResult),
-            (["run-operation"], RunExecutionResult),
-            (["parse"], Manifest),
-            (["docs", "generate"], CatalogArtifact),
-            (["list"], list),
-            (["ls"], list),
-            (["debug"], bool),
-            (["clean"], type(None)),
-            (["deps"], type(None)),
-            (["init"], type(None)),
-            (["source"], type(None)),
-        ],
-    )
-    async def test_failure_result_types_async(
-        self, mock_dbt_runner, settings, command, expected_type
-    ):
-        """Test that failed commands return the expected result types when called asynchronously."""
-        runner = PrefectDbtRunner(settings=settings, raise_on_failure=False)
-
-        # Mock parse result if needed for manifest loading
-        parse_result = Mock(spec=dbtRunnerResult)
-        parse_result.success = True
         manifest = Mock(spec=Manifest)
-        parse_result.result = manifest
+        upstream_node = Mock(spec=ManifestNode)
+        upstream_node.relation_name = None  # Missing relation name
 
-        # Mock failed command result
-        command_result = Mock(spec=dbtRunnerResult)
-        command_result.success = False
-        command_result.exception = None
+        manifest_node = Mock(spec=ManifestNode)
+        manifest_node.depends_on_nodes = ["upstream_node_id"]
 
-        # Set appropriate result based on command
-        if expected_type is type(None):
-            command_result.result = None
-        elif expected_type is bool:
-            command_result.result = False
-        elif expected_type is list:
-            command_result.result = []
-        else:
-            command_result.result = Mock(spec=expected_type)
-            if expected_type == RunExecutionResult:
-                # Add failed results for RunExecutionResult
-                failed_node = Mock()
-                failed_node.status = RunStatus.Error
-                failed_node.node = Mock()
-                failed_node.node.resource_type = NodeType.Model
-                failed_node.node.name = "failed_model"
-                failed_node.message = "Test failure"
-                command_result.result.results = [failed_node]
+        manifest.nodes = {"upstream_node_id": upstream_node}
+        runner._manifest = manifest
 
-        def side_effect(args, **kwargs):
-            if args == ["parse"] and command != [
-                "parse"
-            ]:  # Only return successful parse when loading manifest
-                return parse_result
-            return command_result
+        with pytest.raises(ValueError, match="Relation name not found in manifest"):
+            runner._get_upstream_manifest_nodes(manifest_node)
 
-        mock_dbt_runner.invoke.side_effect = side_effect
+    def test_get_compiled_code_path(self) -> None:
+        """Test getting compiled code path"""
+        runner = PrefectDbtRunner()
+        runner._project_dir = Path("/test/project")
+        runner._target_path = Path("target")
 
-        result = await runner.ainvoke(command)
+        manifest_node = Mock(spec=ManifestNode)
+        manifest_node.original_file_path = "models/test_model.sql"
 
-        assert not result.success
-        if expected_type is type(None):
-            assert result.result is None
-        else:
-            assert isinstance(result.result, expected_type)
+        result = runner._get_compiled_code_path(manifest_node)
+        expected = Path("/test/project/target/compiled/project/models/test_model.sql")
+        assert result == expected
 
+    @patch("builtins.open")
+    @patch("os.path.exists")
+    def test_get_compiled_code_enabled_and_exists(
+        self, mock_exists: Mock, mock_open: Mock
+    ) -> None:
+        """Test getting compiled code when enabled and file exists"""
+        runner = PrefectDbtRunner(include_compiled_code=True)
 
-class TestPrefectDbtRunnerLogging:
-    def test_logging_callback(self, mock_dbt_runner, settings, caplog):
-        runner = PrefectDbtRunner(settings=settings)
+        # Mock that the file exists
+        mock_exists.return_value = True
 
-        # Create mock events for different log levels
-        debug_event = Mock()
-        debug_event.info.level = EventLevel.DEBUG
-        debug_event.info.msg = "Debug message"
+        mock_file = Mock()
+        mock_file.read.return_value = "SELECT * FROM test"
+        mock_open.return_value.__enter__.return_value = mock_file
 
-        info_event = Mock()
-        info_event.info.level = EventLevel.INFO
-        info_event.info.msg = "Info message"
+        with patch.object(runner, "_get_compiled_code_path") as mock_path:
+            mock_path.return_value = Path("/test/compiled.sql")
 
-        warn_event = Mock()
-        warn_event.info.level = EventLevel.WARN
-        warn_event.info.msg = "Warning message"
+            manifest_node = Mock(spec=ManifestNode)
+            result = runner._get_compiled_code(manifest_node)
 
-        error_event = Mock()
-        error_event.info.level = EventLevel.ERROR
-        error_event.info.msg = "Error message"
+            expected = "\n ### Compiled code\n```sql\nSELECT * FROM test\n```"
+            assert result == expected
 
-        test_event = Mock()
-        test_event.info.level = EventLevel.TEST
-        test_event.info.msg = "Test message"
+    def test_get_compiled_code_disabled(self) -> None:
+        """Test getting compiled code when disabled"""
+        runner = PrefectDbtRunner(include_compiled_code=False)
+        manifest_node = Mock(spec=ManifestNode)
 
-        @flow
-        def test_flow():
-            callback = runner._create_logging_callback(EventLevel.DEBUG)
-            callback(debug_event)
-            callback(info_event)
-            callback(warn_event)
-            callback(error_event)
-            callback(test_event)
+        result = runner._get_compiled_code(manifest_node)
+        assert result == ""
 
-        caplog.clear()
+    @patch("os.path.exists")
+    def test_get_compiled_code_file_not_exists(self, mock_exists: Mock) -> None:
+        """Test getting compiled code when file doesn't exist"""
+        runner = PrefectDbtRunner(include_compiled_code=True)
+        mock_exists.return_value = False
 
-        with caplog.at_level(logging.DEBUG):
-            test_flow()
+        manifest_node = Mock(spec=ManifestNode)
+        manifest_node.original_file_path = "models/test_model.sql"
+        result = runner._get_compiled_code(manifest_node)
+        assert result == ""
 
-            assert "Debug message" in caplog.text
-            assert "Test message" in caplog.text
-            assert "Info message" in caplog.text
-            assert "Warning message" in caplog.text
-            assert "Error message" in caplog.text
+    def test_create_asset_from_node(self) -> None:
+        """Test creating asset from manifest node"""
+        runner = PrefectDbtRunner()
 
-            for record in caplog.records:
-                if (
-                    "Debug message" in record.message
-                    or "Test message" in record.message
-                ):
-                    assert record.levelno == logging.DEBUG
-                elif "Info message" in record.message:
-                    assert record.levelno == logging.INFO
-                elif "Warning message" in record.message:
-                    assert record.levelno == logging.WARNING
-                elif "Error message" in record.message:
-                    assert record.levelno == logging.ERROR
+        manifest_node = Mock(spec=ManifestNode)
+        manifest_node.relation_name = "test_table"
+        manifest_node.name = "test_model"
+        manifest_node.description = "Test description"
+        manifest_node.config = Mock()
+        manifest_node.config.meta = {"owner": "test_owner"}
 
-    def test_logging_callback_no_flow(self, mock_dbt_runner, settings, caplog):
-        runner = PrefectDbtRunner(settings=settings)
+        with patch.object(runner, "_get_compiled_code", return_value=""):
+            result = runner._create_asset_from_node(manifest_node, "postgres")
 
-        event = Mock()
-        event.info.level = EventLevel.INFO
+            assert result.key == "postgres://test_table"
+            assert result.properties.name == "test_model"
+            assert result.properties.description == "Test description"
+            assert result.properties.owners == ["test_owner"]
+
+    def test_create_asset_from_node_missing_relation_name(self) -> None:
+        """Test creating asset when relation name is missing"""
+        runner = PrefectDbtRunner()
+
+        manifest_node = Mock(spec=ManifestNode)
+        manifest_node.relation_name = None
+
+        with pytest.raises(ValueError, match="Relation name not found in manifest"):
+            runner._create_asset_from_node(manifest_node, "postgres")
+
+    def test_create_task_options(self) -> None:
+        """Test creating task options"""
+        runner = PrefectDbtRunner()
+
+        manifest_node = Mock(spec=ManifestNode)
+        manifest_node.resource_type = "model"
+        manifest_node.name = "test_model"
+        manifest_node.unique_id = "model.test.test_model"
+
+        upstream_assets = [Mock()]
+
+        result = runner._create_task_options(manifest_node, upstream_assets)
+
+        # TaskOptions is a dict-like object, so we access it differently
+        assert result["task_run_name"] == "model test_model"
+        assert result["asset_deps"] == upstream_assets
+
+    def test_get_manifest_node_and_config(self) -> None:
+        """Test getting manifest node and config"""
+        runner = PrefectDbtRunner()
+
+        manifest_node = Mock(spec=ManifestNode)
+        manifest_node.config = Mock()
+        manifest_node.config.meta = {"prefect": {"test": "config"}}
+
+        manifest = Mock(spec=Manifest)
+        manifest.nodes = {"test_node": manifest_node}
+        runner._manifest = manifest
+
+        node, config = runner._get_manifest_node_and_config("test_node")
+
+        assert node == manifest_node
+        assert config == {"test": "config"}
+
+    def test_get_manifest_node_and_config_not_found(self) -> None:
+        """Test getting manifest node when not found"""
+        runner = PrefectDbtRunner()
+
+        manifest = Mock(spec=Manifest)
+        manifest.nodes = {}
+        runner._manifest = manifest
+
+        node, config = runner._get_manifest_node_and_config("nonexistent_node")
+
+        assert node is None
+        assert config == {}
+
+    def test_get_dbt_event_msg(self) -> None:
+        """Test extracting message from dbt event"""
+        event = Mock(spec=EventMsg)
+        event.info = Mock()
         event.info.msg = "Test message"
 
-        # no flow decorator
-        def test_flow():
-            callback = runner._create_logging_callback(EventLevel.DEBUG)
-            callback(event)
+        result = PrefectDbtRunner.get_dbt_event_msg(event)
+        assert result == "Test message"
 
-        caplog.clear()
+    def test_get_dbt_event_node_id(self) -> None:
+        """Test extracting node ID from dbt event"""
+        runner = PrefectDbtRunner()
 
-        with caplog.at_level(logging.INFO):
-            test_flow()
-            assert caplog.text == "", (
-                "Expected empty log output when not in flow context"
-            )
+        event = Mock(spec=EventMsg)
+        event.data = Mock()
+        event.data.node_info = Mock()
+        event.data.node_info.unique_id = "test_node_id"
 
+        result = runner._get_dbt_event_node_id(event)
+        assert result == "test_node_id"
 
-class TestPrefectDbtRunnerEvents:
-    def test_events_callback_node_finished(self, mock_dbt_runner, settings):
-        """Test that the events callback correctly handles NodeFinished events."""
-        runner = PrefectDbtRunner(settings=settings)
-        runner.manifest = Mock()
-        runner.manifest.metadata.adapter_type = "postgres"
+    def test_extract_flag_value_found(self) -> None:
+        """Test extracting flag value when found"""
+        runner = PrefectDbtRunner()
+        args = ["--target-path", "/custom/path", "run"]
 
-        # Create a mock node in the manifest
-        node = Mock(spec=ManifestNode)
-        node.unique_id = "model.test.example"
-        node.name = "example"
-        node.relation_name = '"schema"."example_table"'
-        node.depends_on_nodes = ["model.test.upstream"]
-        node.config = Mock()
-        node.config.meta = {
-            "prefect": {
-                "upstream_resources": [
-                    {
-                        "id": "s3://bucket/path",
-                        "role": "source",
-                        "name": "upstream_s3_table",
-                    },
-                ]
-            }
-        }
-        node.resource_type = NodeType.Model
-        runner.manifest.nodes = {"model.test.example": node}
+        result_args, value = runner._extract_flag_value(args, "--target-path")
 
-        # Create a mock upstream node
-        upstream_node = Mock()
-        upstream_node.name = "upstream"
-        upstream_node.unique_id = "model.test.upstream"
-        upstream_node.relation_name = '"schema"."upstream_table"'
-        upstream_node.config = Mock()
-        upstream_node.config.meta = {}
-        upstream_node.resource_type = NodeType.Model
-        runner.manifest.nodes["model.test.upstream"] = upstream_node
+        assert result_args == ["run"]
+        assert value == "/custom/path"
 
-        # Create a mock NodeFinished event
-        event = Mock()
-        event.info.name = "NodeFinished"
-        event.data.node_info.unique_id = "model.test.example"
+    def test_extract_flag_value_not_found(self) -> None:
+        """Test extracting flag value when not found"""
+        runner = PrefectDbtRunner()
+        args = ["run"]
 
-        # Create mock related resources from context
-        related_context = [
-            RelatedResource(
-                root={
-                    "prefect.resource.id": "flow/123",
-                    "prefect.resource.role": "flow",
-                    "prefect.resource.name": "test-flow",
-                }
-            )
-        ]
+        result_args, value = runner._extract_flag_value(args, "--target-path")
 
-        callback = runner._create_events_callback(related_context)
+        assert result_args == ["run"]
+        assert value is None
 
-        with (
-            patch("prefect_dbt.core.runner.MessageToDict") as mock_to_dict,
-            patch("prefect_dbt.core.runner.emit_event") as mock_emit,
-            patch(
-                "prefect_dbt.core.runner.emit_external_resource_lineage"
-            ) as mock_emit_lineage,
-        ):
-            # Mock the event data dictionary
-            mock_to_dict.return_value = {
-                "node_info": {
-                    "unique_id": "model.test.example",
-                    "node_status": "success",
-                }
-            }
+    def test_update_setting_from_kwargs(self) -> None:
+        """Test updating setting from kwargs"""
+        runner = PrefectDbtRunner()
+        kwargs = {"target_path": "/custom/path"}
 
-            # Call the callback
-            callback(event)
+        runner._update_setting_from_kwargs("target_path", kwargs)
 
-            # Verify node event was emitted
-            assert mock_emit.call_count == 1
-            node_event_call = mock_emit.call_args_list[0]
-            assert node_event_call.kwargs["event"] == "example success"
-            assert node_event_call.kwargs["resource"] == {
-                "prefect.resource.id": "dbt.model.test.example",
-                "prefect.resource.name": "example",
-                "dbt.node.status": "success",
-            }
-            assert any(
-                r["prefect.resource.id"] == "flow/123"
-                for r in node_event_call.kwargs["related"]
-            )
+        assert runner._target_path == "/custom/path"
+        assert "target_path" not in kwargs  # Should be removed
 
-            # Verify lineage was emitted
-            assert mock_emit_lineage.call_count == 1
-            lineage_call = mock_emit_lineage.call_args
+    def test_update_setting_from_kwargs_with_converter(self) -> None:
+        """Test updating setting from kwargs with converter"""
+        runner = PrefectDbtRunner()
+        kwargs = {"target_path": "/custom/path"}
 
-            # Check context resources
-            assert lineage_call.kwargs["context_resources"] == related_context
+        runner._update_setting_from_kwargs("target_path", kwargs, Path)
 
-            # Check upstream resources
-            upstream_resources = lineage_call.kwargs["upstream_resources"]
-            assert len(upstream_resources) == 2  # One from depends_on, one from meta
-            assert {
-                "prefect.resource.id": "postgres://schema/upstream_table",
-                "prefect.resource.lineage-group": "global",
-                "prefect.resource.role": NodeType.Model,
-                "prefect.resource.name": "upstream",
-            } in upstream_resources
-            assert {
-                "prefect.resource.id": "s3://bucket/path",
-                "prefect.resource.lineage-group": "global",
-                "prefect.resource.role": "source",
-                "prefect.resource.name": "upstream_s3_table",
-            } in upstream_resources
+        assert runner._target_path == Path("/custom/path")
 
-            # Check downstream resource
-            assert lineage_call.kwargs["downstream_resources"] == [
-                {
-                    "prefect.resource.id": "postgres://schema/example_table",
-                    "prefect.resource.lineage-group": "global",
-                    "prefect.resource.role": NodeType.Model,
-                    "prefect.resource.name": "example",
-                }
-            ]
+    def test_update_setting_from_cli_flag(self) -> None:
+        """Test updating setting from CLI flag"""
+        runner = PrefectDbtRunner()
+        args = ["--target-path", "/custom/path", "run"]
 
-    def test_events_callback_with_emit_events_false(self, mock_dbt_runner, settings):
-        runner = PrefectDbtRunner(settings=settings)
-        runner.manifest = Mock()
-        runner.manifest.metadata.adapter_type = "postgres"
-
-        node = Mock()
-        node.relation_name = '"schema"."table"'
-        node.depends_on_nodes = []
-        node.config.meta = {"prefect": {"emit_events": False}}
-        node.resource_type = NodeType.Model
-        runner.manifest.nodes = {"model.test.example": node}
-
-        event = Mock()
-        event.info.name = "NodeFinished"
-        event.data.node_info.unique_id = "model.test.example"
-
-        callback = runner._create_events_callback([])
-
-        with (
-            patch("prefect_dbt.core.runner.MessageToDict") as mock_to_dict,
-            patch("prefect_dbt.core.runner.emit_event") as mock_emit,
-        ):
-            mock_to_dict.return_value = {
-                "node_info": {
-                    "unique_id": "model.test.example",
-                    "node_status": "success",
-                }
-            }
-
-            callback(event)
-            mock_emit.assert_not_called()
-
-    def test_events_callback_with_emit_node_events_false(
-        self, mock_dbt_runner, settings
-    ):
-        """Test that when emit_node_events is False, only lineage events are emitted."""
-        runner = PrefectDbtRunner(settings=settings)
-        runner.manifest = Mock()
-        runner.manifest.metadata.adapter_type = "postgres"
-
-        # Create a mock node in the manifest
-        node = Mock()
-        node.name = "example"
-        node.relation_name = '"schema"."example_table"'
-        node.depends_on_nodes = []
-        node.config.meta = {"prefect": {"emit_node_events": False}}
-        node.resource_type = NodeType.Model
-        runner.manifest.nodes = {"model.test.example": node}
-
-        # Create a mock NodeFinished event
-        event = Mock()
-        event.info.name = "NodeFinished"
-        event.data.node_info.unique_id = "model.test.example"
-
-        # Create mock related resources from context
-        related_context = [
-            RelatedResource(
-                root={
-                    "prefect.resource.id": "flow/123",
-                    "prefect.resource.role": "flow",
-                    "prefect.resource.name": "test-flow",
-                }
-            )
-        ]
-
-        callback = runner._create_events_callback(related_context)
-
-        with (
-            patch("prefect_dbt.core.runner.MessageToDict") as mock_to_dict,
-            patch("prefect_dbt.core.runner.emit_event") as mock_emit,
-            patch(
-                "prefect_dbt.core.runner.emit_external_resource_lineage"
-            ) as mock_emit_lineage,
-        ):
-            # Mock the event data dictionary
-            mock_to_dict.return_value = {
-                "node_info": {
-                    "unique_id": "model.test.example",
-                    "node_status": "success",
-                }
-            }
-
-            # Call the callback
-            callback(event)
-
-            # Verify node event was not emitted
-            mock_emit.assert_not_called()
-
-            # Verify lineage was still emitted
-            assert mock_emit_lineage.call_count == 1
-            lineage_call = mock_emit_lineage.call_args
-
-            # Check context resources
-            assert lineage_call.kwargs["context_resources"] == related_context
-
-            # Check downstream resource
-            assert lineage_call.kwargs["downstream_resources"] == [
-                {
-                    "prefect.resource.id": "postgres://schema/example_table",
-                    "prefect.resource.lineage-group": "global",
-                    "prefect.resource.role": NodeType.Model,
-                    "prefect.resource.name": "example",
-                }
-            ]
-
-    def test_events_callback_with_emit_lineage_events_false(
-        self, mock_dbt_runner, settings
-    ):
-        runner = PrefectDbtRunner(settings=settings)
-        runner.manifest = Mock()
-        runner.manifest.metadata.adapter_type = "postgres"
-
-        node = Mock()
-        node.name = "example"
-        node.relation_name = '"schema"."table"'
-        node.depends_on_nodes = []
-        node.config.meta = {"prefect": {"emit_lineage_events": False}}
-        node.resource_type = NodeType.Model
-        runner.manifest.nodes = {"model.test.example": node}
-
-        event = Mock()
-        event.info.name = "NodeFinished"
-        event.data.node_info.unique_id = "model.test.example"
-
-        callback = runner._create_events_callback([])
-
-        with (
-            patch("prefect_dbt.core.runner.MessageToDict") as mock_to_dict,
-            patch("prefect_dbt.core.runner.emit_event") as mock_emit,
-        ):
-            mock_to_dict.return_value = {
-                "node_info": {
-                    "unique_id": "model.test.example",
-                    "node_status": "success",
-                }
-            }
-
-            callback(event)
-            assert mock_emit.call_count == 1  # Only node event should be emitted
-            assert mock_emit.call_args.kwargs["event"] == "example success"
-
-    def test_events_callback_with_all_events_disabled(self, mock_dbt_runner, settings):
-        runner = PrefectDbtRunner(settings=settings)
-        runner.manifest = Mock()
-        runner.manifest.metadata.adapter_type = "postgres"
-
-        node = Mock()
-        node.relation_name = '"schema"."table"'
-        node.depends_on_nodes = []
-        node.config.meta = {
-            "prefect": {
-                "emit_events": True,
-                "emit_node_events": False,
-                "emit_lineage_events": False,
-            }
-        }
-        node.resource_type = NodeType.Model
-        runner.manifest.nodes = {"model.test.example": node}
-
-        event = Mock()
-        event.info.name = "NodeFinished"
-        event.data.node_info.unique_id = "model.test.example"
-
-        callback = runner._create_events_callback([])
-
-        with (
-            patch("prefect_dbt.core.runner.MessageToDict") as mock_to_dict,
-            patch("prefect_dbt.core.runner.emit_event") as mock_emit,
-        ):
-            mock_to_dict.return_value = {
-                "node_info": {
-                    "unique_id": "model.test.example",
-                    "node_status": "success",
-                }
-            }
-
-            callback(event)
-            mock_emit.assert_not_called()
-
-
-class TestPrefectDbtRunnerLineage:
-    @pytest.mark.parametrize("provide_manifest", [True, False])
-    def test_emit_lineage_events(
-        self, mock_dbt_runner, settings, mock_manifest_with_nodes, provide_manifest
-    ):
-        """Test that lineage events are emitted correctly for all relevant nodes."""
-        runner = PrefectDbtRunner(
-            settings=settings,
-            manifest=mock_manifest_with_nodes if provide_manifest else None,
+        result_args = runner._update_setting_from_cli_flag(
+            args, "--target-path", "target_path", Path
         )
 
-        if not provide_manifest:
-            # Setup the mock to return our manifest when parse() is called
-            mock_dbt_runner.invoke.return_value.result = mock_manifest_with_nodes
+        assert result_args == ["run"]
+        assert runner._target_path == Path("/custom/path")
 
-        @flow(flow_run_name="test-flow-name")
-        def test_flow():
-            with patch(
-                "prefect_dbt.core.runner.emit_external_resource_lineage"
-            ) as mock_emit_lineage:
-                runner.emit_lineage_events()
+    @patch("prefect_dbt.core.runner.dbtRunner")
+    def test_invoke_success(self, mock_dbt_runner: Mock) -> None:
+        """Test successful dbt invoke"""
+        runner = PrefectDbtRunner()
 
-                # Should emit lineage for model and seed, but not test or exposure
-                assert mock_emit_lineage.call_count == 2
+        mock_result = Mock()
+        mock_result.success = True
+        mock_result.exception = None
 
-                # Get all downstream resources that were emitted
-                downstream_resources = [
-                    call.kwargs["downstream_resources"][0]["prefect.resource.id"]
-                    for call in mock_emit_lineage.call_args_list
-                ]
+        mock_dbt_runner_instance = Mock()
+        mock_dbt_runner_instance.invoke.return_value = mock_result
+        mock_dbt_runner.return_value = mock_dbt_runner_instance
 
-                # Verify correct resources were emitted
-                assert "postgres://schema/model_table" in downstream_resources
-                assert "postgres://schema/seed_table" in downstream_resources
-                assert "postgres://schema/test_table" not in downstream_resources
-                assert "postgres://schema/exposure_table" not in downstream_resources
+        with (
+            patch.object(runner, "_create_logging_callback"),
+            patch.object(runner, "_create_node_started_callback"),
+            patch.object(runner, "_create_node_finished_callback"),
+        ):
+            result = runner.invoke(["run"])
 
-                # Verify the structure of one of the lineage calls
-                model_call = next(
-                    call
-                    for call in mock_emit_lineage.call_args_list
-                    if call.kwargs["downstream_resources"][0]["prefect.resource.id"]
-                    == "postgres://schema/model_table"
+            assert result == mock_result
+            mock_dbt_runner_instance.invoke.assert_called_once()
+
+    @patch("prefect_dbt.core.runner.dbtRunner")
+    def test_invoke_with_exception(self, mock_dbt_runner: Mock) -> None:
+        """Test dbt invoke with exception"""
+        runner = PrefectDbtRunner()
+
+        mock_result = Mock()
+        mock_result.success = False
+        mock_result.exception = "Test exception"
+
+        mock_dbt_runner_instance = Mock()
+        mock_dbt_runner_instance.invoke.return_value = mock_result
+        mock_dbt_runner.return_value = mock_dbt_runner_instance
+
+        with (
+            patch.object(runner, "_create_logging_callback"),
+            patch.object(runner, "_create_node_started_callback"),
+            patch.object(runner, "_create_node_finished_callback"),
+        ):
+            with pytest.raises(ValueError, match="Failed to invoke dbt command"):
+                runner.invoke(["run"])
+
+    @patch("prefect_dbt.core.runner.dbtRunner")
+    def test_invoke_with_failures_raise_on_failure_true(
+        self, mock_dbt_runner: Mock
+    ) -> None:
+        """Test dbt invoke with failures when raise_on_failure is True"""
+        runner = PrefectDbtRunner(raise_on_failure=True)
+
+        # Create mock failure result
+        mock_node = Mock()
+        mock_node.resource_type = "model"
+        mock_node.name = "test_model"
+
+        mock_result_item = Mock()
+        mock_result_item.node = mock_node
+        mock_result_item.status = RunStatus.Error
+        mock_result_item.message = "Test error"
+
+        mock_run_result = Mock(spec=RunExecutionResult)
+        mock_run_result.results = [mock_result_item]
+
+        mock_result = Mock()
+        mock_result.success = False
+        mock_result.exception = None
+        mock_result.result = mock_run_result
+
+        mock_dbt_runner_instance = Mock()
+        mock_dbt_runner_instance.invoke.return_value = mock_result
+        mock_dbt_runner.return_value = mock_dbt_runner_instance
+
+        with (
+            patch.object(runner, "_create_logging_callback"),
+            patch.object(runner, "_create_node_started_callback"),
+            patch.object(runner, "_create_node_finished_callback"),
+        ):
+            with pytest.raises(ValueError, match="Failures detected"):
+                runner.invoke(["run"])
+
+    @patch("prefect_dbt.core.runner.dbtRunner")
+    def test_invoke_with_failures_raise_on_failure_false(
+        self, mock_dbt_runner: Mock
+    ) -> None:
+        """Test dbt invoke with failures when raise_on_failure is False"""
+        runner = PrefectDbtRunner(raise_on_failure=False)
+
+        mock_result = Mock()
+        mock_result.success = False
+        mock_result.exception = None
+
+        mock_dbt_runner_instance = Mock()
+        mock_dbt_runner_instance.invoke.return_value = mock_result
+        mock_dbt_runner.return_value = mock_dbt_runner_instance
+
+        with (
+            patch.object(runner, "_create_logging_callback"),
+            patch.object(runner, "_create_node_started_callback"),
+            patch.object(runner, "_create_node_finished_callback"),
+        ):
+            result = runner.invoke(["run"])
+            assert result == mock_result
+
+    def test_invoke_with_kwargs_and_cli_flags(self) -> None:
+        """Test invoke with both kwargs and CLI flags"""
+        runner = PrefectDbtRunner()
+
+        with (
+            patch.object(runner, "_update_setting_from_kwargs") as mock_kwargs,
+            patch.object(runner, "_update_setting_from_cli_flag") as mock_cli,
+            patch("prefect_dbt.core.runner.dbtRunner") as mock_dbt_runner,
+        ):
+            mock_cli.return_value = ["run"]
+            mock_dbt_runner_instance = Mock()
+            mock_dbt_runner_instance.invoke.return_value = Mock(
+                success=True, exception=None
+            )
+            mock_dbt_runner.return_value = mock_dbt_runner_instance
+
+            with (
+                patch.object(runner, "_create_logging_callback"),
+                patch.object(runner, "_create_node_started_callback"),
+                patch.object(runner, "_create_node_finished_callback"),
+            ):
+                runner.invoke(
+                    ["--target-path", "/cli/path", "run"], target_path="/kwargs/path"
                 )
-                assert model_call.kwargs["downstream_resources"][0] == {
-                    "prefect.resource.id": "postgres://schema/model_table",
-                    "prefect.resource.lineage-group": "global",
-                    "prefect.resource.role": NodeType.Model,
-                    "prefect.resource.name": "model",
-                }
 
-        test_flow()
+                # Verify kwargs were processed
+                mock_kwargs.assert_called()
+                # Verify CLI flags were processed
+                mock_cli.assert_called()
 
-        # Verify parse was called only when manifest wasn't provided
-        assert mock_dbt_runner.invoke.called == (not provide_manifest)
 
-    @pytest.mark.asyncio
-    @pytest.mark.parametrize("provide_manifest", [True, False])
-    async def test_aemit_lineage_events(
-        self, mock_dbt_runner, settings, mock_manifest_with_nodes, provide_manifest
-    ):
-        """Test that lineage events are emitted correctly for all relevant nodes (async version)."""
-        runner = PrefectDbtRunner(
-            settings=settings,
-            manifest=mock_manifest_with_nodes if provide_manifest else None,
-        )
+class TestExecuteDbtNode:
+    """Test cases for execute_dbt_node function"""
 
-        if not provide_manifest:
-            # Setup the mock to return our manifest when parse() is called
-            mock_dbt_runner.invoke.return_value.result = mock_manifest_with_nodes
+    def test_execute_dbt_node_success(self) -> None:
+        """Test successful node execution"""
+        task_state = Mock(spec=TaskState)
+        node_id = "test_node"
+        asset_id = "test_asset"
 
-        @flow(flow_run_name="test-flow-name")
-        async def test_flow():
-            with patch(
-                "prefect_dbt.core.runner.emit_external_resource_lineage"
-            ) as mock_emit_lineage:
-                await runner.aemit_lineage_events()
+        # Mock successful completion
+        task_state.get_node_status.return_value = {
+            "event_data": {"node_info": {"node_status": RunStatus.Success}}
+        }
 
-                # Should emit lineage for model and seed, but not test or exposure
-                assert mock_emit_lineage.call_count == 2
+        with patch("prefect_dbt.core.runner.get_run_logger") as mock_get_logger:
+            mock_logger = Mock()
+            mock_get_logger.return_value = mock_logger
 
-                # Get all downstream resources that were emitted
-                downstream_resources = [
-                    call.kwargs["downstream_resources"][0]["prefect.resource.id"]
-                    for call in mock_emit_lineage.call_args_list
-                ]
+            execute_dbt_node(task_state, node_id, asset_id)
 
-                # Verify correct resources were emitted
-                assert "postgres://schema/model_table" in downstream_resources
-                assert "postgres://schema/seed_table" in downstream_resources
-                assert "postgres://schema/test_table" not in downstream_resources
-                assert "postgres://schema/exposure_table" not in downstream_resources
+            task_state.set_task_logger.assert_called_once_with(node_id, mock_logger)
+            task_state.wait_for_node_completion.assert_called_once_with(node_id)
+            task_state.get_node_status.assert_called_once_with(node_id)
 
-                # Verify the structure of one of the lineage calls
-                model_call = next(
-                    call
-                    for call in mock_emit_lineage.call_args_list
-                    if call.kwargs["downstream_resources"][0]["prefect.resource.id"]
-                    == "postgres://schema/model_table"
-                )
-                assert model_call.kwargs["downstream_resources"][0] == {
-                    "prefect.resource.id": "postgres://schema/model_table",
-                    "prefect.resource.lineage-group": "global",
-                    "prefect.resource.role": NodeType.Model,
-                    "prefect.resource.name": "model",
-                }
+    def test_execute_dbt_node_failure(self) -> None:
+        """Test node execution with failure status"""
+        task_state = Mock(spec=TaskState)
+        node_id = "test_node"
+        asset_id = "test_asset"
 
-        await test_flow()
+        # Mock failure status
+        task_state.get_node_status.return_value = {
+            "event_data": {"node_info": {"node_status": RunStatus.Error}}
+        }
 
-        # Verify parse was called only when manifest wasn't provided
-        assert mock_dbt_runner.invoke.called == (not provide_manifest)
+        with patch("prefect_dbt.core.runner.get_run_logger"):
+            with pytest.raises(
+                Exception, match="Node test_node finished with status error"
+            ):
+                execute_dbt_node(task_state, node_id, asset_id)
+
+    def test_execute_dbt_node_no_status(self) -> None:
+        """Test node execution when no status is returned"""
+        task_state = Mock(spec=TaskState)
+        node_id = "test_node"
+        asset_id = "test_asset"
+
+        # Mock no status returned
+        task_state.get_node_status.return_value = None
+
+        with patch("prefect_dbt.core.runner.get_run_logger"):
+            execute_dbt_node(task_state, node_id, asset_id)
+
+            task_state.set_task_logger.assert_called_once()
+            task_state.wait_for_node_completion.assert_called_once_with(node_id)
+            task_state.get_node_status.assert_called_once_with(node_id)
+
+
+class TestConstants:
+    """Test cases for module constants"""
+
+    def test_failure_statuses(self) -> None:
+        """Test that all expected failure statuses are included"""
+        expected_statuses = [
+            RunStatus.Error,
+            TestStatus.Error,
+            TestStatus.Fail,
+            FreshnessStatus.Error,
+            FreshnessStatus.RuntimeErr,
+            NodeStatus.Error,
+            NodeStatus.Fail,
+            NodeStatus.RuntimeErr,
+        ]
+
+        for status in expected_statuses:
+            assert status in FAILURE_STATUSES
+
+    def test_materialization_node_types(self) -> None:
+        """Test materialization node types"""
+        from dbt.artifacts.resources.types import NodeType
+
+        expected_types = [NodeType.Model, NodeType.Seed, NodeType.Snapshot]
+
+        for node_type in expected_types:
+            assert node_type in MATERIALIZATION_NODE_TYPES
+
+    def test_reference_node_types(self) -> None:
+        """Test reference node types"""
+        from dbt.artifacts.resources.types import NodeType
+
+        expected_types = [NodeType.Exposure, NodeType.Source]
+
+        for node_type in expected_types:
+            assert node_type in REFERENCE_NODE_TYPES

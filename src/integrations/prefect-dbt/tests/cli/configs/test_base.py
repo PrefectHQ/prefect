@@ -39,7 +39,9 @@ SAMPLE_PROFILES = {
 
 @pytest.fixture
 def mock_load_profiles():
-    with patch("prefect_dbt.cli.configs.base.load_profiles_yml") as mock:
+    with patch(
+        "prefect_dbt.core.settings.PrefectDbtSettings.load_profiles_yml"
+    ) as mock:
         mock.return_value = SAMPLE_PROFILES
         yield mock
 
