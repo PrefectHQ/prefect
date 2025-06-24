@@ -1,0 +1,51 @@
+---
+title: process
+sidebarTitle: process
+---
+
+# `prefect.workers.process`
+
+
+
+Module containing the Process worker used for executing flow runs as subprocesses.
+
+To start a Process worker, run the following command:
+
+```bash
+prefect worker start --pool 'my-work-pool' --type process
+```
+
+Replace `my-work-pool` with the name of the work pool you want the worker
+to poll for flow runs.
+
+For more information about work pools and workers,
+checkout out the [Prefect docs](/concepts/work-pools/).
+
+
+## Classes
+
+### `ProcessJobConfiguration`
+
+**Methods:**
+
+#### `validate_working_dir`
+
+```python
+validate_working_dir(cls, v: Path | str | None) -> Path | None
+```
+
+#### `prepare_for_flow_run`
+
+```python
+prepare_for_flow_run(self, flow_run: 'FlowRun', deployment: 'DeploymentResponse | None' = None, flow: 'APIFlow | None' = None, work_pool: 'WorkPool | None' = None, worker_name: str | None = None) -> None
+```
+
+### `ProcessVariables`
+
+### `ProcessWorkerResult`
+
+
+Contains information about the final state of a completed process
+
+
+### `ProcessWorker`

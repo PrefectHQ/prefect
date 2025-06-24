@@ -1,0 +1,67 @@
+---
+title: database
+sidebarTitle: database
+---
+
+# `prefect.settings.models.server.database`
+
+## Functions
+
+### `warn_on_database_password_value_without_usage`
+
+```python
+warn_on_database_password_value_without_usage(settings: ServerDatabaseSettings) -> None
+```
+
+
+Validator for settings warning if the database password is set but not used.
+
+
+## Classes
+
+### `SQLAlchemyTLSSettings`
+
+
+Settings for controlling SQLAlchemy mTLS context when
+using a PostgreSQL database.
+
+
+### `SQLAlchemyConnectArgsSettings`
+
+
+Settings for controlling SQLAlchemy connection behavior; note that these settings only take effect when
+using a PostgreSQL database.
+
+
+### `SQLAlchemySettings`
+
+
+Settings for controlling SQLAlchemy behavior; note that these settings only take effect when
+using a PostgreSQL database.
+
+
+### `ServerDatabaseSettings`
+
+
+Settings for controlling server database behavior
+
+
+**Methods:**
+
+#### `set_deprecated_sqlalchemy_settings_on_child_model_and_warn`
+
+```python
+set_deprecated_sqlalchemy_settings_on_child_model_and_warn(cls, values: dict[str, Any]) -> dict[str, Any]
+```
+
+Set deprecated settings on the child model.
+
+
+#### `emit_warnings`
+
+```python
+emit_warnings(self) -> Self
+```
+
+More post-hoc validation of settings, including warnings for misconfigurations.
+

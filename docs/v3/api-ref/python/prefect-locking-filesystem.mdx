@@ -1,0 +1,46 @@
+---
+title: filesystem
+sidebarTitle: filesystem
+---
+
+# `prefect.locking.filesystem`
+
+## Classes
+
+### `FileSystemLockManager`
+
+
+A lock manager that implements locking using local files.
+
+
+**Methods:**
+
+#### `acquire_lock`
+
+```python
+acquire_lock(self, key: str, holder: str, acquire_timeout: Optional[float] = None, hold_timeout: Optional[float] = None) -> bool
+```
+
+#### `release_lock`
+
+```python
+release_lock(self, key: str, holder: str) -> None
+```
+
+#### `is_locked`
+
+```python
+is_locked(self, key: str, use_cache: bool = False) -> bool
+```
+
+#### `is_lock_holder`
+
+```python
+is_lock_holder(self, key: str, holder: str) -> bool
+```
+
+#### `wait_for_lock`
+
+```python
+wait_for_lock(self, key: str, timeout: Optional[float] = None) -> bool
+```

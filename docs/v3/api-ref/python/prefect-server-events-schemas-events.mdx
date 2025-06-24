@@ -1,0 +1,225 @@
+---
+title: events
+sidebarTitle: events
+---
+
+# `prefect.server.events.schemas.events`
+
+## Functions
+
+### `matches`
+
+```python
+matches(expected: str, value: Optional[str]) -> bool
+```
+
+
+Returns true if the given value matches the expected string, which may
+include a a negation prefix ("!this-value") or a wildcard suffix
+("any-value-starting-with*")
+
+
+## Classes
+
+### `Resource`
+
+
+An observable business object of interest to the user
+
+
+**Methods:**
+
+#### `enforce_maximum_labels`
+
+```python
+enforce_maximum_labels(self) -> Self
+```
+
+#### `requires_resource_id`
+
+```python
+requires_resource_id(self) -> Self
+```
+
+#### `id`
+
+```python
+id(self) -> str
+```
+
+#### `name`
+
+```python
+name(self) -> Optional[str]
+```
+
+#### `prefect_object_id`
+
+```python
+prefect_object_id(self, kind: str) -> UUID
+```
+
+Extracts the UUID from an event's resource ID if it's the expected kind
+of prefect resource
+
+
+### `RelatedResource`
+
+
+A Resource with a specific role in an Event
+
+
+**Methods:**
+
+#### `requires_resource_role`
+
+```python
+requires_resource_role(self) -> Self
+```
+
+#### `role`
+
+```python
+role(self) -> str
+```
+
+### `Event`
+
+
+The client-side view of an event that has happened to a Resource
+
+
+**Methods:**
+
+#### `involved_resources`
+
+```python
+involved_resources(self) -> Sequence[Resource]
+```
+
+#### `resource_in_role`
+
+```python
+resource_in_role(self) -> Mapping[str, RelatedResource]
+```
+
+Returns a mapping of roles to the first related resource in that role
+
+
+#### `resources_in_role`
+
+```python
+resources_in_role(self) -> Mapping[str, Sequence[RelatedResource]]
+```
+
+Returns a mapping of roles to related resources in that role
+
+
+#### `enforce_maximum_related_resources`
+
+```python
+enforce_maximum_related_resources(cls, value: List[RelatedResource]) -> List[RelatedResource]
+```
+
+#### `receive`
+
+```python
+receive(self, received: Optional[prefect.types._datetime.DateTime] = None) -> 'ReceivedEvent'
+```
+
+#### `find_resource_label`
+
+```python
+find_resource_label(self, label: str) -> Optional[str]
+```
+
+Finds the value of the given label in this event's resource or one of its
+related resources.  If the label starts with `related:<role>:`, search for the
+first matching label in a related resource with that role.
+
+
+### `ReceivedEvent`
+
+
+The server-side view of an event that has happened to a Resource after it has
+been received by the server
+
+
+**Methods:**
+
+#### `as_database_row`
+
+```python
+as_database_row(self) -> dict[str, Any]
+```
+
+#### `as_database_resource_rows`
+
+```python
+as_database_resource_rows(self) -> List[Dict[str, Any]]
+```
+
+### `ResourceSpecification`
+
+**Methods:**
+
+#### `matches_every_resource`
+
+```python
+matches_every_resource(self) -> bool
+```
+
+#### `matches_every_resource_of_kind`
+
+```python
+matches_every_resource_of_kind(self, prefix: str) -> bool
+```
+
+#### `includes`
+
+```python
+includes(self, candidates: Iterable[Resource]) -> bool
+```
+
+#### `matches`
+
+```python
+matches(self, resource: Resource) -> bool
+```
+
+#### `items`
+
+```python
+items(self) -> Iterable[Tuple[str, List[str]]]
+```
+
+#### `pop`
+
+```python
+pop(self, key: str, default: Optional[Union[str, List[str]]] = None) -> Optional[List[str]]
+```
+
+#### `get`
+
+```python
+get(self, key: str, default: Optional[Union[str, List[str]]] = None) -> Optional[List[str]]
+```
+
+#### `deepcopy`
+
+```python
+deepcopy(self) -> 'ResourceSpecification'
+```
+
+### `EventPage`
+
+
+A single page of events returned from the API, with an optional link to the
+next page of results
+
+
+### `EventCount`
+
+
+The count of events with the given filter value
+

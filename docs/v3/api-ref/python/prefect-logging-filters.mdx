@@ -1,0 +1,41 @@
+---
+title: filters
+sidebarTitle: filters
+---
+
+# `prefect.logging.filters`
+
+## Functions
+
+### `redact_substr`
+
+```python
+redact_substr(obj: Any, substr: str) -> Any
+```
+
+
+Redact a string from a potentially nested object.
+
+**Args:**
+- `obj`: The object to redact the string from
+- `substr`: The string to redact.
+
+**Returns:**
+- The object with the API key redacted.
+
+
+## Classes
+
+### `ObfuscateApiKeyFilter`
+
+
+A logging filter that obfuscates any string that matches the obfuscate_string function.
+
+
+**Methods:**
+
+#### `filter`
+
+```python
+filter(self, record: logging.LogRecord) -> bool
+```

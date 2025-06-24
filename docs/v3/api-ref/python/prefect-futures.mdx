@@ -1,0 +1,333 @@
+---
+title: futures
+sidebarTitle: futures
+---
+
+# `prefect.futures`
+
+## Functions
+
+### `as_completed`
+
+```python
+as_completed(futures: list[PrefectFuture[R]], timeout: float | None = None) -> Generator[PrefectFuture[R], None]
+```
+
+### `wait`
+
+```python
+wait(futures: list[PrefectFuture[R]], timeout: float | None = None) -> DoneAndNotDoneFutures[R]
+```
+
+
+Wait for the futures in the given sequence to complete.
+
+**Args:**
+- `futures`: The sequence of Futures to wait upon.
+- `timeout`: The maximum number of seconds to wait. If None, then there
+is no limit on the wait time.
+
+**Returns:**
+- A named 2-tuple of sets. The first set, named 'done', contains the
+- futures that completed (is finished or cancelled) before the wait
+- completed. The second set, named 'not_done', contains uncompleted
+- futures. Duplicate futures given to *futures* are removed and will be
+- returned only once.
+
+**Examples:**
+
+```python
+@task
+def sleep_task(seconds):
+    sleep(seconds)
+    return 42
+
+@flow
+def flow():
+    futures = random_task.map(range(10))
+    done, not_done = wait(futures, timeout=5)
+    print(f"Done: {len(done)}")
+    print(f"Not Done: {len(not_done)}")
+```
+
+
+### `resolve_futures_to_states`
+
+```python
+resolve_futures_to_states(expr: PrefectFuture[R] | Any) -> PrefectFuture[R] | Any
+```
+
+
+Given a Python built-in collection, recursively find `PrefectFutures` and build a
+new collection with the same structure with futures resolved to their final states.
+Resolving futures to their final states may wait for execution to complete.
+
+Unsupported object types will be returned without modification.
+
+
+### `resolve_futures_to_results`
+
+```python
+resolve_futures_to_results(expr: PrefectFuture[R] | Any) -> Any
+```
+
+
+Given a Python built-in collection, recursively find `PrefectFutures` and build a
+new collection with the same structure with futures resolved to their final results.
+Resolving futures to their final result may wait for execution to complete.
+
+Unsupported object types will be returned without modification.
+
+
+## Classes
+
+### `PrefectFuture`
+
+
+Abstract base class for Prefect futures. A Prefect future is a handle to the
+asynchronous execution of a run. It provides methods to wait for the
+to complete and to retrieve the result of the run.
+
+
+**Methods:**
+
+#### `task_run_id`
+
+```python
+task_run_id(self) -> uuid.UUID
+```
+
+The ID of the task run associated with this future
+
+
+#### `state`
+
+```python
+state(self) -> State
+```
+
+The current state of the task run associated with this future
+
+
+#### `wait`
+
+```python
+wait(self, timeout: float | None = None) -> None
+```
+
+#### `result`
+
+```python
+result(self, timeout: float | None = None, raise_on_failure: bool = True) -> R
+```
+
+#### `add_done_callback`
+
+```python
+add_done_callback(self, fn: Callable[['PrefectFuture[R]'], None]) -> None
+```
+
+Add a callback to be run when the future completes or is cancelled.
+
+**Args:**
+- `fn`: A callable that will be called with this future as its only argument when the future completes or is cancelled.
+
+
+### `PrefectTaskRunFuture`
+
+
+A Prefect future that represents the eventual execution of a task run.
+
+
+**Methods:**
+
+#### `task_run_id`
+
+```python
+task_run_id(self) -> uuid.UUID
+```
+
+The ID of the task run associated with this future
+
+
+#### `state`
+
+```python
+state(self) -> State
+```
+
+The current state of the task run associated with this future
+
+
+### `PrefectWrappedFuture`
+
+
+A Prefect future that wraps another future object.
+
+
+**Methods:**
+
+#### `wrapped_future`
+
+```python
+wrapped_future(self) -> F
+```
+
+The underlying future object wrapped by this Prefect future
+
+
+#### `add_done_callback`
+
+```python
+add_done_callback(self, fn: Callable[[PrefectFuture[R]], None]) -> None
+```
+
+Add a callback to be executed when the future completes.
+
+
+### `PrefectConcurrentFuture`
+
+
+A Prefect future that wraps a concurrent.futures.Future. This future is used
+when the task run is submitted to a ThreadPoolExecutor.
+
+
+**Methods:**
+
+#### `wait`
+
+```python
+wait(self, timeout: float | None = None) -> None
+```
+
+#### `result`
+
+```python
+result(self, timeout: float | None = None, raise_on_failure: bool = True) -> R
+```
+
+### `PrefectDistributedFuture`
+
+
+Represents the result of a computation happening anywhere.
+
+This class is typically used to interact with the result of a task run
+scheduled to run in a Prefect task worker but can be used to interact with
+any task run scheduled in Prefect's API.
+
+
+**Methods:**
+
+#### `wait`
+
+```python
+wait(self, timeout: float | None = None) -> None
+```
+
+#### `result`
+
+```python
+result(self, timeout: float | None = None, raise_on_failure: bool = True) -> R
+```
+
+#### `add_done_callback`
+
+```python
+add_done_callback(self, fn: Callable[[PrefectFuture[R]], None]) -> None
+```
+
+### `PrefectFlowRunFuture`
+
+
+A Prefect future that represents the eventual execution of a flow run.
+
+
+**Methods:**
+
+#### `flow_run_id`
+
+```python
+flow_run_id(self) -> uuid.UUID
+```
+
+The ID of the flow run associated with this future
+
+
+#### `state`
+
+```python
+state(self) -> State
+```
+
+The current state of the flow run associated with this future
+
+
+#### `wait`
+
+```python
+wait(self, timeout: float | None = None) -> None
+```
+
+#### `result`
+
+```python
+result(self, timeout: float | None = None, raise_on_failure: bool = True) -> R
+```
+
+#### `add_done_callback`
+
+```python
+add_done_callback(self, fn: Callable[[PrefectFuture[R]], None]) -> None
+```
+
+### `PrefectFutureList`
+
+
+A list of Prefect futures.
+
+This class provides methods to wait for all futures
+in the list to complete and to retrieve the results of all task runs.
+
+
+**Methods:**
+
+#### `wait`
+
+```python
+wait(self, timeout: float | None = None) -> None
+```
+
+Wait for all futures in the list to complete.
+
+**Args:**
+- `timeout`: The maximum number of seconds to wait for all futures to
+complete. This method will not raise if the timeout is reached.
+
+
+#### `result`
+
+```python
+result(self: Self, timeout: float | None = None, raise_on_failure: bool = True) -> list[R]
+```
+
+Get the results of all task runs associated with the futures in the list.
+
+**Args:**
+- `timeout`: The maximum number of seconds to wait for all futures to
+complete.
+- `raise_on_failure`: If `True`, an exception will be raised if any task run fails.
+
+**Returns:**
+- A list of results of the task runs.
+
+**Raises:**
+- `TimeoutError`: If the timeout is reached before all futures complete.
+
+
+### `DoneAndNotDoneFutures`
+
+
+A named 2-tuple of sets.
+
+multiple inheritance supported in 3.11+, use typing_extensions.NamedTuple
+

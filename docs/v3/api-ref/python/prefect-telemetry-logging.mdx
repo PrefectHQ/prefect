@@ -1,0 +1,39 @@
+---
+title: logging
+sidebarTitle: logging
+---
+
+# `prefect.telemetry.logging`
+
+## Functions
+
+### `set_log_handler`
+
+```python
+set_log_handler(log_handler: Optional['LoggingHandler']) -> None
+```
+
+
+Set the OTLP log handler.
+
+
+### `get_log_handler`
+
+```python
+get_log_handler() -> Optional['LoggingHandler']
+```
+
+
+Get the OTLP log handler.
+
+
+### `add_telemetry_log_handler`
+
+```python
+add_telemetry_log_handler(logger: logging.Logger) -> None
+```
+
+
+Add the OTLP log handler to the given logger if the log handler has
+been configured.
+

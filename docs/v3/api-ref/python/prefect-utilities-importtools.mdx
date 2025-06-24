@@ -1,0 +1,187 @@
+---
+title: importtools
+sidebarTitle: importtools
+---
+
+# `prefect.utilities.importtools`
+
+## Functions
+
+### `to_qualified_name`
+
+```python
+to_qualified_name(obj: Any) -> str
+```
+
+
+Given an object, returns its fully-qualified name: a string that represents its
+Python import path.
+
+**Args:**
+- `obj`: an importable Python object
+
+**Returns:**
+- the qualified name
+
+
+### `from_qualified_name`
+
+```python
+from_qualified_name(name: str) -> Any
+```
+
+
+Import an object given a fully-qualified name.
+
+**Args:**
+- `name`: The fully-qualified name of the object to import.
+
+**Returns:**
+- the imported object
+
+**Examples:**
+
+>>> obj = from_qualified_name("random.randint")
+>>> import random
+>>> obj == random.randint
+True
+
+
+### `load_script_as_module`
+
+```python
+load_script_as_module(path: str) -> ModuleType
+```
+
+
+Execute a script at the given path.
+
+Sets the module name to a unique identifier to ensure thread safety.
+Uses a lock to safely modify sys.path for relative imports.
+
+If an exception occurs during execution of the script, a
+`prefect.exceptions.ScriptError` is created to wrap the exception and raised.
+
+
+### `load_module`
+
+```python
+load_module(module_name: str) -> ModuleType
+```
+
+
+Import a module with support for relative imports within the module.
+
+
+### `import_object`
+
+```python
+import_object(import_path: str) -> Any
+```
+
+
+Load an object from an import path.
+
+Import paths can be formatted as one of:
+- module.object
+- module:object
+- /path/to/script.py:object
+- module:object.method
+- /path/to/script.py:object.method
+
+This function is not thread safe as it modifies the 'sys' module during execution.
+
+
+### `lazy_import`
+
+```python
+lazy_import(name: str, error_on_import: bool = False, help_message: Optional[str] = None) -> ModuleType
+```
+
+
+Create a lazily-imported module to use in place of the module of the given name.
+Use this to retain module-level imports for libraries that we don't want to
+actually import until they are needed.
+
+NOTE: Lazy-loading a subpackage can cause the subpackage to be imported
+twice if another non-lazy import also imports the subpackage. For example,
+using both `lazy_import("docker.errors")` and `import docker.errors` in the
+same codebase will import `docker.errors` twice and can lead to unexpected
+behavior, e.g. type check failures and import-time side effects running
+twice.
+
+Adapted from the [Python documentation][1] and [lazy_loader][2]
+
+[1]: https://docs.python.org/3/library/importlib.html#implementing-lazy-imports
+[2]: https://github.com/scientific-python/lazy_loader
+
+
+### `safe_load_namespace`
+
+```python
+safe_load_namespace(source_code: str, filepath: Optional[str] = None) -> dict[str, Any]
+```
+
+
+Safely load a namespace from source code, optionally handling relative imports.
+
+If a `filepath` is provided, `sys.path` is modified to support relative imports.
+Changes to `sys.path` are reverted after completion, but this function is not thread safe
+and use of it in threaded contexts may result in undesirable behavior.
+
+**Args:**
+- `source_code`: The source code to load
+- `filepath`: Optional file path of the source code. If provided, enables relative imports.
+
+**Returns:**
+- The namespace loaded from the source code.
+
+
+## Classes
+
+### `DelayedImportErrorModule`
+
+
+A fake module returned by `lazy_import` when the module cannot be found. When any
+of the module's attributes are accessed, we will throw a `ModuleNotFoundError`.
+
+Adapted from [lazy_loader][1]
+
+[1]: https://github.com/scientific-python/lazy_loader
+
+
+### `AliasedModuleDefinition`
+
+
+A definition for the `AliasedModuleFinder`.
+
+**Args:**
+- `alias`: The import name to create
+- `real`: The import name of the module to reference for the alias
+- `callback`: A function to call when the alias module is loaded
+
+
+### `AliasedModuleFinder`
+
+**Methods:**
+
+#### `find_spec`
+
+```python
+find_spec(self, fullname: str, path: Optional[Sequence[str]] = None, target: Optional[ModuleType] = None) -> Optional[ModuleSpec]
+```
+
+The fullname is the imported path, e.g. "foo.bar". If there is an alias "phi"
+for "foo" then on import of "phi.bar" we will find the spec for "foo.bar" and
+create a new spec for "phi.bar" that points to "foo.bar".
+
+
+### `AliasedModuleLoader`
+
+**Methods:**
+
+#### `exec_module`
+
+```python
+exec_module(self, module: ModuleType) -> None
+```

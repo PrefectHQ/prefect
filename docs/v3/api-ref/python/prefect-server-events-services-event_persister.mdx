@@ -1,0 +1,40 @@
+---
+title: event_persister
+sidebarTitle: event_persister
+---
+
+# `prefect.server.events.services.event_persister`
+
+
+
+The event persister moves event messages from the event bus to storage
+storage as fast as it can.  Never gets tired.
+
+
+## Classes
+
+### `EventPersister`
+
+
+A service that persists events to the database as they arrive.
+
+
+**Methods:**
+
+#### `service_settings`
+
+```python
+service_settings(cls) -> ServicesBaseSetting
+```
+
+#### `started_event`
+
+```python
+started_event(self) -> asyncio.Event
+```
+
+#### `started_event`
+
+```python
+started_event(self, value: asyncio.Event) -> None
+```
