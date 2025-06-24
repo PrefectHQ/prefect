@@ -7,15 +7,15 @@ sidebarTitle: filesystems
 
 ## Classes
 
-### `ReadableFileSystem`
+### `ReadableFileSystem` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L24" target="_blank">↗</a></sup>
 
-### `WritableFileSystem`
+### `WritableFileSystem` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L32" target="_blank">↗</a></sup>
 
-### `ReadableDeploymentStorage`
+### `ReadableDeploymentStorage` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L44" target="_blank">↗</a></sup>
 
-### `WritableDeploymentStorage`
+### `WritableDeploymentStorage` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L54" target="_blank">↗</a></sup>
 
-### `LocalFileSystem`
+### `LocalFileSystem` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L73" target="_blank">↗</a></sup>
 
 
 Store data as a file on a local file system.
@@ -23,13 +23,13 @@ Store data as a file on a local file system.
 
 **Methods:**
 
-#### `cast_pathlib`
+#### `cast_pathlib` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L97" target="_blank">↗</a></sup>
 
 ```python
 cast_pathlib(cls, value: str | Path | None) -> str | None
 ```
 
-### `RemoteFileSystem`
+### `RemoteFileSystem` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L248" target="_blank">↗</a></sup>
 
 
 Store data as a file on a remote file system.
@@ -40,19 +40,19 @@ using a protocol. For example, "s3://my-bucket/my-folder/" will use S3.
 
 **Methods:**
 
-#### `check_basepath`
+#### `check_basepath` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L284" target="_blank">↗</a></sup>
 
 ```python
 check_basepath(cls, value: str) -> str
 ```
 
-#### `filesystem`
+#### `filesystem` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L407" target="_blank">↗</a></sup>
 
 ```python
 filesystem(self) -> fsspec.AbstractFileSystem
 ```
 
-### `SMB`
+### `SMB` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L425" target="_blank">↗</a></sup>
 
 
 Store data as a file on a SMB share.
@@ -60,19 +60,19 @@ Store data as a file on a SMB share.
 
 **Methods:**
 
-#### `basepath`
+#### `basepath` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L467" target="_blank">↗</a></sup>
 
 ```python
 basepath(self) -> str
 ```
 
-#### `filesystem`
+#### `filesystem` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L471" target="_blank">↗</a></sup>
 
 ```python
 filesystem(self) -> RemoteFileSystem
 ```
 
-### `NullFileSystem`
+### `NullFileSystem` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L526" target="_blank">↗</a></sup>
 
 
 A file system that does not store any data.

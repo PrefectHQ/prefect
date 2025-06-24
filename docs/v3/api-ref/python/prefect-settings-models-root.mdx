@@ -7,7 +7,7 @@ sidebarTitle: root
 
 ## Functions
 
-### `canonical_environment_prefix`
+### `canonical_environment_prefix` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/settings/models/root.py#L455" target="_blank">↗</a></sup>
 
 ```python
 canonical_environment_prefix(settings: 'Settings') -> str
@@ -15,7 +15,7 @@ canonical_environment_prefix(settings: 'Settings') -> str
 
 ## Classes
 
-### `Settings`
+### `Settings` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/settings/models/root.py#L41" target="_blank">↗</a></sup>
 
 
 Settings for Prefect using Pydantic settings.
@@ -25,7 +25,7 @@ See https://docs.pydantic.dev/latest/concepts/pydantic_settings
 
 **Methods:**
 
-#### `post_hoc_settings`
+#### `post_hoc_settings` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/settings/models/root.py#L177" target="_blank">↗</a></sup>
 
 ```python
 post_hoc_settings(self) -> Self
@@ -38,7 +38,7 @@ define dependencies between defaults in a first-class way, we need clean up
 post-hoc default assignments to keep set/unset fields correct after instantiation.
 
 
-#### `emit_warnings`
+#### `emit_warnings` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/settings/models/root.py#L244" target="_blank">↗</a></sup>
 
 ```python
 emit_warnings(self) -> Self
@@ -47,7 +47,7 @@ emit_warnings(self) -> Self
 More post-hoc validation of settings, including warnings for misconfigurations.
 
 
-#### `copy_with_update`
+#### `copy_with_update` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/settings/models/root.py#L253" target="_blank">↗</a></sup>
 
 ```python
 copy_with_update(self: Self, updates: Optional[Mapping['Setting', Any]] = None, set_defaults: Optional[Mapping['Setting', Any]] = None, restore_defaults: Optional[Iterable['Setting']] = None) -> Self
@@ -66,7 +66,7 @@ the given settings will only be overridden if they were not set.
 - A new Settings object.
 
 
-#### `hash_key`
+#### `hash_key` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/settings/models/root.py#L324" target="_blank">↗</a></sup>
 
 ```python
 hash_key(self) -> str
