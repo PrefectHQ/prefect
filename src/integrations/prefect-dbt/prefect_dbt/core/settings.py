@@ -41,7 +41,9 @@ class PrefectDbtSettings(BaseSettings):
         description="The directory containing the dbt project.",
     )
     log_level: EventLevel = Field(
-        default=EventLevel(get_current_settings().logging.level.lower()),
+        default_factory=lambda: EventLevel(
+            get_current_settings().logging.level.lower()
+        ),
         description="The log level of the dbt CLI. Uses Prefect's logging level if not set.",
     )
     target_path: Path = Field(

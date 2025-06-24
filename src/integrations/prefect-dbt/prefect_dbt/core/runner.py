@@ -28,8 +28,8 @@ from prefect.client.orchestration import PrefectClient
 from prefect.context import AssetContext, hydrated_context, serialize_context
 from prefect.exceptions import MissingContextError
 from prefect.tasks import MaterializingTask, Task, TaskOptions
+from prefect_dbt.core._tracker import NodeTaskTracker
 from prefect_dbt.core.settings import PrefectDbtSettings
-from prefect_dbt.core.task_state import TaskState
 from prefect_dbt.utilities import format_resource_id
 
 FAILURE_STATUSES = [
@@ -61,7 +61,9 @@ SETTINGS_CONFIG = [
 FAILURE_MSG = '{resource_type} {resource_name} {status}ed with message: "{message}"'
 
 
-def execute_dbt_node(task_state: TaskState, node_id: str, asset_id: Union[str, None]):
+def execute_dbt_node(
+    task_state: NodeTaskTracker, node_id: str, asset_id: Union[str, None]
+):
     """Execute a dbt node and wait for its completion.
 
     This function will:
@@ -246,7 +248,7 @@ class PrefectDbtRunner:
 
     def _call_task(
         self,
-        task_state: TaskState,
+        task_state: NodeTaskTracker,
         manifest_node: ManifestNode,
         context: dict[str, Any],
     ):
@@ -316,7 +318,10 @@ class PrefectDbtRunner:
         return event.info.msg  # type: ignore[reportUnknownMemberType]
 
     def _create_logging_callback(
-        self, task_state: TaskState, log_level: EventLevel, context: dict[str, Any]
+        self,
+        task_state: NodeTaskTracker,
+        log_level: EventLevel,
+        context: dict[str, Any],
     ) -> Callable[[EventMsg], None]:
         """Creates a callback function for logging dbt events."""
 
@@ -352,7 +357,7 @@ class PrefectDbtRunner:
         return event.data.node_info.unique_id  # type: ignore[reportUnknownMemberType]
 
     def _create_node_started_callback(
-        self, task_state: TaskState, context: dict[str, Any]
+        self, task_state: NodeTaskTracker, context: dict[str, Any]
     ) -> Callable[[EventMsg], None]:
         """Creates a callback function for starting tasks when nodes start."""
 
@@ -375,7 +380,7 @@ class PrefectDbtRunner:
 
     def _create_node_finished_callback(
         self,
-        task_state: TaskState,
+        task_state: NodeTaskTracker,
     ) -> Callable[[EventMsg], None]:
         """Creates a callback function for ending tasks when nodes finish."""
 
@@ -465,7 +470,7 @@ class PrefectDbtRunner:
             )
 
         context = serialize_context()
-        task_state = TaskState()
+        task_state = NodeTaskTracker()
 
         callbacks = [
             self._create_logging_callback(task_state, self.log_level, context),

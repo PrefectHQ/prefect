@@ -11,8 +11,11 @@ from prefect.task_engine import run_task_sync
 from prefect.tasks import Task
 
 
-class TaskState:
-    """State for managing tasks across callbacks."""
+class NodeTaskTracker:
+    """
+    Maintains the state, upstream dependencies, logger, and results
+    for all the tasks called by the execution of each node in the dbt project.
+    """
 
     def __init__(self):
         self._tasks: dict[str, Task[Any, Any]] = {}
