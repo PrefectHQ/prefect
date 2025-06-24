@@ -31,7 +31,7 @@ class FlowClient(BaseClient):
         Create a flow in the Prefect API.
 
         Args:
-            flow: a [Flow][prefect.flows.Flow] object
+            flow: a `Flow` object
 
         Raises:
             httpx.RequestError: if a flow was not created for any reason
@@ -78,7 +78,7 @@ class FlowClient(BaseClient):
             flow_id: the flow ID of interest
 
         Returns:
-            a [Flow model][prefect.client.schemas.objects.Flow] representation of the flow
+            a Flow model representation of the flow
         """
         response = self.request("GET", "/flows/{id}", path_params={"id": flow_id})
         from prefect.client.schemas.objects import Flow
@@ -190,7 +190,7 @@ class FlowAsyncClient(BaseAsyncClient):
         Create a flow in the Prefect API.
 
         Args:
-            flow: a [Flow][prefect.flows.Flow] object
+            flow: a `Flow` object
 
         Raises:
             httpx.RequestError: if a flow was not created for any reason
@@ -237,7 +237,7 @@ class FlowAsyncClient(BaseAsyncClient):
             flow_id: the flow ID of interest
 
         Returns:
-            a [Flow model][prefect.client.schemas.objects.Flow] representation of the flow
+            a Flow model representation of the flow
         """
         response = await self.request("GET", "/flows/{id}", path_params={"id": flow_id})
         from prefect.client.schemas.objects import Flow
