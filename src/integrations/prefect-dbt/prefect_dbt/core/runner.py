@@ -5,7 +5,7 @@ Runner for dbt commands
 import json
 import os
 from pathlib import Path
-from typing import Any, Callable, Optional
+from typing import Any, Callable, Optional, Union
 
 from dbt.artifacts.resources.types import NodeType
 from dbt.artifacts.schemas.results import (
@@ -61,7 +61,7 @@ SETTINGS_CONFIG = [
 FAILURE_MSG = '{resource_type} {resource_name} {status}ed with message: "{message}"'
 
 
-def execute_dbt_node(task_state: TaskState, node_id: str, asset_id: str | None):
+def execute_dbt_node(task_state: TaskState, node_id: str, asset_id: Union[str, None]):
     """Execute a dbt node and wait for its completion.
 
     This function will:
@@ -405,7 +405,7 @@ class PrefectDbtRunner:
 
     def _extract_flag_value(
         self, args: list[str], flag: str
-    ) -> tuple[list[str], str | None]:
+    ) -> tuple[list[str], Union[str, None]]:
         """
         Extract a flag value from args and return the modified args and the value.
 
