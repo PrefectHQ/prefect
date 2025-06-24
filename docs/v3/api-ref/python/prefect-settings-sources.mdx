@@ -7,7 +7,7 @@ sidebarTitle: sources
 
 ## Classes
 
-### `EnvFilterSettingsSource`
+### `EnvFilterSettingsSource` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/settings/sources.py#L41" target="_blank">↗</a></sup>
 
 
 Custom pydantic settings source to filter out specific environment variables.
@@ -18,9 +18,9 @@ shouldn't be loaded from environment variables. This loader allows use to say wh
 environment variables should be ignored.
 
 
-### `FilteredDotEnvSettingsSource`
+### `FilteredDotEnvSettingsSource` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/settings/sources.py#L84" target="_blank">↗</a></sup>
 
-### `ProfileSettingsTomlLoader`
+### `ProfileSettingsTomlLoader` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/settings/sources.py#L122" target="_blank">↗</a></sup>
 
 
 Custom pydantic settings source to load profile settings from a toml file.
@@ -30,7 +30,7 @@ See https://docs.pydantic.dev/latest/concepts/pydantic_settings/#customise-setti
 
 **Methods:**
 
-#### `get_field_value`
+#### `get_field_value` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/settings/sources.py#L173" target="_blank">↗</a></sup>
 
 ```python
 get_field_value(self, field: FieldInfo, field_name: str) -> Tuple[Any, str, bool]
@@ -39,11 +39,11 @@ get_field_value(self, field: FieldInfo, field_name: str) -> Tuple[Any, str, bool
 Concrete implementation to get the field value from the profile settings
 
 
-### `TomlConfigSettingsSourceBase`
+### `TomlConfigSettingsSourceBase` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/settings/sources.py#L226" target="_blank">↗</a></sup>
 
 **Methods:**
 
-#### `get_field_value`
+#### `get_field_value` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/settings/sources.py#L235" target="_blank">↗</a></sup>
 
 ```python
 get_field_value(self, field: FieldInfo, field_name: str) -> tuple[Any, str, bool]
@@ -52,13 +52,13 @@ get_field_value(self, field: FieldInfo, field_name: str) -> tuple[Any, str, bool
 Concrete implementation to get the field value from toml data
 
 
-### `PrefectTomlConfigSettingsSource`
+### `PrefectTomlConfigSettingsSource` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/settings/sources.py#L274" target="_blank">↗</a></sup>
 
 
 Custom pydantic settings source to load settings from a prefect.toml file
 
 
-### `PyprojectTomlConfigSettingsSource`
+### `PyprojectTomlConfigSettingsSource` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/settings/sources.py#L293" target="_blank">↗</a></sup>
 
 
 Custom pydantic settings source to load settings from a pyproject.toml file

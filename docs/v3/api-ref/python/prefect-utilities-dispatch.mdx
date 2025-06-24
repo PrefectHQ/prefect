@@ -30,7 +30,7 @@ lookup_type(Base, key) # Foo
 
 ## Functions
 
-### `get_registry_for_type`
+### `get_registry_for_type` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/dispatch.py#L33" target="_blank">↗</a></sup>
 
 ```python
 get_registry_for_type(cls: T) -> Optional[dict[str, T]]
@@ -42,7 +42,7 @@ Get the first matching registry for a class or any of its base classes.
 If not found, `None` is returned.
 
 
-### `get_dispatch_key`
+### `get_dispatch_key` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/dispatch.py#L57" target="_blank">↗</a></sup>
 
 ```python
 get_dispatch_key(cls_or_instance: Any, allow_missing: bool = False) -> Optional[str]
@@ -58,7 +58,7 @@ If `allow_missing` is `False`, an exception will be raised if the attribute is n
 defined or the key is null. If `True`, `None` will be returned in these cases.
 
 
-### `register_base_type`
+### `register_base_type` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/dispatch.py#L114" target="_blank">↗</a></sup>
 
 ```python
 register_base_type(cls: T) -> T
@@ -72,7 +72,7 @@ The base class may or may not define a `__dispatch_key__` to allow lookups of th
 base type.
 
 
-### `register_type`
+### `register_type` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/dispatch.py#L140" target="_blank">↗</a></sup>
 
 ```python
 register_type(cls: T) -> T
@@ -86,7 +86,7 @@ The type or one of its parents must define a unique `__dispatch_key__`.
 One of the classes base types must be registered using `register_base_type`.
 
 
-### `lookup_type`
+### `lookup_type` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/dispatch.py#L197" target="_blank">↗</a></sup>
 
 ```python
 lookup_type(cls: T, dispatch_key: str) -> T

@@ -7,19 +7,19 @@ sidebarTitle: __init__
 
 ## Functions
 
-### `to_page_token`
+### `to_page_token` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/storage/__init__.py#L19" target="_blank">↗</a></sup>
 
 ```python
 to_page_token(filter: 'EventFilter', count: int, page_size: int, current_offset: int) -> Optional[str]
 ```
 
-### `from_page_token`
+### `from_page_token` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/storage/__init__.py#L37" target="_blank">↗</a></sup>
 
 ```python
 from_page_token(page_token: str) -> Tuple['EventFilter', int, int, int]
 ```
 
-### `process_time_based_counts`
+### `process_time_based_counts` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/storage/__init__.py#L56" target="_blank">↗</a></sup>
 
 ```python
 process_time_based_counts(filter: 'EventFilter', time_unit: TimeUnit, time_interval: float, counts: List[EventCount]) -> List[EventCount]
@@ -38,6 +38,6 @@ occurred time of the events themselves.
 
 ## Classes
 
-### `InvalidTokenError`
+### `InvalidTokenError` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/storage/__init__.py#L15" target="_blank">↗</a></sup>
 
-### `QueryRangeTooLarge`
+### `QueryRangeTooLarge` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/storage/__init__.py#L98" target="_blank">↗</a></sup>

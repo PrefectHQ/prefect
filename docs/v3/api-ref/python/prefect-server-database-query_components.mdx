@@ -7,9 +7,9 @@ sidebarTitle: query_components
 
 ## Classes
 
-### `FlowRunGraphV2Node`
+### `FlowRunGraphV2Node` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/query_components.py#L41" target="_blank">↗</a></sup>
 
-### `BaseQueryComponents`
+### `BaseQueryComponents` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/query_components.py#L63" target="_blank">↗</a></sup>
 
 
 Abstract base class used to inject dialect-specific SQL operations into Prefect.
@@ -17,7 +17,7 @@ Abstract base class used to inject dialect-specific SQL operations into Prefect.
 
 **Methods:**
 
-#### `unique_key`
+#### `unique_key` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/query_components.py#L72" target="_blank">↗</a></sup>
 
 ```python
 unique_key(self) -> tuple[Hashable, ...]
@@ -26,7 +26,7 @@ unique_key(self) -> tuple[Hashable, ...]
 Returns a key used to determine whether to instantiate a new DB interface.
 
 
-#### `insert`
+#### `insert` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/query_components.py#L81" target="_blank">↗</a></sup>
 
 ```python
 insert(self, obj: type[orm_models.Base]) -> Union[postgresql.Insert, sqlite.Insert]
@@ -35,7 +35,7 @@ insert(self, obj: type[orm_models.Base]) -> Union[postgresql.Insert, sqlite.Inse
 dialect-specific insert statement
 
 
-#### `uses_json_strings`
+#### `uses_json_strings` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/query_components.py#L90" target="_blank">↗</a></sup>
 
 ```python
 uses_json_strings(self) -> bool
@@ -44,7 +44,7 @@ uses_json_strings(self) -> bool
 specifies whether the configured dialect returns JSON as strings
 
 
-#### `cast_to_json`
+#### `cast_to_json` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/query_components.py#L94" target="_blank">↗</a></sup>
 
 ```python
 cast_to_json(self, json_obj: sa.ColumnElement[T]) -> sa.ColumnElement[T]
@@ -53,7 +53,7 @@ cast_to_json(self, json_obj: sa.ColumnElement[T]) -> sa.ColumnElement[T]
 casts to JSON object if necessary
 
 
-#### `build_json_object`
+#### `build_json_object` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/query_components.py#L98" target="_blank">↗</a></sup>
 
 ```python
 build_json_object(self, *args: Union[str, sa.ColumnElement[Any]]) -> sa.ColumnElement[Any]
@@ -62,7 +62,7 @@ build_json_object(self, *args: Union[str, sa.ColumnElement[Any]]) -> sa.ColumnEl
 builds a JSON object from sequential key-value pairs
 
 
-#### `json_arr_agg`
+#### `json_arr_agg` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/query_components.py#L104" target="_blank">↗</a></sup>
 
 ```python
 json_arr_agg(self, json_array: sa.ColumnElement[Any]) -> sa.ColumnElement[Any]
@@ -71,19 +71,19 @@ json_arr_agg(self, json_array: sa.ColumnElement[Any]) -> sa.ColumnElement[Any]
 aggregates a JSON array
 
 
-#### `make_timestamp_intervals`
+#### `make_timestamp_intervals` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/query_components.py#L110" target="_blank">↗</a></sup>
 
 ```python
 make_timestamp_intervals(self, start_time: datetime.datetime, end_time: datetime.datetime, interval: datetime.timedelta) -> sa.Select[tuple[datetime.datetime, datetime.datetime]]
 ```
 
-#### `set_state_id_on_inserted_flow_runs_statement`
+#### `set_state_id_on_inserted_flow_runs_statement` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/query_components.py#L118" target="_blank">↗</a></sup>
 
 ```python
 set_state_id_on_inserted_flow_runs_statement(self, inserted_flow_run_ids: Sequence[UUID], insert_flow_run_states: Iterable[dict[str, Any]]) -> sa.Update
 ```
 
-#### `get_scheduled_flow_runs_from_work_queues`
+#### `get_scheduled_flow_runs_from_work_queues` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/query_components.py#L125" target="_blank">↗</a></sup>
 
 ```python
 get_scheduled_flow_runs_from_work_queues(self, db: PrefectDBInterface, limit_per_queue: Optional[int] = None, work_queue_ids: Optional[list[UUID]] = None, scheduled_before: Optional[DateTime] = None) -> sa.Select[tuple[orm_models.FlowRun, UUID]]
@@ -96,7 +96,7 @@ This query returns a `(orm_models.FlowRun, orm_models.WorkQueue.id)` pair; calli
 will return only the flow run because it grabs the first result.
 
 
-#### `clear_configuration_value_cache_for_key`
+#### `clear_configuration_value_cache_for_key` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/query_components.py#L377" target="_blank">↗</a></sup>
 
 ```python
 clear_configuration_value_cache_for_key(self, key: str) -> None
@@ -105,47 +105,47 @@ clear_configuration_value_cache_for_key(self, key: str) -> None
 Removes a configuration key from the cache.
 
 
-### `AsyncPostgresQueryComponents`
+### `AsyncPostgresQueryComponents` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/query_components.py#L542" target="_blank">↗</a></sup>
 
 **Methods:**
 
-#### `insert`
+#### `insert` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/query_components.py#L545" target="_blank">↗</a></sup>
 
 ```python
 insert(self, obj: type[orm_models.Base]) -> postgresql.Insert
 ```
 
-#### `uses_json_strings`
+#### `uses_json_strings` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/query_components.py#L551" target="_blank">↗</a></sup>
 
 ```python
 uses_json_strings(self) -> bool
 ```
 
-#### `cast_to_json`
+#### `cast_to_json` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/query_components.py#L554" target="_blank">↗</a></sup>
 
 ```python
 cast_to_json(self, json_obj: sa.ColumnElement[T]) -> sa.ColumnElement[T]
 ```
 
-#### `build_json_object`
+#### `build_json_object` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/query_components.py#L557" target="_blank">↗</a></sup>
 
 ```python
 build_json_object(self, *args: Union[str, sa.ColumnElement[Any]]) -> sa.ColumnElement[Any]
 ```
 
-#### `json_arr_agg`
+#### `json_arr_agg` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/query_components.py#L562" target="_blank">↗</a></sup>
 
 ```python
 json_arr_agg(self, json_array: sa.ColumnElement[Any]) -> sa.ColumnElement[Any]
 ```
 
-#### `make_timestamp_intervals`
+#### `make_timestamp_intervals` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/query_components.py#L567" target="_blank">↗</a></sup>
 
 ```python
 make_timestamp_intervals(self, start_time: datetime.datetime, end_time: datetime.datetime, interval: datetime.timedelta) -> sa.Select[tuple[datetime.datetime, datetime.datetime]]
 ```
 
-#### `set_state_id_on_inserted_flow_runs_statement`
+#### `set_state_id_on_inserted_flow_runs_statement` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/query_components.py#L589" target="_blank">↗</a></sup>
 
 ```python
 set_state_id_on_inserted_flow_runs_statement(self, db: PrefectDBInterface, inserted_flow_run_ids: Sequence[UUID], insert_flow_run_states: Iterable[dict[str, Any]]) -> sa.Update
@@ -155,7 +155,7 @@ Given a list of flow run ids and associated states, set the state_id
 to the appropriate state for all flow runs
 
 
-### `UUIDList`
+### `UUIDList` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/query_components.py#L778" target="_blank">↗</a></sup>
 
 
 Map a JSON list of strings back to a list of UUIDs at the result loading stage
@@ -163,53 +163,53 @@ Map a JSON list of strings back to a list of UUIDs at the result loading stage
 
 **Methods:**
 
-#### `process_result_value`
+#### `process_result_value` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/query_components.py#L784" target="_blank">↗</a></sup>
 
 ```python
 process_result_value(self, value: Optional[list[Union[str, UUID]]], dialect: sa.Dialect) -> Optional[list[UUID]]
 ```
 
-### `AioSqliteQueryComponents`
+### `AioSqliteQueryComponents` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/query_components.py#L792" target="_blank">↗</a></sup>
 
 **Methods:**
 
-#### `insert`
+#### `insert` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/query_components.py#L795" target="_blank">↗</a></sup>
 
 ```python
 insert(self, obj: type[orm_models.Base]) -> sqlite.Insert
 ```
 
-#### `uses_json_strings`
+#### `uses_json_strings` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/query_components.py#L801" target="_blank">↗</a></sup>
 
 ```python
 uses_json_strings(self) -> bool
 ```
 
-#### `cast_to_json`
+#### `cast_to_json` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/query_components.py#L804" target="_blank">↗</a></sup>
 
 ```python
 cast_to_json(self, json_obj: sa.ColumnElement[T]) -> sa.ColumnElement[T]
 ```
 
-#### `build_json_object`
+#### `build_json_object` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/query_components.py#L807" target="_blank">↗</a></sup>
 
 ```python
 build_json_object(self, *args: Union[str, sa.ColumnElement[Any]]) -> sa.ColumnElement[Any]
 ```
 
-#### `json_arr_agg`
+#### `json_arr_agg` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/query_components.py#L812" target="_blank">↗</a></sup>
 
 ```python
 json_arr_agg(self, json_array: sa.ColumnElement[Any]) -> sa.ColumnElement[Any]
 ```
 
-#### `make_timestamp_intervals`
+#### `make_timestamp_intervals` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/query_components.py#L817" target="_blank">↗</a></sup>
 
 ```python
 make_timestamp_intervals(self, start_time: datetime.datetime, end_time: datetime.datetime, interval: datetime.timedelta) -> sa.Select[tuple[datetime.datetime, datetime.datetime]]
 ```
 
-#### `set_state_id_on_inserted_flow_runs_statement`
+#### `set_state_id_on_inserted_flow_runs_statement` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/query_components.py#L851" target="_blank">↗</a></sup>
 
 ```python
 set_state_id_on_inserted_flow_runs_statement(self, db: PrefectDBInterface, inserted_flow_run_ids: Sequence[UUID], insert_flow_run_states: Iterable[dict[str, Any]]) -> sa.Update

@@ -21,7 +21,7 @@ mechanism to configure and observe exactly what logic will fire against a transi
 
 ## Classes
 
-### `BaseOrchestrationPolicy`
+### `BaseOrchestrationPolicy` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/policies.py#L30" target="_blank">↗</a></sup>
 
 
 An abstract base class used to organize orchestration rules in priority order.
@@ -33,7 +33,7 @@ different orchestration logic.
 
 **Methods:**
 
-#### `priority`
+#### `priority` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/policies.py#L41" target="_blank">↗</a></sup>
 
 ```python
 priority() -> list[type[BaseUniversalTransform[T, RP] | BaseOrchestrationRule[T, RP]]]
@@ -42,7 +42,7 @@ priority() -> list[type[BaseUniversalTransform[T, RP] | BaseOrchestrationRule[T,
 A list of orchestration rules in priority order.
 
 
-#### `compile_transition_rules`
+#### `compile_transition_rules` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/policies.py#L51" target="_blank">↗</a></sup>
 
 ```python
 compile_transition_rules(cls, from_state: states.StateType | None = None, to_state: states.StateType | None = None) -> list[type[BaseUniversalTransform[T, RP] | BaseOrchestrationRule[T, RP]]]
@@ -51,8 +51,8 @@ compile_transition_rules(cls, from_state: states.StateType | None = None, to_sta
 Returns rules in policy that are valid for the specified state transition.
 
 
-### `TaskRunOrchestrationPolicy`
+### `TaskRunOrchestrationPolicy` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/policies.py#L69" target="_blank">↗</a></sup>
 
-### `FlowRunOrchestrationPolicy`
+### `FlowRunOrchestrationPolicy` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/policies.py#L75" target="_blank">↗</a></sup>
 
-### `GenericOrchestrationPolicy`
+### `GenericOrchestrationPolicy` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/policies.py#L81" target="_blank">↗</a></sup>
