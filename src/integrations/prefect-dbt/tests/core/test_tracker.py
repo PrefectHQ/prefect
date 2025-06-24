@@ -10,7 +10,7 @@ import pytest
 from prefect_dbt.core._tracker import NodeTaskTracker
 
 
-def test_tracker_manages_node_lifecycle(self):
+def test_tracker_manages_node_lifecycle():
     """Test that tracker properly manages the complete lifecycle of a node."""
     tracker = NodeTaskTracker()
     node_id = "test_node"
@@ -31,7 +31,7 @@ def test_tracker_manages_node_lifecycle(self):
     assert status["event_message"] == "Node completed successfully"
 
 
-def test_tracker_handles_multiple_nodes_independently(self):
+def test_tracker_handles_multiple_nodes_independently():
     """Test that tracker can manage multiple nodes without interference."""
     tracker = NodeTaskTracker()
 
@@ -51,7 +51,7 @@ def test_tracker_handles_multiple_nodes_independently(self):
     assert tracker.is_node_complete("node2") is True
 
 
-def test_tracker_provides_thread_safe_completion_waiting(self):
+def test_tracker_provides_thread_safe_completion_waiting():
     """Test that tracker provides thread-safe waiting for node completion."""
     tracker = NodeTaskTracker()
     node_id = "test_node"
@@ -72,7 +72,7 @@ def test_tracker_provides_thread_safe_completion_waiting(self):
     assert tracker.is_node_complete(node_id) is True
 
 
-def test_tracker_handles_timeout_gracefully(self):
+def test_tracker_handles_timeout_gracefully():
     """Test that tracker handles timeout scenarios gracefully."""
     tracker = NodeTaskTracker()
     node_id = "test_node"
@@ -84,7 +84,7 @@ def test_tracker_handles_timeout_gracefully(self):
     assert not tracker.is_node_complete(node_id)
 
 
-def test_tracker_manages_task_results(self):
+def test_tracker_manages_task_results():
     """Test that tracker properly manages task results."""
     tracker = NodeTaskTracker()
     node_id = "test_node"
@@ -100,7 +100,7 @@ def test_tracker_manages_task_results(self):
     assert tracker.get_task_result(node_id) is None
 
 
-def test_tracker_manages_dependencies(self):
+def test_tracker_manages_dependencies():
     """Test that tracker properly manages node dependencies."""
     tracker = NodeTaskTracker()
     node_id = "test_node"
@@ -115,7 +115,7 @@ def test_tracker_manages_dependencies(self):
     assert tracker.get_node_dependencies("unknown_node") == []
 
 
-def test_tracker_manages_loggers(self):
+def test_tracker_manages_loggers():
     """Test that tracker properly manages task loggers."""
     tracker = NodeTaskTracker()
     node_id = "test_node"
@@ -130,7 +130,7 @@ def test_tracker_manages_loggers(self):
     assert tracker.get_task_logger("unknown_node") is None
 
 
-def test_tracker_thread_execution_outcomes(self, monkeypatch: pytest.MonkeyPatch):
+def test_tracker_thread_execution_outcomes(monkeypatch: pytest.MonkeyPatch):
     """Test that tracker properly handles thread execution outcomes."""
     tracker = NodeTaskTracker()
     node_id = "test_node"
@@ -165,9 +165,7 @@ def test_tracker_thread_execution_outcomes(self, monkeypatch: pytest.MonkeyPatch
     assert result == mock_state
 
 
-def test_tracker_handles_execution_with_dependencies(
-    self, monkeypatch: pytest.MonkeyPatch
-):
+def test_tracker_handles_execution_with_dependencies(monkeypatch: pytest.MonkeyPatch):
     """Test that tracker handles execution with dependencies correctly."""
     tracker = NodeTaskTracker()
     node_id = "test_node"
@@ -209,7 +207,7 @@ def test_tracker_handles_execution_with_dependencies(
     assert result == mock_state
 
 
-def test_tracker_handles_execution_failures(self, monkeypatch: pytest.MonkeyPatch):
+def test_tracker_handles_execution_failures(monkeypatch: pytest.MonkeyPatch):
     """Test that tracker properly handles execution failures."""
     tracker = NodeTaskTracker()
     node_id = "test_node"
@@ -248,7 +246,7 @@ def test_tracker_handles_execution_failures(self, monkeypatch: pytest.MonkeyPatc
     assert result is None
 
 
-def test_tracker_handles_no_state_returned(self, monkeypatch: pytest.MonkeyPatch):
+def test_tracker_handles_no_state_returned(monkeypatch: pytest.MonkeyPatch):
     """Test that tracker handles cases where no state is returned."""
     tracker = NodeTaskTracker()
     node_id = "test_node"
@@ -281,7 +279,7 @@ def test_tracker_handles_no_state_returned(self, monkeypatch: pytest.MonkeyPatch
     assert result is None
 
 
-def test_tracker_comprehensive_workflow(self) -> None:
+def test_tracker_comprehensive_workflow() -> None:
     """Test a comprehensive workflow using the tracker."""
     tracker = NodeTaskTracker()
 

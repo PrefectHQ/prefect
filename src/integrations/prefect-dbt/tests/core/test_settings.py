@@ -11,9 +11,7 @@ import yaml
 from prefect_dbt.core.settings import PrefectDbtSettings
 
 
-def test_settings_provide_working_dbt_configuration(
-    self, monkeypatch: pytest.MonkeyPatch
-):
+def test_settings_provide_working_dbt_configuration(monkeypatch: pytest.MonkeyPatch):
     """Test that settings provide a working dbt configuration."""
     monkeypatch.setattr(
         "prefect_dbt.core.settings.find_profiles_dir",
@@ -31,7 +29,7 @@ def test_settings_provide_working_dbt_configuration(
     assert settings.target_path.name == "target"
 
 
-def test_settings_override_defaults_correctly(self, monkeypatch: pytest.MonkeyPatch):
+def test_settings_override_defaults_correctly(monkeypatch: pytest.MonkeyPatch):
     """Test that settings properly override defaults."""
     custom_project = Path("/custom/project")
     custom_target = Path("custom_target")
@@ -48,7 +46,7 @@ def test_settings_override_defaults_correctly(self, monkeypatch: pytest.MonkeyPa
     assert settings.target_path == custom_target
 
 
-def test_settings_load_valid_profiles_file(self):
+def test_settings_load_valid_profiles_file():
     """Test that settings can load and parse a valid profiles.yml file."""
     with tempfile.TemporaryDirectory() as temp_dir:
         temp_path = Path(temp_dir)
@@ -83,7 +81,7 @@ def test_settings_load_valid_profiles_file(self):
         assert loaded_profiles["my_profile"]["targets"]["dev"]["port"] == 5432
 
 
-def test_settings_handle_missing_profiles_file(self):
+def test_settings_handle_missing_profiles_file():
     """Test that settings handle missing profiles.yml gracefully."""
     with tempfile.TemporaryDirectory() as temp_dir:
         temp_path = Path(temp_dir)
@@ -96,9 +94,7 @@ def test_settings_handle_missing_profiles_file(self):
             settings.load_profiles_yml()
 
 
-def test_settings_resolve_profiles_with_templating(
-    self, monkeypatch: pytest.MonkeyPatch
-):
+def test_settings_resolve_profiles_with_templating(monkeypatch: pytest.MonkeyPatch):
     """Test that settings can resolve profiles with templating."""
     with tempfile.TemporaryDirectory() as temp_dir:
         temp_path = Path(temp_dir)
@@ -164,7 +160,7 @@ def test_settings_resolve_profiles_with_templating(
         assert not temp_dir.exists()
 
 
-def test_settings_handle_resolution_failures(self, monkeypatch: pytest.MonkeyPatch):
+def test_settings_handle_resolution_failures(monkeypatch: pytest.MonkeyPatch):
     """Test that settings handle resolution failures gracefully."""
     with tempfile.TemporaryDirectory() as temp_dir:
         temp_path = Path(temp_dir)
@@ -203,7 +199,7 @@ def test_settings_handle_resolution_failures(self, monkeypatch: pytest.MonkeyPat
                 assert not Path(temp_dir_path).exists()
 
 
-def test_settings_environment_variable_loading(self, monkeypatch: pytest.MonkeyPatch):
+def test_settings_environment_variable_loading(monkeypatch: pytest.MonkeyPatch):
     """Test that settings properly load from environment variables."""
     monkeypatch.setattr(
         "prefect_dbt.core.settings.find_profiles_dir",
@@ -223,7 +219,7 @@ def test_settings_environment_variable_loading(self, monkeypatch: pytest.MonkeyP
 
 
 def test_settings_discover_profiles_directory_correctly(
-    self, monkeypatch: pytest.MonkeyPatch
+    monkeypatch: pytest.MonkeyPatch,
 ):
     """Test that settings discover the profiles directory correctly."""
     # Test when profiles.yml exists in current working directory
@@ -255,7 +251,7 @@ def test_settings_discover_profiles_directory_correctly(
     assert settings.profiles_dir == Path("/home/user/.dbt")
 
 
-def test_settings_handle_complex_profiles_structure(self):
+def test_settings_handle_complex_profiles_structure():
     """Test that settings handle complex profiles.yml structures."""
     with tempfile.TemporaryDirectory() as temp_dir:
         temp_path = Path(temp_dir)
