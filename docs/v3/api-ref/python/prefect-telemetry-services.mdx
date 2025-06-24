@@ -1,0 +1,54 @@
+---
+title: services
+sidebarTitle: services
+---
+
+# `prefect.telemetry.services`
+
+## Classes
+
+### `OTLPExporter`
+
+**Methods:**
+
+#### `export`
+
+```python
+export(self, __items: Sequence[T_contra]) -> Any
+```
+
+#### `shutdown`
+
+```python
+shutdown(self) -> Any
+```
+
+### `BaseQueueingExporter`
+
+**Methods:**
+
+#### `shutdown`
+
+```python
+shutdown(self) -> None
+```
+
+### `QueueingSpanExporter`
+
+**Methods:**
+
+#### `export`
+
+```python
+export(self, spans: Sequence[ReadableSpan]) -> SpanExportResult
+```
+
+### `QueueingLogExporter`
+
+**Methods:**
+
+#### `export`
+
+```python
+export(self, batch: Sequence[LogData]) -> None
+```

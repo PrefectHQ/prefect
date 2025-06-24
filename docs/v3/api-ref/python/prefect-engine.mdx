@@ -1,0 +1,24 @@
+---
+title: engine
+sidebarTitle: engine
+---
+
+# `prefect.engine`
+
+## Functions
+
+### `handle_engine_signals`
+
+```python
+handle_engine_signals(flow_run_id: UUID | None = None)
+```
+
+
+Handle signals from the orchestrator to abort or pause the flow run or otherwise
+handle unexpected exceptions.
+
+This context manager will handle exiting the process depending on the signal received.
+
+**Args:**
+- `flow_run_id`: The ID of the flow run to handle signals for.
+

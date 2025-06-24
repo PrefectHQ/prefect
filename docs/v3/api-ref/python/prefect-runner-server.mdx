@@ -1,0 +1,44 @@
+---
+title: server
+sidebarTitle: server
+---
+
+# `prefect.runner.server`
+
+## Functions
+
+### `perform_health_check`
+
+```python
+perform_health_check(runner: 'Runner', delay_threshold: int | None = None) -> Callable[..., JSONResponse]
+```
+
+### `run_count`
+
+```python
+run_count(runner: 'Runner') -> Callable[..., int]
+```
+
+### `shutdown`
+
+```python
+shutdown(runner: 'Runner') -> Callable[..., JSONResponse]
+```
+
+### `start_webserver`
+
+```python
+start_webserver(runner: 'Runner', log_level: str | None = None) -> None
+```
+
+
+Run a FastAPI server for a runner.
+
+**Args:**
+- `runner`: the runner this server interacts with and monitors
+- `log_level`: the log level to use for the server
+
+
+## Classes
+
+### `RunnerGenericFlowRunRequest`

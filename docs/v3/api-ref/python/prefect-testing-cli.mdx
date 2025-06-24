@@ -1,0 +1,53 @@
+---
+title: cli
+sidebarTitle: cli
+---
+
+# `prefect.testing.cli`
+
+## Functions
+
+### `check_contains`
+
+```python
+check_contains(cli_result: Result, content: str, should_contain: bool) -> None
+```
+
+
+Utility function to see if content is or is not in a CLI result.
+
+**Args:**
+- `should_contain`: if True, checks that content is in cli_result,
+if False, checks that content is not in cli_result
+
+
+### `invoke_and_assert`
+
+```python
+invoke_and_assert(command: str | list[str], user_input: str | None = None, prompts_and_responses: list[tuple[str, str] | tuple[str, str, str]] | None = None, expected_output: str | None = None, expected_output_contains: str | Iterable[str] | None = None, expected_output_does_not_contain: str | Iterable[str] | None = None, expected_line_count: int | None = None, expected_code: int | None = 0, echo: bool = True, temp_dir: str | None = None) -> Result
+```
+
+
+Test utility for the Prefect CLI application, asserts exact match with CLI output.
+
+**Args:**
+- `command`: Command passed to the Typer CliRunner
+- `user_input`: User input passed to the Typer CliRunner when running interactive
+commands.
+- `expected_output`: Used when you expect the CLI output to be an exact match with
+the provided text.
+- `expected_output_contains`: Used when you expect the CLI output to contain the
+string or strings.
+- `expected_output_does_not_contain`: Used when you expect the CLI output to not
+contain the string or strings.
+- `expected_code`: 0 if we expect the app to exit cleanly, else 1 if we expect
+the app to exit with an error.
+- `temp_dir`: if provided, the CLI command will be run with this as its present
+working directory.
+
+
+### `temporary_console_width`
+
+```python
+temporary_console_width(console: Console, width: int)
+```

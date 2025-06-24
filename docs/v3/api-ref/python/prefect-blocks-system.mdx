@@ -1,0 +1,47 @@
+---
+title: system
+sidebarTitle: system
+---
+
+# `prefect.blocks.system`
+
+## Classes
+
+### `JSON`
+
+
+A block that represents JSON. Deprecated, please use Variables to store JSON data instead.
+
+
+### `String`
+
+
+A block that represents a string. Deprecated, please use Variables to store string data instead.
+
+
+### `DateTime`
+
+
+A block that represents a datetime. Deprecated, please use Variables to store datetime data instead.
+
+
+### `Secret`
+
+
+A block that represents a secret value. The value stored in this block will be obfuscated when
+this block is viewed or edited in the UI.
+
+
+**Methods:**
+
+#### `validate_value`
+
+```python
+validate_value(cls, value: Union[T, SecretStr, PydanticSecret[T]]) -> Union[SecretStr, PydanticSecret[T]]
+```
+
+#### `get`
+
+```python
+get(self) -> T | str
+```

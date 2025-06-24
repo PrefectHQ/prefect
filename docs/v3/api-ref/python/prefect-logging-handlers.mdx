@@ -1,0 +1,117 @@
+---
+title: handlers
+sidebarTitle: handlers
+---
+
+# `prefect.logging.handlers`
+
+## Classes
+
+### `APILogWorker`
+
+**Methods:**
+
+#### `max_batch_size`
+
+```python
+max_batch_size(self) -> int
+```
+
+#### `min_interval`
+
+```python
+min_interval(self) -> float | None
+```
+
+#### `instance`
+
+```python
+instance(cls: Type[Self], *args: Any) -> Self
+```
+
+### `APILogHandler`
+
+
+A logging handler that sends logs to the Prefect API.
+
+Sends log records to the `APILogWorker` which manages sending batches of logs in
+the background.
+
+
+**Methods:**
+
+#### `flush`
+
+```python
+flush(self) -> None
+```
+
+Tell the `APILogWorker` to send any currently enqueued logs and block until
+completion.
+
+Use `aflush` from async contexts instead.
+
+
+#### `emit`
+
+```python
+emit(self, record: logging.LogRecord) -> None
+```
+
+Send a log to the `APILogWorker`
+
+
+#### `handleError`
+
+```python
+handleError(self, record: logging.LogRecord) -> None
+```
+
+#### `prepare`
+
+```python
+prepare(self, record: logging.LogRecord) -> Dict[str, Any]
+```
+
+Convert a `logging.LogRecord` to the API `LogCreate` schema and serialize.
+
+This infers the linked flow or task run from the log record or the current
+run context.
+
+If a flow run id cannot be found, the log will be dropped.
+
+Logs exceeding the maximum size will be dropped.
+
+
+### `WorkerAPILogHandler`
+
+**Methods:**
+
+#### `emit`
+
+```python
+emit(self, record: logging.LogRecord) -> None
+```
+
+#### `prepare`
+
+```python
+prepare(self, record: logging.LogRecord) -> Dict[str, Any]
+```
+
+Convert a `logging.LogRecord` to the API `LogCreate` schema and serialize.
+
+This will add in the worker id to the log.
+
+Logs exceeding the maximum size will be dropped.
+
+
+### `PrefectConsoleHandler`
+
+**Methods:**
+
+#### `emit`
+
+```python
+emit(self, record: logging.LogRecord) -> None
+```

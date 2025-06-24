@@ -1,0 +1,58 @@
+---
+title: config
+sidebarTitle: config
+---
+
+# `prefect.cli.config`
+
+
+
+Command line interface for working with profiles
+
+
+## Functions
+
+### `set_`
+
+```python
+set_(settings: list[str])
+```
+
+
+Change the value for a setting by setting the value in the current profile.
+
+
+### `validate`
+
+```python
+validate()
+```
+
+
+Read and validate the current profile.
+
+Deprecated settings will be automatically converted to new names unless both are
+set.
+
+
+### `unset`
+
+```python
+unset(setting_names: list[str], confirm: bool = typer.Option(False, '--yes', '-y'))
+```
+
+
+Restore the default value for a setting.
+
+Removes the setting from the current profile.
+
+
+### `view`
+
+```python
+view(show_defaults: bool = typer.Option(False, '--show-defaults/--hide-defaults', help=show_defaults_help), show_sources: bool = typer.Option(True, '--show-sources/--hide-sources', help=show_sources_help), show_secrets: bool = typer.Option(False, '--show-secrets/--hide-secrets', help='Toggle display of secrets setting values.'))
+```
+
+
+Display the current settings.
+

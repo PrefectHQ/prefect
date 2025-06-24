@@ -1,0 +1,108 @@
+---
+title: base
+sidebarTitle: base
+---
+
+# `prefect.client.base`
+
+## Functions
+
+### `determine_server_type`
+
+```python
+determine_server_type() -> ServerType
+```
+
+
+Determine the server type based on the current settings.
+
+**Returns:**
+- - `ServerType.EPHEMERAL` if the ephemeral server is enabled
+- - `ServerType.SERVER` if a API URL is configured and it is not a cloud URL
+- - `ServerType.CLOUD` if an API URL is configured and it is a cloud URL
+- - `ServerType.UNCONFIGURED` if no API URL is configured and ephemeral mode is
+not enabled
+
+
+## Classes
+
+### `ASGIApp`
+
+### `PrefectResponse`
+
+
+A Prefect wrapper for the `httpx.Response` class.
+
+Provides more informative error messages.
+
+
+**Methods:**
+
+#### `raise_for_status`
+
+```python
+raise_for_status(self) -> Response
+```
+
+Raise an exception if the response contains an HTTPStatusError.
+
+The `PrefectHTTPStatusError` contains useful additional information that
+is not contained in the `HTTPStatusError`.
+
+
+#### `from_httpx_response`
+
+```python
+from_httpx_response(cls: type[Self], response: httpx.Response) -> Response
+```
+
+Create a `PrefectResponse` from an `httpx.Response`.
+
+By changing the `__class__` attribute of the Response, we change the method
+resolution order to look for methods defined in PrefectResponse, while leaving
+everything else about the original Response instance intact.
+
+
+### `PrefectHttpxAsyncClient`
+
+
+A Prefect wrapper for the async httpx client with support for retry-after headers
+for the provided status codes (typically 429, 502 and 503).
+
+Additionally, this client will always call `raise_for_status` on responses.
+
+For more details on rate limit headers, see:
+[Configuring Cloudflare Rate Limiting](https://support.cloudflare.com/hc/en-us/articles/115001635128-Configuring-Rate-Limiting-from-UI)
+
+
+### `PrefectHttpxSyncClient`
+
+
+A Prefect wrapper for the async httpx client with support for retry-after headers
+for the provided status codes (typically 429, 502 and 503).
+
+Additionally, this client will always call `raise_for_status` on responses.
+
+For more details on rate limit headers, see:
+[Configuring Cloudflare Rate Limiting](https://support.cloudflare.com/hc/en-us/articles/115001635128-Configuring-Rate-Limiting-from-UI)
+
+
+**Methods:**
+
+#### `send`
+
+```python
+send(self, request: Request, *args: Any, **kwargs: Any) -> Response
+```
+
+Send a request with automatic retry behavior for the following status codes:
+
+- 403 Forbidden, if the request failed due to CSRF protection
+- 408 Request Timeout
+- 429 CloudFlare-style rate limiting
+- 502 Bad Gateway
+- 503 Service unavailable
+- Any additional status codes provided in `PREFECT_CLIENT_RETRY_EXTRA_CODES`
+
+
+### `ServerType`

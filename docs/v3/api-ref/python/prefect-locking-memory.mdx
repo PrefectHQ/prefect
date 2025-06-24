@@ -1,0 +1,49 @@
+---
+title: memory
+sidebarTitle: memory
+---
+
+# `prefect.locking.memory`
+
+## Classes
+
+### `MemoryLockManager`
+
+
+A lock manager that stores lock information in memory.
+
+Note: because this lock manager stores data in memory, it is not suitable for
+use in a distributed environment or across different processes.
+
+
+**Methods:**
+
+#### `acquire_lock`
+
+```python
+acquire_lock(self, key: str, holder: str, acquire_timeout: float | None = None, hold_timeout: float | None = None) -> bool
+```
+
+#### `release_lock`
+
+```python
+release_lock(self, key: str, holder: str) -> None
+```
+
+#### `is_locked`
+
+```python
+is_locked(self, key: str) -> bool
+```
+
+#### `is_lock_holder`
+
+```python
+is_lock_holder(self, key: str, holder: str) -> bool
+```
+
+#### `wait_for_lock`
+
+```python
+wait_for_lock(self, key: str, timeout: float | None = None) -> bool
+```

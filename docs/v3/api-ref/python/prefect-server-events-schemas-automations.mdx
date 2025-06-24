@@ -1,0 +1,357 @@
+---
+title: automations
+sidebarTitle: automations
+---
+
+# `prefect.server.events.schemas.automations`
+
+## Classes
+
+### `Posture`
+
+### `TriggerState`
+
+### `Trigger`
+
+
+Base class describing a set of criteria that must be satisfied in order to trigger
+an automation.
+
+
+**Methods:**
+
+#### `automation`
+
+```python
+automation(self) -> 'Automation'
+```
+
+#### `parent`
+
+```python
+parent(self) -> 'Union[Trigger, Automation]'
+```
+
+#### `reset_ids`
+
+```python
+reset_ids(self) -> None
+```
+
+Resets the ID of this trigger and all of its children
+
+
+#### `all_triggers`
+
+```python
+all_triggers(self) -> Sequence[Trigger]
+```
+
+Returns all triggers within this trigger
+
+
+#### `create_automation_state_change_event`
+
+```python
+create_automation_state_change_event(self, firing: 'Firing', trigger_state: TriggerState) -> ReceivedEvent
+```
+
+### `CompositeTrigger`
+
+
+Requires some number of triggers to have fired within the given time period.
+
+
+**Methods:**
+
+#### `create_automation_state_change_event`
+
+```python
+create_automation_state_change_event(self, firing: Firing, trigger_state: TriggerState) -> ReceivedEvent
+```
+
+Returns a ReceivedEvent for an automation state change
+into a triggered or resolved state.
+
+
+#### `all_triggers`
+
+```python
+all_triggers(self) -> Sequence[Trigger]
+```
+
+#### `child_trigger_ids`
+
+```python
+child_trigger_ids(self) -> List[UUID]
+```
+
+#### `num_expected_firings`
+
+```python
+num_expected_firings(self) -> int
+```
+
+#### `ready_to_fire`
+
+```python
+ready_to_fire(self, firings: Sequence['Firing']) -> bool
+```
+
+### `CompoundTrigger`
+
+
+A composite trigger that requires some number of triggers to have
+fired within the given time period
+
+
+**Methods:**
+
+#### `num_expected_firings`
+
+```python
+num_expected_firings(self) -> int
+```
+
+#### `ready_to_fire`
+
+```python
+ready_to_fire(self, firings: Sequence['Firing']) -> bool
+```
+
+#### `validate_require`
+
+```python
+validate_require(self) -> Self
+```
+
+### `SequenceTrigger`
+
+
+A composite trigger that requires some number of triggers to have fired
+within the given time period in a specific order
+
+
+**Methods:**
+
+#### `expected_firing_order`
+
+```python
+expected_firing_order(self) -> List[UUID]
+```
+
+#### `ready_to_fire`
+
+```python
+ready_to_fire(self, firings: Sequence['Firing']) -> bool
+```
+
+### `ResourceTrigger`
+
+
+Base class for triggers that may filter by the labels of resources.
+
+
+**Methods:**
+
+#### `covers_resources`
+
+```python
+covers_resources(self, resource: Resource, related: Sequence[RelatedResource]) -> bool
+```
+
+### `EventTrigger`
+
+
+A trigger that fires based on the presence or absence of events within a given
+period of time.
+
+
+**Methods:**
+
+#### `enforce_minimum_within_for_proactive_triggers`
+
+```python
+enforce_minimum_within_for_proactive_triggers(cls, data: Dict[str, Any] | Any) -> Dict[str, Any]
+```
+
+#### `covers`
+
+```python
+covers(self, event: ReceivedEvent) -> bool
+```
+
+#### `immediate`
+
+```python
+immediate(self) -> bool
+```
+
+Does this reactive trigger fire immediately for all events?
+
+
+#### `event_pattern`
+
+```python
+event_pattern(self) -> re.Pattern[str]
+```
+
+A regular expression which may be evaluated against any event string to
+determine if this trigger would be interested in the event
+
+
+#### `starts_after`
+
+```python
+starts_after(self, event: str) -> bool
+```
+
+#### `expects`
+
+```python
+expects(self, event: str) -> bool
+```
+
+#### `bucketing_key`
+
+```python
+bucketing_key(self, event: ReceivedEvent) -> Tuple[str, ...]
+```
+
+#### `meets_threshold`
+
+```python
+meets_threshold(self, event_count: int) -> bool
+```
+
+#### `create_automation_state_change_event`
+
+```python
+create_automation_state_change_event(self, firing: Firing, trigger_state: TriggerState) -> ReceivedEvent
+```
+
+Returns a ReceivedEvent for an automation state change
+into a triggered or resolved state.
+
+
+### `AutomationCore`
+
+
+Defines an action a user wants to take when a certain number of events
+do or don't happen to the matching resources
+
+
+**Methods:**
+
+#### `triggers`
+
+```python
+triggers(self) -> Sequence[Trigger]
+```
+
+Returns all triggers within this automation
+
+
+#### `triggers_of_type`
+
+```python
+triggers_of_type(self, trigger_type: Type[T]) -> Sequence[T]
+```
+
+Returns all triggers of the specified type within this automation
+
+
+#### `trigger_by_id`
+
+```python
+trigger_by_id(self, trigger_id: UUID) -> Optional[Trigger]
+```
+
+Returns the trigger with the given ID, or None if no such trigger exists
+
+
+#### `prevent_run_deployment_loops`
+
+```python
+prevent_run_deployment_loops(self) -> Self
+```
+
+Detects potential infinite loops in automations with RunDeployment actions
+
+
+### `Automation`
+
+**Methods:**
+
+#### `model_validate`
+
+```python
+model_validate(cls: type[Self], obj: Any) -> Self
+```
+
+### `AutomationCreate`
+
+### `AutomationUpdate`
+
+### `AutomationPartialUpdate`
+
+### `AutomationSort`
+
+
+Defines automations sorting options.
+
+
+### `Firing`
+
+
+Represents one instance of a trigger firing
+
+
+**Methods:**
+
+#### `validate_trigger_states`
+
+```python
+validate_trigger_states(cls, value: set[TriggerState]) -> set[TriggerState]
+```
+
+#### `all_firings`
+
+```python
+all_firings(self) -> Sequence[Firing]
+```
+
+#### `all_events`
+
+```python
+all_events(self) -> Sequence[ReceivedEvent]
+```
+
+### `TriggeredAction`
+
+
+An action caused as the result of an automation
+
+
+**Methods:**
+
+#### `idempotency_key`
+
+```python
+idempotency_key(self) -> str
+```
+
+Produce a human-friendly idempotency key for this action
+
+
+#### `all_firings`
+
+```python
+all_firings(self) -> Sequence[Firing]
+```
+
+#### `all_events`
+
+```python
+all_events(self) -> Sequence[ReceivedEvent]
+```

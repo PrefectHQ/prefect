@@ -1,0 +1,185 @@
+---
+title: serializers
+sidebarTitle: serializers
+---
+
+# `prefect.serializers`
+
+
+
+Serializer implementations for converting objects to bytes and bytes to objects.
+
+All serializers are based on the `Serializer` class and include a `type` string that
+allows them to be referenced without referencing the actual class. For example, you
+can get often specify the `JSONSerializer` with the string "json". Some serializers
+support additional settings for configuration of serialization. These are stored on
+the instance so the same settings can be used to load saved objects.
+
+All serializers must implement `dumps` and `loads` which convert objects to bytes and
+bytes to an object respectively.
+
+
+## Functions
+
+### `prefect_json_object_encoder`
+
+```python
+prefect_json_object_encoder(obj: Any) -> Any
+```
+
+
+`JSONEncoder.default` for encoding objects into JSON with extended type support.
+
+Raises a `TypeError` to fallback on other encoders on failure.
+
+
+### `prefect_json_object_decoder`
+
+```python
+prefect_json_object_decoder(result: dict[str, Any]) -> Any
+```
+
+
+`JSONDecoder.object_hook` for decoding objects from JSON when previously encoded
+with `prefect_json_object_encoder`
+
+
+## Classes
+
+### `Serializer`
+
+
+A serializer that can encode objects of type 'D' into bytes.
+
+
+**Methods:**
+
+#### `dumps`
+
+```python
+dumps(self, obj: D) -> bytes
+```
+
+Encode the object into a blob of bytes.
+
+
+#### `loads`
+
+```python
+loads(self, blob: bytes) -> D
+```
+
+Decode the blob of bytes into an object.
+
+
+### `PickleSerializer`
+
+
+Serializes objects using the pickle protocol.
+
+- Uses `cloudpickle` by default. See `picklelib` for using alternative libraries.
+- Stores the version of the pickle library to check for compatibility during
+    deserialization.
+- Wraps pickles in base64 for safe transmission.
+
+
+**Methods:**
+
+#### `check_picklelib`
+
+```python
+check_picklelib(cls, value: str) -> str
+```
+
+#### `dumps`
+
+```python
+dumps(self, obj: D) -> bytes
+```
+
+#### `loads`
+
+```python
+loads(self, blob: bytes) -> D
+```
+
+### `JSONSerializer`
+
+
+Serializes data to JSON.
+
+Input types must be compatible with the stdlib json library.
+
+Wraps the `json` library to serialize to UTF-8 bytes instead of string types.
+
+
+**Methods:**
+
+#### `dumps_kwargs_cannot_contain_default`
+
+```python
+dumps_kwargs_cannot_contain_default(cls, value: dict[str, Any]) -> dict[str, Any]
+```
+
+#### `loads_kwargs_cannot_contain_object_hook`
+
+```python
+loads_kwargs_cannot_contain_object_hook(cls, value: dict[str, Any]) -> dict[str, Any]
+```
+
+#### `dumps`
+
+```python
+dumps(self, obj: D) -> bytes
+```
+
+#### `loads`
+
+```python
+loads(self, blob: bytes) -> D
+```
+
+### `CompressedSerializer`
+
+
+Wraps another serializer, compressing its output.
+Uses `lzma` by default. See `compressionlib` for using alternative libraries.
+
+
+**Methods:**
+
+#### `validate_serializer`
+
+```python
+validate_serializer(cls, value: Union[str, Serializer[D]]) -> Serializer[D]
+```
+
+#### `check_compressionlib`
+
+```python
+check_compressionlib(cls, value: str) -> str
+```
+
+#### `dumps`
+
+```python
+dumps(self, obj: D) -> bytes
+```
+
+#### `loads`
+
+```python
+loads(self, blob: bytes) -> D
+```
+
+### `CompressedPickleSerializer`
+
+
+A compressed serializer preconfigured to use the pickle serializer.
+
+
+### `CompressedJSONSerializer`
+
+
+A compressed serializer preconfigured to use the json serializer.
+

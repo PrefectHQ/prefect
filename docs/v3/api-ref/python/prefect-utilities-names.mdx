@@ -1,0 +1,49 @@
+---
+title: names
+sidebarTitle: names
+---
+
+# `prefect.utilities.names`
+
+## Functions
+
+### `generate_slug`
+
+```python
+generate_slug(n_words: int) -> str
+```
+
+
+Generates a random slug.
+
+**Args:**
+- `-`: the number of words in the slug
+
+
+### `obfuscate`
+
+```python
+obfuscate(s: Any, show_tail: bool = False) -> str
+```
+
+
+Obfuscates any data type's string representation. See `obfuscate_string`.
+
+
+### `obfuscate_string`
+
+```python
+obfuscate_string(s: str, show_tail: bool = False) -> str
+```
+
+
+Obfuscates a string by returning a new string of 8 characters. If the input
+string is longer than 10 characters and show_tail is True, then up to 4 of
+its final characters will become final characters of the obfuscated string;
+all other characters are "*".
+
+"abc"      -> "********"
+"abcdefgh" -> "********"
+"abcdefghijk" -> "*******k"
+"abcdefghijklmnopqrs" -> "****pqrs"
+

@@ -1,0 +1,132 @@
+---
+title: fixtures
+sidebarTitle: fixtures
+---
+
+# `prefect.testing.fixtures`
+
+## Functions
+
+### `add_prefect_loggers_to_caplog`
+
+```python
+add_prefect_loggers_to_caplog(caplog: pytest.LogCaptureFixture) -> Generator[None, None, None]
+```
+
+### `is_port_in_use`
+
+```python
+is_port_in_use(port: int) -> bool
+```
+
+### `use_hosted_api_server`
+
+```python
+use_hosted_api_server(hosted_api_server: str) -> Generator[str, None, None]
+```
+
+
+Sets `PREFECT_API_URL` to the test session's hosted API endpoint.
+
+
+### `disable_hosted_api_server`
+
+```python
+disable_hosted_api_server() -> Generator[None, None, None]
+```
+
+
+Disables the hosted API server by setting `PREFECT_API_URL` to `None`.
+
+
+### `enable_ephemeral_server`
+
+```python
+enable_ephemeral_server(disable_hosted_api_server: None) -> Generator[None, None, None]
+```
+
+
+Enables the ephemeral server by setting `PREFECT_SERVER_ALLOW_EPHEMERAL_MODE` to `True`.
+
+
+### `mock_anyio_sleep`
+
+```python
+mock_anyio_sleep(monkeypatch: pytest.MonkeyPatch) -> Generator[Callable[[float], None], None, None]
+```
+
+
+Mock sleep used to not actually sleep but to set the current time to now + sleep
+delay seconds while still yielding to other tasks in the event loop.
+
+Provides "assert_sleeps_for" context manager which asserts a sleep time occurred
+within the context while using the actual runtime of the context as a tolerance.
+
+
+### `recorder`
+
+```python
+recorder() -> Recorder
+```
+
+### `puppeteer`
+
+```python
+puppeteer() -> Puppeteer
+```
+
+### `events_api_url`
+
+```python
+events_api_url(events_server: Server, unused_tcp_port: int) -> str
+```
+
+### `events_cloud_api_url`
+
+```python
+events_cloud_api_url(events_server: Server, unused_tcp_port: int) -> str
+```
+
+### `mock_should_emit_events`
+
+```python
+mock_should_emit_events(monkeypatch: pytest.MonkeyPatch) -> mock.Mock
+```
+
+### `asserting_events_worker`
+
+```python
+asserting_events_worker(monkeypatch: pytest.MonkeyPatch) -> Generator[EventsWorker, None, None]
+```
+
+### `asserting_and_emitting_events_worker`
+
+```python
+asserting_and_emitting_events_worker(monkeypatch: pytest.MonkeyPatch) -> Generator[EventsWorker, None, None]
+```
+
+### `reset_worker_events`
+
+```python
+reset_worker_events(asserting_events_worker: EventsWorker) -> Generator[None, None, None]
+```
+
+### `enable_lineage_events`
+
+```python
+enable_lineage_events() -> Generator[None, None, None]
+```
+
+
+A fixture that ensures lineage events are enabled.
+
+
+## Classes
+
+### `Recorder`
+
+### `Puppeteer`
+
+### `AssertingEventsPipeline`
+
+### `AssertingAndEmittingEventsPipeline`

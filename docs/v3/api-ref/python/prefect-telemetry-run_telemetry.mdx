@@ -1,0 +1,87 @@
+---
+title: run_telemetry
+sidebarTitle: run_telemetry
+---
+
+# `prefect.telemetry.run_telemetry`
+
+## Classes
+
+### `OTELSetter`
+
+
+A setter for OpenTelemetry that supports Prefect's custom labels.
+
+
+**Methods:**
+
+#### `set`
+
+```python
+set(self, carrier: KeyValueLabels, key: str, value: str) -> None
+```
+
+### `RunTelemetry`
+
+
+A class for managing the telemetry of runs.
+
+
+**Methods:**
+
+#### `start_span`
+
+```python
+start_span(self, run: FlowOrTaskRun, client: SyncPrefectClient, parameters: dict[str, Any] | None = None) -> Span | None
+```
+
+#### `traceparent_from_span`
+
+```python
+traceparent_from_span(span: Span) -> str | None
+```
+
+#### `end_span_on_success`
+
+```python
+end_span_on_success(self) -> None
+```
+
+End a span for a run on success.
+
+
+#### `end_span_on_failure`
+
+```python
+end_span_on_failure(self, terminal_message: str | None = None) -> None
+```
+
+End a span for a run on failure.
+
+
+#### `record_exception`
+
+```python
+record_exception(self, exc: BaseException) -> None
+```
+
+Record an exception on a span.
+
+
+#### `update_state`
+
+```python
+update_state(self, new_state: State) -> None
+```
+
+Update a span with the state of a run.
+
+
+#### `update_run_name`
+
+```python
+update_run_name(self, name: str) -> None
+```
+
+Update the name of the run.
+

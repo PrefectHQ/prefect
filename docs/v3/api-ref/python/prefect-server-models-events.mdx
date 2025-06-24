@@ -1,0 +1,19 @@
+---
+title: events
+sidebarTitle: events
+---
+
+# `prefect.server.models.events`
+
+## Functions
+
+### `state_payload`
+
+```python
+state_payload(state: Optional[schemas.states.State]) -> Optional[Dict[str, str]]
+```
+
+
+Given a State, return the essential string parts of it for use in an
+event payload
+

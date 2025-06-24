@@ -1,0 +1,215 @@
+---
+title: abstract
+sidebarTitle: abstract
+---
+
+# `prefect.blocks.abstract`
+
+## Classes
+
+### `CredentialsBlock`
+
+
+Stores credentials for an external system and exposes a client for interacting
+with that system. Can also hold config that is tightly coupled to credentials
+(domain, endpoint, account ID, etc.) Will often be composed with other blocks.
+Parent block should rely on the client provided by a credentials block for
+interacting with the corresponding external system.
+
+
+**Methods:**
+
+#### `logger`
+
+```python
+logger(self) -> LoggerOrAdapter
+```
+
+Returns a logger based on whether the CredentialsBlock
+is called from within a flow or task run context.
+If a run context is present, the logger property returns a run logger.
+Else, it returns a default logger labeled with the class's name.
+
+**Returns:**
+- The run logger or a default logger with the class's name.
+
+
+#### `get_client`
+
+```python
+get_client(self, *args: Any, **kwargs: Any) -> Any
+```
+
+Returns a client for interacting with the external system.
+
+If a service offers various clients, this method can accept
+a `client_type` keyword argument to get the desired client
+within the service.
+
+
+### `NotificationError`
+
+
+Raised if a notification block fails to send a notification.
+
+
+### `NotificationBlock`
+
+
+Block that represents a resource in an external system that is able to send notifications.
+
+
+**Methods:**
+
+#### `logger`
+
+```python
+logger(self) -> LoggerOrAdapter
+```
+
+Returns a logger based on whether the NotificationBlock
+is called from within a flow or task run context.
+If a run context is present, the logger property returns a run logger.
+Else, it returns a default logger labeled with the class's name.
+
+**Returns:**
+- The run logger or a default logger with the class's name.
+
+
+#### `raise_on_failure`
+
+```python
+raise_on_failure(self) -> Generator[None, None, None]
+```
+
+Context manager that, while active, causes the block to raise errors if it
+encounters a failure sending notifications.
+
+
+### `JobRun`
+
+
+Represents a job run in an external system. Allows waiting
+for the job run's completion and fetching its results.
+
+
+**Methods:**
+
+#### `logger`
+
+```python
+logger(self) -> LoggerOrAdapter
+```
+
+Returns a logger based on whether the JobRun
+is called from within a flow or task run context.
+If a run context is present, the logger property returns a run logger.
+Else, it returns a default logger labeled with the class's name.
+
+**Returns:**
+- The run logger or a default logger with the class's name.
+
+
+### `JobBlock`
+
+
+Block that represents an entity in an external service
+that can trigger a long running execution.
+
+
+**Methods:**
+
+#### `logger`
+
+```python
+logger(self) -> LoggerOrAdapter
+```
+
+Returns a logger based on whether the JobBlock
+is called from within a flow or task run context.
+If a run context is present, the logger property returns a run logger.
+Else, it returns a default logger labeled with the class's name.
+
+**Returns:**
+- The run logger or a default logger with the class's name.
+
+
+### `DatabaseBlock`
+
+
+An abstract block type that represents a database and
+provides an interface for interacting with it.
+
+Blocks that implement this interface have the option to accept
+credentials directly via attributes or via a nested `CredentialsBlock`.
+
+Use of a nested credentials block is recommended unless credentials
+are tightly coupled to database connection configuration.
+
+Implementing either sync or async context management on `DatabaseBlock`
+implementations is recommended.
+
+
+**Methods:**
+
+#### `logger`
+
+```python
+logger(self) -> LoggerOrAdapter
+```
+
+Returns a logger based on whether the DatabaseBlock
+is called from within a flow or task run context.
+If a run context is present, the logger property returns a run logger.
+Else, it returns a default logger labeled with the class's name.
+
+**Returns:**
+- The run logger or a default logger with the class's name.
+
+
+### `ObjectStorageBlock`
+
+
+Block that represents a resource in an external service that can store
+objects.
+
+
+**Methods:**
+
+#### `logger`
+
+```python
+logger(self) -> LoggerOrAdapter
+```
+
+Returns a logger based on whether the ObjectStorageBlock
+is called from within a flow or task run context.
+If a run context is present, the logger property returns a run logger.
+Else, it returns a default logger labeled with the class's name.
+
+**Returns:**
+- The run logger or a default logger with the class's name.
+
+
+### `SecretBlock`
+
+
+Block that represents a resource that can store and retrieve secrets.
+
+
+**Methods:**
+
+#### `logger`
+
+```python
+logger(self) -> LoggerOrAdapter
+```
+
+Returns a logger based on whether the SecretBlock
+is called from within a flow or task run context.
+If a run context is present, the logger property returns a run logger.
+Else, it returns a default logger labeled with the class's name.
+
+**Returns:**
+- The run logger or a default logger with the class's name.
+

@@ -1,0 +1,43 @@
+---
+title: logging
+sidebarTitle: logging
+---
+
+# `prefect.settings.models.logging`
+
+## Functions
+
+### `max_log_size_smaller_than_batch_size`
+
+```python
+max_log_size_smaller_than_batch_size(values: dict[str, Any]) -> dict[str, Any]
+```
+
+
+Validator for settings asserting the batch size and match log size are compatible
+
+
+## Classes
+
+### `LoggingToAPISettings`
+
+
+Settings for controlling logging to the API
+
+
+**Methods:**
+
+#### `emit_warnings`
+
+```python
+emit_warnings(self) -> Self
+```
+
+Emits warnings for misconfiguration of logging settings.
+
+
+### `LoggingSettings`
+
+
+Settings for controlling logging behavior
+

@@ -1,0 +1,30 @@
+---
+title: configuration
+sidebarTitle: configuration
+---
+
+# `prefect.logging.configuration`
+
+## Functions
+
+### `load_logging_config`
+
+```python
+load_logging_config(path: Path) -> dict[str, Any]
+```
+
+
+Loads logging configuration from a path allowing override from the environment
+
+
+### `setup_logging`
+
+```python
+setup_logging(incremental: bool | None = None) -> dict[str, Any]
+```
+
+
+Sets up logging.
+
+Returns the config used.
+

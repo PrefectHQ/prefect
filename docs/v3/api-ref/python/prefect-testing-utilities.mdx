@@ -1,0 +1,91 @@
+---
+title: utilities
+sidebarTitle: utilities
+---
+
+# `prefect.testing.utilities`
+
+
+
+Internal utilities for tests.
+
+
+## Functions
+
+### `exceptions_equal`
+
+```python
+exceptions_equal(a: Exception, b: Exception) -> bool
+```
+
+
+Exceptions cannot be compared by `==`. They can be compared using `is` but this
+will fail if the exception is serialized/deserialized so this utility does its
+best to assert equality using the type and args used to initialize the exception
+
+
+### `kubernetes_environments_equal`
+
+```python
+kubernetes_environments_equal(actual: list[dict[str, str]], expected: list[dict[str, str]] | dict[str, str]) -> bool
+```
+
+### `assert_does_not_warn`
+
+```python
+assert_does_not_warn(ignore_warnings: list[type[Warning]] | None = None) -> Generator[None, None, None]
+```
+
+
+Converts warnings to errors within this context to assert warnings are not raised,
+except for those specified in ignore_warnings.
+
+Parameters:
+- ignore_warnings: List of warning types to ignore. Example: [DeprecationWarning, UserWarning]
+
+
+### `prefect_test_harness`
+
+```python
+prefect_test_harness(server_startup_timeout: int | None = 30)
+```
+
+
+Temporarily run flows against a local SQLite database for testing.
+
+**Args:**
+- `server_startup_timeout`: The maximum time to wait for the server to start.
+Defaults to 30 seconds. If set to `None`, the value of
+`PREFECT_SERVER_EPHEMERAL_STARTUP_TIMEOUT_SECONDS` will be used.
+
+**Examples:**
+
+>>> from prefect import flow
+>>> from prefect.testing.utilities import prefect_test_harness
+>>>
+>>>
+>>> @flow
+>>> def my_flow():
+>>>     return 'Done!'
+>>>
+>>> with prefect_test_harness():
+>>>     assert my_flow() == 'Done!' # run against temporary db
+
+
+### `assert_blocks_equal`
+
+```python
+assert_blocks_equal(found: Block, expected: Block, exclude_private: bool = True, **kwargs: Any) -> None
+```
+
+### `a_test_step`
+
+```python
+a_test_step(**kwargs: Any) -> dict[str, Any]
+```
+
+### `b_test_step`
+
+```python
+b_test_step(**kwargs: Any) -> dict[str, Any]
+```

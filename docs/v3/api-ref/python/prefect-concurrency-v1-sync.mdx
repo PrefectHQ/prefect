@@ -1,0 +1,41 @@
+---
+title: sync
+sidebarTitle: sync
+---
+
+# `prefect.concurrency.v1.sync`
+
+## Functions
+
+### `concurrency`
+
+```python
+concurrency(names: Union[str, list[str]], task_run_id: UUID, timeout_seconds: Optional[float] = None) -> Generator[None, None, None]
+```
+
+
+A context manager that acquires and releases concurrency slots from the
+given concurrency limits.
+
+**Args:**
+- `names`: The names of the concurrency limits to acquire.
+- `task_run_id`: The task run ID acquiring the limits.
+- `timeout_seconds`: The number of seconds to wait to acquire the limits before
+raising a `TimeoutError`. A timeout of `None` will wait indefinitely.
+
+**Raises:**
+- `TimeoutError`: If the limits are not acquired within the given timeout.
+
+Example:
+A simple example of using the sync `concurrency` context manager:
+```python
+from prefect.concurrency.v1.sync import concurrency
+
+def resource_heavy():
+    with concurrency("test"):
+        print("Resource heavy task")
+
+def main():
+    resource_heavy()
+```
+

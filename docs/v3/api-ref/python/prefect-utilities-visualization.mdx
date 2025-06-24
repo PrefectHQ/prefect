@@ -1,0 +1,109 @@
+---
+title: visualization
+sidebarTitle: visualization
+---
+
+# `prefect.utilities.visualization`
+
+
+
+Utilities for working with Flow.visualize()
+
+
+## Functions
+
+### `get_task_viz_tracker`
+
+```python
+get_task_viz_tracker() -> Optional['TaskVizTracker']
+```
+
+### `track_viz_task`
+
+```python
+track_viz_task(is_async: bool, task_name: str, parameters: dict[str, Any], viz_return_value: Optional[Any] = None) -> Union[Coroutine[Any, Any, Any], Any]
+```
+
+
+Return a result if sync otherwise return a coroutine that returns the result
+
+
+### `build_task_dependencies`
+
+```python
+build_task_dependencies(task_run_tracker: TaskVizTracker) -> graphviz.Digraph
+```
+
+
+Constructs a Graphviz directed graph object that represents the dependencies
+between tasks in the given TaskVizTracker.
+
+- task_run_tracker (TaskVizTracker): An object containing tasks and their
+  dependencies.
+
+- graphviz.Digraph: A directed graph object depicting the relationships and
+  dependencies between tasks.
+
+Raises:
+- GraphvizImportError: If there's an ImportError related to graphviz.
+- FlowVisualizationError: If there's any other error during the visualization
+  process or if return values of tasks are directly accessed without
+  specifying a `viz_return_value`.
+
+
+### `visualize_task_dependencies`
+
+```python
+visualize_task_dependencies(graph: graphviz.Digraph, flow_run_name: str) -> None
+```
+
+
+Renders and displays a Graphviz directed graph representing task dependencies.
+
+The graph is rendered in PNG format and saved with the name specified by
+flow_run_name. After rendering, the visualization is opened and displayed.
+
+Parameters:
+- graph (graphviz.Digraph): The directed graph object to visualize.
+- flow_run_name (str): The name to use when saving the rendered graph image.
+
+Raises:
+- GraphvizExecutableNotFoundError: If Graphviz isn't found on the system.
+- FlowVisualizationError: If there's any other error during the visualization
+  process or if return values of tasks are directly accessed without
+  specifying a `viz_return_value`.
+
+
+## Classes
+
+### `FlowVisualizationError`
+
+### `VisualizationUnsupportedError`
+
+### `TaskVizTrackerState`
+
+### `GraphvizImportError`
+
+### `GraphvizExecutableNotFoundError`
+
+### `VizTask`
+
+### `TaskVizTracker`
+
+**Methods:**
+
+#### `add_task`
+
+```python
+add_task(self, task: VizTask) -> None
+```
+
+#### `link_viz_return_value_to_viz_task`
+
+```python
+link_viz_return_value_to_viz_task(self, viz_return_value: Any, viz_task: VizTask) -> None
+```
+
+We cannot track booleans, Ellipsis, None, NotImplemented, or the integers from -5 to 256
+because they are singletons.
+

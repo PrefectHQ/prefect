@@ -1,0 +1,27 @@
+---
+title: pause_expirations
+sidebarTitle: pause_expirations
+---
+
+# `prefect.server.services.pause_expirations`
+
+
+
+The FailExpiredPauses service. Responsible for putting Paused flow runs in a Failed state if they are not resumed on time.
+
+
+## Classes
+
+### `FailExpiredPauses`
+
+
+Fails flow runs that have been paused and never resumed
+
+
+**Methods:**
+
+#### `service_settings`
+
+```python
+service_settings(cls) -> ServicesBaseSetting
+```

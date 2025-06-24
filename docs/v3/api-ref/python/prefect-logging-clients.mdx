@@ -1,0 +1,67 @@
+---
+title: clients
+sidebarTitle: clients
+---
+
+# `prefect.logging.clients`
+
+## Functions
+
+### `http_to_ws`
+
+```python
+http_to_ws(url: str) -> str
+```
+
+### `logs_out_socket_from_api_url`
+
+```python
+logs_out_socket_from_api_url(url: str) -> str
+```
+
+### `get_logs_subscriber`
+
+```python
+get_logs_subscriber(filter: Optional['LogFilter'] = None, reconnection_attempts: int = 10) -> 'PrefectLogsSubscriber'
+```
+
+
+Get a logs subscriber based on the current Prefect configuration.
+
+Similar to get_events_subscriber, this automatically detects whether
+you're using Prefect Cloud or OSS and returns the appropriate subscriber.
+
+
+## Classes
+
+### `PrefectLogsSubscriber`
+
+
+Subscribes to a Prefect logs stream, yielding logs as they occur.
+
+Example:
+
+    from prefect.logging.clients import PrefectLogsSubscriber
+    from prefect.client.schemas.filters import LogFilter, LogFilterLevel
+    import logging
+
+    filter = LogFilter(level=LogFilterLevel(ge_=logging.INFO))
+
+    async with PrefectLogsSubscriber(filter=filter) as subscriber:
+        async for log in subscriber:
+            print(log.timestamp, log.level, log.message)
+
+
+**Methods:**
+
+#### `client_name`
+
+```python
+client_name(self) -> str
+```
+
+### `PrefectCloudLogsSubscriber`
+
+
+Logs subscriber for Prefect Cloud
+

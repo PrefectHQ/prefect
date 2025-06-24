@@ -1,0 +1,204 @@
+---
+title: profiles
+sidebarTitle: profiles
+---
+
+# `prefect.settings.profiles`
+
+## Functions
+
+### `load_profiles`
+
+```python
+load_profiles(include_defaults: bool = True) -> ProfilesCollection
+```
+
+
+Load profiles from the current profile path. Optionally include profiles from the
+default profile path.
+
+
+### `load_current_profile`
+
+```python
+load_current_profile() -> Profile
+```
+
+
+Load the current profile from the default and current profile paths.
+
+This will _not_ include settings from the current settings context. Only settings
+that have been persisted to the profiles file will be saved.
+
+
+### `save_profiles`
+
+```python
+save_profiles(profiles: ProfilesCollection) -> None
+```
+
+
+Writes all non-default profiles to the current profiles path.
+
+
+### `load_profile`
+
+```python
+load_profile(name: str) -> Profile
+```
+
+
+Load a single profile by name.
+
+
+### `update_current_profile`
+
+```python
+update_current_profile(settings: dict[str | Setting, Any]) -> Profile
+```
+
+
+Update the persisted data for the profile currently in-use.
+
+If the profile does not exist in the profiles file, it will be created.
+
+Given settings will be merged with the existing settings as described in
+`ProfilesCollection.update_profile`.
+
+**Returns:**
+- The new profile.
+
+
+## Classes
+
+### `Profile`
+
+
+A user profile containing settings.
+
+
+**Methods:**
+
+#### `to_environment_variables`
+
+```python
+to_environment_variables(self) -> dict[str, str]
+```
+
+Convert the profile settings to a dictionary of environment variables.
+
+
+#### `validate_settings`
+
+```python
+validate_settings(self) -> None
+```
+
+Validate all settings in this profile by creating a partial Settings object
+with the nested structure properly constructed using accessor paths.
+
+
+### `ProfilesCollection`
+
+
+"
+A utility class for working with a collection of profiles.
+
+Profiles in the collection must have unique names.
+
+The collection may store the name of the active profile.
+
+
+**Methods:**
+
+#### `names`
+
+```python
+names(self) -> set[str]
+```
+
+Return a set of profile names in this collection.
+
+
+#### `active_profile`
+
+```python
+active_profile(self) -> Profile | None
+```
+
+Retrieve the active profile in this collection.
+
+
+#### `set_active`
+
+```python
+set_active(self, name: str | None, check: bool = True) -> None
+```
+
+Set the active profile name in the collection.
+
+A null value may be passed to indicate that this collection does not determine
+the active profile.
+
+
+#### `update_profile`
+
+```python
+update_profile(self, name: str, settings: dict[Setting, Any], source: Path | None = None) -> Profile
+```
+
+Add a profile to the collection or update the existing on if the name is already
+present in this collection.
+
+If updating an existing profile, the settings will be merged. Settings can
+be dropped from the existing profile by setting them to `None` in the new
+profile.
+
+Returns the new profile object.
+
+
+#### `add_profile`
+
+```python
+add_profile(self, profile: Profile) -> None
+```
+
+Add a profile to the collection.
+
+If the profile name already exists, an exception will be raised.
+
+
+#### `remove_profile`
+
+```python
+remove_profile(self, name: str) -> None
+```
+
+Remove a profile from the collection.
+
+
+#### `without_profile_source`
+
+```python
+without_profile_source(self, path: Path | None) -> 'ProfilesCollection'
+```
+
+Remove profiles that were loaded from a given path.
+
+Returns a new collection.
+
+
+#### `to_dict`
+
+```python
+to_dict(self) -> dict[str, Any]
+```
+
+Convert to a dictionary suitable for writing to disk.
+
+
+#### `items`
+
+```python
+items(self) -> list[tuple[str, Profile]]
+```

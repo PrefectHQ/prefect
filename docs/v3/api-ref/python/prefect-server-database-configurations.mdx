@@ -1,0 +1,133 @@
+---
+title: configurations
+sidebarTitle: configurations
+---
+
+# `prefect.server.database.configurations`
+
+## Classes
+
+### `ConnectionTracker`
+
+
+A test utility which tracks the connections given out by a connection pool, to
+make it easy to see which connections are currently checked out and open.
+
+
+**Methods:**
+
+#### `track_pool`
+
+```python
+track_pool(self, pool: sa.pool.Pool) -> None
+```
+
+#### `on_connect`
+
+```python
+on_connect(self, adapted_connection: AdaptedConnection, connection_record: ConnectionPoolEntry) -> None
+```
+
+#### `on_close`
+
+```python
+on_close(self, adapted_connection: AdaptedConnection, connection_record: ConnectionPoolEntry) -> None
+```
+
+#### `on_close_detached`
+
+```python
+on_close_detached(self, adapted_connection: AdaptedConnection) -> None
+```
+
+#### `clear`
+
+```python
+clear(self) -> None
+```
+
+### `BaseDatabaseConfiguration`
+
+
+Abstract base class used to inject database connection configuration into Prefect.
+
+This configuration is responsible for defining how Prefect REST API creates and manages
+database connections and sessions.
+
+
+**Methods:**
+
+#### `unique_key`
+
+```python
+unique_key(self) -> tuple[Hashable, ...]
+```
+
+Returns a key used to determine whether to instantiate a new DB interface.
+
+
+#### `is_inmemory`
+
+```python
+is_inmemory(self) -> bool
+```
+
+Returns true if database is run in memory
+
+
+#### `begin_transaction`
+
+```python
+begin_transaction(self, session: AsyncSession, with_for_update: bool = False) -> AbstractAsyncContextManager[AsyncSessionTransaction]
+```
+
+Enter a transaction for a session
+
+
+### `AsyncPostgresConfiguration`
+
+**Methods:**
+
+#### `is_inmemory`
+
+```python
+is_inmemory(self) -> bool
+```
+
+Returns true if database is run in memory
+
+
+### `AioSqliteConfiguration`
+
+**Methods:**
+
+#### `setup_sqlite`
+
+```python
+setup_sqlite(self, conn: DBAPIConnection, record: ConnectionPoolEntry) -> None
+```
+
+Issue PRAGMA statements to SQLITE on connect. PRAGMAs only last for the
+duration of the connection. See https://www.sqlite.org/pragma.html for more info.
+
+
+#### `begin_sqlite_conn`
+
+```python
+begin_sqlite_conn(self, conn: aiosqlite.AsyncAdapt_aiosqlite_connection) -> None
+```
+
+#### `begin_sqlite_stmt`
+
+```python
+begin_sqlite_stmt(self, conn: sa.Connection) -> None
+```
+
+#### `is_inmemory`
+
+```python
+is_inmemory(self) -> bool
+```
+
+Returns true if database is run in memory
+
