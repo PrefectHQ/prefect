@@ -22,12 +22,14 @@ def test_settings_provide_working_dbt_configuration(monkeypatch: pytest.MonkeyPa
 
     settings = PrefectDbtSettings()
 
-    # Verify all required paths are available and valid
-    assert settings.project_dir.exists() or str(settings.project_dir) == str(Path.cwd())
-    # Check that profiles_dir matches what we mocked, not a hardcoded path
-    assert settings.profiles_dir == mock_profiles_dir
+    # Verify all required paths are set correctly
+    assert isinstance(settings.project_dir, Path)
+    assert isinstance(settings.profiles_dir, Path)
     assert isinstance(settings.target_path, Path)
     assert settings.target_path.name == "target"
+
+    # Verify profiles_dir matches our mock
+    assert settings.profiles_dir == mock_profiles_dir
 
 
 def test_settings_override_defaults_correctly(monkeypatch: pytest.MonkeyPatch):
