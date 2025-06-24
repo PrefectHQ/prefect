@@ -4,6 +4,7 @@ Runner for dbt commands
 
 import json
 import os
+from pathlib import Path
 from typing import Any, Callable, Optional
 
 from dbt.artifacts.resources.types import NodeType
@@ -41,14 +42,21 @@ FAILURE_STATUSES = [
     NodeStatus.Fail,
     NodeStatus.RuntimeErr,
 ]
-NODE_TYPES_TO_CALL_MATERIALIZATION_TASKS = [
+MATERIALIZATION_NODE_TYPES = [
     NodeType.Model,
     NodeType.Seed,
     NodeType.Snapshot,
 ]
-NODE_TYPES_TO_EMIT_OBSERVATION_EVENTS = [
+REFERENCE_NODE_TYPES = [
     NodeType.Exposure,
     NodeType.Source,
+]
+
+SETTINGS_CONFIG = [
+    ("target_path", "--target-path", Path),
+    ("profiles_dir", "--profiles-dir", Path),
+    ("project_dir", "--project-dir", Path),
+    ("log_level", "--log-level", EventLevel),
 ]
 FAILURE_MSG = '{resource_type} {resource_name} {status}ed with message: "{message}"'
 
@@ -100,37 +108,56 @@ class PrefectDbtRunner:
         settings: Optional[PrefectDbtSettings] = None,
         raise_on_failure: bool = True,
         client: Optional[PrefectClient] = None,
+        include_compiled_code: bool = False,
     ):
-        self.settings = settings or PrefectDbtSettings()
         self._manifest: Optional[Manifest] = manifest
-        self.client = client or get_client()
+        self.settings = settings or PrefectDbtSettings()
         self.raise_on_failure = raise_on_failure
-        self.include_compiled_code = False
+        self.client = client or get_client()
+        self.include_compiled_code = include_compiled_code
+
+        self._target_path: Optional[Path] = None
+        self._profiles_dir: Optional[Path] = None
+        self._project_dir: Optional[Path] = None
+        self._log_level: Optional[EventLevel] = None
+
+    @property
+    def target_path(self) -> Path:
+        return self._target_path or self.settings.target_path
+
+    @property
+    def profiles_dir(self) -> Path:
+        return self._profiles_dir or self.settings.profiles_dir
+
+    @property
+    def project_dir(self) -> Path:
+        return self._project_dir or self.settings.project_dir
+
+    @property
+    def log_level(self) -> EventLevel:
+        return self._log_level or self.settings.log_level
 
     @property
     def manifest(self) -> Manifest:
-        """Get the manifest, loading it from disk if necessary."""
         if self._manifest is None:
             self._set_manifest_from_project_dir()
             assert self._manifest is not None  # for type checking
         return self._manifest
 
     def _set_manifest_from_project_dir(self):
-        """Set the manifest from the project directory"""
         try:
             with open(
-                os.path.join(self.settings.project_dir, "target", "manifest.json"), "r"
+                os.path.join(self.project_dir, self.target_path, "manifest.json"), "r"
             ) as f:
                 self._manifest = Manifest.from_dict(json.load(f))  # type: ignore[reportUnknownMemberType]
         except FileNotFoundError:
             raise ValueError(
-                f"Manifest file not found in {os.path.join(self.settings.project_dir, 'target', 'manifest.json')}"
+                f"Manifest file not found in {os.path.join(self.project_dir, self.target_path, 'manifest.json')}"
             )
 
     def _get_node_prefect_config(
         self, manifest_node: ManifestNode
     ) -> dict[str, dict[str, Any]]:
-        """Get the Prefect config for a given node"""
         return manifest_node.config.meta.get("prefect", {})
 
     def _get_upstream_manifest_nodes(
@@ -143,9 +170,7 @@ class PrefectDbtRunner:
         for depends_on_node in manifest_node.depends_on_nodes:  # type: ignore[reportUnknownMemberType]
             depends_manifest_node = self.manifest.nodes.get(depends_on_node)  # type: ignore[reportUnknownMemberType]
 
-            if not depends_manifest_node or not self._get_node_prefect_config(
-                depends_manifest_node
-            ).get("emit_asset_events", True):
+            if not depends_manifest_node:
                 continue
 
             if not depends_manifest_node.relation_name:
@@ -154,6 +179,70 @@ class PrefectDbtRunner:
             upstream_manifest_nodes.append(depends_manifest_node)
 
         return upstream_manifest_nodes
+
+    def _get_compiled_code_path(self, manifest_node: ManifestNode) -> Path:
+        """Get the path to compiled code for a manifest node."""
+        return (
+            Path(self.project_dir)
+            / self.target_path
+            / "compiled"
+            / str(Path(self.project_dir)).split("/")[-1]
+            / manifest_node.original_file_path
+        )
+
+    def _get_compiled_code(self, manifest_node: ManifestNode) -> str:
+        """Get compiled code for a manifest node if it exists and is enabled."""
+        if not self.include_compiled_code:
+            return ""
+
+        compiled_code_path = self._get_compiled_code_path(manifest_node)
+        if os.path.exists(compiled_code_path):
+            with open(compiled_code_path, "r") as f:
+                code_content = f.read()
+                return f"\n ### Compiled code\n```sql\n{code_content.strip()}\n```"
+        return ""
+
+    def _create_asset_from_node(
+        self, manifest_node: ManifestNode, adapter_type: str
+    ) -> Asset:
+        """Create an Asset from a manifest node."""
+        if not manifest_node.relation_name:
+            raise ValueError("Relation name not found in manifest")
+
+        asset_id = format_resource_id(adapter_type, manifest_node.relation_name)
+        compiled_code = self._get_compiled_code(manifest_node)
+
+        return Asset(
+            key=asset_id,
+            properties=AssetProperties(
+                name=manifest_node.name,
+                description=manifest_node.description + compiled_code,
+                owners=[owner]
+                if (owner := manifest_node.config.meta.get("owner"))
+                and isinstance(owner, str)
+                else None,
+            ),
+        )
+
+    def _create_task_options(
+        self, manifest_node: ManifestNode, upstream_assets: Optional[list[Asset]] = None
+    ) -> TaskOptions:
+        """Create TaskOptions for a manifest node."""
+        return TaskOptions(
+            task_run_name=f"{manifest_node.resource_type.lower()} {manifest_node.name if manifest_node.name else manifest_node.unique_id}",
+            asset_deps=upstream_assets,  # type: ignore[arg-type]
+            cache_policy=NO_CACHE,
+        )
+
+    def _get_manifest_node_and_config(
+        self, node_id: str
+    ) -> tuple[Optional[ManifestNode], dict[str, Any]]:
+        """Get manifest node and its prefect config."""
+        manifest_node = self.manifest.nodes.get(node_id)
+        if manifest_node:
+            prefect_config = manifest_node.config.meta.get("prefect", {})
+            return manifest_node, prefect_config
+        return None, {}
 
     def _call_task(
         self,
@@ -168,90 +257,25 @@ class PrefectDbtRunner:
 
         upstream_manifest_nodes = self._get_upstream_manifest_nodes(manifest_node)
 
-        if manifest_node.resource_type in NODE_TYPES_TO_CALL_MATERIALIZATION_TASKS:
-            if not manifest_node.relation_name:
-                raise ValueError("Relation name not found in manifest")
-
-            compiled_code_path = (
-                self.settings.project_dir
-                / "target"
-                / "compiled"
-                / str(self.settings.project_dir).split("/")[-1]
-                / manifest_node.original_file_path
-            )
-            compiled_code = ""
-            if os.path.exists(compiled_code_path) and self.include_compiled_code:
-                with open(compiled_code_path, "r") as f:
-                    code_content = f.read()
-                    compiled_code = (
-                        f"\n ### Compiled code\n```sql\n{code_content.strip()}\n```"
-                    )
-
-            asset_id = format_resource_id(adapter_type, manifest_node.relation_name)
-
-            asset = Asset(
-                key=asset_id,
-                properties=AssetProperties(
-                    name=manifest_node.name,
-                    description=manifest_node.description + compiled_code,
-                    owners=[owner]
-                    if (owner := manifest_node.config.meta.get("owner"))
-                    and isinstance(owner, str)
-                    else None,
-                ),
-            )
+        if manifest_node.resource_type in MATERIALIZATION_NODE_TYPES:
+            asset = self._create_asset_from_node(manifest_node, adapter_type)
 
             upstream_assets: list[Asset] = []
             for upstream_manifest_node in upstream_manifest_nodes:
                 if (
-                    upstream_manifest_node.resource_type
-                    in NODE_TYPES_TO_EMIT_OBSERVATION_EVENTS
+                    upstream_manifest_node.resource_type in REFERENCE_NODE_TYPES
                     or upstream_manifest_node.resource_type
-                    in NODE_TYPES_TO_CALL_MATERIALIZATION_TASKS
+                    in MATERIALIZATION_NODE_TYPES
                 ):
-                    if not upstream_manifest_node.relation_name:
-                        raise ValueError("Relation name not found in manifest")
-                    upstream_asset_id = format_resource_id(
-                        adapter_type, upstream_manifest_node.relation_name
-                    )
-
-                    upstream_compiled_code_path = (
-                        self.settings.project_dir
-                        / "target"
-                        / "compiled"
-                        / str(self.settings.project_dir).split("/")[-1]
-                        / upstream_manifest_node.original_file_path
-                    )
-                    upstream_compiled_code = ""
-                    if (
-                        os.path.exists(upstream_compiled_code_path)
-                        and self.include_compiled_code
-                    ):
-                        with open(upstream_compiled_code_path, "r") as f:
-                            upstream_code_content = f.read()
-                            upstream_compiled_code = f"\n ### Compiled code\n```sql\n{upstream_code_content.strip()}\n```"
-
-                    upstream_asset = Asset(
-                        key=upstream_asset_id,
-                        properties=AssetProperties(
-                            name=upstream_manifest_node.name,
-                            description=upstream_manifest_node.description
-                            + upstream_compiled_code,
-                            owners=[owner]
-                            if (
-                                owner := upstream_manifest_node.config.meta.get("owner")
-                            )
-                            and isinstance(owner, str)
-                            else None,
-                        ),
+                    upstream_asset = self._create_asset_from_node(
+                        upstream_manifest_node, adapter_type
                     )
                     upstream_assets.append(upstream_asset)
 
-            task_options = TaskOptions(
-                task_run_name=f"{manifest_node.resource_type.lower()} {manifest_node.name if manifest_node.name else manifest_node.unique_id}",
-                asset_deps=upstream_assets,
-                cache_policy=NO_CACHE,
-            )
+            task_options = self._create_task_options(manifest_node, upstream_assets)
+            if not manifest_node.relation_name:
+                raise ValueError("Relation name not found in manifest")
+            asset_id = format_resource_id(adapter_type, manifest_node.relation_name)
 
             task = MaterializingTask(
                 fn=execute_dbt_node,
@@ -262,10 +286,7 @@ class PrefectDbtRunner:
 
         else:
             asset_id = None
-            task_options = TaskOptions(
-                task_run_name=f"{manifest_node.resource_type.lower()} {manifest_node.name if manifest_node.name else manifest_node.unique_id}",
-                cache_policy=NO_CACHE,
-            )
+            task_options = self._create_task_options(manifest_node)
             task = Task(
                 fn=execute_dbt_node,
                 **task_options,
@@ -277,10 +298,6 @@ class PrefectDbtRunner:
         task_state.set_node_dependencies(
             manifest_node.unique_id,
             [node.unique_id for node in upstream_manifest_nodes],
-        )
-
-        print(
-            f"Running task {manifest_node.unique_id} for node type {manifest_node.resource_type}"
         )
 
         task_state.run_task_in_thread(
@@ -342,13 +359,12 @@ class PrefectDbtRunner:
         def node_started_callback(event: EventMsg):
             if event.info.name == "NodeStart":
                 node_id = self._get_dbt_event_node_id(event)
-                assert isinstance(node_id, str)
+                manifest_node, prefect_config = self._get_manifest_node_and_config(
+                    node_id
+                )
 
-                manifest_node = self.manifest.nodes.get(node_id)
                 if manifest_node:
-                    prefect_config = manifest_node.config.meta.get("prefect", {})
                     enable_assets = prefect_config.get("enable_assets", True)
-
                     try:
                         if enable_assets:
                             self._call_task(task_state, manifest_node, context)
@@ -366,13 +382,12 @@ class PrefectDbtRunner:
         def node_finished_callback(event: EventMsg):
             if event.info.name == "NodeFinished":
                 node_id = self._get_dbt_event_node_id(event)
-                assert isinstance(node_id, str)
+                manifest_node, prefect_config = self._get_manifest_node_and_config(
+                    node_id
+                )
 
-                manifest_node = self.manifest.nodes.get(node_id)
                 if manifest_node:
-                    prefect_config = manifest_node.config.meta.get("prefect", {})
                     enable_assets = prefect_config.get("enable_assets", True)
-
                     try:
                         if enable_assets:
                             # Store the status before ending the task
@@ -388,49 +403,109 @@ class PrefectDbtRunner:
 
         return node_finished_callback
 
+    def _extract_flag_value(
+        self, args: list[str], flag: str
+    ) -> tuple[list[str], str | None]:
+        """
+        Extract a flag value from args and return the modified args and the value.
+
+        Args:
+            args: List of command line arguments
+            flag: The flag to look for (e.g., "--target-path")
+
+        Returns:
+            Tuple of (modified_args, flag_value)
+        """
+        args_copy = args.copy()
+        for i, arg in enumerate(args_copy):
+            if arg == flag and i + 1 < len(args_copy):
+                value = args_copy[i + 1]
+                args_copy.pop(i)  # Remove the flag
+                args_copy.pop(i)  # Remove the value
+                return args_copy, value
+        return args_copy, None
+
+    def _update_setting_from_kwargs(
+        self,
+        setting_name: str,
+        kwargs: dict[str, Any],
+        path_converter: Optional[Callable[[Any], Any]] = None,
+    ):
+        """Update a setting from kwargs if present."""
+        if setting_name in kwargs:
+            value = kwargs.pop(setting_name)
+            if path_converter:
+                value = path_converter(value)
+            setattr(self, f"_{setting_name}", value)
+
+    def _update_setting_from_cli_flag(
+        self,
+        args: list[str],
+        flag: str,
+        setting_name: str,
+        path_converter: Optional[Callable[[str], Any]] = None,
+    ) -> list[str]:
+        """Update a setting from CLI flag if present."""
+        args_copy, value = self._extract_flag_value(args, flag)
+        if value and path_converter:
+            setattr(self, f"_{setting_name}", path_converter(value))
+        return args_copy
+
     def invoke(self, args: list[str], **kwargs: Any):
         """Invokes a dbt command."""
+        # Handle kwargs for each setting
+        for setting_name, _, converter in SETTINGS_CONFIG:
+            self._update_setting_from_kwargs(setting_name, kwargs, converter)
+
+        # Handle CLI flags for each setting
+        args_copy = args.copy()
+        for setting_name, flag, converter in SETTINGS_CONFIG:
+            args_copy = self._update_setting_from_cli_flag(
+                args_copy, flag, setting_name, converter
+            )
+
         context = serialize_context()
         task_state = TaskState()
 
-        with self.settings.resolve_profiles_yml() as profiles_dir:
-            callbacks = [
-                self._create_logging_callback(
-                    task_state, self.settings.log_level, context
-                ),
-                self._create_node_started_callback(task_state, context),
-                self._create_node_finished_callback(task_state),
-            ]
+        callbacks = [
+            self._create_logging_callback(task_state, self.log_level, context),
+            self._create_node_started_callback(task_state, context),
+            self._create_node_finished_callback(task_state),
+        ]
 
-            res = dbtRunner(callbacks=callbacks).invoke(  # type: ignore[reportUnknownMemberType]
-                args,
-                **{
-                    "profiles_dir": profiles_dir,
-                    "project_dir": self.settings.project_dir,
-                    "log_level": self.settings.log_level,
-                    **kwargs,
-                },
+        # Add settings to kwargs if they're set
+        invoke_kwargs = {
+            "profiles_dir": str(self.profiles_dir),
+            "project_dir": str(self.project_dir),
+            "target_path": str(self.target_path),
+            "log_level": self.log_level,
+            **kwargs,
+        }
+
+        res = dbtRunner(callbacks=callbacks).invoke(  # type: ignore[reportUnknownMemberType]
+            args_copy,
+            **invoke_kwargs,
+        )
+
+        if not res.success and res.exception:
+            raise ValueError(
+                f"Failed to invoke dbt command '{''.join(args_copy)}': {res.exception}"
             )
-
-            if not res.success and res.exception:
-                raise ValueError(
-                    f"Failed to invoke dbt command '{''.join(args)}': {res.exception}"
+        elif not res.success and self.raise_on_failure:
+            assert isinstance(res.result, RunExecutionResult), (
+                "Expected run execution result from failed dbt invoke"
+            )
+            failure_results = [
+                FAILURE_MSG.format(
+                    resource_type=result.node.resource_type.title(),
+                    resource_name=result.node.name,
+                    status=result.status,
+                    message=result.message,
                 )
-            elif not res.success and self.raise_on_failure:
-                assert isinstance(res.result, RunExecutionResult), (
-                    "Expected run execution result from failed dbt invoke"
-                )
-                failure_results = [
-                    FAILURE_MSG.format(
-                        resource_type=result.node.resource_type.title(),
-                        resource_name=result.node.name,
-                        status=result.status,
-                        message=result.message,
-                    )
-                    for result in res.result.results
-                    if result.status in FAILURE_STATUSES
-                ]
-                raise ValueError(
-                    f"Failures detected during invocation of dbt command '{''.join(args)}':\n{os.linesep.join(failure_results)}"
-                )
-            return res
+                for result in res.result.results
+                if result.status in FAILURE_STATUSES
+            ]
+            raise ValueError(
+                f"Failures detected during invocation of dbt command '{''.join(args_copy)}':\n{os.linesep.join(failure_results)}"
+            )
+        return res

@@ -22,28 +22,40 @@ from prefect_dbt.utilities import find_profiles_dir, replace_with_env_var_call
 
 
 class PrefectDbtSettings(BaseSettings):
+    """
+    dbt settings that directly affect the PrefectDbtRunner.
+    These settings will be collected automatically from their corresponding 'DBT_'-prefixed environment variables.
+    If a setting is not set in the environment or in the fields of this class, the default value will be used.
+
+    All other dbt settings should be used as normal, e.g. in the dbt_project.yml file, env vars, or kwargs to `invoke()`.
+    """
+
     model_config = SettingsConfigDict(env_prefix="DBT_")
 
     profiles_dir: Path = Field(
         default_factory=find_profiles_dir,
+        alias="--profiles-dir",
         description="The directory containing the dbt profiles.yml file.",
     )
     project_dir: Path = Field(
         default_factory=Path.cwd,
+        alias="--project-dir",
         description="The directory containing the dbt project.",
     )
     log_level: EventLevel = Field(
         default=EventLevel(get_current_settings().logging.level.lower()),
+        alias="--log-level",
         description="The log level of the dbt CLI. Uses Prefect's logging level if not set.",
+    )
+    target_path: Path = Field(
+        default=Path("target"),
+        alias="--target-path",
+        description="The path to the dbt target directory (relative to project_dir).",
     )
 
     def load_profiles_yml(self) -> dict[str, Any]:
         """
         Load and parse the profiles.yml file.
-
-        Args:
-            profiles_dir: Path to the directory containing profiles.yml.
-                        If None, uses the default profiles directory.
 
         Returns:
             Dict containing the parsed profiles.yml contents
@@ -61,11 +73,7 @@ class PrefectDbtSettings(BaseSettings):
     @contextlib.contextmanager
     def resolve_profiles_yml(self) -> Generator[str, None, None]:
         """
-        Synchronous context manager that creates a temporary directory with a resolved profiles.yml file.
-
-        Args:
-            profiles_dir: Path to the directory containing profiles.yml.
-                        If None, uses the default profiles directory.
+        Context manager that creates a temporary directory with a resolved profiles.yml file.
 
         Yields:
             str: Path to temporary directory containing the resolved profiles.yml.

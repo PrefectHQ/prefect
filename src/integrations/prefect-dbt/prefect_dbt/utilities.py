@@ -46,6 +46,15 @@ def replace_with_env_var_call(placeholder: str, value: Any) -> str:
 
 
 def format_resource_id(adapter_type: str, relation_name: str) -> str:
-    """Format a relation name to be a valid asset key."""
+    """
+    Format a relation name to be a valid asset key.
+
+    Args:
+        adapter_type: The type of adapter used to connect to the database
+        relation_name: The name of the relation to format
+
+    Returns:
+        The formatted relation name
+    """
     relation_name = relation_name.replace('"', "").replace(".", "/")
     return f"{adapter_type}://{relation_name}"
