@@ -33,20 +33,23 @@ def temporary_settings(
     See `Settings.copy_with_update` for details on different argument behavior.
 
     Examples:
-        >>> from prefect.settings import PREFECT_API_URL
-        >>>
-        >>> with temporary_settings(updates={PREFECT_API_URL: "foo"}):
-        >>>    assert PREFECT_API_URL.value() == "foo"
-        >>>
-        >>>    with temporary_settings(set_defaults={PREFECT_API_URL: "bar"}):
-        >>>         assert PREFECT_API_URL.value() == "foo"
-        >>>
-        >>>    with temporary_settings(restore_defaults={PREFECT_API_URL}):
-        >>>         assert PREFECT_API_URL.value() is None
-        >>>
-        >>>         with temporary_settings(set_defaults={PREFECT_API_URL: "bar"})
-        >>>             assert PREFECT_API_URL.value() == "bar"
-        >>> assert PREFECT_API_URL.value() is None
+
+        ```python
+        from prefect.settings import PREFECT_API_URL
+
+        with temporary_settings(updates={PREFECT_API_URL: "foo"}):
+           assert PREFECT_API_URL.value() == "foo"
+
+           with temporary_settings(set_defaults={PREFECT_API_URL: "bar"}):
+                assert PREFECT_API_URL.value() == "foo"
+
+           with temporary_settings(restore_defaults={PREFECT_API_URL}):
+                assert PREFECT_API_URL.value() is None
+
+                with temporary_settings(set_defaults={PREFECT_API_URL: "bar"})
+                    assert PREFECT_API_URL.value() == "bar"
+        assert PREFECT_API_URL.value() is None
+        ```
     """
     import prefect.context
 
