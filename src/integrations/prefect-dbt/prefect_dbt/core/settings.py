@@ -34,22 +34,18 @@ class PrefectDbtSettings(BaseSettings):
 
     profiles_dir: Path = Field(
         default_factory=find_profiles_dir,
-        alias="--profiles-dir",
         description="The directory containing the dbt profiles.yml file.",
     )
     project_dir: Path = Field(
         default_factory=Path.cwd,
-        alias="--project-dir",
         description="The directory containing the dbt project.",
     )
     log_level: EventLevel = Field(
         default=EventLevel(get_current_settings().logging.level.lower()),
-        alias="--log-level",
         description="The log level of the dbt CLI. Uses Prefect's logging level if not set.",
     )
     target_path: Path = Field(
         default=Path("target"),
-        alias="--target-path",
         description="The path to the dbt target directory (relative to project_dir).",
     )
 
