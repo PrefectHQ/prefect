@@ -7,7 +7,7 @@ sidebarTitle: filesystem
 
 ## Classes
 
-### `FileSystemLockManager` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/locking/filesystem.py#L35" target="_blank">↗</a></sup>
+### `FileSystemLockManager` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/locking/filesystem.py#L35"><Icon icon="github" size="14" /></a></sup>
 
 
 A lock manager that implements locking using local files.
@@ -15,31 +15,31 @@ A lock manager that implements locking using local files.
 
 **Methods:**
 
-#### `acquire_lock` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/locking/filesystem.py#L97" target="_blank">↗</a></sup>
+#### `acquire_lock` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/locking/filesystem.py#L97"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 acquire_lock(self, key: str, holder: str, acquire_timeout: Optional[float] = None, hold_timeout: Optional[float] = None) -> bool
 ```
 
-#### `release_lock` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/locking/filesystem.py#L195" target="_blank">↗</a></sup>
+#### `release_lock` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/locking/filesystem.py#L195"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 release_lock(self, key: str, holder: str) -> None
 ```
 
-#### `is_locked` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/locking/filesystem.py#L205" target="_blank">↗</a></sup>
+#### `is_locked` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/locking/filesystem.py#L205"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 is_locked(self, key: str, use_cache: bool = False) -> bool
 ```
 
-#### `is_lock_holder` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/locking/filesystem.py#L220" target="_blank">↗</a></sup>
+#### `is_lock_holder` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/locking/filesystem.py#L220"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 is_lock_holder(self, key: str, holder: str) -> bool
 ```
 
-#### `wait_for_lock` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/locking/filesystem.py#L230" target="_blank">↗</a></sup>
+#### `wait_for_lock` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/locking/filesystem.py#L230"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 wait_for_lock(self, key: str, timeout: Optional[float] = None) -> bool

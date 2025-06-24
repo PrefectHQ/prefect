@@ -12,23 +12,23 @@ Implements an in-memory task queue for delivering background task runs to TaskWo
 
 ## Classes
 
-### `TaskQueue` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/task_queue.py#L17" target="_blank">↗</a></sup>
+### `TaskQueue` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/task_queue.py#L17"><Icon icon="github" size="14" /></a></sup>
 
 **Methods:**
 
-#### `configure_task_key` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/task_queue.py#L36" target="_blank">↗</a></sup>
+#### `configure_task_key` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/task_queue.py#L36"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 configure_task_key(cls, task_key: str, scheduled_size: Optional[int] = None, retry_size: Optional[int] = None) -> None
 ```
 
-#### `for_key` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/task_queue.py#L47" target="_blank">↗</a></sup>
+#### `for_key` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/task_queue.py#L47"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 for_key(cls, task_key: str) -> Self
 ```
 
-#### `reset` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/task_queue.py#L56" target="_blank">↗</a></sup>
+#### `reset` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/task_queue.py#L56"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 reset(cls) -> None
@@ -37,13 +37,13 @@ reset(cls) -> None
 A unit testing utility to reset the state of the task queues subsystem
 
 
-#### `get_nowait` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/task_queue.py#L73" target="_blank">↗</a></sup>
+#### `get_nowait` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/task_queue.py#L73"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 get_nowait(self) -> schemas.core.TaskRun
 ```
 
-### `MultiQueue` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/task_queue.py#L87" target="_blank">↗</a></sup>
+### `MultiQueue` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/task_queue.py#L87"><Icon icon="github" size="14" /></a></sup>
 
 
 A queue that can pull tasks from from any of a number of task queues

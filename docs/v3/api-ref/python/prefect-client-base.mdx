@@ -7,7 +7,7 @@ sidebarTitle: base
 
 ## Functions
 
-### `determine_server_type` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/base.py#L637" target="_blank">↗</a></sup>
+### `determine_server_type` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/base.py#L637"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 determine_server_type() -> ServerType
@@ -26,9 +26,9 @@ not enabled
 
 ## Classes
 
-### `ASGIApp` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/base.py#L57" target="_blank">↗</a></sup>
+### `ASGIApp` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/base.py#L57"><Icon icon="github" size="14" /></a></sup>
 
-### `PrefectResponse` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/base.py#L145" target="_blank">↗</a></sup>
+### `PrefectResponse` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/base.py#L145"><Icon icon="github" size="14" /></a></sup>
 
 
 A Prefect wrapper for the `httpx.Response` class.
@@ -38,7 +38,7 @@ Provides more informative error messages.
 
 **Methods:**
 
-#### `raise_for_status` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/base.py#L152" target="_blank">↗</a></sup>
+#### `raise_for_status` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/base.py#L152"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 raise_for_status(self) -> Response
@@ -50,7 +50,7 @@ The `PrefectHTTPStatusError` contains useful additional information that
 is not contained in the `HTTPStatusError`.
 
 
-#### `from_httpx_response` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/base.py#L165" target="_blank">↗</a></sup>
+#### `from_httpx_response` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/base.py#L165"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 from_httpx_response(cls: type[Self], response: httpx.Response) -> Response
@@ -63,7 +63,7 @@ resolution order to look for methods defined in PrefectResponse, while leaving
 everything else about the original Response instance intact.
 
 
-### `PrefectHttpxAsyncClient` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/base.py#L178" target="_blank">↗</a></sup>
+### `PrefectHttpxAsyncClient` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/base.py#L178"><Icon icon="github" size="14" /></a></sup>
 
 
 A Prefect wrapper for the async httpx client with support for retry-after headers
@@ -75,7 +75,7 @@ For more details on rate limit headers, see:
 [Configuring Cloudflare Rate Limiting](https://support.cloudflare.com/hc/en-us/articles/115001635128-Configuring-Rate-Limiting-from-UI)
 
 
-### `PrefectHttpxSyncClient` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/base.py#L404" target="_blank">↗</a></sup>
+### `PrefectHttpxSyncClient` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/base.py#L404"><Icon icon="github" size="14" /></a></sup>
 
 
 A Prefect wrapper for the async httpx client with support for retry-after headers
@@ -89,7 +89,7 @@ For more details on rate limit headers, see:
 
 **Methods:**
 
-#### `send` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/base.py#L543" target="_blank">↗</a></sup>
+#### `send` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/base.py#L543"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 send(self, request: Request, *args: Any, **kwargs: Any) -> Response
@@ -105,4 +105,4 @@ Send a request with automatic retry behavior for the following status codes:
 - Any additional status codes provided in `PREFECT_CLIENT_RETRY_EXTRA_CODES`
 
 
-### `ServerType` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/base.py#L630" target="_blank">↗</a></sup>
+### `ServerType` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/base.py#L630"><Icon icon="github" size="14" /></a></sup>

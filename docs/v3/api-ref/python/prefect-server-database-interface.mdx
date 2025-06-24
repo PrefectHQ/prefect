@@ -7,13 +7,13 @@ sidebarTitle: interface
 
 ## Classes
 
-### `DBSingleton` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/interface.py#L21" target="_blank">↗</a></sup>
+### `DBSingleton` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/database/interface.py#L21"><Icon icon="github" size="14" /></a></sup>
 
 
 Ensures that only one database interface is created per unique key
 
 
-### `PrefectDBInterface` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/interface.py#L55" target="_blank">↗</a></sup>
+### `PrefectDBInterface` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/database/interface.py#L55"><Icon icon="github" size="14" /></a></sup>
 
 
 An interface for backend-specific SqlAlchemy actions and ORM models.
@@ -26,13 +26,13 @@ against.
 
 **Methods:**
 
-#### `dialect` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/interface.py#L141" target="_blank">↗</a></sup>
+#### `dialect` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/database/interface.py#L141"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 dialect(self) -> type[sa.engine.Dialect]
 ```
 
-#### `Base` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/interface.py#L145" target="_blank">↗</a></sup>
+#### `Base` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/database/interface.py#L145"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 Base(self) -> type[orm_models.Base]
@@ -41,7 +41,7 @@ Base(self) -> type[orm_models.Base]
 Base class for orm models
 
 
-#### `Flow` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/interface.py#L150" target="_blank">↗</a></sup>
+#### `Flow` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/database/interface.py#L150"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 Flow(self) -> type[orm_models.Flow]
@@ -50,7 +50,7 @@ Flow(self) -> type[orm_models.Flow]
 A flow orm model
 
 
-#### `FlowRun` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/interface.py#L155" target="_blank">↗</a></sup>
+#### `FlowRun` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/database/interface.py#L155"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 FlowRun(self) -> type[orm_models.FlowRun]
@@ -59,7 +59,7 @@ FlowRun(self) -> type[orm_models.FlowRun]
 A flow run orm model
 
 
-#### `FlowRunState` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/interface.py#L160" target="_blank">↗</a></sup>
+#### `FlowRunState` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/database/interface.py#L160"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 FlowRunState(self) -> type[orm_models.FlowRunState]
@@ -68,7 +68,7 @@ FlowRunState(self) -> type[orm_models.FlowRunState]
 A flow run state orm model
 
 
-#### `TaskRun` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/interface.py#L165" target="_blank">↗</a></sup>
+#### `TaskRun` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/database/interface.py#L165"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 TaskRun(self) -> type[orm_models.TaskRun]
@@ -77,7 +77,7 @@ TaskRun(self) -> type[orm_models.TaskRun]
 A task run orm model
 
 
-#### `TaskRunState` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/interface.py#L170" target="_blank">↗</a></sup>
+#### `TaskRunState` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/database/interface.py#L170"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 TaskRunState(self) -> type[orm_models.TaskRunState]
@@ -86,7 +86,7 @@ TaskRunState(self) -> type[orm_models.TaskRunState]
 A task run state orm model
 
 
-#### `Artifact` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/interface.py#L175" target="_blank">↗</a></sup>
+#### `Artifact` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/database/interface.py#L175"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 Artifact(self) -> type[orm_models.Artifact]
@@ -95,7 +95,7 @@ Artifact(self) -> type[orm_models.Artifact]
 An artifact orm model
 
 
-#### `ArtifactCollection` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/interface.py#L180" target="_blank">↗</a></sup>
+#### `ArtifactCollection` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/database/interface.py#L180"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 ArtifactCollection(self) -> type[orm_models.ArtifactCollection]
@@ -104,7 +104,7 @@ ArtifactCollection(self) -> type[orm_models.ArtifactCollection]
 An artifact collection orm model
 
 
-#### `TaskRunStateCache` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/interface.py#L185" target="_blank">↗</a></sup>
+#### `TaskRunStateCache` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/database/interface.py#L185"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 TaskRunStateCache(self) -> type[orm_models.TaskRunStateCache]
@@ -113,7 +113,7 @@ TaskRunStateCache(self) -> type[orm_models.TaskRunStateCache]
 A task run state cache orm model
 
 
-#### `Deployment` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/interface.py#L190" target="_blank">↗</a></sup>
+#### `Deployment` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/database/interface.py#L190"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 Deployment(self) -> type[orm_models.Deployment]
@@ -122,7 +122,7 @@ Deployment(self) -> type[orm_models.Deployment]
 A deployment orm model
 
 
-#### `DeploymentSchedule` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/interface.py#L195" target="_blank">↗</a></sup>
+#### `DeploymentSchedule` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/database/interface.py#L195"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 DeploymentSchedule(self) -> type[orm_models.DeploymentSchedule]
@@ -131,7 +131,7 @@ DeploymentSchedule(self) -> type[orm_models.DeploymentSchedule]
 A deployment schedule orm model
 
 
-#### `SavedSearch` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/interface.py#L200" target="_blank">↗</a></sup>
+#### `SavedSearch` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/database/interface.py#L200"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 SavedSearch(self) -> type[orm_models.SavedSearch]
@@ -140,7 +140,7 @@ SavedSearch(self) -> type[orm_models.SavedSearch]
 A saved search orm model
 
 
-#### `WorkPool` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/interface.py#L205" target="_blank">↗</a></sup>
+#### `WorkPool` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/database/interface.py#L205"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 WorkPool(self) -> type[orm_models.WorkPool]
@@ -149,7 +149,7 @@ WorkPool(self) -> type[orm_models.WorkPool]
 A work pool orm model
 
 
-#### `Worker` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/interface.py#L210" target="_blank">↗</a></sup>
+#### `Worker` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/database/interface.py#L210"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 Worker(self) -> type[orm_models.Worker]
@@ -158,7 +158,7 @@ Worker(self) -> type[orm_models.Worker]
 A worker process orm model
 
 
-#### `Log` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/interface.py#L215" target="_blank">↗</a></sup>
+#### `Log` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/database/interface.py#L215"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 Log(self) -> type[orm_models.Log]
@@ -167,7 +167,7 @@ Log(self) -> type[orm_models.Log]
 A log orm model
 
 
-#### `ConcurrencyLimit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/interface.py#L220" target="_blank">↗</a></sup>
+#### `ConcurrencyLimit` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/database/interface.py#L220"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 ConcurrencyLimit(self) -> type[orm_models.ConcurrencyLimit]
@@ -176,7 +176,7 @@ ConcurrencyLimit(self) -> type[orm_models.ConcurrencyLimit]
 A concurrency model
 
 
-#### `ConcurrencyLimitV2` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/interface.py#L225" target="_blank">↗</a></sup>
+#### `ConcurrencyLimitV2` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/database/interface.py#L225"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 ConcurrencyLimitV2(self) -> type[orm_models.ConcurrencyLimitV2]
@@ -185,7 +185,7 @@ ConcurrencyLimitV2(self) -> type[orm_models.ConcurrencyLimitV2]
 A v2 concurrency model
 
 
-#### `CsrfToken` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/interface.py#L230" target="_blank">↗</a></sup>
+#### `CsrfToken` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/database/interface.py#L230"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 CsrfToken(self) -> type[orm_models.CsrfToken]
@@ -194,7 +194,7 @@ CsrfToken(self) -> type[orm_models.CsrfToken]
 A csrf token model
 
 
-#### `WorkQueue` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/interface.py#L235" target="_blank">↗</a></sup>
+#### `WorkQueue` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/database/interface.py#L235"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 WorkQueue(self) -> type[orm_models.WorkQueue]
@@ -203,7 +203,7 @@ WorkQueue(self) -> type[orm_models.WorkQueue]
 A work queue model
 
 
-#### `Agent` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/interface.py#L240" target="_blank">↗</a></sup>
+#### `Agent` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/database/interface.py#L240"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 Agent(self) -> type[orm_models.Agent]
@@ -212,7 +212,7 @@ Agent(self) -> type[orm_models.Agent]
 An agent model
 
 
-#### `BlockType` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/interface.py#L245" target="_blank">↗</a></sup>
+#### `BlockType` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/database/interface.py#L245"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 BlockType(self) -> type[orm_models.BlockType]
@@ -221,7 +221,7 @@ BlockType(self) -> type[orm_models.BlockType]
 A block type model
 
 
-#### `BlockSchema` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/interface.py#L250" target="_blank">↗</a></sup>
+#### `BlockSchema` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/database/interface.py#L250"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 BlockSchema(self) -> type[orm_models.BlockSchema]
@@ -230,7 +230,7 @@ BlockSchema(self) -> type[orm_models.BlockSchema]
 A block schema model
 
 
-#### `BlockSchemaReference` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/interface.py#L255" target="_blank">↗</a></sup>
+#### `BlockSchemaReference` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/database/interface.py#L255"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 BlockSchemaReference(self) -> type[orm_models.BlockSchemaReference]
@@ -239,7 +239,7 @@ BlockSchemaReference(self) -> type[orm_models.BlockSchemaReference]
 A block schema reference model
 
 
-#### `BlockDocument` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/interface.py#L260" target="_blank">↗</a></sup>
+#### `BlockDocument` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/database/interface.py#L260"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 BlockDocument(self) -> type[orm_models.BlockDocument]
@@ -248,7 +248,7 @@ BlockDocument(self) -> type[orm_models.BlockDocument]
 A block document model
 
 
-#### `BlockDocumentReference` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/interface.py#L265" target="_blank">↗</a></sup>
+#### `BlockDocumentReference` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/database/interface.py#L265"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 BlockDocumentReference(self) -> type[orm_models.BlockDocumentReference]
@@ -257,7 +257,7 @@ BlockDocumentReference(self) -> type[orm_models.BlockDocumentReference]
 A block document reference model
 
 
-#### `Configuration` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/interface.py#L270" target="_blank">↗</a></sup>
+#### `Configuration` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/database/interface.py#L270"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 Configuration(self) -> type[orm_models.Configuration]
@@ -266,7 +266,7 @@ Configuration(self) -> type[orm_models.Configuration]
 An configuration model
 
 
-#### `Variable` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/interface.py#L275" target="_blank">↗</a></sup>
+#### `Variable` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/database/interface.py#L275"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 Variable(self) -> type[orm_models.Variable]
@@ -275,7 +275,7 @@ Variable(self) -> type[orm_models.Variable]
 A variable model
 
 
-#### `FlowRunInput` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/interface.py#L280" target="_blank">↗</a></sup>
+#### `FlowRunInput` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/database/interface.py#L280"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 FlowRunInput(self) -> type[orm_models.FlowRunInput]
@@ -284,7 +284,7 @@ FlowRunInput(self) -> type[orm_models.FlowRunInput]
 A flow run input model
 
 
-#### `Automation` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/interface.py#L285" target="_blank">↗</a></sup>
+#### `Automation` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/database/interface.py#L285"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 Automation(self) -> type[orm_models.Automation]
@@ -293,7 +293,7 @@ Automation(self) -> type[orm_models.Automation]
 An automation model
 
 
-#### `AutomationBucket` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/interface.py#L290" target="_blank">↗</a></sup>
+#### `AutomationBucket` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/database/interface.py#L290"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 AutomationBucket(self) -> type[orm_models.AutomationBucket]
@@ -302,7 +302,7 @@ AutomationBucket(self) -> type[orm_models.AutomationBucket]
 An automation bucket model
 
 
-#### `AutomationRelatedResource` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/interface.py#L295" target="_blank">↗</a></sup>
+#### `AutomationRelatedResource` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/database/interface.py#L295"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 AutomationRelatedResource(self) -> type[orm_models.AutomationRelatedResource]
@@ -311,7 +311,7 @@ AutomationRelatedResource(self) -> type[orm_models.AutomationRelatedResource]
 An automation related resource model
 
 
-#### `CompositeTriggerChildFiring` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/interface.py#L300" target="_blank">↗</a></sup>
+#### `CompositeTriggerChildFiring` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/database/interface.py#L300"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 CompositeTriggerChildFiring(self) -> type[orm_models.CompositeTriggerChildFiring]
@@ -320,7 +320,7 @@ CompositeTriggerChildFiring(self) -> type[orm_models.CompositeTriggerChildFiring
 A model capturing a composite trigger's child firing
 
 
-#### `AutomationEventFollower` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/interface.py#L307" target="_blank">↗</a></sup>
+#### `AutomationEventFollower` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/database/interface.py#L307"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 AutomationEventFollower(self) -> type[orm_models.AutomationEventFollower]
@@ -329,7 +329,7 @@ AutomationEventFollower(self) -> type[orm_models.AutomationEventFollower]
 A model capturing one event following another event
 
 
-#### `Event` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/interface.py#L312" target="_blank">↗</a></sup>
+#### `Event` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/database/interface.py#L312"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 Event(self) -> type[orm_models.Event]
@@ -338,7 +338,7 @@ Event(self) -> type[orm_models.Event]
 An event model
 
 
-#### `EventResource` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/interface.py#L317" target="_blank">↗</a></sup>
+#### `EventResource` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/database/interface.py#L317"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 EventResource(self) -> type[orm_models.EventResource]

@@ -7,11 +7,11 @@ sidebarTitle: protocol
 
 ## Classes
 
-### `LockManager` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/locking/protocol.py#L5" target="_blank">↗</a></sup>
+### `LockManager` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/locking/protocol.py#L5"><Icon icon="github" size="14" /></a></sup>
 
 **Methods:**
 
-#### `acquire_lock` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/locking/protocol.py#L6" target="_blank">↗</a></sup>
+#### `acquire_lock` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/locking/protocol.py#L6"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 acquire_lock(self, key: str, holder: str, acquire_timeout: Optional[float] = None, hold_timeout: Optional[float] = None) -> bool
@@ -35,7 +35,7 @@ indefinitely by default.
 - True if the lock was successfully acquired; False otherwise.
 
 
-#### `release_lock` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/locking/protocol.py#L60" target="_blank">↗</a></sup>
+#### `release_lock` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/locking/protocol.py#L60"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 release_lock(self, key: str, holder: str) -> None
@@ -49,7 +49,7 @@ Releases the lock on the corresponding transaction record.
 holder provided when acquiring the lock.
 
 
-#### `is_locked` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/locking/protocol.py#L71" target="_blank">↗</a></sup>
+#### `is_locked` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/locking/protocol.py#L71"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 is_locked(self, key: str) -> bool
@@ -64,7 +64,7 @@ Simple check to see if the corresponding record is currently locked.
 - True is the record is locked; False otherwise.
 
 
-#### `is_lock_holder` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/locking/protocol.py#L83" target="_blank">↗</a></sup>
+#### `is_lock_holder` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/locking/protocol.py#L83"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 is_lock_holder(self, key: str, holder: str) -> bool
@@ -80,7 +80,7 @@ Check if the current holder is the lock holder for the transaction record.
 - True if the current holder is the lock holder; False otherwise.
 
 
-#### `wait_for_lock` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/locking/protocol.py#L96" target="_blank">↗</a></sup>
+#### `wait_for_lock` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/locking/protocol.py#L96"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 wait_for_lock(self, key: str, timeout: Optional[float] = None) -> bool
