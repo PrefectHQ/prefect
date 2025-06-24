@@ -629,12 +629,12 @@ def get_from_dict(
         The fetched value if the key exists, or the default value if it does not.
 
     Examples:
-    >>> get_from_dict({'a': {'b': {'c': [1, 2, 3, 4]}}}, 'a.b.c[1]')
-    2
-    >>> get_from_dict({'a': {'b': [0, {'c': [1, 2]}]}}, ['a', 'b', 1, 'c', 1])
-    2
-    >>> get_from_dict({'a': {'b': [0, {'c': [1, 2]}]}}, 'a.b.1.c.2', 'default')
-    'default'
+
+    ```python
+    get_from_dict({'a': {'b': {'c': [1, 2, 3, 4]}}}, 'a.b.c[1]') # 2
+    get_from_dict({'a': {'b': [0, {'c': [1, 2]}]}}, ['a', 'b', 1, 'c', 1]) # 2
+    get_from_dict({'a': {'b': [0, {'c': [1, 2]}]}}, 'a.b.1.c.2', 'default') # 'default'
+    ```
     """
     if isinstance(keys, str):
         keys = keys.replace("[", ".").replace("]", "").split(".")
