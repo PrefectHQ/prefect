@@ -7,43 +7,43 @@ sidebarTitle: hydration
 
 ## Functions
 
-### `handler` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/schema_tools/hydration.py#L172" target="_blank">↗</a></sup>
+### `handler` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/schema_tools/hydration.py#L172"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 handler(kind: PrefectKind) -> Callable[[Handler], Handler]
 ```
 
-### `call_handler` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/schema_tools/hydration.py#L180" target="_blank">↗</a></sup>
+### `call_handler` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/schema_tools/hydration.py#L180"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 call_handler(kind: PrefectKind, obj: dict[str, Any], ctx: HydrationContext) -> Any
 ```
 
-### `null_handler` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/schema_tools/hydration.py#L191" target="_blank">↗</a></sup>
+### `null_handler` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/schema_tools/hydration.py#L191"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 null_handler(obj: dict[str, Any], ctx: HydrationContext)
 ```
 
-### `json_handler` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/schema_tools/hydration.py#L200" target="_blank">↗</a></sup>
+### `json_handler` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/schema_tools/hydration.py#L200"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 json_handler(obj: dict[str, Any], ctx: HydrationContext)
 ```
 
-### `jinja_handler` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/schema_tools/hydration.py#L226" target="_blank">↗</a></sup>
+### `jinja_handler` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/schema_tools/hydration.py#L226"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 jinja_handler(obj: dict[str, Any], ctx: HydrationContext) -> Any
 ```
 
-### `workspace_variable_handler` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/schema_tools/hydration.py#L257" target="_blank">↗</a></sup>
+### `workspace_variable_handler` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/schema_tools/hydration.py#L257"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 workspace_variable_handler(obj: dict[str, Any], ctx: HydrationContext) -> Any
 ```
 
-### `hydrate` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/schema_tools/hydration.py#L287" target="_blank">↗</a></sup>
+### `hydrate` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/schema_tools/hydration.py#L287"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 hydrate(obj: dict[str, Any], ctx: Optional[HydrationContext] = None) -> dict[str, Any]
@@ -51,118 +51,118 @@ hydrate(obj: dict[str, Any], ctx: Optional[HydrationContext] = None) -> dict[str
 
 ## Classes
 
-### `HydrationContext` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/schema_tools/hydration.py#L14" target="_blank">↗</a></sup>
+### `HydrationContext` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/schema_tools/hydration.py#L14"><Icon icon="github" size="14" /></a></sup>
 
-### `Placeholder` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/schema_tools/hydration.py#L59" target="_blank">↗</a></sup>
+### `Placeholder` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/schema_tools/hydration.py#L59"><Icon icon="github" size="14" /></a></sup>
 
 **Methods:**
 
-#### `is_error` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/schema_tools/hydration.py#L64" target="_blank">↗</a></sup>
+#### `is_error` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/schema_tools/hydration.py#L64"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 is_error(self) -> bool
 ```
 
-### `RemoveValue` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/schema_tools/hydration.py#L68" target="_blank">↗</a></sup>
+### `RemoveValue` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/schema_tools/hydration.py#L68"><Icon icon="github" size="14" /></a></sup>
 
-### `HydrationError` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/schema_tools/hydration.py#L76" target="_blank">↗</a></sup>
+### `HydrationError` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/schema_tools/hydration.py#L76"><Icon icon="github" size="14" /></a></sup>
 
 **Methods:**
 
-#### `is_error` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/schema_tools/hydration.py#L81" target="_blank">↗</a></sup>
+#### `is_error` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/schema_tools/hydration.py#L81"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 is_error(self) -> bool
 ```
 
-#### `message` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/schema_tools/hydration.py#L86" target="_blank">↗</a></sup>
+#### `message` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/schema_tools/hydration.py#L86"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 message(self) -> str
 ```
 
-### `KeyNotFound` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/schema_tools/hydration.py#L96" target="_blank">↗</a></sup>
+### `KeyNotFound` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/schema_tools/hydration.py#L96"><Icon icon="github" size="14" /></a></sup>
 
 **Methods:**
 
-#### `message` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/schema_tools/hydration.py#L98" target="_blank">↗</a></sup>
+#### `message` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/schema_tools/hydration.py#L98"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 message(self) -> str
 ```
 
-#### `key` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/schema_tools/hydration.py#L103" target="_blank">↗</a></sup>
+#### `key` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/schema_tools/hydration.py#L103"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 key(self) -> str
 ```
 
-### `ValueNotFound` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/schema_tools/hydration.py#L107" target="_blank">↗</a></sup>
+### `ValueNotFound` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/schema_tools/hydration.py#L107"><Icon icon="github" size="14" /></a></sup>
 
 **Methods:**
 
-#### `key` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/schema_tools/hydration.py#L109" target="_blank">↗</a></sup>
+#### `key` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/schema_tools/hydration.py#L109"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 key(self) -> str
 ```
 
-### `TemplateNotFound` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/schema_tools/hydration.py#L113" target="_blank">↗</a></sup>
+### `TemplateNotFound` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/schema_tools/hydration.py#L113"><Icon icon="github" size="14" /></a></sup>
 
 **Methods:**
 
-#### `key` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/schema_tools/hydration.py#L115" target="_blank">↗</a></sup>
+#### `key` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/schema_tools/hydration.py#L115"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 key(self) -> str
 ```
 
-### `VariableNameNotFound` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/schema_tools/hydration.py#L119" target="_blank">↗</a></sup>
+### `VariableNameNotFound` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/schema_tools/hydration.py#L119"><Icon icon="github" size="14" /></a></sup>
 
 **Methods:**
 
-#### `key` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/schema_tools/hydration.py#L121" target="_blank">↗</a></sup>
+#### `key` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/schema_tools/hydration.py#L121"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 key(self) -> str
 ```
 
-### `InvalidJSON` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/schema_tools/hydration.py#L125" target="_blank">↗</a></sup>
+### `InvalidJSON` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/schema_tools/hydration.py#L125"><Icon icon="github" size="14" /></a></sup>
 
 **Methods:**
 
-#### `message` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/schema_tools/hydration.py#L127" target="_blank">↗</a></sup>
+#### `message` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/schema_tools/hydration.py#L127"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 message(self) -> str
 ```
 
-### `InvalidJinja` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/schema_tools/hydration.py#L134" target="_blank">↗</a></sup>
+### `InvalidJinja` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/schema_tools/hydration.py#L134"><Icon icon="github" size="14" /></a></sup>
 
 **Methods:**
 
-#### `message` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/schema_tools/hydration.py#L136" target="_blank">↗</a></sup>
+#### `message` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/schema_tools/hydration.py#L136"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 message(self) -> str
 ```
 
-### `WorkspaceVariableNotFound` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/schema_tools/hydration.py#L143" target="_blank">↗</a></sup>
+### `WorkspaceVariableNotFound` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/schema_tools/hydration.py#L143"><Icon icon="github" size="14" /></a></sup>
 
 **Methods:**
 
-#### `variable_name` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/schema_tools/hydration.py#L145" target="_blank">↗</a></sup>
+#### `variable_name` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/schema_tools/hydration.py#L145"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 variable_name(self) -> str
 ```
 
-#### `message` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/schema_tools/hydration.py#L150" target="_blank">↗</a></sup>
+#### `message` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/schema_tools/hydration.py#L150"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 message(self) -> str
 ```
 
-### `WorkspaceVariable` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/schema_tools/hydration.py#L154" target="_blank">↗</a></sup>
+### `WorkspaceVariable` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/schema_tools/hydration.py#L154"><Icon icon="github" size="14" /></a></sup>
 
-### `ValidJinja` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/schema_tools/hydration.py#L164" target="_blank">↗</a></sup>
+### `ValidJinja` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/schema_tools/hydration.py#L164"><Icon icon="github" size="14" /></a></sup>

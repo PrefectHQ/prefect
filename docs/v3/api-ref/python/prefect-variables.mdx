@@ -7,7 +7,7 @@ sidebarTitle: variables
 
 ## Classes
 
-### `Variable` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/variables.py#L14" target="_blank">↗</a></sup>
+### `Variable` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/variables.py#L14"><Icon icon="github" size="14" /></a></sup>
 
 
 Variables are named, mutable JSON values that can be shared across tasks and flows.
@@ -20,7 +20,7 @@ Variables are named, mutable JSON values that can be shared across tasks and flo
 
 **Methods:**
 
-#### `set` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/variables.py#L91" target="_blank">↗</a></sup>
+#### `set` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/variables.py#L91"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 set(cls, name: str, value: StrictVariableValue, tags: Optional[list[str]] = None, overwrite: bool = False) -> 'Variable'
@@ -37,7 +37,7 @@ Returns the newly set variable object.
 - `-`: Whether to overwrite the variable if it already exists.
 
 
-#### `get` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/variables.py#L171" target="_blank">↗</a></sup>
+#### `get` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/variables.py#L171"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 get(cls, name: str, default: StrictVariableValue = None) -> StrictVariableValue
@@ -52,7 +52,7 @@ If the variable does not exist, return the default value.
 - `-`: The default value to return if the variable does not exist.
 
 
-#### `unset` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/variables.py#L231" target="_blank">↗</a></sup>
+#### `unset` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/variables.py#L231"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 unset(cls, name: str) -> bool
