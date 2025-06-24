@@ -18,7 +18,12 @@ from slugify import slugify
 from snowflake.connector import SnowflakeConnection
 from snowflake.core import Root
 from snowflake.core.exceptions import NotFoundError
-from snowflake.core.service import JobService, ServiceResource, ServiceSpec, ServiceContainer
+from snowflake.core.service import (
+    JobService,
+    ServiceContainer,
+    ServiceResource,
+    ServiceSpec,
+)
 
 from prefect.client.schemas.objects import FlowRun
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
