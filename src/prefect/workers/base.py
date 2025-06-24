@@ -208,10 +208,12 @@ class BaseJobConfiguration(BaseModel):
         Defaults to using the job configuration parameter name as the template variable name.
 
         e.g.
+        ```python
         {
             key1: '{{ key1 }}',     # default variable template
             key2: '{{ template2 }}', # `template2` specifically provide as template
         }
+        ```
         """
         configuration: dict[str, Any] = {}
         properties = cls.model_json_schema()["properties"]
