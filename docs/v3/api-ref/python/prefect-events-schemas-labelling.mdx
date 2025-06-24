@@ -14,6 +14,7 @@ The LabelDiver supports templating use cases for any Labelled object, by
 presenting the labels as a graph of objects that may be accessed by attribute.  For
 example:
 
+    ```python
     diver = LabelDiver({
         'hello.world': 'foo',
         'hello.world.again': 'bar'
@@ -21,43 +22,44 @@ example:
 
     assert str(diver.hello.world) == 'foo'
     assert str(diver.hello.world.again) == 'bar'
+    ```
 
 
-### `Labelled` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/schemas/labelling.py#L74" target="_blank">↗</a></sup>
+### `Labelled` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/schemas/labelling.py#L76" target="_blank">↗</a></sup>
 
 **Methods:**
 
-#### `keys` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/schemas/labelling.py#L75" target="_blank">↗</a></sup>
+#### `keys` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/schemas/labelling.py#L77" target="_blank">↗</a></sup>
 
 ```python
 keys(self) -> Iterable[str]
 ```
 
-#### `items` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/schemas/labelling.py#L78" target="_blank">↗</a></sup>
+#### `items` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/schemas/labelling.py#L80" target="_blank">↗</a></sup>
 
 ```python
 items(self) -> Iterable[Tuple[str, str]]
 ```
 
-#### `get` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/schemas/labelling.py#L91" target="_blank">↗</a></sup>
+#### `get` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/schemas/labelling.py#L93" target="_blank">↗</a></sup>
 
 ```python
 get(self, label: str, default: Optional[str] = None) -> Optional[str]
 ```
 
-#### `as_label_value_array` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/schemas/labelling.py#L94" target="_blank">↗</a></sup>
+#### `as_label_value_array` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/schemas/labelling.py#L96" target="_blank">↗</a></sup>
 
 ```python
 as_label_value_array(self) -> List[Dict[str, str]]
 ```
 
-#### `labels` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/schemas/labelling.py#L98" target="_blank">↗</a></sup>
+#### `labels` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/schemas/labelling.py#L100" target="_blank">↗</a></sup>
 
 ```python
 labels(self) -> LabelDiver
 ```
 
-#### `has_all_labels` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/schemas/labelling.py#L101" target="_blank">↗</a></sup>
+#### `has_all_labels` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/schemas/labelling.py#L103" target="_blank">↗</a></sup>
 
 ```python
 has_all_labels(self, labels: Dict[str, str]) -> bool

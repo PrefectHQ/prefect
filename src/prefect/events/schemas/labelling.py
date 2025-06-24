@@ -8,6 +8,7 @@ class LabelDiver:
     presenting the labels as a graph of objects that may be accessed by attribute.  For
     example:
 
+        ```python
         diver = LabelDiver({
             'hello.world': 'foo',
             'hello.world.again': 'bar'
@@ -15,6 +16,7 @@ class LabelDiver:
 
         assert str(diver.hello.world) == 'foo'
         assert str(diver.hello.world.again) == 'bar'
+        ```
 
     """
 
