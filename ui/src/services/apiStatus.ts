@@ -3,8 +3,9 @@ import { AxiosError, AxiosInstance, isAxiosError } from 'axios'
 import { ref } from 'vue'
 import ApiStatusToast from '@/components/ApiStatusToast.vue'
 
-const interceptedStatuses = [503]
-const interceptedCodes = ['ERR_NETWORK']
+const ranges = [500]
+const statuses = [401, 403]
+const codes = ['ERR_NETWORK']
 
 const shown = ref(false)
 
@@ -16,7 +17,17 @@ export function setupApiStatusInterceptor(axiosInstance: AxiosInstance): void {
   const interceptorId = axiosInstance.interceptors.response.use(undefined, interceptor)
 
   function isInterceptedError(error: AxiosError): boolean {
-    return isAxiosError(error) && (interceptedStatuses.includes(error.response?.status ?? 0) || interceptedCodes.includes(error.code ?? ''))
+    if (!isAxiosError(error) || !error.code) {
+      return false
+    }
+
+    const status = error.response?.status
+
+    if (typeof status === 'number') {
+      return statuses.includes(status) || ranges.some(range => status >= range && status < range + 100)
+    }
+
+    return codes.includes(error.code)
   }
 
   function interceptor(error: AxiosError): Promise<AxiosError> {
