@@ -7,7 +7,7 @@ sidebarTitle: tasks
 
 
 
-Module containing the base workflow task class and decorator - for most use cases, using the [`@task` decorator][prefect.tasks.task] is preferred.
+Module containing the base workflow task class and decorator - for most use cases, using the `@task` decorator is preferred.
 
 
 ## Functions
@@ -180,9 +180,6 @@ This can be used with `Unpack` to provide type hints for **kwargs.
 
 
 A Prefect task definition.
-
-!!! note
-    We recommend using [the `@task` decorator][prefect.tasks.task] for most use-cases.
 
 Wraps a function with an entrypoint to the Prefect engine. Calling this class within a flow function
 creates a new task run.
@@ -656,7 +653,7 @@ Examples:
 #### `apply_async`
 
 ```python
-apply_async(self, args: Optional[tuple[Any, ...]] = None, kwargs: Optional[dict[str, Any]] = None, wait_for: Optional[Iterable[PrefectFuture[R]]] = None, dependencies: Optional[dict[str, set[TaskRunInput]]] = None) -> PrefectDistributedFuture[R]
+apply_async(self, args: Optional[tuple[Any, ...]] = None, kwargs: Optional[dict[str, Any]] = None, wait_for: Optional[Iterable[PrefectFuture[R]]] = None, dependencies: Optional[dict[str, set[RunInput]]] = None) -> PrefectDistributedFuture[R]
 ```
 
 Create a pending task run for a task worker to execute.

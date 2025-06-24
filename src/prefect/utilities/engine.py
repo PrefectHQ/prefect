@@ -333,8 +333,7 @@ async def propose_state(
         flow_run_id: an optional flow run id, used when proposing flow run states
 
     Returns:
-        a [State model][prefect.client.schemas.objects.State] representation of the
-            flow run state
+        a State model representation of the flow run state
 
     Raises:
         prefect.exceptions.Abort: if an ABORT instruction is received from
@@ -432,8 +431,7 @@ def propose_state_sync(
         flow_run_id: an optional flow run id, used when proposing flow run states
 
     Returns:
-        a [State model][prefect.client.schemas.objects.State] representation of the
-            flow run state
+        a State model representation of the flow run state
 
     Raises:
         ValueError: if flow_run_id is not provided
