@@ -58,12 +58,12 @@ export class CsrfTokenApi extends Api {
       try {
 
         const password = localStorage.getItem('prefect-password')
-        const response = await this.get<CsrfTokenResponse>(`/csrf-token?client=${this.clientId}`, 
-        {
-          headers: password ? {
-            'Authorization': `Basic ${password}`
-          } : undefined
-        })
+        const response = await this.get<CsrfTokenResponse>(`/csrf-token?client=${this.clientId}`,
+          {
+            headers: password ? {
+              'Authorization': `Basic ${password}`,
+            } : undefined,
+          })
         this.csrfToken = mapper.map('CsrfTokenResponse', response.data, 'CsrfToken')
 
         this.ongoingRefresh = null
@@ -136,7 +136,7 @@ export function setupCsrfInterceptor(csrfTokenApi: CreateActions<CsrfTokenApi>, 
 
     const password = localStorage.getItem('prefect-password')
     if (password) {
-      config.headers['Authorization'] = `Basic ${password}`
+      config.headers.Authorization = `Basic ${password}`
     }
 
     return config
