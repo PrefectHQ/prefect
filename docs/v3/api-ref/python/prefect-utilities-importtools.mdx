@@ -7,7 +7,7 @@ sidebarTitle: importtools
 
 ## Functions
 
-### `to_qualified_name` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/importtools.py#L32" target="_blank">↗</a></sup>
+### `to_qualified_name` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/importtools.py#L32"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 to_qualified_name(obj: Any) -> str
@@ -24,7 +24,7 @@ Python import path.
 - the qualified name
 
 
-### `from_qualified_name` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/importtools.py#L50" target="_blank">↗</a></sup>
+### `from_qualified_name` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/importtools.py#L50"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 from_qualified_name(name: str) -> Any
@@ -47,7 +47,7 @@ Import an object given a fully-qualified name.
 True
 
 
-### `load_script_as_module` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/importtools.py#L81" target="_blank">↗</a></sup>
+### `load_script_as_module` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/importtools.py#L81"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 load_script_as_module(path: str) -> ModuleType
@@ -63,7 +63,7 @@ If an exception occurs during execution of the script, a
 `prefect.exceptions.ScriptError` is created to wrap the exception and raised.
 
 
-### `load_module` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/importtools.py#L125" target="_blank">↗</a></sup>
+### `load_module` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/importtools.py#L125"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 load_module(module_name: str) -> ModuleType
@@ -73,7 +73,7 @@ load_module(module_name: str) -> ModuleType
 Import a module with support for relative imports within the module.
 
 
-### `import_object` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/importtools.py#L140" target="_blank">↗</a></sup>
+### `import_object` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/importtools.py#L140"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 import_object(import_path: str) -> Any
@@ -92,7 +92,7 @@ Import paths can be formatted as one of:
 This function is not thread safe as it modifies the 'sys' module during execution.
 
 
-### `lazy_import` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/importtools.py#L199" target="_blank">↗</a></sup>
+### `lazy_import` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/importtools.py#L199"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 lazy_import(name: str, error_on_import: bool = False, help_message: Optional[str] = None) -> ModuleType
@@ -116,7 +116,7 @@ Adapted from the [Python documentation][1] and [lazy_loader][2]
 [2]: https://github.com/scientific-python/lazy_loader
 
 
-### `safe_load_namespace` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/importtools.py#L319" target="_blank">↗</a></sup>
+### `safe_load_namespace` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/importtools.py#L319"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 safe_load_namespace(source_code: str, filepath: Optional[str] = None) -> dict[str, Any]
@@ -139,7 +139,7 @@ and use of it in threaded contexts may result in undesirable behavior.
 
 ## Classes
 
-### `DelayedImportErrorModule` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/importtools.py#L177" target="_blank">↗</a></sup>
+### `DelayedImportErrorModule` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/importtools.py#L177"><Icon icon="github" size="14" /></a></sup>
 
 
 A fake module returned by `lazy_import` when the module cannot be found. When any
@@ -150,7 +150,7 @@ Adapted from [lazy_loader][1]
 [1]: https://github.com/scientific-python/lazy_loader
 
 
-### `AliasedModuleDefinition` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/importtools.py#L252" target="_blank">↗</a></sup>
+### `AliasedModuleDefinition` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/importtools.py#L252"><Icon icon="github" size="14" /></a></sup>
 
 
 A definition for the `AliasedModuleFinder`.
@@ -161,11 +161,11 @@ A definition for the `AliasedModuleFinder`.
 - `callback`: A function to call when the alias module is loaded
 
 
-### `AliasedModuleFinder` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/importtools.py#L267" target="_blank">↗</a></sup>
+### `AliasedModuleFinder` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/importtools.py#L267"><Icon icon="github" size="14" /></a></sup>
 
 **Methods:**
 
-#### `find_spec` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/importtools.py#L276" target="_blank">↗</a></sup>
+#### `find_spec` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/importtools.py#L276"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 find_spec(self, fullname: str, path: Optional[Sequence[str]] = None, target: Optional[ModuleType] = None) -> Optional[ModuleSpec]
@@ -176,11 +176,11 @@ for "foo" then on import of "phi.bar" we will find the spec for "foo.bar" and
 create a new spec for "phi.bar" that points to "foo.bar".
 
 
-### `AliasedModuleLoader` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/importtools.py#L301" target="_blank">↗</a></sup>
+### `AliasedModuleLoader` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/importtools.py#L301"><Icon icon="github" size="14" /></a></sup>
 
 **Methods:**
 
-#### `exec_module` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/importtools.py#L312" target="_blank">↗</a></sup>
+#### `exec_module` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/importtools.py#L312"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 exec_module(self, module: ModuleType) -> None

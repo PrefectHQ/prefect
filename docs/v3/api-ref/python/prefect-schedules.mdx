@@ -12,7 +12,7 @@ This module contains functionality for creating schedules for deployments.
 
 ## Functions
 
-### `Cron` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/schedules.py#L72" target="_blank">↗</a></sup>
+### `Cron` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/schedules.py#L72"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 Cron(timezone: str | None = None, day_or: bool = True, active: bool = True, parameters: dict[str, Any] | None = None, slug: str | None = None) -> Schedule
@@ -54,7 +54,7 @@ Cron("0 8 * * 1", timezone="America/New_York")
 ```
 
 
-### `Interval` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/schedules.py#L128" target="_blank">↗</a></sup>
+### `Interval` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/schedules.py#L128"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 Interval(anchor_date: datetime.datetime | None = None, timezone: str | None = None, active: bool = True, parameters: dict[str, Any] | None = None, slug: str | None = None) -> Schedule
@@ -96,7 +96,7 @@ Interval(60, anchor_date=datetime(2024, 1, 1))
 ```
 
 
-### `RRule` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/schedules.py#L187" target="_blank">↗</a></sup>
+### `RRule` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/schedules.py#L187"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 RRule(timezone: str | None = None, active: bool = True, parameters: dict[str, Any] | None = None, slug: str | None = None) -> Schedule
@@ -134,7 +134,7 @@ RRule("RRULE:FREQ=MONTHLY;INTERVAL=1;BYDAY=2FR", timezone="America/Chicago")
 
 ## Classes
 
-### `Schedule` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/schedules.py#L19" target="_blank">↗</a></sup>
+### `Schedule` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/schedules.py#L19"><Icon icon="github" size="14" /></a></sup>
 
 
 A dataclass representing a schedule.

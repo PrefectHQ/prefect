@@ -55,7 +55,7 @@ class Artifact(ArtifactRequest):
             client: The PrefectClient
 
         Returns:
-            - The created artifact.
+            The created artifact.
         """
 
         local_client_context = asyncnullcontext(client) if client else get_client()
@@ -93,7 +93,7 @@ class Artifact(ArtifactRequest):
             client: The PrefectClient
 
         Returns:
-            - The created artifact.
+            The created artifact.
         """
 
         # Create sync client since this is a sync method.
@@ -417,6 +417,23 @@ def create_link_artifact(
 
     Returns:
         The table artifact ID.
+
+    Example:
+        ```python
+        from prefect import flow
+        from prefect.artifacts import create_link_artifact
+
+        @flow
+        def my_flow():
+            create_link_artifact(
+                link="https://www.prefect.io",
+                link_text="Prefect",
+                key="prefect-link",
+                description="This is a link to the Prefect website",
+            )
+
+        my_flow()
+        ```
     """
     new_artifact = LinkArtifact(
         key=key,
@@ -475,6 +492,22 @@ def create_markdown_artifact(
 
     Returns:
         The table artifact ID.
+
+    Example:
+        ```python
+        from prefect import flow
+        from prefect.artifacts import create_markdown_artifact
+
+        @flow
+        def my_flow():
+            create_markdown_artifact(
+                markdown="## Prefect",
+                key="prefect-markdown",
+                description="This is a markdown artifact",
+            )
+
+        my_flow()
+        ```
     """
     new_artifact = MarkdownArtifact(
         key=key,
@@ -533,6 +566,22 @@ def create_table_artifact(
 
     Returns:
         The table artifact ID.
+
+    Example:
+        ```python
+        from prefect import flow
+        from prefect.artifacts import create_table_artifact
+
+        @flow
+        def my_flow():
+            create_table_artifact(
+                table=[{"name": "John", "age": 30}, {"name": "Jane", "age": 25}],
+                key="prefect-table",
+                description="This is a table artifact",
+            )
+
+        my_flow()
+        ```
     """
 
     new_artifact = TableArtifact(
