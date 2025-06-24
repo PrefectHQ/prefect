@@ -7,11 +7,11 @@ sidebarTitle: base
 
 ## Classes
 
-### `Service`
+### `Service` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/base.py#L70" target="_blank">↗</a></sup>
 
 **Methods:**
 
-#### `service_settings`
+#### `service_settings` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/base.py#L76" target="_blank">↗</a></sup>
 
 ```python
 service_settings(cls) -> ServicesBaseSetting
@@ -20,13 +20,13 @@ service_settings(cls) -> ServicesBaseSetting
 The Prefect setting that controls whether the service is enabled
 
 
-#### `environment_variable_name`
+#### `environment_variable_name` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/base.py#L81" target="_blank">↗</a></sup>
 
 ```python
 environment_variable_name(cls) -> str
 ```
 
-#### `enabled`
+#### `enabled` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/base.py#L85" target="_blank">↗</a></sup>
 
 ```python
 enabled(cls) -> bool
@@ -35,7 +35,7 @@ enabled(cls) -> bool
 Whether the service is enabled
 
 
-#### `all_services`
+#### `all_services` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/base.py#L90" target="_blank">↗</a></sup>
 
 ```python
 all_services(cls) -> Sequence[type[Self]]
@@ -44,7 +44,7 @@ all_services(cls) -> Sequence[type[Self]]
 Get list of all service classes
 
 
-#### `enabled_services`
+#### `enabled_services` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/base.py#L104" target="_blank">↗</a></sup>
 
 ```python
 enabled_services(cls) -> list[type[Self]]
@@ -53,14 +53,14 @@ enabled_services(cls) -> list[type[Self]]
 Get list of enabled service classes
 
 
-### `RunInAllServers`
+### `RunInAllServers` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/base.py#L149" target="_blank">↗</a></sup>
 
 
 A marker class for services that should run in all server processes, both the
 web server and the standalone services process.
 
 
-### `LoopService`
+### `LoopService` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/base.py#L158" target="_blank">↗</a></sup>
 
 
 Loop services are relatively lightweight maintenance routines that need to run

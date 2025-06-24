@@ -7,29 +7,29 @@ sidebarTitle: counting
 
 ## Classes
 
-### `InvalidEventCountParameters`
+### `InvalidEventCountParameters` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/counting.py#L26" target="_blank">↗</a></sup>
 
 
 Raised when the given parameters are invalid for counting events.
 
 
-### `TimeUnit`
+### `TimeUnit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/counting.py#L34" target="_blank">↗</a></sup>
 
 **Methods:**
 
-#### `as_timedelta`
+#### `as_timedelta` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/counting.py#L41" target="_blank">↗</a></sup>
 
 ```python
 as_timedelta(self, interval: float) -> Duration
 ```
 
-#### `validate_buckets`
+#### `validate_buckets` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/counting.py#L55" target="_blank">↗</a></sup>
 
 ```python
 validate_buckets(self, start_datetime: datetime.datetime, end_datetime: datetime.datetime, interval: float) -> None
 ```
 
-#### `get_interval_spans`
+#### `get_interval_spans` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/counting.py#L78" target="_blank">↗</a></sup>
 
 ```python
 get_interval_spans(self, start_datetime: datetime.datetime, end_datetime: datetime.datetime, interval: float) -> Generator[int | tuple[datetime.datetime, datetime.datetime], None, None]
@@ -38,7 +38,7 @@ get_interval_spans(self, start_datetime: datetime.datetime, end_datetime: dateti
 Divide the given range of dates into evenly-sized spans of interval units
 
 
-#### `database_value_expression`
+#### `database_value_expression` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/counting.py#L110" target="_blank">↗</a></sup>
 
 ```python
 database_value_expression(self, time_interval: float) -> sa.Cast[str]
@@ -47,7 +47,7 @@ database_value_expression(self, time_interval: float) -> sa.Cast[str]
 Returns the SQL expression to place an event in a time bucket
 
 
-#### `database_label_expression`
+#### `database_label_expression` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/counting.py#L145" target="_blank">↗</a></sup>
 
 ```python
 database_label_expression(self, db: PrefectDBInterface, time_interval: float) -> sa.Function[str]
@@ -56,11 +56,11 @@ database_label_expression(self, db: PrefectDBInterface, time_interval: float) ->
 Returns the SQL expression to label a time bucket
 
 
-### `Countable`
+### `Countable` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/counting.py#L175" target="_blank">↗</a></sup>
 
 **Methods:**
 
-#### `get_database_query`
+#### `get_database_query` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/counting.py#L183" target="_blank">↗</a></sup>
 
 ```python
 get_database_query(self, filter: 'EventFilter', time_unit: TimeUnit, time_interval: float) -> Select[tuple[str, str, DateTime, DateTime, int]]
