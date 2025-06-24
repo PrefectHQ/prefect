@@ -297,7 +297,7 @@ class DeploymentClient(BaseClient):
             deployment_id: the deployment ID of interest
 
         Returns:
-            a [Deployment model][prefect.client.schemas.objects.Deployment] representation of the deployment
+            a Deployment model representation of the deployment
         """
 
         from prefect.client.schemas.responses import DeploymentResponse
@@ -961,7 +961,7 @@ class DeploymentAsyncClient(BaseAsyncClient):
             deployment_id: the deployment ID of interest
 
         Returns:
-            a [Deployment model][prefect.client.schemas.objects.Deployment] representation of the deployment
+            a Deployment model representation of the deployment
         """
 
         from prefect.client.schemas.responses import DeploymentResponse

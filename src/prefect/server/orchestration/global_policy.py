@@ -2,8 +2,7 @@
 Bookkeeping logic that fires on every state transition.
 
 For clarity, `GlobalFlowpolicy` and `GlobalTaskPolicy` contain all transition logic
-implemented using [`BaseUniversalTransform`][prefect.server.orchestration.rules.BaseUniversalTransform].
-None of these operations modify state, and regardless of what orchestration Prefect REST API might
+implemented using `BaseUniversalTransform`. None of these operations modify state, and regardless of what orchestration Prefect REST API might
 enforce on a transition, the global policies contain Prefect's necessary bookkeeping.
 Because these transforms record information about the validated state committed to the
 state database, they should be the most deeply nested contexts in orchestration loop.

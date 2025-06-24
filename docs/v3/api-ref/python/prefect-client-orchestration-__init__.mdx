@@ -169,7 +169,7 @@ set_task_run_name(self, task_run_id: UUID, name: str) -> httpx.Response
 #### `create_task_run`
 
 ```python
-create_task_run(self, task: 'TaskObject[P, R]', flow_run_id: Optional[UUID], dynamic_key: str, id: Optional[UUID] = None, name: Optional[str] = None, extra_tags: Optional[Iterable[str]] = None, state: Optional[prefect.states.State[R]] = None, task_inputs: Optional[dict[str, list[Union[TaskRunResult, Parameter, Constant]]]] = None) -> TaskRun
+create_task_run(self, task: 'TaskObject[P, R]', flow_run_id: Optional[UUID], dynamic_key: str, id: Optional[UUID] = None, name: Optional[str] = None, extra_tags: Optional[Iterable[str]] = None, state: Optional[prefect.states.State[R]] = None, task_inputs: Optional[dict[str, list[Union[TaskRunResult, FlowRunResult, Parameter, Constant]]]] = None) -> TaskRun
 ```
 
 Create a task run
