@@ -3,6 +3,7 @@ Command line interface for working with task runs
 """
 
 import logging
+import webbrowser
 from datetime import datetime
 from typing import List, cast
 from uuid import UUID
@@ -12,7 +13,7 @@ from rich.pretty import Pretty
 from rich.table import Table
 
 from prefect.cli._types import PrefectTyper
-from prefect.cli._utilities import exit_with_error
+from prefect.cli._utilities import exit_with_error, exit_with_success
 from prefect.cli.root import app
 from prefect.client.orchestration import get_client
 from prefect.client.schemas.filters import (
@@ -31,6 +32,8 @@ from prefect.types._datetime import (
     human_friendly_diff,
     to_datetime_string,
 )
+from prefect.utilities.asyncutils import run_sync_in_worker_thread
+from prefect.utilities.urls import url_for
 
 task_run_app: PrefectTyper = PrefectTyper(
     name="task-run", help="View and inspect task runs."
@@ -42,7 +45,14 @@ LOGS_WITH_LIMIT_FLAG_DEFAULT_NUM_LOGS = 20
 
 
 @task_run_app.command()
-async def inspect(id: UUID):
+async def inspect(
+    id: UUID,
+    web: bool = typer.Option(
+        False,
+        "--web",
+        help="Open the task run in a web browser.",
+    ),
+):
     """
     View details about a task run.
     """
@@ -52,7 +62,17 @@ async def inspect(id: UUID):
         except ObjectNotFound:
             exit_with_error(f"Task run '{id}' not found!")
 
-    app.console.print(Pretty(task_run))
+    if web:
+        task_run_url = url_for("task-run", obj_id=id)
+        if not task_run_url:
+            exit_with_error(
+                "Failed to generate URL for task run. Make sure PREFECT_UI_URL is configured."
+            )
+
+        await run_sync_in_worker_thread(webbrowser.open_new_tab, task_run_url)
+        exit_with_success(f"Opened task run {id!r} in browser.")
+    else:
+        app.console.print(Pretty(task_run))
 
 
 @task_run_app.command()
