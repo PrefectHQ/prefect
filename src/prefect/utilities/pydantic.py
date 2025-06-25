@@ -1,4 +1,5 @@
 import warnings
+from functools import partial
 from typing import (
     Any,
     Callable,
@@ -20,6 +21,7 @@ from pydantic import (
 from pydantic_core import to_jsonable_python
 from typing_extensions import Literal
 
+from prefect.utilities.collections import visit_collection
 from prefect.utilities.dispatch import get_dispatch_key, lookup_type, register_base_type
 from prefect.utilities.importtools import from_qualified_name, to_qualified_name
 from prefect.utilities.names import obfuscate
@@ -344,7 +346,23 @@ def handle_secret_render(value: object, context: dict[str, Any]) -> object:
             else obfuscate(value)
         )
     elif isinstance(value, BaseModel):
-        return value.model_dump(context=context)
+        # Pass the serialization mode if available in context
+        mode = context.get("serialization_mode", "python")
+        if mode == "json":
+            # For JSON mode with nested models, we need to recursively process fields
+            # because regular Pydantic models don't understand include_secrets
+
+            json_data = value.model_dump(mode="json")
+            for field_name in type(value).model_fields:
+                field_value = getattr(value, field_name)
+                json_data[field_name] = visit_collection(
+                    expr=field_value,
+                    visit_fn=partial(handle_secret_render, context=context),
+                    return_data=True,
+                )
+            return json_data
+        else:
+            return value.model_dump(context=context)
     return value
 
 
