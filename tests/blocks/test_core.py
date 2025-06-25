@@ -11,6 +11,7 @@ from packaging.version import Version
 from pydantic import BaseModel, Field, SecretBytes, SecretStr, ValidationError
 from pydantic import Secret as PydanticSecret
 from pydantic_core import to_json
+from pydantic_extra_types.semantic_version import SemanticVersion
 
 import prefect
 from prefect.blocks.core import Block, InvalidBlockRegistration
@@ -2033,6 +2034,34 @@ class TestSaveBlock:
         assert loaded_alias_block.schema_ == "a_schema"
         assert loaded_alias_block.real_name == "my_real_name"
         assert loaded_alias_block.threads == 8
+
+    async def test_save_block_with_semantic_version(self):
+        """Test that blocks with SemanticVersion fields can be saved and loaded."""
+
+        class BlockWithSemanticVersion(Block):
+            version: SemanticVersion
+
+        # Test creating and saving a block with SemanticVersion
+        block = BlockWithSemanticVersion(version=SemanticVersion(1, 2, 3))
+        await block.save("test-semantic-version-block")
+
+        # Test loading the block
+        loaded_block = await BlockWithSemanticVersion.load(
+            "test-semantic-version-block"
+        )
+        assert loaded_block.version == SemanticVersion(1, 2, 3)
+        assert str(loaded_block.version) == "1.2.3"
+
+        # Test updating the block
+        loaded_block.version = SemanticVersion(2, 0, 0)
+        await loaded_block.save("test-semantic-version-block", overwrite=True)
+
+        # Verify the update
+        updated_block = await BlockWithSemanticVersion.load(
+            "test-semantic-version-block"
+        )
+        assert updated_block.version == SemanticVersion(2, 0, 0)
+        assert str(updated_block.version) == "2.0.0"
 
 
 class TestToBlockType:
