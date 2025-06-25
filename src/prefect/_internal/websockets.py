@@ -74,9 +74,10 @@ class WebsocketProxyConnect(connect):
                 "Unsupported scheme %s. Expected 'ws' or 'wss'. " % u.scheme
             )
 
-        self._proxy = (
-            Proxy.from_url(proxy_url) if proxy_url and not proxy_bypass(host) else None
-        )
+        # Store proxy URL for deferred creation. Creating the proxy object here
+        # can bind asyncio futures to the wrong event loop when multiple WebSocket
+        # connections are initialized at different times (e.g., events + logs clients).
+        self._proxy_url = proxy_url if proxy_url and not proxy_bypass(host) else None
         self._host = host
         self._port = port
 
@@ -86,8 +87,10 @@ class WebsocketProxyConnect(connect):
             self._kwargs.setdefault("ssl", ssl_context)
 
     async def _proxy_connect(self: Self) -> ClientConnection:
-        if self._proxy:
-            sock = await self._proxy.connect(
+        if self._proxy_url:
+            # Create proxy in the current event loop context
+            proxy = Proxy.from_url(self._proxy_url)
+            sock = await proxy.connect(
                 dest_host=self._host,
                 dest_port=self._port,
             )

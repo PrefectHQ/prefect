@@ -63,7 +63,7 @@ def test_websocket_proxy_connect_with_http_proxy():
 
     try:
         connector = WebsocketProxyConnect("ws://example.com")
-        assert connector._proxy is not None
+        assert connector._proxy_url is not None
     finally:
         if old_proxy:
             os.environ["HTTP_PROXY"] = old_proxy
@@ -78,7 +78,7 @@ def test_websocket_proxy_connect_with_https_proxy():
 
     try:
         connector = WebsocketProxyConnect("wss://example.com")
-        assert connector._proxy is not None
+        assert connector._proxy_url is not None
     finally:
         if old_proxy:
             os.environ["HTTPS_PROXY"] = old_proxy
@@ -94,7 +94,7 @@ def test_websocket_proxy_connect_proxy_bypass():
     try:
         with patch("prefect._internal.websockets.proxy_bypass", return_value=True):
             connector = WebsocketProxyConnect("wss://example.com")
-            assert connector._proxy is None
+            assert connector._proxy_url is None
     finally:
         if old_proxy:
             os.environ["HTTPS_PROXY"] = old_proxy
@@ -176,3 +176,30 @@ def test_create_ssl_context_with_custom_cert_file():
         with patch("ssl.create_default_context") as mock_ssl_context:
             create_ssl_context_for_websocket("wss://example.com")
             mock_ssl_context.assert_called_once_with(cafile="/custom/cert.pem")
+
+
+# Test for deferred proxy creation
+
+
+def test_websocket_proxy_creation_is_deferred():
+    """Test that proxy object creation is deferred until connection time"""
+    old_proxy = os.environ.get("HTTPS_PROXY")
+    os.environ["HTTPS_PROXY"] = "http://proxy.example.com:8080"
+
+    try:
+        # When creating a WebsocketProxyConnect instance
+        with patch(
+            "prefect._internal.websockets.Proxy.from_url"
+        ) as mock_proxy_from_url:
+            connector = WebsocketProxyConnect("wss://example.com")
+
+            # The proxy object should NOT be created during __init__
+            mock_proxy_from_url.assert_not_called()
+
+            # But the proxy URL should be stored
+            assert connector._proxy_url == "http://proxy.example.com:8080"
+    finally:
+        if old_proxy:
+            os.environ["HTTPS_PROXY"] = old_proxy
+        elif "HTTPS_PROXY" in os.environ:
+            del os.environ["HTTPS_PROXY"]
