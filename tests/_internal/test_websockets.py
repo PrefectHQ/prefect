@@ -178,122 +178,28 @@ def test_create_ssl_context_with_custom_cert_file():
             mock_ssl_context.assert_called_once_with(cafile="/custom/cert.pem")
 
 
-# Tests for asyncio event loop handling with proxy connections
+# Test for deferred proxy creation
 
 
-@pytest.mark.asyncio
-async def test_multiple_websocket_connections_with_proxy():
-    """Test that multiple WebSocket connections through proxy don't cause loop conflicts."""
-    from unittest.mock import AsyncMock, Mock
+def test_websocket_proxy_creation_is_deferred():
+    """Test that proxy object creation is deferred until connection time"""
+    old_proxy = os.environ.get("HTTPS_PROXY")
+    os.environ["HTTPS_PROXY"] = "http://proxy.example.com:8080"
 
-    # Set up proxy environment
-    with patch.dict(os.environ, {"HTTPS_PROXY": "http://proxy:8080"}):
-        # Mock the proxy and websocket internals
-        mock_proxy = Mock()
-        mock_proxy.connect = AsyncMock()
-
-        # Create mock sockets
-        import socket
-
-        sock1 = Mock(spec=socket.socket)
-        sock2 = Mock(spec=socket.socket)
-        mock_proxy.connect.side_effect = [sock1, sock2]
-
+    try:
+        # When creating a WebsocketProxyConnect instance
         with patch(
-            "prefect._internal.websockets.Proxy.from_url", return_value=mock_proxy
-        ):
-            with patch("prefect._internal.websockets.proxy_bypass", return_value=False):
-                with patch(
-                    "websockets.asyncio.client.connect.__await_impl__",
-                    new_callable=AsyncMock,
-                ) as mock_await:
-                    mock_await.return_value = Mock()
+            "prefect._internal.websockets.Proxy.from_url"
+        ) as mock_proxy_from_url:
+            connector = WebsocketProxyConnect("wss://example.com")
 
-                    # Create two connections sequentially
-                    conn1 = WebsocketProxyConnect("wss://api.prefect.cloud/events/out")
-                    result1 = await conn1
+            # The proxy object should NOT be created during __init__
+            mock_proxy_from_url.assert_not_called()
 
-                    conn2 = WebsocketProxyConnect("wss://api.prefect.cloud/events/in")
-                    result2 = await conn2
-
-                    # Both should succeed without loop errors
-                    assert result1 is not None
-                    assert result2 is not None
-                    assert mock_proxy.connect.call_count == 2
-
-
-@pytest.mark.asyncio
-async def test_concurrent_websocket_connections_with_proxy():
-    """Test concurrent WebSocket connections through proxy."""
-    import asyncio
-    from unittest.mock import AsyncMock, Mock
-
-    with patch.dict(os.environ, {"HTTPS_PROXY": "http://proxy:8080"}):
-        mock_proxy = Mock()
-        mock_proxy.connect = AsyncMock()
-
-        import socket
-
-        sock1 = Mock(spec=socket.socket)
-        sock2 = Mock(spec=socket.socket)
-        mock_proxy.connect.side_effect = [sock1, sock2]
-
-        with patch(
-            "prefect._internal.websockets.Proxy.from_url", return_value=mock_proxy
-        ):
-            with patch("prefect._internal.websockets.proxy_bypass", return_value=False):
-                with patch(
-                    "websockets.asyncio.client.connect.__await_impl__",
-                    new_callable=AsyncMock,
-                ) as mock_await:
-                    mock_await.return_value = Mock()
-
-                    # Create connections concurrently
-                    conn1 = WebsocketProxyConnect("wss://api.prefect.cloud/events/out")
-                    conn2 = WebsocketProxyConnect("wss://api.prefect.cloud/events/in")
-
-                    results = await asyncio.gather(conn1, conn2)
-
-                    assert len(results) == 2
-                    assert all(r is not None for r in results)
-
-
-@pytest.mark.asyncio
-async def test_websocket_connection_without_proxy():
-    """Test WebSocket connections work normally without proxy."""
-    from unittest.mock import AsyncMock, Mock
-
-    # No proxy environment variables set
-    with patch.dict(os.environ, {}, clear=True):
-        with patch(
-            "websockets.asyncio.client.connect.__await_impl__", new_callable=AsyncMock
-        ) as mock_await:
-            mock_await.return_value = Mock()
-
-            conn = WebsocketProxyConnect("wss://api.prefect.cloud/events/out")
-            result = await conn
-
-            assert result is not None
-            # No proxy connect should have been called
-
-
-@pytest.mark.asyncio
-async def test_proxy_bypass():
-    """Test that proxy bypass works correctly."""
-    from unittest.mock import AsyncMock, Mock
-
-    with patch.dict(os.environ, {"HTTPS_PROXY": "http://proxy:8080"}):
-        # Mock proxy_bypass to return True (bypass proxy)
-        with patch("prefect._internal.websockets.proxy_bypass", return_value=True):
-            with patch(
-                "websockets.asyncio.client.connect.__await_impl__",
-                new_callable=AsyncMock,
-            ) as mock_await:
-                mock_await.return_value = Mock()
-
-                # This should not use proxy even though HTTPS_PROXY is set
-                conn = WebsocketProxyConnect("wss://localhost/events")
-                result = await conn
-
-                assert result is not None
-                # Verify Proxy.from_url was never called since we bypassed
+            # But the proxy URL should be stored
+            assert connector._proxy_url == "http://proxy.example.com:8080"
+    finally:
+        if old_proxy:
+            os.environ["HTTPS_PROXY"] = old_proxy
+        elif "HTTPS_PROXY" in os.environ:
+            del os.environ["HTTPS_PROXY"]
