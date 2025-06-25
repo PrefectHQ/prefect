@@ -3,39 +3,58 @@ Utility functions for prefect-dbt
 """
 
 import os
-from typing import Any, Dict, Optional
+from pathlib import Path
+from typing import Any
 
-import yaml
-
-
-def get_profiles_dir() -> str:
-    """Get the dbt profiles directory from environment or default location."""
-    profiles_dir = os.getenv("DBT_PROFILES_DIR")
-    if not profiles_dir:
-        profiles_dir = os.path.expanduser("~/.dbt")
-    return profiles_dir
+import slugify
 
 
-def load_profiles_yml(profiles_dir: Optional[str]) -> Dict[str, Any]:
+def find_profiles_dir() -> Path:
     """
-    Load and parse the profiles.yml file.
+    Find the directory containing profiles.yml.
 
-    Args:
-        profiles_dir: Path to the directory containing profiles.yml.
-                     If None, uses the default profiles directory.
+    Returns the current working directory if profiles.yml exists there,
+    otherwise returns the default .dbt directory in the user's home.
 
     Returns:
-        Dict containing the parsed profiles.yml contents
-
-    Raises:
-        ValueError: If profiles.yml is not found
+        Path: Directory containing profiles.yml
     """
-    if profiles_dir is None:
-        profiles_dir = get_profiles_dir()
+    cwd = Path.cwd()
+    if (cwd / "profiles.yml").exists():
+        return cwd
+    return Path.home() / ".dbt"
 
-    profiles_path = os.path.join(profiles_dir, "profiles.yml")
-    if not os.path.exists(profiles_path):
-        raise ValueError(f"No profiles.yml found at {profiles_path}")
 
-    with open(profiles_path, "r") as f:
-        return yaml.safe_load(f)
+def replace_with_env_var_call(placeholder: str, value: Any) -> str:
+    """
+    A block reference replacement function that returns template text for an env var call.
+
+    Args:
+        placeholder: The placeholder text to replace
+        value: The value to replace the placeholder with
+
+    Returns:
+        The template text for an env var call
+    """
+    env_var_name = slugify.slugify(placeholder, separator="_").upper()
+
+    os.environ[env_var_name] = str(value)
+
+    template_text = f"{{{{ env_var('{env_var_name}') }}}}"
+
+    return template_text
+
+
+def format_resource_id(adapter_type: str, relation_name: str) -> str:
+    """
+    Format a relation name to be a valid asset key.
+
+    Args:
+        adapter_type: The type of adapter used to connect to the database
+        relation_name: The name of the relation to format
+
+    Returns:
+        The formatted relation name
+    """
+    relation_name = relation_name.replace('"', "").replace(".", "/")
+    return f"{adapter_type}://{relation_name}"
