@@ -374,10 +374,10 @@ class DbtCoreOperation(ShellOperation):
 
         commands = []
         for command in self.commands:
-            command += f" --profiles-dir {profiles_dir}"
+            command += f' --profiles-dir "{profiles_dir}"'
             if project_dir is not None:
                 project_dir = Path(project_dir).expanduser()
-                command += f" --project-dir {project_dir}"
+                command += f' --project-dir "{project_dir}"'
             commands.append(command)
         return commands
 

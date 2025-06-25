@@ -29,7 +29,8 @@ def test_metadata_client_query(monkeypatch):
                     "model": {"name": "fct_orders"},
                 }
             ]
-        }
+        },
+        "headers": {},
     }
     urlopen_mock = MagicMock()
     urlopen_mock.getcode.return_value = 200

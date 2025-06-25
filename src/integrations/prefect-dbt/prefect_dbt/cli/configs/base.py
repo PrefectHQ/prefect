@@ -8,7 +8,7 @@ from pydantic import BaseModel, Field, model_validator
 from typing_extensions import Self
 
 from prefect.blocks.core import Block
-from prefect_dbt.utilities import load_profiles_yml
+from prefect_dbt.core.settings import PrefectDbtSettings
 
 
 class DbtConfigs(Block, abc.ABC):
@@ -189,7 +189,12 @@ class TargetConfigs(BaseTargetConfigs):
         Raises:
             ValueError: If profiles.yml is not found or if profile/target is invalid
         """
-        profiles = load_profiles_yml(profiles_dir)
+        if profiles_dir:
+            profiles = PrefectDbtSettings(
+                profiles_dir=Path(profiles_dir)
+            ).load_profiles_yml()
+        else:
+            profiles = PrefectDbtSettings().load_profiles_yml()
 
         # If no profile specified, use first non-config one
         if profile_name is None:
