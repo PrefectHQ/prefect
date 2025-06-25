@@ -162,12 +162,12 @@ class PrefectDbtRunner:
     ) -> dict[str, dict[str, Any]]:
         return manifest_node.config.meta.get("prefect", {})
 
-    def _get_upstream_manifest_nodes(
+    def _get_upstream_manifest_nodes_and_configs(
         self,
         manifest_node: ManifestNode,
-    ) -> list[ManifestNode]:
+    ) -> list[tuple[ManifestNode, dict[str, Any]]]:
         """Get upstream nodes for a given node"""
-        upstream_manifest_nodes: list[ManifestNode] = []
+        upstream_manifest_nodes: list[tuple[ManifestNode, dict[str, Any]]] = []
 
         for depends_on_node in manifest_node.depends_on_nodes:  # type: ignore[reportUnknownMemberType]
             depends_manifest_node = self.manifest.nodes.get(depends_on_node)  # type: ignore[reportUnknownMemberType]
@@ -178,7 +178,12 @@ class PrefectDbtRunner:
             if not depends_manifest_node.relation_name:
                 raise ValueError("Relation name not found in manifest")
 
-            upstream_manifest_nodes.append(depends_manifest_node)
+            upstream_manifest_nodes.append(
+                (
+                    depends_manifest_node,
+                    self._get_node_prefect_config(depends_manifest_node),
+                )
+            )
 
         return upstream_manifest_nodes
 
@@ -251,23 +256,30 @@ class PrefectDbtRunner:
         task_state: NodeTaskTracker,
         manifest_node: ManifestNode,
         context: dict[str, Any],
+        enable_assets: bool,
     ):
         """Create and run a task for a node."""
         adapter_type = self.manifest.metadata.adapter_type
         if not adapter_type:
             raise ValueError("Adapter type not found in manifest")
 
-        upstream_manifest_nodes = self._get_upstream_manifest_nodes(manifest_node)
+        upstream_manifest_nodes = self._get_upstream_manifest_nodes_and_configs(
+            manifest_node
+        )
 
-        if manifest_node.resource_type in MATERIALIZATION_NODE_TYPES:
+        if manifest_node.resource_type in MATERIALIZATION_NODE_TYPES and enable_assets:
             asset = self._create_asset_from_node(manifest_node, adapter_type)
 
             upstream_assets: list[Asset] = []
-            for upstream_manifest_node in upstream_manifest_nodes:
+            for (
+                upstream_manifest_node,
+                upstream_manifest_node_config,
+            ) in upstream_manifest_nodes:
                 if (
                     upstream_manifest_node.resource_type in REFERENCE_NODE_TYPES
                     or upstream_manifest_node.resource_type
                     in MATERIALIZATION_NODE_TYPES
+                    and upstream_manifest_node_config.get("enable_assets", True)
                 ):
                     upstream_asset = self._create_asset_from_node(
                         upstream_manifest_node, adapter_type
@@ -299,7 +311,7 @@ class PrefectDbtRunner:
 
         task_state.set_node_dependencies(
             manifest_node.unique_id,
-            [node.unique_id for node in upstream_manifest_nodes],
+            [node[0].unique_id for node in upstream_manifest_nodes],
         )
 
         task_state.run_task_in_thread(
@@ -371,8 +383,9 @@ class PrefectDbtRunner:
                 if manifest_node:
                     enable_assets = prefect_config.get("enable_assets", True)
                     try:
-                        if enable_assets:
-                            self._call_task(task_state, manifest_node, context)
+                        self._call_task(
+                            task_state, manifest_node, context, enable_assets
+                        )
                     except Exception as e:
                         print(e)
 
@@ -392,17 +405,13 @@ class PrefectDbtRunner:
                 )
 
                 if manifest_node:
-                    enable_assets = prefect_config.get("enable_assets", True)
                     try:
-                        if enable_assets:
-                            # Store the status before ending the task
-                            event_data = MessageToDict(
-                                event.data, preserving_proto_field_name=True
-                            )
-                            event_message = self.get_dbt_event_msg(event)
-                            task_state.set_node_status(
-                                node_id, event_data, event_message
-                            )
+                        # Store the status before ending the task
+                        event_data = MessageToDict(
+                            event.data, preserving_proto_field_name=True
+                        )
+                        event_message = self.get_dbt_event_msg(event)
+                        task_state.set_node_status(node_id, event_data, event_message)
                     except Exception as e:
                         print(e)
 
