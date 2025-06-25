@@ -2041,13 +2041,81 @@ class MaterializingTask(Task[P, R]):
         assets: Optional[Sequence[Union[str, Asset]]] = None,
         **task_kwargs: Unpack[TaskOptions],
     ) -> "MaterializingTask[P, R]":
-        new_task = cast("MaterializingTask[P, R]", super().with_options(**task_kwargs))
-
-        new_task.assets = (
-            [Asset(key=a) if isinstance(a, str) else a for a in assets]
-            if assets is not None
-            else self.assets
+        # Extract values from task_kwargs, using self's values as defaults
+        # This duplicates logic from parent, but it's explicit and type-safe
+        return MaterializingTask(
+            fn=self.fn,
+            assets=assets if assets is not None else self.assets,
+            materialized_by=self.materialized_by,
+            name=task_kwargs.get("name", self.name),
+            description=task_kwargs.get("description", self.description),
+            tags=task_kwargs.get("tags", self.tags),
+            cache_policy=(
+                task_kwargs.get("cache_policy", NotSet)
+                if "cache_policy" in task_kwargs
+                else self.cache_policy
+            ),
+            cache_key_fn=task_kwargs.get("cache_key_fn", self.cache_key_fn),
+            cache_expiration=task_kwargs.get("cache_expiration", self.cache_expiration),
+            task_run_name=(
+                task_kwargs.get("task_run_name", NotSet)
+                if "task_run_name" in task_kwargs
+                else self.task_run_name
+            ),
+            retries=(
+                task_kwargs.get("retries", NotSet)
+                if "retries" in task_kwargs
+                else self.retries
+            ),
+            retry_delay_seconds=(
+                task_kwargs.get("retry_delay_seconds", NotSet)
+                if "retry_delay_seconds" in task_kwargs
+                else self.retry_delay_seconds
+            ),
+            retry_jitter_factor=(
+                task_kwargs.get("retry_jitter_factor", NotSet)
+                if "retry_jitter_factor" in task_kwargs
+                else self.retry_jitter_factor
+            ),
+            persist_result=(
+                task_kwargs.get("persist_result", NotSet)
+                if "persist_result" in task_kwargs
+                else self.persist_result
+            ),
+            result_storage=(
+                task_kwargs.get("result_storage", NotSet)
+                if "result_storage" in task_kwargs
+                else self.result_storage
+            ),
+            result_serializer=(
+                task_kwargs.get("result_serializer", NotSet)
+                if "result_serializer" in task_kwargs
+                else self.result_serializer
+            ),
+            result_storage_key=(
+                task_kwargs.get("result_storage_key", NotSet)
+                if "result_storage_key" in task_kwargs
+                else self.result_storage_key
+            ),
+            cache_result_in_memory=task_kwargs.get(
+                "cache_result_in_memory", self.cache_result_in_memory
+            ),
+            timeout_seconds=task_kwargs.get("timeout_seconds", self.timeout_seconds),
+            log_prints=(
+                task_kwargs.get("log_prints", NotSet)
+                if "log_prints" in task_kwargs
+                else self.log_prints
+            ),
+            refresh_cache=(
+                task_kwargs.get("refresh_cache", NotSet)
+                if "refresh_cache" in task_kwargs
+                else self.refresh_cache
+            ),
+            on_completion=task_kwargs.get("on_completion", self.on_completion_hooks),
+            on_failure=task_kwargs.get("on_failure", self.on_failure_hooks),
+            retry_condition_fn=task_kwargs.get(
+                "retry_condition_fn", self.retry_condition_fn
+            ),
+            viz_return_value=task_kwargs.get("viz_return_value", self.viz_return_value),
+            asset_deps=task_kwargs.get("asset_deps", self.asset_deps),
         )
-        new_task.materialized_by = self.materialized_by
-
-        return new_task
