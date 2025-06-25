@@ -63,7 +63,7 @@ def test_websocket_proxy_connect_with_http_proxy():
 
     try:
         connector = WebsocketProxyConnect("ws://example.com")
-        assert connector._proxy is not None
+        assert connector._proxy_url is not None
     finally:
         if old_proxy:
             os.environ["HTTP_PROXY"] = old_proxy
@@ -78,7 +78,7 @@ def test_websocket_proxy_connect_with_https_proxy():
 
     try:
         connector = WebsocketProxyConnect("wss://example.com")
-        assert connector._proxy is not None
+        assert connector._proxy_url is not None
     finally:
         if old_proxy:
             os.environ["HTTPS_PROXY"] = old_proxy
@@ -94,7 +94,7 @@ def test_websocket_proxy_connect_proxy_bypass():
     try:
         with patch("prefect._internal.websockets.proxy_bypass", return_value=True):
             connector = WebsocketProxyConnect("wss://example.com")
-            assert connector._proxy is None
+            assert connector._proxy_url is None
     finally:
         if old_proxy:
             os.environ["HTTPS_PROXY"] = old_proxy
