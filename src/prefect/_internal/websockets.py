@@ -74,7 +74,9 @@ class WebsocketProxyConnect(connect):
                 "Unsupported scheme %s. Expected 'ws' or 'wss'. " % u.scheme
             )
 
-        # Store proxy URL for later creation to avoid loop binding issues
+        # Store proxy URL for deferred creation. Creating the proxy object here
+        # can bind asyncio futures to the wrong event loop when multiple WebSocket
+        # connections are initialized at different times (e.g., events + logs clients).
         self._proxy_url = proxy_url if proxy_url and not proxy_bypass(host) else None
         self._host = host
         self._port = port
