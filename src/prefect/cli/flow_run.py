@@ -8,6 +8,7 @@ import logging
 import os
 import signal
 import threading
+import webbrowser
 from types import FrameType
 from typing import List, Optional
 from uuid import UUID
@@ -32,6 +33,8 @@ from prefect.logging import get_logger
 from prefect.runner import Runner
 from prefect.states import State
 from prefect.types._datetime import human_friendly_diff
+from prefect.utilities.asyncutils import run_sync_in_worker_thread
+from prefect.utilities.urls import url_for
 
 flow_run_app: PrefectTyper = PrefectTyper(
     name="flow-run", help="Interact with flow runs."
@@ -45,7 +48,14 @@ logger: "logging.Logger" = get_logger(__name__)
 
 
 @flow_run_app.command()
-async def inspect(id: UUID):
+async def inspect(
+    id: UUID,
+    web: bool = typer.Option(
+        False,
+        "--web",
+        help="Open the flow run in a web browser.",
+    ),
+):
     """
     View details about a flow run.
     """
@@ -58,7 +68,17 @@ async def inspect(id: UUID):
             else:
                 raise
 
-    app.console.print(Pretty(flow_run))
+    if web:
+        flow_run_url = url_for("flow-run", obj_id=id)
+        if not flow_run_url:
+            exit_with_error(
+                "Failed to generate URL for flow run. Make sure PREFECT_UI_URL is configured."
+            )
+
+        await run_sync_in_worker_thread(webbrowser.open_new_tab, flow_run_url)
+        exit_with_success(f"Opened flow run {id!r} in browser.")
+    else:
+        app.console.print(Pretty(flow_run))
 
 
 @flow_run_app.command()
