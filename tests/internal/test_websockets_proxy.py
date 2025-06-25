@@ -4,12 +4,9 @@ import asyncio
 import os
 from unittest.mock import AsyncMock, Mock, patch
 
-import pytest
-
 from prefect._internal.websockets import WebsocketProxyConnect
 
 
-@pytest.mark.asyncio
 async def test_multiple_websocket_connections_with_proxy():
     """Test that multiple WebSocket connections through proxy don't cause loop conflicts."""
     # Set up proxy environment
@@ -48,7 +45,6 @@ async def test_multiple_websocket_connections_with_proxy():
                     assert mock_proxy.connect.call_count == 2
 
 
-@pytest.mark.asyncio
 async def test_concurrent_websocket_connections_with_proxy():
     """Test concurrent WebSocket connections through proxy."""
     with patch.dict(os.environ, {"HTTPS_PROXY": "http://proxy:8080"}):
@@ -81,7 +77,6 @@ async def test_concurrent_websocket_connections_with_proxy():
                     assert all(r is not None for r in results)
 
 
-@pytest.mark.asyncio
 async def test_websocket_connection_without_proxy():
     """Test WebSocket connections work normally without proxy."""
     # No proxy environment variables set
@@ -98,7 +93,6 @@ async def test_websocket_connection_without_proxy():
             # No proxy connect should have been called
 
 
-@pytest.mark.asyncio
 async def test_proxy_bypass():
     """Test that proxy bypass works correctly."""
     with patch.dict(os.environ, {"HTTPS_PROXY": "http://proxy:8080"}):
