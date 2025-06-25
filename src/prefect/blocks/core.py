@@ -175,11 +175,29 @@ def _collect_secret_fields(
                 )
         return
 
-    if type_ in (SecretStr, SecretBytes) or (
+    # Check if this is a pydantic Secret type (including generic Secret[T])
+    is_pydantic_secret = False
+
+    # Direct check for SecretStr, SecretBytes
+    if type_ in (SecretStr, SecretBytes):
+        is_pydantic_secret = True
+    # Check for base Secret class
+    elif (
         isinstance(type_, type)  # type: ignore[unnecessaryIsInstance]
         and getattr(type_, "__module__", None) == "pydantic.types"
         and getattr(type_, "__name__", None) == "Secret"
     ):
+        is_pydantic_secret = True
+    # Check for generic Secret[T] (e.g., Secret[str], Secret[int])
+    elif get_origin(type_) is not None:
+        origin = get_origin(type_)
+        if (
+            getattr(origin, "__module__", None) == "pydantic.types"
+            and getattr(origin, "__name__", None) == "Secret"
+        ):
+            is_pydantic_secret = True
+
+    if is_pydantic_secret:
         secrets.append(name)
     elif type_ == SecretDict:
         # Append .* to field name to signify that all values under a given key are secret and should be obfuscated.
@@ -370,16 +388,27 @@ class Block(BaseModel, ABC):
     ) -> Any:
         jsonable_self = handler(self)
         if (ctx := info.context) and ctx.get("include_secrets") is True:
-            jsonable_self.update(
-                {
-                    field_name: visit_collection(
-                        expr=getattr(self, field_name),
-                        visit_fn=partial(handle_secret_render, context=ctx),
-                        return_data=True,
-                    )
-                    for field_name in type(self).model_fields
-                }
-            )
+            # Add serialization mode to context so handle_secret_render knows how to process nested models
+            ctx["serialization_mode"] = info.mode
+
+            for field_name in type(self).model_fields:
+                field_value = getattr(self, field_name)
+
+                # In JSON mode, skip fields that don't contain secrets
+                # as they're already properly serialized by the handler
+                if (
+                    info.mode == "json"
+                    and field_name in jsonable_self
+                    and not self._field_has_secrets(field_name)
+                ):
+                    continue
+
+                # For all other fields, use visit_collection with handle_secret_render
+                jsonable_self[field_name] = visit_collection(
+                    expr=field_value,
+                    visit_fn=partial(handle_secret_render, context=ctx),
+                    return_data=True,
+                )
         extra_fields = {
             "block_type_slug": self.get_block_type_slug(),
             "_block_document_id": self._block_document_id,
@@ -477,6 +506,25 @@ class Block(BaseModel, ABC):
         else:
             return f"sha256:{checksum}"
 
+    def _field_has_secrets(self, field_name: str) -> bool:
+        """Check if a field contains secrets based on the schema's secret_fields."""
+        secret_fields = self.model_json_schema().get("secret_fields", [])
+
+        # Check if field_name matches any secret field pattern
+        for secret_field in secret_fields:
+            if secret_field == field_name:
+                return True
+            elif secret_field.startswith(f"{field_name}."):
+                # This field contains nested secrets
+                return True
+            elif secret_field.endswith(".*"):
+                # Handle wildcard patterns like "field.*"
+                prefix = secret_field[:-2]  # Remove .*
+                if field_name == prefix:
+                    return True
+
+        return False
+
     def _to_block_document(
         self,
         name: Optional[str] = None,
@@ -529,6 +577,29 @@ class Block(BaseModel, ABC):
             include=data_keys,
             context={"include_secrets": include_secrets},
         )
+
+        # Ensure non-secret fields are JSON-serializable to avoid issues with types
+        # like SemanticVersion when the BlockDocument is later serialized
+        try:
+            json_data = self.model_dump(
+                mode="json",
+                by_alias=True,
+                include=data_keys,
+                context={"include_secrets": include_secrets},
+            )
+            # Replace non-secret, non-Block fields with their JSON representation
+            # We need to check the original field to determine if it's a secret or Block
+            for key in data_keys:
+                if key in block_document_data and key in json_data:
+                    field_value = getattr(self, key)
+                    # Only replace if the field doesn't contain secrets and is not a Block
+                    if not self._field_has_secrets(key) and not isinstance(
+                        field_value, Block
+                    ):
+                        block_document_data[key] = json_data[key]
+        except Exception:
+            # If JSON serialization fails, we'll handle it later
+            pass
 
         # Iterate through and find blocks that already have saved block documents to
         # create references to those saved block documents.
