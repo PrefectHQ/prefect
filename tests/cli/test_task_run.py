@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from typing import Awaitable, Callable
+from unittest.mock import MagicMock
 from uuid import UUID, uuid4
 
 import pytest
@@ -13,6 +14,7 @@ from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas.actions import LogCreate
 from prefect.client.schemas.objects import TaskRun
 from prefect.exceptions import ObjectNotFound
+from prefect.settings import PREFECT_UI_URL, temporary_settings
 from prefect.states import Completed, Late, Running, Scheduled
 from prefect.testing.cli import invoke_and_assert
 from prefect.types._datetime import now
@@ -121,6 +123,40 @@ def test_inspect_task_run_not_found():
         expected_output_contains=f"Task run '{missing_task_run_id}' not found!",
         expected_code=1,
     )
+
+
+@pytest.fixture
+def mock_webbrowser(monkeypatch: pytest.MonkeyPatch) -> MagicMock:
+    mock = MagicMock()
+    monkeypatch.setattr("prefect.cli.task_run.webbrowser", mock)
+    return mock
+
+
+def test_inspect_task_run_with_web_flag(
+    completed_task_run: TaskRun, mock_webbrowser: MagicMock
+):
+    invoke_and_assert(
+        command=["task-run", "inspect", str(completed_task_run.id), "--web"],
+        expected_code=0,
+        expected_output_contains=f"Opened task run {completed_task_run.id!r} in browser.",
+    )
+
+    mock_webbrowser.open_new_tab.assert_called_once()
+    call_args = mock_webbrowser.open_new_tab.call_args[0][0]
+    assert f"/runs/task-run/{completed_task_run.id}" in call_args
+
+
+def test_inspect_task_run_with_web_flag_no_ui_url(
+    completed_task_run: TaskRun, mock_webbrowser: MagicMock
+):
+    with temporary_settings({PREFECT_UI_URL: ""}):
+        invoke_and_assert(
+            command=["task-run", "inspect", str(completed_task_run.id), "--web"],
+            expected_code=1,
+            expected_output_contains="Failed to generate URL for task run. Make sure PREFECT_UI_URL is configured.",
+        )
+
+    mock_webbrowser.open_new_tab.assert_not_called()
 
 
 def test_ls_no_args(
