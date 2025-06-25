@@ -5,6 +5,7 @@ import signal
 import subprocess
 from time import sleep
 from typing import Any, Awaitable, Callable
+from unittest.mock import MagicMock
 from uuid import UUID, uuid4
 
 import anyio
@@ -17,6 +18,7 @@ from prefect.client.orchestration import PrefectClient, SyncPrefectClient
 from prefect.client.schemas.actions import LogCreate
 from prefect.client.schemas.objects import FlowRun
 from prefect.deployments.runner import RunnerDeployment
+from prefect.settings import PREFECT_UI_URL, temporary_settings
 from prefect.settings.context import get_current_settings
 from prefect.states import (
     AwaitingRetry,
@@ -140,6 +142,38 @@ def test_delete_flow_run_succeeds(
     )
 
     assert_flow_run_is_deleted_sync(sync_prefect_client, flow_run.id)
+
+
+@pytest.fixture
+def mock_webbrowser(monkeypatch: pytest.MonkeyPatch) -> MagicMock:
+    mock = MagicMock()
+    monkeypatch.setattr("prefect.cli.flow_run.webbrowser", mock)
+    return mock
+
+
+def test_inspect_flow_run_with_web_flag(flow_run: FlowRun, mock_webbrowser: MagicMock):
+    invoke_and_assert(
+        command=["flow-run", "inspect", str(flow_run.id), "--web"],
+        expected_code=0,
+        expected_output_contains=f"Opened flow run {flow_run.id!r} in browser.",
+    )
+
+    mock_webbrowser.open_new_tab.assert_called_once()
+    call_args = mock_webbrowser.open_new_tab.call_args[0][0]
+    assert f"/runs/flow-run/{flow_run.id}" in call_args
+
+
+def test_inspect_flow_run_with_web_flag_no_ui_url(
+    flow_run: FlowRun, mock_webbrowser: MagicMock
+):
+    with temporary_settings({PREFECT_UI_URL: ""}):
+        invoke_and_assert(
+            command=["flow-run", "inspect", str(flow_run.id), "--web"],
+            expected_code=1,
+            expected_output_contains="Failed to generate URL for flow run. Make sure PREFECT_UI_URL is configured.",
+        )
+
+    mock_webbrowser.open_new_tab.assert_not_called()
 
 
 def test_ls_no_args(
