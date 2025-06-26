@@ -5,6 +5,7 @@ from prefect.context import AssetContext
 from prefect.events.worker import EventsWorker
 from prefect.flows import flow
 from prefect.tasks import task
+from prefect.types.names import MAX_ASSET_KEY_LENGTH
 
 
 def _asset_events(worker: EventsWorker):
@@ -66,6 +67,86 @@ def _has_related_of_role(event, role):
 def test_asset_invalid_uri(invalid_key):
     with pytest.raises(ValueError, match="Key must be a valid URI"):
         Asset(key=invalid_key)
+
+
+@pytest.mark.parametrize(
+    "invalid_key",
+    [
+        "s3://bucket/file with space.csv",
+        "s3://bucket/file\nwith\nnewlines.csv",
+        "s3://bucket/file\twith\ttabs.csv",
+        "s3://bucket/file#fragment.csv",
+        "s3://bucket/file?query=param.csv",
+        "s3://bucket/file&param=value.csv",
+        "s3://bucket/file%encoded.csv",
+        's3://bucket/file"quoted".csv',
+        "s3://bucket/file'quoted'.csv",
+        "s3://bucket/file<bracket>.csv",
+        "s3://bucket/file[bracket].csv",
+        "s3://bucket/file{brace}.csv",
+        "s3://bucket/file|pipe.csv",
+        "s3://bucket/file\\backslash.csv",
+        "s3://bucket/file^caret.csv",
+        "s3://bucket/file`backtick`.csv",
+        "s3://bucket/file\r\ncarriage.csv",
+        "s3://bucket/file\0null.csv",
+    ],
+)
+def test_asset_restricted_characters(invalid_key):
+    with pytest.raises(ValueError):
+        Asset(key=invalid_key)
+
+
+def test_asset_max_length():
+    valid_key = "s3://bucket/" + "a" * (MAX_ASSET_KEY_LENGTH - len("s3://bucket/"))
+    asset = Asset(key=valid_key)
+    assert asset.key == valid_key
+
+    invalid_key = "s3://bucket/" + "a" * (
+        MAX_ASSET_KEY_LENGTH + 1 - len("s3://bucket/")
+    )
+    with pytest.raises(
+        ValueError, match=f"Asset key cannot exceed {MAX_ASSET_KEY_LENGTH} characters"
+    ):
+        Asset(key=invalid_key)
+
+
+def test_asset_length_edge_cases():
+    # Test a few characters under the limit
+    under_limit_key = "s3://bucket/" + "x" * (
+        MAX_ASSET_KEY_LENGTH - 2 - len("s3://bucket/")
+    )
+    asset = Asset(key=under_limit_key)
+    assert asset.key == under_limit_key
+
+    # Test way over the limit
+    way_over_key = "s3://bucket/" + "z" * 1000
+    with pytest.raises(
+        ValueError, match=f"Asset key cannot exceed {MAX_ASSET_KEY_LENGTH} characters"
+    ):
+        Asset(key=way_over_key)
+
+    # Test minimum viable URI
+    min_key = "s3://a"
+    asset = Asset(key=min_key)
+    assert asset.key == min_key
+
+
+def test_asset_valid_characters():
+    """Test that common valid characters work fine."""
+    valid_keys = [
+        "s3://bucket/folder/file.csv",
+        "postgres://database/table",
+        "file://local/path.txt",
+        "custom://resource-with_underscores.data",
+        "protocol://host:port/path",
+        "scheme://user@host/resource",
+        "s3://bucket/folder/file-name_123.parquet",
+    ]
+
+    for key in valid_keys:
+        asset = Asset(key=key)
+        assert asset.key == key
 
 
 def test_asset_as_resource():

@@ -5,7 +5,7 @@ from typing import Any, ClassVar, Optional
 from pydantic import ConfigDict, Field
 
 from prefect._internal.schemas.bases import PrefectBaseModel
-from prefect.types import URILike
+from prefect.types import ValidAssetKey
 
 
 class AssetProperties(PrefectBaseModel):
@@ -37,7 +37,7 @@ class Asset(PrefectBaseModel):
 
     model_config: ClassVar[ConfigDict] = ConfigDict(frozen=True)
 
-    key: URILike
+    key: ValidAssetKey
     properties: Optional[AssetProperties] = Field(
         default=None,
         description="Properties of the asset. "
