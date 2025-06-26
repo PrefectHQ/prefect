@@ -108,7 +108,7 @@ if __name__ == "__main__":
 
 ### prefect-dbt 0.7.0 and later
 
-Versions 0.7.0 and later of `prefect-dbt` include the `PrefectDbtRunner` class, which provides an improved interface for running dbt Core commands with better logging, failure handling, and additional features.
+Versions 0.7.0 and later of `prefect-dbt` include the `PrefectDbtRunner` class, which provides an improved interface for running dbt Core commands with better logging, failure handling, and automatic asset lineage.
 
 <Tip>
 The `PrefectDbtRunner` is inspired by the `DbtRunner` from dbt Core, and its `invoke` method accepts the same arguments.
@@ -157,6 +157,35 @@ if __name__ == "__main__":
     run_dbt()
 ```
 
+#### Logging
+
+The `PrefectDbtRunner` class maps all dbt log levels to standard Python logging levels, so filtering for log levels like `WARNING` or `ERROR` in the Prefect UI applies to dbt's logs.
+It also selects the appropriate logging target based on the invocation context: logging to a Prefect run logger when executed within a flow or task, and logging directly to the terminal when run outside of a flow or task.
+
+By default, the logging level used by dbt is Prefect's logging level, which can be overridden with the `PREFECT_LOGGING_LEVEL` environment variable.
+The dbt logging level can be set independently from Prefect's by using the `DBT_LOG_LEVEL` environment variable, setting `log_level` in `PrefectDbtSettings`, or passing the `--log-level` flag or `log_level` kwarg to `.invoke()`.
+
+```python
+from dbt_common.events.base_types import EventLevel
+from prefect import flow
+from prefect_dbt import PrefectDbtRunner, PrefectDbtSettings
+
+
+@flow
+def run_dbt():
+    PrefectDbtRunner(
+        settings=PrefectDbtSettings(
+            project_dir="test",
+            profiles_dir="examples/run_dbt",
+            log_level=EventLevel.DEBUG, # explicitly choose a log level for dbt
+        )
+    ).invoke(["build"])
+
+
+if __name__ == "__main__":
+    run_dbt()
+```
+
 #### `profiles.yml` templating
 
 The `PrefectDbtRunner` class supports templating in your `profiles.yml` file, allowing you to reference Prefect blocks and variables that will be resolved at runtime.
@@ -186,14 +215,6 @@ example:
   target: "{{ prefect.variables.target }}"
 ```
 
-#### Logging
-
-The `PrefectDbtRunner` class maps all dbt log levels to standard Python logging levels, so filtering for log levels like `WARNING` or `ERROR` in the Prefect UI applies to dbt's logs.
-It also selects the appropriate logging target based on the invocation context: logging to a Prefect run logger when executed within a flow or task, and logging directly to the terminal when run outside of a flow or task.
-
-By default, the logging level used by dbt is Prefect's logging level, which can be overridden with the `PREFECT_LOGGING_LEVEL` environment variable.
-The dbt logging level can be set independently from Prefect's by using the `DBT_LOG_LEVEL` environment variable, setting `log_level` in `PrefectDbtSettings`, or passing the `--log-level` flag or `log_level` kwarg to `.invoke()`.
-
 #### Failure handling
 
 By default, node execution failures will cause raises exceptions with standardized messages containing detailed information about the failure.
@@ -221,81 +242,14 @@ if __name__ == "__main__":
     run_dbt()
 ```
 
-#### Events
-
-The `PrefectDbtRunner` automatically emits Prefect events for completed dbt nodes with status information.
-
-An event for a skipped model may look like this, for example:
-
-```json
-{
-  "event": "my_second_dbt_model skipped",
-  "occurred": "2025-02-06T17:05:02.614Z",
-  "payload": {
-    "node_info": {
-      "node_path": "test/my_second_dbt_model.sql",
-      "node_name": "my_second_dbt_model",
-      "unique_id": "model.test.my_second_dbt_model",
-      "resource_type": "model",
-      "materialized": "view",
-      "node_status": "skipped",
-      "node_started_at": "2025-02-06T17:05:02.614034",
-      "meta": {},
-      "node_relation": {
-        "database": "dev",
-        "schema": "main",
-        "alias": "my_second_dbt_model",
-        "relation_name": "\"dev\".\"main\".\"my_second_dbt_model\""
-      }
-    },
-    "run_result": {
-      "status": "skipped",
-      "thread": "Thread-2 (worker)",
-      "adapter_response": {}
-    }
-  },
-  "received": "2025-02-06T17:05:02.843Z",
-  "resource": {
-    "prefect.resource.id": "dbt.model.test.my_second_dbt_model",
-    "prefect.resource.name": "my_second_dbt_model",
-    "dbt.node.status": "skipped"
-  },
-  "workspace": "87a4870c-8152-46cb-93aa-06482f9aa1df"
-}
-```
-
-These events contain both the `node_info` and `run_result` for processed nodes in your dbt project, as well as the final status of the node's execution in the primary resource.
-This enables you to set up alerting for specific node states through Prefect's automations system.
-To be notified when this model is skipped, the following automation trigger could be set up:
-
-```json
-{
-  "type": "event",
-  "match": {
-    "prefect.resource.id": [
-      "dbt.model.test.my_second_dbt_model"
-    ],
-    "dbt.node.status": "skipped"
-  },
-  "match_related": {},
-  "after": [],
-  "expect": [
-    "my_second_dbt_model skipped"
-  ],
-  "for_each": [],
-  "posture": "Reactive",
-  "threshold": 1,
-  "within": 0
-}
-```
 
 #### Native dbt configuration
 
-You can disable these features for all resources in your dbt project config, or for specific resources in their own config:
+You can disable automatic asset lineage detection for all resources in your dbt project config, or for specific resources in their own config:
 
 ```yaml
 prefect:
-  emit_events: False
+  enable_assets: False
 ```
 
 ### prefect-dbt 0.6.6 and earlier
