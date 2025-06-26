@@ -922,6 +922,8 @@ class SubprocessASGIServer:
                 self.server_process.wait(timeout=5)
             except subprocess.TimeoutExpired:
                 self.server_process.kill()
+                # Ensure the process is reaped to avoid ResourceWarning
+                self.server_process.wait()
             finally:
                 self.server_process = None
         if self.port in self._instances:
