@@ -5,6 +5,7 @@ from prefect.context import AssetContext
 from prefect.events.worker import EventsWorker
 from prefect.flows import flow
 from prefect.tasks import task
+from prefect.types.names import MAX_ASSET_KEY_LENGTH
 
 
 def _asset_events(worker: EventsWorker):
@@ -97,24 +98,32 @@ def test_asset_restricted_characters(invalid_key):
 
 
 def test_asset_max_length():
-    valid_key = "s3://bucket/" + "a" * (512 - len("s3://bucket/"))
+    valid_key = "s3://bucket/" + "a" * (MAX_ASSET_KEY_LENGTH - len("s3://bucket/"))
     asset = Asset(key=valid_key)
     assert asset.key == valid_key
 
-    invalid_key = "s3://bucket/" + "a" * (513 - len("s3://bucket/"))
-    with pytest.raises(ValueError, match="Asset key cannot exceed 512 characters"):
+    invalid_key = "s3://bucket/" + "a" * (
+        MAX_ASSET_KEY_LENGTH + 1 - len("s3://bucket/")
+    )
+    with pytest.raises(
+        ValueError, match=f"Asset key cannot exceed {MAX_ASSET_KEY_LENGTH} characters"
+    ):
         Asset(key=invalid_key)
 
 
 def test_asset_length_edge_cases():
     # Test a few characters under the limit
-    under_limit_key = "s3://bucket/" + "x" * (510 - len("s3://bucket/"))
+    under_limit_key = "s3://bucket/" + "x" * (
+        MAX_ASSET_KEY_LENGTH - 2 - len("s3://bucket/")
+    )
     asset = Asset(key=under_limit_key)
     assert asset.key == under_limit_key
 
     # Test way over the limit
     way_over_key = "s3://bucket/" + "z" * 1000
-    with pytest.raises(ValueError, match="Asset key cannot exceed 512 characters"):
+    with pytest.raises(
+        ValueError, match=f"Asset key cannot exceed {MAX_ASSET_KEY_LENGTH} characters"
+    ):
         Asset(key=way_over_key)
 
     # Test minimum viable URI
