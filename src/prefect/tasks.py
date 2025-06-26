@@ -2035,3 +2035,44 @@ class MaterializingTask(Task[P, R]):
             Asset(key=a) if isinstance(a, str) else a for a in assets
         ]
         self.materialized_by = materialized_by
+
+    def with_options(
+        self,
+        assets: Optional[Sequence[Union[str, Asset]]] = None,
+        **task_kwargs: Unpack[TaskOptions],
+    ) -> "MaterializingTask[P, R]":
+        import inspect
+
+        sig = inspect.signature(Task.__init__)
+
+        # Map parameter names to attribute names where they differ
+        # from parameter to attribute.
+        param_to_attr = {
+            "on_completion": "on_completion_hooks",
+            "on_failure": "on_failure_hooks",
+            "on_rollback": "on_rollback_hooks",
+            "on_commit": "on_commit_hooks",
+        }
+
+        # Build kwargs for Task constructor
+        init_kwargs = {}
+        for param_name in sig.parameters:
+            if param_name in ("self", "fn", "assets", "materialized_by"):
+                continue
+
+            attr_name = param_to_attr.get(param_name, param_name)
+            init_kwargs[param_name] = task_kwargs.get(
+                param_name, getattr(self, attr_name)
+            )
+
+        return MaterializingTask(
+            fn=self.fn,
+            assets=(
+                [Asset(key=a) if isinstance(a, str) else a for a in assets]
+                if assets is not None
+                else self.assets
+            ),
+            materialized_by=self.materialized_by,
+            # Now, the rest
+            **init_kwargs,
+        )
