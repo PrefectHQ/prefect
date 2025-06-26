@@ -108,22 +108,6 @@ if __name__ == "__main__":
 
 ### prefect-dbt 0.7.0 and later
 
-<Info>
-During the prerelease phase of `prefect-dbt==0.7.0`, use the `--pre` flag to install the latest release candidate.
-
-<CodeGroup>
-
-```bash pip
-pip install -U --pre prefect-dbt
-```
-
-```bash uv
-uv pip install -U --pre prefect-dbt
-```
-
-</CodeGroup>
-</Info>
-
 Versions 0.7.0 and later of `prefect-dbt` include the `PrefectDbtRunner` class, which provides an improved interface for running dbt Core commands with better logging, failure handling, and additional features.
 
 <Tip>
@@ -207,9 +191,12 @@ example:
 The `PrefectDbtRunner` class maps all dbt log levels to standard Python logging levels, so filtering for log levels like `WARNING` or `ERROR` in the Prefect UI applies to dbt's logs.
 It also selects the appropriate logging target based on the invocation context: logging to a Prefect run logger when executed within a flow or task, and logging directly to the terminal when run outside of a flow or task.
 
+By default, the logging level used by dbt is Prefect's logging level, which can be overridden with the `PREFECT_LOGGING_LEVEL` environment variable.
+The dbt logging level can be set independently from Prefect's by using the `DBT_LOG_LEVEL` environment variable, setting `log_level` in `PrefectDbtSettings`, or passing the `--log-level` flag or `log_level` kwarg to `.invoke()`.
+
 #### Failure handling
 
-The `PrefectDbtRunner` class raises exceptions with standardized messages containing detailed information about the failure.
+By default, node execution failures will cause raises exceptions with standardized messages containing detailed information about the failure.
 
 ```
 Failures detected during invocation of dbt command 'build':
