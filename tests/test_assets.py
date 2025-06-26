@@ -68,6 +68,78 @@ def test_asset_invalid_uri(invalid_key):
         Asset(key=invalid_key)
 
 
+@pytest.mark.parametrize(
+    "invalid_key",
+    [
+        "s3://bucket/file with space.csv",
+        "s3://bucket/file\nwith\nnewlines.csv",
+        "s3://bucket/file\twith\ttabs.csv",
+        "s3://bucket/file#fragment.csv",
+        "s3://bucket/file?query=param.csv",
+        "s3://bucket/file&param=value.csv",
+        "s3://bucket/file%encoded.csv",
+        's3://bucket/file"quoted".csv',
+        "s3://bucket/file'quoted'.csv",
+        "s3://bucket/file<bracket>.csv",
+        "s3://bucket/file[bracket].csv",
+        "s3://bucket/file{brace}.csv",
+        "s3://bucket/file|pipe.csv",
+        "s3://bucket/file\\backslash.csv",
+        "s3://bucket/file^caret.csv",
+        "s3://bucket/file`backtick`.csv",
+        "s3://bucket/file\r\ncarriage.csv",
+        "s3://bucket/file\0null.csv",
+    ],
+)
+def test_asset_restricted_characters(invalid_key):
+    with pytest.raises(ValueError):
+        Asset(key=invalid_key)
+
+
+def test_asset_max_length():
+    valid_key = "s3://bucket/" + "a" * (512 - len("s3://bucket/"))
+    asset = Asset(key=valid_key)
+    assert asset.key == valid_key
+
+    invalid_key = "s3://bucket/" + "a" * (513 - len("s3://bucket/"))
+    with pytest.raises(ValueError, match="Asset key cannot exceed 512 characters"):
+        Asset(key=invalid_key)
+
+
+def test_asset_length_edge_cases():
+    # Test a few characters under the limit
+    under_limit_key = "s3://bucket/" + "x" * (510 - len("s3://bucket/"))
+    asset = Asset(key=under_limit_key)
+    assert asset.key == under_limit_key
+
+    # Test way over the limit
+    way_over_key = "s3://bucket/" + "z" * 1000
+    with pytest.raises(ValueError, match="Asset key cannot exceed 512 characters"):
+        Asset(key=way_over_key)
+
+    # Test minimum viable URI
+    min_key = "s3://a"
+    asset = Asset(key=min_key)
+    assert asset.key == min_key
+
+
+def test_asset_valid_characters():
+    """Test that common valid characters work fine."""
+    valid_keys = [
+        "s3://bucket/folder/file.csv",
+        "postgres://database/table",
+        "file://local/path.txt",
+        "custom://resource-with_underscores.data",
+        "protocol://host:port/path",
+        "scheme://user@host/resource",
+        "s3://bucket/folder/file-name_123.parquet",
+    ]
+
+    for key in valid_keys:
+        asset = Asset(key=key)
+        assert asset.key == key
+
+
 def test_asset_as_resource():
     asset = Asset(key="s3://bucket/data")
     resource = AssetContext.asset_as_resource(asset)

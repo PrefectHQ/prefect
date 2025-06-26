@@ -160,3 +160,51 @@ URILike = Annotated[
         examples=["s3://bucket/folder/data.csv", "postgres://dbtable"],
     ),
 ]
+
+
+RESTRICTED_ASSET_CHARACTERS = [
+    "\n",
+    "\r",
+    "\t",
+    "\0",
+    " ",
+    "#",
+    "?",
+    "&",
+    "%",
+    '"',
+    "'",
+    "<",
+    ">",
+    "[",
+    "]",
+    "{",
+    "}",
+    "|",
+    "\\",
+    "^",
+    "`",
+]
+
+
+def validate_valid_asset_key(value: str) -> str:
+    """Validate asset key with character restrictions and length limit."""
+    for char in RESTRICTED_ASSET_CHARACTERS:
+        if char in value:
+            raise ValueError(f"Asset key cannot contain '{char}'")
+
+    if len(value) > 512:
+        raise ValueError("Asset key cannot exceed 512 characters")
+
+    return validate_uri(value)
+
+
+ValidAssetKey = Annotated[
+    str,
+    AfterValidator(validate_valid_asset_key),
+    Field(
+        max_length=512,
+        description="A URI-like string with a lowercase protocol, restricted characters, and max 512 characters",
+        examples=["s3://bucket/folder/data.csv", "postgres://dbtable"],
+    ),
+]

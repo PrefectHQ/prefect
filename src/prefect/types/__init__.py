@@ -15,6 +15,7 @@ from .names import (
     WITHOUT_BANNED_CHARACTERS,
     MAX_VARIABLE_NAME_LENGTH,
     URILike,
+    ValidAssetKey,
 )
 from pydantic import (
     BeforeValidator,
@@ -216,6 +217,7 @@ __all__ = [
     "Name",
     "NameOrEmpty",
     "NonEmptyishName",
+    "ValidAssetKey",
     "SecretDict",
     "StatusCode",
     "StrictVariableValue",
