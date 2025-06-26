@@ -429,6 +429,8 @@ class RunnerDeployment(BaseModel):
             if not isinstance(pull_steps, list):
                 pull_steps = [pull_steps]
             update_payload["pull_steps"] = pull_steps
+        else:
+            update_payload["pull_steps"] = []
 
         await client.update_deployment(
             deployment_id,
