@@ -131,6 +131,46 @@ if __name__ == "__main__":
     run_dbt()
 ```
 
+When calling `.invoke()` in a flow or task, each node in dbt's execution graph is reflected as a task in Prefect's execution graph.
+Logs from each node will belong to the corresponding task, and each task's state is determined by the state of that node's execution.
+
+```bash
+13:37:11.000 | INFO    | Flow run 'vigilant-bullfinch' - Found 8 models, 3 seeds, 18 data tests, 543 macros
+13:37:11.014 | INFO    | Flow run 'vigilant-bullfinch' - 
+13:37:11.026 | INFO    | Flow run 'vigilant-bullfinch' - Concurrency: 1 threads (target='dev')
+13:37:11.038 | INFO    | Flow run 'vigilant-bullfinch' - 
+13:37:13.665 | INFO    | Task run 'model my_first_dbt_model' - 1 of 29 OK created sql table model main.my_first_dbt_model ..................... [OK in 0.18s]
+13:37:13.671 | INFO    | Task run 'model my_first_dbt_model' - Finished in state Completed()
+```
+
+<Warning>
+The task runs created by calling `.invoke()` run separately from dbt Core, and do not affect dbt's execution behavior.
+These tasks do not persist results and cannot be cached.
+
+Using dbt's native retry functionality to retry failed nodes is recommended.
+
+```python
+from prefect import flow
+from prefect.runtime.flow_run import get_run_count
+from prefect_dbt import PrefectDbtRunner
+
+
+@flow
+def run_dbt():
+    runner = PrefectDbtRunner()
+
+    if get_run_count() == 1:
+        runner.invoke(["build"])
+    else:
+        runner.invoke(["retry"])
+
+
+if __name__ == "__main__":
+    run_dbt()
+```
+</Warning>
+
+
 #### dbt settings
 
 The `PrefectDbtSettings` class, based on Pydantic's `BaseSettings` class, automatically detects common `DBT_`-prefixed environment variables, like `DBT_PROFILES_DIR` and `DBT_PROJECT_DIR`.
