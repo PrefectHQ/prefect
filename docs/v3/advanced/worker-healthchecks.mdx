@@ -24,17 +24,14 @@ Start a worker with healthchecks enabled using the `--with-healthcheck` flag:
 prefect worker start --pool "my-pool" --with-healthcheck
 ```
 
-This starts both the worker and a lightweight HTTP health server that exposes a `/health` endpoint.
-
-## Health Endpoint
-
-When healthchecks are enabled, the worker exposes an HTTP endpoint at:
+This starts both the worker and a lightweight HTTP health server that exposes a `/health` endpoint. 
+When enabled, the worker exposes an HTTP endpoint at:
 
 ```
 http://localhost:8080/health
 ```
 
-The endpoint returns:
+For GET requests the endpoint returns:
 
 - **200 OK** with `{"message": "OK"}` when the worker is healthy
 - **503 Service Unavailable** with `{"message": "Worker may be unresponsive at this time"}` when the worker is unhealthy
@@ -51,30 +48,20 @@ prefect worker start --pool "my-pool" --with-healthcheck
 
 ## Health Detection Logic
 
-A worker is considered unhealthy if it hasn't polled for flow runs within a specific timeframe. The algorithm works as follows:
+A worker is considered unhealthy if it hasn't polled for flow runs within a specific timeframe defined by its configured polling interval. The health check algorithm works as follows:
 
-1. **Polling threshold**: The threshold is calculated as `query_interval_seconds * 30`
-2. **Default query interval**: Workers poll every 15 seconds by default (configurable via `PREFECT_WORKER_QUERY_SECONDS`)
-3. **Default threshold**: With the default settings, a worker is unhealthy if it hasn't polled in 450 seconds (7.5 minutes)
+If a worker hasn't made a successful poll within the time window of `query_interval_seconds * 30` seconds, it is considered unhealthy 
+and its health endpoint will return 503 (Service Unavailable). With default settings, a worker is unhealthy if it hasn't polled in 450 seconds (7.5 minutes). The query interval is configurable via the `PREFECT_WORKER_QUERY_SECONDS` setting.
 
-This generous threshold accounts for temporary network issues, API unavailability, or brief worker pauses.
+This generous threshold accounts for temporary network issues, API unavailability, or brief worker pauses without triggering false alarms.
 
 ## Production Deployment Patterns
 
 ### Docker with Health Checks
 
-Use Docker's built-in health check functionality:
+Use Docker's built-in health check functionality by including these lines in your Dockerfile:
 
 ```dockerfile
-FROM prefecthq/prefect:3-python3.11
-
-# Install your flow dependencies
-COPY requirements.txt .
-RUN pip install -r requirements.txt
-
-# Copy your flows
-COPY flows/ /flows/
-
 # Health check configuration
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
   CMD curl -f http://localhost:8080/health || exit 1
@@ -83,94 +70,28 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
 CMD ["prefect", "worker", "start", "--pool", "my-pool", "--with-healthcheck"]
 ```
 
+For more information see [Docker's reference guide](https://docs.docker.com/reference/dockerfile/#healthcheck).
+
 ### Kubernetes with Liveness Probes
 
-Configure Kubernetes to automatically restart unhealthy worker pods:
+Configure Kubernetes to automatically restart unhealthy worker pods by including this configuration in your worker deployment:
 
 ```yaml
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: prefect-worker
-spec:
-  replicas: 2
-  selector:
-    matchLabels:
-      app: prefect-worker
-  template:
-    metadata:
-      labels:
-        app: prefect-worker
-    spec:
-      containers:
-      - name: worker
-        image: my-prefect-worker:latest
-        command: ["prefect", "worker", "start", "--pool", "my-pool", "--with-healthcheck"]
-        env:
-        - name: PREFECT_API_URL
-          value: "https://api.prefect.cloud/api/accounts/[ACCOUNT_ID]/workspaces/[WORKSPACE_ID]"
-        - name: PREFECT_API_KEY
-          valueFrom:
-            secretKeyRef:
-              name: prefect-api-key
-              key: key
-        ports:
-        - containerPort: 8080
-          name: health
-        livenessProbe:
-          httpGet:
-            path: /health
-            port: 8080
-          initialDelaySeconds: 60
-          periodSeconds: 30
-          timeoutSeconds: 10
-          failureThreshold: 3
-        readinessProbe:
-          httpGet:
-            path: /health
-            port: 8080
-          initialDelaySeconds: 30
-          periodSeconds: 10
+livenessProbe:
+  httpGet:
+    path: /health
+    port: 8080
+  initialDelaySeconds: 60
+  periodSeconds: 30
+  timeoutSeconds: 10
+  failureThreshold: 3
 ```
 
-### Systemd with Restart Policy
-
-For systemd-managed workers, create a service file with automatic restart:
-
-```ini
-[Unit]
-Description=Prefect Worker
-After=network.target
-
-[Service]
-Type=exec
-User=prefect
-WorkingDirectory=/opt/prefect
-Environment=PREFECT_API_URL=https://api.prefect.cloud/api/accounts/[ACCOUNT_ID]/workspaces/[WORKSPACE_ID]
-Environment=PREFECT_API_KEY=your-api-key
-ExecStart=/opt/prefect/venv/bin/prefect worker start --pool "my-pool" --with-healthcheck
-ExecStartPost=/bin/sleep 30
-ExecReload=/bin/kill -HUP $MAINPID
-Restart=always
-RestartSec=30
-
-# Health check using systemd-watchdog
-WatchdogSec=600
-Type=notify
-
-[Install]
-WantedBy=multi-user.target
-```
-
-Add a health check script that systemd can use:
-
-```bash
-#!/bin/bash
-# /opt/prefect/health-check.sh
-curl -f http://localhost:8080/health || exit 1
-```
+This is enabled by default when using [Prefect's Helm Chart](v3/advanced/server-helm).
 
 ### Docker Compose with Health Checks
+
+Use Docker Compose's built-in health check functionality by including these lines in your Docker compose file:
 
 ```yaml
 version: '3.8'
@@ -178,9 +99,6 @@ services:
   prefect-worker:
     image: my-prefect-worker:latest
     command: ["prefect", "worker", "start", "--pool", "my-pool", "--with-healthcheck"]
-    environment:
-      - PREFECT_API_URL=https://api.prefect.cloud/api/accounts/[ACCOUNT_ID]/workspaces/[WORKSPACE_ID]
-      - PREFECT_API_KEY=your-api-key
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
       interval: 30s
@@ -190,24 +108,31 @@ services:
     restart: unless-stopped
 ```
 
+For more information see [Docker Compose's reference guide](https://docs.docker.com/reference/compose-file/services/#healthcheck).
+
 ## Troubleshooting
 
-### Common Issues
-
-**Health endpoint not accessible:**
+### Health endpoint not accessible
 - Verify the worker was started with `--with-healthcheck`
-- Check that the configured host/port is accessible
+- Check that the configured host/port is accessible (default: `http://localhost:8080/health`)
 - Ensure no firewall rules are blocking the health port
+- Port 8080 may conflict with other services - change with `PREFECT_WORKER_WEBSERVER_PORT`
+- Verify configuration: `prefect config view --show-defaults | grep WORKER`
 
-**False positive health failures:**
+### Worker appears healthy but not picking up flows
+- Health checks only verify polling activity, not successful flow execution
+- Check work pool and work queue configuration: ensure worker is polling the correct pool/queue
+- Verify deployment configuration matches worker capabilities
+- Review flow run states - flows may be stuck in PENDING due to concurrency limits
+- Enable debug logging: set `PREFECT_LOGGING_LEVEL=DEBUG` on the worker to see detailed polling activity
+- Increase polling frequency temporarily: `PREFECT_WORKER_QUERY_SECONDS=5`
+
+### False positive health failures
 - Increase `PREFECT_WORKER_QUERY_SECONDS` if your API has high latency
 - Check for network connectivity issues between worker and Prefect API
-- Review worker logs for authentication or authorization errors
-
-**Worker appears healthy but not processing flows:**
-- Health checks only verify polling activity, not successful flow execution
-- Check work pool configuration and flow run states
-- Verify worker has access to required infrastructure (Docker, Kubernetes, etc.)
+- Review worker logs for authentication or authorization errors (API key issues)
+- Verify `PREFECT_API_URL` is correctly configured and accessible
+- Check for temporary API outages or [rate limiting](v3/concepts/rate-limits)
 
 ## Related Configuration
 
