@@ -153,7 +153,7 @@ Logs from each node will belong to the corresponding task, and each task's state
 The task runs created by calling `.invoke()` run separately from dbt Core, and do not affect dbt's execution behavior.
 These tasks do not persist results and cannot be cached.
 
-Use [dbt's native retry functionality](https://docs.getdbt.com/reference/commands/retry) in combination with [runtime data from `prefect`](/how-to-guides/workflows/access-runtime-info) to retry failed nodes.
+Use [dbt's native retry functionality](https://docs.getdbt.com/reference/commands/retry) in combination with [runtime data from `prefect`](/v3/how-to-guides/workflows/access-runtime-info) to retry failed nodes.
 
 ```python
 from prefect import flow
@@ -178,7 +178,7 @@ if __name__ == "__main__":
 
 #### Assets
 
-Prefect Cloud maintains a graph of [assets](/concepts/assets), objects produced by your workflows.
+Prefect Cloud maintains a graph of [assets](/v3/concepts/assets), objects produced by your workflows.
 
 Any dbt seed, source or model will appear on your asset graph in Prefect Cloud once it has been executed using the `PrefectDbtRunner`.
 The upstream dependencies of an asset materialized by `prefect-dbt` are derived from the `depends_on` field in dbt's `manifest.json`.
