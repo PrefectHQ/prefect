@@ -12,7 +12,7 @@ Command line interface for working with profiles.
 
 ## Functions
 
-### `ls` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/cli/profile.py#L39"><Icon icon="github" size="14" /></a></sup>
+### `ls` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/cli/profile.py#L39" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 ls()
@@ -22,7 +22,7 @@ ls()
 List profile names.
 
 
-### `create` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/cli/profile.py#L61"><Icon icon="github" size="14" /></a></sup>
+### `create` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/cli/profile.py#L61" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 create(name: str, from_name: str = typer.Option(None, '--from', help='Copy an existing profile.'))
@@ -32,7 +32,7 @@ create(name: str, from_name: str = typer.Option(None, '--from', help='Copy an ex
 Create a new profile.
 
 
-### `delete` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/cli/profile.py#L183"><Icon icon="github" size="14" /></a></sup>
+### `delete` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/cli/profile.py#L183" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 delete(name: str)
@@ -42,7 +42,7 @@ delete(name: str)
 Delete the given profile.
 
 
-### `rename` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/cli/profile.py#L209"><Icon icon="github" size="14" /></a></sup>
+### `rename` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/cli/profile.py#L209" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 rename(name: str, new_name: str)
@@ -52,7 +52,7 @@ rename(name: str, new_name: str)
 Change the name of a profile.
 
 
-### `inspect` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/cli/profile.py#L239"><Icon icon="github" size="14" /></a></sup>
+### `inspect` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/cli/profile.py#L239" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 inspect(name: Optional[str] = typer.Argument(None, help='Name of profile to inspect; defaults to active profile.'))
@@ -62,13 +62,13 @@ inspect(name: Optional[str] = typer.Argument(None, help='Name of profile to insp
 Display settings from a given profile; defaults to active.
 
 
-### `show_profile_changes` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/cli/profile.py#L265"><Icon icon="github" size="14" /></a></sup>
+### `show_profile_changes` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/cli/profile.py#L265" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 show_profile_changes(user_profiles: ProfilesCollection, default_profiles: ProfilesCollection) -> bool
 ```
 
-### `populate_defaults` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/cli/profile.py#L293"><Icon icon="github" size="14" /></a></sup>
+### `populate_defaults` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/cli/profile.py#L293" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 populate_defaults()
@@ -80,4 +80,4 @@ Populate the profiles configuration with default base profiles, preserving exist
 
 ## Classes
 
-### `ConnectionStatus` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/cli/profile.py#L339"><Icon icon="github" size="14" /></a></sup>
+### `ConnectionStatus` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/cli/profile.py#L339" target="_blank"><Icon icon="github" size="14" /></a></sup>

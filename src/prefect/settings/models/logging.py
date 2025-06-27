@@ -99,7 +99,7 @@ class LoggingSettings(PrefectBaseSettings):
 
     config_path: Path = Field(
         default_factory=default_logging_config_path,
-        description="A path to a logging configuration file. Defaults to <home>/logging.yml",
+        description="A path to a logging configuration file. Defaults to $PREFECT_HOME/logging.yml",
         validation_alias=AliasChoices(
             AliasPath("config_path"),
             "prefect_logging_config_path",

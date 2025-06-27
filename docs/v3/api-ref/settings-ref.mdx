@@ -18,7 +18,7 @@ The path to the Prefect home directory. Defaults to ~/.prefect
 `PREFECT_HOME`
 
 ### `profiles_path`
-The path to a profiles configuration file. Supports $PREFECT_HOME templating. Defaults to <home>/profiles.toml.
+The path to a profiles configuration file. Supports $PREFECT_HOME templating. Defaults to $PREFECT_HOME/profiles.toml.
 
 **Type**: `string`
 
@@ -555,7 +555,7 @@ The default logging level for Prefect loggers.
 `PREFECT_LOGGING_LEVEL`
 
 ### `config_path`
-A path to a logging configuration file. Defaults to <home>/logging.yml
+A path to a logging configuration file. Defaults to $PREFECT_HOME/logging.yml
 
 **Type**: `string`
 
@@ -745,7 +745,7 @@ The `block-type/block-document` slug of a block to use as the default result sto
 `PREFECT_RESULTS_DEFAULT_STORAGE_BLOCK`, `PREFECT_DEFAULT_RESULT_STORAGE_BLOCK`
 
 ### `local_storage_path`
-The default location for locally persisted results. Defaults to <home>/storage.
+The default location for locally persisted results. Defaults to $PREFECT_HOME/storage.
 
 **Type**: `string`
 
@@ -2231,7 +2231,7 @@ Controls whether or not block auto-registration on start
 `PREFECT_SERVER_MEMOIZE_BLOCK_AUTO_REGISTRATION`, `PREFECT_MEMOIZE_BLOCK_AUTO_REGISTRATION`
 
 ### `memo_store_path`
-Path to the memo store file. Defaults to <home>/memo_store.toml
+Path to the memo store file. Defaults to $PREFECT_HOME/memo_store.toml
 
 **Type**: `string`
 

@@ -89,7 +89,7 @@ class ServerSettings(PrefectBaseSettings):
 
     memo_store_path: Path = Field(
         default_factory=default_memo_store_path,
-        description="Path to the memo store file. Defaults to <home>/memo_store.toml",
+        description="Path to the memo store file. Defaults to $PREFECT_HOME/memo_store.toml",
         validation_alias=AliasChoices(
             AliasPath("memo_store_path"),
             "prefect_server_memo_store_path",
