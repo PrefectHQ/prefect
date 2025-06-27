@@ -185,9 +185,8 @@ The upstream dependencies of an asset materialized by `prefect-dbt` are derived 
 
 The asset's `key` will be its corresponding dbt resource's `relation_name`.
 
-##### Asset properties
-
 The `name` and `description` asset properties are populated by a dbt resource's name description.
+
 The `owners` asset property is populated if there is data assigned to the `owner` key under a resoure's `meta` config.
 
 ```yaml
@@ -198,8 +197,6 @@ models:
       meta:
         owner: "kevin-g"
 ```
-
-##### Asset metadata
 
 Asset metadata is collected from the result of the node's execution.
 
