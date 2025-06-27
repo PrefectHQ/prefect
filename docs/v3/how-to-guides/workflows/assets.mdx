@@ -126,7 +126,7 @@ def generate_reports():
 
 ## Dynamic asset materialization
 
-Use the `with_options` pattern to dynamically change asset keys and dependencies at runtime. This is useful when you need to parameterize asset paths based on flow inputs, dates, or other runtime conditions:
+Use [the `with_options` pattern](/v3/api-ref/python/prefect-tasks#with-options) to dynamically change asset keys and dependencies at runtime. This is useful when you need to parameterize asset paths based on flow inputs, dates, or other runtime conditions:
 
 ```python
 from prefect import flow

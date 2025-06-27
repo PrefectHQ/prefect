@@ -723,37 +723,44 @@ class Task(Generic[P, R]):
 
         Examples:
 
-            Create a new task from an existing task and update the name
+            Create a new task from an existing task and update the name:
 
-            >>> @task(name="My task")
-            >>> def my_task():
-            >>>     return 1
-            >>>
-            >>> new_task = my_task.with_options(name="My new task")
+            ```python
+            @task(name="My task")
+            def my_task():
+                return 1
 
-            Create a new task from an existing task and update the retry settings
+            new_task = my_task.with_options(name="My new task")
+            ```
 
-            >>> from random import randint
-            >>>
-            >>> @task(retries=1, retry_delay_seconds=5)
-            >>> def my_task():
-            >>>     x = randint(0, 5)
-            >>>     if x >= 3:  # Make a task that fails sometimes
-            >>>         raise ValueError("Retry me please!")
-            >>>     return x
-            >>>
-            >>> new_task = my_task.with_options(retries=5, retry_delay_seconds=2)
+            Create a new task from an existing task and update the retry settings:
 
-            Use a task with updated options within a flow
+            ```python
+            from random import randint
 
-            >>> @task(name="My task")
-            >>> def my_task():
-            >>>     return 1
-            >>>
-            >>> @flow
-            >>> my_flow():
-            >>>     new_task = my_task.with_options(name="My new task")
-            >>>     new_task()
+            @task(retries=1, retry_delay_seconds=5)
+            def my_task():
+                x = randint(0, 5)
+                if x >= 3:  # Make a task that fails sometimes
+                    raise ValueError("Retry me please!")
+                return x
+
+            new_task = my_task.with_options(retries=5, retry_delay_seconds=2)
+            ```
+
+            Use a task with updated options within a flow:
+
+            ```python
+            @task(name="My task")
+            def my_task():
+                return 1
+
+            @flow
+            my_flow():
+                new_task = my_task.with_options(name="My new task")
+                new_task()
+            ```
+
         """
         return Task(
             fn=self.fn,
