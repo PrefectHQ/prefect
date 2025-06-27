@@ -153,7 +153,7 @@ Logs from each node will belong to the corresponding task, and each task's state
 The task runs created by calling `.invoke()` run separately from dbt Core, and do not affect dbt's execution behavior.
 These tasks do not persist results and cannot be cached.
 
-Use [dbt's native retry functionality](https://docs.getdbt.com/reference/commands/retry)  in combination with [runtime data from `prefect`](/how-to-guides/workflows/access-runtime-info) to retry failed nodes.
+Use [dbt's native retry functionality](https://docs.getdbt.com/reference/commands/retry) in combination with [runtime data from `prefect`](/how-to-guides/workflows/access-runtime-info) to retry failed nodes.
 
 ```python
 from prefect import flow
