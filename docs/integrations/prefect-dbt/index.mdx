@@ -135,19 +135,24 @@ When calling `.invoke()` in a flow or task, each node in dbt's execution graph i
 Logs from each node will belong to the corresponding task, and each task's state is determined by the state of that node's execution.
 
 ```bash
-13:37:11.000 | INFO    | Flow run 'vigilant-bullfinch' - Found 8 models, 3 seeds, 18 data tests, 543 macros
-13:37:11.014 | INFO    | Flow run 'vigilant-bullfinch' - 
-13:37:11.026 | INFO    | Flow run 'vigilant-bullfinch' - Concurrency: 1 threads (target='dev')
-13:37:11.038 | INFO    | Flow run 'vigilant-bullfinch' - 
-13:37:13.665 | INFO    | Task run 'model my_first_dbt_model' - 1 of 29 OK created sql table model main.my_first_dbt_model ..................... [OK in 0.18s]
-13:37:13.671 | INFO    | Task run 'model my_first_dbt_model' - Finished in state Completed()
+15:54:59.119 | INFO    | Flow run 'imposing-partridge' - Found 8 models, 3 seeds, 18 data tests, 543 macros
+15:54:59.134 | INFO    | Flow run 'imposing-partridge' - 
+15:54:59.148 | INFO    | Flow run 'imposing-partridge' - Concurrency: 1 threads (target='dev')
+15:54:59.164 | INFO    | Flow run 'imposing-partridge' - 
+15:54:59.665 | INFO    | Task run 'model my_first_dbt_model' - 1 of 29 OK created sql table model main.my_first_dbt_model ..................... [OK in 0.18s]
+15:54:59.671 | INFO    | Task run 'model my_first_dbt_model' - Finished in state Completed()
+...
+15:55:02.373 | ERROR   | Task run 'model product_metrics' -   Runtime Error in model product_metrics (models/marts/product/product_metrics.sql)
+  Binder Error: Values list "o" does not have a column named "product_id"
+  
+  LINE 47:         on p.product_id = o.product_id
 ```
 
 <Warning>
 The task runs created by calling `.invoke()` run separately from dbt Core, and do not affect dbt's execution behavior.
 These tasks do not persist results and cannot be cached.
 
-Using dbt's native retry functionality to retry failed nodes is recommended.
+Using [dbt's native retry functionality](https://docs.getdbt.com/reference/commands/retry) to retry failed nodes is recommended.
 
 ```python
 from prefect import flow
@@ -155,7 +160,7 @@ from prefect.runtime.flow_run import get_run_count
 from prefect_dbt import PrefectDbtRunner
 
 
-@flow
+@flow(retries=2)
 def run_dbt():
     runner = PrefectDbtRunner()
 
@@ -173,7 +178,7 @@ if __name__ == "__main__":
 
 #### dbt settings
 
-The `PrefectDbtSettings` class, based on Pydantic's `BaseSettings` class, automatically detects common `DBT_`-prefixed environment variables, like `DBT_PROFILES_DIR` and `DBT_PROJECT_DIR`.
+The `PrefectDbtSettings` class, based on Pydantic's `BaseSettings` class, automatically detects `DBT_`-prefixed environment variables that have a direct effect on the `PrefectDbtRunner` class.
 If no environment variables are set, dbt's defaults are used.
 
 Provide a `PrefectDbtSettings` instance to `PrefectDbtRunner` to customize dbt settings or override environment variables.
@@ -200,10 +205,11 @@ if __name__ == "__main__":
 #### Logging
 
 The `PrefectDbtRunner` class maps all dbt log levels to standard Python logging levels, so filtering for log levels like `WARNING` or `ERROR` in the Prefect UI applies to dbt's logs.
-It also selects the appropriate logging target based on the invocation context: logging to a Prefect run logger when executed within a flow or task, and logging directly to the terminal when run outside of a flow or task.
 
 By default, the logging level used by dbt is Prefect's logging level, which can be overridden with the `PREFECT_LOGGING_LEVEL` environment variable.
+
 The dbt logging level can be set independently from Prefect's by using the `DBT_LOG_LEVEL` environment variable, setting `log_level` in `PrefectDbtSettings`, or passing the `--log-level` flag or `log_level` kwarg to `.invoke()`.
+Only logging levels of higher severity than Prefect's logging level will have an effect.
 
 ```python
 from dbt_common.events.base_types import EventLevel
@@ -217,7 +223,7 @@ def run_dbt():
         settings=PrefectDbtSettings(
             project_dir="test",
             profiles_dir="examples/run_dbt",
-            log_level=EventLevel.DEBUG, # explicitly choose a log level for dbt
+            log_level=EventLevel.ERROR, # explicitly choose a higher log level for dbt
         )
     ).invoke(["build"])
 
@@ -257,14 +263,14 @@ example:
 
 #### Failure handling
 
-By default, node execution failures will cause raises exceptions with standardized messages containing detailed information about the failure.
+By default, any dbt node execution failures cause the entire dbt run to raise an exception with a message containing detailed information about the failure.
 
 ```
 Failures detected during invocation of dbt command 'build':
 Test not_null_my_first_dbt_model_id failed with message: "Got 1 result, configured to fail if != 0"
 ```
 
-It also offers a `raise_on_failure` option to control whether non-exception dbt failures, like failed tests, are raised as exceptions.
+The `PrefectDbtRunner`'s `raise_on_failure` option can be set to `False` to suppress failures in dbt to cause the failure of the flow or task in which `.invoke()` is called.
 
 ```python
 from prefect import flow
