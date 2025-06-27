@@ -20,9 +20,10 @@ classifiers = [
   "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
   "Topic :: Software Development :: Libraries",
 ]
-dependencies = ["prefect>=3.3.1", "ray[default]>=2.0.0"]
+dependencies = ["prefect>=3.4.6", "ray[default]>=2.0.0"]
 dynamic = ["version"]
 
 [dependency-groups]
