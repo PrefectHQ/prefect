@@ -152,7 +152,7 @@ Logs from each node will belong to the corresponding task, and each task's state
 The task runs created by calling `.invoke()` run separately from dbt Core, and do not affect dbt's execution behavior.
 These tasks do not persist results and cannot be cached.
 
-Use [dbt's native retry functionality](https://docs.getdbt.com/reference/commands/retry) to retry failed nodes.
+Use [dbt's native retry functionality](https://docs.getdbt.com/reference/commands/retry)  in combination with [runtime data from `prefect`](/how-to-guides/workflows/access-runtime-info) to retry failed nodes.
 
 ```python
 from prefect import flow
@@ -174,6 +174,71 @@ if __name__ == "__main__":
     run_dbt()
 ```
 </Warning>
+
+#### Assets and data lineage
+
+Any dbt seed, source or model will appear on your asset graph in Prefect Cloud once it has been executed using the `PrefectDbtRunner`.
+The upstream dependencies of an asset materialized by `prefect-dbt` are derived from the `depends_on` field in dbt's `manifest.json`.
+
+The asset's `key` will be its corresponding dbt resource's `relation_name`.
+
+##### Asset properties
+
+The `name` and `description` asset properties are populated by a dbt resource's name description.
+The `owners` asset property is populated if there is data assigned to the `owner` key under a resoure's `meta` config.
+
+```yaml
+models:
+  - name: product_metrics
+    description: "Product metrics and categorization"
+    config:
+      meta:
+        owner: "kevin-g"
+```
+
+##### Asset metadata
+
+Asset metadata is collected from the result of the node's execution.
+
+```json
+{
+  "node_path": "marts/product/product_metrics.sql",
+  "node_name": "product_metrics",
+  "unique_id": "model.demo.product_metrics",
+  "resource_type": "model",
+  "materialized": "table",
+  "node_status": "error",
+  "node_started_at": "2025-06-26T20:55:05.661126",
+  "node_finished_at": "2025-06-26T20:55:05.733257",
+  "meta": {
+    "owner": "kevin-g"
+  },
+  "node_relation": {
+    "database": "dev",
+    "schema": "main_marts",
+    "alias": "product_metrics",
+    "relation_name": "\"dev\".\"main_marts\".\"product_metrics\""
+  }
+}
+```
+
+##### Compiled code
+
+Optionally, the compiled code of a dbt model can be appended to the asset description.
+
+```python
+from prefect import flow
+from prefect_dbt import PrefectDbtRunner
+
+
+@flow
+def run_dbt():
+    PrefectDbtRunner(include_compiled_code=True).invoke(["build"])
+
+
+if __name__ == "__main__":
+    run_dbt()
+```
 
 
 #### dbt settings
