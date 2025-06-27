@@ -271,10 +271,10 @@ if __name__ == "__main__":
 
 The `PrefectDbtRunner` class maps all dbt log levels to standard Python logging levels, so filtering for log levels like `WARNING` or `ERROR` in the Prefect UI applies to dbt's logs.
 
-By default, the logging level used by dbt is Prefect's logging level, which can be overridden with the `PREFECT_LOGGING_LEVEL` environment variable.
+By default, the logging level used by dbt is Prefect's logging level, which can be configured using the `PREFECT_LOGGING_LEVEL` Prefect setting.
 
 The dbt logging level can be set independently from Prefect's by using the `DBT_LOG_LEVEL` environment variable, setting `log_level` in `PrefectDbtSettings`, or passing the `--log-level` flag or `log_level` kwarg to `.invoke()`.
-Only logging levels of higher severity than Prefect's logging level will have an effect.
+Only logging levels of higher severity (more restrictive) than Prefect's logging level will have an effect.
 
 ```python
 from dbt_common.events.base_types import EventLevel
