@@ -108,23 +108,7 @@ if __name__ == "__main__":
 
 ### prefect-dbt 0.7.0 and later
 
-<Info>
-During the prerelease phase of `prefect-dbt==0.7.0`, use the `--pre` flag to install the latest release candidate.
-
-<CodeGroup>
-
-```bash pip
-pip install -U --pre prefect-dbt
-```
-
-```bash uv
-uv pip install -U --pre prefect-dbt
-```
-
-</CodeGroup>
-</Info>
-
-Versions 0.7.0 and later of `prefect-dbt` include the `PrefectDbtRunner` class, which provides an improved interface for running dbt Core commands with better logging, failure handling, and additional features.
+Versions 0.7.0 and later of `prefect-dbt` include the `PrefectDbtRunner` class, which provides an improved interface for running dbt Core commands with better logging, failure handling, and automatic asset lineage.
 
 <Tip>
 The `PrefectDbtRunner` is inspired by the `DbtRunner` from dbt Core, and its `invoke` method accepts the same arguments.
@@ -147,9 +131,117 @@ if __name__ == "__main__":
     run_dbt()
 ```
 
+When calling `.invoke()` in a flow or task, each node in dbt's execution graph is reflected as a task in Prefect's execution graph.
+Logs from each node will belong to the corresponding task, and each task's state is determined by the state of that node's execution.
+
+```bash
+15:54:59.119 | INFO    | Flow run 'imposing-partridge' - Found 8 models, 3 seeds, 18 data tests, 543 macros
+15:54:59.134 | INFO    | Flow run 'imposing-partridge' - 
+15:54:59.148 | INFO    | Flow run 'imposing-partridge' - Concurrency: 1 threads (target='dev')
+15:54:59.164 | INFO    | Flow run 'imposing-partridge' - 
+15:54:59.665 | INFO    | Task run 'model my_first_dbt_model' - 1 of 29 OK created sql table model main.my_first_dbt_model ..................... [OK in 0.18s]
+15:54:59.671 | INFO    | Task run 'model my_first_dbt_model' - Finished in state Completed()
+...
+15:55:02.373 | ERROR   | Task run 'model product_metrics' -   Runtime Error in model product_metrics (models/marts/product/product_metrics.sql)
+  Binder Error: Values list "o" does not have a column named "product_id"
+  
+  LINE 47:         on p.product_id = o.product_id
+15:55:02.857 | ERROR   | Task run 'model product_metrics' - Finished in state Failed('Task run encountered an exception Exception: Node model.demo.product_metrics finished with status error')
+```
+
+<Warning>
+The task runs created by calling `.invoke()` run separately from dbt Core, and do not affect dbt's execution behavior.
+These tasks do not persist results and cannot be cached.
+
+Use [dbt's native retry functionality](https://docs.getdbt.com/reference/commands/retry) in combination with [runtime data from `prefect`](/v3/how-to-guides/workflows/access-runtime-info) to retry failed nodes.
+
+```python
+from prefect import flow
+from prefect.runtime.flow_run import get_run_count
+from prefect_dbt import PrefectDbtRunner
+
+
+@flow(retries=2)
+def run_dbt():
+    runner = PrefectDbtRunner()
+
+    if get_run_count() == 1:
+        runner.invoke(["build"])
+    else:
+        runner.invoke(["retry"])
+
+
+if __name__ == "__main__":
+    run_dbt()
+```
+</Warning>
+
+#### Assets
+
+Prefect Cloud maintains a graph of [assets](/v3/concepts/assets), objects produced by your workflows.
+
+Any dbt seed, source or model will appear on your asset graph in Prefect Cloud once it has been executed using the `PrefectDbtRunner`.
+The upstream dependencies of an asset materialized by `prefect-dbt` are derived from the `depends_on` field in dbt's `manifest.json`.
+
+The asset's `key` will be its corresponding dbt resource's `relation_name`.
+
+The `name` and `description` asset properties are populated by a dbt resource's name description.
+
+The `owners` asset property is populated if there is data assigned to the `owner` key under a resoure's `meta` config.
+
+```yaml
+models:
+  - name: product_metrics
+    description: "Product metrics and categorization"
+    config:
+      meta:
+        owner: "kevin-g"
+```
+
+Asset metadata is collected from the result of the node's execution.
+
+```json
+{
+  "node_path": "marts/product/product_metrics.sql",
+  "node_name": "product_metrics",
+  "unique_id": "model.demo.product_metrics",
+  "resource_type": "model",
+  "materialized": "table",
+  "node_status": "error",
+  "node_started_at": "2025-06-26T20:55:05.661126",
+  "node_finished_at": "2025-06-26T20:55:05.733257",
+  "meta": {
+    "owner": "kevin-g"
+  },
+  "node_relation": {
+    "database": "dev",
+    "schema": "main_marts",
+    "alias": "product_metrics",
+    "relation_name": "\"dev\".\"main_marts\".\"product_metrics\""
+  }
+}
+```
+
+Optionally, the compiled code of a dbt model can be appended to the asset description.
+
+```python
+from prefect import flow
+from prefect_dbt import PrefectDbtRunner
+
+
+@flow
+def run_dbt():
+    PrefectDbtRunner(include_compiled_code=True).invoke(["build"])
+
+
+if __name__ == "__main__":
+    run_dbt()
+```
+
+
 #### dbt settings
 
-The `PrefectDbtSettings` class, based on Pydantic's `BaseSettings` class, automatically detects common `DBT_`-prefixed environment variables, like `DBT_PROFILES_DIR` and `DBT_PROJECT_DIR`.
+The `PrefectDbtSettings` class, based on Pydantic's `BaseSettings` class, automatically detects `DBT_`-prefixed environment variables that have a direct effect on the `PrefectDbtRunner` class.
 If no environment variables are set, dbt's defaults are used.
 
 Provide a `PrefectDbtSettings` instance to `PrefectDbtRunner` to customize dbt settings or override environment variables.
@@ -165,6 +257,36 @@ def run_dbt():
         settings=PrefectDbtSettings(
             project_dir="test",
             profiles_dir="examples/run_dbt"
+        )
+    ).invoke(["build"])
+
+
+if __name__ == "__main__":
+    run_dbt()
+```
+
+#### Logging
+
+The `PrefectDbtRunner` class maps all dbt log levels to standard Python logging levels, so filtering for log levels like `WARNING` or `ERROR` in the Prefect UI applies to dbt's logs.
+
+By default, the logging level used by dbt is Prefect's logging level, which can be configured using the `PREFECT_LOGGING_LEVEL` Prefect setting.
+
+The dbt logging level can be set independently from Prefect's by using the `DBT_LOG_LEVEL` environment variable, setting `log_level` in `PrefectDbtSettings`, or passing the `--log-level` flag or `log_level` kwarg to `.invoke()`.
+Only logging levels of higher severity (more restrictive) than Prefect's logging level will have an effect.
+
+```python
+from dbt_common.events.base_types import EventLevel
+from prefect import flow
+from prefect_dbt import PrefectDbtRunner, PrefectDbtSettings
+
+
+@flow
+def run_dbt():
+    PrefectDbtRunner(
+        settings=PrefectDbtSettings(
+            project_dir="test",
+            profiles_dir="examples/run_dbt",
+            log_level=EventLevel.ERROR, # explicitly choose a higher log level for dbt
         )
     ).invoke(["build"])
 
@@ -202,21 +324,16 @@ example:
   target: "{{ prefect.variables.target }}"
 ```
 
-#### Logging
-
-The `PrefectDbtRunner` class maps all dbt log levels to standard Python logging levels, so filtering for log levels like `WARNING` or `ERROR` in the Prefect UI applies to dbt's logs.
-It also selects the appropriate logging target based on the invocation context: logging to a Prefect run logger when executed within a flow or task, and logging directly to the terminal when run outside of a flow or task.
-
 #### Failure handling
 
-The `PrefectDbtRunner` class raises exceptions with standardized messages containing detailed information about the failure.
+By default, any dbt node execution failures cause the entire dbt run to raise an exception with a message containing detailed information about the failure.
 
 ```
 Failures detected during invocation of dbt command 'build':
 Test not_null_my_first_dbt_model_id failed with message: "Got 1 result, configured to fail if != 0"
 ```
 
-It also offers a `raise_on_failure` option to control whether non-exception dbt failures, like failed tests, are raised as exceptions.
+The `PrefectDbtRunner`'s `raise_on_failure` option can be set to `False` to prevent failures in dbt from causing the failure of the flow or task in which `.invoke()` is called.
 
 ```python
 from prefect import flow
@@ -234,81 +351,14 @@ if __name__ == "__main__":
     run_dbt()
 ```
 
-#### Events
-
-The `PrefectDbtRunner` automatically emits Prefect events for completed dbt nodes with status information.
-
-An event for a skipped model may look like this, for example:
-
-```json
-{
-  "event": "my_second_dbt_model skipped",
-  "occurred": "2025-02-06T17:05:02.614Z",
-  "payload": {
-    "node_info": {
-      "node_path": "test/my_second_dbt_model.sql",
-      "node_name": "my_second_dbt_model",
-      "unique_id": "model.test.my_second_dbt_model",
-      "resource_type": "model",
-      "materialized": "view",
-      "node_status": "skipped",
-      "node_started_at": "2025-02-06T17:05:02.614034",
-      "meta": {},
-      "node_relation": {
-        "database": "dev",
-        "schema": "main",
-        "alias": "my_second_dbt_model",
-        "relation_name": "\"dev\".\"main\".\"my_second_dbt_model\""
-      }
-    },
-    "run_result": {
-      "status": "skipped",
-      "thread": "Thread-2 (worker)",
-      "adapter_response": {}
-    }
-  },
-  "received": "2025-02-06T17:05:02.843Z",
-  "resource": {
-    "prefect.resource.id": "dbt.model.test.my_second_dbt_model",
-    "prefect.resource.name": "my_second_dbt_model",
-    "dbt.node.status": "skipped"
-  },
-  "workspace": "87a4870c-8152-46cb-93aa-06482f9aa1df"
-}
-```
-
-These events contain both the `node_info` and `run_result` for processed nodes in your dbt project, as well as the final status of the node's execution in the primary resource.
-This enables you to set up alerting for specific node states through Prefect's automations system.
-To be notified when this model is skipped, the following automation trigger could be set up:
-
-```json
-{
-  "type": "event",
-  "match": {
-    "prefect.resource.id": [
-      "dbt.model.test.my_second_dbt_model"
-    ],
-    "dbt.node.status": "skipped"
-  },
-  "match_related": {},
-  "after": [],
-  "expect": [
-    "my_second_dbt_model skipped"
-  ],
-  "for_each": [],
-  "posture": "Reactive",
-  "threshold": 1,
-  "within": 0
-}
-```
 
 #### Native dbt configuration
 
-You can disable these features for all resources in your dbt project config, or for specific resources in their own config:
+You can disable automatic asset lineage detection for all resources in your dbt project config, or for specific resources in their own config:
 
 ```yaml
 prefect:
-  emit_events: False
+  enable_assets: False
 ```
 
 ### prefect-dbt 0.6.6 and earlier
