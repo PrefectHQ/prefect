@@ -102,7 +102,7 @@ class PrefectDbtRunner:
             non-exception failure
         client: Optional Prefect client instance
         include_compiled_code: Whether to include compiled code in the asset description
-        force_nodes_as_tasks: Whether to force each dbt node execution to have a Prefect task
+        _force_nodes_as_tasks: Whether to force each dbt node execution to have a Prefect task
             representation when `.invoke()` is called outside of a flow or task run
     """
 
@@ -113,14 +113,15 @@ class PrefectDbtRunner:
         raise_on_failure: bool = True,
         client: Optional[PrefectClient] = None,
         include_compiled_code: bool = False,
-        force_nodes_as_tasks: bool = False,
+        _force_nodes_as_tasks: bool = False,
     ):
         self._manifest: Optional[Manifest] = manifest
         self.settings = settings or PrefectDbtSettings()
         self.raise_on_failure = raise_on_failure
         self.client = client or get_client()
         self.include_compiled_code = include_compiled_code
-        self.force_nodes_as_tasks = force_nodes_as_tasks
+
+        self._force_nodes_as_tasks = _force_nodes_as_tasks
 
         self._target_path: Optional[Path] = None
         self._profiles_dir: Optional[Path] = None
@@ -503,7 +504,7 @@ class PrefectDbtRunner:
                 self._create_node_started_callback(task_state, context),
                 self._create_node_finished_callback(task_state),
             ]
-            if in_flow_or_task_run or self.force_nodes_as_tasks
+            if in_flow_or_task_run or self._force_nodes_as_tasks
             else []
         )
 

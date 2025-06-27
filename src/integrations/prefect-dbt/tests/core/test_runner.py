@@ -298,7 +298,7 @@ class TestPrefectDbtRunner:
         self, monkeypatch: pytest.MonkeyPatch
     ):
         """Test that runner adds callbacks when force_nodes_as_tasks is True."""
-        runner = PrefectDbtRunner(force_nodes_as_tasks=True)
+        runner = PrefectDbtRunner(_force_nodes_as_tasks=True)
 
         mock_result = Mock()
         mock_result.success = True
@@ -466,7 +466,7 @@ class TestPrefectDbtRunner:
         self, monkeypatch: pytest.MonkeyPatch
     ):
         """Test that runner uses original log_level when force_nodes_as_tasks is True but not in context."""
-        runner = PrefectDbtRunner(force_nodes_as_tasks=True)
+        runner = PrefectDbtRunner(_force_nodes_as_tasks=True)
 
         mock_result = Mock()
         mock_result.success = True
@@ -503,7 +503,7 @@ class TestPrefectDbtRunner:
         self, monkeypatch: pytest.MonkeyPatch
     ):
         """Test that runner behavior when force_nodes_as_tasks is True and in flow context."""
-        runner = PrefectDbtRunner(force_nodes_as_tasks=True)
+        runner = PrefectDbtRunner(_force_nodes_as_tasks=True)
 
         mock_result = Mock()
         mock_result.success = True
@@ -562,7 +562,7 @@ class TestPrefectDbtRunner:
         self, monkeypatch: pytest.MonkeyPatch
     ):
         """Test that runner behavior when force_nodes_as_tasks is True and in task context."""
-        runner = PrefectDbtRunner(force_nodes_as_tasks=True)
+        runner = PrefectDbtRunner(_force_nodes_as_tasks=True)
 
         mock_result = Mock()
         mock_result.success = True
