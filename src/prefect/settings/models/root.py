@@ -62,7 +62,7 @@ class Settings(PrefectBaseSettings):
         default_factory=default_profiles_path,
         description=(
             "The path to a profiles configuration file. Supports $PREFECT_HOME templating."
-            " Defaults to <home>/profiles.toml."
+            " Defaults to $PREFECT_HOME/profiles.toml."
         ),
     )
 

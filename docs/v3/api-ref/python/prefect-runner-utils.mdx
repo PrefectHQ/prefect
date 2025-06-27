@@ -7,7 +7,7 @@ sidebarTitle: utils
 
 ## Functions
 
-### `inject_schemas_into_openapi` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/runner/utils.py#L12"><Icon icon="github" size="14" /></a></sup>
+### `inject_schemas_into_openapi` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/runner/utils.py#L12" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 inject_schemas_into_openapi(webserver: FastAPI, schemas_to_inject: dict[Hashable, Any]) -> dict[str, Any]
@@ -24,7 +24,7 @@ Augments the webserver's OpenAPI schema with additional schemas from deployments
 - The augmented OpenAPI schema dictionary.
 
 
-### `merge_definitions` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/runner/utils.py#L33"><Icon icon="github" size="14" /></a></sup>
+### `merge_definitions` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/runner/utils.py#L33" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 merge_definitions(injected_schemas: dict[Hashable, Any], openapi_schema: dict[str, Any]) -> dict[str, Any]
@@ -38,7 +38,7 @@ Integrates definitions from injected schemas into the OpenAPI components.
 - `openapi_schema`: The base OpenAPI schema to update.
 
 
-### `update_refs_in_schema` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/runner/utils.py#L56"><Icon icon="github" size="14" /></a></sup>
+### `update_refs_in_schema` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/runner/utils.py#L56" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 update_refs_in_schema(schema_item: dict[str, Any] | list[Any], new_ref: str) -> None
@@ -52,7 +52,7 @@ Recursively replaces `$ref` with a new reference base in a schema item.
 - `new_ref`: The new base string to replace in `$ref` values.
 
 
-### `update_refs_to_components` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/runner/utils.py#L76"><Icon icon="github" size="14" /></a></sup>
+### `update_refs_to_components` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/runner/utils.py#L76" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 update_refs_to_components(openapi_schema: dict[str, Any]) -> dict[str, Any]

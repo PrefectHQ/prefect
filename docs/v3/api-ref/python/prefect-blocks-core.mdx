@@ -7,7 +7,7 @@ sidebarTitle: core
 
 ## Functions
 
-### `block_schema_to_key` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/blocks/core.py#L82"><Icon icon="github" size="14" /></a></sup>
+### `block_schema_to_key` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/blocks/core.py#L82" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 block_schema_to_key(schema: BlockSchema) -> str
@@ -17,7 +17,7 @@ block_schema_to_key(schema: BlockSchema) -> str
 Defines the unique key used to lookup the Block class for a given schema.
 
 
-### `schema_extra` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/blocks/core.py#L238"><Icon icon="github" size="14" /></a></sup>
+### `schema_extra` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/blocks/core.py#L256" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 schema_extra(schema: dict[str, Any], model: type['Block']) -> None
@@ -29,27 +29,27 @@ Customizes Pydantic's schema generation feature to add blocks related informatio
 
 ## Classes
 
-### `InvalidBlockRegistration` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/blocks/core.py#L91"><Icon icon="github" size="14" /></a></sup>
+### `InvalidBlockRegistration` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/blocks/core.py#L91" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 
 Raised on attempted registration of the base Block
 class or a Block interface class
 
 
-### `UnknownBlockType` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/blocks/core.py#L98"><Icon icon="github" size="14" /></a></sup>
+### `UnknownBlockType` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/blocks/core.py#L98" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 
 Raised when a block type is not found in the registry.
 
 
-### `BlockNotSavedError` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/blocks/core.py#L229"><Icon icon="github" size="14" /></a></sup>
+### `BlockNotSavedError` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/blocks/core.py#L247" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 
 Raised when a given block is not saved and an operation that requires
 the block to be saved is attempted.
 
 
-### `Block` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/blocks/core.py#L289"><Icon icon="github" size="14" /></a></sup>
+### `Block` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/blocks/core.py#L307" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 
 A base class for implementing a block that wraps an external service.
@@ -69,31 +69,31 @@ initialization.
 
 **Methods:**
 
-#### `block_initialization` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/blocks/core.py#L325"><Icon icon="github" size="14" /></a></sup>
+#### `block_initialization` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/blocks/core.py#L343" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 block_initialization(self) -> None
 ```
 
-#### `ser_model` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/blocks/core.py#L368"><Icon icon="github" size="14" /></a></sup>
+#### `ser_model` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/blocks/core.py#L386" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 ser_model(self, handler: SerializerFunctionWrapHandler, info: SerializationInfo) -> Any
 ```
 
-#### `get_block_type_name` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/blocks/core.py#L395"><Icon icon="github" size="14" /></a></sup>
+#### `get_block_type_name` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/blocks/core.py#L424" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 get_block_type_name(cls) -> str
 ```
 
-#### `get_block_type_slug` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/blocks/core.py#L399"><Icon icon="github" size="14" /></a></sup>
+#### `get_block_type_slug` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/blocks/core.py#L428" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 get_block_type_slug(cls) -> str
 ```
 
-#### `get_block_capabilities` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/blocks/core.py#L403"><Icon icon="github" size="14" /></a></sup>
+#### `get_block_capabilities` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/blocks/core.py#L432" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 get_block_capabilities(cls) -> FrozenSet[str]
@@ -103,13 +103,13 @@ Returns the block capabilities for this Block. Recursively collects all block
 capabilities of all parent classes into a single frozenset.
 
 
-#### `get_block_schema_version` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/blocks/core.py#L433"><Icon icon="github" size="14" /></a></sup>
+#### `get_block_schema_version` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/blocks/core.py#L462" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 get_block_schema_version(cls) -> str
 ```
 
-#### `get_description` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/blocks/core.py#L611"><Icon icon="github" size="14" /></a></sup>
+#### `get_description` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/blocks/core.py#L682" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 get_description(cls) -> Optional[str]
@@ -119,7 +119,7 @@ Returns the description for the current block. Attempts to parse
 description from class docstring if an override is not defined.
 
 
-#### `get_code_example` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/blocks/core.py#L634"><Icon icon="github" size="14" /></a></sup>
+#### `get_code_example` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/blocks/core.py#L705" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 get_code_example(cls) -> Optional[str]
@@ -129,7 +129,7 @@ Returns the code example for the given block. Attempts to parse
 code example from the class docstring if an override is not provided.
 
 
-#### `get_block_class_from_schema` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/blocks/core.py#L779"><Icon icon="github" size="14" /></a></sup>
+#### `get_block_class_from_schema` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/blocks/core.py#L850" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 get_block_class_from_schema(cls: type[Self], schema: BlockSchema) -> type[Self]
@@ -138,7 +138,7 @@ get_block_class_from_schema(cls: type[Self], schema: BlockSchema) -> type[Self]
 Retrieve the block class implementation given a schema.
 
 
-#### `get_block_class_from_key` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/blocks/core.py#L786"><Icon icon="github" size="14" /></a></sup>
+#### `get_block_class_from_key` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/blocks/core.py#L857" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 get_block_class_from_key(cls: type[Self], key: str) -> type[Self]
@@ -147,7 +147,7 @@ get_block_class_from_key(cls: type[Self], key: str) -> type[Self]
 Retrieve the block class implementation given a key.
 
 
-#### `load` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/blocks/core.py#L1005"><Icon icon="github" size="14" /></a></sup>
+#### `load` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/blocks/core.py#L1076" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 load(cls, name: str, validate: bool = True, client: Optional['PrefectClient'] = None) -> 'Self'
@@ -229,19 +229,19 @@ loaded_block.save("my-custom-message", overwrite=True)
 ```
 
 
-#### `is_block_class` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/blocks/core.py#L1227"><Icon icon="github" size="14" /></a></sup>
+#### `is_block_class` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/blocks/core.py#L1298" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 is_block_class(block: Any) -> TypeGuard[type['Block']]
 ```
 
-#### `annotation_refers_to_block_class` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/blocks/core.py#L1231"><Icon icon="github" size="14" /></a></sup>
+#### `annotation_refers_to_block_class` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/blocks/core.py#L1302" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 annotation_refers_to_block_class(annotation: Any) -> bool
 ```
 
-#### `get_block_placeholder` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/blocks/core.py#L1484"><Icon icon="github" size="14" /></a></sup>
+#### `get_block_placeholder` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/blocks/core.py#L1555" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 get_block_placeholder(self) -> str
@@ -260,7 +260,7 @@ templating.
 If a block has not been saved, the return value will be `None`.
 
 
-#### `model_json_schema` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/blocks/core.py#L1507"><Icon icon="github" size="14" /></a></sup>
+#### `model_json_schema` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/blocks/core.py#L1578" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 model_json_schema(cls, by_alias: bool = True, ref_template: str = '#/definitions/{model}', schema_generator: type[GenerateJsonSchema] = GenerateJsonSchema, mode: Literal['validation', 'serialization'] = 'validation') -> dict[str, Any]
@@ -269,13 +269,13 @@ model_json_schema(cls, by_alias: bool = True, ref_template: str = '#/definitions
 TODO\: stop overriding this method - use GenerateSchema in ConfigDict instead?
 
 
-#### `model_validate` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/blocks/core.py#L1527"><Icon icon="github" size="14" /></a></sup>
+#### `model_validate` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/blocks/core.py#L1598" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 model_validate(cls: type[Self], obj: dict[str, Any] | Any) -> Self
 ```
 
-#### `model_dump` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/blocks/core.py#L1552"><Icon icon="github" size="14" /></a></sup>
+#### `model_dump` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/blocks/core.py#L1623" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 model_dump(self) -> dict[str, Any]

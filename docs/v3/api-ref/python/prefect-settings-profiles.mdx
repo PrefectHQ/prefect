@@ -7,7 +7,7 @@ sidebarTitle: profiles
 
 ## Functions
 
-### `load_profiles` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/settings/profiles.py#L302"><Icon icon="github" size="14" /></a></sup>
+### `load_profiles` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/settings/profiles.py#L302" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 load_profiles(include_defaults: bool = True) -> ProfilesCollection
@@ -18,7 +18,7 @@ Load profiles from the current profile path. Optionally include profiles from th
 default profile path.
 
 
-### `load_current_profile` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/settings/profiles.py#L341"><Icon icon="github" size="14" /></a></sup>
+### `load_current_profile` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/settings/profiles.py#L341" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 load_current_profile() -> Profile
@@ -31,7 +31,7 @@ This will _not_ include settings from the current settings context. Only setting
 that have been persisted to the profiles file will be saved.
 
 
-### `save_profiles` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/settings/profiles.py#L359"><Icon icon="github" size="14" /></a></sup>
+### `save_profiles` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/settings/profiles.py#L359" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 save_profiles(profiles: ProfilesCollection) -> None
@@ -41,7 +41,7 @@ save_profiles(profiles: ProfilesCollection) -> None
 Writes all non-default profiles to the current profiles path.
 
 
-### `load_profile` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/settings/profiles.py#L369"><Icon icon="github" size="14" /></a></sup>
+### `load_profile` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/settings/profiles.py#L369" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 load_profile(name: str) -> Profile
@@ -51,7 +51,7 @@ load_profile(name: str) -> Profile
 Load a single profile by name.
 
 
-### `update_current_profile` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/settings/profiles.py#L380"><Icon icon="github" size="14" /></a></sup>
+### `update_current_profile` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/settings/profiles.py#L380" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 update_current_profile(settings: dict[str | Setting, Any]) -> Profile
@@ -71,7 +71,7 @@ Given settings will be merged with the existing settings as described in
 
 ## Classes
 
-### `Profile` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/settings/profiles.py#L55"><Icon icon="github" size="14" /></a></sup>
+### `Profile` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/settings/profiles.py#L55" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 
 A user profile containing settings.
@@ -79,7 +79,7 @@ A user profile containing settings.
 
 **Methods:**
 
-#### `to_environment_variables` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/settings/profiles.py#L68"><Icon icon="github" size="14" /></a></sup>
+#### `to_environment_variables` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/settings/profiles.py#L68" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 to_environment_variables(self) -> dict[str, str]
@@ -88,7 +88,7 @@ to_environment_variables(self) -> dict[str, str]
 Convert the profile settings to a dictionary of environment variables.
 
 
-#### `validate_settings` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/settings/profiles.py#L76"><Icon icon="github" size="14" /></a></sup>
+#### `validate_settings` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/settings/profiles.py#L76" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 validate_settings(self) -> None
@@ -98,7 +98,7 @@ Validate all settings in this profile by creating a partial Settings object
 with the nested structure properly constructed using accessor paths.
 
 
-### `ProfilesCollection` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/settings/profiles.py#L113"><Icon icon="github" size="14" /></a></sup>
+### `ProfilesCollection` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/settings/profiles.py#L113" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 
 "
@@ -111,7 +111,7 @@ The collection may store the name of the active profile.
 
 **Methods:**
 
-#### `names` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/settings/profiles.py#L129"><Icon icon="github" size="14" /></a></sup>
+#### `names` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/settings/profiles.py#L129" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 names(self) -> set[str]
@@ -120,7 +120,7 @@ names(self) -> set[str]
 Return a set of profile names in this collection.
 
 
-#### `active_profile` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/settings/profiles.py#L136"><Icon icon="github" size="14" /></a></sup>
+#### `active_profile` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/settings/profiles.py#L136" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 active_profile(self) -> Profile | None
@@ -129,7 +129,7 @@ active_profile(self) -> Profile | None
 Retrieve the active profile in this collection.
 
 
-#### `set_active` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/settings/profiles.py#L144"><Icon icon="github" size="14" /></a></sup>
+#### `set_active` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/settings/profiles.py#L144" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 set_active(self, name: str | None, check: bool = True) -> None
@@ -141,7 +141,7 @@ A null value may be passed to indicate that this collection does not determine
 the active profile.
 
 
-#### `update_profile` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/settings/profiles.py#L155"><Icon icon="github" size="14" /></a></sup>
+#### `update_profile` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/settings/profiles.py#L155" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 update_profile(self, name: str, settings: dict[Setting, Any], source: Path | None = None) -> Profile
@@ -157,7 +157,7 @@ profile.
 Returns the new profile object.
 
 
-#### `add_profile` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/settings/profiles.py#L196"><Icon icon="github" size="14" /></a></sup>
+#### `add_profile` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/settings/profiles.py#L196" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 add_profile(self, profile: Profile) -> None
@@ -168,7 +168,7 @@ Add a profile to the collection.
 If the profile name already exists, an exception will be raised.
 
 
-#### `remove_profile` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/settings/profiles.py#L209"><Icon icon="github" size="14" /></a></sup>
+#### `remove_profile` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/settings/profiles.py#L209" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 remove_profile(self, name: str) -> None
@@ -177,7 +177,7 @@ remove_profile(self, name: str) -> None
 Remove a profile from the collection.
 
 
-#### `without_profile_source` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/settings/profiles.py#L215"><Icon icon="github" size="14" /></a></sup>
+#### `without_profile_source` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/settings/profiles.py#L215" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 without_profile_source(self, path: Path | None) -> 'ProfilesCollection'
@@ -188,7 +188,7 @@ Remove profiles that were loaded from a given path.
 Returns a new collection.
 
 
-#### `to_dict` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/settings/profiles.py#L230"><Icon icon="github" size="14" /></a></sup>
+#### `to_dict` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/settings/profiles.py#L230" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 to_dict(self) -> dict[str, Any]
@@ -197,7 +197,7 @@ to_dict(self) -> dict[str, Any]
 Convert to a dictionary suitable for writing to disk.
 
 
-#### `items` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/settings/profiles.py#L248"><Icon icon="github" size="14" /></a></sup>
+#### `items` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/settings/profiles.py#L248" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 items(self) -> list[tuple[str, Profile]]
