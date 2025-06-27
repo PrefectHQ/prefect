@@ -175,7 +175,9 @@ if __name__ == "__main__":
 ```
 </Warning>
 
-#### Assets and data lineage
+#### Assets
+
+Prefect Cloud maintains a graph of [assets](/concepts/assets), objects produced by your workflows.
 
 Any dbt seed, source or model will appear on your asset graph in Prefect Cloud once it has been executed using the `PrefectDbtRunner`.
 The upstream dependencies of an asset materialized by `prefect-dbt` are derived from the `depends_on` field in dbt's `manifest.json`.
