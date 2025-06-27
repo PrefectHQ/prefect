@@ -101,6 +101,35 @@ my_flow.serve(
 
 You can create a schedule through the interactive `prefect deploy` command. You will be prompted to choose which type of schedule to create.
 
+You can also create schedules for existing deployments using the `prefect deployment schedule create` command. This command allows you to specify schedule details directly without going through the interactive flow.
+
+<Note>
+By default `prefect deployment schedule create` adds _additional_ schedules to your deployment. 
+Use the `--replace` flag to remove old schedules and update with the new one.
+</Note>
+
+**Examples:**
+
+Create a cron schedule that runs every day at 9 AM:
+```bash
+prefect deployment schedule create my-deployment --cron "0 9 * * *"
+```
+
+Create an interval schedule that runs every 30 minutes:
+```bash
+prefect deployment schedule create my-deployment --interval 1800
+```
+
+Create a schedule with a specific timezone:
+```bash
+prefect deployment schedule create my-deployment --cron "0 9 * * *" --timezone "America/New_York"
+```
+
+Replace all existing schedules with a new one:
+```bash
+prefect deployment schedule create my-deployment --cron "0 9 * * *" --replace
+```
+
 ### Create schedules in YAML
 
 If you save the `prefect.yaml` file from the `prefect deploy` command, you will see it has a `schedules` section for your deployment.
