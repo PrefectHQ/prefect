@@ -7,21 +7,21 @@ sidebarTitle: filters
 
 ## Classes
 
-### `AutomationFilterCreated` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/events/filters.py#L17"><Icon icon="github" size="14" /></a></sup>
+### `AutomationFilterCreated` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/events/filters.py#L17" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 
 Filter by `Automation.created`.
 
 
-### `AutomationFilterName` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/events/filters.py#L26"><Icon icon="github" size="14" /></a></sup>
+### `AutomationFilterName` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/events/filters.py#L26" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 
 Filter by `Automation.created`.
 
 
-### `AutomationFilter` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/events/filters.py#L35"><Icon icon="github" size="14" /></a></sup>
+### `AutomationFilter` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/events/filters.py#L35" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
-### `EventDataFilter` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/events/filters.py#L44"><Icon icon="github" size="14" /></a></sup>
+### `EventDataFilter` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/events/filters.py#L44" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 
 A base class for filtering event data.
@@ -29,13 +29,13 @@ A base class for filtering event data.
 
 **Methods:**
 
-#### `get_filters` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/events/filters.py#L47"><Icon icon="github" size="14" /></a></sup>
+#### `get_filters` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/events/filters.py#L47" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 get_filters(self) -> list['EventDataFilter']
 ```
 
-#### `includes` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/events/filters.py#L65"><Icon icon="github" size="14" /></a></sup>
+#### `includes` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/events/filters.py#L65" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 includes(self, event: Event) -> bool
@@ -44,7 +44,7 @@ includes(self, event: Event) -> bool
 Does the given event match the criteria of this filter?
 
 
-#### `excludes` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/events/filters.py#L69"><Icon icon="github" size="14" /></a></sup>
+#### `excludes` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/events/filters.py#L69" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 excludes(self, event: Event) -> bool
@@ -53,58 +53,58 @@ excludes(self, event: Event) -> bool
 Would the given filter exclude this event?
 
 
-### `EventOccurredFilter` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/events/filters.py#L74"><Icon icon="github" size="14" /></a></sup>
+### `EventOccurredFilter` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/events/filters.py#L74" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 **Methods:**
 
-#### `includes` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/events/filters.py#L87"><Icon icon="github" size="14" /></a></sup>
+#### `includes` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/events/filters.py#L87" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 includes(self, event: Event) -> bool
 ```
 
-### `EventNameFilter` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/events/filters.py#L91"><Icon icon="github" size="14" /></a></sup>
+### `EventNameFilter` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/events/filters.py#L91" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 **Methods:**
 
-#### `includes` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/events/filters.py#L107"><Icon icon="github" size="14" /></a></sup>
+#### `includes` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/events/filters.py#L107" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 includes(self, event: Event) -> bool
 ```
 
-### `EventResourceFilter` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/events/filters.py#L127"><Icon icon="github" size="14" /></a></sup>
+### `EventResourceFilter` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/events/filters.py#L127" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 **Methods:**
 
-#### `includes` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/events/filters.py#L145"><Icon icon="github" size="14" /></a></sup>
+#### `includes` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/events/filters.py#L145" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 includes(self, event: Event) -> bool
 ```
 
-### `EventRelatedFilter` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/events/filters.py#L163"><Icon icon="github" size="14" /></a></sup>
+### `EventRelatedFilter` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/events/filters.py#L163" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
-### `EventAnyResourceFilter` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/events/filters.py#L184"><Icon icon="github" size="14" /></a></sup>
+### `EventAnyResourceFilter` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/events/filters.py#L184" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 **Methods:**
 
-#### `includes` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/events/filters.py#L199"><Icon icon="github" size="14" /></a></sup>
+#### `includes` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/events/filters.py#L199" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 includes(self, event: Event) -> bool
 ```
 
-### `EventIDFilter` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/events/filters.py#L221"><Icon icon="github" size="14" /></a></sup>
+### `EventIDFilter` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/events/filters.py#L221" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 **Methods:**
 
-#### `includes` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/events/filters.py#L226"><Icon icon="github" size="14" /></a></sup>
+#### `includes` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/events/filters.py#L226" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 includes(self, event: Event) -> bool
 ```
 
-### `EventOrder` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/events/filters.py#L234"><Icon icon="github" size="14" /></a></sup>
+### `EventOrder` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/events/filters.py#L234" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
-### `EventFilter` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/events/filters.py#L239"><Icon icon="github" size="14" /></a></sup>
+### `EventFilter` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/events/filters.py#L239" target="_blank"><Icon icon="github" size="14" /></a></sup>

@@ -16,7 +16,7 @@ For more user-accessible information about the current run, see [`prefect.runtim
 
 ## Functions
 
-### `serialize_context` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/context.py#L63"><Icon icon="github" size="14" /></a></sup>
+### `serialize_context` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/context.py#L63" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 serialize_context(asset_ctx_kwargs: Union[dict[str, Any], None] = None) -> dict[str, Any]
@@ -30,13 +30,13 @@ in the remote execution environment. This is useful for TaskRunners, who rely on
 task run in the remote environment.
 
 
-### `hydrated_context` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/context.py#L92"><Icon icon="github" size="14" /></a></sup>
+### `hydrated_context` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/context.py#L92" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 hydrated_context(serialized_context: Optional[dict[str, Any]] = None, client: Union[PrefectClient, SyncPrefectClient, None] = None) -> Generator[None, Any, None]
 ```
 
-### `get_run_context` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/context.py#L741"><Icon icon="github" size="14" /></a></sup>
+### `get_run_context` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/context.py#L741" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 get_run_context() -> Union[FlowRunContext, TaskRunContext]
@@ -52,7 +52,7 @@ Get the current run context from within a task or flow function.
 - `RuntimeError`: If called outside of a flow or task run.
 
 
-### `get_settings_context` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/context.py#L764"><Icon icon="github" size="14" /></a></sup>
+### `get_settings_context` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/context.py#L764" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 get_settings_context() -> SettingsContext
@@ -66,7 +66,7 @@ Generally, the settings that are being used are a combination of values from the
 profile and environment. See `prefect.context.use_profile` for more details.
 
 
-### `tags` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/context.py#L781"><Icon icon="github" size="14" /></a></sup>
+### `tags` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/context.py#L781" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 tags(*new_tags: str) -> Generator[set[str], None, None]
@@ -112,7 +112,7 @@ Inspect the current tags
 {"a", "b", "c", "d", "e", "f"}
 
 
-### `use_profile` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/context.py#L838"><Icon icon="github" size="14" /></a></sup>
+### `use_profile` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/context.py#L838" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 use_profile(profile: Union[Profile, str], override_environment_variables: bool = False, include_current_context: bool = True) -> Generator[SettingsContext, Any, None]
@@ -133,7 +133,7 @@ with the current settings context as a base. If not set, the use_base settings
 will be loaded from the environment and defaults.
 
 
-### `root_settings_context` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/context.py#L890"><Icon icon="github" size="14" /></a></sup>
+### `root_settings_context` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/context.py#L890" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 root_settings_context() -> SettingsContext
@@ -150,7 +150,7 @@ The profile to use is determined with the following precedence
 
 ## Classes
 
-### `ContextModel` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/context.py#L144"><Icon icon="github" size="14" /></a></sup>
+### `ContextModel` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/context.py#L144" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 
 A base model for context data that forbids mutation and extra data while providing
@@ -159,7 +159,7 @@ a context manager
 
 **Methods:**
 
-#### `get` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/context.py#L179"><Icon icon="github" size="14" /></a></sup>
+#### `get` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/context.py#L179" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 get(cls: type[Self]) -> Optional[Self]
@@ -168,7 +168,7 @@ get(cls: type[Self]) -> Optional[Self]
 Get the current context instance
 
 
-#### `model_copy` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/context.py#L183"><Icon icon="github" size="14" /></a></sup>
+#### `model_copy` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/context.py#L183" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 model_copy(self: Self) -> Self
@@ -180,7 +180,7 @@ Duplicate the context model, optionally choosing which fields to include, exclud
 - A new model instance.
 
 
-#### `serialize` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/context.py#L204"><Icon icon="github" size="14" /></a></sup>
+#### `serialize` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/context.py#L204" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 serialize(self, include_secrets: bool = True) -> dict[str, Any]
@@ -189,7 +189,7 @@ serialize(self, include_secrets: bool = True) -> dict[str, Any]
 Serialize the context model to a dictionary that can be pickled with cloudpickle.
 
 
-### `SyncClientContext` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/context.py#L213"><Icon icon="github" size="14" /></a></sup>
+### `SyncClientContext` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/context.py#L213" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 
 A context for managing the sync Prefect client instances.
@@ -212,13 +212,13 @@ with SyncClientContext.get_or_create() as ctx:
 
 **Methods:**
 
-#### `get_or_create` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/context.py#L262"><Icon icon="github" size="14" /></a></sup>
+#### `get_or_create` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/context.py#L262" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 get_or_create(cls) -> Generator[Self, None, None]
 ```
 
-### `AsyncClientContext` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/context.py#L271"><Icon icon="github" size="14" /></a></sup>
+### `AsyncClientContext` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/context.py#L271" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 
 A context for managing the async Prefect client instances.
@@ -239,7 +239,7 @@ with AsyncClientContext.get_or_create() as ctx:
     assert c1 is ctx.client
 
 
-### `RunContext` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/context.py#L329"><Icon icon="github" size="14" /></a></sup>
+### `RunContext` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/context.py#L329" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 
 The base context for a flow or task run. Data in this context will always be
@@ -248,13 +248,13 @@ available when `get_run_context` is called.
 
 **Methods:**
 
-#### `serialize` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/context.py#L350"><Icon icon="github" size="14" /></a></sup>
+#### `serialize` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/context.py#L350" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 serialize(self: Self, include_secrets: bool = True) -> dict[str, Any]
 ```
 
-### `EngineContext` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/context.py#L358"><Icon icon="github" size="14" /></a></sup>
+### `EngineContext` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/context.py#L358" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 
 The context for a flow run. Data in this context is only available from within a
@@ -263,13 +263,13 @@ flow run function.
 
 **Methods:**
 
-#### `serialize` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/context.py#L412"><Icon icon="github" size="14" /></a></sup>
+#### `serialize` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/context.py#L412" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 serialize(self: Self, include_secrets: bool = True) -> dict[str, Any]
 ```
 
-### `TaskRunContext` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/context.py#L438"><Icon icon="github" size="14" /></a></sup>
+### `TaskRunContext` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/context.py#L438" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 
 The context for a task run. Data in this context is only available from within a
@@ -278,13 +278,13 @@ task run function.
 
 **Methods:**
 
-#### `serialize` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/context.py#L459"><Icon icon="github" size="14" /></a></sup>
+#### `serialize` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/context.py#L459" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 serialize(self: Self, include_secrets: bool = True) -> dict[str, Any]
 ```
 
-### `AssetContext` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/context.py#L477"><Icon icon="github" size="14" /></a></sup>
+### `AssetContext` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/context.py#L477" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 
 The asset context for a materializing task run. Contains all asset-related information needed
@@ -293,7 +293,7 @@ for asset event emission and downstream asset dependency propagation.
 
 **Methods:**
 
-#### `from_task_and_inputs` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/context.py#L502"><Icon icon="github" size="14" /></a></sup>
+#### `from_task_and_inputs` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/context.py#L502" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 from_task_and_inputs(cls, task: 'Task[Any, Any]', task_run_id: UUID, task_inputs: Optional[dict[str, set[Any]]] = None, copy_to_child_ctx: bool = False) -> 'AssetContext'
@@ -311,7 +311,7 @@ Create an AssetContext from a task and its resolved inputs.
 - Configured AssetContext
 
 
-#### `add_asset_metadata` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/context.py#L558"><Icon icon="github" size="14" /></a></sup>
+#### `add_asset_metadata` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/context.py#L558" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 add_asset_metadata(self, asset_key: str, metadata: dict[str, Any]) -> None
@@ -327,7 +327,7 @@ Add metadata for a materialized asset.
 - `ValueError`: If asset_key is not in downstream_assets
 
 
-#### `asset_as_resource` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/context.py#L579"><Icon icon="github" size="14" /></a></sup>
+#### `asset_as_resource` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/context.py#L579" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 asset_as_resource(asset: Asset) -> dict[str, str]
@@ -336,7 +336,7 @@ asset_as_resource(asset: Asset) -> dict[str, str]
 Convert Asset to event resource format.
 
 
-#### `asset_as_related` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/context.py#L601"><Icon icon="github" size="14" /></a></sup>
+#### `asset_as_related` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/context.py#L601" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 asset_as_related(asset: Asset) -> dict[str, str]
@@ -345,7 +345,7 @@ asset_as_related(asset: Asset) -> dict[str, str]
 Convert Asset to event related format.
 
 
-#### `related_materialized_by` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/context.py#L609"><Icon icon="github" size="14" /></a></sup>
+#### `related_materialized_by` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/context.py#L609" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 related_materialized_by(by: str) -> dict[str, str]
@@ -354,7 +354,7 @@ related_materialized_by(by: str) -> dict[str, str]
 Create a related resource for the tool that performed the materialization
 
 
-#### `emit_events` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/context.py#L616"><Icon icon="github" size="14" /></a></sup>
+#### `emit_events` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/context.py#L616" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 emit_events(self, state: State) -> None
@@ -363,7 +363,7 @@ emit_events(self, state: State) -> None
 Emit asset events
 
 
-#### `update_tracked_assets` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/context.py#L659"><Icon icon="github" size="14" /></a></sup>
+#### `update_tracked_assets` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/context.py#L659" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 update_tracked_assets(self) -> None
@@ -372,7 +372,7 @@ update_tracked_assets(self) -> None
 Update the flow run context with assets that should be propagated downstream.
 
 
-#### `serialize` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/context.py#L680"><Icon icon="github" size="14" /></a></sup>
+#### `serialize` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/context.py#L680" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 serialize(self: Self, include_secrets: bool = True) -> dict[str, Any]
@@ -381,7 +381,7 @@ serialize(self: Self, include_secrets: bool = True) -> dict[str, Any]
 Serialize the AssetContext for distributed execution.
 
 
-### `TagsContext` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/context.py#L692"><Icon icon="github" size="14" /></a></sup>
+### `TagsContext` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/context.py#L692" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 
 The context for `prefect.tags` management.
@@ -389,13 +389,13 @@ The context for `prefect.tags` management.
 
 **Methods:**
 
-#### `get` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/context.py#L703"><Icon icon="github" size="14" /></a></sup>
+#### `get` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/context.py#L703" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 get(cls) -> Self
 ```
 
-### `SettingsContext` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/context.py#L710"><Icon icon="github" size="14" /></a></sup>
+### `SettingsContext` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/context.py#L710" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 
 The context for a Prefect settings.
@@ -405,7 +405,7 @@ This allows for safe concurrent access and modification of settings.
 
 **Methods:**
 
-#### `get` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/context.py#L730"><Icon icon="github" size="14" /></a></sup>
+#### `get` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/context.py#L730" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 get(cls) -> Optional['SettingsContext']

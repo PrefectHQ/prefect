@@ -40,7 +40,7 @@ class ResultsSettings(PrefectBaseSettings):
 
     local_storage_path: Path = Field(
         default_factory=default_local_storage_path,
-        description="The default location for locally persisted results. Defaults to <home>/storage.",
+        description="The default location for locally persisted results. Defaults to $PREFECT_HOME/storage.",
         validation_alias=AliasChoices(
             AliasPath("local_storage_path"),
             "prefect_results_local_storage_path",

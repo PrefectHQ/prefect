@@ -443,7 +443,7 @@
                     "type": "string"
                 },
                 "config_path": {
-                    "description": "A path to a logging configuration file. Defaults to <home>/logging.yml",
+                    "description": "A path to a logging configuration file. Defaults to $PREFECT_HOME/logging.yml",
                     "format": "path",
                     "supported_environment_variables": [
                         "PREFECT_LOGGING_CONFIG_PATH",
@@ -605,7 +605,7 @@
                     "title": "Default Storage Block"
                 },
                 "local_storage_path": {
-                    "description": "The default location for locally persisted results. Defaults to <home>/storage.",
+                    "description": "The default location for locally persisted results. Defaults to $PREFECT_HOME/storage.",
                     "format": "path",
                     "supported_environment_variables": [
                         "PREFECT_RESULTS_LOCAL_STORAGE_PATH",
@@ -1964,7 +1964,7 @@
                     "type": "boolean"
                 },
                 "memo_store_path": {
-                    "description": "Path to the memo store file. Defaults to <home>/memo_store.toml",
+                    "description": "Path to the memo store file. Defaults to $PREFECT_HOME/memo_store.toml",
                     "format": "path",
                     "supported_environment_variables": [
                         "PREFECT_SERVER_MEMO_STORE_PATH",
@@ -2447,7 +2447,7 @@
             "type": "string"
         },
         "profiles_path": {
-            "description": "The path to a profiles configuration file. Supports $PREFECT_HOME templating. Defaults to <home>/profiles.toml.",
+            "description": "The path to a profiles configuration file. Supports $PREFECT_HOME templating. Defaults to $PREFECT_HOME/profiles.toml.",
             "format": "path",
             "supported_environment_variables": [
                 "PREFECT_PROFILES_PATH"

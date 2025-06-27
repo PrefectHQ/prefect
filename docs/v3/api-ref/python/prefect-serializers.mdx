@@ -21,7 +21,7 @@ bytes to an object respectively.
 
 ## Functions
 
-### `prefect_json_object_encoder` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/serializers.py#L44"><Icon icon="github" size="14" /></a></sup>
+### `prefect_json_object_encoder` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/serializers.py#L44" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 prefect_json_object_encoder(obj: Any) -> Any
@@ -33,7 +33,7 @@ prefect_json_object_encoder(obj: Any) -> Any
 Raises a `TypeError` to fallback on other encoders on failure.
 
 
-### `prefect_json_object_decoder` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/serializers.py#L67"><Icon icon="github" size="14" /></a></sup>
+### `prefect_json_object_decoder` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/serializers.py#L67" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 prefect_json_object_decoder(result: dict[str, Any]) -> Any
@@ -46,7 +46,7 @@ with `prefect_json_object_encoder`
 
 ## Classes
 
-### `Serializer` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/serializers.py#L86"><Icon icon="github" size="14" /></a></sup>
+### `Serializer` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/serializers.py#L86" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 
 A serializer that can encode objects of type 'D' into bytes.
@@ -54,7 +54,7 @@ A serializer that can encode objects of type 'D' into bytes.
 
 **Methods:**
 
-#### `dumps` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/serializers.py#L121"><Icon icon="github" size="14" /></a></sup>
+#### `dumps` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/serializers.py#L121" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 dumps(self, obj: D) -> bytes
@@ -63,7 +63,7 @@ dumps(self, obj: D) -> bytes
 Encode the object into a blob of bytes.
 
 
-#### `loads` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/serializers.py#L125"><Icon icon="github" size="14" /></a></sup>
+#### `loads` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/serializers.py#L125" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 loads(self, blob: bytes) -> D
@@ -72,7 +72,7 @@ loads(self, blob: bytes) -> D
 Decode the blob of bytes into an object.
 
 
-### `PickleSerializer` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/serializers.py#L137"><Icon icon="github" size="14" /></a></sup>
+### `PickleSerializer` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/serializers.py#L137" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 
 Serializes objects using the pickle protocol.
@@ -85,25 +85,25 @@ Serializes objects using the pickle protocol.
 
 **Methods:**
 
-#### `check_picklelib` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/serializers.py#L153"><Icon icon="github" size="14" /></a></sup>
+#### `check_picklelib` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/serializers.py#L153" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 check_picklelib(cls, value: str) -> str
 ```
 
-#### `dumps` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/serializers.py#L156"><Icon icon="github" size="14" /></a></sup>
+#### `dumps` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/serializers.py#L156" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 dumps(self, obj: D) -> bytes
 ```
 
-#### `loads` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/serializers.py#L161"><Icon icon="github" size="14" /></a></sup>
+#### `loads` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/serializers.py#L161" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 loads(self, blob: bytes) -> D
 ```
 
-### `JSONSerializer` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/serializers.py#L166"><Icon icon="github" size="14" /></a></sup>
+### `JSONSerializer` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/serializers.py#L166" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 
 Serializes data to JSON.
@@ -115,31 +115,31 @@ Wraps the `json` library to serialize to UTF-8 bytes instead of string types.
 
 **Methods:**
 
-#### `dumps_kwargs_cannot_contain_default` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/serializers.py#L199"><Icon icon="github" size="14" /></a></sup>
+#### `dumps_kwargs_cannot_contain_default` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/serializers.py#L199" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 dumps_kwargs_cannot_contain_default(cls, value: dict[str, Any]) -> dict[str, Any]
 ```
 
-#### `loads_kwargs_cannot_contain_object_hook` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/serializers.py#L205"><Icon icon="github" size="14" /></a></sup>
+#### `loads_kwargs_cannot_contain_object_hook` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/serializers.py#L205" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 loads_kwargs_cannot_contain_object_hook(cls, value: dict[str, Any]) -> dict[str, Any]
 ```
 
-#### `dumps` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/serializers.py#L210"><Icon icon="github" size="14" /></a></sup>
+#### `dumps` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/serializers.py#L210" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 dumps(self, obj: D) -> bytes
 ```
 
-#### `loads` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/serializers.py#L221"><Icon icon="github" size="14" /></a></sup>
+#### `loads` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/serializers.py#L221" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 loads(self, blob: bytes) -> D
 ```
 
-### `CompressedSerializer` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/serializers.py#L229"><Icon icon="github" size="14" /></a></sup>
+### `CompressedSerializer` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/serializers.py#L229" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 
 Wraps another serializer, compressing its output.
@@ -148,37 +148,37 @@ Uses `lzma` by default. See `compressionlib` for using alternative libraries.
 
 **Methods:**
 
-#### `validate_serializer` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/serializers.py#L247"><Icon icon="github" size="14" /></a></sup>
+#### `validate_serializer` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/serializers.py#L247" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 validate_serializer(cls, value: Union[str, Serializer[D]]) -> Serializer[D]
 ```
 
-#### `check_compressionlib` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/serializers.py#L251"><Icon icon="github" size="14" /></a></sup>
+#### `check_compressionlib` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/serializers.py#L251" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 check_compressionlib(cls, value: str) -> str
 ```
 
-#### `dumps` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/serializers.py#L254"><Icon icon="github" size="14" /></a></sup>
+#### `dumps` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/serializers.py#L254" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 dumps(self, obj: D) -> bytes
 ```
 
-#### `loads` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/serializers.py#L259"><Icon icon="github" size="14" /></a></sup>
+#### `loads` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/serializers.py#L259" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 loads(self, blob: bytes) -> D
 ```
 
-### `CompressedPickleSerializer` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/serializers.py#L265"><Icon icon="github" size="14" /></a></sup>
+### `CompressedPickleSerializer` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/serializers.py#L265" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 
 A compressed serializer preconfigured to use the pickle serializer.
 
 
-### `CompressedJSONSerializer` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/serializers.py#L275"><Icon icon="github" size="14" /></a></sup>
+### `CompressedJSONSerializer` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/serializers.py#L275" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 
 A compressed serializer preconfigured to use the json serializer.
