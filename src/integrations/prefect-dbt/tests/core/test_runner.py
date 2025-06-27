@@ -28,7 +28,7 @@ class TestPrefectDbtRunner:
         assert isinstance(runner.settings, PrefectDbtSettings)
         assert runner.raise_on_failure is True
         assert runner.client is not None
-        assert runner.force_nodes_as_tasks is False
+        assert runner._force_nodes_as_tasks is False
 
     def test_runner_accepts_custom_configuration(self):
         """Test that runner accepts and uses custom configuration."""
@@ -42,7 +42,7 @@ class TestPrefectDbtRunner:
             raise_on_failure=False,
             client=custom_client,
             include_compiled_code=True,
-            force_nodes_as_tasks=True,
+            _force_nodes_as_tasks=True,
         )
 
         # Verify custom configuration is used
@@ -50,7 +50,7 @@ class TestPrefectDbtRunner:
         assert runner.raise_on_failure is False
         assert runner.client == custom_client
         assert runner.include_compiled_code is True
-        assert runner.force_nodes_as_tasks is True
+        assert runner._force_nodes_as_tasks is True
 
     def test_runner_handles_manifest_loading_successfully(
         self, monkeypatch: pytest.MonkeyPatch
@@ -340,7 +340,7 @@ class TestPrefectDbtRunner:
 
         assert result == mock_result
         mock_dbt_runner_instance.invoke.assert_called_once()
-        # Verify callbacks are added when force_nodes_as_tasks is True
+        # Verify callbacks are added when _force_nodes_as_tasks is True
         mock_dbt_runner_class.assert_called_once_with(
             callbacks=[
                 mock_logging_callback,
@@ -494,7 +494,7 @@ class TestPrefectDbtRunner:
 
         assert result == mock_result
         mock_dbt_runner_instance.invoke.assert_called_once()
-        # Verify log_level uses the original level even with force_nodes_as_tasks
+        # Verify log_level uses the original level even with _force_nodes_as_tasks
         call_kwargs = mock_dbt_runner_instance.invoke.call_args[1]
         assert call_kwargs["log_level"] == runner.log_level
         assert call_kwargs["log_level_file"] == runner.log_level
@@ -502,7 +502,7 @@ class TestPrefectDbtRunner:
     def test_runner_force_nodes_as_tasks_with_flow_context(
         self, monkeypatch: pytest.MonkeyPatch
     ):
-        """Test that runner behavior when force_nodes_as_tasks is True and in flow context."""
+        """Test that runner behavior when _force_nodes_as_tasks is True and in flow context."""
         runner = PrefectDbtRunner(_force_nodes_as_tasks=True)
 
         mock_result = Mock()
@@ -561,7 +561,7 @@ class TestPrefectDbtRunner:
     def test_runner_force_nodes_as_tasks_with_task_context(
         self, monkeypatch: pytest.MonkeyPatch
     ):
-        """Test that runner behavior when force_nodes_as_tasks is True and in task context."""
+        """Test that runner behavior when _force_nodes_as_tasks is True and in task context."""
         runner = PrefectDbtRunner(_force_nodes_as_tasks=True)
 
         mock_result = Mock()
