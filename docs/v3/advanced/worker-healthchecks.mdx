@@ -1,0 +1,149 @@
+---
+title: How to configure worker healthchecks
+sidebarTitle: Worker Healthchecks
+description: Learn how to monitor worker health and automatically restart workers when they become unresponsive.
+---
+
+Worker healthchecks provide a way to monitor whether your Prefect workers are functioning properly and polling for work as expected. This is particularly useful in production environments where you need to ensure workers are available to execute scheduled flow runs.
+
+## Overview
+
+Worker healthchecks work by:
+
+1. **Tracking polling activity**: Workers record when they last polled for flow runs from their work pool
+2. **Exposing a health endpoint**: When enabled, workers start an HTTP server that provides health status
+3. **Detecting unresponsive workers**: The health endpoint returns an error status if the worker hasn't polled recently
+
+This allows external monitoring systems, container orchestrators, or process managers to detect and restart unhealthy workers automatically.
+
+## Enabling Healthchecks
+
+Start a worker with healthchecks enabled using the `--with-healthcheck` flag:
+
+```bash
+prefect worker start --pool "my-pool" --with-healthcheck
+```
+
+This starts both the worker and a lightweight HTTP health server that exposes a `/health` endpoint. 
+When enabled, the worker exposes an HTTP endpoint at:
+
+```
+http://localhost:8080/health
+```
+
+For GET requests the endpoint returns:
+
+- **200 OK** with `{"message": "OK"}` when the worker is healthy
+- **503 Service Unavailable** with `{"message": "Worker may be unresponsive at this time"}` when the worker is unhealthy
+
+### Configuring the Health Server
+
+You can customize the health server's host and port using environment variables:
+
+```bash
+export PREFECT_WORKER_WEBSERVER_HOST=0.0.0.0
+export PREFECT_WORKER_WEBSERVER_PORT=9090
+prefect worker start --pool "my-pool" --with-healthcheck
+```
+
+## Health Detection Logic
+
+A worker is considered unhealthy if it hasn't polled for flow runs within a specific timeframe defined by its configured polling interval. The health check algorithm works as follows:
+
+If a worker hasn't made a successful poll within the time window of `PREFECT_WORKER_QUERY_SECONDS * 30` seconds, it is considered unhealthy 
+and its health endpoint will return 503 (Service Unavailable). With default settings, a worker is unhealthy if it hasn't polled in 450 seconds (7.5 minutes). 
+
+This generous threshold accounts for temporary network issues, API unavailability, or brief worker pauses without triggering false alarms.
+
+## Production Deployment Patterns
+
+### Docker with Health Checks
+
+Use Docker's built-in health check functionality by including these lines in your Dockerfile:
+
+```dockerfile
+# Health check configuration
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+  CMD curl -f http://localhost:8080/health || exit 1
+
+# Start worker with healthcheck
+CMD ["prefect", "worker", "start", "--pool", "my-pool", "--with-healthcheck"]
+```
+
+For more information see [Docker's reference guide](https://docs.docker.com/reference/dockerfile/#healthcheck).
+
+### Kubernetes with Liveness Probes
+
+Configure Kubernetes to automatically restart unhealthy worker pods by including this configuration in your worker deployment:
+
+```yaml
+livenessProbe:
+  httpGet:
+    path: /health
+    port: 8080
+  initialDelaySeconds: 60
+  periodSeconds: 30
+  timeoutSeconds: 10
+  failureThreshold: 3
+```
+
+This is enabled by default when using [Prefect's Helm Chart](v3/advanced/server-helm).
+
+### Docker Compose with Health Checks
+
+Use Docker Compose's built-in health check functionality by including these lines in your Docker compose file:
+
+```yaml
+version: '3.8'
+services:
+  prefect-worker:
+    image: my-prefect-worker:latest
+    command: ["prefect", "worker", "start", "--pool", "my-pool", "--with-healthcheck"]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    restart: unless-stopped
+```
+
+For more information see [Docker Compose's reference guide](https://docs.docker.com/reference/compose-file/services/#healthcheck).
+
+## Troubleshooting
+
+### Health endpoint not accessible
+- Verify the worker was started with `--with-healthcheck`
+- Check that the configured host/port is accessible (default: `http://localhost:8080/health`)
+- Ensure no firewall rules are blocking the health port
+- Port 8080 may conflict with other services - change with `PREFECT_WORKER_WEBSERVER_PORT`
+- Verify configuration: `prefect config view --show-defaults | grep WORKER`
+
+### Worker appears healthy but not picking up flows
+- Health checks only verify polling activity, not successful flow execution
+- Check work pool and work queue configuration: ensure worker is polling the correct pool/queue
+- Verify deployment configuration matches worker capabilities
+- Review flow run states - flows may be stuck in PENDING due to concurrency limits
+- Enable debug logging: set `PREFECT_LOGGING_LEVEL=DEBUG` on the worker to see detailed polling activity
+- Increase polling frequency temporarily: `PREFECT_WORKER_QUERY_SECONDS=5`
+
+### False positive health failures
+- Increase `PREFECT_WORKER_QUERY_SECONDS` if your API has high latency
+- Check for network connectivity issues between worker and Prefect API
+- Review worker logs for authentication or authorization errors (API key issues)
+- Verify `PREFECT_API_URL` is correctly configured and accessible
+- Check for temporary API outages or [rate limiting](v3/concepts/rate-limits)
+
+## Related Configuration
+
+Relevant settings for worker health and polling behavior:
+
+- `PREFECT_WORKER_HEARTBEAT_SECONDS`: How often workers send heartbeats to the API (default: 30)
+- `PREFECT_WORKER_QUERY_SECONDS`: How often workers poll for new flow runs (default: 15)  
+- `PREFECT_WORKER_PREFETCH_SECONDS`: How far in advance to submit flow runs (default: 10)
+- `PREFECT_WORKER_WEBSERVER_HOST`: Health server host (default: 127.0.0.1)
+- `PREFECT_WORKER_WEBSERVER_PORT`: Health server port (default: 8080)
+
+## Further Reading
+
+For more information on worker configuration, see the [Workers concept guide](/v3/concepts/workers/).

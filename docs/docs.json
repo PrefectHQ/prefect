@@ -212,6 +212,7 @@
           {
             "group": "Workflow Infrastructure",
             "pages": [
+              "v3/advanced/worker-healthchecks",
               "v3/advanced/daemonize-processes",
               "v3/advanced/submit-flows-directly-to-dynamic-infrastructure"
             ]
