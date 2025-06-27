@@ -9,6 +9,7 @@ import pytest
 from dbt.artifacts.resources.types import NodeType
 from dbt.artifacts.schemas.results import RunStatus
 from dbt.artifacts.schemas.run import RunExecutionResult
+from dbt.config.runtime import RuntimeConfig
 from dbt.contracts.graph.manifest import Manifest
 from dbt.contracts.graph.nodes import ManifestNode
 from dbt_common.events.base_types import EventLevel, EventMsg
@@ -28,6 +29,7 @@ class TestPrefectDbtRunner:
         assert isinstance(runner.settings, PrefectDbtSettings)
         assert runner.raise_on_failure is True
         assert runner.client is not None
+        assert runner._force_nodes_as_tasks is False
 
     def test_runner_accepts_custom_configuration(self):
         """Test that runner accepts and uses custom configuration."""
@@ -41,6 +43,7 @@ class TestPrefectDbtRunner:
             raise_on_failure=False,
             client=custom_client,
             include_compiled_code=True,
+            _force_nodes_as_tasks=True,
         )
 
         # Verify custom configuration is used
@@ -48,6 +51,7 @@ class TestPrefectDbtRunner:
         assert runner.raise_on_failure is False
         assert runner.client == custom_client
         assert runner.include_compiled_code is True
+        assert runner._force_nodes_as_tasks is True
 
     def test_runner_handles_manifest_loading_successfully(
         self, monkeypatch: pytest.MonkeyPatch
@@ -168,10 +172,488 @@ class TestPrefectDbtRunner:
         monkeypatch.setattr(runner, "_create_node_started_callback", Mock())
         monkeypatch.setattr(runner, "_create_node_finished_callback", Mock())
 
+        # Mock context to simulate no flow/task run
+        monkeypatch.setattr(
+            "prefect_dbt.core.runner.serialize_context", Mock(return_value={})
+        )
+
         result = runner.invoke(["run"])
 
         assert result == mock_result
         mock_dbt_runner_instance.invoke.assert_called_once()
+        # No assertion about callbacks in invoke call; callbacks are passed to dbtRunner constructor only.
+
+    def test_runner_invokes_dbt_with_callbacks_in_flow_context(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        """Test that runner adds callbacks when in flow context."""
+        runner = PrefectDbtRunner()
+
+        mock_result = Mock()
+        mock_result.success = True
+        mock_result.exception = None
+
+        mock_dbt_runner_instance = Mock()
+        mock_dbt_runner_instance.invoke.return_value = mock_result
+
+        mock_dbt_runner_class = Mock(return_value=mock_dbt_runner_instance)
+        monkeypatch.setattr(
+            "prefect_dbt.core.runner.dbtRunner",
+            mock_dbt_runner_class,
+        )
+
+        # Mock the callback methods
+        mock_logging_callback = Mock()
+        mock_node_started_callback = Mock()
+        mock_node_finished_callback = Mock()
+        monkeypatch.setattr(
+            runner, "_create_logging_callback", Mock(return_value=mock_logging_callback)
+        )
+        monkeypatch.setattr(
+            runner,
+            "_create_node_started_callback",
+            Mock(return_value=mock_node_started_callback),
+        )
+        monkeypatch.setattr(
+            runner,
+            "_create_node_finished_callback",
+            Mock(return_value=mock_node_finished_callback),
+        )
+
+        # Mock context to simulate flow run (non-empty dict)
+        monkeypatch.setattr(
+            "prefect_dbt.core.runner.serialize_context",
+            Mock(return_value={"flow_run_context": {"foo": "bar"}}),
+        )
+
+        result = runner.invoke(["run"])
+
+        assert result == mock_result
+        mock_dbt_runner_instance.invoke.assert_called_once()
+        # Verify callbacks are added when in flow context
+        mock_dbt_runner_class.assert_called_once_with(
+            callbacks=[
+                mock_logging_callback,
+                mock_node_started_callback,
+                mock_node_finished_callback,
+            ]
+        )
+
+    def test_runner_invokes_dbt_with_callbacks_in_task_context(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        """Test that runner adds callbacks when in task context."""
+        runner = PrefectDbtRunner()
+
+        mock_result = Mock()
+        mock_result.success = True
+        mock_result.exception = None
+
+        mock_dbt_runner_instance = Mock()
+        mock_dbt_runner_instance.invoke.return_value = mock_result
+
+        mock_dbt_runner_class = Mock(return_value=mock_dbt_runner_instance)
+        monkeypatch.setattr(
+            "prefect_dbt.core.runner.dbtRunner",
+            mock_dbt_runner_class,
+        )
+
+        # Mock the callback methods
+        mock_logging_callback = Mock()
+        mock_node_started_callback = Mock()
+        mock_node_finished_callback = Mock()
+        monkeypatch.setattr(
+            runner, "_create_logging_callback", Mock(return_value=mock_logging_callback)
+        )
+        monkeypatch.setattr(
+            runner,
+            "_create_node_started_callback",
+            Mock(return_value=mock_node_started_callback),
+        )
+        monkeypatch.setattr(
+            runner,
+            "_create_node_finished_callback",
+            Mock(return_value=mock_node_finished_callback),
+        )
+
+        # Mock context to simulate task run (non-empty dict)
+        monkeypatch.setattr(
+            "prefect_dbt.core.runner.serialize_context",
+            Mock(return_value={"task_run_context": {"foo": "bar"}}),
+        )
+
+        result = runner.invoke(["run"])
+
+        assert result == mock_result
+        mock_dbt_runner_instance.invoke.assert_called_once()
+        # Verify callbacks are added when in task context
+        mock_dbt_runner_class.assert_called_once_with(
+            callbacks=[
+                mock_logging_callback,
+                mock_node_started_callback,
+                mock_node_finished_callback,
+            ]
+        )
+
+    def test_runner_invokes_dbt_with_force_nodes_as_tasks(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        """Test that runner adds callbacks when force_nodes_as_tasks is True."""
+        runner = PrefectDbtRunner(_force_nodes_as_tasks=True)
+
+        mock_result = Mock()
+        mock_result.success = True
+        mock_result.exception = None
+
+        mock_dbt_runner_instance = Mock()
+        mock_dbt_runner_instance.invoke.return_value = mock_result
+
+        mock_dbt_runner_class = Mock(return_value=mock_dbt_runner_instance)
+        monkeypatch.setattr(
+            "prefect_dbt.core.runner.dbtRunner",
+            mock_dbt_runner_class,
+        )
+
+        # Mock the callback methods
+        mock_logging_callback = Mock()
+        mock_node_started_callback = Mock()
+        mock_node_finished_callback = Mock()
+        monkeypatch.setattr(
+            runner, "_create_logging_callback", Mock(return_value=mock_logging_callback)
+        )
+        monkeypatch.setattr(
+            runner,
+            "_create_node_started_callback",
+            Mock(return_value=mock_node_started_callback),
+        )
+        monkeypatch.setattr(
+            runner,
+            "_create_node_finished_callback",
+            Mock(return_value=mock_node_finished_callback),
+        )
+
+        # Mock context to simulate no flow/task run
+        monkeypatch.setattr(
+            "prefect_dbt.core.runner.serialize_context", Mock(return_value={})
+        )
+
+        result = runner.invoke(["run"])
+
+        assert result == mock_result
+        mock_dbt_runner_instance.invoke.assert_called_once()
+        # Verify callbacks are added when _force_nodes_as_tasks is True
+        mock_dbt_runner_class.assert_called_once_with(
+            callbacks=[
+                mock_logging_callback,
+                mock_node_started_callback,
+                mock_node_finished_callback,
+            ]
+        )
+
+    def test_runner_sets_log_level_none_in_flow_context(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        """Test that runner sets log_level to 'none' when in flow context."""
+        runner = PrefectDbtRunner()
+
+        mock_result = Mock()
+        mock_result.success = True
+        mock_result.exception = None
+
+        mock_dbt_runner_instance = Mock()
+        mock_dbt_runner_instance.invoke.return_value = mock_result
+
+        monkeypatch.setattr(
+            "prefect_dbt.core.runner.dbtRunner",
+            Mock(return_value=mock_dbt_runner_instance),
+        )
+
+        # Mock the callback methods
+        monkeypatch.setattr(runner, "_create_logging_callback", Mock())
+        monkeypatch.setattr(runner, "_create_node_started_callback", Mock())
+        monkeypatch.setattr(runner, "_create_node_finished_callback", Mock())
+
+        # Mock context to simulate flow run (non-empty dict)
+        monkeypatch.setattr(
+            "prefect_dbt.core.runner.serialize_context",
+            Mock(return_value={"flow_run_context": {"foo": "bar"}}),
+        )
+
+        result = runner.invoke(["run"])
+
+        assert result == mock_result
+        mock_dbt_runner_instance.invoke.assert_called_once()
+        # Verify log_level is set to 'none' and log_level_file uses the original level as string
+        call_kwargs = mock_dbt_runner_instance.invoke.call_args[1]
+        assert call_kwargs["log_level"] == "none"
+        assert call_kwargs["log_level_file"] == runner.log_level.value
+
+    def test_runner_sets_log_level_none_in_task_context(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        """Test that runner sets log_level to 'none' when in task context."""
+        runner = PrefectDbtRunner()
+
+        mock_result = Mock()
+        mock_result.success = True
+        mock_result.exception = None
+
+        mock_dbt_runner_instance = Mock()
+        mock_dbt_runner_instance.invoke.return_value = mock_result
+
+        monkeypatch.setattr(
+            "prefect_dbt.core.runner.dbtRunner",
+            Mock(return_value=mock_dbt_runner_instance),
+        )
+
+        # Mock the callback methods
+        monkeypatch.setattr(runner, "_create_logging_callback", Mock())
+        monkeypatch.setattr(runner, "_create_node_started_callback", Mock())
+        monkeypatch.setattr(runner, "_create_node_finished_callback", Mock())
+
+        # Mock context to simulate task run (non-empty dict)
+        monkeypatch.setattr(
+            "prefect_dbt.core.runner.serialize_context",
+            Mock(return_value={"task_run_context": {"foo": "bar"}}),
+        )
+
+        result = runner.invoke(["run"])
+
+        assert result == mock_result
+        mock_dbt_runner_instance.invoke.assert_called_once()
+        # Verify log_level is set to 'none' and log_level_file uses the original level as string
+        call_kwargs = mock_dbt_runner_instance.invoke.call_args[1]
+        assert call_kwargs["log_level"] == "none"
+        assert call_kwargs["log_level_file"] == runner.log_level.value
+
+    def test_runner_uses_original_log_level_outside_context(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        """Test that runner uses original log_level when not in flow/task context."""
+        runner = PrefectDbtRunner()
+
+        mock_result = Mock()
+        mock_result.success = True
+        mock_result.exception = None
+
+        mock_dbt_runner_instance = Mock()
+        mock_dbt_runner_instance.invoke.return_value = mock_result
+
+        monkeypatch.setattr(
+            "prefect_dbt.core.runner.dbtRunner",
+            Mock(return_value=mock_dbt_runner_instance),
+        )
+
+        # Mock the callback methods
+        monkeypatch.setattr(runner, "_create_logging_callback", Mock())
+        monkeypatch.setattr(runner, "_create_node_started_callback", Mock())
+        monkeypatch.setattr(runner, "_create_node_finished_callback", Mock())
+
+        # Mock context to simulate no flow/task run
+        monkeypatch.setattr(
+            "prefect_dbt.core.runner.serialize_context", Mock(return_value={})
+        )
+
+        result = runner.invoke(["run"])
+
+        assert result == mock_result
+        mock_dbt_runner_instance.invoke.assert_called_once()
+        # Verify log_level uses the original level when not in context
+        call_kwargs = mock_dbt_runner_instance.invoke.call_args[1]
+        assert call_kwargs["log_level"] == runner.log_level
+        assert call_kwargs["log_level_file"] == runner.log_level
+
+    def test_runner_uses_original_log_level_with_force_nodes_as_tasks(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        """Test that runner uses original log_level when force_nodes_as_tasks is True but not in context."""
+        runner = PrefectDbtRunner(_force_nodes_as_tasks=True)
+
+        mock_result = Mock()
+        mock_result.success = True
+        mock_result.exception = None
+
+        mock_dbt_runner_instance = Mock()
+        mock_dbt_runner_instance.invoke.return_value = mock_result
+
+        monkeypatch.setattr(
+            "prefect_dbt.core.runner.dbtRunner",
+            Mock(return_value=mock_dbt_runner_instance),
+        )
+
+        # Mock the callback methods
+        monkeypatch.setattr(runner, "_create_logging_callback", Mock())
+        monkeypatch.setattr(runner, "_create_node_started_callback", Mock())
+        monkeypatch.setattr(runner, "_create_node_finished_callback", Mock())
+
+        # Mock context to simulate no flow/task run
+        monkeypatch.setattr(
+            "prefect_dbt.core.runner.serialize_context", Mock(return_value={})
+        )
+
+        result = runner.invoke(["run"])
+
+        assert result == mock_result
+        mock_dbt_runner_instance.invoke.assert_called_once()
+        # Verify log_level uses the original level even with _force_nodes_as_tasks
+        call_kwargs = mock_dbt_runner_instance.invoke.call_args[1]
+        assert call_kwargs["log_level"] == runner.log_level
+        assert call_kwargs["log_level_file"] == runner.log_level
+
+    def test_runner_force_nodes_as_tasks_with_flow_context(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        """Test that runner behavior when _force_nodes_as_tasks is True and in flow context."""
+        runner = PrefectDbtRunner(_force_nodes_as_tasks=True)
+
+        mock_result = Mock()
+        mock_result.success = True
+        mock_result.exception = None
+
+        mock_dbt_runner_instance = Mock()
+        mock_dbt_runner_instance.invoke.return_value = mock_result
+
+        mock_dbt_runner_class = Mock(return_value=mock_dbt_runner_instance)
+        monkeypatch.setattr(
+            "prefect_dbt.core.runner.dbtRunner",
+            mock_dbt_runner_class,
+        )
+
+        # Mock the callback methods
+        mock_logging_callback = Mock()
+        mock_node_started_callback = Mock()
+        mock_node_finished_callback = Mock()
+        monkeypatch.setattr(
+            runner, "_create_logging_callback", Mock(return_value=mock_logging_callback)
+        )
+        monkeypatch.setattr(
+            runner,
+            "_create_node_started_callback",
+            Mock(return_value=mock_node_started_callback),
+        )
+        monkeypatch.setattr(
+            runner,
+            "_create_node_finished_callback",
+            Mock(return_value=mock_node_finished_callback),
+        )
+
+        # Mock context to simulate flow run (non-empty dict)
+        monkeypatch.setattr(
+            "prefect_dbt.core.runner.serialize_context",
+            Mock(return_value={"flow_run_context": {"foo": "bar"}}),
+        )
+
+        result = runner.invoke(["run"])
+
+        assert result == mock_result
+        mock_dbt_runner_instance.invoke.assert_called_once()
+        # Verify callbacks are added and log_level is 'none' when in flow context
+        mock_dbt_runner_class.assert_called_once_with(
+            callbacks=[
+                mock_logging_callback,
+                mock_node_started_callback,
+                mock_node_finished_callback,
+            ]
+        )
+        call_kwargs = mock_dbt_runner_instance.invoke.call_args[1]
+        assert call_kwargs["log_level"] == "none"
+        assert call_kwargs["log_level_file"] == runner.log_level
+
+    def test_runner_force_nodes_as_tasks_with_task_context(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        """Test that runner behavior when _force_nodes_as_tasks is True and in task context."""
+        runner = PrefectDbtRunner(_force_nodes_as_tasks=True)
+
+        mock_result = Mock()
+        mock_result.success = True
+        mock_result.exception = None
+
+        mock_dbt_runner_instance = Mock()
+        mock_dbt_runner_instance.invoke.return_value = mock_result
+
+        mock_dbt_runner_class = Mock(return_value=mock_dbt_runner_instance)
+        monkeypatch.setattr(
+            "prefect_dbt.core.runner.dbtRunner",
+            mock_dbt_runner_class,
+        )
+
+        # Mock the callback methods
+        mock_logging_callback = Mock()
+        mock_node_started_callback = Mock()
+        mock_node_finished_callback = Mock()
+        monkeypatch.setattr(
+            runner, "_create_logging_callback", Mock(return_value=mock_logging_callback)
+        )
+        monkeypatch.setattr(
+            runner,
+            "_create_node_started_callback",
+            Mock(return_value=mock_node_started_callback),
+        )
+        monkeypatch.setattr(
+            runner,
+            "_create_node_finished_callback",
+            Mock(return_value=mock_node_finished_callback),
+        )
+
+        # Mock context to simulate task run (non-empty dict)
+        monkeypatch.setattr(
+            "prefect_dbt.core.runner.serialize_context",
+            Mock(return_value={"task_run_context": {"foo": "bar"}}),
+        )
+
+        result = runner.invoke(["run"])
+
+        assert result == mock_result
+        mock_dbt_runner_instance.invoke.assert_called_once()
+        # Verify callbacks are added and log_level is 'none' when in task context
+        mock_dbt_runner_class.assert_called_once_with(
+            callbacks=[
+                mock_logging_callback,
+                mock_node_started_callback,
+                mock_node_finished_callback,
+            ]
+        )
+        call_kwargs = mock_dbt_runner_instance.invoke.call_args[1]
+        assert call_kwargs["log_level"] == "none"
+        assert call_kwargs["log_level_file"] == runner.log_level
+
+    def test_runner_context_detection_edge_cases(self, monkeypatch: pytest.MonkeyPatch):
+        """Test edge cases for context detection."""
+        runner = PrefectDbtRunner()
+
+        mock_result = Mock()
+        mock_result.success = True
+        mock_result.exception = None
+
+        mock_dbt_runner_instance = Mock()
+        mock_dbt_runner_instance.invoke.return_value = mock_result
+
+        mock_dbt_runner_class = Mock(return_value=mock_dbt_runner_instance)
+        monkeypatch.setattr(
+            "prefect_dbt.core.runner.dbtRunner",
+            mock_dbt_runner_class,
+        )
+
+        # Mock the callback methods
+        monkeypatch.setattr(runner, "_create_logging_callback", Mock())
+        monkeypatch.setattr(runner, "_create_node_started_callback", Mock())
+        monkeypatch.setattr(runner, "_create_node_finished_callback", Mock())
+
+        # Test with None values in context
+        monkeypatch.setattr(
+            "prefect_dbt.core.runner.serialize_context",
+            Mock(return_value={"flow_run_context": None, "task_run_context": None}),
+        )
+
+        result = runner.invoke(["run"])
+
+        assert result == mock_result
+        mock_dbt_runner_instance.invoke.assert_called_once()
+        # Verify no callbacks when context values are None
+        mock_dbt_runner_class.assert_called_once_with(callbacks=[])
+        call_kwargs = mock_dbt_runner_instance.invoke.call_args[1]
+        assert call_kwargs["log_level"] == runner.log_level
 
     def test_runner_handles_dbt_exceptions(self, monkeypatch: pytest.MonkeyPatch):
         """Test that runner handles dbt exceptions gracefully."""
@@ -193,6 +675,11 @@ class TestPrefectDbtRunner:
         monkeypatch.setattr(runner, "_create_logging_callback", Mock())
         monkeypatch.setattr(runner, "_create_node_started_callback", Mock())
         monkeypatch.setattr(runner, "_create_node_finished_callback", Mock())
+
+        # Mock context to simulate no flow/task run
+        monkeypatch.setattr(
+            "prefect_dbt.core.runner.serialize_context", Mock(return_value={})
+        )
 
         with pytest.raises(ValueError, match="Failed to invoke dbt command"):
             runner.invoke(["run"])
@@ -228,6 +715,11 @@ class TestPrefectDbtRunner:
         monkeypatch.setattr(runner, "_create_node_started_callback", Mock())
         monkeypatch.setattr(runner, "_create_node_finished_callback", Mock())
 
+        # Mock context to simulate no flow/task run
+        monkeypatch.setattr(
+            "prefect_dbt.core.runner.serialize_context", Mock(return_value={})
+        )
+
         with pytest.raises(ValueError, match="Failures detected during invocation"):
             runner.invoke(["run"])
 
@@ -261,6 +753,11 @@ class TestPrefectDbtRunner:
         monkeypatch.setattr(runner, "_create_logging_callback", Mock())
         monkeypatch.setattr(runner, "_create_node_started_callback", Mock())
         monkeypatch.setattr(runner, "_create_node_finished_callback", Mock())
+
+        # Mock context to simulate no flow/task run
+        monkeypatch.setattr(
+            "prefect_dbt.core.runner.serialize_context", Mock(return_value={})
+        )
 
         result = runner.invoke(["run"])
         assert result == mock_result
@@ -310,6 +807,11 @@ class TestPrefectDbtRunner:
         monkeypatch.setattr(runner, "_create_logging_callback", Mock())
         monkeypatch.setattr(runner, "_create_node_started_callback", Mock())
         monkeypatch.setattr(runner, "_create_node_finished_callback", Mock())
+
+        # Mock context to simulate no flow/task run
+        monkeypatch.setattr(
+            "prefect_dbt.core.runner.serialize_context", Mock(return_value={})
+        )
 
         # Test with both kwargs and CLI flags
         result = runner.invoke(
@@ -583,6 +1085,259 @@ class TestPrefectDbtRunner:
 
         with pytest.raises(ValueError, match="Relation name not found in manifest"):
             runner._call_task(mock_task_state, mock_node, context, enable_assets)
+
+    def test_runner_handles_project_loading_successfully(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        """Test that runner can load project successfully."""
+        mock_project = Mock()
+
+        # Mock RuntimeConfig.from_args
+        monkeypatch.setattr(
+            "prefect_dbt.core.runner.RuntimeConfig.from_args",
+            Mock(return_value=mock_project),
+        )
+
+        runner = PrefectDbtRunner()
+        runner._project_dir = Path("/test/project")
+
+        # Access project property to trigger loading
+        result = runner.project
+
+        assert result == mock_project
+        RuntimeConfig.from_args.assert_called_once_with(Path("/test/project"))
+
+    def test_runner_handles_project_loading_with_settings(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        """Test that runner uses settings.project_dir when _project_dir is not set."""
+        mock_project = Mock()
+
+        # Mock RuntimeConfig.from_args
+        monkeypatch.setattr(
+            "prefect_dbt.core.runner.RuntimeConfig.from_args",
+            Mock(return_value=mock_project),
+        )
+
+        # Create settings with project_dir
+        settings = PrefectDbtSettings()
+        settings.project_dir = Path("/settings/project")
+
+        runner = PrefectDbtRunner(settings=settings)
+
+        # Access project property to trigger loading
+        result = runner.project
+
+        assert result == mock_project
+        RuntimeConfig.from_args.assert_called_once_with(Path("/settings/project"))
+
+    def test_runner_get_compiled_code_path_uses_project_name(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        """Test that _get_compiled_code_path uses project.project_name correctly."""
+        runner = PrefectDbtRunner()
+        runner._project_dir = Path("/test/project")
+        runner._target_path = Path("target")
+
+        # Mock project with project_name
+        mock_project = Mock()
+        mock_project.project_name = "test_project"
+        runner._project = mock_project
+
+        # Mock manifest node
+        mock_node = Mock(spec=ManifestNode)
+        mock_node.original_file_path = "models/test_model.sql"
+
+        result = runner._get_compiled_code_path(mock_node)
+
+        # Should use project.project_name instead of project_dir name
+        expected_path = (
+            Path("/test/project")
+            / "target"
+            / "compiled"
+            / "test_project"
+            / "models/test_model.sql"
+        )
+        assert result == expected_path
+
+    def test_runner_get_compiled_code_path_handles_project_name_with_slash(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        """Test that _get_compiled_code_path handles project_name with slashes correctly."""
+        runner = PrefectDbtRunner()
+        runner._project_dir = Path("/test/project")
+        runner._target_path = Path("target")
+
+        # Mock project with project_name containing slashes
+        mock_project = Mock()
+        mock_project.project_name = "org/test_project"
+        runner._project = mock_project
+
+        # Mock manifest node
+        mock_node = Mock(spec=ManifestNode)
+        mock_node.original_file_path = "models/test_model.sql"
+
+        result = runner._get_compiled_code_path(mock_node)
+
+        # Should extract the last part after splitting by slash
+        expected_path = (
+            Path("/test/project")
+            / "target"
+            / "compiled"
+            / "test_project"
+            / "models/test_model.sql"
+        )
+        assert result == expected_path
+
+    def test_runner_get_compiled_code_path_handles_project_name_without_slash(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        """Test that _get_compiled_code_path handles project_name without slashes correctly."""
+        runner = PrefectDbtRunner()
+        runner._project_dir = Path("/test/project")
+        runner._target_path = Path("target")
+
+        # Mock project with simple project_name
+        mock_project = Mock()
+        mock_project.project_name = "simple_project"
+        runner._project = mock_project
+
+        # Mock manifest node
+        mock_node = Mock(spec=ManifestNode)
+        mock_node.original_file_path = "models/test_model.sql"
+
+        result = runner._get_compiled_code_path(mock_node)
+
+        # Should use the project_name as is
+        expected_path = (
+            Path("/test/project")
+            / "target"
+            / "compiled"
+            / "simple_project"
+            / "models/test_model.sql"
+        )
+        assert result == expected_path
+
+    def test_runner_get_compiled_code_path_triggers_project_loading(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        """Test that _get_compiled_code_path triggers project loading when needed."""
+        runner = PrefectDbtRunner()
+        runner._project_dir = Path("/test/project")
+        runner._target_path = Path("target")
+
+        # Mock project with project_name
+        mock_project = Mock()
+        mock_project.project_name = "test_project"
+
+        # Mock RuntimeConfig.from_args
+        monkeypatch.setattr(
+            "prefect_dbt.core.runner.RuntimeConfig.from_args",
+            Mock(return_value=mock_project),
+        )
+
+        # Mock manifest node
+        mock_node = Mock(spec=ManifestNode)
+        mock_node.original_file_path = "models/test_model.sql"
+
+        result = runner._get_compiled_code_path(mock_node)
+
+        # Should trigger project loading
+        RuntimeConfig.from_args.assert_called_once_with(Path("/test/project"))
+        expected_path = (
+            Path("/test/project")
+            / "target"
+            / "compiled"
+            / "test_project"
+            / "models/test_model.sql"
+        )
+        assert result == expected_path
+
+    def test_runner_get_compiled_code_with_include_compiled_code_true(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        """Test that _get_compiled_code works correctly when include_compiled_code is True."""
+        runner = PrefectDbtRunner(include_compiled_code=True)
+        runner._project_dir = Path("/test/project")
+        runner._target_path = Path("target")
+
+        # Mock project with project_name
+        mock_project = Mock()
+        mock_project.project_name = "test_project"
+        runner._project = mock_project
+
+        # Mock manifest node
+        mock_node = Mock(spec=ManifestNode)
+        mock_node.original_file_path = "models/test_model.sql"
+
+        # Mock file operations
+        mock_open = Mock()
+        mock_open.return_value.__enter__ = Mock(return_value=Mock())
+        mock_open.return_value.__exit__ = Mock(return_value=None)
+        monkeypatch.setattr("builtins.open", mock_open)
+
+        # Mock os.path.exists to return True
+        monkeypatch.setattr("os.path.exists", Mock(return_value=True))
+
+        # Mock file read
+        mock_file_content = Mock()
+        mock_file_content.read.return_value = "SELECT * FROM test_table"
+        mock_open.return_value.__enter__.return_value = mock_file_content
+
+        result = runner._get_compiled_code(mock_node)
+
+        # Should return compiled code with SQL formatting
+        expected_result = "\n ### Compiled code\n```sql\nSELECT * FROM test_table\n```"
+        assert result == expected_result
+
+        # Verify the correct path was used
+        expected_path = (
+            Path("/test/project")
+            / "target"
+            / "compiled"
+            / "test_project"
+            / "models/test_model.sql"
+        )
+        mock_open.assert_called_once_with(expected_path, "r")
+
+    def test_runner_get_compiled_code_with_include_compiled_code_false(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        """Test that _get_compiled_code returns empty string when include_compiled_code is False."""
+        runner = PrefectDbtRunner(include_compiled_code=False)
+
+        # Mock manifest node
+        mock_node = Mock(spec=ManifestNode)
+
+        result = runner._get_compiled_code(mock_node)
+
+        # Should return empty string when include_compiled_code is False
+        assert result == ""
+
+    def test_runner_get_compiled_code_with_file_not_found(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        """Test that _get_compiled_code handles missing compiled code file gracefully."""
+        runner = PrefectDbtRunner(include_compiled_code=True)
+        runner._project_dir = Path("/test/project")
+        runner._target_path = Path("target")
+
+        # Mock project with project_name
+        mock_project = Mock()
+        mock_project.project_name = "test_project"
+        runner._project = mock_project
+
+        # Mock manifest node
+        mock_node = Mock(spec=ManifestNode)
+        mock_node.original_file_path = "models/test_model.sql"
+
+        # Mock os.path.exists to return False (file doesn't exist)
+        monkeypatch.setattr("os.path.exists", Mock(return_value=False))
+
+        result = runner._get_compiled_code(mock_node)
+
+        # Should return empty string when file doesn't exist
+        assert result == ""
 
 
 class TestExecuteDbtNode:

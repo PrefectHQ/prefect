@@ -16,6 +16,7 @@ from dbt.artifacts.schemas.results import (
 )
 from dbt.artifacts.schemas.run import RunExecutionResult
 from dbt.cli.main import dbtRunner
+from dbt.config.runtime import RuntimeConfig
 from dbt.contracts.graph.manifest import Manifest
 from dbt.contracts.graph.nodes import ManifestNode
 from dbt_common.events.base_types import EventLevel, EventMsg
@@ -92,9 +93,8 @@ def execute_dbt_node(
 class PrefectDbtRunner:
     """A runner for executing dbt commands with Prefect integration.
 
-    This class provides methods to run dbt commands while integrating with Prefect's
-    logging and events capabilities. It handles manifest parsing, logging,
-    and emitting events for dbt operations.
+    This class enables the invocation of dbt commands while integrating with Prefect's
+    logging and assets capabilities.
 
     Args:
         manifest: Optional pre-loaded dbt manifest
@@ -102,6 +102,9 @@ class PrefectDbtRunner:
         raise_on_failure: Whether to raise an error if the dbt command encounters a
             non-exception failure
         client: Optional Prefect client instance
+        include_compiled_code: Whether to include compiled code in the asset description
+        _force_nodes_as_tasks: Whether to force each dbt node execution to have a Prefect task
+            representation when `.invoke()` is called outside of a flow or task run
     """
 
     def __init__(
@@ -111,13 +114,16 @@ class PrefectDbtRunner:
         raise_on_failure: bool = True,
         client: Optional[PrefectClient] = None,
         include_compiled_code: bool = False,
+        _force_nodes_as_tasks: bool = False,
     ):
         self._manifest: Optional[Manifest] = manifest
         self.settings = settings or PrefectDbtSettings()
         self.raise_on_failure = raise_on_failure
         self.client = client or get_client()
         self.include_compiled_code = include_compiled_code
+        self._force_nodes_as_tasks = _force_nodes_as_tasks
 
+        self._project: Optional[RuntimeConfig] = None
         self._target_path: Optional[Path] = None
         self._profiles_dir: Optional[Path] = None
         self._project_dir: Optional[Path] = None
@@ -146,6 +152,13 @@ class PrefectDbtRunner:
             assert self._manifest is not None  # for type checking
         return self._manifest
 
+    @property
+    def project(self) -> RuntimeConfig:
+        if self._project is None:
+            self._set_project_from_project_dir()
+            assert self._project is not None  # for type checking
+        return self._project
+
     def _set_manifest_from_project_dir(self):
         try:
             with open(
@@ -156,6 +169,9 @@ class PrefectDbtRunner:
             raise ValueError(
                 f"Manifest file not found in {os.path.join(self.project_dir, self.target_path, 'manifest.json')}"
             )
+
+    def _set_project_from_project_dir(self):
+        self._project = RuntimeConfig.from_args(self.project_dir)
 
     def _get_node_prefect_config(
         self, manifest_node: ManifestNode
@@ -193,7 +209,7 @@ class PrefectDbtRunner:
             Path(self.project_dir)
             / self.target_path
             / "compiled"
-            / str(Path(self.project_dir)).split("/")[-1]
+            / str(Path(self.project.project_name)).split("/")[-1]
             / manifest_node.original_file_path
         )
 
@@ -400,9 +416,7 @@ class PrefectDbtRunner:
         def node_finished_callback(event: EventMsg):
             if event.info.name == "NodeFinished":
                 node_id = self._get_dbt_event_node_id(event)
-                manifest_node, prefect_config = self._get_manifest_node_and_config(
-                    node_id
-                )
+                manifest_node, _ = self._get_manifest_node_and_config(node_id)
 
                 if manifest_node:
                     try:
@@ -466,7 +480,18 @@ class PrefectDbtRunner:
         return args_copy
 
     def invoke(self, args: list[str], **kwargs: Any):
-        """Invokes a dbt command."""
+        """
+        Invokes a dbt command.
+
+        Supports the same arguments as `dbtRunner.invoke()`. https://docs.getdbt.com/reference/programmatic-invocations
+
+        Args:
+            args: List of command line arguments
+            **kwargs: Additional keyword arguments
+
+        Returns:
+            The result of the dbt command invocation
+        """
         # Handle kwargs for each setting
         for setting_name, _, converter in SETTINGS_CONFIG:
             self._update_setting_from_kwargs(setting_name, kwargs, converter)
@@ -479,20 +504,28 @@ class PrefectDbtRunner:
             )
 
         context = serialize_context()
+        in_flow_or_task_run = context.get("flow_run_context") or context.get(
+            "task_run_context"
+        )
         task_state = NodeTaskTracker()
 
-        callbacks = [
-            self._create_logging_callback(task_state, self.log_level, context),
-            self._create_node_started_callback(task_state, context),
-            self._create_node_finished_callback(task_state),
-        ]
+        callbacks = (
+            [
+                self._create_logging_callback(task_state, self.log_level, context),
+                self._create_node_started_callback(task_state, context),
+                self._create_node_finished_callback(task_state),
+            ]
+            if in_flow_or_task_run or self._force_nodes_as_tasks
+            else []
+        )
 
         # Add settings to kwargs if they're set
         invoke_kwargs = {
             "profiles_dir": str(self.profiles_dir),
             "project_dir": str(self.project_dir),
             "target_path": str(self.target_path),
-            "log_level": self.log_level,
+            "log_level": "none" if in_flow_or_task_run else str(self.log_level.value),
+            "log_level_file": str(self.log_level.value),
             **kwargs,
         }
 
@@ -520,6 +553,6 @@ class PrefectDbtRunner:
                 if result.status in FAILURE_STATUSES
             ]
             raise ValueError(
-                f"Failures detected during invocation of dbt command '{''.join(args_copy)}':\n{os.linesep.join(failure_results)}"
+                f"Failures detected during invocation of dbt command '{' '.join(args_copy)}':\n{os.linesep.join(failure_results)}"
             )
         return res
