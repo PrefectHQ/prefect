@@ -152,7 +152,7 @@ Logs from each node will belong to the corresponding task, and each task's state
 The task runs created by calling `.invoke()` run separately from dbt Core, and do not affect dbt's execution behavior.
 These tasks do not persist results and cannot be cached.
 
-Using [dbt's native retry functionality](https://docs.getdbt.com/reference/commands/retry) to retry failed nodes is recommended.
+Use [dbt's native retry functionality](https://docs.getdbt.com/reference/commands/retry) to retry failed nodes.
 
 ```python
 from prefect import flow
@@ -270,7 +270,7 @@ Failures detected during invocation of dbt command 'build':
 Test not_null_my_first_dbt_model_id failed with message: "Got 1 result, configured to fail if != 0"
 ```
 
-The `PrefectDbtRunner`'s `raise_on_failure` option can be set to `False` to suppress failures in dbt to cause the failure of the flow or task in which `.invoke()` is called.
+The `PrefectDbtRunner`'s `raise_on_failure` option can be set to `False` to prevent failures in dbt from causing the failure of the flow or task in which `.invoke()` is called.
 
 ```python
 from prefect import flow
