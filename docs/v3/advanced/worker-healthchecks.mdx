@@ -50,8 +50,8 @@ prefect worker start --pool "my-pool" --with-healthcheck
 
 A worker is considered unhealthy if it hasn't polled for flow runs within a specific timeframe defined by its configured polling interval. The health check algorithm works as follows:
 
-If a worker hasn't made a successful poll within the time window of `query_interval_seconds * 30` seconds, it is considered unhealthy 
-and its health endpoint will return 503 (Service Unavailable). With default settings, a worker is unhealthy if it hasn't polled in 450 seconds (7.5 minutes). The query interval is configurable via the `PREFECT_WORKER_QUERY_SECONDS` setting.
+If a worker hasn't made a successful poll within the time window of `PREFECT_WORKER_QUERY_SECONDS * 30` seconds, it is considered unhealthy 
+and its health endpoint will return 503 (Service Unavailable). With default settings, a worker is unhealthy if it hasn't polled in 450 seconds (7.5 minutes). 
 
 This generous threshold accounts for temporary network issues, API unavailability, or brief worker pauses without triggering false alarms.
 
