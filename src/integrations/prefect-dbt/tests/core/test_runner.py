@@ -9,6 +9,7 @@ import pytest
 from dbt.artifacts.resources.types import NodeType
 from dbt.artifacts.schemas.results import RunStatus
 from dbt.artifacts.schemas.run import RunExecutionResult
+from dbt.config.runtime import RuntimeConfig
 from dbt.contracts.graph.manifest import Manifest
 from dbt.contracts.graph.nodes import ManifestNode
 from dbt_common.events.base_types import EventLevel, EventMsg
@@ -1084,6 +1085,259 @@ class TestPrefectDbtRunner:
 
         with pytest.raises(ValueError, match="Relation name not found in manifest"):
             runner._call_task(mock_task_state, mock_node, context, enable_assets)
+
+    def test_runner_handles_project_loading_successfully(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        """Test that runner can load project successfully."""
+        mock_project = Mock()
+
+        # Mock RuntimeConfig.from_args
+        monkeypatch.setattr(
+            "prefect_dbt.core.runner.RuntimeConfig.from_args",
+            Mock(return_value=mock_project),
+        )
+
+        runner = PrefectDbtRunner()
+        runner._project_dir = Path("/test/project")
+
+        # Access project property to trigger loading
+        result = runner.project
+
+        assert result == mock_project
+        RuntimeConfig.from_args.assert_called_once_with(Path("/test/project"))
+
+    def test_runner_handles_project_loading_with_settings(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        """Test that runner uses settings.project_dir when _project_dir is not set."""
+        mock_project = Mock()
+
+        # Mock RuntimeConfig.from_args
+        monkeypatch.setattr(
+            "prefect_dbt.core.runner.RuntimeConfig.from_args",
+            Mock(return_value=mock_project),
+        )
+
+        # Create settings with project_dir
+        settings = PrefectDbtSettings()
+        settings.project_dir = Path("/settings/project")
+
+        runner = PrefectDbtRunner(settings=settings)
+
+        # Access project property to trigger loading
+        result = runner.project
+
+        assert result == mock_project
+        RuntimeConfig.from_args.assert_called_once_with(Path("/settings/project"))
+
+    def test_runner_get_compiled_code_path_uses_project_name(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        """Test that _get_compiled_code_path uses project.project_name correctly."""
+        runner = PrefectDbtRunner()
+        runner._project_dir = Path("/test/project")
+        runner._target_path = Path("target")
+
+        # Mock project with project_name
+        mock_project = Mock()
+        mock_project.project_name = "test_project"
+        runner._project = mock_project
+
+        # Mock manifest node
+        mock_node = Mock(spec=ManifestNode)
+        mock_node.original_file_path = "models/test_model.sql"
+
+        result = runner._get_compiled_code_path(mock_node)
+
+        # Should use project.project_name instead of project_dir name
+        expected_path = (
+            Path("/test/project")
+            / "target"
+            / "compiled"
+            / "test_project"
+            / "models/test_model.sql"
+        )
+        assert result == expected_path
+
+    def test_runner_get_compiled_code_path_handles_project_name_with_slash(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        """Test that _get_compiled_code_path handles project_name with slashes correctly."""
+        runner = PrefectDbtRunner()
+        runner._project_dir = Path("/test/project")
+        runner._target_path = Path("target")
+
+        # Mock project with project_name containing slashes
+        mock_project = Mock()
+        mock_project.project_name = "org/test_project"
+        runner._project = mock_project
+
+        # Mock manifest node
+        mock_node = Mock(spec=ManifestNode)
+        mock_node.original_file_path = "models/test_model.sql"
+
+        result = runner._get_compiled_code_path(mock_node)
+
+        # Should extract the last part after splitting by slash
+        expected_path = (
+            Path("/test/project")
+            / "target"
+            / "compiled"
+            / "test_project"
+            / "models/test_model.sql"
+        )
+        assert result == expected_path
+
+    def test_runner_get_compiled_code_path_handles_project_name_without_slash(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        """Test that _get_compiled_code_path handles project_name without slashes correctly."""
+        runner = PrefectDbtRunner()
+        runner._project_dir = Path("/test/project")
+        runner._target_path = Path("target")
+
+        # Mock project with simple project_name
+        mock_project = Mock()
+        mock_project.project_name = "simple_project"
+        runner._project = mock_project
+
+        # Mock manifest node
+        mock_node = Mock(spec=ManifestNode)
+        mock_node.original_file_path = "models/test_model.sql"
+
+        result = runner._get_compiled_code_path(mock_node)
+
+        # Should use the project_name as is
+        expected_path = (
+            Path("/test/project")
+            / "target"
+            / "compiled"
+            / "simple_project"
+            / "models/test_model.sql"
+        )
+        assert result == expected_path
+
+    def test_runner_get_compiled_code_path_triggers_project_loading(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        """Test that _get_compiled_code_path triggers project loading when needed."""
+        runner = PrefectDbtRunner()
+        runner._project_dir = Path("/test/project")
+        runner._target_path = Path("target")
+
+        # Mock project with project_name
+        mock_project = Mock()
+        mock_project.project_name = "test_project"
+
+        # Mock RuntimeConfig.from_args
+        monkeypatch.setattr(
+            "prefect_dbt.core.runner.RuntimeConfig.from_args",
+            Mock(return_value=mock_project),
+        )
+
+        # Mock manifest node
+        mock_node = Mock(spec=ManifestNode)
+        mock_node.original_file_path = "models/test_model.sql"
+
+        result = runner._get_compiled_code_path(mock_node)
+
+        # Should trigger project loading
+        RuntimeConfig.from_args.assert_called_once_with(Path("/test/project"))
+        expected_path = (
+            Path("/test/project")
+            / "target"
+            / "compiled"
+            / "test_project"
+            / "models/test_model.sql"
+        )
+        assert result == expected_path
+
+    def test_runner_get_compiled_code_with_include_compiled_code_true(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        """Test that _get_compiled_code works correctly when include_compiled_code is True."""
+        runner = PrefectDbtRunner(include_compiled_code=True)
+        runner._project_dir = Path("/test/project")
+        runner._target_path = Path("target")
+
+        # Mock project with project_name
+        mock_project = Mock()
+        mock_project.project_name = "test_project"
+        runner._project = mock_project
+
+        # Mock manifest node
+        mock_node = Mock(spec=ManifestNode)
+        mock_node.original_file_path = "models/test_model.sql"
+
+        # Mock file operations
+        mock_open = Mock()
+        mock_open.return_value.__enter__ = Mock(return_value=Mock())
+        mock_open.return_value.__exit__ = Mock(return_value=None)
+        monkeypatch.setattr("builtins.open", mock_open)
+
+        # Mock os.path.exists to return True
+        monkeypatch.setattr("os.path.exists", Mock(return_value=True))
+
+        # Mock file read
+        mock_file_content = Mock()
+        mock_file_content.read.return_value = "SELECT * FROM test_table"
+        mock_open.return_value.__enter__.return_value = mock_file_content
+
+        result = runner._get_compiled_code(mock_node)
+
+        # Should return compiled code with SQL formatting
+        expected_result = "\n ### Compiled code\n```sql\nSELECT * FROM test_table\n```"
+        assert result == expected_result
+
+        # Verify the correct path was used
+        expected_path = (
+            Path("/test/project")
+            / "target"
+            / "compiled"
+            / "test_project"
+            / "models/test_model.sql"
+        )
+        mock_open.assert_called_once_with(expected_path, "r")
+
+    def test_runner_get_compiled_code_with_include_compiled_code_false(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        """Test that _get_compiled_code returns empty string when include_compiled_code is False."""
+        runner = PrefectDbtRunner(include_compiled_code=False)
+
+        # Mock manifest node
+        mock_node = Mock(spec=ManifestNode)
+
+        result = runner._get_compiled_code(mock_node)
+
+        # Should return empty string when include_compiled_code is False
+        assert result == ""
+
+    def test_runner_get_compiled_code_with_file_not_found(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        """Test that _get_compiled_code handles missing compiled code file gracefully."""
+        runner = PrefectDbtRunner(include_compiled_code=True)
+        runner._project_dir = Path("/test/project")
+        runner._target_path = Path("target")
+
+        # Mock project with project_name
+        mock_project = Mock()
+        mock_project.project_name = "test_project"
+        runner._project = mock_project
+
+        # Mock manifest node
+        mock_node = Mock(spec=ManifestNode)
+        mock_node.original_file_path = "models/test_model.sql"
+
+        # Mock os.path.exists to return False (file doesn't exist)
+        monkeypatch.setattr("os.path.exists", Mock(return_value=False))
+
+        result = runner._get_compiled_code(mock_node)
+
+        # Should return empty string when file doesn't exist
+        assert result == ""
 
 
 class TestExecuteDbtNode:

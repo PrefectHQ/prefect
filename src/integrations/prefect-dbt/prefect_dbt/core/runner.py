@@ -16,6 +16,7 @@ from dbt.artifacts.schemas.results import (
 )
 from dbt.artifacts.schemas.run import RunExecutionResult
 from dbt.cli.main import dbtRunner
+from dbt.config.runtime import RuntimeConfig
 from dbt.contracts.graph.manifest import Manifest
 from dbt.contracts.graph.nodes import ManifestNode
 from dbt_common.events.base_types import EventLevel, EventMsg
@@ -120,9 +121,9 @@ class PrefectDbtRunner:
         self.raise_on_failure = raise_on_failure
         self.client = client or get_client()
         self.include_compiled_code = include_compiled_code
-
         self._force_nodes_as_tasks = _force_nodes_as_tasks
 
+        self._project: Optional[RuntimeConfig] = None
         self._target_path: Optional[Path] = None
         self._profiles_dir: Optional[Path] = None
         self._project_dir: Optional[Path] = None
@@ -151,6 +152,13 @@ class PrefectDbtRunner:
             assert self._manifest is not None  # for type checking
         return self._manifest
 
+    @property
+    def project(self) -> RuntimeConfig:
+        if self._project is None:
+            self._set_project_from_project_dir()
+            assert self._project is not None  # for type checking
+        return self._project
+
     def _set_manifest_from_project_dir(self):
         try:
             with open(
@@ -161,6 +169,9 @@ class PrefectDbtRunner:
             raise ValueError(
                 f"Manifest file not found in {os.path.join(self.project_dir, self.target_path, 'manifest.json')}"
             )
+
+    def _set_project_from_project_dir(self):
+        self._project = RuntimeConfig.from_args(self.project_dir)
 
     def _get_node_prefect_config(
         self, manifest_node: ManifestNode
@@ -198,7 +209,7 @@ class PrefectDbtRunner:
             Path(self.project_dir)
             / self.target_path
             / "compiled"
-            / str(Path(self.project_dir)).split("/")[-1]
+            / str(Path(self.project.project_name)).split("/")[-1]
             / manifest_node.original_file_path
         )
 
@@ -542,6 +553,6 @@ class PrefectDbtRunner:
                 if result.status in FAILURE_STATUSES
             ]
             raise ValueError(
-                f"Failures detected during invocation of dbt command '{''.join(args_copy)}':\n{os.linesep.join(failure_results)}"
+                f"Failures detected during invocation of dbt command '{' '.join(args_copy)}':\n{os.linesep.join(failure_results)}"
             )
         return res
