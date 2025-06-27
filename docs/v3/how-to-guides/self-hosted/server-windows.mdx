@@ -92,9 +92,13 @@ For production environments, you should run Prefect server as a Windows service 
 ```powershell
 # Run as Administrator
 nssm install PrefectServer
-nssm set PrefectServer Application "C:\Path\To\Python\Scripts\prefect.exe"
-nssm set PrefectServer AppParameters "server start"
+nssm set PrefectServer Application "C:\Path\To\Python\python.exe"
+nssm set PrefectServer AppParameters "-m prefect server start"
 nssm set PrefectServer AppDirectory "C:\Path\To\Your\Project"
+
+# Set environment variables if needed
+nssm set PrefectServer AppEnvironmentExtra "PREFECT_API_URL=http://localhost:4200/api"
+
 nssm start PrefectServer
 ```
 
