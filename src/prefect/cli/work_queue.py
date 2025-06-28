@@ -8,6 +8,7 @@ from textwrap import dedent
 from typing import Optional, Union
 from uuid import UUID
 
+import orjson
 import typer
 from rich.pretty import Pretty
 from rich.table import Table
@@ -299,10 +300,19 @@ async def inspect(
         "--pool",
         help="The name of the work pool that the work queue belongs to.",
     ),
+    output: Optional[str] = typer.Option(
+        None,
+        "--output",
+        "-o",
+        help="Specify an output format. Currently supports: json",
+    ),
 ):
     """
     Inspect a work queue by ID.
     """
+    if output and output.lower() != "json":
+        exit_with_error("Only 'json' output format is supported.")
+
     queue_id = await _get_work_queue_id_from_name_or_id(
         name_or_id=name,
         work_pool_name=pool,
@@ -313,7 +323,14 @@ async def inspect(
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore", category=DeprecationWarning)
 
-                app.console.print(Pretty(result))
+                if output and output.lower() == "json":
+                    result_json = result.model_dump(mode="json")
+                    json_output = orjson.dumps(
+                        result_json, option=orjson.OPT_INDENT_2
+                    ).decode()
+                    app.console.print(json_output)
+                else:
+                    app.console.print(Pretty(result))
         except ObjectNotFound:
             if pool:
                 error_message = f"No work queue found: {name!r} in work pool {pool!r}"
@@ -323,7 +340,14 @@ async def inspect(
 
         try:
             status = await client.read_work_queue_status(id=queue_id)
-            app.console.print(Pretty(status))
+            if output and output.lower() == "json":
+                status_json = status.model_dump(mode="json")
+                json_output = orjson.dumps(
+                    status_json, option=orjson.OPT_INDENT_2
+                ).decode()
+                app.console.print(json_output)
+            else:
+                app.console.print(Pretty(status))
         except ObjectNotFound:
             pass
 
