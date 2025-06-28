@@ -74,17 +74,19 @@ def uuid7(
     Examples
     --------
 
-    >>> uuid7()
-    UUID('061cb26a-54b8-7a52-8000-2124e7041024')
+    ```python
+    uuid7()
+    # UUID('061cb26a-54b8-7a52-8000-2124e7041024')
 
-    >>> for fmt in ('bytes', 'hex', 'int', 'str', 'uuid', None):
-    ...     print(fmt, repr(uuid7(as_type=fmt)))
-    bytes b'\x06\x1c\xb8\xfe\x0f\x0b|9\x80\x00\tjt\x85\xb3\xbb'
-    hex '061cb8fe0f0b7c3980011863b956b758'
-    int 8124504378724980906989670469352026642
-    str '061cb8fe-0f0b-7c39-8003-d44a7ee0bdf6'
-    uuid UUID('061cb8fe-0f0b-7c39-8004-0489578299f6')
-    None UUID('061cb8fe-0f0f-7df2-8000-afd57c2bf446')
+    for fmt in ('bytes', 'hex', 'int', 'str', 'uuid', None):
+        print(fmt, repr(uuid7(as_type=fmt)))
+    # bytes b'\x06\x1c\xb8\xfe\x0f\x0b|9\x80\x00\tjt\x85\xb3\xbb'
+    # hex '061cb8fe0f0b7c3980011863b956b758'
+    # int 8124504378724980906989670469352026642
+    # str '061cb8fe-0f0b-7c39-8003-d44a7ee0bdf6'
+    # uuid UUID('061cb8fe-0f0b-7c39-8004-0489578299f6')
+    # None UUID('061cb8fe-0f0f-7df2-8000-afd57c2bf446')
+    ```
     """
     if ms is None:
         ms = time_func()

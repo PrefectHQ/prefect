@@ -294,10 +294,10 @@ class PrefectClient(
 
         <div class="terminal">
         ```
-        >>> async with get_client() as client:
-        >>>     response = await client.hello()
-        >>>
-        >>> print(response.json())
+        async with get_client() as client:
+            response = await client.hello()
+
+        print(response.json())
         👋
         ```
         </div>
@@ -1159,10 +1159,10 @@ class SyncPrefectClient(
 
         <div class="terminal">
         ```
-        >>> with get_client(sync_client=True) as client:
-        >>>     response = client.hello()
-        >>>
-        >>> print(response.json())
+        with get_client(sync_client=True) as client:
+            response = client.hello()
+
+        print(response.json())
         👋
         ```
         </div>
