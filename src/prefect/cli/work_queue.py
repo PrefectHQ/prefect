@@ -325,6 +325,15 @@ async def inspect(
 
                 if output and output.lower() == "json":
                     result_json = result.model_dump(mode="json")
+
+                    # Try to get status and combine with result for JSON output
+                    try:
+                        status = await client.read_work_queue_status(id=queue_id)
+                        status_json = status.model_dump(mode="json")
+                        result_json["status_details"] = status_json
+                    except ObjectNotFound:
+                        pass
+
                     json_output = orjson.dumps(
                         result_json, option=orjson.OPT_INDENT_2
                     ).decode()
@@ -338,18 +347,13 @@ async def inspect(
                 error_message = f"No work queue found: {name!r}"
             exit_with_error(error_message)
 
-        try:
-            status = await client.read_work_queue_status(id=queue_id)
-            if output and output.lower() == "json":
-                status_json = status.model_dump(mode="json")
-                json_output = orjson.dumps(
-                    status_json, option=orjson.OPT_INDENT_2
-                ).decode()
-                app.console.print(json_output)
-            else:
+        # Only print status separately for non-JSON output
+        if not (output and output.lower() == "json"):
+            try:
+                status = await client.read_work_queue_status(id=queue_id)
                 app.console.print(Pretty(status))
-        except ObjectNotFound:
-            pass
+            except ObjectNotFound:
+                pass
 
 
 @work_app.command()
