@@ -127,16 +127,18 @@ def prefect_test_harness(server_startup_timeout: int | None = 30):
             `PREFECT_SERVER_EPHEMERAL_STARTUP_TIMEOUT_SECONDS` will be used.
 
     Examples:
-        >>> from prefect import flow
-        >>> from prefect.testing.utilities import prefect_test_harness
-        >>>
-        >>>
-        >>> @flow
-        >>> def my_flow():
-        >>>     return 'Done!'
-        >>>
-        >>> with prefect_test_harness():
-        >>>     assert my_flow() == 'Done!' # run against temporary db
+        ```python
+        from prefect import flow
+        from prefect.testing.utilities import prefect_test_harness
+
+
+        @flow
+        def my_flow():
+            return 'Done!'
+
+        with prefect_test_harness():
+            assert my_flow() == 'Done!' # run against temporary db
+        ```
     """
     from prefect.server.database.dependencies import temporary_database_interface
 

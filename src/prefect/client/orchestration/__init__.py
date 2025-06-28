@@ -292,15 +292,13 @@ class PrefectClient(
 
         Say hello to a Prefect REST API
 
-        <div class="terminal">
-        ```
-        >>> async with get_client() as client:
-        >>>     response = await client.hello()
-        >>>
-        >>> print(response.json())
+        ```python
+        async with get_client() as client:
+            response = await client.hello()
+
+        print(response.json())
         👋
         ```
-        </div>
     """
 
     def __init__(
@@ -1157,15 +1155,13 @@ class SyncPrefectClient(
 
         Say hello to a Prefect REST API
 
-        <div class="terminal">
-        ```
-        >>> with get_client(sync_client=True) as client:
-        >>>     response = client.hello()
-        >>>
-        >>> print(response.json())
+        ```python
+        with get_client(sync_client=True) as client:
+            response = client.hello()
+
+        print(response.json())
         👋
         ```
-        </div>
     """
 
     def __init__(

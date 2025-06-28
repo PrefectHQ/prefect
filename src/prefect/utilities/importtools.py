@@ -58,10 +58,12 @@ def from_qualified_name(name: str) -> Any:
         the imported object
 
     Examples:
-        >>> obj = from_qualified_name("random.randint")
-        >>> import random
-        >>> obj == random.randint
-        True
+        ```python
+        obj = from_qualified_name("random.randint")
+        import random
+        obj == random.randint
+        # True
+        ```
     """
     # Try importing it first so we support "module" or "module.sub_module"
     try:
