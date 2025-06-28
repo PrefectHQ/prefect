@@ -8,6 +8,7 @@ import textwrap
 from typing import Optional
 
 import httpx
+import orjson
 import typer
 from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich.table import Table
@@ -240,10 +241,19 @@ def inspect(
     name: Optional[str] = typer.Argument(
         None, help="Name of profile to inspect; defaults to active profile."
     ),
+    output: Optional[str] = typer.Option(
+        None,
+        "--output",
+        "-o",
+        help="Specify an output format. Currently supports: json",
+    ),
 ):
     """
     Display settings from a given profile; defaults to active.
     """
+    if output and output.lower() != "json":
+        exit_with_error("Only 'json' output format is supported.")
+
     profiles = prefect.settings.load_profiles()
     if name is None:
         current_profile = prefect.context.get_settings_context().profile
@@ -256,10 +266,21 @@ def inspect(
 
     if not profiles[name].settings:
         # TODO: Consider instructing on how to add settings.
-        print(f"Profile {name!r} is empty.")
+        if output and output.lower() == "json":
+            app.console.print("{}")
+        else:
+            print(f"Profile {name!r} is empty.")
+        return
 
-    for setting, value in profiles[name].settings.items():
-        app.console.print(f"{setting.name}='{value}'")
+    if output and output.lower() == "json":
+        profile_data = {
+            setting.name: value for setting, value in profiles[name].settings.items()
+        }
+        json_output = orjson.dumps(profile_data, option=orjson.OPT_INDENT_2).decode()
+        app.console.print(json_output)
+    else:
+        for setting, value in profiles[name].settings.items():
+            app.console.print(f"{setting.name}='{value}'")
 
 
 def show_profile_changes(

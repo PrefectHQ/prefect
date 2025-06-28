@@ -1,6 +1,7 @@
 import json
 from typing import Any, Dict, List, Optional, Union
 
+import orjson
 import typer
 from rich.pretty import Pretty
 from rich.table import Table
@@ -62,6 +63,12 @@ async def list_variables(
 @variable_app.command("inspect")
 async def inspect(
     name: str,
+    output: Optional[str] = typer.Option(
+        None,
+        "--output",
+        "-o",
+        help="Specify an output format. Currently supports: json",
+    ),
 ):
     """
     View details about a variable.
@@ -69,6 +76,8 @@ async def inspect(
     Arguments:
         name: the name of the variable to inspect
     """
+    if output and output.lower() != "json":
+        exit_with_error("Only 'json' output format is supported.")
 
     async with get_client() as client:
         variable = await client.read_variable_by_name(
@@ -77,7 +86,14 @@ async def inspect(
         if not variable:
             exit_with_error(f"Variable {name!r} not found.")
 
-        app.console.print(Pretty(variable))
+        if output and output.lower() == "json":
+            variable_json = variable.model_dump(mode="json")
+            json_output = orjson.dumps(
+                variable_json, option=orjson.OPT_INDENT_2
+            ).decode()
+            app.console.print(json_output)
+        else:
+            app.console.print(Pretty(variable))
 
 
 @variable_app.command("get")

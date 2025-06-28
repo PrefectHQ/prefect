@@ -7,8 +7,9 @@ from __future__ import annotations
 import datetime
 import json
 import textwrap
-from typing import Annotated, Any
+from typing import Annotated, Any, Optional
 
+import orjson
 import typer
 from rich.pretty import Pretty
 from rich.table import Table
@@ -318,6 +319,12 @@ async def ls(
 @work_pool_app.command()
 async def inspect(
     name: str = typer.Argument(..., help="The name of the work pool to inspect."),
+    output: Optional[str] = typer.Option(
+        None,
+        "--output",
+        "-o",
+        help="Specify an output format. Currently supports: json",
+    ),
 ):
     """
     Inspect a work pool.
@@ -325,12 +332,23 @@ async def inspect(
     \b
     Examples:
         $ prefect work-pool inspect "my-pool"
+        $ prefect work-pool inspect "my-pool" --output json
 
     """
+    if output and output.lower() != "json":
+        exit_with_error("Only 'json' output format is supported.")
+
     async with get_client() as client:
         try:
             pool = await client.read_work_pool(work_pool_name=name)
-            app.console.print(Pretty(pool))
+            if output and output.lower() == "json":
+                pool_json = pool.model_dump(mode="json")
+                json_output = orjson.dumps(
+                    pool_json, option=orjson.OPT_INDENT_2
+                ).decode()
+                app.console.print(json_output)
+            else:
+                app.console.print(Pretty(pool))
         except ObjectNotFound:
             exit_with_error(f"Work pool {name!r} not found!")
 
@@ -731,13 +749,23 @@ async def storage_inspect(
             ..., help="The name of the work pool to display storage configuration for."
         ),
     ],
+    output: Optional[str] = typer.Option(
+        None,
+        "--output",
+        "-o",
+        help="Specify an output format. Currently supports: json",
+    ),
 ):
     """
     EXPERIMENTAL: Inspect the storage configuration for a work pool.
 
     Examples:
         $ prefect work-pool storage inspect "my-pool"
+        $ prefect work-pool storage inspect "my-pool" --output json
     """
+    if output and output.lower() != "json":
+        exit_with_error("Only 'json' output format is supported.")
+
     async with get_client() as client:
         try:
             work_pool = await client.read_work_pool(work_pool_name=work_pool_name)
@@ -750,28 +778,51 @@ async def storage_inspect(
 
             storage_type = _determine_storage_type(work_pool.storage_configuration)
             if not storage_type:
-                app.console.print(
-                    f"No storage configuration found for work pool {work_pool_name!r}",
-                    style="yellow",
-                )
+                if output and output.lower() == "json":
+                    app.console.print("{}")
+                else:
+                    app.console.print(
+                        f"No storage configuration found for work pool {work_pool_name!r}",
+                        style="yellow",
+                    )
                 return
 
-            storage_table.add_row("type", storage_type)
+            if output and output.lower() == "json":
+                storage_data = {"type": storage_type}
+                if work_pool.storage_configuration.bundle_upload_step is not None:
+                    fqn = list(
+                        work_pool.storage_configuration.bundle_upload_step.keys()
+                    )[0]
+                    config_values = work_pool.storage_configuration.bundle_upload_step[
+                        fqn
+                    ]
+                    storage_data.update(config_values)
 
-            # Add other storage settings, filtering out None values
-            if work_pool.storage_configuration.bundle_upload_step is not None:
-                fqn = list(work_pool.storage_configuration.bundle_upload_step.keys())[0]
-                config_values = work_pool.storage_configuration.bundle_upload_step[fqn]
-                for key, value in config_values.items():
-                    storage_table.add_row(key, str(value))
+                json_output = orjson.dumps(
+                    storage_data, option=orjson.OPT_INDENT_2
+                ).decode()
+                app.console.print(json_output)
+            else:
+                storage_table.add_row("type", storage_type)
 
-            panel = Panel(
-                storage_table,
-                title=f"[bold]Storage Configuration for {work_pool_name}[/bold]",
-                expand=False,
-            )
+                # Add other storage settings, filtering out None values
+                if work_pool.storage_configuration.bundle_upload_step is not None:
+                    fqn = list(
+                        work_pool.storage_configuration.bundle_upload_step.keys()
+                    )[0]
+                    config_values = work_pool.storage_configuration.bundle_upload_step[
+                        fqn
+                    ]
+                    for key, value in config_values.items():
+                        storage_table.add_row(key, str(value))
 
-            app.console.print(panel)
+                panel = Panel(
+                    storage_table,
+                    title=f"[bold]Storage Configuration for {work_pool_name}[/bold]",
+                    expand=False,
+                )
+
+                app.console.print(panel)
 
         except ObjectNotFound:
             exit_with_error(f"Work pool {work_pool_name!r} does not exist.")

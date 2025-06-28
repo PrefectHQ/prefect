@@ -1002,6 +1002,28 @@ class TestDeploymentSchedules:
             ),
         )
 
+    @pytest.mark.usefixtures("create_flojo_deployment")
+    def test_deployment_inspect_json_output(self):
+        """Test deployment inspect command with JSON output flag."""
+        result = invoke_and_assert(
+            [
+                "deployment",
+                "inspect",
+                "rence-griffith/test-deployment",
+                "--output",
+                "json",
+            ],
+            expected_code=0,
+        )
+
+        # Parse JSON output and verify it's valid JSON
+        output_data = json.loads(result.stdout.strip())
+
+        # Verify key fields are present
+        assert "id" in output_data
+        assert "name" in output_data
+        assert "flow_id" in output_data
+
 
 class TestDeploymentRun:
     @pytest.fixture

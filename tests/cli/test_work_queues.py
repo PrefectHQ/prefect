@@ -494,6 +494,25 @@ class TestInspectWorkQueue:
             expected_code=1,
         )
 
+    def test_inspect_with_json_output(self, work_queue):
+        """Test work-queue inspect command with JSON output flag."""
+        import json
+
+        result = invoke_and_assert(
+            command=f"work-queue inspect {work_queue.name} --output json",
+            expected_code=0,
+        )
+
+        # Parse JSON output and verify it's valid JSON
+        output_data = json.loads(result.stdout.strip())
+
+        # Verify key fields are present
+        assert "id" in output_data
+        assert "name" in output_data
+        assert "status_details" in output_data  # Combined status information
+        assert output_data["id"] == str(work_queue.id)
+        assert output_data["name"] == work_queue.name
+
 
 class TestDelete:
     async def test_delete(self, prefect_client, work_queue):

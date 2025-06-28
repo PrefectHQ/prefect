@@ -5,9 +5,10 @@ Command line interface for working with task runs
 import logging
 import webbrowser
 from datetime import datetime
-from typing import List, cast
+from typing import List, Optional, cast
 from uuid import UUID
 
+import orjson
 import typer
 from rich.pretty import Pretty
 from rich.table import Table
@@ -52,10 +53,19 @@ async def inspect(
         "--web",
         help="Open the task run in a web browser.",
     ),
+    output: Optional[str] = typer.Option(
+        None,
+        "--output",
+        "-o",
+        help="Specify an output format. Currently supports: json",
+    ),
 ):
     """
     View details about a task run.
     """
+    if output and output.lower() != "json":
+        exit_with_error("Only 'json' output format is supported.")
+
     async with get_client() as client:
         try:
             task_run = await client.read_task_run(id)
@@ -72,7 +82,14 @@ async def inspect(
         await run_sync_in_worker_thread(webbrowser.open_new_tab, task_run_url)
         exit_with_success(f"Opened task run {id!r} in browser.")
     else:
-        app.console.print(Pretty(task_run))
+        if output and output.lower() == "json":
+            task_run_json = task_run.model_dump(mode="json")
+            json_output = orjson.dumps(
+                task_run_json, option=orjson.OPT_INDENT_2
+            ).decode()
+            app.console.print(json_output)
+        else:
+            app.console.print(Pretty(task_run))
 
 
 @task_run_app.command()
