@@ -254,6 +254,33 @@ def test_deleting_artifact_by_key_succeeds(
     )
 
 
+def test_inspecting_artifact_with_json_output(
+    session: "AsyncSession",
+    artifacts: list[models.artifacts.Artifact],
+):
+    """Test artifact inspect command with JSON output flag."""
+    import json
+
+    result = invoke_and_assert(
+        ["artifact", "inspect", artifacts[0].key, "--output", "json"],
+        expected_code=0,
+    )
+
+    # Parse JSON output and verify it's valid JSON
+    output_data = json.loads(result.stdout.strip())
+
+    # Should be a list of artifacts
+    assert isinstance(output_data, list)
+    assert len(output_data) >= 1
+
+    # Verify key fields are present in first artifact
+    artifact = output_data[0]
+    assert "id" in artifact
+    assert "key" in artifact
+    assert "type" in artifact
+    assert artifact["key"] == artifacts[0].key
+
+
 def test_deleting_artifact_nonexistent_key_raises():
     nonexistent_key = "nonexistent_key"
     invoke_and_assert(

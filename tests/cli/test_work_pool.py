@@ -445,6 +445,26 @@ class TestInspect:
         assert work_pool.type in res.output
         assert str(work_pool.id) in res.output
 
+    async def test_inspect_with_json_output(self, prefect_client, work_pool):
+        """Test work-pool inspect command with JSON output flag."""
+        import json
+
+        res = await run_sync_in_worker_thread(
+            invoke_and_assert,
+            f"work-pool inspect {work_pool.name!r} --output json",
+        )
+        assert res.exit_code == 0
+
+        # Parse JSON output and verify it's valid JSON
+        output_data = json.loads(res.output.strip())
+
+        # Verify key fields are present
+        assert "id" in output_data
+        assert "name" in output_data
+        assert "type" in output_data
+        assert output_data["id"] == str(work_pool.id)
+        assert output_data["name"] == work_pool.name
+
 
 class TestPause:
     async def test_pause(self, prefect_client, work_pool):

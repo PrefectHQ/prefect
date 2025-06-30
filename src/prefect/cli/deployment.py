@@ -13,6 +13,7 @@ from datetime import datetime, timedelta, timezone
 from typing import TYPE_CHECKING, Any, Optional, TypedDict
 from uuid import UUID
 
+import orjson
 import typer
 import yaml
 from rich.console import Console
@@ -215,7 +216,15 @@ class RichTextIO:
 
 
 @deployment_app.command()
-async def inspect(name: str):
+async def inspect(
+    name: str,
+    output: Optional[str] = typer.Option(
+        None,
+        "--output",
+        "-o",
+        help="Specify an output format. Currently supports: json",
+    ),
+):
     """
     View details about a deployment.
 
@@ -223,6 +232,7 @@ async def inspect(name: str):
     Example:
         \b
         $ prefect deployment inspect "hello-world/my-deployment"
+        $ prefect deployment inspect "hello-world/my-deployment" --output json
         {
             'id': '610df9c3-0fb4-4856-b330-67f588d20201',
             'created': '2022-08-01T18:36:25.192102+00:00',
@@ -257,6 +267,9 @@ async def inspect(name: str):
         }
 
     """
+    if output and output.lower() != "json":
+        exit_with_error("Only 'json' output format is supported.")
+
     assert_deployment_name_format(name)
 
     async with get_client() as client:
@@ -283,7 +296,11 @@ async def inspect(name: str):
             )
         ]
 
-    app.console.print(Pretty(deployment_json))
+    if output and output.lower() == "json":
+        json_output = orjson.dumps(deployment_json, option=orjson.OPT_INDENT_2).decode()
+        app.console.print(json_output)
+    else:
+        app.console.print(Pretty(deployment_json))
 
 
 @schedule_app.command("create")

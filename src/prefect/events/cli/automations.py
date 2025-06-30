@@ -107,6 +107,12 @@ async def inspect(
     id: Optional[str] = typer.Option(None, "--id", help="An automation's id"),
     yaml: bool = typer.Option(False, "--yaml", help="Output as YAML"),
     json: bool = typer.Option(False, "--json", help="Output as JSON"),
+    output: Optional[str] = typer.Option(
+        None,
+        "--output",
+        "-o",
+        help="Specify an output format. Currently supports: json, yaml",
+    ),
 ):
     """
     Inspect an automation.
@@ -129,8 +135,12 @@ async def inspect(
 
         $ prefect automation inspect "my-automation" --yaml
 
-        $ prefect automation inspect "my-automation" --json
+        $ prefect automation inspect "my-automation" --output json
+        $ prefect automation inspect "my-automation" --output yaml
     """
+    if output and output.lower() not in ["json", "yaml"]:
+        exit_with_error("Only 'json' and 'yaml' output formats are supported.")
+
     if not id and not name:
         exit_with_error("Please provide either a name or an id.")
 
@@ -148,7 +158,7 @@ async def inspect(
             except (PrefectHTTPStatusError, ValueError):
                 exit_with_error(f"Automation with id {id!r} not found.")
 
-    if yaml or json:
+    if yaml or json or (output and output.lower() in ["json", "yaml"]):
 
         def no_really_json(obj: Type[BaseModel]):
             # Working around a weird bug where pydantic isn't rendering enums as strings
@@ -165,9 +175,9 @@ async def inspect(
         elif isinstance(automation, Automation):
             automation = no_really_json(automation)
 
-        if yaml:
+        if yaml or (output and output.lower() == "yaml"):
             app.console.print(pyyaml.dump(automation, sort_keys=False))
-        elif json:
+        elif json or (output and output.lower() == "json"):
             app.console.print(
                 orjson.dumps(automation, option=orjson.OPT_INDENT_2).decode()
             )

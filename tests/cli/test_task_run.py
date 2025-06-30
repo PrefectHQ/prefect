@@ -159,6 +159,25 @@ def test_inspect_task_run_with_web_flag_no_ui_url(
     mock_webbrowser.open_new_tab.assert_not_called()
 
 
+def test_inspect_task_run_with_json_output(completed_task_run: TaskRun):
+    """Test task-run inspect command with JSON output flag."""
+    import json
+
+    result = invoke_and_assert(
+        command=["task-run", "inspect", str(completed_task_run.id), "--output", "json"],
+        expected_code=0,
+    )
+
+    # Parse JSON output and verify it's valid JSON
+    output_data = json.loads(result.stdout.strip())
+
+    # Verify key fields are present
+    assert "id" in output_data
+    assert "name" in output_data
+    assert "state" in output_data
+    assert output_data["id"] == str(completed_task_run.id)
+
+
 def test_ls_no_args(
     scheduled_task_run: TaskRun,
     completed_task_run: TaskRun,

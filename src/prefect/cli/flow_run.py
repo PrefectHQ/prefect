@@ -14,6 +14,7 @@ from typing import List, Optional
 from uuid import UUID
 
 import httpx
+import orjson
 import typer
 from rich.markup import escape
 from rich.pretty import Pretty
@@ -55,10 +56,19 @@ async def inspect(
         "--web",
         help="Open the flow run in a web browser.",
     ),
+    output: Optional[str] = typer.Option(
+        None,
+        "--output",
+        "-o",
+        help="Specify an output format. Currently supports: json",
+    ),
 ):
     """
     View details about a flow run.
     """
+    if output and output.lower() != "json":
+        exit_with_error("Only 'json' output format is supported.")
+
     async with get_client() as client:
         try:
             flow_run = await client.read_flow_run(id)
@@ -78,7 +88,14 @@ async def inspect(
         await run_sync_in_worker_thread(webbrowser.open_new_tab, flow_run_url)
         exit_with_success(f"Opened flow run {id!r} in browser.")
     else:
-        app.console.print(Pretty(flow_run))
+        if output and output.lower() == "json":
+            flow_run_json = flow_run.model_dump(mode="json")
+            json_output = orjson.dumps(
+                flow_run_json, option=orjson.OPT_INDENT_2
+            ).decode()
+            app.console.print(json_output)
+        else:
+            app.console.print(Pretty(flow_run))
 
 
 @flow_run_app.command()
