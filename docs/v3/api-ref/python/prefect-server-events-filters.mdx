@@ -7,27 +7,27 @@ sidebarTitle: filters
 
 ## Classes
 
-### `AutomationFilterCreated` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/events/filters.py#L31" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `AutomationFilterCreated` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/filters.py#L31" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 
 Filter by `Automation.created`.
 
 
-### `AutomationFilterName` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/events/filters.py#L47" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `AutomationFilterName` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/filters.py#L47" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 
 Filter by `Automation.created`.
 
 
-### `AutomationFilterTags` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/events/filters.py#L61" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `AutomationFilterTags` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/filters.py#L61" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 
 Filter by `Automation.tags`.
 
 
-### `AutomationFilter` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/events/filters.py#L95" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `AutomationFilter` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/filters.py#L95" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
-### `EventDataFilter` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/events/filters.py#L121" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `EventDataFilter` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/filters.py#L121" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 
 A base class for filtering event data.
@@ -35,13 +35,13 @@ A base class for filtering event data.
 
 **Methods:**
 
-#### `get_filters` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/events/filters.py#L126" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `get_filters` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/filters.py#L126" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 get_filters(self) -> list['EventDataFilter']
 ```
 
-#### `includes` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/events/filters.py#L145" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `includes` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/filters.py#L145" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 includes(self, event: Event) -> bool
@@ -50,7 +50,7 @@ includes(self, event: Event) -> bool
 Does the given event match the criteria of this filter?
 
 
-#### `excludes` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/events/filters.py#L149" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `excludes` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/filters.py#L149" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 excludes(self, event: Event) -> bool
@@ -59,7 +59,7 @@ excludes(self, event: Event) -> bool
 Would the given filter exclude this event?
 
 
-#### `build_where_clauses` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/events/filters.py#L153" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `build_where_clauses` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/filters.py#L153" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 build_where_clauses(self) -> Sequence['ColumnExpressionArgument[bool]']
@@ -68,11 +68,11 @@ build_where_clauses(self) -> Sequence['ColumnExpressionArgument[bool]']
 Convert the criteria to a WHERE clause.
 
 
-### `EventOccurredFilter` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/events/filters.py#L161" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `EventOccurredFilter` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/filters.py#L161" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 **Methods:**
 
-#### `clamp` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/events/filters.py#L174" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `clamp` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/filters.py#L174" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 clamp(self, max_duration: timedelta) -> None
@@ -81,109 +81,109 @@ clamp(self, max_duration: timedelta) -> None
 Limit how far the query can look back based on the given duration
 
 
-#### `includes` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/events/filters.py#L181" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `includes` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/filters.py#L181" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 includes(self, event: Event) -> bool
 ```
 
-#### `build_where_clauses` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/events/filters.py#L185" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `build_where_clauses` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/filters.py#L185" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 build_where_clauses(self, db: PrefectDBInterface) -> Sequence['ColumnExpressionArgument[bool]']
 ```
 
-### `EventNameFilter` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/events/filters.py#L194" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `EventNameFilter` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/filters.py#L194" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 **Methods:**
 
-#### `includes` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/events/filters.py#L210" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `includes` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/filters.py#L210" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 includes(self, event: Event) -> bool
 ```
 
-#### `build_where_clauses` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/events/filters.py#L230" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `build_where_clauses` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/filters.py#L230" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 build_where_clauses(self, db: PrefectDBInterface) -> Sequence['ColumnExpressionArgument[bool]']
 ```
 
-### `LabelSet` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/events/filters.py#L256" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `LabelSet` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/filters.py#L256" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
-### `LabelOperations` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/events/filters.py#L262" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `LabelOperations` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/filters.py#L262" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
-### `EventResourceFilter` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/events/filters.py#L280" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `EventResourceFilter` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/filters.py#L280" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 **Methods:**
 
-#### `includes` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/events/filters.py#L298" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `includes` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/filters.py#L298" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 includes(self, event: Event) -> bool
 ```
 
-#### `build_where_clauses` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/events/filters.py#L316" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `build_where_clauses` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/filters.py#L316" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 build_where_clauses(self, db: PrefectDBInterface) -> Sequence['ColumnExpressionArgument[bool]']
 ```
 
-### `EventRelatedFilter` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/events/filters.py#L387" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `EventRelatedFilter` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/filters.py#L387" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 **Methods:**
 
-#### `build_where_clauses` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/events/filters.py#L405" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `build_where_clauses` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/filters.py#L405" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 build_where_clauses(self, db: PrefectDBInterface) -> Sequence['ColumnExpressionArgument[bool]']
 ```
 
-### `EventAnyResourceFilter` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/events/filters.py#L486" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `EventAnyResourceFilter` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/filters.py#L486" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 **Methods:**
 
-#### `includes` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/events/filters.py#L501" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `includes` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/filters.py#L501" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 includes(self, event: Event) -> bool
 ```
 
-#### `build_where_clauses` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/events/filters.py#L523" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `build_where_clauses` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/filters.py#L523" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 build_where_clauses(self, db: PrefectDBInterface) -> Sequence['ColumnExpressionArgument[bool]']
 ```
 
-### `EventIDFilter` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/events/filters.py#L591" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `EventIDFilter` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/filters.py#L591" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 **Methods:**
 
-#### `includes` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/events/filters.py#L596" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `includes` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/filters.py#L596" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 includes(self, event: Event) -> bool
 ```
 
-#### `build_where_clauses` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/events/filters.py#L604" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `build_where_clauses` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/filters.py#L604" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 build_where_clauses(self, db: PrefectDBInterface) -> Sequence['ColumnExpressionArgument[bool]']
 ```
 
-### `EventOrder` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/events/filters.py#L615" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `EventOrder` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/filters.py#L615" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
-### `EventFilter` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/events/filters.py#L620" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `EventFilter` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/filters.py#L620" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 **Methods:**
 
-#### `build_where_clauses` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/events/filters.py#L653" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `build_where_clauses` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/filters.py#L653" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 build_where_clauses(self, db: PrefectDBInterface) -> Sequence['ColumnExpressionArgument[bool]']
 ```
 
-#### `logical_limit` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/events/filters.py#L670" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `logical_limit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/filters.py#L670" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 logical_limit(self) -> int

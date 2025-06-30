@@ -7,7 +7,7 @@ sidebarTitle: memory
 
 ## Classes
 
-### `MemoryLockManager` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/locking/memory.py#L27" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `MemoryLockManager` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/locking/memory.py#L27" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 
 A lock manager that stores lock information in memory.
@@ -18,31 +18,31 @@ use in a distributed environment or across different processes.
 
 **Methods:**
 
-#### `acquire_lock` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/locking/memory.py#L64" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `acquire_lock` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/locking/memory.py#L64" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 acquire_lock(self, key: str, holder: str, acquire_timeout: float | None = None, hold_timeout: float | None = None) -> bool
 ```
 
-#### `release_lock` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/locking/memory.py#L172" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `release_lock` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/locking/memory.py#L172" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 release_lock(self, key: str, holder: str) -> None
 ```
 
-#### `is_locked` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/locking/memory.py#L186" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `is_locked` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/locking/memory.py#L186" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 is_locked(self, key: str) -> bool
 ```
 
-#### `is_lock_holder` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/locking/memory.py#L189" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `is_lock_holder` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/locking/memory.py#L189" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 is_lock_holder(self, key: str, holder: str) -> bool
 ```
 
-#### `wait_for_lock` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/locking/memory.py#L197" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `wait_for_lock` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/locking/memory.py#L197" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 wait_for_lock(self, key: str, timeout: float | None = None) -> bool
