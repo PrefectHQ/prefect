@@ -197,3 +197,64 @@ async def test_consistent_service_job_naming(
     assert len(service_job_name) <= max_length, (
         f"Length: {len(service_job_name)}, Max: {max_length}"
     )
+
+
+async def test_timeout_configuration_defaults(snowflake_credentials, worker_flow_run):
+    """Test that timeout configurations have expected default values."""
+    spcs_job_config = await create_job_configuration(
+        snowflake_credentials, worker_flow_run
+    )
+
+    # Test default timeout values
+    assert spcs_job_config.pool_start_timeout_seconds == 600
+    assert spcs_job_config.service_start_timeout_seconds == 300
+
+
+async def test_timeout_configuration_custom_values(
+    snowflake_credentials, worker_flow_run
+):
+    """Test that custom timeout values are properly set."""
+    config_overrides = {
+        "pool_start_timeout_seconds": 120,
+        "service_start_timeout_seconds": 60,
+    }
+
+    spcs_job_config = await create_job_configuration(
+        snowflake_credentials, worker_flow_run, config_overrides
+    )
+
+    assert spcs_job_config.pool_start_timeout_seconds == 120
+    assert spcs_job_config.service_start_timeout_seconds == 60
+
+
+@pytest.mark.parametrize(
+    "timeout_seconds,expected_valid",
+    [
+        (0, True),  # Zero timeout means no timeout
+        (1, True),  # Minimum positive timeout
+        (3600, True),  # One hour timeout
+        (-1, False),  # Negative timeouts should be invalid
+    ],
+)
+async def test_timeout_validation(
+    snowflake_credentials, worker_flow_run, timeout_seconds, expected_valid
+):
+    """Test validation of timeout values."""
+    config_overrides = {
+        "pool_start_timeout_seconds": timeout_seconds,
+        "service_start_timeout_seconds": timeout_seconds,
+    }
+
+    if expected_valid:
+        # Should not raise an exception
+        config = await create_job_configuration(
+            snowflake_credentials, worker_flow_run, config_overrides
+        )
+        assert config.pool_start_timeout_seconds == timeout_seconds
+        assert config.service_start_timeout_seconds == timeout_seconds
+    else:
+        # Should raise a validation error when prepare_for_flow_run is called
+        with pytest.raises((ValueError, Exception)):  # Catch validation errors
+            await create_job_configuration(
+                snowflake_credentials, worker_flow_run, config_overrides
+            )
