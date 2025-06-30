@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Optional
 from uuid import UUID
 
+import orjson
 import typer
 from rich.pretty import Pretty
 from rich.table import Table
@@ -96,6 +97,12 @@ async def inspect(
         "--limit",
         help="The maximum number of artifacts to return.",
     ),
+    output: Optional[str] = typer.Option(
+        None,
+        "--output",
+        "-o",
+        help="Specify an output format. Currently supports: json",
+    ),
 ):
     """
         View details about an artifact.
@@ -132,6 +139,8 @@ async def inspect(
             }
     ]
     """
+    if output and output.lower() != "json":
+        exit_with_error("Only 'json' output format is supported.")
 
     async with get_client() as client:
         artifacts = await client.read_artifacts(
@@ -142,9 +151,15 @@ async def inspect(
         if not artifacts:
             exit_with_error(f"Artifact {key!r} not found.")
 
-        artifacts = [a.model_dump(mode="json") for a in artifacts]
+        artifacts_json = [a.model_dump(mode="json") for a in artifacts]
 
-        app.console.print(Pretty(artifacts))
+        if output and output.lower() == "json":
+            json_output = orjson.dumps(
+                artifacts_json, option=orjson.OPT_INDENT_2
+            ).decode()
+            app.console.print(json_output)
+        else:
+            app.console.print(Pretty(artifacts_json))
 
 
 @artifact_app.command("delete")
