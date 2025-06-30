@@ -7,7 +7,7 @@ sidebarTitle: __init__
 
 ## Functions
 
-### `get_client` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/__init__.py#L184" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `get_client` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/__init__.py#L184" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 get_client(httpx_settings: Optional[dict[str, Any]] = None, sync_client: bool = False) -> Union['SyncPrefectClient', 'PrefectClient']
@@ -33,7 +33,7 @@ with get_client(sync_client=True) as client:
 
 ## Classes
 
-### `PrefectClient` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/__init__.py#L265" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `PrefectClient` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/__init__.py#L265" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 
 An asynchronous client for interacting with the [Prefect REST API](/api-ref/rest-api/).
@@ -49,20 +49,18 @@ Examples:
 
     Say hello to a Prefect REST API
 
-    &lt;div class="terminal"&gt;
-    ```
-    >>> async with get_client() as client:
-    >>>     response = await client.hello()
-    >>>
-    >>> print(response.json())
+    ```python
+    async with get_client() as client:
+        response = await client.hello()
+
+    print(response.json())
     👋
     ```
-    &lt;/div&gt;
 
 
 **Methods:**
 
-#### `api_url` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/__init__.py#L469" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `api_url` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/__init__.py#L467" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 api_url(self) -> httpx.URL
@@ -71,19 +69,19 @@ api_url(self) -> httpx.URL
 Get the base URL for the API.
 
 
-#### `client_version` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/__init__.py#L1025" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `client_version` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/__init__.py#L1023" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 client_version(self) -> str
 ```
 
-#### `loop` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/__init__.py#L1029" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `loop` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/__init__.py#L1027" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 loop(self) -> asyncio.AbstractEventLoop | None
 ```
 
-### `SyncPrefectClient` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/__init__.py#L1130" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `SyncPrefectClient` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/__init__.py#L1128" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 
 A synchronous client for interacting with the [Prefect REST API](/api-ref/rest-api/).
@@ -99,20 +97,18 @@ Examples:
 
     Say hello to a Prefect REST API
 
-    &lt;div class="terminal"&gt;
-    ```
-    >>> with get_client(sync_client=True) as client:
-    >>>     response = client.hello()
-    >>>
-    >>> print(response.json())
+    ```python
+    with get_client(sync_client=True) as client:
+        response = client.hello()
+
+    print(response.json())
     👋
     ```
-    &lt;/div&gt;
 
 
 **Methods:**
 
-#### `api_url` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/__init__.py#L1313" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `api_url` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/__init__.py#L1309" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 api_url(self) -> httpx.URL
@@ -121,7 +117,7 @@ api_url(self) -> httpx.URL
 Get the base URL for the API.
 
 
-#### `api_healthcheck` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/__init__.py#L1360" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `api_healthcheck` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/__init__.py#L1356" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 api_healthcheck(self) -> Optional[Exception]
@@ -133,7 +129,7 @@ successful.
 If successful, returns `None`.
 
 
-#### `hello` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/__init__.py#L1373" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `hello` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/__init__.py#L1369" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 hello(self) -> httpx.Response
@@ -142,31 +138,31 @@ hello(self) -> httpx.Response
 Send a GET request to /hello for testing purposes.
 
 
-#### `api_version` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/__init__.py#L1379" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `api_version` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/__init__.py#L1375" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 api_version(self) -> str
 ```
 
-#### `client_version` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/__init__.py#L1383" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `client_version` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/__init__.py#L1379" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 client_version(self) -> str
 ```
 
-#### `raise_for_api_version_mismatch` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/__init__.py#L1386" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `raise_for_api_version_mismatch` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/__init__.py#L1382" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 raise_for_api_version_mismatch(self) -> None
 ```
 
-#### `set_task_run_name` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/__init__.py#L1416" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `set_task_run_name` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/__init__.py#L1412" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 set_task_run_name(self, task_run_id: UUID, name: str) -> httpx.Response
 ```
 
-#### `create_task_run` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/__init__.py#L1423" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `create_task_run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/__init__.py#L1419" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 create_task_run(self, task: 'TaskObject[P, R]', flow_run_id: Optional[UUID], dynamic_key: str, id: Optional[UUID] = None, name: Optional[str] = None, extra_tags: Optional[Iterable[str]] = None, state: Optional[prefect.states.State[R]] = None, task_inputs: Optional[dict[str, list[Union[TaskRunResult, FlowRunResult, Parameter, Constant]]]] = None) -> TaskRun
@@ -191,7 +187,7 @@ addition to `task.tags`
 - The created task run.
 
 
-#### `read_task_run` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/__init__.py#L1498" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `read_task_run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/__init__.py#L1494" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 read_task_run(self, task_run_id: UUID) -> TaskRun
@@ -206,7 +202,7 @@ Query the Prefect API for a task run by id.
 - a Task Run model representation of the task run
 
 
-#### `read_task_runs` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/__init__.py#L1517" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `read_task_runs` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/__init__.py#L1513" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 read_task_runs(self) -> list[TaskRun]
@@ -229,7 +225,7 @@ be returned.
 of the task runs
 
 
-#### `set_task_run_state` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/__init__.py#L1565" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `set_task_run_state` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/__init__.py#L1561" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 set_task_run_state(self, task_run_id: UUID, state: prefect.states.State[Any], force: bool = False) -> OrchestrationResult[Any]
@@ -247,7 +243,7 @@ forcing the Prefect API to accept the state
 - an OrchestrationResult model representation of state orchestration output
 
 
-#### `read_task_run_states` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/__init__.py#L1594" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `read_task_run_states` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/__init__.py#L1590" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 read_task_run_states(self, task_run_id: UUID) -> list[prefect.states.State]

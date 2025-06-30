@@ -12,7 +12,7 @@ Utilities for the Prefect REST API server.
 
 ## Functions
 
-### `method_paths_from_routes` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/utilities/server.py#L15" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `method_paths_from_routes` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/server.py#L15" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 method_paths_from_routes(routes: Sequence[BaseRoute]) -> set[str]
@@ -26,7 +26,7 @@ For example, "GET /logs/"
 
 ## Classes
 
-### `PrefectAPIRoute` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/utilities/server.py#L30" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `PrefectAPIRoute` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/server.py#L30" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 
 A FastAPIRoute class which attaches an async stack to requests that exits before
@@ -41,13 +41,13 @@ scope. This extension adds this stack at `request.state.response_scoped_stack`.
 
 **Methods:**
 
-#### `get_route_handler` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/utilities/server.py#L42" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `get_route_handler` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/server.py#L42" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 get_route_handler(self) -> Callable[[Request], Coroutine[Any, Any, Response]]
 ```
 
-### `PrefectRouter` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/utilities/server.py#L59" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `PrefectRouter` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/server.py#L59" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 
 A base class for Prefect REST API routers.
@@ -55,7 +55,7 @@ A base class for Prefect REST API routers.
 
 **Methods:**
 
-#### `add_api_route` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/utilities/server.py#L68" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `add_api_route` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/server.py#L68" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 add_api_route(self, path: str, endpoint: Callable[..., Any], **kwargs: Any) -> None

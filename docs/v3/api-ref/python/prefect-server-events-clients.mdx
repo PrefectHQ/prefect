@@ -7,19 +7,19 @@ sidebarTitle: clients
 
 ## Classes
 
-### `EventsClient` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/events/clients.py#L37" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `EventsClient` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/clients.py#L37" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 
 The abstract interface for a Prefect Events client
 
 
-### `NullEventsClient` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/events/clients.py#L55" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `NullEventsClient` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/clients.py#L55" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 
 A no-op implementation of the Prefect Events client for testing
 
 
-### `AssertingEventsClient` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/events/clients.py#L62" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `AssertingEventsClient` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/clients.py#L62" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 
 An implementation of the Prefect Events client that records all events sent
@@ -28,7 +28,7 @@ to it for inspection during tests.
 
 **Methods:**
 
-#### `reset` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/events/clients.py#L80" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `reset` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/clients.py#L80" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 reset(cls) -> None
@@ -37,13 +37,13 @@ reset(cls) -> None
 Reset all captured instances and their events.  For use this between tests
 
 
-#### `emitted_events_count` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/events/clients.py#L108" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `emitted_events_count` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/clients.py#L108" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 emitted_events_count(cls) -> int
 ```
 
-#### `assert_emitted_event_count` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/events/clients.py#L112" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `assert_emitted_event_count` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/clients.py#L112" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 assert_emitted_event_count(cls, count: int) -> None
@@ -52,7 +52,7 @@ assert_emitted_event_count(cls, count: int) -> None
 Assert that the given number of events were emitted.
 
 
-#### `assert_emitted_event_with` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/events/clients.py#L120" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `assert_emitted_event_with` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/clients.py#L120" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 assert_emitted_event_with(cls, event: Optional[str] = None, resource: Optional[Dict[str, LabelValue]] = None, related: Optional[List[Dict[str, LabelValue]]] = None, payload: Optional[Dict[str, Any]] = None) -> None
@@ -61,12 +61,12 @@ assert_emitted_event_with(cls, event: Optional[str] = None, resource: Optional[D
 Assert that an event was emitted containing the given properties.
 
 
-#### `assert_no_emitted_event_with` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/events/clients.py#L199" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `assert_no_emitted_event_with` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/clients.py#L199" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 assert_no_emitted_event_with(cls, event: Optional[str] = None, resource: Optional[Dict[str, LabelValue]] = None, related: Optional[List[Dict[str, LabelValue]]] = None, payload: Optional[Dict[str, Any]] = None) -> None
 ```
 
-### `PrefectServerEventsClient` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/events/clients.py#L214" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `PrefectServerEventsClient` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/clients.py#L214" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
-### `PrefectServerEventsAPIClient` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/events/clients.py#L244" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `PrefectServerEventsAPIClient` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/clients.py#L244" target="_blank"><Icon icon="github" size="14" /></a></sup>

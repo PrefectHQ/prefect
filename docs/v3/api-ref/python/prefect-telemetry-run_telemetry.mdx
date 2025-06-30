@@ -7,7 +7,7 @@ sidebarTitle: run_telemetry
 
 ## Classes
 
-### `OTELSetter` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/telemetry/run_telemetry.py#L35" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `OTELSetter` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/telemetry/run_telemetry.py#L35" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 
 A setter for OpenTelemetry that supports Prefect's custom labels.
@@ -15,13 +15,13 @@ A setter for OpenTelemetry that supports Prefect's custom labels.
 
 **Methods:**
 
-#### `set` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/telemetry/run_telemetry.py#L40" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `set` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/telemetry/run_telemetry.py#L40" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 set(self, carrier: KeyValueLabels, key: str, value: str) -> None
 ```
 
-### `RunTelemetry` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/telemetry/run_telemetry.py#L45" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `RunTelemetry` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/telemetry/run_telemetry.py#L45" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 
 A class for managing the telemetry of runs.
@@ -29,19 +29,19 @@ A class for managing the telemetry of runs.
 
 **Methods:**
 
-#### `start_span` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/telemetry/run_telemetry.py#L76" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `start_span` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/telemetry/run_telemetry.py#L76" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 start_span(self, run: FlowOrTaskRun, client: SyncPrefectClient, parameters: dict[str, Any] | None = None) -> Span | None
 ```
 
-#### `traceparent_from_span` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/telemetry/run_telemetry.py#L162" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `traceparent_from_span` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/telemetry/run_telemetry.py#L162" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 traceparent_from_span(span: Span) -> str | None
 ```
 
-#### `end_span_on_success` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/telemetry/run_telemetry.py#L167" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `end_span_on_success` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/telemetry/run_telemetry.py#L167" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 end_span_on_success(self) -> None
@@ -50,7 +50,7 @@ end_span_on_success(self) -> None
 End a span for a run on success.
 
 
-#### `end_span_on_failure` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/telemetry/run_telemetry.py#L176" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `end_span_on_failure` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/telemetry/run_telemetry.py#L176" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 end_span_on_failure(self, terminal_message: str | None = None) -> None
@@ -59,7 +59,7 @@ end_span_on_failure(self, terminal_message: str | None = None) -> None
 End a span for a run on failure.
 
 
-#### `record_exception` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/telemetry/run_telemetry.py#L187" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `record_exception` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/telemetry/run_telemetry.py#L187" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 record_exception(self, exc: BaseException) -> None
@@ -68,7 +68,7 @@ record_exception(self, exc: BaseException) -> None
 Record an exception on a span.
 
 
-#### `update_state` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/telemetry/run_telemetry.py#L194" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `update_state` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/telemetry/run_telemetry.py#L194" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 update_state(self, new_state: State) -> None
@@ -77,7 +77,7 @@ update_state(self, new_state: State) -> None
 Update a span with the state of a run.
 
 
-#### `update_run_name` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/telemetry/run_telemetry.py#L209" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `update_run_name` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/telemetry/run_telemetry.py#L209" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 update_run_name(self, name: str) -> None

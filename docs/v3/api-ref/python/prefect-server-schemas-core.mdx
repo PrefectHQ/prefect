@@ -12,13 +12,13 @@ Full schemas of Prefect REST API objects.
 
 ## Classes
 
-### `Flow` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/schemas/core.py#L83" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `Flow` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/core.py#L83" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 
 An ORM representation of flow data.
 
 
-### `FlowRunPolicy` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/schemas/core.py#L101" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `FlowRunPolicy` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/core.py#L101" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 
 Defines of how a flow run should retry.
@@ -26,29 +26,29 @@ Defines of how a flow run should retry.
 
 **Methods:**
 
-#### `populate_deprecated_fields` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/schemas/core.py#L135" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `populate_deprecated_fields` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/core.py#L135" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 populate_deprecated_fields(cls, values: dict[str, Any]) -> dict[str, Any]
 ```
 
-### `CreatedBy` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/schemas/core.py#L139" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `CreatedBy` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/core.py#L139" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
-### `UpdatedBy` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/schemas/core.py#L151" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `UpdatedBy` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/core.py#L151" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
-### `ConcurrencyLimitStrategy` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/schemas/core.py#L163" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `ConcurrencyLimitStrategy` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/core.py#L163" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 
 Enumeration of concurrency collision strategies.
 
 
-### `ConcurrencyOptions` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/schemas/core.py#L172" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `ConcurrencyOptions` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/core.py#L172" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 
 Class for storing the concurrency config in database.
 
 
-### `FlowRun` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/schemas/core.py#L180" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `FlowRun` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/core.py#L180" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 
 An ORM representation of flow run data.
@@ -56,13 +56,13 @@ An ORM representation of flow run data.
 
 **Methods:**
 
-#### `set_name` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/schemas/core.py#L322" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `set_name` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/core.py#L322" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 set_name(cls, name: str) -> str
 ```
 
-### `TaskRunPolicy` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/schemas/core.py#L340" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `TaskRunPolicy` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/core.py#L340" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 
 Defines of how a task run should retry.
@@ -70,52 +70,52 @@ Defines of how a task run should retry.
 
 **Methods:**
 
-#### `populate_deprecated_fields` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/schemas/core.py#L369" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `populate_deprecated_fields` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/core.py#L369" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 populate_deprecated_fields(cls, values: dict[str, Any]) -> dict[str, Any]
 ```
 
-#### `validate_configured_retry_delays` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/schemas/core.py#L374" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `validate_configured_retry_delays` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/core.py#L374" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 validate_configured_retry_delays(cls, v: int | float | list[int] | list[float] | None) -> int | float | list[int] | list[float] | None
 ```
 
-#### `validate_jitter_factor` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/schemas/core.py#L381" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `validate_jitter_factor` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/core.py#L381" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 validate_jitter_factor(cls, v: float | None) -> float | None
 ```
 
-### `RunInput` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/schemas/core.py#L385" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `RunInput` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/core.py#L385" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 
 Base class for classes that represent inputs to runs, which
 could include, constants, parameters, task runs or flow runs.
 
 
-### `TaskRunResult` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/schemas/core.py#L396" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `TaskRunResult` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/core.py#L396" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 
 Represents a task run result input to another task run.
 
 
-### `FlowRunResult` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/schemas/core.py#L403" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `FlowRunResult` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/core.py#L403" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
-### `Parameter` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/schemas/core.py#L408" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `Parameter` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/core.py#L408" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 
 Represents a parameter input to a task run.
 
 
-### `Constant` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/schemas/core.py#L415" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `Constant` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/core.py#L415" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 
 Represents constant input value to a task run.
 
 
-### `TaskRun` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/schemas/core.py#L422" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `TaskRun` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/core.py#L422" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 
 An ORM representation of task run data.
@@ -123,67 +123,67 @@ An ORM representation of task run data.
 
 **Methods:**
 
-#### `set_name` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/schemas/core.py#L537" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `set_name` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/core.py#L537" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 set_name(cls, name: str) -> str
 ```
 
-#### `validate_cache_key` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/schemas/core.py#L542" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `validate_cache_key` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/core.py#L542" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 validate_cache_key(cls, cache_key: str) -> str
 ```
 
-### `DeploymentSchedule` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/schemas/core.py#L546" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `DeploymentSchedule` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/core.py#L546" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 **Methods:**
 
-#### `validate_max_scheduled_runs` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/schemas/core.py#L571" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `validate_max_scheduled_runs` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/core.py#L571" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 validate_max_scheduled_runs(cls, v: int) -> int
 ```
 
-### `VersionInfo` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/schemas/core.py#L577" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `VersionInfo` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/core.py#L577" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
-### `Deployment` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/schemas/core.py#L582" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `Deployment` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/core.py#L582" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 
 An ORM representation of deployment data.
 
 
-### `ConcurrencyLimit` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/schemas/core.py#L694" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `ConcurrencyLimit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/core.py#L694" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 
 An ORM representation of a concurrency limit.
 
 
-### `ConcurrencyLimitV2` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/schemas/core.py#L707" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `ConcurrencyLimitV2` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/core.py#L707" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 
 An ORM representation of a v2 concurrency limit.
 
 
-### `BlockType` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/schemas/core.py#L726" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `BlockType` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/core.py#L726" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 
 An ORM representation of a block type
 
 
-### `BlockSchema` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/schemas/core.py#L750" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `BlockSchema` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/core.py#L750" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 
 An ORM representation of a block schema.
 
 
-### `BlockSchemaReference` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/schemas/core.py#L773" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `BlockSchemaReference` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/core.py#L773" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 
 An ORM representation of a block schema reference.
 
 
-### `BlockDocument` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/schemas/core.py#L793" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `BlockDocument` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/core.py#L793" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 
 An ORM representation of a block document.
@@ -191,13 +191,13 @@ An ORM representation of a block document.
 
 **Methods:**
 
-#### `validate_name_is_present_if_not_anonymous` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/schemas/core.py#L828" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `validate_name_is_present_if_not_anonymous` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/core.py#L828" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 validate_name_is_present_if_not_anonymous(cls, values: dict[str, Any]) -> dict[str, Any]
 ```
 
-### `BlockDocumentReference` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/schemas/core.py#L881" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `BlockDocumentReference` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/core.py#L881" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 
 An ORM representation of a block document reference.
@@ -205,53 +205,53 @@ An ORM representation of a block document reference.
 
 **Methods:**
 
-#### `validate_parent_and_ref_are_different` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/schemas/core.py#L901" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `validate_parent_and_ref_are_different` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/core.py#L901" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 validate_parent_and_ref_are_different(cls, values: dict[str, Any]) -> dict[str, Any]
 ```
 
-### `Configuration` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/schemas/core.py#L907" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `Configuration` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/core.py#L907" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 
 An ORM representation of account info.
 
 
-### `SavedSearchFilter` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/schemas/core.py#L914" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `SavedSearchFilter` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/core.py#L914" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 
 A filter for a saved search model. Intended for use by the Prefect UI.
 
 
-### `SavedSearch` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/schemas/core.py#L931" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `SavedSearch` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/core.py#L931" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 
 An ORM representation of saved search data. Represents a set of filter criteria.
 
 
-### `Log` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/schemas/core.py#L941" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `Log` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/core.py#L941" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 
 An ORM representation of log data.
 
 
-### `QueueFilter` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/schemas/core.py#L956" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `QueueFilter` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/core.py#L956" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 
 Filter criteria definition for a work queue.
 
 
-### `WorkQueue` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/schemas/core.py#L969" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `WorkQueue` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/core.py#L969" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 
 An ORM representation of a work queue
 
 
-### `WorkQueueHealthPolicy` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/schemas/core.py#L1002" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `WorkQueueHealthPolicy` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/core.py#L1002" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 **Methods:**
 
-#### `evaluate_health_status` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/schemas/core.py#L1018" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `evaluate_health_status` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/core.py#L1018" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 evaluate_health_status(self, late_runs_count: int, last_polled: Optional[DateTime] = None) -> bool
@@ -267,21 +267,21 @@ Given empirical information about the state of the work queue, evaluate its heal
 - whether or not the work queue is healthy.
 
 
-### `WorkQueueStatusDetail` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/schemas/core.py#L1049" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `WorkQueueStatusDetail` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/core.py#L1049" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
-### `Agent` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/schemas/core.py#L1065" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `Agent` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/core.py#L1065" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 
 An ORM representation of an agent
 
 
-### `WorkPoolStorageConfiguration` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/schemas/core.py#L1083" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `WorkPoolStorageConfiguration` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/core.py#L1083" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 
 A representation of a work pool's storage configuration
 
 
-### `WorkPool` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/schemas/core.py#L1102" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `WorkPool` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/core.py#L1102" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 
 An ORM representation of a work pool
@@ -289,44 +289,44 @@ An ORM representation of a work pool
 
 **Methods:**
 
-#### `helpful_error_for_missing_default_queue_id` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/schemas/core.py#L1138" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `helpful_error_for_missing_default_queue_id` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/core.py#L1138" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 helpful_error_for_missing_default_queue_id(cls, v: UUID | None) -> UUID
 ```
 
-#### `model_validate` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/schemas/core.py#L1142" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `model_validate` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/core.py#L1142" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 model_validate(cls: Type[Self], obj: Any) -> Self
 ```
 
-### `Worker` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/schemas/core.py#L1159" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `Worker` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/core.py#L1159" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 
 An ORM representation of a worker
 
 
-### `Artifact` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/schemas/core.py#L1181" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `Artifact` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/core.py#L1181" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 **Methods:**
 
-#### `from_result` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/schemas/core.py#L1218" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `from_result` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/core.py#L1218" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 from_result(cls, data: Any | dict[str, Any]) -> 'Artifact'
 ```
 
-#### `validate_metadata_length` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/schemas/core.py#L1237" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `validate_metadata_length` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/core.py#L1237" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 validate_metadata_length(cls, v: dict[str, str]) -> dict[str, str]
 ```
 
-### `ArtifactCollection` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/schemas/core.py#L1241" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `ArtifactCollection` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/core.py#L1241" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
-### `Variable` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/schemas/core.py#L1278" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `Variable` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/core.py#L1278" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
-### `FlowRunInput` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/schemas/core.py#L1297" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `FlowRunInput` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/core.py#L1297" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
-### `CsrfToken` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/schemas/core.py#L1306" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `CsrfToken` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/core.py#L1306" target="_blank"><Icon icon="github" size="14" /></a></sup>

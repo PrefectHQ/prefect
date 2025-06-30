@@ -7,7 +7,7 @@ sidebarTitle: task_worker
 
 ## Functions
 
-### `should_try_to_read_parameters` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/task_worker.py#L67" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `should_try_to_read_parameters` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_worker.py#L67" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 should_try_to_read_parameters(task: Task[P, R], task_run: TaskRun) -> bool
@@ -17,7 +17,7 @@ should_try_to_read_parameters(task: Task[P, R], task_run: TaskRun) -> bool
 Determines whether a task run should read parameters from the result store.
 
 
-### `create_status_server` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/task_worker.py#L410" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `create_status_server` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_worker.py#L410" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 create_status_server(task_worker: TaskWorker) -> FastAPI
@@ -25,13 +25,13 @@ create_status_server(task_worker: TaskWorker) -> FastAPI
 
 ## Classes
 
-### `StopTaskWorker` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/task_worker.py#L61" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `StopTaskWorker` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_worker.py#L61" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 
 Raised when the task worker is stopped.
 
 
-### `TaskWorker` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/task_worker.py#L79" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `TaskWorker` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_worker.py#L79" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 
 This class is responsible for serving tasks that may be executed in the background
@@ -51,43 +51,43 @@ Pass `None` to remove the limit.
 
 **Methods:**
 
-#### `client_id` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/task_worker.py#L140" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `client_id` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_worker.py#L140" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 client_id(self) -> str
 ```
 
-#### `started_at` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/task_worker.py#L144" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `started_at` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_worker.py#L144" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 started_at(self) -> Optional[DateTime]
 ```
 
-#### `started` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/task_worker.py#L148" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `started` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_worker.py#L148" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 started(self) -> bool
 ```
 
-#### `limit` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/task_worker.py#L152" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `limit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_worker.py#L152" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 limit(self) -> Optional[int]
 ```
 
-#### `current_tasks` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/task_worker.py#L156" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `current_tasks` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_worker.py#L156" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 current_tasks(self) -> Optional[int]
 ```
 
-#### `available_tasks` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/task_worker.py#L164" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `available_tasks` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_worker.py#L164" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 available_tasks(self) -> Optional[int]
 ```
 
-#### `handle_sigterm` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/task_worker.py#L167" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `handle_sigterm` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_worker.py#L167" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 handle_sigterm(self, signum: int, frame: object) -> None
