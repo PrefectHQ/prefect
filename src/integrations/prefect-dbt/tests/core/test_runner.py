@@ -9,7 +9,7 @@ import pytest
 from dbt.artifacts.resources.types import NodeType
 from dbt.artifacts.schemas.results import RunStatus
 from dbt.artifacts.schemas.run import RunExecutionResult
-from dbt.config.runtime import RuntimeConfig
+from dbt.config.project import Project
 from dbt.contracts.graph.manifest import Manifest
 from dbt.contracts.graph.nodes import ManifestNode
 from dbt_common.events.base_types import EventLevel, EventMsg
@@ -1092,9 +1092,9 @@ class TestPrefectDbtRunner:
         """Test that runner can load project successfully."""
         mock_project = Mock()
 
-        # Mock RuntimeConfig.from_args
+        # Mock Project.from_project_root
         monkeypatch.setattr(
-            "prefect_dbt.core.runner.RuntimeConfig.from_args",
+            "prefect_dbt.core.runner.Project.from_project_root",
             Mock(return_value=mock_project),
         )
 
@@ -1105,7 +1105,7 @@ class TestPrefectDbtRunner:
         result = runner.project
 
         assert result == mock_project
-        RuntimeConfig.from_args.assert_called_once_with(Path("/test/project"))
+        Project.from_project_root.assert_called_once()
 
     def test_runner_handles_project_loading_with_settings(
         self, monkeypatch: pytest.MonkeyPatch
@@ -1113,9 +1113,9 @@ class TestPrefectDbtRunner:
         """Test that runner uses settings.project_dir when _project_dir is not set."""
         mock_project = Mock()
 
-        # Mock RuntimeConfig.from_args
+        # Mock Project.from_project_root
         monkeypatch.setattr(
-            "prefect_dbt.core.runner.RuntimeConfig.from_args",
+            "prefect_dbt.core.runner.Project.from_project_root",
             Mock(return_value=mock_project),
         )
 
@@ -1129,7 +1129,7 @@ class TestPrefectDbtRunner:
         result = runner.project
 
         assert result == mock_project
-        RuntimeConfig.from_args.assert_called_once_with(Path("/settings/project"))
+        Project.from_project_root.assert_called_once()
 
     def test_runner_get_compiled_code_path_uses_project_name(
         self, monkeypatch: pytest.MonkeyPatch
@@ -1230,9 +1230,9 @@ class TestPrefectDbtRunner:
         mock_project = Mock()
         mock_project.project_name = "test_project"
 
-        # Mock RuntimeConfig.from_args
+        # Mock Project.from_project_root
         monkeypatch.setattr(
-            "prefect_dbt.core.runner.RuntimeConfig.from_args",
+            "prefect_dbt.core.runner.Project.from_project_root",
             Mock(return_value=mock_project),
         )
 
@@ -1243,7 +1243,7 @@ class TestPrefectDbtRunner:
         result = runner._get_compiled_code_path(mock_node)
 
         # Should trigger project loading
-        RuntimeConfig.from_args.assert_called_once_with(Path("/test/project"))
+        Project.from_project_root.assert_called_once()
         expected_path = (
             Path("/test/project")
             / "target"

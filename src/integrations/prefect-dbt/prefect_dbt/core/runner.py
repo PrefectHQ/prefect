@@ -16,7 +16,8 @@ from dbt.artifacts.schemas.results import (
 )
 from dbt.artifacts.schemas.run import RunExecutionResult
 from dbt.cli.main import dbtRunner
-from dbt.config.runtime import RuntimeConfig
+from dbt.config.project import Project
+from dbt.config.renderer import DbtProjectYamlRenderer
 from dbt.contracts.graph.manifest import Manifest
 from dbt.contracts.graph.nodes import ManifestNode
 from dbt_common.events.base_types import EventLevel, EventMsg
@@ -123,7 +124,7 @@ class PrefectDbtRunner:
         self.include_compiled_code = include_compiled_code
         self._force_nodes_as_tasks = _force_nodes_as_tasks
 
-        self._project: Optional[RuntimeConfig] = None
+        self._project: Optional[Project] = None
         self._target_path: Optional[Path] = None
         self._profiles_dir: Optional[Path] = None
         self._project_dir: Optional[Path] = None
@@ -153,7 +154,7 @@ class PrefectDbtRunner:
         return self._manifest
 
     @property
-    def project(self) -> RuntimeConfig:
+    def project(self) -> Project:
         if self._project is None:
             self._set_project_from_project_dir()
             assert self._project is not None  # for type checking
@@ -171,7 +172,8 @@ class PrefectDbtRunner:
             )
 
     def _set_project_from_project_dir(self):
-        self._project = RuntimeConfig.from_args(self.project_dir)
+        renderer = DbtProjectYamlRenderer(profile=None, cli_vars=None)
+        self._project = Project.from_project_root(str(self.project_dir), renderer)
 
     def _get_node_prefect_config(
         self, manifest_node: ManifestNode
