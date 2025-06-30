@@ -231,6 +231,16 @@ class SPCSWorkerConfiguration(BaseJobConfiguration):
         if not self.metrics_groups:
             self.job_manifest["spec"].pop("platformMonitor")
 
+        if self.pool_start_timeout_seconds < 0:
+            raise ValueError(
+                "pool_start_timeout_seconds must be a non-negative integer."
+            )
+
+        if self.service_start_timeout_seconds < 0:
+            raise ValueError(
+                "service_start_timeout_seconds must be a non-negative integer."
+            )
+
 
 class SPCSServiceTemplateVariables(BaseVariables):
     """Defines variables which can be overridden by deployments.
