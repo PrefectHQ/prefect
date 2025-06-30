@@ -1,4 +1,3 @@
-from enum import Enum
 from pathlib import Path
 from typing import Optional
 
@@ -28,10 +27,6 @@ global_concurrency_limit_app: PrefectTyper = PrefectTyper(
 )
 
 app.add_typer(global_concurrency_limit_app, aliases=["gcl"])
-
-
-class OutputFormat(Enum):
-    JSON = "json"
 
 
 @global_concurrency_limit_app.command("ls")
@@ -81,12 +76,11 @@ async def inspect_global_concurrency_limit(
     name: str = typer.Argument(
         ..., help="The name of the global concurrency limit to inspect."
     ),
-    output: Optional[OutputFormat] = typer.Option(
+    output: Optional[str] = typer.Option(
         None,
         "--output",
         "-o",
-        help="Output format for the command.",
-        case_sensitive=False,
+        help="Specify an output format. Currently supports: json",
     ),
     file_path: Optional[Path] = typer.Option(
         None,
@@ -114,6 +108,9 @@ async def inspect_global_concurrency_limit(
         slot_decay_per_second (float): The slot decay per second.
 
     """
+    if output and output.lower() != "json":
+        exit_with_error("Only 'json' output format is supported.")
+
     if file_path and not output:
         exit_with_error("The --file/-f option requires the --output option to be set.")
 
@@ -123,19 +120,17 @@ async def inspect_global_concurrency_limit(
         except ObjectNotFound:
             exit_with_error(f"Global concurrency limit {name!r} not found.")
 
-    if output:
-        gcl_limit = gcl_limit.model_dump(mode="json")
-        json_output = orjson.dumps(gcl_limit, option=orjson.OPT_INDENT_2).decode()
+    if output and output.lower() == "json":
+        gcl_limit_json = gcl_limit.model_dump(mode="json")
+        json_output = orjson.dumps(gcl_limit_json, option=orjson.OPT_INDENT_2).decode()
         if not file_path:
             app.console.print(json_output)
-
         else:
             with open(file_path, "w") as f:
                 f.write(json_output)
                 exit_with_success(
                     f"Global concurrency limit {name!r} written to {file_path}"
                 )
-
     else:
         app.console.print(Pretty(gcl_limit))
 

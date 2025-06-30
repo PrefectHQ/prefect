@@ -3,7 +3,9 @@ Command line interface for working with concurrency limits.
 """
 
 import textwrap
+from typing import Optional
 
+import orjson
 import typer
 from rich.console import Group
 from rich.panel import Panel
@@ -57,11 +59,21 @@ async def create(tag: str, concurrency_limit: int):
 
 
 @concurrency_limit_app.command()
-async def inspect(tag: str):
+async def inspect(
+    tag: str,
+    output: Optional[str] = typer.Option(
+        None,
+        "--output",
+        "-o",
+        help="Specify an output format. Currently supports: json",
+    ),
+):
     """
     View details about a concurrency limit. `active_slots` shows a list of TaskRun IDs
     which are currently using a concurrency slot.
     """
+    if output and output.lower() != "json":
+        exit_with_error("Only 'json' output format is supported.")
 
     async with get_client() as client:
         try:
@@ -69,30 +81,35 @@ async def inspect(tag: str):
         except ObjectNotFound:
             exit_with_error(f"No concurrency limit found for the tag: {tag}")
 
-    trid_table = Table()
-    trid_table.add_column("Active Task Run IDs", style="cyan", no_wrap=True)
+    if output and output.lower() == "json":
+        result_json = result.model_dump(mode="json")
+        json_output = orjson.dumps(result_json, option=orjson.OPT_INDENT_2).decode()
+        app.console.print(json_output)
+    else:
+        trid_table = Table()
+        trid_table.add_column("Active Task Run IDs", style="cyan", no_wrap=True)
 
-    cl_table = Table(title=f"Concurrency Limit ID: [red]{str(result.id)}")
-    cl_table.add_column("Tag", style="green", no_wrap=True)
-    cl_table.add_column("Concurrency Limit", style="blue", no_wrap=True)
-    cl_table.add_column("Created", style="magenta", no_wrap=True)
-    cl_table.add_column("Updated", style="magenta", no_wrap=True)
+        cl_table = Table(title=f"Concurrency Limit ID: [red]{str(result.id)}")
+        cl_table.add_column("Tag", style="green", no_wrap=True)
+        cl_table.add_column("Concurrency Limit", style="blue", no_wrap=True)
+        cl_table.add_column("Created", style="magenta", no_wrap=True)
+        cl_table.add_column("Updated", style="magenta", no_wrap=True)
 
-    for trid in sorted(result.active_slots):
-        trid_table.add_row(str(trid))
+        for trid in sorted(result.active_slots):
+            trid_table.add_row(str(trid))
 
-    cl_table.add_row(
-        str(result.tag),
-        str(result.concurrency_limit),
-        Pretty(human_friendly_diff(result.created) if result.created else ""),
-        Pretty(human_friendly_diff(result.updated) if result.updated else ""),
-    )
+        cl_table.add_row(
+            str(result.tag),
+            str(result.concurrency_limit),
+            Pretty(human_friendly_diff(result.created) if result.created else ""),
+            Pretty(human_friendly_diff(result.updated) if result.updated else ""),
+        )
 
-    group = Group(
-        cl_table,
-        trid_table,
-    )
-    app.console.print(Panel(group, expand=False))
+        group = Group(
+            cl_table,
+            trid_table,
+        )
+        app.console.print(Panel(group, expand=False))
 
 
 @concurrency_limit_app.command()

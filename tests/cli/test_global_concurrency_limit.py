@@ -145,6 +145,34 @@ def test_inspecting_gcl_not_found():
     )
 
 
+def test_inspecting_gcl_with_json_output(
+    global_concurrency_limit: ConcurrencyLimitV2,
+):
+    """Test global-concurrency-limit inspect command with JSON output flag."""
+    import json
+
+    result = invoke_and_assert(
+        [
+            "global-concurrency-limit",
+            "inspect",
+            global_concurrency_limit.name,
+            "--output",
+            "json",
+        ],
+        expected_code=0,
+    )
+
+    # Parse JSON output and verify it's valid JSON
+    output_data = json.loads(result.stdout.strip())
+
+    # Verify key fields are present
+    assert "id" in output_data
+    assert "name" in output_data
+    assert "limit" in output_data
+    assert output_data["name"] == global_concurrency_limit.name
+    assert output_data["limit"] == global_concurrency_limit.limit
+
+
 @pytest.fixture
 def delete_global_concurrency_limit_by_name() -> Generator[mock.AsyncMock, None, None]:
     with mock.patch(

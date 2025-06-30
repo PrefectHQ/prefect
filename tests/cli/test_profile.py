@@ -608,6 +608,42 @@ def test_inspect_profile_without_settings():
     )
 
 
+def test_inspect_profile_with_json_output():
+    """Test profile inspect command with JSON output flag."""
+    import json
+
+    save_profiles(
+        ProfilesCollection(
+            profiles=[
+                Profile(
+                    name="test-profile",
+                    settings={
+                        PREFECT_API_URL: "https://test.prefect.cloud/api",
+                        PREFECT_DEBUG_MODE: True,
+                    },
+                )
+            ],
+            active="test-profile",
+        )
+    )
+
+    result = invoke_and_assert(
+        ["profile", "inspect", "test-profile", "--output", "json"],
+        expected_code=0,
+    )
+
+    # Parse JSON output and verify it's valid JSON
+    output_data = json.loads(result.stdout.strip())
+
+    # Verify key fields are present
+    assert "PREFECT_API_URL" in output_data
+    assert "PREFECT_DEBUG_MODE" in output_data
+    assert output_data["PREFECT_API_URL"] == "https://test.prefect.cloud/api"
+    assert (
+        output_data["PREFECT_DEBUG_MODE"] == "True"
+    )  # Settings are serialized as strings
+
+
 class TestProfilesPopulateDefaults:
     def test_populate_defaults(self, temporary_profiles_path: Path):
         default_profiles = _read_profiles_from(DEFAULT_PROFILES_PATH)
