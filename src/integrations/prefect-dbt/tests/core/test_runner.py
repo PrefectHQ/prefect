@@ -1339,6 +1339,131 @@ class TestPrefectDbtRunner:
         # Should return empty string when file doesn't exist
         assert result == ""
 
+    def test_runner_invoke_uses_resolve_profiles_yml_context_manager(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        """Test that invoke method uses resolve_profiles_yml context manager with actual templated profiles.yml."""
+        runner = PrefectDbtRunner()
+
+        mock_result = Mock()
+        mock_result.success = True
+        mock_result.exception = None
+
+        mock_dbt_runner_instance = Mock()
+        mock_dbt_runner_instance.invoke.return_value = mock_result
+
+        mock_dbt_runner_class = Mock(return_value=mock_dbt_runner_instance)
+        monkeypatch.setattr(
+            "prefect_dbt.core.runner.dbtRunner",
+            mock_dbt_runner_class,
+        )
+
+        # Mock the callback methods
+        monkeypatch.setattr(runner, "_create_logging_callback", Mock())
+        monkeypatch.setattr(runner, "_create_node_started_callback", Mock())
+        monkeypatch.setattr(runner, "_create_node_finished_callback", Mock())
+
+        # Mock context to simulate no flow/task run
+        monkeypatch.setattr(
+            "prefect_dbt.core.runner.serialize_context", Mock(return_value={})
+        )
+
+        # Create a mock profiles.yml with templated values
+        mock_profiles_yml = {
+            "my_project": {
+                "targets": {
+                    "dev": {
+                        "type": "snowflake",
+                        "account": "{{ prefect.blocks.snowflake-credentials.account }}",
+                        "user": "{{ prefect.blocks.snowflake-credentials.user }}",
+                        "password": "{{ prefect.blocks.snowflake-credentials.password }}",
+                        "database": "{{ prefect.variables.database_name }}",
+                        "warehouse": "{{ prefect.variables.warehouse_name }}",
+                        "schema": "{{ prefect.variables.schema_name }}",
+                    }
+                }
+            }
+        }
+
+        # Mock the load_profiles_yml method to return our templated profiles
+        mock_load_method = Mock(return_value=mock_profiles_yml)
+        monkeypatch.setattr(
+            "prefect_dbt.core.settings.PrefectDbtSettings.load_profiles_yml",
+            mock_load_method,
+        )
+
+        # Mock the resolve functions to return resolved values
+        mock_resolved_profiles = {
+            "my_project": {
+                "targets": {
+                    "dev": {
+                        "type": "snowflake",
+                        "account": "test-account.snowflakecomputing.com",
+                        "user": "test_user",
+                        "password": "test_password",
+                        "database": "test_database",
+                        "warehouse": "test_warehouse",
+                        "schema": "test_schema",
+                    }
+                }
+            }
+        }
+
+        # Mock the resolve_block_document_references function
+        mock_resolve_blocks = Mock(return_value=mock_resolved_profiles)
+        monkeypatch.setattr(
+            "prefect_dbt.core.settings.resolve_block_document_references",
+            mock_resolve_blocks,
+        )
+
+        # Mock the resolve_variables function
+        mock_resolve_vars = Mock(return_value=mock_resolved_profiles)
+        monkeypatch.setattr(
+            "prefect_dbt.core.settings.resolve_variables",
+            mock_resolve_vars,
+        )
+
+        # Mock run_coro_as_sync to return the resolved profiles directly
+        def mock_run_coro(coro):
+            return mock_resolved_profiles
+
+        mock_run_coro_func = Mock(side_effect=mock_run_coro)
+        monkeypatch.setattr(
+            "prefect_dbt.core.settings.run_coro_as_sync",
+            mock_run_coro_func,
+        )
+
+        # Mock yaml.dump to verify it's called with resolved profiles
+        mock_yaml_dump = Mock()
+        monkeypatch.setattr("prefect_dbt.core.settings.yaml.dump", mock_yaml_dump)
+
+        # Mock Path.write_text to verify the resolved profiles are written
+        mock_write_text = Mock()
+        monkeypatch.setattr("pathlib.Path.write_text", mock_write_text)
+
+        # Call invoke with additional kwargs to test preservation
+        result = runner.invoke(["run"], target="dev", threads=4, custom_arg="value")
+
+        assert result == mock_result
+
+        # Verify the profiles were loaded and resolved
+        mock_load_method.assert_called_once()
+        mock_run_coro_func.assert_called()
+        mock_yaml_dump.assert_called_once_with(
+            mock_resolved_profiles, default_style=None, default_flow_style=False
+        )
+        mock_write_text.assert_called_once()
+
+        # Verify dbtRunner was called with the resolved profiles_dir and preserved kwargs
+        mock_dbt_runner_instance.invoke.assert_called_once()
+        call_kwargs = mock_dbt_runner_instance.invoke.call_args[1]
+        assert call_kwargs["target"] == "dev"
+        assert call_kwargs["threads"] == 4
+        assert call_kwargs["custom_arg"] == "value"
+
+        # Verify the profiles_dir was changed from the original (indicating resolution was used)
+        assert call_kwargs["profiles_dir"] != str(runner.profiles_dir)
+
 
 class TestExecuteDbtNode:
     """Test cases focusing on execute_dbt_node behavior."""

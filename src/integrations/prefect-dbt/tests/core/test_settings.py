@@ -294,3 +294,207 @@ def test_settings_handle_complex_profiles_structure():
             == "dev-db.example.com"
         )
         assert loaded_profiles["test_profile"]["targets"]["test"]["type"] == "sqlite"
+
+
+@pytest.fixture
+def mock_prefect_blocks(monkeypatch: pytest.MonkeyPatch):
+    """Fixture to mock Prefect blocks for testing."""
+
+    # Mock block document references resolution
+    def mock_resolve_blocks(data, value_transformer=None):
+        # Simulate resolving block references
+        if isinstance(data, dict):
+            resolved = {}
+            for key, value in data.items():
+                if isinstance(value, str) and "{{ prefect.blocks.secret." in value:
+                    # Extract block name and return mock value
+                    block_name = value.split("prefect.blocks.secret.")[1].split(" }}")[
+                        0
+                    ]
+                    mock_values = {
+                        "db-host": "localhost",
+                        "db-password": "secret_password_123",
+                        "db-user": "dbt_user",
+                    }
+                    resolved[key] = mock_values.get(
+                        block_name, f"resolved_{block_name}"
+                    )
+                elif isinstance(value, (dict, list)):
+                    resolved[key] = mock_resolve_blocks(value, value_transformer)
+                else:
+                    resolved[key] = value
+            return resolved
+        elif isinstance(data, list):
+            return [mock_resolve_blocks(item, value_transformer) for item in data]
+        else:
+            return data
+
+    # Mock the async function to return resolved data directly
+    async def mock_async_resolve_blocks(data, value_transformer=None):
+        return mock_resolve_blocks(data, value_transformer)
+
+    monkeypatch.setattr(
+        "prefect_dbt.core.settings.resolve_block_document_references",
+        Mock(side_effect=mock_async_resolve_blocks),
+    )
+
+    # Mock run_coro_as_sync to return the resolved data
+    resolved_data = {
+        "my_profile": {
+            "targets": {
+                "dev": {
+                    "type": "postgres",
+                    "host": "localhost",
+                    "password": "secret_password_123",
+                    "user": "dbt_user",
+                }
+            }
+        }
+    }
+    monkeypatch.setattr(
+        "prefect_dbt.core.settings.run_coro_as_sync",
+        Mock(side_effect=lambda coro: resolved_data),
+    )
+
+
+@pytest.fixture
+def mock_prefect_variables(monkeypatch: pytest.MonkeyPatch):
+    """Fixture to mock Prefect variables for testing."""
+
+    # Mock variable resolution
+    def mock_resolve_vars(data):
+        # Simulate resolving variable references
+        if isinstance(data, dict):
+            resolved = {}
+            for key, value in data.items():
+                if isinstance(value, str) and "{{ prefect.variables." in value:
+                    # Extract variable name and return mock value
+                    var_name = value.split("prefect.variables.")[1].split(" }}")[0]
+                    mock_values = {
+                        "DB_HOST": "prod-db.example.com",
+                        "DB_PASSWORD": "prod_password_456",
+                        "DB_USER": "prod_user",
+                    }
+                    resolved[key] = mock_values.get(var_name, f"resolved_{var_name}")
+                elif isinstance(value, (dict, list)):
+                    resolved[key] = mock_resolve_vars(value)
+                else:
+                    resolved[key] = value
+            return resolved
+        elif isinstance(data, list):
+            return [mock_resolve_vars(item) for item in data]
+        else:
+            return data
+
+    # Mock the async function to return resolved data directly
+    async def mock_async_resolve_vars(data):
+        return mock_resolve_vars(data)
+
+    monkeypatch.setattr(
+        "prefect_dbt.core.settings.resolve_variables",
+        Mock(side_effect=mock_async_resolve_vars),
+    )
+
+    # Mock run_coro_as_sync to return the resolved data
+    resolved_data = {
+        "my_profile": {
+            "targets": {
+                "dev": {
+                    "type": "postgres",
+                    "host": "prod-db.example.com",
+                    "password": "prod_password_456",
+                    "user": "prod_user",
+                }
+            }
+        }
+    }
+    monkeypatch.setattr(
+        "prefect_dbt.core.settings.run_coro_as_sync",
+        Mock(side_effect=lambda coro: resolved_data),
+    )
+
+
+def test_settings_resolve_profiles_yml_with_block_references(mock_prefect_blocks):
+    """Test that resolve_profiles_yml resolves Prefect block references correctly."""
+    with tempfile.TemporaryDirectory() as temp_dir:
+        temp_path = Path(temp_dir)
+
+        # Create profiles.yml with block references
+        profiles_content = {
+            "my_profile": {
+                "targets": {
+                    "dev": {
+                        "type": "postgres",
+                        "host": "{{ prefect.blocks.secret.db-host }}",
+                        "password": "{{ prefect.blocks.secret.db-password }}",
+                        "user": "{{ prefect.blocks.secret.db-user }}",
+                    }
+                }
+            }
+        }
+
+        profiles_file = temp_path / "profiles.yml"
+        with open(profiles_file, "w") as f:
+            yaml.dump(profiles_content, f)
+
+        settings = PrefectDbtSettings(profiles_dir=temp_path)
+
+        with settings.resolve_profiles_yml() as temp_dir_path:
+            temp_profiles_path = Path(temp_dir_path) / "profiles.yml"
+            with open(temp_profiles_path, "r") as f:
+                content = yaml.safe_load(f)
+
+            # Verify block references were resolved
+            assert content["my_profile"]["targets"]["dev"]["host"] == "localhost"
+            assert (
+                content["my_profile"]["targets"]["dev"]["password"]
+                == "secret_password_123"
+            )
+            assert content["my_profile"]["targets"]["dev"]["user"] == "dbt_user"
+
+        # Verify cleanup happens
+        assert not Path(temp_dir_path).exists()
+
+
+def test_settings_resolve_profiles_yml_with_variable_references(mock_prefect_variables):
+    """Test that resolve_profiles_yml resolves Prefect variable references correctly."""
+    with tempfile.TemporaryDirectory() as temp_dir:
+        temp_path = Path(temp_dir)
+
+        # Create profiles.yml with variable references
+        profiles_content = {
+            "my_profile": {
+                "targets": {
+                    "dev": {
+                        "type": "postgres",
+                        "host": "{{ prefect.variables.DB_HOST }}",
+                        "password": "{{ prefect.variables.DB_PASSWORD }}",
+                        "user": "{{ prefect.variables.DB_USER }}",
+                    }
+                }
+            }
+        }
+
+        profiles_file = temp_path / "profiles.yml"
+        with open(profiles_file, "w") as f:
+            yaml.dump(profiles_content, f)
+
+        settings = PrefectDbtSettings(profiles_dir=temp_path)
+
+        with settings.resolve_profiles_yml() as temp_dir_path:
+            temp_profiles_path = Path(temp_dir_path) / "profiles.yml"
+            with open(temp_profiles_path, "r") as f:
+                content = yaml.safe_load(f)
+
+            # Verify variable references were resolved
+            assert (
+                content["my_profile"]["targets"]["dev"]["host"] == "prod-db.example.com"
+            )
+            assert (
+                content["my_profile"]["targets"]["dev"]["password"]
+                == "prod_password_456"
+            )
+            assert content["my_profile"]["targets"]["dev"]["user"] == "prod_user"
+
+        # Verify cleanup happens
+        assert not Path(temp_dir_path).exists()

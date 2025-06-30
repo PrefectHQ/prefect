@@ -529,10 +529,13 @@ class PrefectDbtRunner:
             **kwargs,
         }
 
-        res = dbtRunner(callbacks=callbacks).invoke(  # type: ignore[reportUnknownMemberType]
-            args_copy,
-            **invoke_kwargs,
-        )
+        with self.settings.resolve_profiles_yml() as profiles_dir:
+            invoke_kwargs["profiles_dir"] = profiles_dir
+
+            res = dbtRunner(callbacks=callbacks).invoke(  # type: ignore[reportUnknownMemberType]
+                args_copy,
+                **invoke_kwargs,
+            )
 
         if not res.success and res.exception:
             raise ValueError(
