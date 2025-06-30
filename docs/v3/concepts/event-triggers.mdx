@@ -130,6 +130,30 @@ filtering:
 Now this trigger will filter only for events whose primary resource is a flow run started by a specific deployment,
 _and_ that flow run has a name starting with `cute-` or `radical-`.
 
+##### Advanced matching for related resources
+
+`match_related` also supports an array of objects, each of which can contain multiple labels.
+This allows for more complex matching on related resources, such as filtering for events that are related to a specific work pool or tag.
+
+To match flow runs on a work pool with specific tags, you can use the following configuration:
+
+```json
+"match": {
+  "prefect.resource.id": "prefect.flow-run.*",
+},
+"match_related": [
+    {
+        "prefect.resource.name": "k8s-pool",
+        "prefect.resource.role": "work-pool"
+    },
+    {
+        "prefect.resource.id": "prefect.tag.examples",
+        "prefect.resource.role": "tag"
+    }
+]
+...
+```
+
 ### Expected events
 
 Once an event has passed through the `match` filters, you must decide if this event counts toward the
