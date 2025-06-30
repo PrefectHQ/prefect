@@ -52,8 +52,10 @@ The `match` and `match_related` fields control which events a trigger considers 
 by filtering on the contents of their `resource` and `related` fields, respectively. Each label added to a `match` filter
 is `AND`ed with the other labels, and can accept a single value or a list of multiple values that are `OR`ed together.
 
-See the `resource` and `related` fields on the following `prefect.flow-run.Completed` event, truncated for this example. Its primary resource is a flow run, and since that flow run was started by a deployment, it is related to
-both its flow and its deployment:
+#### Example
+
+See the `resource` and `related` fields on the following `prefect.flow-run.Completed` event, truncated for this example.
+Its primary resource is a flow run, and since that flow run was started by a deployment, it is related to both its flow and its deployment:
 
 ```json
 "resource": {
@@ -70,6 +72,16 @@ both its flow and its deployment:
     "prefect.resource.id": "prefect.deployment.37ca4a08-e2d9-4628-a310-cc15a323378e",
     "prefect.resource.role": "deployment",
     "prefect.resource.name": "example"
+  },
+  {
+    "prefect.resource.id": "prefect.work-pool.a67da06b-9427-4a0f-a709-c3b37ac29cbf",
+    "prefect.resource.role": "work-pool",
+    "prefect.resource.name": "k8s-pool",
+    "prefect.work-pool.type": "kubernetes"
+  },
+  {
+    "prefect.resource.id": "prefect.tag.examples",
+    "prefect.resource.role": "tag"
   }
 ]
 ```
