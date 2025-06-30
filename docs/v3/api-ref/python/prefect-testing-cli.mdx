@@ -7,7 +7,7 @@ sidebarTitle: cli
 
 ## Functions
 
-### `check_contains` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/testing/cli.py#L16" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `check_contains` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/testing/cli.py#L16" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 check_contains(cli_result: Result, content: str, should_contain: bool) -> None
@@ -21,7 +21,7 @@ Utility function to see if content is or is not in a CLI result.
 if False, checks that content is not in cli_result
 
 
-### `invoke_and_assert` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/testing/cli.py#L51" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `invoke_and_assert` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/testing/cli.py#L51" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 invoke_and_assert(command: str | list[str], user_input: str | None = None, prompts_and_responses: list[tuple[str, str] | tuple[str, str, str]] | None = None, expected_output: str | None = None, expected_output_contains: str | Iterable[str] | None = None, expected_output_does_not_contain: str | Iterable[str] | None = None, expected_line_count: int | None = None, expected_code: int | None = 0, echo: bool = True, temp_dir: str | None = None) -> Result
@@ -46,7 +46,7 @@ the app to exit with an error.
 working directory.
 
 
-### `temporary_console_width` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/testing/cli.py#L199" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `temporary_console_width` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/testing/cli.py#L199" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 temporary_console_width(console: Console, width: int)
