@@ -15,6 +15,7 @@ from prefect.server.schemas.core import (
     WorkPool,
     WorkQueue,
 )
+from prefect.server.schemas.responses import FlowRunResponse
 from prefect.settings import PREFECT_UI_URL, temporary_settings
 from prefect.types._datetime import DateTime
 
@@ -233,3 +234,15 @@ async def test_work_pool_model(chonk_party: Automation):
     rendered = template.render({"automation": chonk_party, "work_pool": work_pool})
 
     assert rendered == f"http://localhost:3000/work-pools/work-pool/{work_pool.name}"
+
+
+def test_flow_run_response_model(chonk_party: Automation):
+    flow_run_response = FlowRunResponse(
+        id=uuid4(), name="the-flow-run", flow_id=uuid4()
+    )
+    template = template_environment.from_string("{{ flow_run|ui_url }}")
+    rendered = template.render(
+        {"automation": chonk_party, "flow_run": flow_run_response}
+    )
+
+    assert rendered == f"http://localhost:3000/runs/flow-run/{flow_run_response.id}"
