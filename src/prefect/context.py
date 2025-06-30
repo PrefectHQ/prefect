@@ -788,45 +788,55 @@ def tags(*new_tags: str) -> Generator[set[str], None, None]:
         The current set of tags
 
     Examples:
-        >>> from prefect import tags, task, flow
-        >>> @task
-        >>> def my_task():
-        >>>     pass
+        ```python
+        from prefect import tags, task, flow
+        @task
+        def my_task():
+            pass
+        ```
 
         Run a task with tags
 
-        >>> @flow
-        >>> def my_flow():
-        >>>     with tags("a", "b"):
-        >>>         my_task()  # has tags: a, b
+        ```python
+        @flow
+        def my_flow():
+            with tags("a", "b"):
+                my_task()  # has tags: a, b
+        ```
 
         Run a flow with tags
 
-        >>> @flow
-        >>> def my_flow():
-        >>>     pass
-        >>> with tags("a", "b"):
-        >>>     my_flow()  # has tags: a, b
+        ```python
+        @flow
+        def my_flow():
+            pass
+        with tags("a", "b"):
+            my_flow()  # has tags: a, b
+        ```
 
         Run a task with nested tag contexts
 
-        >>> @flow
-        >>> def my_flow():
-        >>>     with tags("a", "b"):
-        >>>         with tags("c", "d"):
-        >>>             my_task()  # has tags: a, b, c, d
-        >>>         my_task()  # has tags: a, b
+        ```python
+        @flow
+        def my_flow():
+            with tags("a", "b"):
+                with tags("c", "d"):
+                    my_task()  # has tags: a, b, c, d
+                my_task()  # has tags: a, b
+        ```
 
         Inspect the current tags
 
-        >>> @flow
-        >>> def my_flow():
-        >>>     with tags("c", "d"):
-        >>>         with tags("e", "f") as current_tags:
-        >>>              print(current_tags)
-        >>> with tags("a", "b"):
-        >>>     my_flow()
-        {"a", "b", "c", "d", "e", "f"}
+        ```python
+        @flow
+        def my_flow():
+            with tags("c", "d"):
+                with tags("e", "f") as current_tags:
+                     print(current_tags)
+        with tags("a", "b"):
+            my_flow()
+        # {"a", "b", "c", "d", "e", "f"}
+        ```
     """
     current_tags = TagsContext.get().current_tags
     _new_tags = current_tags.union(new_tags)

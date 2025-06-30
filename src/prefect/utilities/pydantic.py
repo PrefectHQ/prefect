@@ -210,14 +210,16 @@ class PartialModel(Generic[M]):
     a field already has a value.
 
     Example:
-        >>> class MyModel(BaseModel):
-        >>>     x: int
-        >>>     y: str
-        >>>     z: float
-        >>>
-        >>> partial_model = PartialModel(MyModel, x=1)
-        >>> partial_model.y = "two"
-        >>> model = partial_model.finalize(z=3.0)
+        ```python
+        class MyModel(BaseModel):
+            x: int
+            y: str
+            z: float
+
+        partial_model = PartialModel(MyModel, x=1)
+        partial_model.y = "two"
+        model = partial_model.finalize(z=3.0)
+        ```
     """
 
     def __init__(self, __model_cls: type[M], **kwargs: Any) -> None:
