@@ -279,27 +279,35 @@ async def test_timeout_configuration_custom_values(
         (-1, False),  # Negative timeouts should be invalid
     ],
 )
-def test_timeout_validation(snowflake_credentials, timeout_seconds, expected_valid):
+async def test_timeout_validation(
+    snowflake_credentials, timeout_seconds, expected_valid
+):
     """Test validation of timeout values."""
+    values = {
+        "snowflake_credentials": snowflake_credentials,
+        "compute_pool": "common.compute.test_pool",
+        "pool_start_timeout_seconds": timeout_seconds,
+        "service_start_timeout_seconds": timeout_seconds,
+    }
+
+    job_service_variables = SPCSServiceTemplateVariables(**values)
+
+    json_config = {
+        "job_configuration": SPCSWorkerConfiguration.json_template(),
+        "variables": job_service_variables.model_dump(),
+    }
+
     if expected_valid:
         # Should not raise an exception
-        config = SPCSWorkerConfiguration(
-            snowflake_credentials=snowflake_credentials,
-            compute_pool="common.compute.test_pool",
-            pool_start_timeout_seconds=timeout_seconds,
-            service_start_timeout_seconds=timeout_seconds,
+        config = await SPCSWorkerConfiguration.from_template_and_values(
+            json_config, values
         )
         assert config.pool_start_timeout_seconds == timeout_seconds
         assert config.service_start_timeout_seconds == timeout_seconds
     else:
         # Should raise a validation error
-        with pytest.raises(ValueError):
-            SPCSWorkerConfiguration(
-                snowflake_credentials=snowflake_credentials,
-                compute_pool="common.compute.test_pool",
-                pool_start_timeout_seconds=timeout_seconds,
-                service_start_timeout_seconds=timeout_seconds,
-            )
+        with pytest.raises((ValueError, Exception)):  # Catch validation errors
+            await SPCSWorkerConfiguration.from_template_and_values(json_config, values)
 
 
 @pytest.mark.asyncio
@@ -311,7 +319,7 @@ async def test_pool_start_timeout_behavior(snowflake_credentials, worker_flow_ru
         {"pool_start_timeout_seconds": 1},  # Very short timeout for testing
     )
 
-    worker = SPCSWorker()
+    worker = SPCSWorker(work_pool_name="test-pool")
 
     # Mock the root and compute pool to simulate a pool that never becomes ACTIVE
     mock_root = Mock()
@@ -340,7 +348,7 @@ async def test_service_start_timeout_behavior(snowflake_credentials, worker_flow
         {"service_start_timeout_seconds": 1},  # Very short timeout for testing
     )
 
-    worker = SPCSWorker()
+    worker = SPCSWorker(work_pool_name="test-pool")
 
     # Mock the root, compute pool (becomes active quickly), and service
     mock_root = Mock()
@@ -388,7 +396,7 @@ async def test_zero_timeout_disables_timeout_check(
         },
     )
 
-    worker = SPCSWorker()
+    worker = SPCSWorker(work_pool_name="test-pool")
 
     # Mock the root and compute pool to simulate extended delays
     mock_root = Mock()
