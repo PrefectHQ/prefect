@@ -30,6 +30,7 @@ logger: Logger = get_logger("utilities.urls")
 UI_URL_FORMATS = {
     "flow": "flows/flow/{obj_id}",
     "flow-run": "runs/flow-run/{obj_id}",
+    "flow-run-response": "runs/flow-run/{obj_id}",
     "task-run": "runs/task-run/{obj_id}",
     "block": "blocks/block/{obj_id}",
     "block-document": "blocks/block/{obj_id}",
