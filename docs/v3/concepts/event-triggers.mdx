@@ -28,18 +28,16 @@ Event triggers are indicated with `{"type": "event"}`.
 
 This is the schema that defines an event trigger:
 
-| Name              | Type             | Supports trailing wildcards | Description                                                                                                                                                                                                                                                                                                                                          |
-| ----------------- | ---------------- | --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **match**         | object           | ✅            | Labels for resources which this Automation will match.                                                                                                                                                                                                                                                                                               |
-| **match_related** | object           | ✅            | Labels for related resources which this Automation will match.                                                                                                                                                                                                                                                                                       |
-| **posture**       | string enum      | N/A                         | The posture of this Automation, either Reactive or Proactive. Reactive automations respond to the presence of the expected events, while Proactive automations respond to the absence of those expected events.                                                                                                                                      |
-| **after**         | array of strings | ✅            | Event(s), one of which must have first been seen to start this automation.                                                                                                                                                                                                                                                                           |
-| **expect**        | array of strings | ✅            | The event(s) this automation expects to see. If empty, this automation will evaluate any matched event.                                                                                                                                                                                                                                         |
-| **for_each**      | array of strings | ❌            | Evaluate the Automation separately for each distinct value of these labels on the resource. By default, labels refer to the primary resource of the triggering event. You may also refer to labels from related resources by specifying `related:<role>:<label>`. This will use the value of that label for the first related resource in that role. |
-| **threshold**     | integer          | N/A                         | The number of events required for this Automation to trigger (for Reactive automations), or the number of events expected (for Proactive automations)                                                                                                                                                                                                |
-| **within**        | number           | N/A                         | The time period over which the events must occur. For Reactive triggers, this may be as low as 0 seconds, but must be at least 10 seconds for Proactive triggers.                                                                                                                                                                                     |
-
-
+| Name              | Type                      | Supports trailing wildcards | Description                                                                                                                                                                                                                                                                                                                                          |
+| ----------------- | ------------------------- | --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **match**         | object                    | ✅            | Labels for resources which this Automation will match.                                                                                                                                                                                                                                                                                               |
+| **match_related** | object OR array of object | ✅            | Labels for related resources which this Automation will match.                                                                                                                                                                                                                                                                                       |
+| **posture**       | string enum               | N/A                         | The posture of this Automation, either Reactive or Proactive. Reactive automations respond to the presence of the expected events, while Proactive automations respond to the absence of those expected events.                                                                                                                                      |
+| **after**         | array of strings          | ✅            | Event(s), one of which must have first been seen to start this automation.                                                                                                                                                                                                                                                                           |
+| **expect**        | array of strings          | ✅            | The event(s) this automation expects to see. If empty, this automation will evaluate any matched event.                                                                                                                                                                                                                                         |
+| **for_each**      | array of strings          | ❌            | Evaluate the Automation separately for each distinct value of these labels on the resource. By default, labels refer to the primary resource of the triggering event. You may also refer to labels from related resources by specifying `related:<role>:<label>`. This will use the value of that label for the first related resource in that role. |
+| **threshold**     | integer                   | N/A                         | The number of events required for this Automation to trigger (for Reactive automations), or the number of events expected (for Proactive automations)                                                                                                                                                                                                |
+| **within**        | number                    | N/A                         | The time period over which the events must occur. For Reactive triggers, this may be as low as 0 seconds, but must be at least 10 seconds for Proactive triggers.                                                                                                                                                                                     |
 
 
 ### Resource matching
@@ -52,8 +50,10 @@ The `match` and `match_related` fields control which events a trigger considers 
 by filtering on the contents of their `resource` and `related` fields, respectively. Each label added to a `match` filter
 is `AND`ed with the other labels, and can accept a single value or a list of multiple values that are `OR`ed together.
 
-See the `resource` and `related` fields on the following `prefect.flow-run.Completed` event, truncated for this example. Its primary resource is a flow run, and since that flow run was started by a deployment, it is related to
-both its flow and its deployment:
+#### Example
+
+See the `resource` and `related` fields on the following `prefect.flow-run.Completed` event, truncated for this example.
+Its primary resource is a flow run, and since that flow run was started by a deployment, it is related to both its flow and its deployment:
 
 ```json
 "resource": {
@@ -70,6 +70,16 @@ both its flow and its deployment:
     "prefect.resource.id": "prefect.deployment.37ca4a08-e2d9-4628-a310-cc15a323378e",
     "prefect.resource.role": "deployment",
     "prefect.resource.name": "example"
+  },
+  {
+    "prefect.resource.id": "prefect.work-pool.a67da06b-9427-4a0f-a709-c3b37ac29cbf",
+    "prefect.resource.role": "work-pool",
+    "prefect.resource.name": "k8s-pool",
+    "prefect.work-pool.type": "kubernetes"
+  },
+  {
+    "prefect.resource.id": "prefect.tag.examples",
+    "prefect.resource.role": "tag"
   }
 ]
 ```
@@ -117,6 +127,30 @@ filtering:
 
 Now this trigger will filter only for events whose primary resource is a flow run started by a specific deployment,
 _and_ that flow run has a name starting with `cute-` or `radical-`.
+
+##### Advanced matching for related resources
+
+`match_related` also supports an array of objects, each of which can contain multiple labels.
+This allows for more complex matching on related resources, such as filtering for events that are related to a specific work pool or tag.
+
+To match flow runs on a work pool with specific tags, you can use the following configuration:
+
+```json
+"match": {
+  "prefect.resource.id": "prefect.flow-run.*",
+},
+"match_related": [
+    {
+        "prefect.resource.name": "k8s-pool",
+        "prefect.resource.role": "work-pool"
+    },
+    {
+        "prefect.resource.id": "prefect.tag.examples",
+        "prefect.resource.role": "tag"
+    }
+]
+...
+```
 
 ### Expected events
 
@@ -279,11 +313,11 @@ state before transitioning to a `Running` and/or `Crashed` state. Only flow runs
 
 This is the schema of a metric trigger:
 
-| Name              | Type                 | Supports trailing wildcards | Description                                                    |
-| ----------------- | -------------------- | --------------------------- | -------------------------------------------------------------- |
-| **match**         | object               | ✅            | Labels for resources which this Automation will match.         |
-| **match_related** | object               | ✅            | Labels for related resources which this Automation will match. |
-| **metric**        | `MetricTriggerQuery` | N/A                         | The definition of the metric query to run.                      |
+| Name              | Type                      | Supports trailing wildcards | Description                                                    |
+| ----------------- | ------------------------- | --------------------------- | -------------------------------------------------------------- |
+| **match**         | object                    | ✅            | Labels for resources which this Automation will match.         |
+| **match_related** | object OR array of object | ✅            | Labels for related resources which this Automation will match. |
+| **metric**        | `MetricTriggerQuery`      | N/A                         | The definition of the metric query to run.                      |
 
 And the `MetricTriggerQuery` query is defined as:
 
