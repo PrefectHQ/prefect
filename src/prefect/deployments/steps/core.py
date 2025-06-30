@@ -53,8 +53,8 @@ def _strip_version(requirement: str) -> str:
 
     Examples:
         ```python
-        >>> _strip_version("s3fs>=2.0.0<3.0.0")
-        "s3fs"
+        _strip_version("s3fs>=2.0.0<3.0.0")
+        # "s3fs"
         ```
     """
     # split on any of the characters in the set [<>=!~]
