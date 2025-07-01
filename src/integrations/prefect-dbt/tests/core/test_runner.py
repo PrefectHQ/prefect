@@ -1689,6 +1689,45 @@ class TestPrefectDbtRunner:
         assert "dep1" in runner._skipped_nodes
         assert "dep2" in runner._skipped_nodes
 
+    def test_runner_does_not_create_tasks_for_skipped_nodes(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        """Test that runner does not create tasks for nodes that are marked as skipped."""
+        runner = PrefectDbtRunner()
+
+        # Add a node to the skipped nodes set
+        skipped_node_id = "skipped_node"
+        runner._skipped_nodes.add(skipped_node_id)
+
+        # Create task state
+        task_state = Mock()
+
+        # Create the node started callback
+        callback = runner._create_node_started_callback(task_state, {})
+
+        # Create mock event for the skipped node
+        mock_event = Mock()
+        mock_event.info.name = "NodeStart"
+        mock_event.data.node_info.unique_id = skipped_node_id
+
+        # Mock _get_manifest_node_and_config to return a node (should not be called)
+        mock_node = Mock()
+        mock_get_config = Mock(return_value=(mock_node, {}))
+        monkeypatch.setattr(runner, "_get_manifest_node_and_config", mock_get_config)
+
+        # Mock _call_task (should not be called)
+        mock_call_task = Mock()
+        monkeypatch.setattr(runner, "_call_task", mock_call_task)
+
+        # Call the callback
+        callback(mock_event)
+
+        # Verify that _get_manifest_node_and_config was not called
+        mock_get_config.assert_not_called()
+
+        # Verify that _call_task was not called
+        mock_call_task.assert_not_called()
+
 
 class TestExecuteDbtNode:
     """Test cases focusing on execute_dbt_node behavior."""
