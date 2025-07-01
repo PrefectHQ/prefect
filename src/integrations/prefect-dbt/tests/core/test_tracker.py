@@ -318,6 +318,91 @@ def test_tracker_handles_no_state_returned(monkeypatch: pytest.MonkeyPatch):
     assert result is None
 
 
+def test_get_task_logger_creates_logger_with_task_id():
+    """Test that get_task_logger creates a logger with the correct task ID."""
+    tracker = NodeTaskTracker()
+    node_id = "test_node"
+    task_run_id = uuid7()
+
+    # Set up task run ID
+    tracker.set_task_run_id(node_id, task_run_id)
+    tracker.set_task_run_name(node_id, "test_task_run")
+
+    # Create logger
+    logger = tracker.get_task_logger(node_id)
+
+    # Verify logger has correct task run ID
+    assert logger.extra["task_run_id"] == task_run_id
+    assert logger.extra["task_run_name"] == "test_task_run"
+    assert logger.extra["task_name"] == "execute_dbt_node"
+
+
+def test_get_task_logger_with_flow_context():
+    """Test that get_task_logger includes flow context when provided."""
+    tracker = NodeTaskTracker()
+    node_id = "test_node"
+    task_run_id = uuid7()
+
+    tracker.set_task_run_id(node_id, task_run_id)
+    tracker.set_task_run_name(node_id, "test_task_run")
+
+    flow_run = {"id": "flow-run-123", "name": "test_flow_run"}
+    flow = Mock()
+    flow.name = "test_flow"
+
+    logger = tracker.get_task_logger(node_id, flow_run=flow_run, flow=flow)
+
+    assert logger.extra["flow_run_id"] == "flow-run-123"
+    assert logger.extra["flow_run_name"] == "test_flow_run"
+    assert logger.extra["flow_name"] == "test_flow"
+
+
+def test_task_id_tracking():
+    """Test that task run IDs and names are properly tracked."""
+    tracker = NodeTaskTracker()
+    node_id = "test_node"
+    task_run_id = uuid7()
+    task_run_name = "my_task_run"
+
+    # Initially no task run ID should be set
+    assert tracker.get_task_run_id(node_id) is None
+    assert tracker.get_task_run_name(node_id) is None
+
+    # Set task run ID and name
+    tracker.set_task_run_id(node_id, task_run_id)
+    tracker.set_task_run_name(node_id, task_run_name)
+
+    # Verify they are stored correctly
+    assert tracker.get_task_run_id(node_id) == task_run_id
+    assert tracker.get_task_run_name(node_id) == task_run_name
+
+
+def test_task_run_name_tracking():
+    """Test that task run names are properly tracked and updated."""
+    tracker = NodeTaskTracker()
+    node_id = "test_node"
+
+    # Initially no task run name should be set
+    assert tracker.get_task_run_name(node_id) is None
+
+    # Set initial task run name
+    initial_name = "initial_task_run"
+    tracker.set_task_run_name(node_id, initial_name)
+    assert tracker.get_task_run_name(node_id) == initial_name
+
+    # Update task run name
+    updated_name = "updated_task_run"
+    tracker.set_task_run_name(node_id, updated_name)
+    assert tracker.get_task_run_name(node_id) == updated_name
+
+    # Test with different node
+    other_node = "other_node"
+    other_name = "other_task_run"
+    tracker.set_task_run_name(other_node, other_name)
+    assert tracker.get_task_run_name(other_node) == other_name
+    assert tracker.get_task_run_name(node_id) == updated_name  # Original unchanged
+
+
 def test_tracker_comprehensive_workflow() -> None:
     """Test a comprehensive workflow using the tracker."""
     tracker = NodeTaskTracker()

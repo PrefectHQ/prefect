@@ -1413,6 +1413,282 @@ class TestPrefectDbtRunner:
         # Verify the profiles_dir was changed from the original (indicating resolution was used)
         assert call_kwargs["profiles_dir"] != str(runner.profiles_dir)
 
+    def test_runner_loads_graph(self, monkeypatch: pytest.MonkeyPatch):
+        """Test that runner loads graph."""
+        runner = PrefectDbtRunner()
+
+        # Mock manifest
+        mock_manifest = Mock(spec=Manifest)
+        runner._manifest = mock_manifest
+
+        # Mock Linker
+        mock_linker = Mock()
+        monkeypatch.setattr(
+            "prefect_dbt.core.runner.Linker", Mock(return_value=mock_linker)
+        )
+
+        # Mock Graph
+        mock_graph = Mock()
+        monkeypatch.setattr(
+            "prefect_dbt.core.runner.Graph", Mock(return_value=mock_graph)
+        )
+
+        # Access graph property to trigger loading (graph is None initially)
+        result = runner.graph
+
+        # Verify graph was created correctly
+        assert result == mock_graph
+        # Verify Linker was used to link the graph
+        mock_linker.link_graph.assert_called_once_with(mock_manifest)
+
+    def test_runner_loads_graph_with_test_edges_for_build_command(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        """Test that runner loads graph with test edges when 'build' is in args."""
+        runner = PrefectDbtRunner()
+
+        # Mock manifest
+        mock_manifest = Mock(spec=Manifest)
+        runner._manifest = mock_manifest
+
+        # Mock _set_graph_from_manifest method
+        mock_set_graph = Mock()
+        monkeypatch.setattr(runner, "_set_graph_from_manifest", mock_set_graph)
+
+        # Mock dbtRunner and successful result
+        mock_result = Mock()
+        mock_result.success = True
+        mock_result.exception = None
+
+        mock_dbt_runner_instance = Mock()
+        mock_dbt_runner_instance.invoke.return_value = mock_result
+
+        mock_dbt_runner_class = Mock(return_value=mock_dbt_runner_instance)
+        monkeypatch.setattr("prefect_dbt.core.runner.dbtRunner", mock_dbt_runner_class)
+
+        # Mock the callback methods
+        monkeypatch.setattr(runner, "_create_logging_callback", Mock())
+        monkeypatch.setattr(runner, "_create_node_started_callback", Mock())
+        monkeypatch.setattr(runner, "_create_node_finished_callback", Mock())
+
+        # Mock context to simulate flow run (so callbacks are created)
+        monkeypatch.setattr(
+            "prefect_dbt.core.runner.serialize_context",
+            Mock(return_value={"flow_run_context": {"foo": "bar"}}),
+        )
+
+        # Mock settings
+        mock_settings = Mock()
+        mock_settings.resolve_profiles_yml.return_value.__enter__ = Mock(
+            return_value="/mock/profiles/dir"
+        )
+        mock_settings.resolve_profiles_yml.return_value.__exit__ = Mock(
+            return_value=None
+        )
+        runner.settings = mock_settings
+
+        # Call invoke with 'build' command
+        runner.invoke(["build"])
+
+        # Verify _create_node_finished_callback was called with add_test_edges=True
+        runner._create_node_finished_callback.assert_called_once()
+        call_args = runner._create_node_finished_callback.call_args
+        assert call_args[1]["add_test_edges"] is True
+
+    def test_runner_loads_graph_with_test_edges_for_retry_build(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        """Test that runner loads graph with test edges when retrying 'build' command."""
+        runner = PrefectDbtRunner()
+
+        # Mock manifest
+        mock_manifest = Mock(spec=Manifest)
+        runner._manifest = mock_manifest
+
+        # Mock _set_graph_from_manifest method
+        mock_set_graph = Mock()
+        monkeypatch.setattr(runner, "_set_graph_from_manifest", mock_set_graph)
+
+        # Mock dbtRunner and successful result
+        mock_result = Mock()
+        mock_result.success = True
+        mock_result.exception = None
+
+        mock_dbt_runner_instance = Mock()
+        mock_dbt_runner_instance.invoke.return_value = mock_result
+
+        mock_dbt_runner_class = Mock(return_value=mock_dbt_runner_instance)
+        monkeypatch.setattr("prefect_dbt.core.runner.dbtRunner", mock_dbt_runner_class)
+
+        # Mock the callback methods
+        monkeypatch.setattr(runner, "_create_logging_callback", Mock())
+        monkeypatch.setattr(runner, "_create_node_started_callback", Mock())
+        monkeypatch.setattr(runner, "_create_node_finished_callback", Mock())
+
+        # Mock context to simulate flow run (so callbacks are created)
+        monkeypatch.setattr(
+            "prefect_dbt.core.runner.serialize_context",
+            Mock(return_value={"flow_run_context": {"foo": "bar"}}),
+        )
+
+        # Mock settings
+        mock_settings = Mock()
+        mock_settings.resolve_profiles_yml.return_value.__enter__ = Mock(
+            return_value="/mock/profiles/dir"
+        )
+        mock_settings.resolve_profiles_yml.return_value.__exit__ = Mock(
+            return_value=None
+        )
+        runner.settings = mock_settings
+
+        # Mock load_result_state to return previous build results
+        mock_previous_results = Mock()
+        mock_previous_results.args = {"which": "build"}
+        monkeypatch.setattr(
+            "prefect_dbt.core.runner.load_result_state",
+            Mock(return_value=mock_previous_results),
+        )
+
+        # Mock project_dir and target_path
+        runner._project_dir = Path("/test/project")
+        runner._target_path = Path("target")
+
+        # Call invoke with 'retry' command
+        runner.invoke(["retry"])
+
+        # Verify _create_node_finished_callback was called with add_test_edges=True
+        runner._create_node_finished_callback.assert_called_once()
+        call_args = runner._create_node_finished_callback.call_args
+        assert call_args[1]["add_test_edges"] is True
+
+    def test_runner_does_not_load_test_edges_for_non_build_commands(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        """Test that runner does not load test edges for non-build commands."""
+        runner = PrefectDbtRunner()
+
+        # Mock manifest
+        mock_manifest = Mock(spec=Manifest)
+        runner._manifest = mock_manifest
+
+        # Mock _set_graph_from_manifest method
+        mock_set_graph = Mock()
+        monkeypatch.setattr(runner, "_set_graph_from_manifest", mock_set_graph)
+
+        # Mock dbtRunner and successful result
+        mock_result = Mock()
+        mock_result.success = True
+        mock_result.exception = None
+
+        mock_dbt_runner_instance = Mock()
+        mock_dbt_runner_instance.invoke.return_value = mock_result
+
+        mock_dbt_runner_class = Mock(return_value=mock_dbt_runner_instance)
+        monkeypatch.setattr("prefect_dbt.core.runner.dbtRunner", mock_dbt_runner_class)
+
+        # Mock the callback methods
+        monkeypatch.setattr(runner, "_create_logging_callback", Mock())
+        monkeypatch.setattr(runner, "_create_node_started_callback", Mock())
+        monkeypatch.setattr(runner, "_create_node_finished_callback", Mock())
+
+        # Mock context to simulate flow run (so callbacks are created)
+        monkeypatch.setattr(
+            "prefect_dbt.core.runner.serialize_context",
+            Mock(return_value={"flow_run_context": {"foo": "bar"}}),
+        )
+
+        # Mock settings
+        mock_settings = Mock()
+        mock_settings.resolve_profiles_yml.return_value.__enter__ = Mock(
+            return_value="/mock/profiles/dir"
+        )
+        mock_settings.resolve_profiles_yml.return_value.__exit__ = Mock(
+            return_value=None
+        )
+        runner.settings = mock_settings
+
+        # Call invoke with 'run' command (not build)
+        runner.invoke(["run"])
+
+        # Verify _create_node_finished_callback was called with add_test_edges=False
+        runner._create_node_finished_callback.assert_called_once()
+        call_args = runner._create_node_finished_callback.call_args
+        assert call_args[1]["add_test_edges"] is False
+
+    def test_runner_handles_retry_without_previous_results(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        """Test that runner handles retry when no previous results exist."""
+        runner = PrefectDbtRunner()
+
+        # Mock project_dir and target_path
+        runner._project_dir = Path("/test/project")
+        runner._target_path = Path("target")
+
+        # Mock load_result_state to return None (no previous results)
+        monkeypatch.setattr(
+            "prefect_dbt.core.runner.load_result_state", Mock(return_value=None)
+        )
+
+        # Call invoke with 'retry' command
+        with pytest.raises(ValueError, match="Cannot retry. No previous results found"):
+            runner.invoke(["retry"])
+
+    def test_runner_node_finished_callback_rebuilds_graph_with_test_edges(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        """Test that the node finished callback rebuilds graph with test edges when needed."""
+        runner = PrefectDbtRunner()
+
+        # Mock _set_graph_from_manifest method
+        mock_set_graph = Mock()
+        monkeypatch.setattr(runner, "_set_graph_from_manifest", mock_set_graph)
+
+        # Mock graph with get_dependent_nodes method
+        mock_graph = Mock()
+        mock_graph.get_dependent_nodes.return_value = ["dep1", "dep2"]
+        runner._graph = mock_graph
+
+        # Create task state
+        task_state = Mock()
+
+        # Create callback with add_test_edges=True
+        callback = runner._create_node_finished_callback(
+            task_state, add_test_edges=True
+        )
+
+        # Create mock event for failed node
+        mock_event = Mock()
+        mock_event.info.name = "NodeFinished"
+        mock_event.data.node_info.unique_id = "test_node"
+
+        # Mock MessageToDict to return event data with failed status
+        mock_event_data = {"node_info": {"node_status": "error"}}
+        monkeypatch.setattr(
+            "prefect_dbt.core.runner.MessageToDict", Mock(return_value=mock_event_data)
+        )
+
+        # Mock get_dbt_event_msg
+        monkeypatch.setattr(
+            runner, "get_dbt_event_msg", Mock(return_value="Node failed")
+        )
+
+        # Mock _get_manifest_node_and_config to return a node
+        mock_node = Mock()
+        monkeypatch.setattr(
+            runner, "_get_manifest_node_and_config", Mock(return_value=(mock_node, {}))
+        )
+
+        # Call the callback
+        callback(mock_event)
+
+        # Verify graph was rebuilt with test edges
+        mock_set_graph.assert_called_once_with(add_test_edges=True)
+
+        # Verify dependent nodes were added to skipped nodes
+        assert "dep1" in runner._skipped_nodes
+        assert "dep2" in runner._skipped_nodes
+
 
 class TestExecuteDbtNode:
     """Test cases focusing on execute_dbt_node behavior."""
