@@ -2349,6 +2349,22 @@
     {
       "source": "v3/resources/upgrade-agents-to-workers",
       "destination": "/v3/how-to-guides/migrate/upgrade-agents-to-workers"
+    },
+    {
+      "source": "/v3/deploy",
+      "destination": "/v3/concepts/deployments"
+    },
+    {
+      "source": "/v3/develop/deferred-tasks",
+      "destination": "/v3/advanced/background-tasks"
+    },
+    {
+      "source": "/v3/automate/index",
+      "destination": "/v3/concepts/automations"
+    },
+    {
+      "source": "/v3/manage/server/examples/helm",
+      "destination": "/v3/advanced/server-helm"
     }
   ]
 }
