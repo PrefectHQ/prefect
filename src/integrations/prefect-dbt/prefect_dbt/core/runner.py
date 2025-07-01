@@ -16,10 +16,14 @@ from dbt.artifacts.schemas.results import (
 )
 from dbt.artifacts.schemas.run import RunExecutionResult
 from dbt.cli.main import dbtRunner
+from dbt.compilation import Linker
 from dbt.config.project import Project
 from dbt.config.renderer import DbtProjectYamlRenderer
+from dbt.config.runtime import RuntimeConfig
 from dbt.contracts.graph.manifest import Manifest
 from dbt.contracts.graph.nodes import ManifestNode
+from dbt.contracts.state import load_result_state
+from dbt.graph.graph import Graph, UniqueId
 from dbt_common.events.base_types import EventLevel, EventMsg
 from google.protobuf.json_format import MessageToDict
 
@@ -133,6 +137,9 @@ class PrefectDbtRunner:
         self._profiles_dir: Optional[Path] = None
         self._project_dir: Optional[Path] = None
         self._log_level: Optional[EventLevel] = None
+        self._config: Optional[RuntimeConfig] = None
+        self._graph: Optional[Graph] = None
+        self._skipped_nodes: set[str] = set()
 
     @property
     def target_path(self) -> Path:
@@ -163,6 +170,22 @@ class PrefectDbtRunner:
             self._set_project_from_project_dir()
             assert self._project is not None  # for type checking
         return self._project
+
+    @property
+    def graph(self) -> Graph:
+        if self._graph is None:
+            self._set_graph_from_manifest()
+            assert self._graph is not None  # for type checking
+        return self._graph
+
+    def _set_graph_from_manifest(self, add_test_edges: bool = False):
+        linker = Linker()
+        linker.link_graph(self.manifest)
+        if add_test_edges:
+            print("Building graph with test edges")
+            self.manifest.build_parent_and_child_maps()
+            linker.add_test_edges(self.manifest)
+        self._graph = Graph(linker.graph)
 
     def _set_manifest_from_project_dir(self):
         try:
@@ -366,11 +389,14 @@ class PrefectDbtRunner:
 
         def logging_callback(event: EventMsg):
             event_data = MessageToDict(event.data, preserving_proto_field_name=True)
-            if event_data.get("node_info"):
+            if (
+                event_data.get("node_info")
+                and (node_id := self._get_dbt_event_node_id(event))
+                not in self._skipped_nodes
+            ):
                 flow_run_context: Optional[dict[str, Any]] = context.get(
                     "flow_run_context"
                 )
-                node_id = self._get_dbt_event_node_id(event)
                 logger = task_state.get_task_logger(
                     node_id,
                     flow_run_context.get("flow_run") if flow_run_context else None,
@@ -410,6 +436,9 @@ class PrefectDbtRunner:
         def node_started_callback(event: EventMsg):
             if event.info.name == "NodeStart":
                 node_id = self._get_dbt_event_node_id(event)
+                if node_id in self._skipped_nodes:
+                    return
+
                 manifest_node, prefect_config = self._get_manifest_node_and_config(
                     node_id
                 )
@@ -428,12 +457,16 @@ class PrefectDbtRunner:
     def _create_node_finished_callback(
         self,
         task_state: NodeTaskTracker,
+        add_test_edges: bool = False,
     ) -> Callable[[EventMsg], None]:
         """Creates a callback function for ending tasks when nodes finish."""
 
         def node_finished_callback(event: EventMsg):
             if event.info.name == "NodeFinished":
                 node_id = self._get_dbt_event_node_id(event)
+                if node_id in self._skipped_nodes:
+                    return
+
                 manifest_node, _ = self._get_manifest_node_and_config(node_id)
 
                 if manifest_node:
@@ -444,6 +477,24 @@ class PrefectDbtRunner:
                         )
                         event_message = self.get_dbt_event_msg(event)
                         task_state.set_node_status(node_id, event_data, event_message)
+
+                        node_info: Optional[dict[str, Any]] = event_data.get(
+                            "node_info"
+                        )
+                        node_status: Optional[str] = (
+                            node_info.get("node_status") if node_info else None
+                        )
+
+                        if (
+                            node_status in SKIPPED_STATUSES
+                            or node_status in FAILURE_STATUSES
+                        ):
+                            self._set_graph_from_manifest(add_test_edges=add_test_edges)
+                            for dep_node_id in self.graph.get_dependent_nodes(
+                                UniqueId(node_id)
+                            ):  # type: ignore[reportUnknownMemberType]
+                                self._skipped_nodes.add(dep_node_id)  # type: ignore[reportUnknownMemberType]
+                            print(f"Skipping nodes: {self._skipped_nodes}")
                     except Exception as e:
                         print(e)
 
@@ -527,10 +578,27 @@ class PrefectDbtRunner:
         )
         task_state = NodeTaskTracker()
 
+        add_test_edges = True if "build" in args_copy else False
+
+        if "retry" in args_copy:
+            previous_results = load_result_state(
+                Path(self.project_dir) / self.target_path / "run_results.json"
+            )
+            if not previous_results:
+                raise ValueError(
+                    f"Cannot retry. No previous results found at target path {self.target_path}"
+                )
+            previous_args = previous_results.args
+            self.previous_command_name = previous_args.get("which")
+            if self.previous_command_name == "build":
+                add_test_edges = True
+
         callbacks = (
             [
                 self._create_node_started_callback(task_state, context),
-                self._create_node_finished_callback(task_state),
+                self._create_node_finished_callback(
+                    task_state, add_test_edges=add_test_edges
+                ),
                 self._create_logging_callback(task_state, self.log_level, context),
             ]
             if in_flow_or_task_run or self._force_nodes_as_tasks
