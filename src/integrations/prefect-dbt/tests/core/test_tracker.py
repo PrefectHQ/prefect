@@ -12,35 +12,93 @@ from prefect_dbt.core._tracker import NodeTaskTracker
 from prefect._internal.uuid7 import uuid7
 
 
-def test_tracker_manages_node_lifecycle():
-    """Test that tracker properly manages the complete lifecycle of a node."""
-    tracker = NodeTaskTracker()
-    node_id = "test_node"
-    mock_task = Mock()
+@pytest.fixture
+def tracker():
+    """Fixture providing a NodeTaskTracker instance."""
+    return NodeTaskTracker()
 
+
+@pytest.fixture
+def mock_task():
+    """Fixture providing a mock task."""
+    return Mock()
+
+
+@pytest.fixture
+def mock_state():
+    """Fixture providing a mock state."""
+    return Mock()
+
+
+@pytest.fixture
+def mock_context_manager(monkeypatch):
+    """Fixture providing a mock context manager for hydrated_context."""
+    mock_context = Mock()
+    mock_context.__enter__ = Mock()
+    mock_context.__exit__ = Mock()
+    monkeypatch.setattr(
+        "prefect_dbt.core._tracker.hydrated_context",
+        Mock(return_value=mock_context),
+    )
+    return mock_context
+
+
+@pytest.fixture
+def mock_run_task_sync(monkeypatch, mock_state):
+    """Fixture providing a mock run_task_sync function."""
+    monkeypatch.setattr(
+        "prefect_dbt.core._tracker.run_task_sync", Mock(return_value=mock_state)
+    )
+    return mock_state
+
+
+@pytest.fixture
+def sample_node_id():
+    """Fixture providing a sample node ID."""
+    return "test_node"
+
+
+@pytest.fixture
+def sample_task_run_id():
+    """Fixture providing a sample task run ID."""
+    return uuid7()
+
+
+@pytest.fixture
+def sample_parameters():
+    """Fixture providing sample parameters."""
+    return {"param": "value"}
+
+
+@pytest.fixture
+def sample_context():
+    """Fixture providing sample context."""
+    return {"context": "data"}
+
+
+def test_tracker_manages_node_lifecycle(tracker, sample_node_id, mock_task):
+    """Test that tracker properly manages the complete lifecycle of a node."""
     # Start the node
-    tracker.start_task(node_id, mock_task)
-    assert not tracker.is_node_complete(node_id)
+    tracker.start_task(sample_node_id, mock_task)
+    assert not tracker.is_node_complete(sample_node_id)
 
     # Set node status (completes the node)
     event_data = {"status": "success", "node_info": {"node_status": "success"}}
-    tracker.set_node_status(node_id, event_data, "Node completed successfully")
+    tracker.set_node_status(sample_node_id, event_data, "Node completed successfully")
 
     # Verify node is complete
-    assert tracker.is_node_complete(node_id)
-    status = tracker.get_node_status(node_id)
+    assert tracker.is_node_complete(sample_node_id)
+    status = tracker.get_node_status(sample_node_id)
     assert status is not None
     assert status["event_data"] == event_data
     assert status["event_message"] == "Node completed successfully"
 
 
-def test_tracker_handles_multiple_nodes_independently():
+def test_tracker_handles_multiple_nodes_independently(tracker, mock_task):
     """Test that tracker can manage multiple nodes without interference."""
-    tracker = NodeTaskTracker()
-
     # Set up two nodes
-    tracker.start_task("node1", Mock())
-    tracker.start_task("node2", Mock())
+    tracker.start_task("node1", mock_task)
+    tracker.start_task("node2", mock_task)
 
     # Complete one node
     tracker.set_node_status("node1", {"status": "success"}, "Node 1 done")
@@ -118,40 +176,29 @@ def test_tracker_manages_dependencies():
     assert tracker.get_node_dependencies("unknown_node") == []
 
 
-def test_tracker_thread_execution_outcomes(monkeypatch: pytest.MonkeyPatch):
+def test_tracker_thread_execution_outcomes(
+    tracker,
+    sample_node_id,
+    mock_task,
+    sample_task_run_id,
+    sample_parameters,
+    sample_context,
+    mock_run_task_sync,
+    mock_context_manager,
+):
     """Test that tracker properly handles thread execution outcomes."""
-    tracker = NodeTaskTracker()
-    node_id = "test_node"
-    mock_task = Mock()
-    task_run_id = uuid7()
-    parameters = {"param": "value"}
-    context = {"context": "data"}
+    # Mock successful execution is already set up by mock_run_task_sync fixture
 
-    # Mock successful execution
-    mock_state = Mock()
-
-    monkeypatch.setattr(
-        "prefect_dbt.core._tracker.run_task_sync", Mock(return_value=mock_state)
+    tracker.run_task_in_thread(
+        sample_node_id, mock_task, sample_task_run_id, sample_parameters, sample_context
     )
-    monkeypatch.setattr("prefect_dbt.core._tracker.hydrated_context", Mock())
-
-    # Set up context manager mock
-    mock_context = Mock()
-    mock_context.__enter__ = Mock()
-    mock_context.__exit__ = Mock()
-    monkeypatch.setattr(
-        "prefect_dbt.core._tracker.hydrated_context",
-        Mock(return_value=mock_context),
-    )
-
-    tracker.run_task_in_thread(node_id, mock_task, task_run_id, parameters, context)
 
     # Wait for thread completion
     time.sleep(0.2)
 
     # Verify result was stored
-    result = tracker.get_task_result(node_id)
-    assert result == mock_state
+    result = tracker.get_task_result(sample_node_id)
+    assert result == mock_run_task_sync
 
 
 def test_tracker_handles_execution_with_dependencies(monkeypatch: pytest.MonkeyPatch):
