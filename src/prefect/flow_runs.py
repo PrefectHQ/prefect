@@ -11,6 +11,7 @@ from uuid import UUID, uuid4
 
 import anyio
 
+from prefect._internal.compatibility.async_dispatch import async_dispatch
 from prefect.client.orchestration import PrefectClient, get_client
 from prefect.client.schemas import FlowRun
 from prefect.client.schemas.objects import (
@@ -42,9 +43,7 @@ from prefect.states import (
     Paused,
     Suspended,
 )
-from prefect.utilities.asyncutils import (
-    sync_compatible,
-)
+from prefect.utilities.asyncutils import run_coro_as_sync
 from prefect.utilities.engine import (
     propose_state,
 )
@@ -163,7 +162,7 @@ T = TypeVar("T")
 
 
 @overload
-async def pause_flow_run(
+async def apause_flow_run(
     wait_for_input: None = None,
     timeout: int = 3600,
     poll_interval: int = 10,
@@ -172,7 +171,7 @@ async def pause_flow_run(
 
 
 @overload
-async def pause_flow_run(
+async def apause_flow_run(
     wait_for_input: Type[T],
     timeout: int = 3600,
     poll_interval: int = 10,
@@ -180,8 +179,7 @@ async def pause_flow_run(
 ) -> T: ...
 
 
-@sync_compatible
-async def pause_flow_run(
+async def apause_flow_run(
     wait_for_input: Type[T] | None = None,
     timeout: int = 3600,
     poll_interval: int = 10,
@@ -235,6 +233,84 @@ async def pause_flow_run(
         poll_interval=poll_interval,
         key=key,
         wait_for_input=wait_for_input,
+    )
+
+
+@overload
+def pause_flow_run(
+    wait_for_input: None = None,
+    timeout: int = 3600,
+    poll_interval: int = 10,
+    key: str | None = None,
+) -> None: ...
+
+
+@overload
+def pause_flow_run(
+    wait_for_input: Type[T],
+    timeout: int = 3600,
+    poll_interval: int = 10,
+    key: str | None = None,
+) -> T: ...
+
+
+@async_dispatch(apause_flow_run)
+def pause_flow_run(
+    wait_for_input: Type[T] | None = None,
+    timeout: int = 3600,
+    poll_interval: int = 10,
+    key: str | None = None,
+) -> T | None:
+    """
+    Pauses the current flow run by blocking execution until resumed.
+
+    When called within a flow run, execution will block and no downstream tasks will
+    run until the flow is resumed. Task runs that have already started will continue
+    running. A timeout parameter can be passed that will fail the flow run if it has not
+    been resumed within the specified time.
+
+    Args:
+        timeout: the number of seconds to wait for the flow to be resumed before
+            failing. Defaults to 1 hour (3600 seconds). If the pause timeout exceeds
+            any configured flow-level timeout, the flow might fail even after resuming.
+        poll_interval: The number of seconds between checking whether the flow has been
+            resumed. Defaults to 10 seconds.
+        key: An optional key to prevent calling pauses more than once. This defaults to
+            the number of pauses observed by the flow so far, and prevents pauses that
+            use the "reschedule" option from running the same pause twice. A custom key
+            can be supplied for custom pausing behavior.
+        wait_for_input: a subclass of `RunInput` or any type supported by
+            Pydantic. If provided when the flow pauses, the flow will wait for the
+            input to be provided before resuming. If the flow is resumed without
+            providing the input, the flow will fail. If the flow is resumed with the
+            input, the flow will resume and the input will be loaded and returned
+            from this function.
+
+    Example:
+    ```python
+    @task
+    def task_one():
+        for i in range(3):
+            sleep(1)
+
+    @flow
+    def my_flow():
+        terminal_state = task_one.submit(return_state=True)
+        if terminal_state.type == StateType.COMPLETED:
+            print("Task one succeeded! Pausing flow run..")
+            pause_flow_run(timeout=2)
+        else:
+            print("Task one failed. Skipping pause flow run..")
+    ```
+
+    """
+    return run_coro_as_sync(
+        apause_flow_run(
+            wait_for_input=wait_for_input,
+            timeout=timeout,
+            poll_interval=poll_interval,
+            key=key,
+        )
     )
 
 
@@ -332,7 +408,7 @@ async def _in_process_pause(
 
 
 @overload
-async def suspend_flow_run(
+async def asuspend_flow_run(
     wait_for_input: None = None,
     flow_run_id: UUID | None = None,
     timeout: int | None = 3600,
@@ -342,7 +418,7 @@ async def suspend_flow_run(
 
 
 @overload
-async def suspend_flow_run(
+async def asuspend_flow_run(
     wait_for_input: Type[T],
     flow_run_id: UUID | None = None,
     timeout: int | None = 3600,
@@ -351,9 +427,8 @@ async def suspend_flow_run(
 ) -> T: ...
 
 
-@sync_compatible
 @inject_client
-async def suspend_flow_run(
+async def asuspend_flow_run(
     wait_for_input: Type[T] | None = None,
     flow_run_id: UUID | None = None,
     timeout: int | None = 3600,
@@ -460,8 +535,76 @@ async def suspend_flow_run(
         raise Pause(state=state)
 
 
-@sync_compatible
-async def resume_flow_run(
+@overload
+def suspend_flow_run(
+    wait_for_input: None = None,
+    flow_run_id: UUID | None = None,
+    timeout: int | None = 3600,
+    key: str | None = None,
+    client: "PrefectClient | None" = None,
+) -> None: ...
+
+
+@overload
+def suspend_flow_run(
+    wait_for_input: Type[T],
+    flow_run_id: UUID | None = None,
+    timeout: int | None = 3600,
+    key: str | None = None,
+    client: "PrefectClient | None" = None,
+) -> T: ...
+
+
+@async_dispatch(asuspend_flow_run)
+@inject_client
+def suspend_flow_run(
+    wait_for_input: Type[T] | None = None,
+    flow_run_id: UUID | None = None,
+    timeout: int | None = 3600,
+    key: str | None = None,
+    client: "PrefectClient | None" = None,
+) -> T | None:
+    """
+    Suspends a flow run by stopping code execution until resumed.
+
+    When suspended, the flow run will continue execution until the NEXT task is
+    orchestrated, at which point the flow will exit. Any tasks that have
+    already started will run until completion. When resumed, the flow run will
+    be rescheduled to finish execution. In order suspend a flow run in this
+    way, the flow needs to have an associated deployment and results need to be
+    configured with the `persist_result` option.
+
+    Args:
+        flow_run_id: a flow run id. If supplied, this function will attempt to
+            suspend the specified flow run. If not supplied will attempt to
+            suspend the current flow run.
+        timeout: the number of seconds to wait for the flow to be resumed before
+            failing. Defaults to 1 hour (3600 seconds). If the pause timeout
+            exceeds any configured flow-level timeout, the flow might fail even
+            after resuming.
+        key: An optional key to prevent calling suspend more than once. This
+            defaults to a random string and prevents suspends from running the
+            same suspend twice. A custom key can be supplied for custom
+            suspending behavior.
+        wait_for_input: a subclass of `RunInput` or any type supported by
+            Pydantic. If provided when the flow suspends, the flow will remain
+            suspended until receiving the input before resuming. If the flow is
+            resumed without providing the input, the flow will fail. If the flow is
+            resumed with the input, the flow will resume and the input will be
+            loaded and returned from this function.
+    """
+    return run_coro_as_sync(
+        asuspend_flow_run(
+            wait_for_input=wait_for_input,
+            flow_run_id=flow_run_id,
+            timeout=timeout,
+            key=key,
+            client=client,
+        )
+    )
+
+
+async def aresume_flow_run(
     flow_run_id: UUID, run_input: dict[str, Any] | None = None
 ) -> None:
     """
@@ -485,6 +628,20 @@ async def resume_flow_run(
             raise FlowPauseTimeout("Flow run can no longer be resumed.")
         else:
             raise RuntimeError(f"Cannot resume this run: {response.details.reason}")
+
+
+@async_dispatch(aresume_flow_run)
+def resume_flow_run(flow_run_id: UUID, run_input: dict[str, Any] | None = None) -> None:
+    """
+    Resumes a paused flow.
+
+    Args:
+        flow_run_id: the flow_run_id to resume
+        run_input: a dictionary of inputs to provide to the flow run.
+    """
+    return run_coro_as_sync(
+        aresume_flow_run(flow_run_id=flow_run_id, run_input=run_input)
+    )
 
 
 def _observed_flow_pauses(context: FlowRunContext) -> int:
