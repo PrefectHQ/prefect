@@ -556,7 +556,6 @@ def suspend_flow_run(
 
 
 @async_dispatch(asuspend_flow_run)
-@inject_client
 def suspend_flow_run(
     wait_for_input: Type[T] | None = None,
     flow_run_id: UUID | None = None,
