@@ -182,7 +182,6 @@ class PrefectDbtRunner:
         linker = Linker()
         linker.link_graph(self.manifest)
         if add_test_edges:
-            print("Building graph with test edges")
             self.manifest.build_parent_and_child_maps()
             linker.add_test_edges(self.manifest)
         self._graph = Graph(linker.graph)
@@ -494,7 +493,6 @@ class PrefectDbtRunner:
                                 UniqueId(node_id)
                             ):  # type: ignore[reportUnknownMemberType]
                                 self._skipped_nodes.add(dep_node_id)  # type: ignore[reportUnknownMemberType]
-                            print(f"Skipping nodes: {self._skipped_nodes}")
                     except Exception as e:
                         print(e)
 
