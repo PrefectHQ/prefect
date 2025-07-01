@@ -7,7 +7,12 @@ import type { SchemaFormErrors } from "./types/errors";
 import { useSchemaFormContext } from "./use-schema-form-context";
 import { getIndexForAnyOfPropertyValue } from "./utilities/getIndexForAnyOfPropertyValue";
 import { getSchemaObjectLabel } from "./utilities/getSchemaObjectLabel";
-import { isReferenceObject,isObjectSchema,hasProperties,getParameterValues,} from "./utilities/schema-utils";
+import {
+	getParameterValues,
+	hasProperties,
+	isObjectSchema,
+	isReferenceObject,
+} from "./utilities/schema-utils";
 
 export type SchemaFormInputAnyOfProps = {
 	value: unknown;
@@ -48,11 +53,16 @@ export function SchemaFormInputAnyOf({
 			if (!hasProperties(currentSchema) || !hasProperties(newSchema)) {
 				return false;
 			}
-			return Object.keys(currentSchema.properties).some(key => newSchema.properties[key]);
+			return Object.keys(currentSchema.properties).some(
+				(key) => newSchema.properties[key],
+			);
 		})();
 
 		if (!hasOverlappingParams) {
-			values.current.set(selectedIndex, getParameterValues(value, currentSchema));
+			values.current.set(
+				selectedIndex,
+				getParameterValues(value, currentSchema),
+			);
 		}
 
 		setSelectedIndex(newSelectedIndex);
