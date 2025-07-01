@@ -27,7 +27,7 @@ const property: SchemaObject & { anyOf: (SchemaObject | ReferenceObject)[] } = {
 	anyOf: [MyModel, MyModel2],
 };
 
-import type { MyModelType, MyModel2Type } from "./schema-form-types";
+import type { MyModel2Type, MyModelType } from "./schema-form-types";
 
 describe("SchemaFormInputAnyOf", () => {
 	it("renders the correct fields for each model and preserves shared parameter values", () => {
