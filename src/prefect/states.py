@@ -155,7 +155,7 @@ async def _get_state_result(
     if raise_on_failure and (
         state.is_crashed() or state.is_failed() or state.is_cancelled()
     ):
-        raise await get_state_exception(state)
+        raise await aget_state_exception(state)
 
     if isinstance(state.data, ResultRecordMetadata):
         result = await _get_state_result_data_with_retries(
@@ -166,7 +166,7 @@ async def _get_state_result(
 
     elif state.data is None:
         if state.is_failed() or state.is_crashed() or state.is_cancelled():
-            return await get_state_exception(state)
+            return await aget_state_exception(state)
         else:
             raise MissingResult(
                 "State data is missing. "
