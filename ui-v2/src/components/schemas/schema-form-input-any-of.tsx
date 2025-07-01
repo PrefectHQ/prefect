@@ -7,6 +7,8 @@ import type { SchemaFormErrors } from "./types/errors";
 import { useSchemaFormContext } from "./use-schema-form-context";
 import { getIndexForAnyOfPropertyValue } from "./utilities/getIndexForAnyOfPropertyValue";
 import { getSchemaObjectLabel } from "./utilities/getSchemaObjectLabel";
+import { isReferenceObject,isObjectSchema,hasProperties,getParameterValues,} from "./utilities/schema-utils";
+
 export type SchemaFormInputAnyOfProps = {
 	value: unknown;
 	property: SchemaObject & { anyOf: (SchemaObject | ReferenceObject)[] };
@@ -33,11 +35,30 @@ export function SchemaFormInputAnyOf({
 			throw new Error(`Invalid index: ${newSelectedIndexValue}`);
 		}
 
-		values.current.set(selectedIndex, value);
+		const currentSchema = property.anyOf[selectedIndex];
+		const newSchema = property.anyOf[newSelectedIndex];
+
+		const hasOverlappingParams = (() => {
+			if (isReferenceObject(currentSchema) || isReferenceObject(newSchema)) {
+				return false;
+			}
+			if (!isObjectSchema(currentSchema) || !isObjectSchema(newSchema)) {
+				return false;
+			}
+			if (!hasProperties(currentSchema) || !hasProperties(newSchema)) {
+				return false;
+			}
+			return Object.keys(currentSchema.properties).some(key => newSchema.properties[key]);
+		})();
+
+		if (!hasOverlappingParams) {
+			values.current.set(selectedIndex, getParameterValues(value, currentSchema));
+		}
 
 		setSelectedIndex(newSelectedIndex);
 
-		onValueChange(values.current.get(newSelectedIndex));
+		const newValue = values.current.get(newSelectedIndex) ?? value;
+		onValueChange(newValue);
 	}
 
 	return (

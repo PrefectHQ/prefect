@@ -333,9 +333,12 @@ describe("DeploymentsDataTable", () => {
 		await user.clear(nameSearchInput);
 		await user.type(nameSearchInput, "my-deployment");
 
+		await waitFor(() => {
+		console.log(onColumnFiltersChange.mock.calls);
 		expect(onColumnFiltersChange).toHaveBeenCalledWith([
 			{ id: "flowOrDeploymentName", value: "my-deployment" },
 		]);
+	});
 	});
 
 	it("calls onColumnFiltersChange on tags search", async () => {
