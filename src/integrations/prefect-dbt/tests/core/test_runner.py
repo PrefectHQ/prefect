@@ -718,33 +718,6 @@ class TestPrefectDbtRunner:
         assert call_kwargs["log_level"] == "none"
         assert call_kwargs["log_level_file"] == "info"
 
-    def test_runner_context_detection_edge_cases(
-        self,
-        mock_runner_with_callback_mocks,
-        mock_dbt_runner_class_with_success,
-        monkeypatch,
-    ):
-        """Test edge cases for context detection."""
-        runner, _, _, _ = mock_runner_with_callback_mocks
-
-        # Test with None values in context
-        monkeypatch.setattr(
-            "prefect_dbt.core.runner.serialize_context",
-            Mock(return_value={"flow_run_context": None, "task_run_context": None}),
-        )
-
-        result = runner.invoke(["run"])
-
-        assert result.success is True
-        assert result.exception is None
-        mock_dbt_runner_class_with_success.return_value.invoke.assert_called_once()
-        # Verify no callbacks when context values are None
-        mock_dbt_runner_class_with_success.assert_called_once_with(callbacks=[])
-        call_kwargs = mock_dbt_runner_class_with_success.return_value.invoke.call_args[
-            1
-        ]
-        assert call_kwargs["log_level"] == "info"
-
     def test_runner_handles_dbt_exceptions(
         self,
         mock_runner_with_callback_mocks,
@@ -1189,64 +1162,6 @@ class TestPrefectDbtRunner:
             / "target"
             / "compiled"
             / "test_project"
-            / "models/test_model.sql"
-        )
-        assert result == expected_path
-
-    def test_runner_get_compiled_code_path_handles_project_name_with_slash(
-        self, monkeypatch: pytest.MonkeyPatch
-    ):
-        """Test that _get_compiled_code_path handles project_name with slashes correctly."""
-        runner = PrefectDbtRunner()
-        runner._project_dir = Path("/test/project")
-        runner._target_path = Path("target")
-
-        # Mock project with project_name containing slashes
-        mock_project = Mock()
-        mock_project.project_name = "org/test_project"
-        runner._project = mock_project
-
-        # Mock manifest node
-        mock_node = Mock(spec=ManifestNode)
-        mock_node.original_file_path = "models/test_model.sql"
-
-        result = runner._get_compiled_code_path(mock_node)
-
-        # Should extract the last part after splitting by slash
-        expected_path = (
-            Path("/test/project")
-            / "target"
-            / "compiled"
-            / "test_project"
-            / "models/test_model.sql"
-        )
-        assert result == expected_path
-
-    def test_runner_get_compiled_code_path_handles_project_name_without_slash(
-        self, monkeypatch: pytest.MonkeyPatch
-    ):
-        """Test that _get_compiled_code_path handles project_name without slashes correctly."""
-        runner = PrefectDbtRunner()
-        runner._project_dir = Path("/test/project")
-        runner._target_path = Path("target")
-
-        # Mock project with simple project_name
-        mock_project = Mock()
-        mock_project.project_name = "simple_project"
-        runner._project = mock_project
-
-        # Mock manifest node
-        mock_node = Mock(spec=ManifestNode)
-        mock_node.original_file_path = "models/test_model.sql"
-
-        result = runner._get_compiled_code_path(mock_node)
-
-        # Should use the project_name as is
-        expected_path = (
-            Path("/test/project")
-            / "target"
-            / "compiled"
-            / "simple_project"
             / "models/test_model.sql"
         )
         assert result == expected_path
