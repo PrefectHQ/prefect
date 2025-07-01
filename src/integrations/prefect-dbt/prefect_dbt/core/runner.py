@@ -24,6 +24,7 @@ from dbt_common.events.base_types import EventLevel, EventMsg
 from google.protobuf.json_format import MessageToDict
 
 from prefect import get_client, get_run_logger
+from prefect._internal.uuid7 import uuid7
 from prefect.assets import Asset, AssetProperties
 from prefect.cache_policies import NO_CACHE
 from prefect.client.orchestration import PrefectClient
@@ -43,6 +44,11 @@ FAILURE_STATUSES = [
     NodeStatus.Error,
     NodeStatus.Fail,
     NodeStatus.RuntimeErr,
+]
+SKIPPED_STATUSES = [
+    RunStatus.Skipped,
+    TestStatus.Skipped,
+    NodeStatus.Skipped,
 ]
 MATERIALIZATION_NODE_TYPES = [
     NodeType.Model,
@@ -73,8 +79,6 @@ def execute_dbt_node(
     2. Wait for the node to finish using efficient threading.Event
     3. Check the node's status and fail if it's in a failure state
     """
-    task_state.set_task_logger(node_id, get_run_logger())
-
     # Wait for the node to finish using efficient threading.Event
     task_state.wait_for_node_completion(node_id)
 
@@ -332,9 +336,14 @@ class PrefectDbtRunner:
             [node[0].unique_id for node in upstream_manifest_nodes],
         )
 
+        task_run_id = uuid7()
+
+        task_state.set_task_run_id(manifest_node.unique_id, task_run_id)
+
         task_state.run_task_in_thread(
             manifest_node.unique_id,
             task,
+            task_run_id=task_run_id,
             parameters={
                 "task_state": task_state,
                 "node_id": manifest_node.unique_id,
@@ -358,8 +367,15 @@ class PrefectDbtRunner:
         def logging_callback(event: EventMsg):
             event_data = MessageToDict(event.data, preserving_proto_field_name=True)
             if event_data.get("node_info"):
+                flow_run_context: Optional[dict[str, Any]] = context.get(
+                    "flow_run_context"
+                )
                 node_id = self._get_dbt_event_node_id(event)
-                logger = task_state.get_task_logger(node_id)
+                logger = task_state.get_task_logger(
+                    node_id,
+                    flow_run_context.get("flow_run") if flow_run_context else None,
+                    flow_run_context.get("flow") if flow_run_context else None,
+                )
             else:
                 try:
                     with hydrated_context(context) as run_context:
@@ -513,9 +529,9 @@ class PrefectDbtRunner:
 
         callbacks = (
             [
-                self._create_logging_callback(task_state, self.log_level, context),
                 self._create_node_started_callback(task_state, context),
                 self._create_node_finished_callback(task_state),
+                self._create_logging_callback(task_state, self.log_level, context),
             ]
             if in_flow_or_task_run or self._force_nodes_as_tasks
             else []
