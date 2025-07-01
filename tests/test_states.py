@@ -1,9 +1,11 @@
+import asyncio
 import uuid
 from pathlib import Path
 
 import pytest
 
 from prefect import flow
+from prefect._internal.compatibility.async_dispatch import is_in_async_context
 from prefect.exceptions import CancelledRun, CrashedRun, FailedRun
 from prefect.results import (
     ResultRecord,
@@ -21,6 +23,7 @@ from prefect.states import (
     Running,
     State,
     StateGroup,
+    get_state_exception,
     is_state_iterable,
     raise_state_exception,
     return_value_to_state,
@@ -387,3 +390,51 @@ def test_state_returns_expected_result(ignore_prefect_deprecation_warnings):
         )
     )
     assert state.result() == "test"
+
+
+class TestAsyncDispatch:
+    """Test that async_dispatch works correctly for states functions."""
+
+    async def test_get_state_exception_dispatches_to_async_in_async_context(self):
+        """Test that get_state_exception uses async implementation in async context."""
+        assert is_in_async_context() is True
+
+        state = Failed(data=ValueError("Test error"))
+        # In async context, should work without await
+        exc = get_state_exception(state, _sync=False)
+        assert asyncio.iscoroutine(exc)
+        result = await exc
+        assert isinstance(result, ValueError)
+        assert str(result) == "Test error"
+
+    def test_get_state_exception_dispatches_to_sync_in_sync_context(self):
+        """Test that get_state_exception uses sync implementation in sync context."""
+        assert is_in_async_context() is False
+
+        state = Failed(data=ValueError("Test error"))
+        # In sync context, should work directly
+        exc = get_state_exception(state, _sync=True)
+        assert isinstance(exc, ValueError)
+        assert str(exc) == "Test error"
+
+    async def test_raise_state_exception_dispatches_to_async_in_async_context(self):
+        """Test that raise_state_exception uses async implementation in async context."""
+        assert is_in_async_context() is True
+
+        state = Failed(data=ValueError("Test error"))
+        # In async context, the function returns a coroutine
+        coro = raise_state_exception(state, _sync=False)
+        assert asyncio.iscoroutine(coro)
+
+        # Should raise when awaited
+        with pytest.raises(ValueError, match="Test error"):
+            await coro
+
+    def test_raise_state_exception_dispatches_to_sync_in_sync_context(self):
+        """Test that raise_state_exception uses sync implementation in sync context."""
+        assert is_in_async_context() is False
+
+        state = Failed(data=ValueError("Test error"))
+        # In sync context, should raise directly
+        with pytest.raises(ValueError, match="Test error"):
+            raise_state_exception(state, _sync=True)

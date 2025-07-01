@@ -14,6 +14,7 @@ import httpx
 from opentelemetry import propagate
 from typing_extensions import TypeGuard
 
+from prefect._internal.compatibility.async_dispatch import async_dispatch
 from prefect.client.schemas.objects import State, StateDetails, StateType
 from prefect.exceptions import (
     CancelledRun,
@@ -28,7 +29,7 @@ from prefect.exceptions import (
 from prefect.logging.loggers import get_logger, get_run_logger
 from prefect.types._datetime import now
 from prefect.utilities.annotations import BaseAnnotation
-from prefect.utilities.asyncutils import sync_compatible
+from prefect.utilities.asyncutils import run_coro_as_sync
 from prefect.utilities.collections import ensure_iterable
 
 if TYPE_CHECKING:
@@ -442,8 +443,7 @@ async def return_value_to_state(
         return Completed(data=result_record)
 
 
-@sync_compatible
-async def get_state_exception(state: State) -> BaseException:
+async def aget_state_exception(state: State) -> BaseException:
     """
     If not given a FAILED or CRASHED state, this raise a value error.
 
@@ -507,13 +507,13 @@ async def get_state_exception(state: State) -> BaseException:
 
     elif isinstance(result, State):
         # Return the exception from the inner state
-        return await get_state_exception(result)
+        return await aget_state_exception(result)
 
     elif is_state_iterable(result):
         # Return the first failure
         for state in result:
             if state.is_failed() or state.is_crashed() or state.is_cancelled():
-                return await get_state_exception(state)
+                return await aget_state_exception(state)
 
         raise ValueError(
             "Failed state result was an iterable of states but none were failed."
@@ -526,15 +526,48 @@ async def get_state_exception(state: State) -> BaseException:
         )
 
 
-@sync_compatible
-async def raise_state_exception(state: State) -> None:
+@async_dispatch(aget_state_exception)
+def get_state_exception(state: State) -> BaseException:
+    """
+    If not given a FAILED or CRASHED state, this raise a value error.
+
+    If the state result is a state, its exception will be returned.
+
+    If the state result is an iterable of states, the exception of the first failure
+    will be returned.
+
+    If the state result is a string, a wrapper exception will be returned with the
+    string as the message.
+
+    If the state result is null, a wrapper exception will be returned with the state
+    message attached.
+
+    If the state result is not of a known type, a `TypeError` will be returned.
+
+    When a wrapper exception is returned, the type will be:
+        - `FailedRun` if the state type is FAILED.
+        - `CrashedRun` if the state type is CRASHED.
+        - `CancelledRun` if the state type is CANCELLED.
+    """
+    return run_coro_as_sync(aget_state_exception(state))
+
+
+async def araise_state_exception(state: State) -> None:
     """
     Given a FAILED or CRASHED state, raise the contained exception.
     """
     if not (state.is_failed() or state.is_crashed() or state.is_cancelled()):
         return None
 
-    raise await get_state_exception(state)
+    raise await aget_state_exception(state)
+
+
+@async_dispatch(araise_state_exception)
+def raise_state_exception(state: State) -> None:
+    """
+    Given a FAILED or CRASHED state, raise the contained exception.
+    """
+    return run_coro_as_sync(araise_state_exception(state))
 
 
 def is_state_iterable(obj: Any) -> TypeGuard[Iterable[State]]:
