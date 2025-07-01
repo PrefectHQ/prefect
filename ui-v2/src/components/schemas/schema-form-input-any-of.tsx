@@ -97,8 +97,8 @@ export function SchemaFormInputAnyOf({
 					value={value as MyModelType | MyModel2Type}
 					property={property.anyOf[selectedIndex]}
 					onValueChange={(value: unknown) =>
-															onValueChange(value as MyModelType | MyModel2Type)
-														}
+						onValueChange(value as MyModelType | MyModel2Type)
+					}
 					errors={errors}
 					showLabel={false}
 					nested={false}
