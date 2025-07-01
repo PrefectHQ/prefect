@@ -9,6 +9,8 @@ from unittest.mock import Mock
 import pytest
 from prefect_dbt.core._tracker import NodeTaskTracker
 
+from prefect._internal.uuid7 import uuid7
+
 
 def test_tracker_manages_node_lifecycle():
     """Test that tracker properly manages the complete lifecycle of a node."""
@@ -27,6 +29,7 @@ def test_tracker_manages_node_lifecycle():
     # Verify node is complete
     assert tracker.is_node_complete(node_id)
     status = tracker.get_node_status(node_id)
+    assert status is not None
     assert status["event_data"] == event_data
     assert status["event_message"] == "Node completed successfully"
 
@@ -115,26 +118,12 @@ def test_tracker_manages_dependencies():
     assert tracker.get_node_dependencies("unknown_node") == []
 
 
-def test_tracker_manages_loggers():
-    """Test that tracker properly manages task loggers."""
-    tracker = NodeTaskTracker()
-    node_id = "test_node"
-    mock_logger = Mock()
-
-    # Set and retrieve logger
-    tracker.set_task_logger(node_id, mock_logger)
-    retrieved_logger = tracker.get_task_logger(node_id)
-    assert retrieved_logger == mock_logger
-
-    # Test None for unknown node
-    assert tracker.get_task_logger("unknown_node") is None
-
-
 def test_tracker_thread_execution_outcomes(monkeypatch: pytest.MonkeyPatch):
     """Test that tracker properly handles thread execution outcomes."""
     tracker = NodeTaskTracker()
     node_id = "test_node"
     mock_task = Mock()
+    task_run_id = uuid7()
     parameters = {"param": "value"}
     context = {"context": "data"}
 
@@ -155,7 +144,7 @@ def test_tracker_thread_execution_outcomes(monkeypatch: pytest.MonkeyPatch):
         Mock(return_value=mock_context),
     )
 
-    tracker.run_task_in_thread(node_id, mock_task, parameters, context)
+    tracker.run_task_in_thread(node_id, mock_task, task_run_id, parameters, context)
 
     # Wait for thread completion
     time.sleep(0.2)
@@ -170,6 +159,7 @@ def test_tracker_handles_execution_with_dependencies(monkeypatch: pytest.MonkeyP
     tracker = NodeTaskTracker()
     node_id = "test_node"
     mock_task = Mock()
+    task_run_id = uuid7()
 
     # Set up dependencies with results
     tracker.set_node_dependencies(node_id, ["dep1", "dep2"])
@@ -197,7 +187,7 @@ def test_tracker_handles_execution_with_dependencies(monkeypatch: pytest.MonkeyP
         Mock(return_value=mock_context),
     )
 
-    tracker.run_task_in_thread(node_id, mock_task, parameters, context)
+    tracker.run_task_in_thread(node_id, mock_task, task_run_id, parameters, context)
 
     # Wait for thread completion
     time.sleep(0.2)
@@ -212,6 +202,7 @@ def test_tracker_handles_execution_failures(monkeypatch: pytest.MonkeyPatch):
     tracker = NodeTaskTracker()
     node_id = "test_node"
     mock_task = Mock()
+    task_run_id = uuid7()
     parameters = {"param": "value"}
     context = {"context": "data"}
 
@@ -234,7 +225,7 @@ def test_tracker_handles_execution_failures(monkeypatch: pytest.MonkeyPatch):
     # The exception should cause the thread to fail, but we can't easily test that
     # since the exception would be raised in the thread context
     # Instead, we test that the function can be called without error
-    tracker.run_task_in_thread(node_id, mock_task, parameters, context)
+    tracker.run_task_in_thread(node_id, mock_task, task_run_id, parameters, context)
 
     # Wait for thread completion
     time.sleep(0.2)
@@ -251,6 +242,7 @@ def test_tracker_handles_no_state_returned(monkeypatch: pytest.MonkeyPatch):
     tracker = NodeTaskTracker()
     node_id = "test_node"
     mock_task = Mock()
+    task_run_id = uuid7()
     parameters = {"param": "value"}
     context = {"context": "data"}
 
@@ -269,7 +261,7 @@ def test_tracker_handles_no_state_returned(monkeypatch: pytest.MonkeyPatch):
         Mock(return_value=mock_context),
     )
 
-    tracker.run_task_in_thread(node_id, mock_task, parameters, context)
+    tracker.run_task_in_thread(node_id, mock_task, task_run_id, parameters, context)
 
     # Wait for thread completion
     time.sleep(0.2)
@@ -290,7 +282,6 @@ def test_tracker_comprehensive_workflow() -> None:
     # Start all nodes
     for node in nodes:
         tracker.start_task(node, mock_tasks[node])
-        tracker.set_task_logger(node, Mock())
 
     # Set up dependencies: model_3 depends on model_1 and model_2
     tracker.set_node_dependencies("model_3", ["model_1", "model_2"])

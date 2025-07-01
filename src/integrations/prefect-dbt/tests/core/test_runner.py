@@ -3,13 +3,13 @@ Unit tests for PrefectDbtRunner - focusing on outcomes.
 """
 
 from pathlib import Path
+from typing import Any
 from unittest.mock import Mock
 
 import pytest
 from dbt.artifacts.resources.types import NodeType
 from dbt.artifacts.schemas.results import RunStatus
 from dbt.artifacts.schemas.run import RunExecutionResult
-from dbt.config.project import Project
 from dbt.contracts.graph.manifest import Manifest
 from dbt.contracts.graph.nodes import ManifestNode
 from dbt_common.events.base_types import EventLevel, EventMsg
@@ -1093,9 +1093,10 @@ class TestPrefectDbtRunner:
         mock_project = Mock()
 
         # Mock Project.from_project_root
+        mock_from_project_root = Mock(return_value=mock_project)
         monkeypatch.setattr(
             "prefect_dbt.core.runner.Project.from_project_root",
-            Mock(return_value=mock_project),
+            mock_from_project_root,
         )
 
         runner = PrefectDbtRunner()
@@ -1105,7 +1106,7 @@ class TestPrefectDbtRunner:
         result = runner.project
 
         assert result == mock_project
-        Project.from_project_root.assert_called_once()
+        mock_from_project_root.assert_called_once()
 
     def test_runner_handles_project_loading_with_settings(
         self, monkeypatch: pytest.MonkeyPatch
@@ -1114,9 +1115,10 @@ class TestPrefectDbtRunner:
         mock_project = Mock()
 
         # Mock Project.from_project_root
+        mock_from_project_root = Mock(return_value=mock_project)
         monkeypatch.setattr(
             "prefect_dbt.core.runner.Project.from_project_root",
-            Mock(return_value=mock_project),
+            mock_from_project_root,
         )
 
         # Create settings with project_dir
@@ -1129,7 +1131,7 @@ class TestPrefectDbtRunner:
         result = runner.project
 
         assert result == mock_project
-        Project.from_project_root.assert_called_once()
+        mock_from_project_root.assert_called_once()
 
     def test_runner_get_compiled_code_path_uses_project_name(
         self, monkeypatch: pytest.MonkeyPatch
@@ -1231,9 +1233,10 @@ class TestPrefectDbtRunner:
         mock_project.project_name = "test_project"
 
         # Mock Project.from_project_root
+        mock_from_project_root = Mock(return_value=mock_project)
         monkeypatch.setattr(
             "prefect_dbt.core.runner.Project.from_project_root",
-            Mock(return_value=mock_project),
+            mock_from_project_root,
         )
 
         # Mock manifest node
@@ -1243,7 +1246,7 @@ class TestPrefectDbtRunner:
         result = runner._get_compiled_code_path(mock_node)
 
         # Should trigger project loading
-        Project.from_project_root.assert_called_once()
+        mock_from_project_root.assert_called_once()
         expected_path = (
             Path("/test/project")
             / "target"
@@ -1424,7 +1427,7 @@ class TestPrefectDbtRunner:
         )
 
         # Mock run_coro_as_sync to return the resolved profiles directly
-        def mock_run_coro(coro):
+        def mock_run_coro(coro) -> Any:
             return mock_resolved_profiles
 
         mock_run_coro_func = Mock(side_effect=mock_run_coro)
@@ -1489,7 +1492,6 @@ class TestExecuteDbtNode:
         execute_dbt_node(task_state, node_id, asset_id)
 
         # Verify expected interactions
-        task_state.set_task_logger.assert_called_once_with(node_id, mock_logger)
         task_state.wait_for_node_completion.assert_called_once_with(node_id)
         task_state.get_node_status.assert_called_once_with(node_id)
 
@@ -1527,7 +1529,6 @@ class TestExecuteDbtNode:
         execute_dbt_node(task_state, node_id, asset_id)
 
         # Verify function completes without error
-        task_state.set_task_logger.assert_called_once()
         task_state.wait_for_node_completion.assert_called_once_with(node_id)
         task_state.get_node_status.assert_called_once_with(node_id)
 

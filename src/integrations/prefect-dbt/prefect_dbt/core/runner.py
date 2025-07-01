@@ -22,7 +22,9 @@ from dbt.config.renderer import DbtProjectYamlRenderer
 from dbt.config.runtime import RuntimeConfig
 from dbt.contracts.graph.manifest import Manifest
 from dbt.contracts.graph.nodes import ManifestNode
-from dbt.contracts.state import load_result_state
+from dbt.contracts.state import (
+    load_result_state,  # type: ignore[reportUnknownMemberType]
+)
 from dbt.graph.graph import Graph, UniqueId
 from dbt_common.events.base_types import EventLevel, EventMsg
 from google.protobuf.json_format import MessageToDict
@@ -489,7 +491,7 @@ class PrefectDbtRunner:
                             or node_status in FAILURE_STATUSES
                         ):
                             self._set_graph_from_manifest(add_test_edges=add_test_edges)
-                            for dep_node_id in self.graph.get_dependent_nodes(
+                            for dep_node_id in self.graph.get_dependent_nodes(  # type: ignore[reportUnknownMemberType]
                                 UniqueId(node_id)
                             ):  # type: ignore[reportUnknownMemberType]
                                 self._skipped_nodes.add(dep_node_id)  # type: ignore[reportUnknownMemberType]
@@ -593,11 +595,11 @@ class PrefectDbtRunner:
 
         callbacks = (
             [
+                self._create_logging_callback(task_state, self.log_level, context),
                 self._create_node_started_callback(task_state, context),
                 self._create_node_finished_callback(
                     task_state, add_test_edges=add_test_edges
                 ),
-                self._create_logging_callback(task_state, self.log_level, context),
             ]
             if in_flow_or_task_run or self._force_nodes_as_tasks
             else []
