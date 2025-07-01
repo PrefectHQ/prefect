@@ -1,8 +1,8 @@
 import type { ReferenceObject, SchemaObject } from "openapi-typescript";
-import type { MyModelType, MyModel2Type } from "./schema-form-input-any-of.test";
 import { useRef, useState } from "react";
 import { Card } from "../ui/card";
 import { ToggleGroup, ToggleGroupItem } from "../ui/toggle-group";
+import type { MyModelType, MyModel2Type } from "./schema-form-types";
 import { SchemaFormProperty } from "./schema-form-property";
 import type { SchemaFormErrors } from "./types/errors";
 import { useSchemaFormContext } from "./use-schema-form-context";
@@ -96,7 +96,9 @@ export function SchemaFormInputAnyOf({
 				<SchemaFormProperty
 					value={value as MyModelType | MyModel2Type}
 					property={property.anyOf[selectedIndex]}
-					onValueChange={(value: unknown) => onValueChange(value as MyModelType | MyModel2Type)}
+					onValueChange={(value: unknown) =>
+															onValueChange(value as MyModelType | MyModel2Type)
+														}
 					errors={errors}
 					showLabel={false}
 					nested={false}

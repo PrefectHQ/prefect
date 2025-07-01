@@ -27,12 +27,14 @@ const property: SchemaObject & { anyOf: (SchemaObject | ReferenceObject)[] } = {
 	anyOf: [MyModel, MyModel2],
 };
 
-export type MyModelType = { shared_parameter: string; unique_1?: number };
-export type MyModel2Type = { shared_parameter: string; unique_2?: string };
+import type { MyModelType, MyModel2Type } from "./schema-form-types";
 
 describe("SchemaFormInputAnyOf", () => {
 	it("renders the correct fields for each model and preserves shared parameter values", () => {
-		let value: MyModelType | MyModel2Type = { shared_parameter: "foo", unique_1: 1 };
+		let value: MyModelType | MyModel2Type = {
+	shared_parameter: "foo",
+	unique_1: 1,
+};
 		const handleChange = vi.fn((v: MyModelType | MyModel2Type) => {
 			value = v;
 		});
@@ -62,7 +64,10 @@ describe("SchemaFormInputAnyOf", () => {
 	});
 
 	it("does not render blank form and checks numeric field values when switching between models with overlapping parameters", () => {
-		let value: MyModelType | MyModel2Type = { shared_parameter: "test", unique_1: 42 };
+		let value: MyModelType | MyModel2Type = {
+	shared_parameter: "test",
+	unique_1: 42,
+};
 		const handleChange = vi.fn((v: MyModelType | MyModel2Type) => {
 			value = v;
 		});
