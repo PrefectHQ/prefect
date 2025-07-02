@@ -1,10 +1,16 @@
+import re
+import uuid
+
+import httpx
 import pytest
+import respx
 
 from prefect.blocks import system
 from prefect.client.orchestration import PrefectClient
 from prefect.exceptions import ObjectNotFound
 from prefect.server import models
 from prefect.settings import (
+    PREFECT_API_URL,
     PREFECT_UI_URL,
     temporary_settings,
 )
@@ -23,6 +29,67 @@ from prefect.blocks.core import Bloc
 class TestForFileRegister(Block):
     message: str
 """
+
+
+@pytest.fixture
+def mock_cloud_api():
+    with respx.mock(
+        base_url="https://api.prefect.cloud/api", assert_all_called=False
+    ) as respx_mock:
+        # Block type object for 'secret'
+        secret_block_type = {
+            "id": str(uuid.uuid4()),
+            "name": "Secret",
+            "slug": "secret",
+            "logo_url": None,
+            "documentation_url": None,
+            "description": "Store a secret value",
+            "code_example": None,
+            "created": "2024-01-01T00:00:00Z",
+            "updated": "2024-01-01T00:00:00Z",
+            "is_protected": False,
+        }
+        # Mock block type creation with complete response
+        respx_mock.post("/block_types/").mock(
+            return_value=httpx.Response(200, json=secret_block_type)
+        )
+        # Mock block type update (PATCH)
+        respx_mock.patch(re.compile(r"/block_types/.*")).mock(
+            return_value=httpx.Response(200, json=secret_block_type)
+        )
+        # Mock block type lookup for 'secret'
+        respx_mock.get("/block_types/slug/secret").mock(
+            return_value=httpx.Response(200, json=secret_block_type)
+        )
+        # Mock block type lookup (not found for others)
+        respx_mock.get(re.compile(r"/block_types/slug/.*")).mock(
+            return_value=httpx.Response(404, json={"detail": "Not found"})
+        )
+        # Mock block schema creation
+        respx_mock.post("/block_schemas/").mock(
+            return_value=httpx.Response(
+                200,
+                json={
+                    "id": str(uuid.uuid4()),
+                    "checksum": "sha256:test",
+                    "fields": {},
+                    "block_type_id": secret_block_type["id"],
+                    "capabilities": [],
+                    "version": "1.0.0",
+                    "created": "2024-01-01T00:00:00Z",
+                    "updated": "2024-01-01T00:00:00Z",
+                },
+            )
+        )
+        # Mock block schema lookup (not found)
+        respx_mock.get(re.compile(r"/block_schemas/checksum/.*")).mock(
+            return_value=httpx.Response(404, json={"detail": "Not found"})
+        )
+        # Mock block types filter (for block create command) - include secret block type
+        respx_mock.post("/block_types/filter").mock(
+            return_value=httpx.Response(200, json=[secret_block_type])
+        )
+        yield respx_mock
 
 
 @pytest.fixture
@@ -58,6 +125,26 @@ def test_register_blocks_from_module_without_ui_url(
             ],
             expected_output_does_not_contain=["Prefect UI: https://"],
         )
+
+
+def test_register_blocks_selects_cloud_ui_url_when_cloud_server_type(
+    disable_hosted_api_server, mock_cloud_api
+):
+    with temporary_settings(updates={PREFECT_API_URL: "https://api.prefect.cloud/api"}):
+        invoke_and_assert(
+            ["block", "register", "-m", "prefect.blocks.system"],
+            expected_code=0,
+            expected_output_contains=["settings/blocks/catalog"],
+        )
+
+
+def test_register_blocks_selects_oss_ui_url_when_oss_server_type():
+    invoke_and_assert(
+        ["block", "register", "-m", "prefect.blocks.system"],
+        expected_code=0,
+        expected_output_contains=["blocks/catalog"],
+        expected_output_does_not_contain=["settings/blocks/catalog"],
+    )
 
 
 def test_register_blocks_no_blocks_found_to_register():
@@ -349,4 +436,41 @@ def test_deleting_a_protected_block_type(
         expected_code=1,
         user_input="y",
         expected_output_contains=expected_output,
+    )
+
+
+def test_creating_a_block_selects_cloud_ui_url_when_cloud_server_type(mock_cloud_api):
+    with temporary_settings(updates={PREFECT_API_URL: "https://api.prefect.cloud/api"}):
+        invoke_and_assert(
+            ["block", "register", "-m", "prefect.blocks.system"],
+            expected_code=0,
+            expected_output_contains=[
+                "Successfully registered",
+                "blocks",
+                "Prefect UI",
+            ],
+        )
+        invoke_and_assert(
+            ["block", "create", "secret"],
+            expected_code=0,
+            expected_output_contains=["settings/blocks/catalog"],
+        )
+
+
+def test_creating_a_block_selects_oss_ui_url_when_oss_server_type():
+    invoke_and_assert(
+        ["block", "register", "-m", "prefect.blocks.system"],
+        expected_code=0,
+        expected_output_contains=[
+            "Successfully registered",
+            "blocks",
+            "Prefect UI",
+        ],
+        expected_output_does_not_contain=["Prefect UI: https://"],
+    )
+    invoke_and_assert(
+        ["block", "create", "secret"],
+        expected_code=0,
+        expected_output_contains=["blocks/catalog"],
+        expected_output_does_not_contain=["settings/blocks/catalog"],
     )
