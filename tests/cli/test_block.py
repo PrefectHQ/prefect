@@ -139,13 +139,12 @@ def test_register_blocks_selects_cloud_ui_url_when_cloud_server_type(
 
 
 def test_register_blocks_selects_oss_ui_url_when_oss_server_type():
-    with temporary_settings(updates={PREFECT_API_URL: "http://127.0.0.1:4200/api"}):
-        invoke_and_assert(
-            ["block", "register", "-m", "prefect.blocks.system"],
-            expected_code=0,
-            expected_output_contains=["blocks/catalog"],
-            expected_output_does_not_contain=["settings/blocks/catalog"],
-        )
+    invoke_and_assert(
+        ["block", "register", "-m", "prefect.blocks.system"],
+        expected_code=0,
+        expected_output_contains=["blocks/catalog"],
+        expected_output_does_not_contain=["settings/blocks/catalog"],
+    )
 
 
 def test_register_blocks_no_blocks_found_to_register():
@@ -459,20 +458,19 @@ def test_creating_a_block_selects_cloud_ui_url_when_cloud_server_type(mock_cloud
 
 
 def test_creating_a_block_selects_oss_ui_url_when_oss_server_type():
-    with temporary_settings(updates={PREFECT_API_URL: "http://127.0.0.1:4200/api"}):
-        invoke_and_assert(
-            ["block", "register", "-m", "prefect.blocks.system"],
-            expected_code=0,
-            expected_output_contains=[
-                "Successfully registered",
-                "blocks",
-                "Prefect UI",
-            ],
-            expected_output_does_not_contain=["Prefect UI: https://"],
-        )
-        invoke_and_assert(
-            ["block", "create", "secret"],
-            expected_code=0,
-            expected_output_contains=["blocks/catalog"],
-            expected_output_does_not_contain=["settings/blocks/catalog"],
-        )
+    invoke_and_assert(
+        ["block", "register", "-m", "prefect.blocks.system"],
+        expected_code=0,
+        expected_output_contains=[
+            "Successfully registered",
+            "blocks",
+            "Prefect UI",
+        ],
+        expected_output_does_not_contain=["Prefect UI: https://"],
+    )
+    invoke_and_assert(
+        ["block", "create", "secret"],
+        expected_code=0,
+        expected_output_contains=["blocks/catalog"],
+        expected_output_does_not_contain=["settings/blocks/catalog"],
+    )
