@@ -5,6 +5,7 @@ from prefect.client.orchestration import PrefectClient
 from prefect.exceptions import ObjectNotFound
 from prefect.server import models
 from prefect.settings import (
+    PREFECT_API_URL,
     PREFECT_UI_URL,
     temporary_settings,
 )
@@ -57,6 +58,29 @@ def test_register_blocks_from_module_without_ui_url(
                 "Prefect UI",
             ],
             expected_output_does_not_contain=["Prefect UI: https://"],
+        )
+
+
+def test_register_blocks_selects_cloud_ui_url_when_cloud_server_type():
+    with temporary_settings(
+        set_defaults={PREFECT_API_URL: "https://api.prefect.cloud/api"}
+    ):
+        invoke_and_assert(
+            ["block", "register", "-m", "prefect.blocks.system"],
+            expected_code=0,
+            expected_output_contains=["settings/blocks/catalog"],
+        )
+
+
+def test_register_blocks_selects_oss_ui_url_when_oss_server_type():
+    with temporary_settings(
+        set_defaults={PREFECT_API_URL: "http://127.0.0.1:4200/api"}
+    ):
+        invoke_and_assert(
+            ["block", "register", "-m", "prefect.blocks.system"],
+            expected_code=0,
+            expected_output_contains=["blocks/catalog"],
+            expected_output_does_not_contain=["settings/blocks/catalog"],
         )
 
 
@@ -350,3 +374,26 @@ def test_deleting_a_protected_block_type(
         user_input="y",
         expected_output_contains=expected_output,
     )
+
+
+def test_creating_a_block_selects_cloud_ui_url_when_cloud_server_type():
+    with temporary_settings(
+        set_defaults={PREFECT_API_URL: "https://api.prefect.cloud/api"}
+    ):
+        invoke_and_assert(
+            ["block", "create", "json"],
+            expected_code=0,
+            expected_output_contains=["settings/blocks/catalog"],
+        )
+
+
+def test_creating_a_block_selects_oss_ui_url_when_oss_server_type():
+    with temporary_settings(
+        set_defaults={PREFECT_API_URL: "http://127.0.0.1:4200/api"}
+    ):
+        invoke_and_assert(
+            ["block", "create", "json"],
+            expected_code=0,
+            expected_output_contains=["blocks/catalog"],
+            expected_output_does_not_contain=["settings/blocks/catalog"],
+        )
