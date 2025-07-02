@@ -177,7 +177,7 @@ class PrefectDbtRunner:
     def graph(self) -> Graph:
         if self._graph is None:
             self._set_graph_from_manifest()
-            assert self._graph is not None  # for type checking
+            assert self._graph is not None 
         return self._graph
 
     def _set_graph_from_manifest(self, add_test_edges: bool = False):
