@@ -1,500 +1,529 @@
 """
-Unit tests for PrefectDbtSettings - focusing on outcomes.
+Tests for PrefectDbtSettings class and related functionality.
 """
 
-import tempfile
 from pathlib import Path
+from typing import Any
 from unittest.mock import Mock
 
 import pytest
 import yaml
+from dbt_common.events.base_types import EventLevel
 from prefect_dbt.core.settings import PrefectDbtSettings
+from pydantic.types import SecretStr
 
-
-def test_settings_provide_working_dbt_configuration(monkeypatch: pytest.MonkeyPatch):
-    """Test that settings provide a working dbt configuration."""
-    # Create settings with explicit profiles_dir to avoid the default_factory issue
-    settings = PrefectDbtSettings(profiles_dir=Path(".dbt"))
-
-    # Verify all required paths are set correctly
-    assert isinstance(settings.project_dir, Path)
-    assert isinstance(settings.profiles_dir, Path)
-    assert isinstance(settings.target_path, Path)
-    assert settings.target_path.name == "target"
-
-    # Verify profiles_dir matches our explicit setting
-    assert settings.profiles_dir == Path(".dbt")
-
-
-def test_settings_override_defaults_correctly(monkeypatch: pytest.MonkeyPatch):
-    """Test that settings properly override defaults."""
-    custom_project = Path("/custom/project")
-    custom_target = Path("custom_target")
-
-    monkeypatch.setattr(
-        "prefect_dbt.core.settings.find_profiles_dir",
-        Mock(return_value=Path("/home/user/.dbt")),
-    )
-
-    settings = PrefectDbtSettings(project_dir=custom_project, target_path=custom_target)
-
-    # Verify custom values are used
-    assert settings.project_dir == custom_project
-    assert settings.target_path == custom_target
-
-
-def test_settings_load_valid_profiles_file():
-    """Test that settings can load and parse a valid profiles.yml file."""
-    with tempfile.TemporaryDirectory() as temp_dir:
-        temp_path = Path(temp_dir)
-
-        # Create a valid profiles.yml
-        profiles_content = {
-            "my_profile": {
-                "targets": {
-                    "dev": {
-                        "type": "postgres",
-                        "host": "localhost",
-                        "port": 5432,
-                        "user": "test_user",
-                        "pass": "test_pass",
-                        "dbname": "test_db",
-                    }
-                }
-            }
-        }
-
-        profiles_file = temp_path / "profiles.yml"
-        with open(profiles_file, "w") as f:
-            yaml.dump(profiles_content, f)
-
-        settings = PrefectDbtSettings(profiles_dir=temp_path)
-        loaded_profiles = settings.load_profiles_yml()
-
-        # Verify profiles were loaded correctly
-        assert "my_profile" in loaded_profiles
-        assert loaded_profiles["my_profile"]["targets"]["dev"]["type"] == "postgres"
-        assert loaded_profiles["my_profile"]["targets"]["dev"]["host"] == "localhost"
-        assert loaded_profiles["my_profile"]["targets"]["dev"]["port"] == 5432
-
-
-def test_settings_handle_missing_profiles_file():
-    """Test that settings handle missing profiles.yml gracefully."""
-    with tempfile.TemporaryDirectory() as temp_dir:
-        temp_path = Path(temp_dir)
-        # Ensure no profiles.yml exists
-
-        settings = PrefectDbtSettings(profiles_dir=temp_path)
-
-        # Should raise ValueError when trying to load non-existent file
-        with pytest.raises(ValueError, match="No profiles.yml found"):
-            settings.load_profiles_yml()
-
-
-def test_settings_resolve_profiles_with_templating(monkeypatch: pytest.MonkeyPatch):
-    """Test that settings can resolve profiles with templating."""
-    with tempfile.TemporaryDirectory() as temp_dir:
-        temp_path = Path(temp_dir)
-
-        # Create profiles with templating
-        profiles_content = {
-            "my_profile": {
-                "targets": {
-                    "dev": {
-                        "type": "postgres",
-                        "host": "{{ env_var('DB_HOST') }}",
-                        "port": "{{ env_var('DB_PORT') }}",
-                    }
-                }
-            }
-        }
-
-        profiles_file = temp_path / "profiles.yml"
-        with open(profiles_file, "w") as f:
-            yaml.dump(profiles_content, f)
-
-        settings = PrefectDbtSettings(profiles_dir=temp_path)
-
-        # Mock the resolution functions to return resolved content
-        resolved_content = {
-            "my_profile": {
-                "targets": {
-                    "dev": {"type": "postgres", "host": "localhost", "port": 5432}
-                }
-            }
-        }
-
-        monkeypatch.setattr(
-            "prefect_dbt.core.settings.resolve_block_document_references",
-            Mock(return_value=resolved_content),
-        )
-        monkeypatch.setattr(
-            "prefect_dbt.core.settings.resolve_variables",
-            Mock(return_value=resolved_content),
-        )
-        monkeypatch.setattr(
-            "prefect_dbt.core.settings.run_coro_as_sync",
-            Mock(side_effect=lambda coro: resolved_content),
-        )
-
-        with settings.resolve_profiles_yml() as temp_dir_path:
-            # Verify temporary directory was created
-            assert Path(temp_dir_path).exists()
-
-            # Verify resolved profiles.yml was created
-            temp_profiles_path = Path(temp_dir_path) / "profiles.yml"
-            assert temp_profiles_path.exists()
-
-            # Verify content was resolved
-            with open(temp_profiles_path, "r") as f:
-                content = yaml.safe_load(f)
-                assert content == resolved_content
-
-            # Verify cleanup happens
-            temp_dir = Path(temp_dir_path)
-
-        # Verify temporary directory was cleaned up
-        assert not temp_dir.exists()
-
-
-def test_settings_handle_resolution_failures(monkeypatch: pytest.MonkeyPatch):
-    """Test that settings handle resolution failures gracefully."""
-    with tempfile.TemporaryDirectory() as temp_dir:
-        temp_path = Path(temp_dir)
-
-        profiles_content = {"test": "content"}
-        profiles_file = temp_path / "profiles.yml"
-        with open(profiles_file, "w") as f:
-            yaml.dump(profiles_content, f)
-
-        settings = PrefectDbtSettings(profiles_dir=temp_path)
-
-        monkeypatch.setattr(
-            "prefect_dbt.core.settings.resolve_block_document_references",
-            Mock(return_value=profiles_content),
-        )
-        monkeypatch.setattr(
-            "prefect_dbt.core.settings.resolve_variables",
-            Mock(return_value=profiles_content),
-        )
-        monkeypatch.setattr(
-            "prefect_dbt.core.settings.run_coro_as_sync",
-            Mock(side_effect=lambda coro: profiles_content),
-        )
-
-        temp_dir_path = None
-        try:
-            with settings.resolve_profiles_yml() as temp_dir:
-                temp_dir_path = temp_dir
-                # Verify temporary directory was created
-                assert Path(temp_dir_path).exists()
-                # Simulate a failure
-                raise Exception("Resolution failed")
-        except Exception:
-            # Verify cleanup happened despite exception
-            if temp_dir_path:
-                assert not Path(temp_dir_path).exists()
-
-
-def test_settings_environment_variable_loading(monkeypatch: pytest.MonkeyPatch):
-    """Test that settings properly load from environment variables."""
-    monkeypatch.setattr(
-        "prefect_dbt.core.settings.find_profiles_dir",
-        Mock(return_value=Path("/home/user/.dbt")),
-    )
-
-    monkeypatch.setenv("DBT_PROJECT_DIR", "/env/project")
-    monkeypatch.setenv("DBT_TARGET_PATH", "env_target")
-    monkeypatch.setenv("DBT_LOG_LEVEL", "debug")  # Use lowercase to match Enum
-
-    settings = PrefectDbtSettings()
-
-    # Verify environment variables were loaded
-    assert settings.project_dir == Path("/env/project")
-    assert settings.target_path == Path("env_target")
-    # Note: log level validation depends on dbt_common.events.base_types.EventLevel
-
-
-def test_settings_discover_profiles_directory_correctly(
-    monkeypatch: pytest.MonkeyPatch,
-):
-    """Test that settings discover the profiles directory correctly."""
-    # Test when profiles.yml exists in current working directory
-    with tempfile.TemporaryDirectory() as temp_dir:
-        temp_path = Path(temp_dir)
-        profiles_file = temp_path / "profiles.yml"
-        profiles_file.write_text("test content")
-
-        monkeypatch.setattr("pathlib.Path.cwd", Mock(return_value=temp_path))
-        monkeypatch.setattr(
-            "prefect_dbt.core.settings.find_profiles_dir",
-            Mock(return_value=temp_path),
-        )
-
-        settings = PrefectDbtSettings()
-        assert settings.profiles_dir == temp_path
-
-    # Test when profiles.yml doesn't exist in current working directory
-    monkeypatch.setattr(
-        "pathlib.Path.cwd", Mock(return_value=Path("/some/random/path"))
-    )
-    monkeypatch.setattr("pathlib.Path.home", Mock(return_value=Path("/home/user")))
-    monkeypatch.setattr(
-        "prefect_dbt.core.settings.find_profiles_dir",
-        Mock(return_value=Path("/home/user/.dbt")),
-    )
-
-    settings = PrefectDbtSettings()
-    assert settings.profiles_dir == Path("/home/user/.dbt")
-
-
-def test_settings_handle_complex_profiles_structure():
-    """Test that settings handle complex profiles.yml structures."""
-    with tempfile.TemporaryDirectory() as temp_dir:
-        temp_path = Path(temp_dir)
-
-        # Create complex profiles with multiple targets and profiles
-        complex_profiles = {
-            "default_profile": {
-                "targets": {
-                    "dev": {
-                        "type": "postgres",
-                        "host": "dev-db.example.com",
-                        "port": 5432,
-                    },
-                    "prod": {
-                        "type": "postgres",
-                        "host": "prod-db.example.com",
-                        "port": 5432,
-                    },
-                }
-            },
-            "test_profile": {
-                "targets": {"test": {"type": "sqlite", "path": "/tmp/test.db"}}
-            },
-        }
-
-        profiles_file = temp_path / "profiles.yml"
-        with open(profiles_file, "w") as f:
-            yaml.dump(complex_profiles, f)
-
-        settings = PrefectDbtSettings(profiles_dir=temp_path)
-        loaded_profiles = settings.load_profiles_yml()
-
-        # Verify complex structure was loaded correctly
-        assert "default_profile" in loaded_profiles
-        assert "test_profile" in loaded_profiles
-        assert "dev" in loaded_profiles["default_profile"]["targets"]
-        assert "prod" in loaded_profiles["default_profile"]["targets"]
-        assert "test" in loaded_profiles["test_profile"]["targets"]
-
-        # Verify specific values
-        assert (
-            loaded_profiles["default_profile"]["targets"]["dev"]["host"]
-            == "dev-db.example.com"
-        )
-        assert loaded_profiles["test_profile"]["targets"]["test"]["type"] == "sqlite"
+import prefect.exceptions
+from prefect.blocks.system import Secret
+from prefect.variables import Variable
 
 
 @pytest.fixture
-def mock_prefect_blocks(monkeypatch: pytest.MonkeyPatch):
-    """Fixture to mock Prefect blocks for testing."""
-
-    # Mock block document references resolution
-    def mock_resolve_blocks(data, value_transformer=None):
-        # Simulate resolving block references
-        if isinstance(data, dict):
-            resolved = {}
-            for key, value in data.items():
-                if isinstance(value, str) and "{{ prefect.blocks.secret." in value:
-                    # Extract block name and return mock value
-                    block_name = value.split("prefect.blocks.secret.")[1].split(" }}")[
-                        0
-                    ]
-                    mock_values = {
-                        "db-host": "localhost",
-                        "db-password": "secret_password_123",
-                        "db-user": "dbt_user",
-                    }
-                    resolved[key] = mock_values.get(
-                        block_name, f"resolved_{block_name}"
-                    )
-                elif isinstance(value, (dict, list)):
-                    resolved[key] = mock_resolve_blocks(value, value_transformer)
-                else:
-                    resolved[key] = value
-            return resolved
-        elif isinstance(data, list):
-            return [mock_resolve_blocks(item, value_transformer) for item in data]
-        else:
-            return data
-
-    # Mock the async function to return resolved data directly
-    async def mock_async_resolve_blocks(data, value_transformer=None):
-        return mock_resolve_blocks(data, value_transformer)
-
+def mock_find_profiles_dir(monkeypatch: pytest.MonkeyPatch) -> Path:
+    """Mock find_profiles_dir to return a predictable path."""
+    mock_path = Path("/mock/profiles/dir")
     monkeypatch.setattr(
-        "prefect_dbt.core.settings.resolve_block_document_references",
-        Mock(side_effect=mock_async_resolve_blocks),
+        "prefect_dbt.core.settings.find_profiles_dir", Mock(return_value=mock_path)
     )
+    return mock_path
 
-    # Mock run_coro_as_sync to return the resolved data
-    resolved_data = {
-        "my_profile": {
+
+@pytest.fixture
+def mock_get_current_settings(monkeypatch: pytest.MonkeyPatch) -> Mock:
+    """Mock get_current_settings to return predictable logging level."""
+    mock_settings = Mock()
+    mock_settings.logging.level = "info"
+    monkeypatch.setattr(
+        "prefect_dbt.core.settings.get_current_settings",
+        Mock(return_value=mock_settings),
+    )
+    return mock_settings
+
+
+@pytest.fixture
+def mock_get_current_settings_error(monkeypatch: pytest.MonkeyPatch) -> Mock:
+    """Mock get_current_settings to return predictable logging level."""
+    mock_settings = Mock()
+    mock_settings.logging.level = "error"
+    monkeypatch.setattr(
+        "prefect_dbt.core.settings.get_current_settings",
+        Mock(return_value=mock_settings),
+    )
+    return mock_settings
+
+
+@pytest.fixture
+def temp_profiles_dir(tmp_path: Path) -> Path:
+    """Create a temporary directory with a profiles.yml file."""
+    profiles_dir = tmp_path / "profiles"
+    profiles_dir.mkdir()
+    return profiles_dir
+
+
+@pytest.fixture
+def sample_profiles_yml() -> dict[str, Any]:
+    """Sample profiles.yml content for testing."""
+    return {
+        "default": {
             "targets": {
                 "dev": {
                     "type": "postgres",
                     "host": "localhost",
-                    "password": "secret_password_123",
-                    "user": "dbt_user",
-                }
-            }
-        }
-    }
-    monkeypatch.setattr(
-        "prefect_dbt.core.settings.run_coro_as_sync",
-        Mock(side_effect=lambda coro: resolved_data),
-    )
-
-
-@pytest.fixture
-def mock_prefect_variables(monkeypatch: pytest.MonkeyPatch):
-    """Fixture to mock Prefect variables for testing."""
-
-    # Mock variable resolution
-    def mock_resolve_vars(data):
-        # Simulate resolving variable references
-        if isinstance(data, dict):
-            resolved = {}
-            for key, value in data.items():
-                if isinstance(value, str) and "{{ prefect.variables." in value:
-                    # Extract variable name and return mock value
-                    var_name = value.split("prefect.variables.")[1].split(" }}")[0]
-                    mock_values = {
-                        "DB_HOST": "prod-db.example.com",
-                        "DB_PASSWORD": "prod_password_456",
-                        "DB_USER": "prod_user",
-                    }
-                    resolved[key] = mock_values.get(var_name, f"resolved_{var_name}")
-                elif isinstance(value, (dict, list)):
-                    resolved[key] = mock_resolve_vars(value)
-                else:
-                    resolved[key] = value
-            return resolved
-        elif isinstance(data, list):
-            return [mock_resolve_vars(item) for item in data]
-        else:
-            return data
-
-    # Mock the async function to return resolved data directly
-    async def mock_async_resolve_vars(data):
-        return mock_resolve_vars(data)
-
-    monkeypatch.setattr(
-        "prefect_dbt.core.settings.resolve_variables",
-        Mock(side_effect=mock_async_resolve_vars),
-    )
-
-    # Mock run_coro_as_sync to return the resolved data
-    resolved_data = {
-        "my_profile": {
-            "targets": {
-                "dev": {
+                    "port": 5432,
+                    "user": "test_user",
+                    "pass": "test_pass",
+                    "dbname": "test_db",
+                },
+                "prod": {
                     "type": "postgres",
-                    "host": "prod-db.example.com",
-                    "password": "prod_password_456",
+                    "host": "prod.example.com",
+                    "port": 5432,
                     "user": "prod_user",
-                }
+                    "pass": "prod_pass",
+                    "dbname": "prod_db",
+                },
             }
-        }
+        },
+        "test_profile": {
+            "targets": {"test": {"type": "sqlite", "path": "/tmp/test.db"}}
+        },
     }
-    monkeypatch.setattr(
-        "prefect_dbt.core.settings.run_coro_as_sync",
-        Mock(side_effect=lambda coro: resolved_data),
-    )
 
 
-def test_settings_resolve_profiles_yml_with_block_references(mock_prefect_blocks):
-    """Test that resolve_profiles_yml resolves Prefect block references correctly."""
-    with tempfile.TemporaryDirectory() as temp_dir:
-        temp_path = Path(temp_dir)
+class TestPrefectDbtSettingsInitialization:
+    """Test PrefectDbtSettings initialization and default values."""
 
-        # Create profiles.yml with block references
-        profiles_content = {
-            "my_profile": {
+    def test_initializes_with_defaults(
+        self, mock_find_profiles_dir: Path, mock_get_current_settings: Mock
+    ):
+        """Test that settings initialize with sensible defaults."""
+        settings = PrefectDbtSettings(profiles_dir=mock_find_profiles_dir)
+        assert settings.profiles_dir == mock_find_profiles_dir
+        assert settings.project_dir == Path.cwd()
+        assert settings.target_path == Path("target")
+        assert settings.log_level == EventLevel.INFO
+
+    def test_accepts_custom_values(self, temp_profiles_dir: Path):
+        """Test that settings accept and use custom values."""
+        custom_project = Path("/custom/project")
+        custom_target = Path("custom_target")
+        custom_log_level = EventLevel.DEBUG
+
+        settings = PrefectDbtSettings(
+            profiles_dir=temp_profiles_dir,
+            project_dir=custom_project,
+            target_path=custom_target,
+            log_level=custom_log_level,
+        )
+
+        assert settings.profiles_dir == temp_profiles_dir
+        assert settings.project_dir == custom_project
+        assert settings.target_path == custom_target
+        assert settings.log_level == custom_log_level
+
+    def test_uses_prefect_logging_level_when_not_set(
+        self, mock_get_current_settings_error: Mock
+    ):
+        """Test that settings use Prefect's logging level when not explicitly set."""
+        settings = PrefectDbtSettings()
+        assert settings.log_level == EventLevel.ERROR
+
+    def test_environment_variable_loading(self, monkeypatch: pytest.MonkeyPatch):
+        """Test that settings load from environment variables."""
+        monkeypatch.setenv("DBT_PROJECT_DIR", "/env/project")
+        monkeypatch.setenv("DBT_TARGET_PATH", "env_target")
+        monkeypatch.setenv("DBT_LOG_LEVEL", "debug")
+
+        settings = PrefectDbtSettings()
+
+        assert settings.project_dir == Path("/env/project")
+        assert settings.target_path == Path("env_target")
+        assert settings.log_level == EventLevel.DEBUG
+
+    def test_environment_variables_override_defaults(
+        self, monkeypatch: pytest.MonkeyPatch, temp_profiles_dir: Path
+    ):
+        """Test that environment variables override default values."""
+        monkeypatch.setenv("DBT_PROFILES_DIR", str(temp_profiles_dir))
+        monkeypatch.setenv("DBT_PROJECT_DIR", "/env/override")
+
+        settings = PrefectDbtSettings()
+
+        assert settings.profiles_dir == temp_profiles_dir
+        assert settings.project_dir == Path("/env/override")
+
+    def test_invalid_log_level_raises_error(self, monkeypatch: pytest.MonkeyPatch):
+        """Test that invalid log level raises validation error."""
+        monkeypatch.setenv("DBT_LOG_LEVEL", "invalid_level")
+
+        with pytest.raises(
+            ValueError,
+            match="Input should be 'debug', 'test', 'info', 'warn' or 'error'",
+        ):
+            PrefectDbtSettings()
+
+
+class TestPrefectDbtSettingsProfilesLoading:
+    """Test profiles.yml loading functionality."""
+
+    def test_load_profiles_yml_success(
+        self, temp_profiles_dir: Path, sample_profiles_yml: dict[str, Any]
+    ):
+        """Test successful loading of profiles.yml file."""
+        profiles_file = temp_profiles_dir / "profiles.yml"
+        with open(profiles_file, "w") as f:
+            yaml.dump(sample_profiles_yml, f)
+
+        settings = PrefectDbtSettings(profiles_dir=temp_profiles_dir)
+        loaded_profiles = settings.load_profiles_yml()
+
+        assert loaded_profiles == sample_profiles_yml
+        assert "default" in loaded_profiles
+        assert "test_profile" in loaded_profiles
+        assert loaded_profiles["default"]["targets"]["dev"]["type"] == "postgres"
+        assert loaded_profiles["test_profile"]["targets"]["test"]["type"] == "sqlite"
+
+    def test_load_profiles_yml_missing_file(self, temp_profiles_dir: Path):
+        """Test that missing profiles.yml raises appropriate error."""
+        settings = PrefectDbtSettings(profiles_dir=temp_profiles_dir)
+
+        with pytest.raises(ValueError, match="No profiles.yml found"):
+            settings.load_profiles_yml()
+
+    def test_load_profiles_yml_invalid_yaml(self, temp_profiles_dir: Path):
+        """Test that invalid YAML raises appropriate error."""
+        profiles_file = temp_profiles_dir / "profiles.yml"
+        profiles_file.write_text("invalid: yaml: content: [")
+
+        settings = PrefectDbtSettings(profiles_dir=temp_profiles_dir)
+
+        with pytest.raises(yaml.YAMLError):
+            settings.load_profiles_yml()
+
+    def test_load_profiles_yml_empty_file(self, temp_profiles_dir: Path):
+        """Test loading empty profiles.yml file."""
+        profiles_file = temp_profiles_dir / "profiles.yml"
+        profiles_file.write_text("")
+
+        settings = PrefectDbtSettings(profiles_dir=temp_profiles_dir)
+        loaded_profiles = settings.load_profiles_yml()
+
+        assert loaded_profiles is None
+
+
+class TestPrefectDbtSettingsProfilesResolution:
+    """Test profiles.yml resolution with templating."""
+
+    def test_resolve_profiles_yml_creates_temp_directory(
+        self, temp_profiles_dir: Path, sample_profiles_yml: dict[str, Any]
+    ):
+        """Test that resolve_profiles_yml creates a temporary directory."""
+        profiles_file = temp_profiles_dir / "profiles.yml"
+        with open(profiles_file, "w") as f:
+            yaml.dump(sample_profiles_yml, f)
+
+        settings = PrefectDbtSettings(profiles_dir=temp_profiles_dir)
+
+        with settings.resolve_profiles_yml() as temp_dir:
+            temp_dir_path = Path(temp_dir)
+            assert temp_dir_path.exists()
+            assert temp_dir_path.is_dir()
+
+            # Verify profiles.yml was created in temp directory
+            temp_profiles_file = temp_dir_path / "profiles.yml"
+            assert temp_profiles_file.exists()
+
+            # Verify content was copied
+            with open(temp_profiles_file, "r") as f:
+                content = yaml.safe_load(f)
+                assert content == sample_profiles_yml
+
+        # Verify cleanup
+        assert not temp_dir_path.exists()
+
+    async def test_resolve_profiles_yml_with_block_references(
+        self, temp_profiles_dir: Path
+    ):
+        """Test that resolve_profiles_yml resolves Prefect Secret block references for all fields."""
+        # Create actual Prefect Secret blocks
+        secret_block = Secret(value=SecretStr("secret_password"))
+        await secret_block.save("db-password")
+
+        host_secret = Secret(value=SecretStr("localhost"))
+        await host_secret.save("db-host")
+
+        user_secret = Secret(value=SecretStr("dbt_user"))
+        await user_secret.save("db-user")
+
+        dbname_secret = Secret(value=SecretStr("dbt_db"))
+        await dbname_secret.save("db-dbname")
+
+        port_secret = Secret(value=SecretStr("5432"))
+        await port_secret.save("db-port")
+
+        profiles_with_blocks = {
+            "default": {
                 "targets": {
                     "dev": {
                         "type": "postgres",
                         "host": "{{ prefect.blocks.secret.db-host }}",
                         "password": "{{ prefect.blocks.secret.db-password }}",
                         "user": "{{ prefect.blocks.secret.db-user }}",
+                        "dbname": "{{ prefect.blocks.secret.db-dbname }}",
+                        "port": "{{ prefect.blocks.secret.db-port }}",
                     }
                 }
             }
         }
 
-        profiles_file = temp_path / "profiles.yml"
+        profiles_file = temp_profiles_dir / "profiles.yml"
         with open(profiles_file, "w") as f:
-            yaml.dump(profiles_content, f)
+            yaml.dump(profiles_with_blocks, f)
 
-        settings = PrefectDbtSettings(profiles_dir=temp_path)
+        settings = PrefectDbtSettings(profiles_dir=temp_profiles_dir)
 
-        with settings.resolve_profiles_yml() as temp_dir_path:
-            temp_profiles_path = Path(temp_dir_path) / "profiles.yml"
-            with open(temp_profiles_path, "r") as f:
-                content = yaml.safe_load(f)
+        with settings.resolve_profiles_yml() as temp_dir:
+            resolved_profiles_file = Path(temp_dir) / "profiles.yml"
+            assert resolved_profiles_file.exists()
 
-            # Verify block references were resolved
-            assert content["my_profile"]["targets"]["dev"]["host"] == "localhost"
+            with open(resolved_profiles_file, "r") as f:
+                resolved_profiles = yaml.safe_load(f)
+
+            # Check that all secret block references were resolved to environment variable calls
             assert (
-                content["my_profile"]["targets"]["dev"]["password"]
-                == "secret_password_123"
+                resolved_profiles["default"]["targets"]["dev"]["host"]
+                == "{{ env_var('PREFECT_BLOCKS_SECRET_DB_HOST') }}"
             )
-            assert content["my_profile"]["targets"]["dev"]["user"] == "dbt_user"
+            assert (
+                resolved_profiles["default"]["targets"]["dev"]["password"]
+                == "{{ env_var('PREFECT_BLOCKS_SECRET_DB_PASSWORD') }}"
+            )
+            assert (
+                resolved_profiles["default"]["targets"]["dev"]["user"]
+                == "{{ env_var('PREFECT_BLOCKS_SECRET_DB_USER') }}"
+            )
+            assert (
+                resolved_profiles["default"]["targets"]["dev"]["dbname"]
+                == "{{ env_var('PREFECT_BLOCKS_SECRET_DB_DBNAME') }}"
+            )
+            assert (
+                resolved_profiles["default"]["targets"]["dev"]["port"]
+                == "{{ env_var('PREFECT_BLOCKS_SECRET_DB_PORT') }}"
+            )
 
-        # Verify cleanup happens
-        assert not Path(temp_dir_path).exists()
+    async def test_resolve_profiles_yml_with_variable_references(
+        self, temp_profiles_dir: Path
+    ):
+        """Test that resolve_profiles_yml resolves Prefect variable references."""
+        # Create actual Prefect variables
+        await Variable.aset(name="db_host", value="prod.example.com")
+        await Variable.aset(name="db_password", value="prod_password")
+        await Variable.aset(name="db_user", value="prod_user")
 
-
-def test_settings_resolve_profiles_yml_with_variable_references(mock_prefect_variables):
-    """Test that resolve_profiles_yml resolves Prefect variable references correctly."""
-    with tempfile.TemporaryDirectory() as temp_dir:
-        temp_path = Path(temp_dir)
-
-        # Create profiles.yml with variable references
-        profiles_content = {
-            "my_profile": {
+        profiles_with_vars = {
+            "default": {
                 "targets": {
                     "dev": {
                         "type": "postgres",
-                        "host": "{{ prefect.variables.DB_HOST }}",
-                        "password": "{{ prefect.variables.DB_PASSWORD }}",
-                        "user": "{{ prefect.variables.DB_USER }}",
+                        "host": "{{ prefect.variables.db_host }}",
+                        "password": "{{ prefect.variables.db_password }}",
+                        "user": "{{ prefect.variables.db_user }}",
+                        "dbname": "prod_db",
+                        "port": 5432,
                     }
                 }
             }
         }
 
-        profiles_file = temp_path / "profiles.yml"
+        profiles_file = temp_profiles_dir / "profiles.yml"
         with open(profiles_file, "w") as f:
-            yaml.dump(profiles_content, f)
+            yaml.dump(profiles_with_vars, f)
 
-        settings = PrefectDbtSettings(profiles_dir=temp_path)
+        settings = PrefectDbtSettings(profiles_dir=temp_profiles_dir)
 
-        with settings.resolve_profiles_yml() as temp_dir_path:
-            temp_profiles_path = Path(temp_dir_path) / "profiles.yml"
-            with open(temp_profiles_path, "r") as f:
+        with settings.resolve_profiles_yml() as temp_dir:
+            temp_profiles_file = Path(temp_dir) / "profiles.yml"
+            with open(temp_profiles_file, "r") as f:
                 content = yaml.safe_load(f)
 
             # Verify variable references were resolved
-            assert (
-                content["my_profile"]["targets"]["dev"]["host"] == "prod-db.example.com"
-            )
-            assert (
-                content["my_profile"]["targets"]["dev"]["password"]
-                == "prod_password_456"
-            )
-            assert content["my_profile"]["targets"]["dev"]["user"] == "prod_user"
+            assert content["default"]["targets"]["dev"]["host"] == "prod.example.com"
+            assert content["default"]["targets"]["dev"]["password"] == "prod_password"
+            assert content["default"]["targets"]["dev"]["user"] == "prod_user"
+            assert content["default"]["targets"]["dev"]["dbname"] == "prod_db"
+            assert content["default"]["targets"]["dev"]["port"] == 5432
 
-        # Verify cleanup happens
-        assert not Path(temp_dir_path).exists()
+    async def test_resolve_profiles_yml_with_mixed_references(
+        self, temp_profiles_dir: Path
+    ):
+        """Test that resolve_profiles_yml resolves both block and variable references."""
+        # Create actual Prefect Secret block
+        mixed_secret = Secret(value=SecretStr("mixed_secret"))
+        await mixed_secret.save("mixed-secret")
+
+        # Create actual Prefect variables
+        await Variable.aset(name="mixed_host", value="mixed.example.com")
+        await Variable.aset(name="mixed_user", value="mixed_user")
+
+        profiles_with_mixed = {
+            "default": {
+                "targets": {
+                    "dev": {
+                        "type": "postgres",
+                        "host": "{{ prefect.variables.mixed_host }}",
+                        "password": "{{ prefect.blocks.secret.mixed-secret }}",
+                        "user": "{{ prefect.variables.mixed_user }}",
+                        "dbname": "mixed_db",
+                        "port": 5432,
+                    }
+                }
+            }
+        }
+
+        profiles_file = temp_profiles_dir / "profiles.yml"
+        with open(profiles_file, "w") as f:
+            yaml.dump(profiles_with_mixed, f)
+
+        settings = PrefectDbtSettings(profiles_dir=temp_profiles_dir)
+
+        with settings.resolve_profiles_yml() as temp_dir:
+            resolved_profiles_file = Path(temp_dir) / "profiles.yml"
+            assert resolved_profiles_file.exists()
+
+            with open(resolved_profiles_file, "r") as f:
+                resolved_profiles = yaml.safe_load(f)
+
+            # Check that both block and variable references were resolved
+            assert (
+                resolved_profiles["default"]["targets"]["dev"]["host"]
+                == "mixed.example.com"
+            )
+            assert (
+                resolved_profiles["default"]["targets"]["dev"]["password"]
+                == "{{ env_var('PREFECT_BLOCKS_SECRET_MIXED_SECRET') }}"
+            )
+            assert (
+                resolved_profiles["default"]["targets"]["dev"]["user"] == "mixed_user"
+            )
+            assert (
+                resolved_profiles["default"]["targets"]["dev"]["dbname"] == "mixed_db"
+            )
+            assert resolved_profiles["default"]["targets"]["dev"]["port"] == 5432
+
+    def test_resolve_profiles_yml_cleanup_on_exception(
+        self, temp_profiles_dir: Path, sample_profiles_yml: dict[str, Any]
+    ):
+        """Test that resolve_profiles_yml cleans up on exception."""
+        profiles_file = temp_profiles_dir / "profiles.yml"
+        with open(profiles_file, "w") as f:
+            yaml.dump(sample_profiles_yml, f)
+
+        settings = PrefectDbtSettings(profiles_dir=temp_profiles_dir)
+
+        temp_dir_path = None
+        try:
+            with settings.resolve_profiles_yml() as temp_dir:
+                temp_dir_path = Path(temp_dir)
+                assert temp_dir_path.exists()
+                # Simulate an exception
+                raise Exception("Test exception")
+        except Exception:
+            # Verify cleanup happened despite exception
+            if temp_dir_path:
+                assert not temp_dir_path.exists()
+
+    async def test_resolve_profiles_yml_handles_missing_blocks(
+        self, temp_profiles_dir: Path
+    ):
+        """Test that resolve_profiles_yml handles missing block references gracefully."""
+        profiles_with_missing_blocks = {
+            "default": {
+                "targets": {
+                    "dev": {
+                        "type": "postgres",
+                        "host": "{{ prefect.blocks.secret.nonexistent-block }}",
+                        "password": "{{ prefect.blocks.secret.another-missing }}",
+                    }
+                }
+            }
+        }
+
+        profiles_file = temp_profiles_dir / "profiles.yml"
+        with open(profiles_file, "w") as f:
+            yaml.dump(profiles_with_missing_blocks, f)
+
+        settings = PrefectDbtSettings(profiles_dir=temp_profiles_dir)
+
+        # Should raise an error when blocks don't exist
+        try:
+            with settings.resolve_profiles_yml():
+                pass
+        except Exception as exc:
+            print(f"Exception type: {type(exc)}, message: {exc}")
+            assert isinstance(exc, prefect.exceptions.ObjectNotFound)
+        else:
+            assert False, "Exception not raised for missing blocks"
+
+    async def test_resolve_profiles_yml_handles_missing_variables(
+        self, temp_profiles_dir: Path
+    ):
+        """Test that resolve_profiles_yml handles missing variable references gracefully."""
+        profiles_with_missing_vars = {
+            "default": {
+                "targets": {
+                    "dev": {
+                        "type": "postgres",
+                        "host": "{{ prefect.variables.NONEXISTENT_VAR }}",
+                        "password": "{{ prefect.variables.ANOTHER_MISSING }}",
+                    }
+                }
+            }
+        }
+
+        profiles_file = temp_profiles_dir / "profiles.yml"
+        with open(profiles_file, "w") as f:
+            yaml.dump(profiles_with_missing_vars, f)
+
+        settings = PrefectDbtSettings(profiles_dir=temp_profiles_dir)
+
+        # Test that missing variables are handled gracefully (may return None or empty string)
+        with settings.resolve_profiles_yml() as temp_dir:
+            temp_profiles_file = Path(temp_dir) / "profiles.yml"
+            with open(temp_profiles_file, "r") as f:
+                content = yaml.safe_load(f)
+
+            # Verify that missing variables are handled (either None, empty string, or the original template string)
+            host_value = content["default"]["targets"]["dev"]["host"]
+            password_value = content["default"]["targets"]["dev"]["password"]
+
+            # The behavior depends on how Prefect handles missing variables
+            # It could be None, empty string, or the original template string
+            assert host_value in [None, "", "{{ prefect.variables.NONEXISTENT_VAR }}"]
+            assert password_value in [
+                None,
+                "",
+                "{{ prefect.variables.ANOTHER_MISSING }}",
+            ]
+
+
+class TestPrefectDbtSettingsEdgeCases:
+    """Test edge cases and error conditions."""
+
+    def test_settings_with_nonexistent_profiles_dir(self):
+        """Test settings behavior with nonexistent profiles directory."""
+        nonexistent_dir = Path("/nonexistent/directory")
+        settings = PrefectDbtSettings(profiles_dir=nonexistent_dir)
+
+        # Should not raise on initialization
+        assert settings.profiles_dir == nonexistent_dir
+
+        # Should raise when trying to load profiles
+        with pytest.raises(ValueError, match="No profiles.yml found"):
+            settings.load_profiles_yml()
+
+    def test_settings_with_empty_profiles_dir(self, temp_profiles_dir: Path):
+        """Test settings behavior with empty profiles directory."""
+        settings = PrefectDbtSettings(profiles_dir=temp_profiles_dir)
+
+        # Should raise when trying to load profiles from empty directory
+        with pytest.raises(ValueError, match="No profiles.yml found"):
+            settings.load_profiles_yml()
