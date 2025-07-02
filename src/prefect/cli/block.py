@@ -19,6 +19,7 @@ from prefect.blocks.core import Block, InvalidBlockRegistration
 from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import exit_with_error, exit_with_success
 from prefect.cli.root import app, is_interactive
+from prefect.client.base import ServerType, determine_server_type
 from prefect.client.orchestration import get_client
 from prefect.exceptions import (
     ObjectNotFound,
@@ -244,7 +245,10 @@ async def register(
     )
 
     if ui_url := PREFECT_UI_URL:
-        block_catalog_url = f"{ui_url}/blocks/catalog"
+        if determine_server_type() == ServerType.CLOUD:
+            block_catalog_url = f"{ui_url}/settings/blocks/catalog"
+        else:
+            block_catalog_url = f"{ui_url}/blocks/catalog"
         msg = f"{msg.rstrip().rstrip('.')}: {block_catalog_url}\n"
 
     app.console.print(msg, soft_wrap=True)
@@ -350,8 +354,12 @@ async def block_create(
                 "Prefect must be configured to use a hosted Prefect server or "
                 "Prefect Cloud to display the Prefect UI"
             )
-
-        block_link = f"{PREFECT_UI_URL.value()}/blocks/catalog/{block_type.slug}/create"
+        if determine_server_type() == ServerType.CLOUD:
+            block_link = f"{PREFECT_UI_URL.value()}/settings/blocks/catalog/{block_type.slug}/create"
+        else:
+            block_link = (
+                f"{PREFECT_UI_URL.value()}/blocks/catalog/{block_type.slug}/create"
+            )
         app.console.print(
             f"Create a {block_type_slug} block: {block_link}",
         )
