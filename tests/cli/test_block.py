@@ -381,7 +381,7 @@ def test_creating_a_block_selects_cloud_ui_url_when_cloud_server_type():
         set_defaults={PREFECT_API_URL: "https://api.prefect.cloud/api"}
     ):
         invoke_and_assert(
-            ["block", "create", "json"],
+            ["block", "create", "secret"],
             expected_code=0,
             expected_output_contains=["settings/blocks/catalog"],
         )
@@ -392,7 +392,7 @@ def test_creating_a_block_selects_oss_ui_url_when_oss_server_type():
         set_defaults={PREFECT_API_URL: "http://127.0.0.1:4200/api"}
     ):
         invoke_and_assert(
-            ["block", "create", "json"],
+            ["block", "create", "secret"],
             expected_code=0,
             expected_output_contains=["blocks/catalog"],
             expected_output_does_not_contain=["settings/blocks/catalog"],
