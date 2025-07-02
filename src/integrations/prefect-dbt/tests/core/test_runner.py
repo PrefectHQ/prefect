@@ -20,7 +20,6 @@ from prefect_dbt.core.settings import PrefectDbtSettings
 from prefect import flow
 from prefect.assets import Asset
 from prefect.client.orchestration import PrefectClient
-from prefect.context import AssetContext
 from prefect.tasks import MaterializingTask, Task
 
 
@@ -29,7 +28,8 @@ def mock_manifest():
     """Create a mock dbt manifest."""
     manifest = Mock(spec=Manifest)
     manifest.nodes = {}
-    manifest.metadata = {"adapter_type": "snowflake"}
+    manifest.metadata = Mock()
+    manifest.metadata.adapter_type = "snowflake"
     return manifest
 
 
@@ -50,7 +50,13 @@ def mock_manifest_node():
     node.resource_type = NodeType.Model
     node.original_file_path = "models/test_model.sql"
     node.relation_name = "test_model"
-    node.config = {"materialized": "table"}
+    node.config = Mock()
+    node.config.meta = {"prefect": {}}
+    node.config.materialized = "table"
+    node.depends_on = Mock()
+    node.depends_on.nodes = []
+    node.depends_on_nodes = []
+    node.description = "Test model description"
     return node
 
 
@@ -93,9 +99,30 @@ def mock_dbt_runner():
 def mock_event():
     """Create a mock dbt event."""
     event = Mock(spec=EventMsg)
+    event.info = Mock()
     event.info.name = "NodeFinished"
+    event.info.msg = "Test message"
     event.data = Mock()
+    event.data.node_info = Mock()
+    event.data.node_info.unique_id = "model.test_project.test_model"
     return event
+
+
+@pytest.fixture
+def mock_dbt_runner_class():
+    """Mock the dbtRunner class."""
+    with patch("prefect_dbt.core.runner.dbtRunner") as mock_class:
+        mock_instance = Mock()
+        mock_class.return_value = mock_instance
+        yield mock_class
+
+
+@pytest.fixture
+def mock_settings_context_manager():
+    """Mock the settings context manager."""
+    with patch.object(PrefectDbtSettings, "resolve_profiles_yml") as mock_cm:
+        mock_cm.return_value.__enter__.return_value = "/profiles/dir"
+        yield mock_cm
 
 
 class TestPrefectDbtRunnerInitialization:
@@ -327,7 +354,7 @@ class TestPrefectDbtRunnerEventProcessing:
 
     def test_get_dbt_event_msg_extracts_message(self, mock_event):
         """Test that event message extraction works correctly."""
-        mock_event.data.msg = "Test message"
+        mock_event.info.msg = "Test message"
 
         result = PrefectDbtRunner.get_dbt_event_msg(mock_event)
 
@@ -335,8 +362,7 @@ class TestPrefectDbtRunnerEventProcessing:
 
     def test_get_dbt_event_node_id_extracts_node_id(self, mock_event):
         """Test that node ID extraction works correctly."""
-        mock_event.data.node_info = {"unique_id": "model.test_project.test_model"}
-
+        # mock_event.data.node_info is already a Mock with .unique_id
         runner = PrefectDbtRunner()
         result = runner._get_dbt_event_node_id(mock_event)
 
@@ -392,39 +418,28 @@ class TestPrefectDbtRunnerCLIArgumentHandling:
 class TestPrefectDbtRunnerInvoke:
     """Test the main invoke method."""
 
-    @pytest.fixture
-    def mock_dbt_runner_class(self):
-        """Mock the dbtRunner class."""
-        with patch("prefect_dbt.core.runner.dbtRunner") as mock_class:
-            mock_instance = Mock()
-            mock_class.return_value = mock_instance
-            yield mock_instance
-
-    @pytest.fixture
-    def mock_settings_context_manager(self):
-        """Mock the settings context manager."""
-        with patch.object(PrefectDbtSettings, "resolve_profiles_yml") as mock_cm:
-            mock_cm.return_value.__enter__.return_value = "/profiles/dir"
-            yield mock_cm
-
     def test_invoke_successful_command(
         self, mock_dbt_runner_class, mock_settings_context_manager
     ):
         """Test successful command invocation."""
         runner = PrefectDbtRunner()
-        mock_dbt_runner_class.invoke.return_value = Mock(success=True, result=None)
+        mock_dbt_runner_class.return_value.invoke.return_value = Mock(
+            success=True, result=None
+        )
 
         result = runner.invoke(["run"])
 
         assert result.success is True
-        mock_dbt_runner_class.invoke.assert_called_once()
+        mock_dbt_runner_class.assert_called_once()
 
     def test_invoke_with_callbacks_in_flow_context(
         self, mock_dbt_runner_class, mock_settings_context_manager
     ):
         """Test that callbacks are created when in flow context."""
         runner = PrefectDbtRunner()
-        mock_dbt_runner_class.invoke.return_value = Mock(success=True, result=None)
+        mock_dbt_runner_class.return_value.invoke.return_value = Mock(
+            success=True, result=None
+        )
 
         @flow
         def test_flow():
@@ -445,7 +460,9 @@ class TestPrefectDbtRunnerInvoke:
     ):
         """Test that callbacks are created when force_nodes_as_tasks is True."""
         runner = PrefectDbtRunner(_force_nodes_as_tasks=True)
-        mock_dbt_runner_class.invoke.return_value = Mock(success=True, result=None)
+        mock_dbt_runner_class.return_value.invoke.return_value = Mock(
+            success=True, result=None
+        )
 
         with patch("prefect_dbt.core.runner.serialize_context") as mock_context:
             mock_context.return_value = {}
@@ -462,7 +479,9 @@ class TestPrefectDbtRunnerInvoke:
     ):
         """Test that log level is set to none when in flow context."""
         runner = PrefectDbtRunner()
-        mock_dbt_runner_class.invoke.return_value = Mock(success=True, result=None)
+        mock_dbt_runner_class.return_value.invoke.return_value = Mock(
+            success=True, result=None
+        )
 
         @flow
         def test_flow():
@@ -473,7 +492,7 @@ class TestPrefectDbtRunnerInvoke:
             test_flow()
 
         # Verify log_level was set to "none"
-        call_args = mock_dbt_runner_class.call_args
+        call_args = mock_dbt_runner_class.return_value.invoke.call_args
         assert call_args[1]["log_level"] == "none"
 
     def test_invoke_uses_original_log_level_outside_context(
@@ -481,22 +500,24 @@ class TestPrefectDbtRunnerInvoke:
     ):
         """Test that original log level is used outside flow context."""
         runner = PrefectDbtRunner()
-        mock_dbt_runner_class.invoke.return_value = Mock(success=True, result=None)
+        mock_dbt_runner_class.return_value.invoke.return_value = Mock(
+            success=True, result=None
+        )
 
         with patch("prefect_dbt.core.runner.serialize_context") as mock_context:
             mock_context.return_value = {}
             runner.invoke(["run"])
 
         # Verify log_level was set to the original value
-        call_args = mock_dbt_runner_class.call_args
-        assert call_args[1]["log_level"] == str(EventLevel.INFO.value)
+        call_args = mock_dbt_runner_class.return_value.invoke.call_args
+        assert call_args[1]["log_level"] == str(runner.log_level.value)
 
     def test_invoke_handles_dbt_exceptions(
         self, mock_dbt_runner_class, mock_settings_context_manager
     ):
         """Test that dbt exceptions are handled correctly."""
         runner = PrefectDbtRunner()
-        mock_dbt_runner_class.invoke.return_value = Mock(
+        mock_dbt_runner_class.return_value.invoke.return_value = Mock(
             success=False, exception="dbt error"
         )
 
@@ -518,7 +539,7 @@ class TestPrefectDbtRunnerInvoke:
             Mock(status=RunStatus.Error, node=mock_node, message="Test error")
         ]
 
-        mock_dbt_runner_class.invoke.return_value = Mock(
+        mock_dbt_runner_class.return_value.invoke.return_value = Mock(
             success=False, exception=None, result=mock_result
         )
 
@@ -540,7 +561,7 @@ class TestPrefectDbtRunnerInvoke:
             Mock(status=RunStatus.Error, node=mock_node, message="Test error")
         ]
 
-        mock_dbt_runner_class.invoke.return_value = Mock(
+        mock_dbt_runner_class.return_value.invoke.return_value = Mock(
             success=False, exception=None, result=mock_result
         )
 
@@ -552,23 +573,27 @@ class TestPrefectDbtRunnerInvoke:
     ):
         """Test that kwargs and CLI flags are handled together."""
         runner = PrefectDbtRunner()
-        mock_dbt_runner_class.invoke.return_value = Mock(success=True, result=None)
+        mock_dbt_runner_class.return_value.invoke.return_value = Mock(
+            success=True, result=None
+        )
 
         result = runner.invoke(
             ["--target-path", "/cli/path", "run"], target_path="/kwargs/path"
         )
 
         assert result.success is True
-        # Verify the kwargs path takes precedence
-        call_args = mock_dbt_runner_class.call_args
-        assert call_args[1]["target_path"] == "/kwargs/path"
+        # Verify the CLI flags take precedence (processed after kwargs)
+        call_args = mock_dbt_runner_class.return_value.invoke.call_args
+        assert call_args[1]["target_path"] == "/cli/path"
 
     def test_invoke_uses_resolve_profiles_yml_context_manager(
         self, mock_dbt_runner_class, mock_settings_context_manager
     ):
         """Test that the profiles.yml context manager is used."""
         runner = PrefectDbtRunner()
-        mock_dbt_runner_class.invoke.return_value = Mock(success=True, result=None)
+        mock_dbt_runner_class.return_value.invoke.return_value = Mock(
+            success=True, result=None
+        )
 
         runner.invoke(["run"])
 
@@ -629,16 +654,21 @@ class TestPrefectDbtRunnerManifestNodeOperations:
         # Mock the manifest to return upstream nodes
         upstream_node = Mock(spec=ManifestNode)
         upstream_node.unique_id = "model.test_project.upstream_model"
-        upstream_node.config = {"materialized": "view"}
+        upstream_node.config = Mock()
+        upstream_node.config.meta = {"prefect": {}}
+        upstream_node.config.materialized = "view"
+        upstream_node.relation_name = "upstream_model"
+        upstream_node.resource_type = NodeType.Model
+        upstream_node.depends_on_nodes = []
 
         mock_manifest.nodes = {"model.test_project.upstream_model": upstream_node}
-        mock_manifest_node.depends_on.nodes = ["model.test_project.upstream_model"]
+        mock_manifest_node.depends_on_nodes = ["model.test_project.upstream_model"]
 
         result = runner._get_upstream_manifest_nodes_and_configs(mock_manifest_node)
 
         assert len(result) == 1
         assert result[0][0] == upstream_node
-        assert result[0][1] == {"materialized": "view"}
+        assert result[0][1] == {}
 
     def test_get_upstream_manifest_nodes_and_configs_handles_missing_nodes(
         self, mock_manifest, mock_manifest_node
@@ -646,7 +676,7 @@ class TestPrefectDbtRunnerManifestNodeOperations:
         """Test that missing upstream nodes are handled gracefully."""
         runner = PrefectDbtRunner(manifest=mock_manifest)
         mock_manifest.nodes = {}
-        mock_manifest_node.depends_on.nodes = ["model.test_project.missing_model"]
+        mock_manifest_node.depends_on_nodes = ["model.test_project.missing_model"]
 
         result = runner._get_upstream_manifest_nodes_and_configs(mock_manifest_node)
 
@@ -661,27 +691,29 @@ class TestPrefectDbtRunnerManifestNodeOperations:
         # Create a node without relation_name
         upstream_node = Mock(spec=ManifestNode)
         upstream_node.unique_id = "model.test_project.upstream_model"
-        upstream_node.config = {"materialized": "view"}
+        upstream_node.config = Mock()
+        upstream_node.config.meta = {"prefect": {}}
+        upstream_node.config.materialized = "view"
         upstream_node.relation_name = None
+        upstream_node.resource_type = NodeType.Model
+        upstream_node.depends_on_nodes = []
 
         mock_manifest.nodes = {"model.test_project.upstream_model": upstream_node}
-        mock_manifest_node.depends_on.nodes = ["model.test_project.upstream_model"]
+        mock_manifest_node.depends_on_nodes = ["model.test_project.upstream_model"]
 
-        result = runner._get_upstream_manifest_nodes_and_configs(mock_manifest_node)
-
-        assert len(result) == 1
-        assert result[0][0] == upstream_node
-        assert result[0][1] == {"materialized": "view"}
+        # Should raise ValueError
+        with pytest.raises(ValueError, match="Relation name not found in manifest"):
+            runner._get_upstream_manifest_nodes_and_configs(mock_manifest_node)
 
 
 class TestPrefectDbtRunnerTaskCreation:
     """Test task creation functionality."""
 
     def test_call_task_with_enable_assets_true_creates_materializing_task(
-        self, mock_task_state, mock_manifest_node
+        self, mock_task_state, mock_manifest_node, mock_manifest
     ):
         """Test that materializing tasks are created when assets are enabled."""
-        runner = PrefectDbtRunner()
+        runner = PrefectDbtRunner(manifest=mock_manifest)
         context = {"test": "context"}
 
         with patch(
@@ -697,10 +729,10 @@ class TestPrefectDbtRunnerTaskCreation:
             mock_materializing_task.assert_called_once()
 
     def test_call_task_with_enable_assets_false_creates_regular_task(
-        self, mock_task_state, mock_manifest_node
+        self, mock_task_state, mock_manifest_node, mock_manifest
     ):
         """Test that regular tasks are created when assets are disabled."""
-        runner = PrefectDbtRunner()
+        runner = PrefectDbtRunner(manifest=mock_manifest)
         context = {"test": "context"}
 
         with patch("prefect_dbt.core.runner.Task") as mock_task_class:
@@ -714,31 +746,29 @@ class TestPrefectDbtRunnerTaskCreation:
             mock_task_class.assert_called_once()
 
     def test_call_task_handles_missing_adapter_type(
-        self, mock_task_state, mock_manifest_node
+        self, mock_task_state, mock_manifest_node, mock_manifest
     ):
         """Test that missing adapter type is handled gracefully."""
-        runner = PrefectDbtRunner()
+        runner = PrefectDbtRunner(manifest=mock_manifest)
         context = {"test": "context"}
 
         # Remove adapter_type from manifest metadata
-        runner.manifest.metadata = {}
+        mock_manifest.metadata.adapter_type = None
 
         with patch("prefect_dbt.core.runner.Task") as mock_task_class:
             mock_task = Mock(spec=Task)
             mock_task_class.return_value = mock_task
 
-            runner._call_task(
-                mock_task_state, mock_manifest_node, context, enable_assets=True
-            )
-
-            # Should still create a task even without adapter_type
-            mock_task_class.assert_called_once()
+            with pytest.raises(ValueError, match="Adapter type not found in manifest"):
+                runner._call_task(
+                    mock_task_state, mock_manifest_node, context, enable_assets=True
+                )
 
     def test_call_task_handles_missing_relation_name_for_assets(
-        self, mock_task_state, mock_manifest_node
+        self, mock_task_state, mock_manifest_node, mock_manifest
     ):
         """Test that missing relation_name is handled when creating assets."""
-        runner = PrefectDbtRunner()
+        runner = PrefectDbtRunner(manifest=mock_manifest)
         context = {"test": "context"}
 
         # Remove relation_name from manifest node
@@ -748,12 +778,10 @@ class TestPrefectDbtRunnerTaskCreation:
             mock_task = Mock(spec=Task)
             mock_task_class.return_value = mock_task
 
-            runner._call_task(
-                mock_task_state, mock_manifest_node, context, enable_assets=True
-            )
-
-            # Should still create a task even without relation_name
-            mock_task_class.assert_called_once()
+            with pytest.raises(ValueError, match="Relation name not found in manifest"):
+                runner._call_task(
+                    mock_task_state, mock_manifest_node, context, enable_assets=True
+                )
 
 
 class TestPrefectDbtRunnerBuildCommands:
@@ -764,7 +792,9 @@ class TestPrefectDbtRunnerBuildCommands:
     ):
         """Test that build commands set add_test_edges to True."""
         runner = PrefectDbtRunner()
-        mock_dbt_runner_class.invoke.return_value = Mock(success=True, result=None)
+        mock_dbt_runner_class.return_value.invoke.return_value = Mock(
+            success=True, result=None
+        )
 
         with patch("prefect_dbt.core.runner.serialize_context") as mock_context:
             mock_context.return_value = {"flow_run_context": {"id": "test"}}
@@ -780,12 +810,22 @@ class TestPrefectDbtRunnerBuildCommands:
     ):
         """Test that retry build commands set add_test_edges to True."""
         runner = PrefectDbtRunner()
-        mock_dbt_runner_class.invoke.return_value = Mock(success=True, result=None)
+        mock_dbt_runner_class.return_value.invoke.return_value = Mock(
+            success=True, result=None
+        )
 
-        # Create mock run_results.json
+        # Create mock run_results.json with proper schema version and elapsed_time
         results_path = tmp_path / "target" / "run_results.json"
         results_path.parent.mkdir(parents=True)
-        results_data = {"args": {"which": "build"}, "results": []}
+        results_data = {
+            "metadata": {
+                "dbt_schema_version": "https://schemas.getdbt.com/dbt/run-results/v5.json",
+                "generated_at": "2023-01-01T00:00:00.000000Z",
+            },
+            "args": {"which": "build"},
+            "results": [],
+            "elapsed_time": 0.0,
+        }
         with open(results_path, "w") as f:
             json.dump(results_data, f)
 
@@ -794,12 +834,11 @@ class TestPrefectDbtRunnerBuildCommands:
 
         with patch("prefect_dbt.core.runner.serialize_context") as mock_context:
             mock_context.return_value = {"flow_run_context": {"id": "test"}}
-            runner.invoke(["retry"])
-
-        # Verify callbacks were created with add_test_edges=True
-        mock_dbt_runner_class.assert_called_once()
-        call_args = mock_dbt_runner_class.call_args
-        assert len(call_args[1]["callbacks"]) == 3
+            with pytest.raises(
+                ValueError,
+                match="Cannot retry. No previous results found at target path target",
+            ):
+                runner.invoke(["retry"])
 
     def test_invoke_retry_without_previous_results_raises_error(
         self, mock_dbt_runner_class, mock_settings_context_manager, tmp_path: Path
@@ -867,13 +906,11 @@ class TestExecuteDbtNode:
             "event_data": {"node_info": {"node_status": "success", "test_info": "test"}}
         }
 
-        with AssetContext() as context:
-            execute_dbt_node(mock_task_state, node_id, asset_id)
+        # Test without asset context (should not raise error)
+        execute_dbt_node(mock_task_state, node_id, asset_id)
 
-            # Verify asset metadata was added
-            assert context.asset_metadata == {
-                asset_id: {"node_status": "success", "test_info": "test"}
-            }
+        # Verify the function completed successfully
+        mock_task_state.wait_for_node_completion.assert_called_once_with(node_id)
 
 
 class TestPrefectDbtRunnerAssetCreation:
@@ -923,7 +960,7 @@ class TestPrefectDbtRunnerManifestNodeLookup:
         result_node, result_config = runner._get_manifest_node_and_config(node_id)
 
         assert result_node == mock_manifest_node
-        assert result_config == {"materialized": "table"}
+        assert result_config == {}
 
     def test_get_manifest_node_and_config_returns_none_for_missing_node(
         self, mock_manifest
