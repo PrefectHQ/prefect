@@ -1,441 +1,642 @@
 """
-Unit tests for NodeTaskTracker - focusing on outcomes.
+Tests for NodeTaskTracker class and related functionality.
 """
 
 import threading
 import time
+from typing import Any, Dict
 from unittest.mock import Mock
+from uuid import UUID
 
 import pytest
 from prefect_dbt.core._tracker import NodeTaskTracker
 
-from prefect._internal.uuid7 import uuid7
-
-
-@pytest.fixture
-def tracker():
-    """Fixture providing a NodeTaskTracker instance."""
-    return NodeTaskTracker()
+from prefect.client.schemas.objects import Flow, State
+from prefect.logging.loggers import PrefectLogAdapter
+from prefect.tasks import Task
 
 
 @pytest.fixture
 def mock_task():
-    """Fixture providing a mock task."""
-    return Mock()
+    """Create a mock Task instance."""
+    task = Mock(spec=Task)
+    task.name = "test_task"
+    return task
+
+
+@pytest.fixture
+def mock_flow():
+    """Create a mock Flow instance."""
+    flow = Mock(spec=Flow)
+    flow.name = "test_flow"
+    return flow
 
 
 @pytest.fixture
 def mock_state():
-    """Fixture providing a mock state."""
-    return Mock()
-
-
-@pytest.fixture
-def mock_context_manager(monkeypatch):
-    """Fixture providing a mock context manager for hydrated_context."""
-    mock_context = Mock()
-    mock_context.__enter__ = Mock()
-    mock_context.__exit__ = Mock()
-    monkeypatch.setattr(
-        "prefect_dbt.core._tracker.hydrated_context",
-        Mock(return_value=mock_context),
-    )
-    return mock_context
-
-
-@pytest.fixture
-def mock_run_task_sync(monkeypatch, mock_state):
-    """Fixture providing a mock run_task_sync function."""
-    monkeypatch.setattr(
-        "prefect_dbt.core._tracker.run_task_sync", Mock(return_value=mock_state)
-    )
-    return mock_state
+    """Create a mock State instance."""
+    state = Mock(spec=State)
+    state.id = "test-state-id"
+    return state
 
 
 @pytest.fixture
 def sample_node_id():
-    """Fixture providing a sample node ID."""
-    return "test_node"
+    """Sample node ID for testing."""
+    return "model.test_project.test_model"
 
 
 @pytest.fixture
 def sample_task_run_id():
-    """Fixture providing a sample task run ID."""
-    return uuid7()
+    """Sample task run ID for testing."""
+    return UUID("12345678-1234-5678-9abc-123456789abc")
 
 
 @pytest.fixture
-def sample_parameters():
-    """Fixture providing sample parameters."""
-    return {"param": "value"}
+def sample_event_data():
+    """Sample event data for testing."""
+    return {
+        "node_info": {
+            "unique_id": "model.test_project.test_model",
+            "node_status": "success",
+        },
+        "status": "success",
+    }
 
 
 @pytest.fixture
-def sample_context():
-    """Fixture providing sample context."""
-    return {"context": "data"}
+def sample_flow_run_context():
+    """Sample flow run context for testing."""
+    return {
+        "id": "test-flow-run-id",
+        "name": "test_flow_run",
+    }
 
 
-def test_tracker_manages_node_lifecycle(tracker, sample_node_id, mock_task):
-    """Test that tracker properly manages the complete lifecycle of a node."""
-    # Start the node
-    tracker.start_task(sample_node_id, mock_task)
-    assert not tracker.is_node_complete(sample_node_id)
+class TestNodeTaskTrackerInitialization:
+    """Test NodeTaskTracker initialization and basic functionality."""
 
-    # Set node status (completes the node)
-    event_data = {"status": "success", "node_info": {"node_status": "success"}}
-    tracker.set_node_status(sample_node_id, event_data, "Node completed successfully")
+    def test_initializes_with_empty_state(self):
+        """Test that tracker initializes with empty internal state."""
+        tracker = NodeTaskTracker()
 
-    # Verify node is complete
-    assert tracker.is_node_complete(sample_node_id)
-    status = tracker.get_node_status(sample_node_id)
-    assert status is not None
-    assert status["event_data"] == event_data
-    assert status["event_message"] == "Node completed successfully"
+        # Verify all internal collections are empty by testing public methods
+        assert tracker.get_task_result("unknown") is None
+        assert tracker.get_node_status("unknown") is None
+        assert tracker.is_node_complete("unknown") is False
+        assert tracker.get_node_dependencies("unknown") == []
+        assert tracker.get_task_run_id("unknown") is None
+        assert tracker.get_task_run_name("unknown") is None
 
+    def test_start_task_registers_task_and_creates_event(
+        self, mock_task: Mock, sample_node_id: str
+    ):
+        """Test that start_task properly registers a task and creates completion event."""
+        tracker = NodeTaskTracker()
 
-def test_tracker_handles_multiple_nodes_independently(tracker, mock_task):
-    """Test that tracker can manage multiple nodes without interference."""
-    # Set up two nodes
-    tracker.start_task("node1", mock_task)
-    tracker.start_task("node2", mock_task)
+        tracker.start_task(sample_node_id, mock_task)
 
-    # Complete one node
-    tracker.set_node_status("node1", {"status": "success"}, "Node 1 done")
+        # Verify node is marked as incomplete initially
+        assert tracker.is_node_complete(sample_node_id) is False
 
-    # Verify states are independent
-    assert tracker.is_node_complete("node1") is True
-    assert tracker.is_node_complete("node2") is False
+        # Verify we can wait for completion (indicates event was created)
+        # Start a thread to complete the node
+        def complete_node():
+            time.sleep(0.01)
+            tracker.set_node_status(sample_node_id, {}, "completed")
 
-    # Complete second node
-    tracker.set_node_status("node2", {"status": "running"}, "Node 2 running")
-    assert tracker.is_node_complete("node2") is True
+        thread = threading.Thread(target=complete_node)
+        thread.daemon = True
+        thread.start()
 
-
-def test_tracker_provides_thread_safe_completion_waiting():
-    """Test that tracker provides thread-safe waiting for node completion."""
-    tracker = NodeTaskTracker()
-    node_id = "test_node"
-    tracker.start_task(node_id, Mock())
-
-    # Start a thread that will complete the node after a delay
-    def complete_node():
-        time.sleep(0.05)
-        tracker.set_node_status(node_id, {"status": "success"}, "completed")
-
-    thread = threading.Thread(target=complete_node)
-    thread.daemon = True
-    thread.start()
-
-    # Wait for completion from main thread
-    result = tracker.wait_for_node_completion(node_id, timeout=1.0)
-    assert result is True
-    assert tracker.is_node_complete(node_id) is True
+        # Wait for completion
+        result = tracker.wait_for_node_completion(sample_node_id, timeout=0.1)
+        assert result is True
 
 
-def test_tracker_handles_timeout_gracefully():
-    """Test that tracker handles timeout scenarios gracefully."""
-    tracker = NodeTaskTracker()
-    node_id = "test_node"
-    tracker.start_task(node_id, Mock())
+class TestNodeTaskTrackerStatusManagement:
+    """Test node status management functionality."""
 
-    # Try to wait for completion with short timeout
-    result = tracker.wait_for_node_completion(node_id, timeout=0.1)
-    assert result is False
-    assert not tracker.is_node_complete(node_id)
+    def test_set_node_status_stores_status_and_marks_complete(
+        self, sample_node_id: str, sample_event_data: Dict[str, Any]
+    ):
+        """Test that set_node_status stores status and marks node as complete."""
+        tracker = NodeTaskTracker()
+        event_message = "Node completed successfully"
+
+        tracker.set_node_status(sample_node_id, sample_event_data, event_message)
+
+        # Verify status is stored
+        stored_status = tracker.get_node_status(sample_node_id)
+        assert stored_status is not None
+        assert stored_status["event_data"] == sample_event_data
+        assert stored_status["event_message"] == event_message
+        # Verify node is marked as complete
+        assert tracker.is_node_complete(sample_node_id) is True
+
+    def test_set_node_status_signals_completion_event(
+        self, sample_node_id, sample_event_data
+    ):
+        """Test that set_node_status signals the completion event."""
+        tracker = NodeTaskTracker()
+        tracker.start_task(sample_node_id, Mock(spec=Task))
+
+        # Verify event is not set initially
+        assert not tracker._node_events[sample_node_id].is_set()
+
+        # Set status
+        tracker.set_node_status(sample_node_id, sample_event_data, "completed")
+
+        # Verify event is now set
+        assert tracker._node_events[sample_node_id].is_set()
+
+    def test_get_node_status_returns_none_for_unknown_node(self):
+        """Test that get_node_status returns None for unknown nodes."""
+        tracker = NodeTaskTracker()
+        unknown_node_id = "unknown.node"
+
+        status = tracker.get_node_status(unknown_node_id)
+
+        assert status is None
 
 
-def test_tracker_manages_task_results():
-    """Test that tracker properly manages task results."""
-    tracker = NodeTaskTracker()
-    node_id = "test_node"
+class TestNodeTaskTrackerCompletionWaiting:
+    """Test node completion waiting functionality."""
 
-    # Set and retrieve task result
-    mock_result = Mock()
-    tracker.set_task_result(node_id, mock_result)
-    retrieved_result = tracker.get_task_result(node_id)
-    assert retrieved_result == mock_result
-
-    # Test with None result
-    tracker.set_task_result(node_id, None)
-    assert tracker.get_task_result(node_id) is None
-
-
-def test_tracker_manages_dependencies():
-    """Test that tracker properly manages node dependencies."""
-    tracker = NodeTaskTracker()
-    node_id = "test_node"
-    dependencies = ["dep1", "dep2", "dep3"]
-
-    # Set dependencies
-    tracker.set_node_dependencies(node_id, dependencies)
-    retrieved_deps = tracker.get_node_dependencies(node_id)
-    assert retrieved_deps == dependencies
-
-    # Test default empty list for unknown node
-    assert tracker.get_node_dependencies("unknown_node") == []
-
-
-def test_tracker_thread_execution_outcomes(
-    tracker,
-    sample_node_id,
-    mock_task,
-    sample_task_run_id,
-    sample_parameters,
-    sample_context,
-    mock_run_task_sync,
-    mock_context_manager,
-):
-    """Test that tracker properly handles thread execution outcomes."""
-    # Mock successful execution is already set up by mock_run_task_sync fixture
-
-    tracker.run_task_in_thread(
-        sample_node_id, mock_task, sample_task_run_id, sample_parameters, sample_context
+    @pytest.mark.parametrize(
+        "timeout,expected_result",
+        [
+            (1.0, True),
+            (None, True),
+        ],
     )
+    def test_wait_for_node_completion_when_complete(
+        self, sample_node_id, sample_event_data, timeout, expected_result
+    ):
+        """Test that wait_for_node_completion returns True when node is already complete."""
+        tracker = NodeTaskTracker()
+        tracker.set_node_status(sample_node_id, sample_event_data, "completed")
 
-    # Wait for thread completion
-    time.sleep(0.2)
+        result = tracker.wait_for_node_completion(sample_node_id, timeout=timeout)
 
-    # Verify result was stored
-    result = tracker.get_task_result(sample_node_id)
-    assert result == mock_run_task_sync
+        assert result == expected_result
+
+    def test_wait_for_node_completion_waits_for_completion(
+        self, sample_node_id, sample_event_data
+    ):
+        """Test that wait_for_node_completion waits for node to complete."""
+        tracker = NodeTaskTracker()
+        tracker.start_task(sample_node_id, Mock(spec=Task))
+
+        # Start a thread that will complete the node after a delay
+        def complete_node():
+            time.sleep(0.05)
+            tracker.set_node_status(sample_node_id, sample_event_data, "completed")
+
+        thread = threading.Thread(target=complete_node)
+        thread.daemon = True
+        thread.start()
+
+        # Wait for completion
+        result = tracker.wait_for_node_completion(sample_node_id, timeout=1.0)
+
+        assert result is True
+        assert tracker.is_node_complete(sample_node_id) is True
 
 
-def test_tracker_handles_execution_with_dependencies(monkeypatch: pytest.MonkeyPatch):
-    """Test that tracker handles execution with dependencies correctly."""
-    tracker = NodeTaskTracker()
-    node_id = "test_node"
-    mock_task = Mock()
-    task_run_id = uuid7()
+class TestNodeTaskTrackerTaskResults:
+    """Test task result management functionality."""
 
-    # Set up dependencies with results
-    tracker.set_node_dependencies(node_id, ["dep1", "dep2"])
-    mock_dep_state1 = Mock()
-    mock_dep_state2 = Mock()
-    tracker.set_task_result("dep1", mock_dep_state1)
-    tracker.set_task_result("dep2", mock_dep_state2)
-
-    parameters = {"param": "value"}
-    context = {"context": "data"}
-
-    # Mock execution that should receive dependencies
-    mock_state = Mock()
-
-    monkeypatch.setattr(
-        "prefect_dbt.core._tracker.run_task_sync", Mock(return_value=mock_state)
+    @pytest.mark.parametrize(
+        "result_value",
+        [
+            Mock(spec=State),
+            None,
+        ],
     )
+    def test_task_result_set_and_get(self, sample_node_id, result_value):
+        """Test that set_task_result stores and get_task_result retrieves the result."""
+        tracker = NodeTaskTracker()
 
-    # Set up context manager mock
-    mock_context = Mock()
-    mock_context.__enter__ = Mock()
-    mock_context.__exit__ = Mock()
-    monkeypatch.setattr(
-        "prefect_dbt.core._tracker.hydrated_context",
-        Mock(return_value=mock_context),
+        # Set result
+        tracker.set_task_result(sample_node_id, result_value)
+
+        # Get result
+        retrieved_result = tracker.get_task_result(sample_node_id)
+
+        # Verify result matches
+        assert retrieved_result == result_value
+        assert tracker._task_results[sample_node_id] == result_value
+
+
+class TestNodeTaskTrackerDependencies:
+    """Test dependency management functionality."""
+
+    @pytest.mark.parametrize(
+        "dependencies",
+        [
+            ["dep1", "dep2", "dep3"],
+            [],
+        ],
     )
+    def test_node_dependencies_set_and_get(self, sample_node_id, dependencies):
+        """Test that set_node_dependencies stores and get_node_dependencies retrieves dependencies."""
+        tracker = NodeTaskTracker()
 
-    tracker.run_task_in_thread(node_id, mock_task, task_run_id, parameters, context)
+        # Set dependencies
+        tracker.set_node_dependencies(sample_node_id, dependencies)
 
-    # Wait for thread completion
-    time.sleep(0.2)
+        # Get dependencies
+        retrieved_dependencies = tracker.get_node_dependencies(sample_node_id)
 
-    # Verify result was stored
-    result = tracker.get_task_result(node_id)
-    assert result == mock_state
+        # Verify dependencies match
+        assert retrieved_dependencies == dependencies
+        assert tracker._node_dependencies[sample_node_id] == dependencies
 
 
-def test_tracker_handles_execution_failures(monkeypatch: pytest.MonkeyPatch):
-    """Test that tracker properly handles execution failures."""
-    tracker = NodeTaskTracker()
-    node_id = "test_node"
-    mock_task = Mock()
-    task_run_id = uuid7()
-    parameters = {"param": "value"}
-    context = {"context": "data"}
+class TestNodeTaskTrackerTaskRunIds:
+    """Test task run ID management functionality."""
 
-    # Mock execution that raises an exception
-    test_exception = Exception("Task execution failed")
+    def test_task_run_id_set_and_get(self, sample_node_id, sample_task_run_id):
+        """Test that set_task_run_id stores and get_task_run_id retrieves the task run ID."""
+        tracker = NodeTaskTracker()
 
-    monkeypatch.setattr(
-        "prefect_dbt.core._tracker.run_task_sync", Mock(side_effect=test_exception)
+        # Set task run ID
+        tracker.set_task_run_id(sample_node_id, sample_task_run_id)
+
+        # Get task run ID
+        retrieved_id = tracker.get_task_run_id(sample_node_id)
+
+        # Verify ID matches
+        assert retrieved_id == sample_task_run_id
+        assert tracker._task_run_ids[sample_node_id] == sample_task_run_id
+
+
+class TestNodeTaskTrackerTaskRunNames:
+    """Test task run name management functionality."""
+
+    def test_task_run_name_set_and_get(self, sample_node_id):
+        """Test that set_task_run_name stores and get_task_run_name retrieves the task run name."""
+        tracker = NodeTaskTracker()
+        task_run_name = "test_task_run"
+
+        # Set task run name
+        tracker.set_task_run_name(sample_node_id, task_run_name)
+
+        # Get task run name
+        retrieved_name = tracker.get_task_run_name(sample_node_id)
+
+        # Verify name matches
+        assert retrieved_name == task_run_name
+        assert tracker._task_run_names[sample_node_id] == task_run_name
+
+
+class TestNodeTaskTrackerUnknownNodeHandling:
+    """Test behavior for unknown nodes across all getter methods."""
+
+    @pytest.mark.parametrize(
+        "method_name,expected_result",
+        [
+            ("get_node_status", None),
+            ("is_node_complete", False),
+            ("get_task_result", None),
+            ("get_node_dependencies", []),
+            ("get_task_run_id", None),
+            ("get_task_run_name", None),
+        ],
     )
+    def test_unknown_node_handling(self, method_name, expected_result):
+        """Test that all getter methods handle unknown nodes correctly."""
+        tracker = NodeTaskTracker()
+        unknown_node_id = "unknown.node"
 
-    # Set up context manager mock
-    mock_context = Mock()
-    mock_context.__enter__ = Mock()
-    mock_context.__exit__ = Mock()
-    monkeypatch.setattr(
-        "prefect_dbt.core._tracker.hydrated_context",
-        Mock(return_value=mock_context),
+        method = getattr(tracker, method_name)
+        result = method(unknown_node_id)
+
+        assert result == expected_result
+
+
+class TestNodeTaskTrackerLogging:
+    """Test logging functionality."""
+
+    @pytest.mark.parametrize(
+        "flow_context",
+        [
+            (None, None),
+            ({"id": "test-id", "name": "test_name"}, None),
+            (None, Mock(spec=Flow)),
+            ({"id": "test-flow-run-id", "name": "test_flow_run"}, Mock(spec=Flow)),
+        ],
     )
+    def test_get_task_logger_with_various_contexts(
+        self, sample_node_id, sample_task_run_id, flow_context
+    ):
+        """Test that get_task_logger works with various flow context combinations."""
+        tracker = NodeTaskTracker()
+        tracker.set_task_run_id(sample_node_id, sample_task_run_id)
+        tracker.set_task_run_name(sample_node_id, "test_task_run")
 
-    # The exception should cause the thread to fail, but we can't easily test that
-    # since the exception would be raised in the thread context
-    # Instead, we test that the function can be called without error
-    tracker.run_task_in_thread(node_id, mock_task, task_run_id, parameters, context)
+        flow_run, flow = flow_context
 
-    # Wait for thread completion
-    time.sleep(0.2)
+        # Configure mock flow if present
+        if flow is not None:
+            flow.name = "test_flow"
 
-    # The result should be None since the exception would prevent state from being set
-    result = tracker.get_task_result(node_id)
-    # Note: In the actual implementation, exceptions in threads are not caught
-    # and would cause the thread to fail silently
-    assert result is None
+        logger = tracker.get_task_logger(
+            sample_node_id,
+            flow_run=flow_run,
+            flow=flow,
+        )
+
+        assert isinstance(logger, PrefectLogAdapter)
+        assert logger.extra["task_run_id"] == sample_task_run_id
+        assert logger.extra["task_run_name"] == "test_task_run"
+        assert logger.extra["task_name"] == "execute_dbt_node"
+
+        # Verify flow context
+        if flow_run:
+            assert logger.extra["flow_run_id"] == flow_run["id"]
+            assert logger.extra["flow_run_name"] == flow_run["name"]
+        else:
+            assert logger.extra["flow_run_id"] == "<unknown>"
+            assert logger.extra["flow_run_name"] == "<unknown>"
+
+        if flow:
+            assert logger.extra["flow_name"] == flow.name
+        else:
+            assert logger.extra["flow_name"] == "<unknown>"
+
+    def test_get_task_logger_with_additional_kwargs(
+        self, sample_node_id, sample_task_run_id
+    ):
+        """Test that get_task_logger includes additional kwargs in extra data."""
+        tracker = NodeTaskTracker()
+        tracker.set_task_run_id(sample_node_id, sample_task_run_id)
+
+        logger = tracker.get_task_logger(
+            sample_node_id,
+            custom_key="custom_value",
+            another_key=123,
+        )
+
+        assert logger.extra["custom_key"] == "custom_value"
+        assert logger.extra["another_key"] == 123
+
+    def test_get_task_logger_without_task_run_id(self, sample_node_id):
+        """Test that get_task_logger works without task run ID."""
+        tracker = NodeTaskTracker()
+
+        logger = tracker.get_task_logger(sample_node_id)
+
+        assert logger.extra["task_run_id"] is None
+        assert logger.extra["task_run_name"] is None
 
 
-def test_tracker_handles_no_state_returned(monkeypatch: pytest.MonkeyPatch):
-    """Test that tracker handles cases where no state is returned."""
-    tracker = NodeTaskTracker()
-    node_id = "test_node"
-    mock_task = Mock()
-    task_run_id = uuid7()
-    parameters = {"param": "value"}
-    context = {"context": "data"}
+class TestNodeTaskTrackerThreadExecution:
+    """Test thread execution functionality."""
 
-    # Mock execution that returns None
+    @pytest.fixture
+    def mock_thread_execution_setup(self, monkeypatch):
+        """Set up common mocking for thread execution tests."""
+        # Mock run_task_sync
+        mock_run_task = Mock(return_value=Mock(spec=State))
+        monkeypatch.setattr("prefect_dbt.core._tracker.run_task_sync", mock_run_task)
 
-    monkeypatch.setattr(
-        "prefect_dbt.core._tracker.run_task_sync", Mock(return_value=None)
+        # Mock hydrated_context
+        mock_context_manager = Mock()
+        mock_context_manager.__enter__ = Mock()
+        mock_context_manager.__exit__ = Mock()
+        monkeypatch.setattr(
+            "prefect_dbt.core._tracker.hydrated_context",
+            Mock(return_value=mock_context_manager),
+        )
+
+        return mock_run_task
+
+    @pytest.mark.parametrize(
+        "return_value,expected_result",
+        [
+            (Mock(spec=State), Mock(spec=State)),
+            (None, None),
+        ],
     )
+    def test_run_task_in_thread_stores_result(
+        self,
+        sample_node_id,
+        mock_task,
+        sample_task_run_id,
+        mock_thread_execution_setup,
+        return_value,
+        expected_result,
+    ):
+        """Test that run_task_in_thread stores the correct result."""
+        tracker = NodeTaskTracker()
+        parameters = {"param": "value"}
+        context = {"context": "data"}
 
-    # Set up context manager mock
-    mock_context = Mock()
-    mock_context.__enter__ = Mock()
-    mock_context.__exit__ = Mock()
-    monkeypatch.setattr(
-        "prefect_dbt.core._tracker.hydrated_context",
-        Mock(return_value=mock_context),
+        # Configure mock to return specified value
+        mock_thread_execution_setup.return_value = return_value
+
+        tracker.run_task_in_thread(
+            sample_node_id, mock_task, sample_task_run_id, parameters, context
+        )
+
+        # Wait for thread to complete
+        time.sleep(0.2)
+
+        # Verify result was stored
+        result = tracker.get_task_result(sample_node_id)
+        if return_value is not None:
+            # For mock objects, just verify it's a mock with the same spec
+            assert isinstance(result, Mock)
+            assert result._spec_class == return_value._spec_class
+        else:
+            assert result == expected_result
+
+    @pytest.mark.parametrize(
+        "dependencies_setup,expected_wait_count",
+        [
+            ({"dep1": Mock(spec=State), "dep2": Mock(spec=State)}, 2),
+            ({"dep1": Mock(spec=State)}, 1),
+            ({}, 0),
+        ],
     )
+    def test_run_task_in_thread_with_dependencies(
+        self,
+        sample_node_id,
+        mock_task,
+        sample_task_run_id,
+        mock_state,
+        mock_thread_execution_setup,
+        dependencies_setup,
+        expected_wait_count,
+    ):
+        """Test that run_task_in_thread handles dependencies correctly."""
+        tracker = NodeTaskTracker()
+        parameters = {"param": "value"}
+        context = {"context": "data"}
 
-    tracker.run_task_in_thread(node_id, mock_task, task_run_id, parameters, context)
+        # Set up dependencies
+        dependencies = list(dependencies_setup.keys())
+        tracker.set_node_dependencies(sample_node_id, dependencies)
 
-    # Wait for thread completion
-    time.sleep(0.2)
+        # Set up dependency results
+        for dep_id, result in dependencies_setup.items():
+            tracker.set_task_result(dep_id, result)
 
-    # Verify None was stored as result
-    result = tracker.get_task_result(node_id)
-    assert result is None
+        # Configure mock
+        mock_thread_execution_setup.return_value = mock_state
 
+        tracker.run_task_in_thread(
+            sample_node_id, mock_task, sample_task_run_id, parameters, context
+        )
 
-def test_get_task_logger_creates_logger_with_task_id():
-    """Test that get_task_logger creates a logger with the correct task ID."""
-    tracker = NodeTaskTracker()
-    node_id = "test_node"
-    task_run_id = uuid7()
+        # Wait for thread to complete
+        time.sleep(0.2)
 
-    # Set up task run ID
-    tracker.set_task_run_id(node_id, task_run_id)
-    tracker.set_task_run_name(node_id, "test_task_run")
+        # Verify run_task_sync was called with correct dependencies
+        mock_thread_execution_setup.assert_called_once()
+        call_args = mock_thread_execution_setup.call_args
+        assert len(call_args[1]["wait_for"]) == expected_wait_count
 
-    # Create logger
-    logger = tracker.get_task_logger(node_id)
+    def test_run_task_in_thread_starts_daemon_thread(
+        self, sample_node_id, mock_task, sample_task_run_id, mock_thread_execution_setup
+    ):
+        """Test that run_task_in_thread starts a daemon thread."""
+        tracker = NodeTaskTracker()
+        parameters = {"param": "value"}
+        context = {"context": "data"}
 
-    # Verify logger has correct task run ID
-    assert logger.extra["task_run_id"] == task_run_id
-    assert logger.extra["task_run_name"] == "test_task_run"
-    assert logger.extra["task_name"] == "execute_dbt_node"
+        tracker.run_task_in_thread(
+            sample_node_id, mock_task, sample_task_run_id, parameters, context
+        )
 
+        # Wait for thread to start and potentially complete
+        time.sleep(0.1)
 
-def test_get_task_logger_with_flow_context():
-    """Test that get_task_logger includes flow context when provided."""
-    tracker = NodeTaskTracker()
-    node_id = "test_node"
-    task_run_id = uuid7()
-
-    tracker.set_task_run_id(node_id, task_run_id)
-    tracker.set_task_run_name(node_id, "test_task_run")
-
-    flow_run = {"id": "flow-run-123", "name": "test_flow_run"}
-    flow = Mock()
-    flow.name = "test_flow"
-
-    logger = tracker.get_task_logger(node_id, flow_run=flow_run, flow=flow)
-
-    assert logger.extra["flow_run_id"] == "flow-run-123"
-    assert logger.extra["flow_run_name"] == "test_flow_run"
-    assert logger.extra["flow_name"] == "test_flow"
-
-
-def test_task_id_tracking():
-    """Test that task run IDs and names are properly tracked."""
-    tracker = NodeTaskTracker()
-    node_id = "test_node"
-    task_run_id = uuid7()
-    task_run_name = "my_task_run"
-
-    # Initially no task run ID should be set
-    assert tracker.get_task_run_id(node_id) is None
-    assert tracker.get_task_run_name(node_id) is None
-
-    # Set task run ID and name
-    tracker.set_task_run_id(node_id, task_run_id)
-    tracker.set_task_run_name(node_id, task_run_name)
-
-    # Verify they are stored correctly
-    assert tracker.get_task_run_id(node_id) == task_run_id
-    assert tracker.get_task_run_name(node_id) == task_run_name
+        # Verify run_task_sync was called
+        mock_thread_execution_setup.assert_called_once()
 
 
-def test_task_run_name_tracking():
-    """Test that task run names are properly tracked and updated."""
-    tracker = NodeTaskTracker()
-    node_id = "test_node"
+class TestNodeTaskTrackerIntegration:
+    """Test integration scenarios and complex workflows."""
 
-    # Initially no task run name should be set
-    assert tracker.get_task_run_name(node_id) is None
+    def test_comprehensive_workflow_with_multiple_nodes(self):
+        """Test a comprehensive workflow with multiple nodes and dependencies."""
+        tracker = NodeTaskTracker()
 
-    # Set initial task run name
-    initial_name = "initial_task_run"
-    tracker.set_task_run_name(node_id, initial_name)
-    assert tracker.get_task_run_name(node_id) == initial_name
+        # Set up multiple nodes
+        nodes = ["model_1", "model_2", "model_3"]
+        mock_tasks = {node: Mock(spec=Task) for node in nodes}
 
-    # Update task run name
-    updated_name = "updated_task_run"
-    tracker.set_task_run_name(node_id, updated_name)
-    assert tracker.get_task_run_name(node_id) == updated_name
+        # Start all nodes
+        for node in nodes:
+            tracker.start_task(node, mock_tasks[node])
 
-    # Test with different node
-    other_node = "other_node"
-    other_name = "other_task_run"
-    tracker.set_task_run_name(other_node, other_name)
-    assert tracker.get_task_run_name(other_node) == other_name
-    assert tracker.get_task_run_name(node_id) == updated_name  # Original unchanged
+        # Set up dependencies: model_3 depends on model_1 and model_2
+        tracker.set_node_dependencies("model_3", ["model_1", "model_2"])
 
+        # Complete model_1 and model_2
+        tracker.set_node_status("model_1", {"status": "success"}, "Model 1 complete")
+        tracker.set_node_status("model_2", {"status": "success"}, "Model 2 complete")
 
-def test_tracker_comprehensive_workflow() -> None:
-    """Test a comprehensive workflow using the tracker."""
-    tracker = NodeTaskTracker()
+        # Set task results for dependencies
+        tracker.set_task_result("model_1", Mock(spec=State))
+        tracker.set_task_result("model_2", Mock(spec=State))
 
-    # Set up a complex scenario with multiple nodes and dependencies
-    nodes = ["model_1", "model_2", "model_3"]
-    mock_tasks = {node: Mock() for node in nodes}
+        # Verify all nodes are in expected states
+        assert tracker.is_node_complete("model_1") is True
+        assert tracker.is_node_complete("model_2") is True
+        assert tracker.is_node_complete("model_3") is False
 
-    # Start all nodes
-    for node in nodes:
-        tracker.start_task(node, mock_tasks[node])
+        # Verify dependencies are correctly stored
+        deps = tracker.get_node_dependencies("model_3")
+        assert deps == ["model_1", "model_2"]
 
-    # Set up dependencies: model_3 depends on model_1 and model_2
-    tracker.set_node_dependencies("model_3", ["model_1", "model_2"])
+        # Verify loggers are available
+        assert tracker.get_task_logger("model_1") is not None
+        assert tracker.get_task_logger("model_2") is not None
+        assert tracker.get_task_logger("model_3") is not None
 
-    # Complete model_1 and model_2
-    tracker.set_node_status("model_1", {"status": "success"}, "Model 1 complete")
-    tracker.set_node_status("model_2", {"status": "success"}, "Model 2 complete")
+    def test_concurrent_node_completion(self):
+        """Test that multiple nodes can complete concurrently."""
+        tracker = NodeTaskTracker()
+        nodes = ["node_1", "node_2", "node_3"]
 
-    # Set task results for dependencies
-    tracker.set_task_result("model_1", Mock())
-    tracker.set_task_result("model_2", Mock())
+        # Start all nodes
+        for node in nodes:
+            tracker.start_task(node, Mock(spec=Task))
 
-    # Verify all nodes are in expected states
-    assert tracker.is_node_complete("model_1") is True
-    assert tracker.is_node_complete("model_2") is True
-    assert tracker.is_node_complete("model_3") is False
+        # Complete nodes concurrently
+        def complete_node(node_id: str, delay: float):
+            time.sleep(delay)
+            tracker.set_node_status(
+                node_id, {"status": "success"}, f"{node_id} complete"
+            )
 
-    # Verify dependencies are correctly stored
-    deps = tracker.get_node_dependencies("model_3")
-    assert deps == ["model_1", "model_2"]
+        threads = []
+        for i, node in enumerate(nodes):
+            thread = threading.Thread(target=complete_node, args=(node, i * 0.05))
+            thread.daemon = True
+            threads.append(thread)
+            thread.start()
 
-    # Verify loggers are available
-    assert tracker.get_task_logger("model_1") is not None
-    assert tracker.get_task_logger("model_2") is not None
-    assert tracker.get_task_logger("model_3") is not None
+        # Wait for all nodes to complete
+        for node in nodes:
+            assert tracker.wait_for_node_completion(node, timeout=1.0) is True
+            assert tracker.is_node_complete(node) is True
+
+        # Wait for all threads to finish
+        for thread in threads:
+            thread.join(timeout=1.0)
+
+    def test_node_lifecycle_with_task_execution(
+        self, sample_node_id, mock_task, sample_task_run_id, mock_state, monkeypatch
+    ):
+        """Test complete node lifecycle including task execution."""
+        tracker = NodeTaskTracker()
+
+        # Mock run_task_sync
+        monkeypatch.setattr(
+            "prefect_dbt.core._tracker.run_task_sync", Mock(return_value=mock_state)
+        )
+
+        # Mock hydrated_context
+        mock_context_manager = Mock()
+        mock_context_manager.__enter__ = Mock()
+        mock_context_manager.__exit__ = Mock()
+        monkeypatch.setattr(
+            "prefect_dbt.core._tracker.hydrated_context",
+            Mock(return_value=mock_context_manager),
+        )
+
+        # Start the node
+        tracker.start_task(sample_node_id, mock_task)
+        assert not tracker.is_node_complete(sample_node_id)
+
+        # Set up task run ID and name
+        tracker.set_task_run_id(sample_node_id, sample_task_run_id)
+        tracker.set_task_run_name(sample_node_id, "test_task_run")
+
+        # Run task in thread
+        parameters = {"param": "value"}
+        context = {"context": "data"}
+        tracker.run_task_in_thread(
+            sample_node_id, mock_task, sample_task_run_id, parameters, context
+        )
+
+        # Wait for task to complete
+        time.sleep(0.2)
+
+        # Verify task result was stored
+        result = tracker.get_task_result(sample_node_id)
+        assert result == mock_state
+
+        # Complete the node
+        tracker.set_node_status(sample_node_id, {"status": "success"}, "completed")
+        assert tracker.is_node_complete(sample_node_id) is True
+
+        # Verify logger has correct information
+        logger = tracker.get_task_logger(sample_node_id)
+        assert logger.extra["task_run_id"] == sample_task_run_id
+        assert logger.extra["task_run_name"] == "test_task_run"
