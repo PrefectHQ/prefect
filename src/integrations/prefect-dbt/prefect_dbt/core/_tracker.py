@@ -3,10 +3,12 @@ State for managing tasks across callbacks.
 """
 
 import threading
-from typing import Any, Union
+from typing import Any, Optional, Union
+from uuid import UUID
 
-from prefect.client.schemas.objects import State
+from prefect.client.schemas.objects import Flow, State
 from prefect.context import hydrated_context
+from prefect.logging.loggers import PrefectLogAdapter, get_logger
 from prefect.task_engine import run_task_sync
 from prefect.tasks import Task
 
@@ -19,12 +21,13 @@ class NodeTaskTracker:
 
     def __init__(self):
         self._tasks: dict[str, Task[Any, Any]] = {}
-        self._task_loggers: dict[str, Any] = {}
         self._task_results: dict[str, Any] = {}
         self._node_status: dict[str, dict[str, Any]] = {}
         self._node_complete: dict[str, bool] = {}
         self._node_dependencies: dict[str, list[str]] = {}
         self._node_events: dict[str, threading.Event] = {}
+        self._task_run_ids: dict[str, UUID] = {}
+        self._task_run_names: dict[str, str] = {}
 
     def start_task(self, node_id: str, task: Task[Any, Any]) -> None:
         """Start a task for a node."""
@@ -32,13 +35,30 @@ class NodeTaskTracker:
         self._node_complete[node_id] = False
         self._node_events[node_id] = threading.Event()
 
-    def set_task_logger(self, node_id: str, logger: Any) -> None:
-        """Set the logger for a task."""
-        self._task_loggers[node_id] = logger
-
-    def get_task_logger(self, node_id: str) -> Union[Any, None]:
+    def get_task_logger(
+        self,
+        node_id: str,
+        flow_run: Optional[dict[str, Any]] = None,
+        flow: Optional[Flow] = None,
+        **kwargs: Any,
+    ) -> PrefectLogAdapter:
         """Get the logger for a task."""
-        return self._task_loggers.get(node_id)
+        logger = PrefectLogAdapter(
+            get_logger("prefect.task_runs"),
+            extra={
+                **{
+                    "task_run_id": self.get_task_run_id(node_id),
+                    "flow_run_id": str(flow_run.get("id")) if flow_run else "<unknown>",
+                    "task_run_name": self.get_task_run_name(node_id),
+                    "task_name": "execute_dbt_node",
+                    "flow_run_name": flow_run.get("name") if flow_run else "<unknown>",
+                    "flow_name": flow.name if flow else "<unknown>",
+                },
+                **kwargs,
+            },
+        )
+
+        return logger
 
     def set_node_status(
         self, node_id: str, event_data: dict[str, Any], event_message: str
@@ -96,10 +116,27 @@ class NodeTaskTracker:
         """Get the dependencies for a node."""
         return self._node_dependencies.get(node_id, [])
 
+    def set_task_run_id(self, node_id: str, task_run_id: UUID) -> None:
+        """Set the task run ID for a node."""
+        self._task_run_ids[node_id] = task_run_id
+
+    def get_task_run_id(self, node_id: str) -> Union[UUID, None]:
+        """Get the task run ID for a node."""
+        return self._task_run_ids.get(node_id)
+
+    def set_task_run_name(self, node_id: str, task_run_name: str) -> None:
+        """Set the task run name for a node."""
+        self._task_run_names[node_id] = task_run_name
+
+    def get_task_run_name(self, node_id: str) -> Union[str, None]:
+        """Get the task run name for a node."""
+        return self._task_run_names.get(node_id)
+
     def run_task_in_thread(
         self,
         node_id: str,
         task: Task[Any, Any],
+        task_run_id: UUID,
         parameters: dict[str, Any],
         context: dict[str, Any],
     ) -> None:
@@ -116,6 +153,7 @@ class NodeTaskTracker:
 
                 state = run_task_sync(
                     task,
+                    task_run_id=task_run_id,
                     parameters=parameters,
                     wait_for=states,
                     context=context,
