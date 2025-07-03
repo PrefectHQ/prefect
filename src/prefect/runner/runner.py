@@ -1450,10 +1450,10 @@ class Runner:
                 hooks = flow.on_cancellation_hooks or []
 
                 await _run_hooks(hooks, flow_run, flow, state)
-            except ObjectNotFound:
-                run_logger = self._get_flow_run_logger(flow_run)
+            except Exception:
                 run_logger.warning(
-                    f"Runner failed to retrieve flow to execute on_cancellation hooks for flow run {flow_run.id!r}."
+                    f"Runner failed to retrieve flow to execute on_cancellation hooks for flow run {flow_run.id!r}.",
+                    exc_info=True,
                 )
 
     async def _run_on_crashed_hooks(
@@ -1479,9 +1479,10 @@ class Runner:
                 hooks = flow.on_crashed_hooks or []
 
                 await _run_hooks(hooks, flow_run, flow, state)
-            except ObjectNotFound:
+            except Exception:
                 run_logger.warning(
-                    f"Runner failed to retrieve flow to execute on_crashed hooks for flow run {flow_run.id!r}."
+                    f"Runner failed to retrieve flow to execute on_crashed hooks for flow run {flow_run.id!r}.",
+                    exc_info=True,
                 )
 
     async def __aenter__(self) -> Self:
