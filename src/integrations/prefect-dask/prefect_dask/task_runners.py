@@ -346,13 +346,29 @@ class DaskTaskRunner(TaskRunner):
                     # Default to LocalCluster only if no specific class was provided or resolved
                     class_to_instantiate = distributed.LocalCluster
 
-                self.logger.info(
-                    "Creating a new Dask cluster with "
-                    f"`{to_qualified_name(class_to_instantiate)}`"
-                )
-                self._connect_to = self._cluster = self._exit_stack.enter_context(
-                    class_to_instantiate(**self.cluster_kwargs)
-                )
+                cluster_name = to_qualified_name(class_to_instantiate)
+                self.logger.info(f"Creating a new Dask cluster with `{cluster_name}`")
+
+                try:
+                    self._connect_to = self._cluster = self._exit_stack.enter_context(
+                        class_to_instantiate(**self.cluster_kwargs)
+                    )
+                except Exception as e:
+                    self.logger.error(
+                        f"Failed to create {cluster_name} cluster: "
+                        f"{type(e).__name__}: {str(e)}"
+                    )
+
+                    # If not LocalCluster, try falling back
+                    if class_to_instantiate != distributed.LocalCluster:
+                        self.logger.warning(
+                            "Falling back to LocalCluster due to cluster creation failure"
+                        )
+                        self._connect_to = self._cluster = (
+                            self._exit_stack.enter_context(distributed.LocalCluster())
+                        )
+                    else:
+                        raise
 
                 if self.adapt_kwargs:
                     # self._cluster should be non-None here after instantiation
