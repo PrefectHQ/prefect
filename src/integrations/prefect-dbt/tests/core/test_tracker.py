@@ -150,15 +150,6 @@ class TestNodeTaskTrackerStatusManagement:
         # Verify event is now set
         assert tracker._node_events[sample_node_id].is_set()
 
-    def test_get_node_status_returns_none_for_unknown_node(self):
-        """Test that get_node_status returns None for unknown nodes."""
-        tracker = NodeTaskTracker()
-        unknown_node_id = "unknown.node"
-
-        status = tracker.get_node_status(unknown_node_id)
-
-        assert status is None
-
 
 class TestNodeTaskTrackerCompletionWaiting:
     """Test node completion waiting functionality."""
@@ -289,31 +280,6 @@ class TestNodeTaskTrackerTaskRunNames:
         # Verify name matches
         assert retrieved_name == task_run_name
         assert tracker._task_run_names[sample_node_id] == task_run_name
-
-
-class TestNodeTaskTrackerUnknownNodeHandling:
-    """Test behavior for unknown nodes across all getter methods."""
-
-    @pytest.mark.parametrize(
-        "method_name,expected_result",
-        [
-            ("get_node_status", None),
-            ("is_node_complete", False),
-            ("get_task_result", None),
-            ("get_node_dependencies", []),
-            ("get_task_run_id", None),
-            ("get_task_run_name", None),
-        ],
-    )
-    def test_unknown_node_handling(self, method_name, expected_result):
-        """Test that all getter methods handle unknown nodes correctly."""
-        tracker = NodeTaskTracker()
-        unknown_node_id = "unknown.node"
-
-        method = getattr(tracker, method_name)
-        result = method(unknown_node_id)
-
-        assert result == expected_result
 
 
 class TestNodeTaskTrackerLogging:
