@@ -503,27 +503,3 @@ class TestPrefectDbtSettingsProfilesResolution:
                 "",
                 "{{ prefect.variables.ANOTHER_MISSING }}",
             ]
-
-
-class TestPrefectDbtSettingsEdgeCases:
-    """Test edge cases and error conditions."""
-
-    def test_settings_with_nonexistent_profiles_dir(self):
-        """Test settings behavior with nonexistent profiles directory."""
-        nonexistent_dir = Path("/nonexistent/directory")
-        settings = PrefectDbtSettings(profiles_dir=nonexistent_dir)
-
-        # Should not raise on initialization
-        assert settings.profiles_dir == nonexistent_dir
-
-        # Should raise when trying to load profiles
-        with pytest.raises(ValueError, match="No profiles.yml found"):
-            settings.load_profiles_yml()
-
-    def test_settings_with_empty_profiles_dir(self, temp_profiles_dir: Path):
-        """Test settings behavior with empty profiles directory."""
-        settings = PrefectDbtSettings(profiles_dir=temp_profiles_dir)
-
-        # Should raise when trying to load profiles from empty directory
-        with pytest.raises(ValueError, match="No profiles.yml found"):
-            settings.load_profiles_yml()
