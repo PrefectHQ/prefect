@@ -10,6 +10,7 @@ import anyio
 import fsspec
 from pydantic import BaseModel, Field, SecretStr, field_validator
 
+from prefect._internal.compatibility.async_dispatch import async_dispatch
 from prefect._internal.schemas.validators import (
     stringify_path,
     validate_basepath,
@@ -126,8 +127,7 @@ class LocalFileSystem(WritableFileSystem, WritableDeploymentStorage):
                 )
         return resolved_path
 
-    @sync_compatible
-    async def get_directory(
+    async def aget_directory(
         self, from_path: Optional[str] = None, local_path: Optional[str] = None
     ) -> None:
         """
@@ -161,6 +161,50 @@ class LocalFileSystem(WritableFileSystem, WritableDeploymentStorage):
 
         copytree(from_path, local_path, dirs_exist_ok=True, ignore=ignore_func)
 
+    @async_dispatch(aget_directory)
+    def get_directory(
+        self, from_path: Optional[str] = None, local_path: Optional[str] = None
+    ) -> None:
+        """
+        Copies a directory from one place to another on the local filesystem.
+
+        Defaults to copying the entire contents of the block's basepath to the current working directory.
+        """
+        if not from_path:
+            from_path = Path(self.basepath or ".").expanduser().resolve()
+        else:
+            from_path = self._resolve_path(from_path)
+
+        if not local_path:
+            local_path = Path(".").resolve()
+        else:
+            local_path = Path(local_path).resolve()
+
+        if from_path == local_path:
+            # If the paths are the same there is no need to copy
+            # and we avoid shutil.copytree raising an error
+            return
+
+        # .prefectignore exists in the original location, not the current location which
+        # is most likely temporary
+        if (from_path / Path(".prefectignore")).exists():
+            with open(from_path / Path(".prefectignore")) as f:
+                ignore_patterns = f.readlines()
+            included_files = filter_files(
+                root=from_path, ignore_patterns=ignore_patterns
+            )
+
+            def ignore_func(directory, files):
+                relative_path = Path(directory).relative_to(from_path)
+                files_to_ignore = [
+                    f for f in files if str(relative_path / f) not in included_files
+                ]
+                return files_to_ignore
+        else:
+            ignore_func = None
+
+        copytree(from_path, local_path, dirs_exist_ok=True, ignore=ignore_func)
+
     async def _get_ignore_func(self, local_path: str, ignore_file: str):
         with open(ignore_file) as f:
             ignore_patterns = f.readlines()
@@ -176,8 +220,7 @@ class LocalFileSystem(WritableFileSystem, WritableDeploymentStorage):
 
         return ignore_func
 
-    @sync_compatible
-    async def put_directory(
+    async def aput_directory(
         self,
         local_path: Optional[str] = None,
         to_path: Optional[str] = None,
@@ -211,8 +254,51 @@ class LocalFileSystem(WritableFileSystem, WritableDeploymentStorage):
                 dirs_exist_ok=True,
             )
 
-    @sync_compatible
-    async def read_path(self, path: str) -> bytes:
+    @async_dispatch(aput_directory)
+    def put_directory(
+        self,
+        local_path: Optional[str] = None,
+        to_path: Optional[str] = None,
+        ignore_file: Optional[str] = None,
+    ) -> None:
+        """
+        Copies a directory from one place to another on the local filesystem.
+
+        Defaults to copying the entire contents of the current working directory to the block's basepath.
+        An `ignore_file` path may be provided that can include gitignore style expressions for filepaths to ignore.
+        """
+        destination_path = self._resolve_path(to_path, validate=True)
+
+        if not local_path:
+            local_path = Path(".")
+
+        if ignore_file:
+            with open(ignore_file) as f:
+                ignore_patterns = f.readlines()
+            included_files = filter_files(
+                root=local_path, ignore_patterns=ignore_patterns
+            )
+
+            def ignore_func(directory, files):
+                relative_path = Path(directory).relative_to(local_path)
+                files_to_ignore = [
+                    f for f in files if str(relative_path / f) not in included_files
+                ]
+                return files_to_ignore
+        else:
+            ignore_func = None
+
+        if local_path == destination_path:
+            pass
+        else:
+            copytree(
+                src=local_path,
+                dst=destination_path,
+                ignore=ignore_func,
+                dirs_exist_ok=True,
+            )
+
+    async def aread_path(self, path: str) -> bytes:
         path: Path = self._resolve_path(path)
 
         # Check if the path exists
@@ -228,8 +314,24 @@ class LocalFileSystem(WritableFileSystem, WritableDeploymentStorage):
 
         return content
 
-    @sync_compatible
-    async def write_path(self, path: str, content: bytes) -> str:
+    @async_dispatch(aread_path)
+    def read_path(self, path: str) -> bytes:
+        path: Path = self._resolve_path(path)
+
+        # Check if the path exists
+        if not path.exists():
+            raise ValueError(f"Path {path} does not exist.")
+
+        # Validate that its a file
+        if not path.is_file():
+            raise ValueError(f"Path {path} is not a file.")
+
+        with open(str(path), mode="rb") as f:
+            content = f.read()
+
+        return content
+
+    async def awrite_path(self, path: str, content: bytes) -> str:
         path: Path = self._resolve_path(path)
 
         # Construct the path if it does not exist
@@ -241,6 +343,22 @@ class LocalFileSystem(WritableFileSystem, WritableDeploymentStorage):
 
         async with await anyio.open_file(path, mode="wb") as f:
             await f.write(content)
+        # Leave path stringify to the OS
+        return str(path)
+
+    @async_dispatch(awrite_path)
+    def write_path(self, path: str, content: bytes) -> str:
+        path: Path = self._resolve_path(path)
+
+        # Construct the path if it does not exist
+        path.parent.mkdir(exist_ok=True, parents=True)
+
+        # Check if the file already exists
+        if path.exists() and not path.is_file():
+            raise ValueError(f"Path {path} already exists and is not a file.")
+
+        with open(path, mode="wb") as f:
+            f.write(content)
         # Leave path stringify to the OS
         return str(path)
 
