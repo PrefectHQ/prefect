@@ -10,6 +10,7 @@ import anyio
 import fsspec
 from pydantic import BaseModel, Field, SecretStr, field_validator
 
+from prefect._internal.compatibility.async_dispatch import async_dispatch
 from prefect._internal.schemas.validators import (
     stringify_path,
     validate_basepath,
@@ -484,20 +485,26 @@ class SMB(WritableFileSystem, WritableDeploymentStorage):
         )
         return self._remote_file_system
 
-    @sync_compatible
-    async def get_directory(
+    async def aget_directory(
         self, from_path: Optional[str] = None, local_path: Optional[str] = None
-    ) -> bytes:
+    ) -> None:
         """
         Downloads a directory from a given remote path to a local directory.
         Defaults to downloading the entire contents of the block's basepath to the current working directory.
         """
-        return await self.filesystem.get_directory(
-            from_path=from_path, local_path=local_path
-        )
+        await self.filesystem.aget_directory(from_path=from_path, local_path=local_path)
 
-    @sync_compatible
-    async def put_directory(
+    @async_dispatch(aget_directory)
+    def get_directory(
+        self, from_path: Optional[str] = None, local_path: Optional[str] = None
+    ) -> None:
+        """
+        Downloads a directory from a given remote path to a local directory.
+        Defaults to downloading the entire contents of the block's basepath to the current working directory.
+        """
+        self.filesystem.get_directory(from_path=from_path, local_path=local_path)
+
+    async def aput_directory(
         self,
         local_path: Optional[str] = None,
         to_path: Optional[str] = None,
@@ -507,20 +514,44 @@ class SMB(WritableFileSystem, WritableDeploymentStorage):
         Uploads a directory from a given local path to a remote directory.
         Defaults to uploading the entire contents of the current working directory to the block's basepath.
         """
-        return await self.filesystem.put_directory(
+        return await self.filesystem.aput_directory(
             local_path=local_path,
             to_path=to_path,
             ignore_file=ignore_file,
             overwrite=False,
         )
 
-    @sync_compatible
-    async def read_path(self, path: str) -> bytes:
-        return await self.filesystem.read_path(path)
+    @async_dispatch(aput_directory)
+    def put_directory(
+        self,
+        local_path: Optional[str] = None,
+        to_path: Optional[str] = None,
+        ignore_file: Optional[str] = None,
+    ) -> int:
+        """
+        Uploads a directory from a given local path to a remote directory.
+        Defaults to uploading the entire contents of the current working directory to the block's basepath.
+        """
+        return self.filesystem.put_directory(
+            local_path=local_path,
+            to_path=to_path,
+            ignore_file=ignore_file,
+            overwrite=False,
+        )
 
-    @sync_compatible
-    async def write_path(self, path: str, content: bytes) -> str:
-        return await self.filesystem.write_path(path=path, content=content)
+    async def aread_path(self, path: str) -> bytes:
+        return await self.filesystem.aread_path(path)
+
+    @async_dispatch(aread_path)
+    def read_path(self, path: str) -> bytes:
+        return self.filesystem.read_path(path)
+
+    async def awrite_path(self, path: str, content: bytes) -> str:
+        return await self.filesystem.awrite_path(path=path, content=content)
+
+    @async_dispatch(awrite_path)
+    def write_path(self, path: str, content: bytes) -> str:
+        return self.filesystem.write_path(path=path, content=content)
 
 
 class NullFileSystem(BaseModel):
