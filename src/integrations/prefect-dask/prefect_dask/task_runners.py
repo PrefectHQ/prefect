@@ -358,17 +358,7 @@ class DaskTaskRunner(TaskRunner):
                         f"Failed to create {cluster_name} cluster: "
                         f"{type(e).__name__}: {str(e)}"
                     )
-
-                    # If not LocalCluster, try falling back
-                    if class_to_instantiate != distributed.LocalCluster:
-                        self.logger.warning(
-                            "Falling back to LocalCluster due to cluster creation failure"
-                        )
-                        self._connect_to = self._cluster = (
-                            self._exit_stack.enter_context(distributed.LocalCluster())
-                        )
-                    else:
-                        raise
+                    raise
 
                 if self.adapt_kwargs:
                     # self._cluster should be non-None here after instantiation
