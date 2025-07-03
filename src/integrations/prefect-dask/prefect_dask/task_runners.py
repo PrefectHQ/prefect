@@ -353,10 +353,9 @@ class DaskTaskRunner(TaskRunner):
                     self._connect_to = self._cluster = self._exit_stack.enter_context(
                         class_to_instantiate(**self.cluster_kwargs)
                     )
-                except Exception as e:
+                except Exception:
                     self.logger.error(
-                        f"Failed to create {cluster_name} cluster: "
-                        f"{type(e).__name__}: {str(e)}"
+                        f"Failed to create {cluster_name} cluster: ", exc_info=True
                     )
                     raise
 
