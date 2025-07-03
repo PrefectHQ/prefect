@@ -421,6 +421,50 @@ class TestRemoteFileSystem:
 
         assert (to_path / "test").exists()
 
+    async def test_async_dispatch_methods_work_in_async_context(self, tmp_path):
+        """Test that async_dispatch methods work correctly when called from async context"""
+        fs = RemoteFileSystem(basepath="memory://test")
+
+        # Test write_path/read_path
+        await fs.write_path("test.txt", content=b"hello async")
+        content = await fs.read_path("test.txt")
+        assert content == b"hello async"
+
+        # Test get_directory/put_directory
+        local_dir = tmp_path / "local"
+        local_dir.mkdir()
+        (local_dir / "file.txt").write_text("test content")
+
+        await fs.put_directory(local_path=str(local_dir), to_path="uploaded")
+
+        result_dir = tmp_path / "result"
+        result_dir.mkdir()
+        await fs.get_directory(from_path="uploaded", local_path=str(result_dir))
+
+        assert (result_dir / "file.txt").read_text() == "test content"
+
+    def test_async_dispatch_methods_work_in_sync_context(self, tmp_path):
+        """Test that async_dispatch methods work correctly when called from sync context"""
+        fs = RemoteFileSystem(basepath="memory://test")
+
+        # Test write_path/read_path - should use sync implementation
+        fs.write_path("test.txt", content=b"hello sync")
+        content = fs.read_path("test.txt")
+        assert content == b"hello sync"
+
+        # Test get_directory/put_directory - should use sync implementation
+        local_dir = tmp_path / "local"
+        local_dir.mkdir()
+        (local_dir / "file.txt").write_text("test content")
+
+        fs.put_directory(local_path=str(local_dir), to_path="uploaded")
+
+        result_dir = tmp_path / "result"
+        result_dir.mkdir()
+        fs.get_directory(from_path="uploaded", local_path=str(result_dir))
+
+        assert (result_dir / "file.txt").read_text() == "test content"
+
     @pytest.mark.parametrize("null_value", {None, ""})
     async def test_put_directory_empty_from_path_uses_basepath(
         self, tmp_path: Path, null_value
