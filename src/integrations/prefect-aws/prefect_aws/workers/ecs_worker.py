@@ -765,7 +765,10 @@ class ECSWorker(BaseWorker):
 
         self._validate_task_definition(task_definition, configuration)
 
-        _TASK_DEFINITION_CACHE[flow_run.deployment_id] = task_definition_arn
+        if flow_run.deployment_id:
+            _TASK_DEFINITION_CACHE[flow_run.deployment_id] = task_definition_arn
+        else:
+            _TASK_DEFINITION_CACHE[flow_run.flow_id] = task_definition_arn
 
         logger.info(f"Using ECS task definition {task_definition_arn!r}...")
         logger.debug(
@@ -810,7 +813,7 @@ class ECSWorker(BaseWorker):
         ecs_client: _ECSClient,
         configuration: ECSJobConfiguration,
         flow_run: FlowRun,
-        task_definition: dict,
+        task_definition: dict[str, Any],
     ) -> Tuple[str, bool]:
         """Get or register a task definition for the given flow run.
 
@@ -818,7 +821,11 @@ class ECSWorker(BaseWorker):
         definition is newly registered.
         """
 
-        cached_task_definition_arn = _TASK_DEFINITION_CACHE.get(flow_run.deployment_id)
+        cached_task_definition_arn = (
+            _TASK_DEFINITION_CACHE.get(flow_run.deployment_id)
+            if flow_run.deployment_id
+            else _TASK_DEFINITION_CACHE.get(flow_run.flow_id)
+        )
         new_task_definition_registered = False
 
         if cached_task_definition_arn:
@@ -1286,16 +1293,19 @@ class ECSWorker(BaseWorker):
                 )
             time.sleep(configuration.task_watch_poll_interval)
 
-    def _get_or_generate_family(self, task_definition: dict, flow_run: FlowRun) -> str:
+    def _get_or_generate_family(
+        self, task_definition: dict[str, Any], flow_run: FlowRun
+    ) -> str:
         """
         Gets or generate a family for the task definition.
         """
         family = task_definition.get("family")
         if not family:
-            assert self._work_pool_name and flow_run.deployment_id
-            family = (
-                f"{ECS_DEFAULT_FAMILY}_{self._work_pool_name}_{flow_run.deployment_id}"
-            )
+            family_prefix = f"{ECS_DEFAULT_FAMILY}_{self._work_pool_name}"
+            if flow_run.deployment_id:
+                family = f"{family_prefix}_{flow_run.deployment_id}"
+            else:
+                family = f"{family_prefix}_{flow_run.flow_id}"
         slugify(
             family,
             max_length=255,
@@ -1308,7 +1318,7 @@ class ECSWorker(BaseWorker):
         configuration: ECSJobConfiguration,
         region: str,
         flow_run: FlowRun,
-    ) -> dict:
+    ) -> dict[str, Any]:
         """
         Prepare a task definition by inferring any defaults and merging overrides.
         """
@@ -1357,7 +1367,9 @@ class ECSWorker(BaseWorker):
                 container["environment"].remove(item)
 
         if configuration.configure_cloudwatch_logs:
-            prefix = f"prefect-logs_{self._work_pool_name}_{flow_run.deployment_id}"
+            prefix = f"prefect-logs_{self._work_pool_name}"
+            if flow_run.deployment_id:
+                prefix = f"{prefix}_{flow_run.deployment_id}"
             container["logConfiguration"] = {
                 "logDriver": "awslogs",
                 "options": {

@@ -55,6 +55,11 @@ def flow_run():
 
 
 @pytest.fixture
+def flow_run_no_deployment():
+    return FlowRun(flow_id=uuid4())
+
+
+@pytest.fixture
 def container_status_code():
     yield MagicMock(return_value=0)
 
@@ -1717,6 +1722,35 @@ async def test_worker_caches_registered_task_definitions(
 
 
 @pytest.mark.usefixtures("ecs_mocks")
+async def test_worker_caches_registered_task_definitions_no_deployment(
+    aws_credentials: AwsCredentials, flow_run_no_deployment: FlowRun
+):
+    configuration = await construct_configuration(
+        aws_credentials=aws_credentials, command="echo test"
+    )
+
+    session = aws_credentials.get_boto3_session()
+    ecs_client = session.client("ecs")
+
+    async with ECSWorker(work_pool_name="test") as worker:
+        result_1 = await run_then_stop_task(
+            worker, configuration, flow_run_no_deployment
+        )
+        result_2 = await run_then_stop_task(
+            worker, configuration, flow_run_no_deployment
+        )
+
+    assert result_2.status_code == 0
+    _, task_arn_1 = parse_identifier(result_1.identifier)
+    task_1 = describe_task(ecs_client, task_arn_1)
+    _, task_arn_2 = parse_identifier(result_2.identifier)
+    task_2 = describe_task(ecs_client, task_arn_2)
+
+    assert task_1["taskDefinitionArn"] == task_2["taskDefinitionArn"]
+    assert flow_run_no_deployment.flow_id in _TASK_DEFINITION_CACHE
+
+
+@pytest.mark.usefixtures("ecs_mocks")
 async def test_worker_cache_miss_for_registered_task_definitions_clears_from_cache(
     aws_credentials: AwsCredentials, flow_run: FlowRun
 ):
@@ -1751,7 +1785,7 @@ async def test_worker_cache_miss_for_registered_task_definitions_clears_from_cac
 
 
 @pytest.mark.usefixtures("ecs_mocks")
-async def test_worker_task_definition_cache_is_per_deployment_id(
+async def test_worker_task_definition_cache_is_per_deployment_id_or_flow_id(
     aws_credentials: AwsCredentials, flow_run: FlowRun
 ):
     configuration = await construct_configuration(
@@ -1768,15 +1802,27 @@ async def test_worker_task_definition_cache_is_per_deployment_id(
             configuration,
             flow_run.model_copy(update=dict(deployment_id=uuid4())),
         )
+        result_3 = await run_then_stop_task(
+            worker,
+            configuration,
+            flow_run.model_copy(update=dict(deployment_id=None)),
+        )
 
     assert result_2.status_code == 0
+    assert result_3.status_code == 0
 
     _, task_arn_1 = parse_identifier(result_1.identifier)
     task_1 = describe_task(ecs_client, task_arn_1)
     _, task_arn_2 = parse_identifier(result_2.identifier)
     task_2 = describe_task(ecs_client, task_arn_2)
+    _, task_arn_3 = parse_identifier(result_3.identifier)
+    task_3 = describe_task(ecs_client, task_arn_3)
 
-    assert task_1["taskDefinitionArn"] != task_2["taskDefinitionArn"]
+    assert (
+        task_1["taskDefinitionArn"]
+        != task_2["taskDefinitionArn"]
+        != task_3["taskDefinitionArn"]
+    )
 
 
 @pytest.mark.usefixtures("ecs_mocks")
@@ -2390,6 +2436,30 @@ async def test_get_or_generate_family(
 
     async with ECSWorker(work_pool_name=work_pool_name) as worker:
         result = await run_then_stop_task(worker, configuration, flow_run)
+
+    assert result.status_code == 0
+    _, task_arn = parse_identifier(result.identifier)
+
+    task = describe_task(ecs_client, task_arn)
+    task_definition = describe_task_definition(ecs_client, task)
+    assert task_definition["family"] == family
+
+
+@pytest.mark.usefixtures("ecs_mocks")
+async def test_get_or_generate_family_no_deployment(
+    aws_credentials: AwsCredentials, flow_run_no_deployment: FlowRun
+):
+    configuration = await construct_configuration(
+        aws_credentials=aws_credentials,
+    )
+
+    work_pool_name = "test"
+    session = aws_credentials.get_boto3_session()
+    ecs_client = session.client("ecs")
+    family = f"{ECS_DEFAULT_FAMILY}_{work_pool_name}_{flow_run_no_deployment.flow_id}"
+
+    async with ECSWorker(work_pool_name="test") as worker:
+        result = await run_then_stop_task(worker, configuration, flow_run_no_deployment)
 
     assert result.status_code == 0
     _, task_arn = parse_identifier(result.identifier)
