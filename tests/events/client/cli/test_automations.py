@@ -715,7 +715,7 @@ def test_creating_automation_validation_error(
     invoke_and_assert(
         ["automations", "create", str(yaml_file)],
         expected_code=1,
-        expected_output_contains=["Failed to create automation:"],
+        expected_output_contains=["Failed to create 1 automation(s):"],
     )
 
     create_automation.assert_not_called()
@@ -764,7 +764,7 @@ def test_creating_multiple_automations_with_automations_key(
         ["automations", "create", str(yaml_file)],
         expected_code=0,
         expected_output_contains=[
-            "Created 2 automations:",
+            "Created 2 automation(s):",
             f"'First Automation' with id {automation_ids[0]}",
             f"'Second Automation' with id {automation_ids[1]}",
         ],
@@ -814,7 +814,7 @@ def test_creating_multiple_automations_as_list(
         ["automations", "create", str(json_file)],
         expected_code=0,
         expected_output_contains=[
-            "Created 2 automations:",
+            "Created 2 automation(s):",
             f"'First Automation' with id {automation_ids[0]}",
             f"'Second Automation' with id {automation_ids[1]}",
         ],
