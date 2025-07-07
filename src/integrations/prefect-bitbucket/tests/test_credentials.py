@@ -50,3 +50,11 @@ def test_bitbucket_get_client(client_type):
         assert isinstance(client, Bitbucket)
     else:
         assert isinstance(client, Cloud)
+
+
+def test_bitbucket_username_with_email_passes():
+    """Ensure email-style usernames are accepted."""
+    creds = BitBucketCredentials(
+        token="dummy-token", username="devops.team+ci@scalefocus.com"
+    )
+    assert creds.username == "devops.team+ci@scalefocus.com"
