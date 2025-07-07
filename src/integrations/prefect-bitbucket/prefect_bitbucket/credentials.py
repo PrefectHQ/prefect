@@ -69,15 +69,15 @@ class BitBucketCredentials(CredentialsBlock):
 
     @field_validator("username")
     def _validate_username(cls, value: str) -> str:
-        """When username provided, will validate it."""
-        pattern = "^[A-Za-z0-9_-]*$"
+        """Allow common special characters used in Bitbucket usernames, such as email addresses."""
+        pattern = r"^[A-Za-z0-9@._+-]+$"
 
         if not re.match(pattern, value):
             raise ValueError(
-                "Username must be alpha, num, dash and/or underscore only."
+                "Username contains invalid characters. Allowed: letters, numbers, @ . _ + -"
             )
-        if not len(value) <= 30:
-            raise ValueError("Username cannot be longer than 30 chars.")
+        if len(value) > 100:
+            raise ValueError("Username cannot be longer than 100 characters.")
         return value
 
     def get_client(

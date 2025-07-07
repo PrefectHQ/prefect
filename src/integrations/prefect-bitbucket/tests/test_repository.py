@@ -275,3 +275,20 @@ class TestBitBucketRepository:
 
                 assert set(os.listdir(tmp_dst)) == set([sub_dir_name])
                 assert set(os.listdir(Path(tmp_dst) / sub_dir_name)) == child_contents
+
+    def test_create_repo_url_escapes_username_and_token(self):
+        """Ensure special characters in username and token are properly escaped."""
+        credentials = BitBucketCredentials(
+            username="devops.team+ci@scalefocus.com", token="p@ss:word#1"
+        )
+
+        block = BitBucketRepository(
+            repository="https://bitbucket.org/my-team/my-repo.git",
+            bitbucket_credentials=credentials,
+        )
+
+        url = block._create_repo_url()
+        assert (
+            url
+            == "https://devops.team%2Bci%40scalefocus.com:p%40ss%3Aword%231@bitbucket.org/my-team/my-repo.git"
+        )
