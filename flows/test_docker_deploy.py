@@ -45,7 +45,7 @@ def main():
             dedent(
                 """
                 FROM prefecthq/prefect:3-latest
-                COPY flows/docker_deploy.py /opt/prefect/flows/docker_deploy.py
+                COPY flows/test_docker_deploy.py /opt/prefect/flows/test_docker_deploy.py
                 """
             )
         )

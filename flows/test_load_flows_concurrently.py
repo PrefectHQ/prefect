@@ -24,7 +24,7 @@ async def test_iteration():
     return len(flows)
 
 
-async def run_stress_test():
+async def test_load_flows_concurrently():
     for i in range(10):  # Run 10 iterations
         try:
             count = await test_iteration()
@@ -33,13 +33,3 @@ async def run_stress_test():
             print(f"Iteration {i + 1}: Failed with error: {str(e)}")
             return False
     return True
-
-
-def test_load_flows_concurrently():
-    success = asyncio.run(run_stress_test())
-    print(f"\nStress test {'passed' if success else 'failed'}")
-    assert success, "Stress test failed"
-
-
-if __name__ == "__main__":
-    test_load_flows_concurrently()

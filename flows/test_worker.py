@@ -27,27 +27,36 @@ def run_event_listener(events: List[Event]):
     asyncio.run(watch_worker_events(events))
 
 
-def main():
+def test_worker():
     events: List[Event] = []
 
     listener_thread = Thread(target=run_event_listener, args=(events,), daemon=True)
     listener_thread.start()
 
     subprocess.check_call(
-        ["python", "-m", "pip", "install", "prefect-kubernetes>=0.5.0"],
+        ["uv", "pip", "install", "prefect-kubernetes>=0.5.0"],
         stdout=sys.stdout,
         stderr=sys.stderr,
     )
     try:
         subprocess.check_output(
-            ["prefect", "work-pool", "delete", "test-worker-pool"],
+            ["uv", "run", "prefect", "work-pool", "delete", "test-worker-pool"],
         )
     except subprocess.CalledProcessError:
         pass
 
     try:
         subprocess.check_output(
-            ["prefect", "work-pool", "create", "test-worker-pool", "-t", "nonsense"],
+            [
+                "uv",
+                "run",
+                "prefect",
+                "work-pool",
+                "create",
+                "test-worker-pool",
+                "-t",
+                "nonsense",
+            ],
         )
     except subprocess.CalledProcessError as e:
         # Check that the error message contains kubernetes worker type
@@ -57,12 +66,23 @@ def main():
             )
 
     subprocess.check_call(
-        ["prefect", "work-pool", "create", "test-worker-pool", "-t", "kubernetes"],
+        [
+            "uv",
+            "run",
+            "prefect",
+            "work-pool",
+            "create",
+            "test-worker-pool",
+            "-t",
+            "kubernetes",
+        ],
         stdout=sys.stdout,
         stderr=sys.stderr,
     )
     subprocess.check_call(
         [
+            "uv",
+            "run",
             "prefect",
             "worker",
             "start",
@@ -76,12 +96,20 @@ def main():
         stderr=sys.stderr,
     )
     subprocess.check_call(
-        ["python", "-m", "pip", "uninstall", "prefect-kubernetes", "-y"],
+        ["uv", "pip", "uninstall", "prefect-kubernetes"],
         stdout=sys.stdout,
         stderr=sys.stderr,
     )
     subprocess.check_call(
-        ["prefect", "--no-prompt", "work-pool", "delete", "test-worker-pool"],
+        [
+            "uv",
+            "run",
+            "prefect",
+            "--no-prompt",
+            "work-pool",
+            "delete",
+            "test-worker-pool",
+        ],
         stdout=sys.stdout,
         stderr=sys.stderr,
     )
@@ -102,11 +130,3 @@ def main():
     assert stop_events[0].follows == start_events[0].id, (
         "Stop event should follow start event"
     )
-
-
-def test_worker():
-    main()
-
-
-if __name__ == "__main__":
-    test_worker()

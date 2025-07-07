@@ -51,7 +51,7 @@ async def run_ephemeral_server_with_auth() -> AsyncGenerator[str, None]:
             server.stop()
 
 
-async def smoke_test_authed_task_worker():
+async def test_authed_task_worker():
     async with run_ephemeral_server_with_auth() as api_url:
         try:
             with temporary_settings(
@@ -73,11 +73,3 @@ async def smoke_test_authed_task_worker():
         except Exception as e:
             print(f"task worker failed to connect: {e!r}")
             raise
-
-
-def test_task_worker():
-    anyio.run(smoke_test_authed_task_worker)
-
-
-if __name__ == "__main__":
-    test_task_worker()
