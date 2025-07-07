@@ -39,7 +39,3 @@ def test_flow_retries_with_subflows():
     assert result == "hello", f"Got {result}"
     assert flow_run_count == 3, f"Got {flow_run_count}"
     assert child_flow_run_count == 3, f"Got {child_flow_run_count}"
-
-
-if __name__ == "__main__":
-    test_flow_retries_with_subflows()

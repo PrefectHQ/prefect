@@ -1,5 +1,4 @@
 import signal
-import tempfile
 from datetime import timedelta
 from pathlib import Path
 from types import FrameType
@@ -23,7 +22,7 @@ def count_runs(counter_dir: Path):
     return len(list(counter_dir.glob("*.txt")))
 
 
-def test_serve_a_flow():
+def test_serve_a_flow(tmp_path: Path):
     TIMEOUT: int = 15
     INTERVAL_SECONDS: int = 3
 
@@ -32,29 +31,24 @@ def test_serve_a_flow():
     signal.signal(signal.SIGALRM, _handler)
     signal.alarm(TIMEOUT)
 
-    with tempfile.TemporaryDirectory() as tmp_dir:
-        counter_dir = Path(tmp_dir) / "flow_run_counter"
-        counter_dir.mkdir(exist_ok=True)
+    counter_dir = tmp_path / "flow_run_counter"
+    counter_dir.mkdir(exist_ok=True)
 
-        with temporary_settings({PREFECT_RUNNER_POLL_FREQUENCY: 1}):
-            try:
-                may_i_take_your_hat_sir.serve(
-                    interval=timedelta(seconds=INTERVAL_SECONDS),
-                    parameters={"item": "hat", "counter_dir": counter_dir},
-                )
-            except KeyboardInterrupt as e:
-                print(str(e))
-            finally:
-                signal.alarm(0)
+    with temporary_settings({PREFECT_RUNNER_POLL_FREQUENCY: 1}):
+        try:
+            may_i_take_your_hat_sir.serve(
+                interval=timedelta(seconds=INTERVAL_SECONDS),
+                parameters={"item": "hat", "counter_dir": counter_dir},
+            )
+        except KeyboardInterrupt as e:
+            print(str(e))
+        finally:
+            signal.alarm(0)
 
-        actual_run_count = count_runs(counter_dir)
+    actual_run_count = count_runs(counter_dir)
 
-        assert actual_run_count >= MINIMUM_EXPECTED_N_FLOW_RUNS, (
-            f"Expected at least {MINIMUM_EXPECTED_N_FLOW_RUNS} flow runs, got {actual_run_count}"
-        )
+    assert actual_run_count >= MINIMUM_EXPECTED_N_FLOW_RUNS, (
+        f"Expected at least {MINIMUM_EXPECTED_N_FLOW_RUNS} flow runs, got {actual_run_count}"
+    )
 
-        print(f"Successfully completed and audited {actual_run_count} flow runs")
-
-
-if __name__ == "__main__":
-    test_serve_a_flow()
+    print(f"Successfully completed and audited {actual_run_count} flow runs")

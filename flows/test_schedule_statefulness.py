@@ -53,7 +53,7 @@ def check_deployment_schedules(deployment_name: str) -> list[DeploymentSchedule]
         return deployment.schedules
 
 
-def main():
+def test_schedule_statefulness():
     # case 1: Schedule without slug
     print("\nTest case 1: Schedule without slug")
     run_serve_with_schedule(serve_kwargs={"schedules": [Cron("0 9 * * *")]})
@@ -74,11 +74,3 @@ def main():
         f"Expected named schedule to persist: {schedules}"
     )
     print("All tests passed!")
-
-
-def test_schedule_statefulness():
-    main()
-
-
-if __name__ == "__main__":
-    test_schedule_statefulness()

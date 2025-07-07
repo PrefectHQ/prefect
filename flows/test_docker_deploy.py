@@ -29,7 +29,7 @@ def flow_that_needs_pandas() -> str:
     return "we're done"
 
 
-def main():
+def test_docker_deploy():
     """
     Deploy and run a flow in a Docker container with runtime package installation using uv.
     Demonstrates using EXTRA_PIP_PACKAGES to install dependencies at runtime.
@@ -103,11 +103,3 @@ def main():
             stdout=sys.stdout,
             stderr=sys.stderr,
         )
-
-
-def test_docker_deploy():
-    main()
-
-
-if __name__ == "__main__":
-    test_docker_deploy()

@@ -33,7 +33,3 @@ def test_flow_retries():
     assert result == 2, f"Got {result}"
     assert flow_run_count == 3, f"Got {flow_run_count}"
     assert task_run_count == 1, f"Got {task_run_count}"
-
-
-if __name__ == "__main__":
-    test_flow_retries()

@@ -9,7 +9,3 @@ def hello(name: str = "world"):
 
 def test_hello_world():
     hello()
-
-
-if __name__ == "__main__":
-    hello()

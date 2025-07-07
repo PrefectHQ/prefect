@@ -34,7 +34,3 @@ def test_flow_pauses():
     result = pause_test()
     # Test passes if the flow completes the pause/resume cycle without error
     assert result is None  # Flow doesn't return anything, just completes
-
-
-if __name__ == "__main__":
-    test_flow_pauses()

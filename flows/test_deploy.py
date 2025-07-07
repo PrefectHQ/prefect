@@ -14,7 +14,7 @@ async def read_flow_run(flow_run_id):
         return await client.read_flow_run(flow_run_id)
 
 
-def main():
+def test_deploy():
     try:
         subprocess.check_call(
             ["prefect", "work-pool", "create", "test-deploy-pool", "-t", "process"],
@@ -59,11 +59,3 @@ def main():
         shutil.rmtree(
             Path(__file__).parent.parent / "prefect-recipes", ignore_errors=True
         )
-
-
-def test_deploy():
-    main()
-
-
-if __name__ == "__main__":
-    test_deploy()

@@ -23,7 +23,3 @@ def test_task_retries():
     result = hello()
     assert result == 1, f"Got {result}"
     assert run_count == 3, f"Got {run_count}"
-
-
-if __name__ == "__main__":
-    test_task_retries()

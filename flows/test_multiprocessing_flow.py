@@ -57,7 +57,3 @@ def test_multiprocessing_flow():
     assert [run.state.is_completed() for run in runs]
 
     print("Successfully ran a multiprocessing flow")
-
-
-if __name__ == "__main__":
-    test_multiprocessing_flow()

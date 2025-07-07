@@ -22,7 +22,3 @@ def save_and_load_secret():
 
 def test_secret_block():
     save_and_load_secret()
-
-
-if __name__ == "__main__":
-    test_secret_block()

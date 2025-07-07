@@ -7,6 +7,7 @@ from typing import Any, AsyncGenerator, Dict
 from uuid import uuid4
 
 import anyio
+import pytest
 
 from prefect import flow
 from prefect.client.orchestration import get_client
@@ -20,6 +21,8 @@ from prefect.events.filters import (
 )
 from prefect.logging import get_run_logger
 from prefect.types._datetime import now, parse_datetime
+
+SERVER_VERSION = os.getenv("SERVER_VERSION")
 
 
 @asynccontextmanager
@@ -312,33 +315,33 @@ async def assess_sequence_automation():
             raise Exception("Sequence automation did not trigger in 60s")
 
 
+@pytest.mark.skipif(
+    SERVER_VERSION == "9.9.9+for.the.tests",
+    reason="Prefect Cloud has its own automation assessment integration test, skipping",
+)
 async def test_reactive_automation():
     await assess_reactive_automation()
 
 
+@pytest.mark.skipif(
+    SERVER_VERSION == "9.9.9+for.the.tests",
+    reason="Prefect Cloud has its own automation assessment integration test, skipping",
+)
 async def test_proactive_automation():
     await assess_proactive_automation()
 
 
+@pytest.mark.skipif(
+    SERVER_VERSION == "9.9.9+for.the.tests",
+    reason="Prefect Cloud has its own automation assessment integration test, skipping",
+)
 async def test_compound_automation():
     await assess_compound_automation()
 
 
+@pytest.mark.skipif(
+    SERVER_VERSION == "9.9.9+for.the.tests",
+    reason="Prefect Cloud has its own automation assessment integration test, skipping",
+)
 async def test_sequence_automation():
     await assess_sequence_automation()
-
-
-def run_automation_assessments():
-    if os.getenv("SERVER_VERSION") == "9.9.9+for.the.tests":
-        print(
-            "Prefect Cloud has its own automation assessment integration test, skipping"
-        )
-    else:
-        asyncio.run(assess_reactive_automation())
-        asyncio.run(assess_proactive_automation())
-        asyncio.run(assess_compound_automation())
-        asyncio.run(assess_sequence_automation())
-
-
-if __name__ == "__main__":
-    run_automation_assessments()

@@ -22,7 +22,3 @@ def test_hello_tasks():
     result = hello(count=3)
     # Test passes if the flow completes without error
     assert result is None  # Flow doesn't return anything, just completes
-
-
-if __name__ == "__main__":
-    test_hello_tasks()

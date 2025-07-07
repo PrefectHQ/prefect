@@ -36,7 +36,3 @@ def test_task_results():
 
     result = api_state.result()
     assert result == "Hello!", f"Got {result!r}"
-
-
-if __name__ == "__main__":
-    test_task_results()
