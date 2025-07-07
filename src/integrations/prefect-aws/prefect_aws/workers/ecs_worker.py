@@ -1370,6 +1370,9 @@ class ECSWorker(BaseWorker):
             prefix = f"prefect-logs_{self._work_pool_name}"
             if flow_run.deployment_id:
                 prefix = f"{prefix}_{flow_run.deployment_id}"
+            else:
+                prefix = f"{prefix}_{flow_run.flow_id}"
+
             container["logConfiguration"] = {
                 "logDriver": "awslogs",
                 "options": {

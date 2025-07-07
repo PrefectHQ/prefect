@@ -1,6 +1,7 @@
 import json
 import logging
 from functools import partial
+from itertools import product
 from typing import Any, Awaitable, Callable, Dict, List, Optional
 from unittest.mock import ANY, MagicMock
 from unittest.mock import patch as mock_patch
@@ -1499,16 +1500,22 @@ async def test_run_task_error_handling(
 
 @pytest.mark.usefixtures("ecs_mocks")
 @pytest.mark.parametrize(
-    "cloudwatch_logs_options",
-    [
-        {
-            "awslogs-stream-prefix": "override-prefix",
-            "max-buffer-size": "2m",
-        },
-        {
-            "max-buffer-size": "2m",
-        },
-    ],
+    "cloudwatch_logs_options,flow_run",
+    product(
+        [
+            {
+                "awslogs-stream-prefix": "override-prefix",
+                "max-buffer-size": "2m",
+            },
+            {
+                "max-buffer-size": "2m",
+            },
+        ],
+        [
+            FlowRun(deployment_id=uuid4(), flow_id=uuid4()),
+            FlowRun(deployment_id=None, flow_id=uuid4()),
+        ],
+    ),
 )
 async def test_cloudwatch_log_options(
     aws_credentials: AwsCredentials, flow_run: FlowRun, cloudwatch_logs_options: dict
@@ -1533,9 +1540,12 @@ async def test_cloudwatch_log_options(
     task_definition = describe_task_definition(ecs_client, task)
 
     for container in task_definition["containerDefinitions"]:
-        prefix = f"prefect-logs_{work_pool_name}_{flow_run.deployment_id}"
         if cloudwatch_logs_options.get("awslogs-stream-prefix"):
             prefix = cloudwatch_logs_options["awslogs-stream-prefix"]
+        elif flow_run.deployment_id:
+            prefix = f"prefect-logs_{work_pool_name}_{flow_run.deployment_id}"
+        else:
+            prefix = f"prefect-logs_{work_pool_name}_{flow_run.flow_id}"
         if container["name"] == ECS_DEFAULT_CONTAINER_NAME:
             # Assert that the container has logging configured with user
             # provided options
