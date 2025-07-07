@@ -626,6 +626,52 @@ class TestRunner:
             dict(name="step-two-b"),
         ]
 
+    async def test_runner_deployment_clears_pull_steps_when_storage_removed(
+        self, prefect_client: PrefectClient, work_pool
+    ):
+        """Test that pull steps are cleared when storage is removed from a deployment.
+
+        This addresses issue #18335 where pull steps would persist after removing
+        storage, causing flow runs to fail.
+        """
+
+        @flow
+        def test_flow():
+            pass
+
+        # Create deployment with storage
+        deployment_with_storage = RunnerDeployment(
+            name="test-clear-pullsteps",
+            flow_name="test_flow",
+            work_pool_name=work_pool.name,
+            storage=_PullStepStorage(
+                pull_steps=[dict(name="step-one"), dict(name="step-two")]
+            ),
+        )
+
+        deployment_id = await deployment_with_storage.apply()
+        api_deployment = await prefect_client.read_deployment(deployment_id)
+
+        # Verify pull steps exist
+        assert api_deployment.pull_steps == [
+            dict(name="step-one"),
+            dict(name="step-two"),
+        ]
+
+        # Update deployment without storage (simulating switch to Docker)
+        deployment_no_storage = RunnerDeployment(
+            name="test-clear-pullsteps",
+            flow_name="test_flow",
+            work_pool_name=work_pool.name,
+            # No storage - pull steps should be cleared
+        )
+
+        await deployment_no_storage.apply()
+        api_deployment = await prefect_client.read_deployment(deployment_id)
+
+        # Verify pull steps were cleared
+        assert api_deployment.pull_steps is None
+
     @pytest.mark.parametrize(
         "kwargs",
         [
