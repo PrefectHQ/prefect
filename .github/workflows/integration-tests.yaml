@@ -85,7 +85,7 @@ jobs:
           PREFECT_API_URL: http://127.0.0.1:4200/api
           SERVER_VERSION: ${{ matrix.server-version.version }}
         run: >
-          uv run pytest flows/
+          uv run pytest flows/ -n auto
 
       - name: Show server logs
         if: always()
@@ -149,7 +149,7 @@ jobs:
         env:
           PREFECT_API_URL: http://127.0.0.1:4200/api
         run: >
-          uv run pytest flows/
+          uv run pytest flows/ -n auto
         
 
   sqlite-3-24-0:
