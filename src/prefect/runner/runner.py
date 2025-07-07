@@ -1289,6 +1289,7 @@ class Runner:
         stream_output: bool = True,
     ) -> Union[Optional[int], Exception]:
         run_logger = self._get_flow_run_logger(flow_run)
+        starting_run_count = flow_run.run_count
 
         try:
             process = await self._run_process(
@@ -1324,14 +1325,22 @@ class Runner:
             async with self._flow_run_process_map_lock:
                 self._flow_run_process_map.pop(flow_run.id, None)
 
-        if status_code != 0 and not self._rescheduling:
-            await self._propose_crashed_state(
+        api_flow_run = await self._client.read_flow_run(flow_run_id=flow_run.id)
+        terminal_state = api_flow_run.state
+        api_run_count = api_flow_run.run_count
+
+        is_still_running = (
+            terminal_state
+            and terminal_state.is_running()
+            and api_run_count == (starting_run_count + 1)
+        )
+
+        if status_code != 0 and not self._rescheduling and is_still_running:
+            terminal_state = await self._propose_crashed_state(
                 flow_run,
                 f"Flow run process exited with non-zero status code {status_code}.",
             )
 
-        api_flow_run = await self._client.read_flow_run(flow_run_id=flow_run.id)
-        terminal_state = api_flow_run.state
         if terminal_state and terminal_state.is_crashed():
             await self._run_on_crashed_hooks(flow_run=flow_run, state=terminal_state)
 
