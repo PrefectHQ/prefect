@@ -93,6 +93,9 @@ def async_dispatch(
             fn = sync_fn if should_run_sync else async_impl
             return fn(*args, **kwargs)
 
+        # Add the .aio attribute for compatibility with existing code that expects it
+        # (e.g., CLI commands, tests that mock .aio)
+        wrapper.aio = async_impl  # type: ignore
         return wrapper
 
     return decorator

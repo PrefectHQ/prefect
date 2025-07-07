@@ -107,7 +107,7 @@ async def test_graceful_retries_reraise_last_error_while_retrieving_missing_resu
     now = time.monotonic()
     with pytest.raises(FileNotFoundError):
         with mock.patch(
-            "prefect.filesystems.LocalFileSystem.read_path.aio",
+            "prefect.filesystems.LocalFileSystem.aread_path",
             new=mock.AsyncMock(
                 side_effect=[
                     OSError,
@@ -147,7 +147,7 @@ async def test_graceful_retries_eventually_succeed_while(
     # even if it misses a couple times, it will eventually return the data
     now = time.monotonic()
     with mock.patch(
-        "prefect.filesystems.LocalFileSystem.read_path.aio",
+        "prefect.filesystems.LocalFileSystem.aread_path",
         new=mock.AsyncMock(
             side_effect=[
                 FileNotFoundError,

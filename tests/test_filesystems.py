@@ -221,6 +221,50 @@ class TestLocalFileSystem:
             assert set(os.listdir(tmp_dst)) == set(expected_parent_contents)
             assert set(os.listdir(Path(tmp_dst) / sub_dir_name)) == set(child_contents)
 
+    async def test_async_dispatch_methods_work_in_async_context(self, tmp_path):
+        """Test that async_dispatch methods work correctly when called from async context"""
+        fs = LocalFileSystem(basepath=str(tmp_path))
+
+        # Test write_path/read_path
+        await fs.write_path("test.txt", content=b"hello async")
+        content = await fs.read_path("test.txt")
+        assert content == b"hello async"
+
+        # Test get_directory/put_directory
+        src_dir = tmp_path / "src"
+        src_dir.mkdir()
+        (src_dir / "file.txt").write_text("test content")
+
+        await fs.put_directory(local_path=str(src_dir), to_path="dst")
+
+        result_dir = tmp_path / "result"
+        result_dir.mkdir()
+        await fs.get_directory(from_path="dst", local_path=str(result_dir))
+
+        assert (result_dir / "file.txt").read_text() == "test content"
+
+    def test_async_dispatch_methods_work_in_sync_context(self, tmp_path):
+        """Test that async_dispatch methods work correctly when called from sync context"""
+        fs = LocalFileSystem(basepath=str(tmp_path))
+
+        # Test write_path/read_path - should use sync implementation
+        fs.write_path("test.txt", content=b"hello sync")
+        content = fs.read_path("test.txt")
+        assert content == b"hello sync"
+
+        # Test get_directory/put_directory - should use sync implementation
+        src_dir = tmp_path / "src"
+        src_dir.mkdir()
+        (src_dir / "file.txt").write_text("test content")
+
+        fs.put_directory(local_path=str(src_dir), to_path="dst")
+
+        result_dir = tmp_path / "result"
+        result_dir.mkdir()
+        fs.get_directory(from_path="dst", local_path=str(result_dir))
+
+        assert (result_dir / "file.txt").read_text() == "test content"
+
 
 class TestRemoteFileSystem:
     def test_must_contain_scheme(self):
