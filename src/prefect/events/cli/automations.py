@@ -345,3 +345,61 @@ async def delete(
                 exit_with_error("Deletion aborted.")
             await client.delete_automation(automation[0].id)
             exit_with_success(f"Deleted automation with name {name!r}")
+
+
+@automations_app.command()
+@requires_automations
+async def create(
+    automation_spec: str = typer.Argument(
+        ..., help="Path to YAML/JSON file or JSON string defining the automation"
+    ),
+):
+    """Create an automation from a YAML or JSON specification.
+
+    Arguments:
+        automation_spec: Path to a YAML/JSON file or a JSON string
+
+    Examples:
+        $ prefect automation create automation.yaml
+        $ prefect automation create automation.json
+        $ prefect automation create '{"name": "my-automation", "trigger": {...}, "actions": [...]}'
+    """
+    import os
+    from pathlib import Path
+
+    # Check if it's a file path
+    if os.path.exists(automation_spec):
+        file_path = Path(automation_spec)
+        with open(file_path, "r") as f:
+            content = f.read()
+
+        # Auto-detect format from file extension
+        if file_path.suffix.lower() in [".yaml", ".yml"]:
+            data = pyyaml.safe_load(content)
+        elif file_path.suffix.lower() == ".json":
+            data = orjson.loads(content)
+        else:
+            exit_with_error(
+                "File extension not recognized. Please use .yaml, .yml, or .json"
+            )
+    else:
+        # Try to parse as JSON string
+        try:
+            data = orjson.loads(automation_spec)
+        except orjson.JSONDecodeError:
+            exit_with_error(
+                "Invalid input. Please provide a valid file path or JSON string."
+            )
+
+    # Create the automation
+    try:
+        from prefect.events.schemas.automations import AutomationCore
+
+        automation = AutomationCore.model_validate(data)
+    except Exception as e:
+        exit_with_error(f"Failed to create automation: {e}")
+
+    async with get_client() as client:
+        automation_id = await client.create_automation(automation)
+
+    exit_with_success(f"Created automation '{automation.name}' with id {automation_id}")

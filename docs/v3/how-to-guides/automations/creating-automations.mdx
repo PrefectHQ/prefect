@@ -18,6 +18,36 @@ import { automations } from "/snippets/resource-management/vars.mdx"
 <COMBINED name="automations" hrefTF={automations.tf} hrefAPI={automations.api} hrefCLI={automations.cli} />
 
 
+### Create automations with the CLI
+
+You can create automations from YAML or JSON files using the Prefect CLI:
+
+```bash
+# Create from a YAML file
+prefect automation create automation.yaml
+
+# Create from a JSON file  
+prefect automation create automation.json
+
+# Create from a JSON string
+prefect automation create '{"name": "my-automation", "trigger": {...}, "actions": [...]}'
+```
+
+Here's an example YAML file that creates an automation to cancel long-running flows:
+
+```yaml
+name: Cancel Long Running Flows
+description: Cancels flows running longer than 5 minutes
+enabled: true
+trigger:
+  type: event
+  posture: Reactive
+  match_state_name: RUNNING
+  match_state_duration_s: 300  # 5 minutes
+actions:
+  - type: cancel-flow-run
+```
+
 ### Create automations with the Python SDK
 
 You can create and access any automation with the Python SDK's `Automation` class and its methods.
