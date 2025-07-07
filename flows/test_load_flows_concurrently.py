@@ -16,7 +16,7 @@ async def load_flow(entrypoint: str) -> Flow[..., Any]:
 
 async def test_iteration():
     entrypoints = [
-        "flows/hello-world.py:hello",
+        "flows/hello_world.py:hello",
         "flows/whoami.py:whoami",
     ] * 5  # Load each flow 5 times concurrently
     futures = [load_flow(entrypoint) for entrypoint in entrypoints]

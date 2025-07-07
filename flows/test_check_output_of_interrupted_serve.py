@@ -12,7 +12,7 @@ async def test_check_output_of_interrupted_serve():
 
     command = [
         python_executable,
-        str(Path(__file__).parent.resolve() / "test_serve_a_flow.py"),
+        str(Path(__file__).parent.resolve() / "serve_a_flow.py"),
     ]
 
     print(f"Running command: {command}")
