@@ -1,6 +1,6 @@
 ---
-title: How to use the Prefect API client
-sidebarTitle: Use the API client
+title: How to use and configure the API client
+sidebarTitle: Use and configure the API client
 ---
 
 ## Overview
@@ -42,6 +42,46 @@ with get_client(sync_client=True) as client:
 ```
 
 </CodeGroup>
+
+## Configure custom headers
+
+You can configure custom HTTP headers to be sent with every API request by setting the `PREFECT_CLIENT_CUSTOM_HEADERS` setting. This is useful for adding authentication headers, API keys, or other custom headers required by proxies, CDNs, or security systems.
+
+### Setting custom headers
+
+Custom headers can be configured via environment variables or settings. The headers are specified as key-value pairs in JSON format.
+
+<CodeGroup>
+
+```bash Environment variable
+export PREFECT_CLIENT_CUSTOM_HEADERS='{"CF-Access-Client-Id": "your-client-id", "CF-Access-Client-Secret": "your-secret"}'
+```
+
+```bash CLI
+prefect config set PREFECT_CLIENT_CUSTOM_HEADERS='{"CF-Access-Client-Id": "your-client-id", "CF-Access-Client-Secret": "your-secret"}'
+```
+
+```toml prefect.toml
+[client]
+custom_headers = '''{
+    "CF-Access-Client-Id": "your-client-id",
+    "CF-Access-Client-Secret": "your-secret",
+    "X-API-Key": "your-api-key"
+}'''
+```
+
+</CodeGroup>
+
+<Warning>
+**Protected headers**
+
+Certain headers are protected and cannot be overridden by custom headers for security reasons:
+- `User-Agent` - Managed by Prefect to identify client version
+- `Prefect-Csrf-Token` - Used for CSRF protection  
+- `Prefect-Csrf-Client` - Used for CSRF protection
+
+If you attempt to override these headers, Prefect will log a warning and ignore the custom header value.
+</Warning>
 
 ## Examples
 
