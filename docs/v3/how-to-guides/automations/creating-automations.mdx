@@ -33,6 +33,8 @@ prefect automation create automation.json
 prefect automation create '{"name": "my-automation", "trigger": {...}, "actions": [...]}'
 ```
 
+#### Single automation example
+
 Here's an example YAML file that creates an automation to cancel long-running flows:
 
 ```yaml
@@ -46,6 +48,58 @@ trigger:
   match_state_duration_s: 300  # 5 minutes
 actions:
   - type: cancel-flow-run
+```
+
+#### Multiple automations example
+
+You can also create multiple automations at once by using the `automations:` key:
+
+```yaml
+automations:
+  - name: Cancel Long Running Flows
+    description: Cancels flows running longer than 30 minutes
+    enabled: true
+    trigger:
+      type: event
+      posture: Reactive
+      expect:
+        - prefect.flow-run.Running
+      threshold: 1
+      for_each:
+        - prefect.resource.id
+    actions:
+      - type: cancel-flow-run
+        
+  - name: Notify on Flow Failure
+    description: Send notification when flows fail
+    enabled: true
+    trigger:
+      type: event
+      posture: Reactive
+      expect:
+        - prefect.flow-run.Failed
+      threshold: 1
+    actions:
+      - type: send-notification
+        subject: "Flow Failed: {{ event.resource.name }}"
+        body: "Flow run {{ event.resource.name }} has failed."
+```
+
+Or as a JSON array:
+
+```json
+[
+  {
+    "name": "First Automation",
+    "trigger": {...},
+    "actions": [...]
+  },
+  {
+    "name": "Second Automation", 
+    "trigger": {...},
+    "actions": [...]
+  }
+]
 ```
 
 ### Create automations with the Python SDK

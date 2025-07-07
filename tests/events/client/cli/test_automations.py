@@ -719,3 +719,160 @@ def test_creating_automation_validation_error(
     )
 
     create_automation.assert_not_called()
+
+
+def test_creating_multiple_automations_with_automations_key(
+    create_automation: mock.AsyncMock,
+    tmp_path,
+):
+    automation_ids = [uuid4(), uuid4()]
+    create_automation.side_effect = automation_ids
+
+    # Create a YAML file with multiple automations
+    yaml_file = tmp_path / "automations.yaml"
+    data = {
+        "automations": [
+            {
+                "name": "First Automation",
+                "description": "First test automation",
+                "enabled": True,
+                "trigger": {
+                    "type": "event",
+                    "posture": "Reactive",
+                    "expect": ["event.test"],
+                    "threshold": 1,
+                },
+                "actions": [{"type": "do-nothing"}],
+            },
+            {
+                "name": "Second Automation",
+                "description": "Second test automation",
+                "enabled": True,
+                "trigger": {
+                    "type": "event",
+                    "posture": "Reactive",
+                    "expect": ["event.test2"],
+                    "threshold": 1,
+                },
+                "actions": [{"type": "do-nothing"}],
+            },
+        ]
+    }
+    yaml_file.write_text(yaml.dump(data))
+
+    invoke_and_assert(
+        ["automations", "create", str(yaml_file)],
+        expected_code=0,
+        expected_output_contains=[
+            "Created 2 automations:",
+            f"'First Automation' with id {automation_ids[0]}",
+            f"'Second Automation' with id {automation_ids[1]}",
+        ],
+    )
+
+    assert create_automation.await_count == 2
+
+
+def test_creating_multiple_automations_as_list(
+    create_automation: mock.AsyncMock,
+    tmp_path,
+):
+    automation_ids = [uuid4(), uuid4()]
+    create_automation.side_effect = automation_ids
+
+    # Create a JSON file with automations as a list
+    json_file = tmp_path / "automations.json"
+    data = [
+        {
+            "name": "First Automation",
+            "description": "First test automation",
+            "enabled": True,
+            "trigger": {
+                "type": "event",
+                "posture": "Reactive",
+                "expect": ["event.test"],
+                "threshold": 1,
+            },
+            "actions": [{"type": "do-nothing"}],
+        },
+        {
+            "name": "Second Automation",
+            "description": "Second test automation",
+            "enabled": True,
+            "trigger": {
+                "type": "event",
+                "posture": "Reactive",
+                "expect": ["event.test2"],
+                "threshold": 1,
+            },
+            "actions": [{"type": "do-nothing"}],
+        },
+    ]
+    json_file.write_text(orjson.dumps(data).decode())
+
+    invoke_and_assert(
+        ["automations", "create", str(json_file)],
+        expected_code=0,
+        expected_output_contains=[
+            "Created 2 automations:",
+            f"'First Automation' with id {automation_ids[0]}",
+            f"'Second Automation' with id {automation_ids[1]}",
+        ],
+    )
+
+    assert create_automation.await_count == 2
+
+
+def test_creating_multiple_automations_rollback_on_error(
+    create_automation: mock.AsyncMock,
+    delete_automation: mock.AsyncMock,
+    tmp_path,
+):
+    # First automation succeeds, second fails
+    automation_id = uuid4()
+    create_automation.side_effect = [automation_id, Exception("Validation error")]
+
+    # Create a YAML file with multiple automations
+    yaml_file = tmp_path / "automations.yaml"
+    data = {
+        "automations": [
+            {
+                "name": "Good Automation",
+                "description": "This one works",
+                "enabled": True,
+                "trigger": {
+                    "type": "event",
+                    "posture": "Reactive",
+                    "expect": ["event.test"],
+                    "threshold": 1,
+                },
+                "actions": [{"type": "do-nothing"}],
+            },
+            {
+                "name": "Bad Automation",
+                "description": "This one fails",
+                "enabled": True,
+                "trigger": {
+                    "type": "event",
+                    "posture": "Reactive",
+                    "expect": ["event.test2"],
+                    "threshold": 1,
+                },
+                "actions": [{"type": "do-nothing"}],
+            },
+        ]
+    }
+    yaml_file.write_text(yaml.dump(data))
+
+    invoke_and_assert(
+        ["automations", "create", str(yaml_file)],
+        expected_code=1,
+        expected_output_contains=[
+            "Failed to create automation: Validation error",
+            "Rolled back 1 automations that were created",
+        ],
+    )
+
+    # Should have tried to create 2, then rolled back 1
+    assert create_automation.await_count == 2
+    delete_automation.assert_awaited_once_with(mock.ANY, automation_id)
