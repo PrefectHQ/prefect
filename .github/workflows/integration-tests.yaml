@@ -11,7 +11,7 @@ on:
       - ui/**
       - .nvmrc
       - Dockerfile
-      - flows/*
+      - tests/integration_flows/**
   push:
     branches:
       - main
@@ -85,7 +85,7 @@ jobs:
           PREFECT_API_URL: http://127.0.0.1:4200/api
           SERVER_VERSION: ${{ matrix.server-version.version }}
         run: >
-          uv run ./scripts/run-integration-flows.py flows/
+          uv run pytest tests/integration_flows -n auto -v
 
       - name: Show server logs
         if: always()
@@ -149,7 +149,7 @@ jobs:
         env:
           PREFECT_API_URL: http://127.0.0.1:4200/api
         run: >
-          ./scripts/run-integration-flows.py flows/
+          pytest tests/integration_flows -n auto -v
         
 
   sqlite-3-24-0:
