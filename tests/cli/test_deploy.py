@@ -22,6 +22,7 @@ from prefect.blocks.system import Secret
 from prefect.cli.deploy import (
     _create_deployment_triggers,
     _initialize_deployment_triggers,
+    _PullStepStorage,
 )
 from prefect.client.orchestration import PrefectClient, ServerType
 from prefect.client.schemas.actions import DeploymentScheduleCreate, WorkPoolCreate
@@ -34,6 +35,7 @@ from prefect.client.schemas.schedules import (
 from prefect.deployments.base import (
     initialize_project,
 )
+from prefect.deployments.runner import RunnerDeployment
 from prefect.deployments.steps.core import StepExecutionError
 from prefect.events import (
     DeploymentCompoundTrigger,
@@ -6128,3 +6130,36 @@ class TestDeployingUsingCustomPrefectFile:
                 "Is a directory: '.'. Skipping."
             ],
         )
+
+    async def test_runner_deployment_pull_step_storage_validation(
+        self, prefect_client: PrefectClient, work_pool: WorkPool
+    ):
+        """Regression test for https://github.com/PrefectHQ/prefect/issues/17303"""
+
+        deployment = RunnerDeployment(
+            name="test-validation-deployment",
+            flow_name="test_flow",
+            work_pool_name=work_pool.name,
+            storage=_PullStepStorage(None),
+        )
+
+        assert await deployment.apply()
+
+        # Create a valid deployment first for update testing
+        valid_deployment = RunnerDeployment(
+            name="test-validation-deployment",
+            flow_name="test_flow",
+            work_pool_name=work_pool.name,
+            storage=_PullStepStorage([{"step": "example"}]),
+        )
+        await valid_deployment.apply()
+
+        # test update
+        invalid_update_deployment = RunnerDeployment(
+            name="test-validation-deployment",
+            flow_name="test_flow",
+            work_pool_name=work_pool.name,
+            storage=_PullStepStorage(None),
+        )
+
+        assert await invalid_update_deployment.apply()
