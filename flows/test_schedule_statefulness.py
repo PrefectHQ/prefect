@@ -17,12 +17,13 @@ this integration test should
 
 import signal
 from typing import Any
+from uuid import uuid4
 
 from prefect import flow, get_client
 from prefect.client.schemas.objects import DeploymentSchedule
 from prefect.schedules import Cron
 
-DEPLOYMENT_NAME = "my-deployment"
+DEPLOYMENT_NAME = f"my-deployment-{uuid4()}"
 
 
 @flow
