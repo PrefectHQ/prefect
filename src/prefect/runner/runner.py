@@ -1337,6 +1337,9 @@ class Runner:
         )
 
         if status_code != 0 and not self._rescheduling and is_still_running:
+            run_logger.info(
+                f"Flow run '{flow_run.id}' exited with non-zero status code {status_code} but is still in a running state. Marking as crashed."
+            )
             terminal_state = await self._propose_crashed_state(
                 flow_run,
                 f"Flow run process exited with non-zero status code {status_code}.",
