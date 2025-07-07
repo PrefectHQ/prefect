@@ -430,7 +430,7 @@ class RunnerDeployment(BaseModel):
                 pull_steps = [pull_steps]
             update_payload["pull_steps"] = pull_steps
         else:
-            update_payload["pull_steps"] = []
+            update_payload["pull_steps"] = None
 
         await client.update_deployment(
             deployment_id,

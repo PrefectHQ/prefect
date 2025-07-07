@@ -670,7 +670,7 @@ class TestRunner:
         api_deployment = await prefect_client.read_deployment(deployment_id)
 
         # Verify pull steps were cleared
-        assert api_deployment.pull_steps == []
+        assert api_deployment.pull_steps is None
 
     @pytest.mark.parametrize(
         "kwargs",
