@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import copy
+import json
 import os
 import textwrap
 import warnings
@@ -2371,6 +2372,11 @@ class TestSettingValues:
                     exclude_unset=True
                 )[setting]
                 assert env_value.split(",") == to_jsonable_python(value)
+            elif setting == "PREFECT_CLIENT_CUSTOM_HEADERS":
+                # this setting starts as a string and loads as a dictionary
+                assert settings_value == json.loads(value)
+                # get value from legacy setting object
+                assert getattr(prefect.settings, setting).value() == json.loads(value)
             else:
                 assert settings_value == value
                 # get value from legacy setting object
