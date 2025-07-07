@@ -3,6 +3,7 @@ import subprocess
 import sys
 from threading import Thread
 from typing import List
+from uuid import uuid4
 
 import uv
 
@@ -30,6 +31,7 @@ def run_event_listener(events: List[Event]):
 
 
 def test_worker():
+    WORKER_NAME = f"test-worker-{uuid4()}"  # noqa: F821
     events: List[Event] = []
 
     listener_thread = Thread(target=run_event_listener, args=(events,), daemon=True)
@@ -99,6 +101,8 @@ def test_worker():
             "test-worker-pool",
             "-t",
             "kubernetes",
+            "-n",
+            WORKER_NAME,
             "--run-once",
         ],
         stdout=sys.stdout,
@@ -123,7 +127,11 @@ def test_worker():
         stderr=sys.stderr,
     )
 
-    worker_events = [e for e in events if e.event.startswith("prefect.worker.")]
+    worker_events = [
+        e
+        for e in events
+        if e.event.startswith("prefect.worker.") and e.resource.name == WORKER_NAME
+    ]
     assert len(worker_events) == 2, (
         f"Expected 2 worker events, got {len(worker_events)}"
     )
