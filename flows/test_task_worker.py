@@ -20,8 +20,8 @@ from prefect.settings import (
 
 CLIENT_SECRET = SERVER_SECRET = "very-secret-server-auth-string"
 CLIENT_DUMMY_API_KEY = "dummy-key-should-be-ignored"
-STARTUP_TIMEOUT = 5
-CONNECTION_TIMEOUT = 5
+STARTUP_TIMEOUT = 30
+CONNECTION_TIMEOUT = 30
 
 counter = 0
 

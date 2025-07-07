@@ -4,6 +4,8 @@ import sys
 from pathlib import Path
 from textwrap import dedent
 
+import uv
+
 from prefect import flow, get_client
 from prefect.deployments import run_deployment
 from prefect.docker.docker_image import DockerImage
@@ -72,6 +74,10 @@ def main():
             timeout=0,
         )
 
+        subprocess.check_call(
+            [uv.find_uv_bin(), "pip", "install", "prefect-docker"],
+        )
+
         # Execute the flow run
         subprocess.check_call(
             [
@@ -81,8 +87,6 @@ def main():
                 "--pool",
                 "test-docker-pool",
                 "--run-once",
-                "--install-policy",
-                "if-not-present",
             ],
             stdout=sys.stdout,
             stderr=sys.stderr,

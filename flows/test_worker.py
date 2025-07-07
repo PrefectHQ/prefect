@@ -4,6 +4,8 @@ import sys
 from threading import Thread
 from typing import List
 
+import uv
+
 from prefect.events import Event
 from prefect.events.clients import get_events_subscriber
 from prefect.events.filters import EventFilter, EventNameFilter, EventOccurredFilter
@@ -34,13 +36,20 @@ def test_worker():
     listener_thread.start()
 
     subprocess.check_call(
-        ["uv", "pip", "install", "prefect-kubernetes>=0.5.0"],
+        [uv.find_uv_bin(), "pip", "install", "prefect-kubernetes>=0.5.0"],
         stdout=sys.stdout,
         stderr=sys.stderr,
     )
     try:
         subprocess.check_output(
-            ["uv", "run", "prefect", "work-pool", "delete", "test-worker-pool"],
+            [
+                uv.find_uv_bin(),
+                "run",
+                "prefect",
+                "work-pool",
+                "delete",
+                "test-worker-pool",
+            ],
         )
     except subprocess.CalledProcessError:
         pass
@@ -48,7 +57,7 @@ def test_worker():
     try:
         subprocess.check_output(
             [
-                "uv",
+                uv.find_uv_bin(),
                 "run",
                 "prefect",
                 "work-pool",
@@ -67,7 +76,7 @@ def test_worker():
 
     subprocess.check_call(
         [
-            "uv",
+            uv.find_uv_bin(),
             "run",
             "prefect",
             "work-pool",
@@ -81,7 +90,7 @@ def test_worker():
     )
     subprocess.check_call(
         [
-            "uv",
+            uv.find_uv_bin(),
             "run",
             "prefect",
             "worker",
@@ -102,7 +111,7 @@ def test_worker():
     )
     subprocess.check_call(
         [
-            "uv",
+            uv.find_uv_bin(),
             "run",
             "prefect",
             "--no-prompt",
