@@ -823,9 +823,8 @@ def test_creating_multiple_automations_as_list(
     assert create_automation.await_count == 2
 
 
-def test_creating_multiple_automations_rollback_on_error(
+def test_creating_multiple_automations_with_partial_failure(
     create_automation: mock.AsyncMock,
-    delete_automation: mock.AsyncMock,
     tmp_path,
 ):
     # First automation succeeds, second fails
@@ -868,11 +867,11 @@ def test_creating_multiple_automations_rollback_on_error(
         ["automations", "create", str(yaml_file)],
         expected_code=1,
         expected_output_contains=[
-            "Failed to create automation: Validation error",
-            "Rolled back 1 automations that were created",
+            "Failed to create 1 automation(s):",
+            "Bad Automation: Validation error",
+            "Created 1 automation(s):",
+            f"'Good Automation' with id {automation_id}",
         ],
     )
 
-    # Should have tried to create 2, then rolled back 1
     assert create_automation.await_count == 2
-    delete_automation.assert_awaited_once_with(mock.ANY, automation_id)

@@ -3,6 +3,8 @@ Command line interface for working with automations.
 """
 
 import functools
+import os
+from pathlib import Path
 from typing import Any, Callable, Optional, Type
 from uuid import UUID
 
@@ -18,7 +20,7 @@ from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import exit_with_error, exit_with_success
 from prefect.cli.root import app, is_interactive
 from prefect.client.orchestration import get_client
-from prefect.events.schemas.automations import Automation
+from prefect.events.schemas.automations import Automation, AutomationCore
 from prefect.exceptions import PrefectHTTPStatusError
 
 automations_app: PrefectTyper = PrefectTyper(
@@ -364,16 +366,11 @@ async def create(
         $ prefect automation create automation.json
         $ prefect automation create '{"name": "my-automation", "trigger": {...}, "actions": [...]}'
     """
-    import os
-    from pathlib import Path
-
-    # Check if it's a file path
     if os.path.exists(automation_spec):
         file_path = Path(automation_spec)
         with open(file_path, "r") as f:
             content = f.read()
 
-        # Auto-detect format from file extension
         if file_path.suffix.lower() in [".yaml", ".yml"]:
             data = pyyaml.safe_load(content)
         elif file_path.suffix.lower() == ".json":
@@ -383,7 +380,6 @@ async def create(
                 "File extension not recognized. Please use .yaml, .yml, or .json"
             )
     else:
-        # Try to parse as JSON string
         try:
             data = orjson.loads(automation_spec)
         except orjson.JSONDecodeError:
@@ -391,48 +387,41 @@ async def create(
                 "Invalid input. Please provide a valid file path or JSON string."
             )
 
-    # Parse automations - support both single and multiple formats
-    from prefect.events.schemas.automations import AutomationCore
-
     automations_data = []
-
-    # Check if this is a multi-automation file
     if isinstance(data, dict) and "automations" in data:
         automations_data = data["automations"]
     elif isinstance(data, list):
         automations_data = data
     else:
-        # Single automation
         automations_data = [data]
 
-    # Validate and create all automations
     created = []
+    failed = []
     async with get_client() as client:
-        for automation_data in automations_data:
+        for i, automation_data in enumerate(automations_data):
             try:
                 automation = AutomationCore.model_validate(automation_data)
                 automation_id = await client.create_automation(automation)
                 created.append((automation.name, automation_id))
             except Exception as e:
-                # Clean up any created automations on error
-                for name, aid in created:
-                    try:
-                        await client.delete_automation(aid)
-                    except Exception:
-                        pass
-                exit_with_error(
-                    f"Failed to create automation: {e}\n"
-                    f"Rolled back {len(created)} automations that were created."
-                )
+                name = automation_data.get("name", f"automation at index {i}")
+                failed.append((name, str(e)))
 
-    # Report success
-    if len(created) == 1:
-        name, automation_id = created[0]
-        exit_with_success(f"Created automation '{name}' with id {automation_id}")
+    if failed:
+        app.console.print(f"[red]Failed to create {len(failed)} automation(s):[/red]")
+        for name, error in failed:
+            app.console.print(f"  - {name}: {error}")
+
+    if created:
+        if len(created) == 1 and not failed:
+            name, automation_id = created[0]
+            exit_with_success(f"Created automation '{name}' with id {automation_id}")
+        else:
+            app.console.print(f"[green]Created {len(created)} automation(s):[/green]")
+            for name, automation_id in created:
+                app.console.print(f"  - '{name}' with id {automation_id}")
+
+    if failed:
+        raise typer.Exit(1)
     else:
-        from prefect.cli.root import app
-
-        app.console.print(f"Created {len(created)} automations:")
-        for name, automation_id in created:
-            app.console.print(f"  - '{name}' with id {automation_id}")
         raise typer.Exit(0)
