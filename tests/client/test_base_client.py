@@ -934,6 +934,44 @@ class TestCustomHeaders:
                     # (they get added later in the request lifecycle)
                     assert protected_header.lower() not in client.headers
 
+    async def test_protected_headers_warning_logged(self, caplog):
+        """Test that warning is logged when protected headers are attempted."""
+        import logging
+
+        malicious_headers = {
+            "User-Agent": "malicious-agent",
+            "Prefect-Csrf-Token": "fake-token",
+        }
+
+        with temporary_settings({PREFECT_CLIENT_CUSTOM_HEADERS: malicious_headers}):
+            with caplog.at_level(logging.WARNING):
+                async with PrefectHttpxAsyncClient(base_url="http://localhost:4200"):
+                    pass
+
+            # Should have logged warnings for both protected headers
+            warning_messages = [
+                record.message
+                for record in caplog.records
+                if record.levelname == "WARNING"
+            ]
+
+            # Check that warnings were logged for protected headers
+            user_agent_warning = any(
+                "User-Agent" in msg and "ignored because it conflicts" in msg
+                for msg in warning_messages
+            )
+            csrf_warning = any(
+                "Prefect-Csrf-Token" in msg and "ignored because it conflicts" in msg
+                for msg in warning_messages
+            )
+
+            assert user_agent_warning, (
+                f"Expected User-Agent warning not found in: {warning_messages}"
+            )
+            assert csrf_warning, (
+                f"Expected Prefect-Csrf-Token warning not found in: {warning_messages}"
+            )
+
 
 class TestDetermineServerType:
     @pytest.mark.parametrize(

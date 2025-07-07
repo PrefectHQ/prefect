@@ -211,11 +211,17 @@ class PrefectHttpxAsyncClient(httpx.AsyncClient):
         custom_headers = get_current_settings().client.custom_headers
         for header_name, header_value in custom_headers.items():
             # Prevent overriding critical headers
-            if header_name.lower() not in {
+            if header_name.lower() in {
                 "user-agent",
                 "prefect-csrf-token",
                 "prefect-csrf-client",
             }:
+                logger.warning(
+                    f"Custom header '{header_name}' is ignored because it conflicts with "
+                    f"a protected header managed by Prefect. Protected headers include: "
+                    f"User-Agent, Prefect-Csrf-Token, Prefect-Csrf-Client"
+                )
+            else:
                 self.headers[header_name] = header_value
 
     async def _send_with_retry(
@@ -448,11 +454,17 @@ class PrefectHttpxSyncClient(httpx.Client):
         custom_headers = get_current_settings().client.custom_headers
         for header_name, header_value in custom_headers.items():
             # Prevent overriding critical headers
-            if header_name.lower() not in {
+            if header_name.lower() in {
                 "user-agent",
                 "prefect-csrf-token",
                 "prefect-csrf-client",
             }:
+                logger.warning(
+                    f"Custom header '{header_name}' is ignored because it conflicts with "
+                    f"a protected header managed by Prefect. Protected headers include: "
+                    f"User-Agent, Prefect-Csrf-Token, Prefect-Csrf-Client"
+                )
+            else:
                 self.headers[header_name] = header_value
 
     def _send_with_retry(
