@@ -24,8 +24,16 @@ def hello():
     return first + 1
 
 
-if __name__ == "__main__":
+def test_flow_retries():
+    global flow_run_count, task_run_count
+    flow_run_count = 0
+    task_run_count = 0
+
     result = hello()
     assert result == 2, f"Got {result}"
     assert flow_run_count == 3, f"Got {flow_run_count}"
     assert task_run_count == 1, f"Got {task_run_count}"
+
+
+if __name__ == "__main__":
+    test_flow_retries()

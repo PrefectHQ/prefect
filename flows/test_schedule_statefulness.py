@@ -76,5 +76,9 @@ def main():
     print("All tests passed!")
 
 
-if __name__ == "__main__":
+def test_schedule_statefulness():
     main()
+
+
+if __name__ == "__main__":
+    test_schedule_statefulness()

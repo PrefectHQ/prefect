@@ -75,5 +75,9 @@ async def smoke_test_authed_task_worker():
             raise
 
 
-if __name__ == "__main__":
+def test_task_worker():
     anyio.run(smoke_test_authed_task_worker)
+
+
+if __name__ == "__main__":
+    test_task_worker()

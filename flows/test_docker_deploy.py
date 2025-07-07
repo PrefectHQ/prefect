@@ -101,5 +101,9 @@ def main():
         )
 
 
-if __name__ == "__main__":
+def test_docker_deploy():
     main()
+
+
+if __name__ == "__main__":
+    test_docker_deploy()

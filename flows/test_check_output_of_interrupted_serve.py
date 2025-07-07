@@ -13,7 +13,7 @@ async def main():
 
     command = [
         python_executable,
-        str(Path(__file__).parent.resolve() / "serve_a_flow.py"),
+        str(Path(__file__).parent.resolve() / "test_serve_a_flow.py"),
     ]
 
     print(f"Running command: {command}")
@@ -47,5 +47,9 @@ async def main():
     print("All expected log messages were found")
 
 
-if __name__ == "__main__":
+def test_check_output_of_interrupted_serve():
     asyncio.run(main())
+
+
+if __name__ == "__main__":
+    test_check_output_of_interrupted_serve()

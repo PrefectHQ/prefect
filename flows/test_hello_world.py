@@ -7,5 +7,9 @@ def hello(name: str = "world"):
     get_run_logger().info(f"Hello {name}!")
 
 
+def test_hello_world():
+    hello()
+
+
 if __name__ == "__main__":
     hello()

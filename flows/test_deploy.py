@@ -61,5 +61,9 @@ def main():
         )
 
 
-if __name__ == "__main__":
+def test_deploy():
     main()
+
+
+if __name__ == "__main__":
+    test_deploy()

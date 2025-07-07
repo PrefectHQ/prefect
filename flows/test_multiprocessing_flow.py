@@ -32,7 +32,7 @@ def _handler(signum, frame):
     raise KeyboardInterrupt("Simulating user interruption")
 
 
-if __name__ == "__main__":
+def test_multiprocessing_flow():
     TIMEOUT: int = 15
     INTERVAL_SECONDS: int = 3
     TAGS = ["unique", "integration"]
@@ -57,3 +57,7 @@ if __name__ == "__main__":
     assert [run.state.is_completed() for run in runs]
 
     print("Successfully ran a multiprocessing flow")
+
+
+if __name__ == "__main__":
+    test_multiprocessing_flow()

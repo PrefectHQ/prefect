@@ -35,6 +35,11 @@ async def run_stress_test():
     return True
 
 
-if __name__ == "__main__":
+def test_load_flows_concurrently():
     success = asyncio.run(run_stress_test())
     print(f"\nStress test {'passed' if success else 'failed'}")
+    assert success, "Stress test failed"
+
+
+if __name__ == "__main__":
+    test_load_flows_concurrently()

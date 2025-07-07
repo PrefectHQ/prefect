@@ -2,6 +2,7 @@ import signal
 import tempfile
 from datetime import timedelta
 from pathlib import Path
+from types import FrameType
 
 from prefect import flow
 from prefect.settings import PREFECT_RUNNER_POLL_FREQUENCY, temporary_settings
@@ -14,7 +15,7 @@ def may_i_take_your_hat_sir(item: str, counter_dir: Path):
     return f"May I take your {item}?"
 
 
-def _handler(signum, frame):
+def _handler(signum: int, frame: FrameType | None):
     raise KeyboardInterrupt("Simulating user interruption")
 
 
@@ -22,7 +23,7 @@ def count_runs(counter_dir: Path):
     return len(list(counter_dir.glob("*.txt")))
 
 
-if __name__ == "__main__":
+def test_serve_a_flow():
     TIMEOUT: int = 15
     INTERVAL_SECONDS: int = 3
 
@@ -53,3 +54,7 @@ if __name__ == "__main__":
         )
 
         print(f"Successfully completed and audited {actual_run_count} flow runs")
+
+
+if __name__ == "__main__":
+    test_serve_a_flow()

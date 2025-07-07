@@ -16,7 +16,13 @@ def hello(name: str = "world", count: int = 1):
         future.wait()
 
 
-if __name__ == "__main__":
+def test_hello_tasks():
     if os.getenv("SERVER_VERSION") == "2.19":
         raise NotImplementedError("This example does not work against 2.19")
-    hello(count=3)
+    result = hello(count=3)
+    # Test passes if the flow completes without error
+    assert result is None  # Flow doesn't return anything, just completes
+
+
+if __name__ == "__main__":
+    test_hello_tasks()

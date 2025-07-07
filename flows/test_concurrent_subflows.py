@@ -30,5 +30,11 @@ async def parent_flow(n_subflows: int, n_tasks_per_subflow: int):
     )
 
 
+def test_concurrent_subflows():
+    result = asyncio.run(parent_flow(10, 10))
+    # Test passes if the flow completes without error
+    assert result is None  # Flow doesn't return anything, just completes
+
+
 if __name__ == "__main__":
-    asyncio.run(parent_flow(10, 10))
+    test_concurrent_subflows()

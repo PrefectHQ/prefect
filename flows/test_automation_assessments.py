@@ -49,7 +49,7 @@ async def create_or_replace_automation(
 
         automation["name"] = f"{automation['name']}:{uuid4()}"
 
-        response = await prefect._client.post("/automations", json=automation)
+        response = await prefect._client.post("/automations/", json=automation)
         response.raise_for_status()
 
         automation = response.json()
@@ -312,7 +312,23 @@ async def assess_sequence_automation():
             raise Exception("Sequence automation did not trigger in 60s")
 
 
-if __name__ == "__main__":
+async def test_reactive_automation():
+    await assess_reactive_automation()
+
+
+async def test_proactive_automation():
+    await assess_proactive_automation()
+
+
+async def test_compound_automation():
+    await assess_compound_automation()
+
+
+async def test_sequence_automation():
+    await assess_sequence_automation()
+
+
+def run_automation_assessments():
     if os.getenv("SERVER_VERSION") == "9.9.9+for.the.tests":
         print(
             "Prefect Cloud has its own automation assessment integration test, skipping"
@@ -322,3 +338,7 @@ if __name__ == "__main__":
         asyncio.run(assess_proactive_automation())
         asyncio.run(assess_compound_automation())
         asyncio.run(assess_sequence_automation())
+
+
+if __name__ == "__main__":
+    run_automation_assessments()

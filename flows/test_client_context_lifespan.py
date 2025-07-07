@@ -114,11 +114,11 @@ async def client_context_lifespan_is_robust_to_mixed_concurrency():
     assert startup.call_count > 0
 
 
-async def concurrency_tests():
+async def test_client_context_lifespan():
     client_context_lifespan_is_robust_to_threaded_concurrency()
     await client_context_lifespan_is_robust_to_high_async_concurrency()
     await client_context_lifespan_is_robust_to_mixed_concurrency()
 
 
 if __name__ == "__main__":
-    asyncio.run(concurrency_tests())
+    asyncio.run(test_client_context_lifespan())

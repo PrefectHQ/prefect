@@ -17,7 +17,13 @@ def hello():
     return sad_task()
 
 
-if __name__ == "__main__":
+def test_task_retries():
+    global run_count
+    run_count = 0
     result = hello()
     assert result == 1, f"Got {result}"
     assert run_count == 3, f"Got {run_count}"
+
+
+if __name__ == "__main__":
+    test_task_retries()

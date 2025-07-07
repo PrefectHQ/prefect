@@ -104,5 +104,9 @@ def main():
     )
 
 
-if __name__ == "__main__":
+def test_worker():
     main()
+
+
+if __name__ == "__main__":
+    test_worker()
