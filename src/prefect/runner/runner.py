@@ -1329,10 +1329,11 @@ class Runner:
         terminal_state = api_flow_run.state
         api_run_count = api_flow_run.run_count
 
+        # After any number of in-process tries/retries, the process has exited but the flow run is still in a running state
         is_still_running = (
             terminal_state
             and terminal_state.is_running()
-            and api_run_count == (starting_run_count + 1)
+            and api_run_count > starting_run_count
         )
 
         if status_code != 0 and not self._rescheduling and is_still_running:
