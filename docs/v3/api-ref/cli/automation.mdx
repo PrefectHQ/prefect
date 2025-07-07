@@ -76,7 +76,8 @@ Examples:
 
     \$ prefect automation inspect "my-automation" --yaml
 
-    \$ prefect automation inspect "my-automation" --json
+    \$ prefect automation inspect "my-automation" --output json
+    \$ prefect automation inspect "my-automation" --output yaml
 </Info>
 
 
@@ -107,6 +108,10 @@ Examples:
 
 <ResponseField name="--json">
     Output as JSON
+</ResponseField>
+
+<ResponseField name="--output">
+    Specify an output format. Currently supports: json, yaml
 </ResponseField>
 
 </Accordion>
@@ -368,5 +373,39 @@ Delete an automation.
 </ResponseField>
 
 </Accordion>
+
+</AccordionGroup>
+
+
+
+## `prefect automation create`
+
+
+
+```command
+prefect automation create [OPTIONS] AUTOMATION_SPEC
+```
+
+
+
+<Info>
+Create an automation from a YAML or JSON specification.
+</Info>
+
+
+
+
+
+
+<AccordionGroup>
+
+
+<Accordion title="Arguments" defaultOpen>
+<ResponseField name="AUTOMATION_SPEC" type="string" required>
+    Path to YAML/JSON file or JSON string defining the automation  \[required]
+</ResponseField>
+</Accordion>
+
+
 
 </AccordionGroup>
