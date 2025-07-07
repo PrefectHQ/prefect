@@ -302,3 +302,58 @@ class TestIsInARunContext:
             return my_function()
 
         assert my_task() == "sync"
+
+
+class TestAioAttribute:
+    """Test that async_dispatch adds the .aio attribute for compatibility."""
+
+    def test_async_dispatch_adds_aio_attribute(self):
+        """Test that the decorator adds an .aio attribute pointing to async implementation."""
+
+        async def async_impl(x: int) -> str:
+            return f"async {x}"
+
+        @async_dispatch(async_impl)
+        def sync_impl(x: int) -> str:
+            return f"sync {x}"
+
+        # Check that .aio attribute exists and points to async implementation
+        assert hasattr(sync_impl, "aio")
+        assert sync_impl.aio is async_impl
+
+    async def test_aio_attribute_can_be_called_directly(self):
+        """Test that the .aio attribute can be called directly."""
+
+        async def async_impl(x: int) -> str:
+            return f"async {x}"
+
+        @async_dispatch(async_impl)
+        def sync_impl(x: int) -> str:
+            return f"sync {x}"
+
+        # Call .aio directly
+        result = await sync_impl.aio(42)
+        assert result == "async 42"
+
+    async def test_aio_attribute_with_instance_methods(self):
+        """Test that .aio works correctly with instance methods."""
+
+        class Counter:
+            def __init__(self) -> None:
+                self.count = 0
+
+            async def increment_async(self) -> int:
+                self.count += 1
+                return self.count
+
+            @async_dispatch(increment_async)
+            def increment(self) -> int:
+                self.count += 10
+                return self.count
+
+        counter = Counter()
+
+        # Call via .aio directly - should increment by 1
+        result = await counter.increment.aio(counter)
+        assert result == 1
+        assert counter.count == 1
