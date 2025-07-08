@@ -90,6 +90,17 @@ def generate_property_docs(
     if "default" in prop_info:
         docs.append(f"\n**Default**: `{prop_info['default']}`")
 
+    # Examples
+    if "examples" in prop_info:
+        docs.append("\n**Examples**:")
+        for example in prop_info["examples"]:
+            if isinstance(example, str):
+                docs.append(f'- `"{example}"`')
+            elif isinstance(example, dict):
+                docs.append(f"- `{example}`")
+            else:
+                docs.append(f"- `{example}`")
+
     # Constraints
     constraints = process_property_constraints(prop_info)
     if constraints:

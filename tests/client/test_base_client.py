@@ -21,6 +21,7 @@ from prefect.client.schemas.objects import CsrfToken
 from prefect.exceptions import PrefectHTTPStatusError
 from prefect.settings import (
     PREFECT_API_URL,
+    PREFECT_CLIENT_CUSTOM_HEADERS,
     PREFECT_CLIENT_MAX_RETRIES,
     PREFECT_CLIENT_RETRY_EXTRA_CODES,
     PREFECT_CLIENT_RETRY_JITTER_FACTOR,
@@ -768,6 +769,208 @@ class TestUserAgent:
         assert isinstance(request, httpx.Request)
 
         assert request.headers["User-Agent"] == "prefect/42.43.44 (API 45.46.47)"
+
+
+class TestCustomHeaders:
+    """Test custom headers functionality in HTTP clients."""
+
+    async def test_default_no_custom_headers(self):
+        """Test that no custom headers are added by default."""
+        async with PrefectHttpxAsyncClient(base_url="http://localhost:4200") as client:
+            # Should only have standard headers, no custom ones
+            headers = dict(client.headers)
+            # httpx normalizes header names to lowercase
+            assert "user-agent" in headers
+            # Verify no unexpected custom headers
+            custom_header_prefixes = ["x-", "authorization", "api-key"]
+            custom_headers = [
+                k
+                for k in headers.keys()
+                if any(
+                    k.lower().startswith(prefix) for prefix in custom_header_prefixes
+                )
+            ]
+            assert len(custom_headers) == 0
+
+    async def test_custom_headers_from_settings(self):
+        """Test that custom headers are added from settings."""
+        custom_headers = {
+            "X-Test-Header": "test-value",
+            "X-Custom-Auth": "Bearer token123",
+            "Api-Version": "v1",
+        }
+
+        with temporary_settings({PREFECT_CLIENT_CUSTOM_HEADERS: custom_headers}):
+            async with PrefectHttpxAsyncClient(
+                base_url="http://localhost:4200"
+            ) as client:
+                for header_name, expected_value in custom_headers.items():
+                    assert client.headers[header_name] == expected_value
+
+    async def test_custom_headers_json_env_var(self, monkeypatch: pytest.MonkeyPatch):
+        """Test custom headers from JSON environment variable."""
+        json_value = (
+            '{"X-Json-Header": "json-value", "Authorization": "Bearer env-token"}'
+        )
+        monkeypatch.setenv("PREFECT_CLIENT_CUSTOM_HEADERS", json_value)
+
+        # Create a new settings instance to pick up the env var
+        from prefect.settings.models.root import Settings
+
+        settings = Settings()
+
+        expected_headers = {
+            "X-Json-Header": "json-value",
+            "Authorization": "Bearer env-token",
+        }
+        assert settings.client.custom_headers == expected_headers
+
+        # Test that it works with the client (using the setting directly)
+        with temporary_settings({PREFECT_CLIENT_CUSTOM_HEADERS: expected_headers}):
+            async with PrefectHttpxAsyncClient(
+                base_url="http://localhost:4200"
+            ) as client:
+                assert client.headers["X-Json-Header"] == "json-value"
+                assert client.headers["Authorization"] == "Bearer env-token"
+
+    async def test_protected_headers_not_overridden(self):
+        """Test that critical headers cannot be overridden by custom headers."""
+        malicious_headers = {
+            "User-Agent": "malicious-agent",
+            "user-agent": "another-malicious-agent",  # Test case insensitive
+            "Prefect-Csrf-Token": "fake-token",
+            "prefect-csrf-client": "fake-client",
+            "X-Safe-Header": "this-should-work",
+        }
+
+        with temporary_settings({PREFECT_CLIENT_CUSTOM_HEADERS: malicious_headers}):
+            async with PrefectHttpxAsyncClient(
+                base_url="http://localhost:4200"
+            ) as client:
+                # User-Agent should still be the Prefect one (httpx normalizes to lowercase)
+                assert "prefect/" in client.headers["user-agent"]
+                assert "malicious-agent" not in client.headers["user-agent"]
+
+                # CSRF headers should not be set (they're set later during requests)
+                assert "prefect-csrf-token" not in client.headers
+                assert "prefect-csrf-client" not in client.headers
+
+                # Safe header should be added
+                assert client.headers["X-Safe-Header"] == "this-should-work"
+
+    async def test_sync_client_custom_headers(self):
+        """Test custom headers work with sync client."""
+        from prefect.client.base import PrefectHttpxSyncClient
+
+        custom_headers = {"X-Sync-Test": "sync-value", "Custom-Header": "sync-custom"}
+
+        with temporary_settings({PREFECT_CLIENT_CUSTOM_HEADERS: custom_headers}):
+            with PrefectHttpxSyncClient(base_url="http://localhost:4200") as client:
+                for header_name, expected_value in custom_headers.items():
+                    assert client.headers[header_name] == expected_value
+
+    async def test_custom_headers_case_preserved(self):
+        """Test that custom header names preserve their case."""
+        custom_headers = {
+            "X-CamelCase-Header": "value1",
+            "lowercase-header": "value2",
+            "UPPERCASE-HEADER": "value3",
+        }
+
+        with temporary_settings({PREFECT_CLIENT_CUSTOM_HEADERS: custom_headers}):
+            async with PrefectHttpxAsyncClient(
+                base_url="http://localhost:4200"
+            ) as client:
+                # Headers should be accessible with original case
+                assert client.headers["X-CamelCase-Header"] == "value1"
+                assert client.headers["lowercase-header"] == "value2"
+                assert client.headers["UPPERCASE-HEADER"] == "value3"
+
+    async def test_empty_custom_headers(self):
+        """Test that empty custom headers dict works correctly."""
+        with temporary_settings({PREFECT_CLIENT_CUSTOM_HEADERS: {}}):
+            async with PrefectHttpxAsyncClient(
+                base_url="http://localhost:4200"
+            ) as client:
+                # Should behave same as default (no custom headers)
+                assert "user-agent" in client.headers
+                # No unexpected headers should be added
+                expected_headers = {
+                    "accept",
+                    "accept-encoding",
+                    "connection",
+                    "user-agent",
+                }
+                actual_headers = {k.lower() for k in client.headers.keys()}
+                assert actual_headers == expected_headers
+
+    @pytest.mark.parametrize(
+        "protected_header",
+        [
+            "User-Agent",
+            "user-agent",
+            "USER-AGENT",
+            "Prefect-Csrf-Token",
+            "prefect-csrf-token",
+            "PREFECT-CSRF-TOKEN",
+            "Prefect-Csrf-Client",
+            "prefect-csrf-client",
+        ],
+    )
+    async def test_protected_headers_case_insensitive(self, protected_header):
+        """Test that protected headers are blocked regardless of case."""
+        custom_headers = {protected_header: "should-be-blocked"}
+
+        with temporary_settings({PREFECT_CLIENT_CUSTOM_HEADERS: custom_headers}):
+            async with PrefectHttpxAsyncClient(
+                base_url="http://localhost:4200"
+            ) as client:
+                if protected_header.lower() == "user-agent":
+                    # User-Agent should still be the Prefect one (httpx normalizes to lowercase)
+                    assert "prefect/" in client.headers["user-agent"]
+                    assert "should-be-blocked" not in client.headers["user-agent"]
+                else:
+                    # Other protected headers should not be in headers at all
+                    # (they get added later in the request lifecycle)
+                    assert protected_header.lower() not in client.headers
+
+    async def test_protected_headers_warning_logged(self, caplog):
+        """Test that warning is logged when protected headers are attempted."""
+        import logging
+
+        malicious_headers = {
+            "User-Agent": "malicious-agent",
+            "Prefect-Csrf-Token": "fake-token",
+        }
+
+        with temporary_settings({PREFECT_CLIENT_CUSTOM_HEADERS: malicious_headers}):
+            with caplog.at_level(logging.WARNING):
+                async with PrefectHttpxAsyncClient(base_url="http://localhost:4200"):
+                    pass
+
+            # Should have logged warnings for both protected headers
+            warning_messages = [
+                record.message
+                for record in caplog.records
+                if record.levelname == "WARNING"
+            ]
+
+            # Check that warnings were logged for protected headers
+            user_agent_warning = any(
+                "User-Agent" in msg and "ignored because it conflicts" in msg
+                for msg in warning_messages
+            )
+            csrf_warning = any(
+                "Prefect-Csrf-Token" in msg and "ignored because it conflicts" in msg
+                for msg in warning_messages
+            )
+
+            assert user_agent_warning, (
+                f"Expected User-Agent warning not found in: {warning_messages}"
+            )
+            assert csrf_warning, (
+                f"Expected Prefect-Csrf-Token warning not found in: {warning_messages}"
+            )
 
 
 class TestDetermineServerType:

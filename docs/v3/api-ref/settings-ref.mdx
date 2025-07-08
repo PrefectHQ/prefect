@@ -367,6 +367,11 @@ Settings for controlling API client behavior
 
 **Type**: `string | integer | array | None`
 
+**Examples**:
+- `"404,429,503"`
+- `"429"`
+- `[404, 429, 503]`
+
 **TOML dotted key path**: `client.retry_extra_codes`
 
 **Supported environment variables**:
@@ -389,6 +394,24 @@ Settings for controlling API client behavior
 
 **Supported environment variables**:
 `PREFECT_CLIENT_CSRF_SUPPORT_ENABLED`
+
+### `custom_headers`
+
+        Custom HTTP headers to include with every API request to the Prefect server.
+        Headers are specified as key-value pairs. Note that headers like 'User-Agent'
+        and CSRF-related headers are managed by Prefect and cannot be overridden.
+        
+
+**Type**: `object`
+
+**Examples**:
+- `{'X-Custom-Header': 'value'}`
+- `{'Authorization': 'Bearer token'}`
+
+**TOML dotted key path**: `client.custom_headers`
+
+**Supported environment variables**:
+`PREFECT_CLIENT_CUSTOM_HEADERS`
 
 ### `metrics`
 
@@ -456,6 +479,10 @@ The default Docker namespace to use when building images.
 **Type**: `string | None`
 
 **Default**: `None`
+
+**Examples**:
+- `"my-dockerhub-registry"`
+- `"4999999999999.dkr.ecr.us-east-2.amazonaws.com/my-ecr-repo"`
 
 **TOML dotted key path**: `deployments.default_docker_build_namespace`
 
@@ -1080,6 +1107,9 @@ The base URL path to serve the API under.
 **Type**: `string | None`
 
 **Default**: `None`
+
+**Examples**:
+- `"/v2/api"`
 
 **TOML dotted key path**: `server.api.base_path`
 
@@ -2369,7 +2399,7 @@ The number of seconds to wait before retrying when a task run cannot secure a co
 **Default**: `30`
 
 **Constraints**:
-- Minimum: 0
+- Minimum: 0.0
 
 **TOML dotted key path**: `server.tasks.tag_concurrency_slot_wait_seconds`
 

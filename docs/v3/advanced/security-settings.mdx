@@ -69,3 +69,44 @@ If using self-hosted Prefect server, you can configure CORS settings to control 
 - [`server.api.cors_allowed_origins`](/v3/develop/settings-ref/#cors-allowed-origins): a list of origins that are allowed to make cross-origin requests.
 - [`server.api.cors_allowed_methods`](/v3/develop/settings-ref/#cors-allowed-methods): a list of HTTP methods that are allowed to be used during cross-origin requests.
 - [`server.api.cors_allowed_headers`](/v3/develop/settings-ref/#cors-allowed-headers): a list of headers that are allowed to be used during cross-origin requests.
+
+## Custom client headers
+
+The [`client.custom_headers`](/v3/develop/settings-ref/#custom-headers) setting allows you to configure custom HTTP headers that are included with every API request. This is particularly useful for authentication with proxies, CDNs, or security services that protect your Prefect server.
+
+<CodeGroup>
+
+```bash Environment variable
+export PREFECT_CLIENT_CUSTOM_HEADERS='{
+  "Proxy-Authorization": "Bearer your-proxy-token",
+  "X-Corporate-ID": "your-corp-identifier"
+}'
+```
+
+```bash CLI
+prefect config set PREFECT_CLIENT_CUSTOM_HEADERS='{"Proxy-Authorization": "Bearer your-proxy-token", "X-Corporate-ID": "your-corp-ID"}'
+```
+
+```toml prefect.toml
+[client]
+custom_headers = '''{
+  "Proxy-Authorization": "Bearer your-proxy-token",
+  "X-Corporate-ID": "your-corp-identifier"
+}'''
+```
+
+</CodeGroup>
+
+Certain headers are protected and cannot be overridden for security reasons:
+
+- **`User-Agent`**: Managed by Prefect to identify client version and capabilities
+- **`Prefect-Csrf-Token`**: Used for CSRF protection when enabled
+- **`Prefect-Csrf-Client`**: Used for CSRF client identification
+
+If you attempt to override these protected headers, Prefect will log a warning and ignore the custom value to maintain security.
+
+<Warning>
+**Store credentials securely**
+
+When using custom headers for authentication, ensure that sensitive values like API keys and tokens are stored securely using environment variables, secrets management systems, or encrypted configuration files. Avoid hardcoding credentials in your source code.
+</Warning>
