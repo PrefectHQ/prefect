@@ -46,7 +46,7 @@ async def create_artifact(
     return model
 
 
-@router.get("/{id}")
+@router.get("/{id:uuid}")
 async def read_artifact(
     artifact_id: UUID = Path(
         ..., description="The ID of the artifact to retrieve.", alias="id"
@@ -189,7 +189,7 @@ async def count_latest_artifacts(
         )
 
 
-@router.patch("/{id}", status_code=204)
+@router.patch("/{id:uuid}", status_code=204)
 async def update_artifact(
     artifact: actions.ArtifactUpdate,
     artifact_id: UUID = Path(
@@ -210,7 +210,7 @@ async def update_artifact(
         raise HTTPException(status_code=404, detail="Artifact not found.")
 
 
-@router.delete("/{id}", status_code=204)
+@router.delete("/{id:uuid}", status_code=204)
 async def delete_artifact(
     artifact_id: UUID = Path(
         ..., description="The ID of the artifact to delete.", alias="id"

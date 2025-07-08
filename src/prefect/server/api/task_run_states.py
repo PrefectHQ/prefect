@@ -17,7 +17,7 @@ router: PrefectRouter = PrefectRouter(
 )
 
 
-@router.get("/{id}")
+@router.get("/{id:uuid}")
 async def read_task_run_state(
     task_run_state_id: UUID = Path(
         ..., description="The task run state id", alias="id"

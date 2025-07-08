@@ -201,7 +201,7 @@ async def create_deployment(
         )
 
 
-@router.patch("/{id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.patch("/{id:uuid}", status_code=status.HTTP_204_NO_CONTENT)
 async def update_deployment(
     deployment: schemas.actions.DeploymentUpdate,
     deployment_id: UUID = Path(..., description="The deployment id", alias="id"),
@@ -389,7 +389,7 @@ async def read_deployment_by_name(
         )
 
 
-@router.get("/{id}")
+@router.get("/{id:uuid}")
 async def read_deployment(
     deployment_id: UUID = Path(..., description="The deployment id", alias="id"),
     db: PrefectDBInterface = Depends(provide_database_interface),
@@ -585,7 +585,7 @@ async def count_deployments(
         )
 
 
-@router.delete("/{id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{id:uuid}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_deployment(
     deployment_id: UUID = Path(..., description="The deployment id", alias="id"),
     db: PrefectDBInterface = Depends(provide_database_interface),
@@ -603,7 +603,7 @@ async def delete_deployment(
         )
 
 
-@router.post("/{id}/schedule")
+@router.post("/{id:uuid}/schedule")
 async def schedule_deployment(
     deployment_id: UUID = Path(..., description="The deployment id", alias="id"),
     start_time: datetime.datetime = Body(
@@ -702,7 +702,7 @@ async def pause_deployment(
         await session.commit()
 
 
-@router.post("/{id}/create_flow_run")
+@router.post("/{id:uuid}/create_flow_run")
 async def create_flow_run_from_deployment(
     flow_run: schemas.actions.DeploymentFlowRunCreate,
     deployment_id: UUID = Path(..., description="The deployment id", alias="id"),
@@ -835,7 +835,7 @@ async def create_flow_run_from_deployment(
 
 
 # DEPRECATED
-@router.get("/{id}/work_queue_check", deprecated=True)
+@router.get("/{id:uuid}/work_queue_check", deprecated=True)
 async def work_queue_check_for_deployment(
     deployment_id: UUID = Path(..., description="The deployment id", alias="id"),
     db: PrefectDBInterface = Depends(provide_database_interface),
@@ -861,7 +861,7 @@ async def work_queue_check_for_deployment(
     return work_queues
 
 
-@router.get("/{id}/schedules")
+@router.get("/{id:uuid}/schedules")
 async def read_deployment_schedules(
     deployment_id: UUID = Path(..., description="The deployment id", alias="id"),
     db: PrefectDBInterface = Depends(provide_database_interface),
@@ -882,7 +882,7 @@ async def read_deployment_schedules(
         )
 
 
-@router.post("/{id}/schedules", status_code=status.HTTP_201_CREATED)
+@router.post("/{id:uuid}/schedules", status_code=status.HTTP_201_CREATED)
 async def create_deployment_schedules(
     deployment_id: UUID = Path(..., description="The deployment id", alias="id"),
     schedules: List[schemas.actions.DeploymentScheduleCreate] = Body(
@@ -916,7 +916,9 @@ async def create_deployment_schedules(
         return created
 
 
-@router.patch("/{id}/schedules/{schedule_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.patch(
+    "/{id:uuid}/schedules/{schedule_id:uuid}", status_code=status.HTTP_204_NO_CONTENT
+)
 async def update_deployment_schedule(
     deployment_id: UUID = Path(..., description="The deployment id", alias="id"),
     schedule_id: UUID = Path(..., description="The schedule id", alias="schedule_id"),
@@ -953,7 +955,9 @@ async def update_deployment_schedule(
         )
 
 
-@router.delete("/{id}/schedules/{schedule_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/{id:uuid}/schedules/{schedule_id:uuid}", status_code=status.HTTP_204_NO_CONTENT
+)
 async def delete_deployment_schedule(
     deployment_id: UUID = Path(..., description="The deployment id", alias="id"),
     schedule_id: UUID = Path(..., description="The schedule id", alias="schedule_id"),
