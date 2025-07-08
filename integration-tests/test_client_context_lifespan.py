@@ -24,7 +24,7 @@ def make_lifespan(startup, shutdown) -> Callable:
     return asynccontextmanager(lifespan)
 
 
-def client_context_lifespan_is_robust_to_threaded_concurrency():
+def test_client_context_lifespan_is_robust_to_threaded_concurrency():
     startup, shutdown = MagicMock(), MagicMock()
     app = FastAPI(lifespan=make_lifespan(startup, shutdown))
 
@@ -53,7 +53,7 @@ def client_context_lifespan_is_robust_to_threaded_concurrency():
     assert startup.call_count > 0
 
 
-async def client_context_lifespan_is_robust_to_high_async_concurrency():
+async def test_client_context_lifespan_is_robust_to_high_async_concurrency():
     startup, shutdown = MagicMock(), MagicMock()
     app = FastAPI(lifespan=make_lifespan(startup, shutdown))
 
@@ -72,7 +72,7 @@ async def client_context_lifespan_is_robust_to_high_async_concurrency():
     assert startup.call_count > 0
 
 
-async def client_context_lifespan_is_robust_to_mixed_concurrency():
+async def test_client_context_lifespan_is_robust_to_mixed_concurrency():
     startup, shutdown = MagicMock(), MagicMock()
     app = FastAPI(lifespan=make_lifespan(startup, shutdown))
 
@@ -111,9 +111,3 @@ async def client_context_lifespan_is_robust_to_mixed_concurrency():
 
     assert startup.call_count == shutdown.call_count
     assert startup.call_count > 0
-
-
-async def test_client_context_lifespan():
-    client_context_lifespan_is_robust_to_threaded_concurrency()
-    await client_context_lifespan_is_robust_to_high_async_concurrency()
-    await client_context_lifespan_is_robust_to_mixed_concurrency()
