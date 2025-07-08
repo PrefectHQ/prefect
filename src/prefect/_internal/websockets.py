@@ -7,6 +7,7 @@ to avoid duplication between events and logs clients.
 
 import os
 import ssl
+import warnings
 from typing import Any, Generator, Optional
 from urllib.parse import urlparse
 from urllib.request import proxy_bypass
@@ -85,6 +86,40 @@ class WebsocketProxyConnect(connect):
         ssl_context = create_ssl_context_for_websocket(uri)
         if ssl_context:
             self._kwargs.setdefault("ssl", ssl_context)
+
+        # Add custom headers from settings
+        custom_headers = get_current_settings().client.custom_headers
+        if custom_headers:
+            # Get existing extra_headers or create new dict
+            extra_headers = self._kwargs.get("extra_headers", {})
+            if not isinstance(extra_headers, dict):
+                extra_headers = {}
+
+            for header_name, header_value in custom_headers.items():
+                # Check for protected headers that shouldn't be overridden
+                if header_name.lower() in {
+                    "user-agent",
+                    "sec-websocket-key",
+                    "sec-websocket-version",
+                    "sec-websocket-extensions",
+                    "sec-websocket-protocol",
+                    "connection",
+                    "upgrade",
+                    "host",
+                }:
+                    warnings.warn(
+                        f"Custom header '{header_name}' is ignored because it conflicts with "
+                        f"a protected WebSocket header. Protected headers include: "
+                        f"User-Agent, Sec-WebSocket-Key, Sec-WebSocket-Version, "
+                        f"Sec-WebSocket-Extensions, Sec-WebSocket-Protocol, Connection, "
+                        f"Upgrade, Host",
+                        UserWarning,
+                        stacklevel=2,
+                    )
+                else:
+                    extra_headers[header_name] = header_value
+
+            self._kwargs["extra_headers"] = extra_headers
 
     async def _proxy_connect(self: Self) -> ClientConnection:
         if self._proxy_url:

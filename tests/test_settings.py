@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import copy
+import json
 import os
 import textwrap
 import warnings
@@ -26,6 +27,7 @@ from prefect.settings import (
     PREFECT_API_DATABASE_USER,
     PREFECT_API_KEY,
     PREFECT_API_URL,
+    PREFECT_CLIENT_CUSTOM_HEADERS,
     PREFECT_CLIENT_RETRY_EXTRA_CODES,
     PREFECT_CLOUD_API_URL,
     PREFECT_CLOUD_UI_URL,
@@ -192,6 +194,7 @@ SUPPORTED_SETTINGS = {
     "PREFECT_API_TLS_INSECURE_SKIP_VERIFY": {"test_value": True},
     "PREFECT_API_URL": {"test_value": "https://api.prefect.io"},
     "PREFECT_CLIENT_CSRF_SUPPORT_ENABLED": {"test_value": True},
+    "PREFECT_CLIENT_CUSTOM_HEADERS": {"test_value": '{"X-CUSTOM": "foobar"}'},
     "PREFECT_CLIENT_ENABLE_METRICS": {"test_value": True, "legacy": True},
     "PREFECT_CLIENT_MAX_RETRIES": {"test_value": 3},
     "PREFECT_CLIENT_METRICS_ENABLED": {
@@ -2369,6 +2372,11 @@ class TestSettingValues:
                     exclude_unset=True
                 )[setting]
                 assert env_value.split(",") == to_jsonable_python(value)
+            elif setting == "PREFECT_CLIENT_CUSTOM_HEADERS":
+                # this setting starts as a string and loads as a dictionary
+                assert settings_value == json.loads(value)
+                # get value from legacy setting object
+                assert getattr(prefect.settings, setting).value() == json.loads(value)
             else:
                 assert settings_value == value
                 # get value from legacy setting object
@@ -2496,3 +2504,116 @@ class TestSettingValues:
         temporary_toml_file(toml_dict, path=Path("pyproject.toml"))
 
         self.check_setting_value(setting, value)
+
+
+class TestClientCustomHeadersSetting:
+    """Test the PREFECT_CLIENT_CUSTOM_HEADERS setting."""
+
+    def test_default_empty_dict(self):
+        """Test that custom headers default to empty dict."""
+        from prefect.settings import get_current_settings
+
+        settings = get_current_settings()
+        assert settings.client.custom_headers == {}
+        assert isinstance(settings.client.custom_headers, dict)
+
+    def test_set_via_temporary_settings(self):
+        """Test setting custom headers via temporary_settings."""
+        from prefect.settings import get_current_settings
+
+        custom_headers = {
+            "X-Test-Header": "test-value",
+            "Authorization": "Bearer token123",
+        }
+
+        with temporary_settings({PREFECT_CLIENT_CUSTOM_HEADERS: custom_headers}):
+            settings = get_current_settings()
+            assert settings.client.custom_headers == custom_headers
+
+    def test_json_string_parsing(self, monkeypatch: pytest.MonkeyPatch):
+        """Test that JSON string values are parsed correctly."""
+        json_value = '{"X-Json-Header": "json-value", "Api-Key": "secret123"}'
+        monkeypatch.setenv("PREFECT_CLIENT_CUSTOM_HEADERS", json_value)
+
+        # Create a new settings instance to pick up the env var
+        from prefect.settings.models.root import Settings
+
+        settings = Settings()
+        expected = {"X-Json-Header": "json-value", "Api-Key": "secret123"}
+        assert settings.client.custom_headers == expected
+
+    def test_invalid_json_string_raises_error(self, monkeypatch: pytest.MonkeyPatch):
+        """Test that invalid JSON raises appropriate error."""
+        monkeypatch.setenv("PREFECT_CLIENT_CUSTOM_HEADERS", "not-valid-json")
+
+        from pydantic_settings.exceptions import SettingsError
+
+        with pytest.raises(SettingsError):
+            from prefect.settings.models.root import Settings
+
+            Settings()
+
+    def test_non_string_values_raise_error(self):
+        """Test that non-string header values raise validation error."""
+        import pydantic
+
+        invalid_headers = {
+            "X-Test-Header": 123,  # Integer instead of string
+            "X-Another": "valid",
+        }
+
+        with pytest.raises(pydantic.ValidationError):
+            with temporary_settings({PREFECT_CLIENT_CUSTOM_HEADERS: invalid_headers}):
+                from prefect.settings import get_current_settings
+
+                get_current_settings()
+
+    def test_non_string_keys_raise_error(self):
+        """Test that non-string header keys raise validation error."""
+        import pydantic
+
+        invalid_headers = {
+            123: "value",  # Integer key instead of string
+            "valid-key": "valid-value",
+        }
+
+        with pytest.raises(pydantic.ValidationError):
+            with temporary_settings({PREFECT_CLIENT_CUSTOM_HEADERS: invalid_headers}):
+                from prefect.settings import get_current_settings
+
+                get_current_settings()
+
+    def test_empty_dict_valid(self):
+        """Test that empty dict is valid."""
+        from prefect.settings import get_current_settings
+
+        with temporary_settings({PREFECT_CLIENT_CUSTOM_HEADERS: {}}):
+            settings = get_current_settings()
+            assert settings.client.custom_headers == {}
+
+    def test_unicode_headers_supported(self):
+        """Test that unicode values are supported."""
+        from prefect.settings import get_current_settings
+
+        unicode_headers = {
+            "X-Unicode-Test": "value with émojis 🚀",
+            "X-Chinese": "中文测试",
+        }
+
+        with temporary_settings({PREFECT_CLIENT_CUSTOM_HEADERS: unicode_headers}):
+            settings = get_current_settings()
+            assert settings.client.custom_headers == unicode_headers
+
+    def test_case_sensitivity_preserved(self):
+        """Test that header name case is preserved."""
+        from prefect.settings import get_current_settings
+
+        mixed_case_headers = {
+            "X-CamelCase-Header": "value1",
+            "lowercase-header": "value2",
+            "UPPERCASE-HEADER": "value3",
+        }
+
+        with temporary_settings({PREFECT_CLIENT_CUSTOM_HEADERS: mixed_case_headers}):
+            settings = get_current_settings()
+            assert settings.client.custom_headers == mixed_case_headers
