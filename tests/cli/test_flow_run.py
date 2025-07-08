@@ -12,7 +12,7 @@ import anyio
 import pytest
 
 import prefect.exceptions
-from prefect import flow
+from prefect import __development_base_path__, flow
 from prefect.cli.flow_run import LOGS_WITH_LIMIT_FLAG_DEFAULT_NUM_LOGS
 from prefect.client.orchestration import PrefectClient, SyncPrefectClient
 from prefect.client.schemas.actions import LogCreate
@@ -842,10 +842,10 @@ class TestFlowRunLogs:
 
 
 class TestFlowRunExecute:
-    @pytest.mark.usefixtures("use_hosted_api_server")
     async def test_execute_flow_run_via_argument(self, prefect_client: PrefectClient):
         deployment_id = await RunnerDeployment.from_entrypoint(
-            entrypoint="flows/hello_world.py:hello", name="test"
+            entrypoint=f"{__development_base_path__}/tests/cli/test_flow_run.py:hello_flow",
+            name="test",
         ).apply()
 
         flow_run = await prefect_client.create_flow_run_from_deployment(
@@ -861,12 +861,12 @@ class TestFlowRunExecute:
         flow_run = await prefect_client.read_flow_run(flow_run.id)
         assert flow_run.state.is_completed()
 
-    @pytest.mark.usefixtures("use_hosted_api_server")
     async def test_execute_flow_run_via_environment_variable(
         self, prefect_client: PrefectClient, monkeypatch
     ):
         deployment = RunnerDeployment.from_entrypoint(
-            entrypoint="flows/hello_world.py:hello", name="test"
+            entrypoint=f"{__development_base_path__}/tests/cli/test_flow_run.py:hello_flow",
+            name="test",
         )
         deployment_id = await deployment.apply()
 
