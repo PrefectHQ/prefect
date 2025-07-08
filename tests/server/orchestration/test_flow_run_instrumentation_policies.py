@@ -87,6 +87,7 @@ async def test_instrumenting_a_flow_run_state_change(
         {
             "prefect.resource.id": f"prefect.flow-run.{flow_run.id}",
             "prefect.resource.name": flow_run.name,
+            "prefect.run-count": str(flow_run.run_count),
             "prefect.state-message": "",
             "prefect.state-name": "Running",
             "prefect.state-timestamp": context.proposed_state.timestamp.isoformat(),
@@ -347,6 +348,7 @@ async def test_instrumenting_a_flow_run_with_no_flow(
         {
             "prefect.resource.id": f"prefect.flow-run.{flow_run.id}",
             "prefect.resource.name": flow_run.name,
+            "prefect.run-count": str(flow_run.run_count),
             "prefect.state-message": "",
             "prefect.state-name": "Running",
             "prefect.state-timestamp": context.proposed_state.timestamp.isoformat(),
@@ -802,6 +804,7 @@ async def test_cancelling_to_cancelled_transitions(
         {
             "prefect.resource.id": f"prefect.flow-run.{flow_run.id}",
             "prefect.resource.name": flow_run.name,
+            "prefect.resource.run-count": str(flow_run.run_count),
             "prefect.state-message": "",
             "prefect.state-name": "Cancelled",
             "prefect.state-timestamp": updated_flow_run.state.timestamp.isoformat(),
