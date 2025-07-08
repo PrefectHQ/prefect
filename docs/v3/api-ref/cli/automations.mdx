@@ -383,13 +383,13 @@ Delete an automation.
 
 
 ```command
-prefect automations create [OPTIONS] AUTOMATION_SPEC
+prefect automations create [OPTIONS]
 ```
 
 
 
 <Info>
-Create an automation from a YAML or JSON specification.
+Create one or more automations from a file or JSON string.
 </Info>
 
 
@@ -400,12 +400,18 @@ Create an automation from a YAML or JSON specification.
 <AccordionGroup>
 
 
-<Accordion title="Arguments" defaultOpen>
-<ResponseField name="AUTOMATION_SPEC" type="string" required>
-    Path to YAML/JSON file or JSON string defining the automation  \[required]
+
+
+<Accordion title="Options" defaultOpen>
+
+<ResponseField name="--from-file">
+    Path to YAML or JSON file containing automation(s)
 </ResponseField>
+
+<ResponseField name="--from-json">
+    JSON string containing automation(s)
+</ResponseField>
+
 </Accordion>
-
-
 
 </AccordionGroup>
