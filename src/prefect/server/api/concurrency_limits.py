@@ -49,7 +49,7 @@ async def create_concurrency_limit(
     return model
 
 
-@router.get("/{id}")
+@router.get("/{id:uuid}")
 async def read_concurrency_limit(
     concurrency_limit_id: UUID = Path(
         ..., description="The concurrency limit id", alias="id"
@@ -137,7 +137,7 @@ async def reset_concurrency_limit_by_tag(
         )
 
 
-@router.delete("/{id}")
+@router.delete("/{id:uuid}")
 async def delete_concurrency_limit(
     concurrency_limit_id: UUID = Path(
         ..., description="The concurrency limit id", alias="id"
