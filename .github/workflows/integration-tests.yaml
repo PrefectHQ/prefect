@@ -76,8 +76,7 @@ jobs:
           PREFECT_API_URL: http://127.0.0.1:4200/api
           PREFECT_SERVER_LOGGING_LEVEL: DEBUG
         run: >
-          uv run prefect server start --analytics-off --host 0.0.0.0 > server.log 2>&1 &
-
+          uv run prefect server start --analytics-off --host 0.0.0.0 2>&1 > server.log &
           uv run ./scripts/wait-for-server.py
 
       - name: Run integration flows
@@ -137,8 +136,7 @@ jobs:
           PREFECT_API_URL: http://127.0.0.1:4200/api
           PREFECT_SERVER_LOGGING_LEVEL: DEBUG
         run: >
-          uv run --isolated prefect server start --analytics-off --host 0.0.0.0 2>&1 > server.log &
-
+          uv run prefect server start --analytics-off --host 0.0.0.0 2>&1 > server.log &
           uv run --isolated ./scripts/wait-for-server.py
 
       - name: Verify the CLI isn't available in the active environment
@@ -149,8 +147,8 @@ jobs:
         env:
           PREFECT_API_URL: http://127.0.0.1:4200/api
         run: >
-          uv run pytest integration-tests/ -n auto -vv
-        
+          uv pip install pytest
+          pytest integration-tests/ -n auto -vv
 
   sqlite-3-24-0:
     name: Test SQLite 3.24.0 Compatibility
