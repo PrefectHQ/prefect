@@ -51,7 +51,7 @@ const handleSubmit = async (): Promise<void> => {
     localStorage.setItem('prefect-password', btoa(password.value))
     api.admin.authCheck().then(status_code => {
       if (status_code == 401) {
-        localStorage.removeItem('prefect-pasword')
+        localStorage.removeItem('prefect-password')
         showToast('Authentication failed.', 'error', { timeout: false })
         if (router.currentRoute.value.name !== 'login') {
           router.push({
