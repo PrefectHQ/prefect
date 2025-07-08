@@ -147,7 +147,7 @@ jobs:
         env:
           PREFECT_API_URL: http://127.0.0.1:4200/api
         run: |
-          uv pip install pytest
+          uv pip install pytest sqlalchemy
           pytest integration-tests/ -n auto -vv
 
   sqlite-3-24-0:
