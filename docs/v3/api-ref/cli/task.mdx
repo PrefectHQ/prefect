@@ -29,7 +29,7 @@ Work with task scheduling.
 
 
 ```command
-prefect task serve [OPTIONS] ENTRYPOINTS...
+prefect task serve [OPTIONS] [ENTRYPOINTS]...
 ```
 
 
@@ -48,14 +48,18 @@ executed in the engine.
 
 
 <Accordion title="Arguments" defaultOpen>
-<ResponseField name="ENTRYPOINTS..." type="string" required>
-    The paths to one or more tasks, in the form of \`./path/to/file.py:task_func_name\`.  \[required]
+<ResponseField name="ENTRYPOINTS..." type="string">
+    The paths to one or more tasks, in the form of \`./path/to/file.py:task_func_name\`.
 </ResponseField>
 </Accordion>
 
 
 
 <Accordion title="Options" defaultOpen>
+
+<ResponseField name="--module">
+    The module(s) to import the tasks from.
+</ResponseField>
 
 <ResponseField name="--limit">
     The maximum number of tasks that can be run concurrently. Defaults to 10.
