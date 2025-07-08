@@ -592,7 +592,7 @@ def test_creating_automation_from_yaml_file(
     yaml_file.write_text(yaml.dump(automation_data))
 
     invoke_and_assert(
-        ["automations", "create", str(yaml_file)],
+        ["automations", "create", "--from-file", str(yaml_file)],
         expected_code=0,
         expected_output_contains=[
             f"Created automation 'My Test Automation' with id {automation_id}"
@@ -626,7 +626,7 @@ def test_creating_automation_from_json_file(
     json_file.write_text(orjson.dumps(automation_data).decode())
 
     invoke_and_assert(
-        ["automations", "create", str(json_file)],
+        ["automations", "create", "--from-file", str(json_file)],
         expected_code=0,
         expected_output_contains=[
             f"Created automation 'My JSON Automation' with id {automation_id}"
@@ -657,7 +657,7 @@ def test_creating_automation_from_json_string(
     json_string = orjson.dumps(automation_data).decode()
 
     invoke_and_assert(
-        ["automations", "create", json_string],
+        ["automations", "create", "--from-json", json_string],
         expected_code=0,
         expected_output_contains=[
             f"Created automation 'My String Automation' with id {automation_id}"
@@ -676,7 +676,7 @@ def test_creating_automation_invalid_file_extension(
     invalid_file.write_text("some content")
 
     invoke_and_assert(
-        ["automations", "create", str(invalid_file)],
+        ["automations", "create", "--from-file", str(invalid_file)],
         expected_code=1,
         expected_output_contains=[
             "File extension not recognized. Please use .yaml, .yml, or .json"
@@ -686,14 +686,61 @@ def test_creating_automation_invalid_file_extension(
     create_automation.assert_not_called()
 
 
+def test_creating_automation_file_not_found(
+    create_automation: mock.AsyncMock,
+):
+    invoke_and_assert(
+        ["automations", "create", "--from-file", "nonexistent.yaml"],
+        expected_code=1,
+        expected_output_contains=["File not found: nonexistent.yaml"],
+    )
+
+    create_automation.assert_not_called()
+
+
 def test_creating_automation_invalid_json_string(
     create_automation: mock.AsyncMock,
 ):
     invoke_and_assert(
-        ["automations", "create", "not-a-valid-json"],
+        ["automations", "create", "--from-json", "not-a-valid-json"],
+        expected_code=1,
+        expected_output_contains=["Invalid JSON:"],
+    )
+
+    create_automation.assert_not_called()
+
+
+def test_creating_automation_no_input(
+    create_automation: mock.AsyncMock,
+):
+    invoke_and_assert(
+        ["automations", "create"],
+        expected_code=1,
+        expected_output_contains=["Please provide either --from-file or --from-json"],
+    )
+
+    create_automation.assert_not_called()
+
+
+def test_creating_automation_both_inputs(
+    create_automation: mock.AsyncMock,
+    tmp_path,
+):
+    yaml_file = tmp_path / "automation.yaml"
+    yaml_file.write_text("name: test")
+
+    invoke_and_assert(
+        [
+            "automations",
+            "create",
+            "--from-file",
+            str(yaml_file),
+            "--from-json",
+            '{"name": "test"}',
+        ],
         expected_code=1,
         expected_output_contains=[
-            "Invalid input. Please provide a valid file path or JSON string."
+            "Please provide either --from-file or --from-json, not both"
         ],
     )
 
@@ -713,7 +760,7 @@ def test_creating_automation_validation_error(
     yaml_file.write_text(yaml.dump(automation_data))
 
     invoke_and_assert(
-        ["automations", "create", str(yaml_file)],
+        ["automations", "create", "--from-file", str(yaml_file)],
         expected_code=1,
         expected_output_contains=["Failed to create 1 automation(s):"],
     )
@@ -761,7 +808,7 @@ def test_creating_multiple_automations_with_automations_key(
     yaml_file.write_text(yaml.dump(data))
 
     invoke_and_assert(
-        ["automations", "create", str(yaml_file)],
+        ["automations", "create", "--from-file", str(yaml_file)],
         expected_code=0,
         expected_output_contains=[
             "Created 2 automation(s):",
@@ -811,7 +858,7 @@ def test_creating_multiple_automations_as_list(
     json_file.write_text(orjson.dumps(data).decode())
 
     invoke_and_assert(
-        ["automations", "create", str(json_file)],
+        ["automations", "create", "--from-file", str(json_file)],
         expected_code=0,
         expected_output_contains=[
             "Created 2 automation(s):",
@@ -864,7 +911,7 @@ def test_creating_multiple_automations_with_partial_failure(
     yaml_file.write_text(yaml.dump(data))
 
     invoke_and_assert(
-        ["automations", "create", str(yaml_file)],
+        ["automations", "create", "--from-file", str(yaml_file)],
         expected_code=1,
         expected_output_contains=[
             "Failed to create 1 automation(s):",

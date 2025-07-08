@@ -24,13 +24,17 @@ You can create automations from YAML or JSON files using the Prefect CLI:
 
 ```bash
 # Create from a YAML file
-prefect automation create automation.yaml
+prefect automation create --from-file automation.yaml
+# or use the short form
+prefect automation create -f automation.yaml
 
 # Create from a JSON file  
-prefect automation create automation.json
+prefect automation create --from-file automation.json
 
 # Create from a JSON string
-prefect automation create '{"name": "my-automation", "trigger": {...}, "actions": [...]}'
+prefect automation create --from-json '{"name": "my-automation", "trigger": {...}, "actions": [...]}'
+# or use the short form
+prefect automation create -j '{"name": "my-automation", "trigger": {...}, "actions": [...]}'
 ```
 
 #### Single automation example

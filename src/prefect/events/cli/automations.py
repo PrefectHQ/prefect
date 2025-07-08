@@ -3,7 +3,6 @@ Command line interface for working with automations.
 """
 
 import functools
-import os
 from pathlib import Path
 from typing import Any, Callable, Optional, Type
 from uuid import UUID
@@ -352,22 +351,38 @@ async def delete(
 @automations_app.command()
 @requires_automations
 async def create(
-    automation_spec: str = typer.Argument(
-        ..., help="Path to YAML/JSON file or JSON string defining the automation"
+    from_file: Optional[str] = typer.Option(
+        None,
+        "--from-file",
+        "-f",
+        help="Path to YAML or JSON file containing automation(s)",
+    ),
+    from_json: Optional[str] = typer.Option(
+        None,
+        "--from-json",
+        "-j",
+        help="JSON string containing automation(s)",
     ),
 ):
-    """Create an automation from a YAML or JSON specification.
-
-    Arguments:
-        automation_spec: Path to a YAML/JSON file or a JSON string
+    """Create one or more automations from a file or JSON string.
 
     Examples:
-        $ prefect automation create automation.yaml
-        $ prefect automation create automation.json
-        $ prefect automation create '{"name": "my-automation", "trigger": {...}, "actions": [...]}'
+        $ prefect automation create --from-file automation.yaml
+        $ prefect automation create -f automation.json
+        $ prefect automation create --from-json '{"name": "my-automation", "trigger": {...}, "actions": [...]}'
+        $ prefect automation create -j '[{"name": "auto1", ...}, {"name": "auto2", ...}]'
     """
-    if os.path.exists(automation_spec):
-        file_path = Path(automation_spec)
+    if from_file and from_json:
+        exit_with_error("Please provide either --from-file or --from-json, not both.")
+
+    if not from_file and not from_json:
+        exit_with_error("Please provide either --from-file or --from-json.")
+
+    if from_file:
+        file_path = Path(from_file)
+        if not file_path.exists():
+            exit_with_error(f"File not found: {from_file}")
+
         with open(file_path, "r") as f:
             content = f.read()
 
@@ -379,13 +394,11 @@ async def create(
             exit_with_error(
                 "File extension not recognized. Please use .yaml, .yml, or .json"
             )
-    else:
+    else:  # from_json
         try:
-            data = orjson.loads(automation_spec)
-        except orjson.JSONDecodeError:
-            exit_with_error(
-                "Invalid input. Please provide a valid file path or JSON string."
-            )
+            data = orjson.loads(from_json)
+        except orjson.JSONDecodeError as e:
+            exit_with_error(f"Invalid JSON: {e}")
 
     automations_data = []
     if isinstance(data, dict) and "automations" in data:
