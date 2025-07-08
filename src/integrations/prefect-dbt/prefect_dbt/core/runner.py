@@ -17,8 +17,6 @@ from dbt.artifacts.schemas.results import (
 from dbt.artifacts.schemas.run import RunExecutionResult
 from dbt.cli.main import dbtRunner
 from dbt.compilation import Linker
-from dbt.config.project import Project
-from dbt.config.renderer import DbtProjectYamlRenderer
 from dbt.config.runtime import RuntimeConfig
 from dbt.contracts.graph.manifest import Manifest
 from dbt.contracts.graph.nodes import ManifestNode
@@ -114,6 +112,9 @@ class PrefectDbtRunner:
             non-exception failure
         client: Optional Prefect client instance
         include_compiled_code: Whether to include compiled code in the asset description
+        enable_assets: Global override for disabling asset generation for dbt nodes. If
+            False, assets will not be created for any dbt nodes, even if the node's prefect
+            config has enable_assets set to True.
         _force_nodes_as_tasks: Whether to force each dbt node execution to have a Prefect task
             representation when `.invoke()` is called outside of a flow or task run
     """
@@ -125,6 +126,7 @@ class PrefectDbtRunner:
         raise_on_failure: bool = True,
         client: Optional[PrefectClient] = None,
         include_compiled_code: bool = False,
+        enable_assets: bool = True,
         _force_nodes_as_tasks: bool = False,
     ):
         self._manifest: Optional[Manifest] = manifest
@@ -132,9 +134,10 @@ class PrefectDbtRunner:
         self.raise_on_failure = raise_on_failure
         self.client = client or get_client()
         self.include_compiled_code = include_compiled_code
+        self.enable_assets = enable_assets
         self._force_nodes_as_tasks = _force_nodes_as_tasks
 
-        self._project: Optional[Project] = None
+        self._project_name: Optional[str] = None
         self._target_path: Optional[Path] = None
         self._profiles_dir: Optional[Path] = None
         self._project_dir: Optional[Path] = None
@@ -167,18 +170,21 @@ class PrefectDbtRunner:
         return self._manifest
 
     @property
-    def project(self) -> Project:
-        if self._project is None:
-            self._set_project_from_project_dir()
-            assert self._project is not None  # for type checking
-        return self._project
-
-    @property
     def graph(self) -> Graph:
         if self._graph is None:
             self._set_graph_from_manifest()
             assert self._graph is not None
         return self._graph
+
+    @property
+    def project_name(self) -> str:
+        if self._project_name is None:
+            self._set_project_name_from_manifest()
+            assert self._project_name is not None
+        return self._project_name
+
+    def _set_project_name_from_manifest(self) -> Optional[str]:
+        self._project_name = self.manifest.metadata.project_name
 
     def _set_graph_from_manifest(self, add_test_edges: bool = False):
         linker = Linker()
@@ -198,10 +204,6 @@ class PrefectDbtRunner:
             raise ValueError(
                 f"Manifest file not found in {os.path.join(self.project_dir, self.target_path, 'manifest.json')}"
             )
-
-    def _set_project_from_project_dir(self):
-        renderer = DbtProjectYamlRenderer(profile=None, cli_vars=None)
-        self._project = Project.from_project_root(str(self.project_dir), renderer)
 
     def _get_node_prefect_config(
         self, manifest_node: ManifestNode
@@ -239,7 +241,7 @@ class PrefectDbtRunner:
             Path(self.project_dir)
             / self.target_path
             / "compiled"
-            / str(Path(self.project.project_name)).split("/")[-1]
+            / str(Path(self.project_name)).split("/")[-1]
             / manifest_node.original_file_path
         )
 
@@ -445,7 +447,9 @@ class PrefectDbtRunner:
                 )
 
                 if manifest_node:
-                    enable_assets = prefect_config.get("enable_assets", True)
+                    enable_assets = (
+                        prefect_config.get("enable_assets", True) and self.enable_assets
+                    )
                     try:
                         self._call_task(
                             task_state, manifest_node, context, enable_assets
