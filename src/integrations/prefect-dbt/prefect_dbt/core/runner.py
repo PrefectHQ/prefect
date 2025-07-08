@@ -241,7 +241,7 @@ class PrefectDbtRunner:
             Path(self.project_dir)
             / self.target_path
             / "compiled"
-            / str(Path(self.project_name)).split("/")[-1]
+            / self.project_name
             / manifest_node.original_file_path
         )
 
