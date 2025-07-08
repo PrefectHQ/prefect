@@ -45,7 +45,7 @@ async def create_saved_search(
     return model
 
 
-@router.get("/{id}")
+@router.get("/{id:uuid}")
 async def read_saved_search(
     saved_search_id: UUID = Path(..., description="The saved search id", alias="id"),
     db: PrefectDBInterface = Depends(provide_database_interface),
@@ -81,7 +81,7 @@ async def read_saved_searches(
         )
 
 
-@router.delete("/{id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{id:uuid}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_saved_search(
     saved_search_id: UUID = Path(..., description="The saved search id", alias="id"),
     db: PrefectDBInterface = Depends(provide_database_interface),

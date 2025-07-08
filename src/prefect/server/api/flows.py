@@ -43,7 +43,7 @@ async def create_flow(
     return model
 
 
-@router.patch("/{id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.patch("/{id:uuid}", status_code=status.HTTP_204_NO_CONTENT)
 async def update_flow(
     flow: schemas.actions.FlowUpdate,
     flow_id: UUID = Path(..., description="The flow id", alias="id"),
@@ -102,7 +102,7 @@ async def read_flow_by_name(
     return flow
 
 
-@router.get("/{id}")
+@router.get("/{id:uuid}")
 async def read_flow(
     flow_id: UUID = Path(..., description="The flow id", alias="id"),
     db: PrefectDBInterface = Depends(provide_database_interface),
@@ -148,7 +148,7 @@ async def read_flows(
         )
 
 
-@router.delete("/{id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{id:uuid}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_flow(
     flow_id: UUID = Path(..., description="The flow id", alias="id"),
     db: PrefectDBInterface = Depends(provide_database_interface),

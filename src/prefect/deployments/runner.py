@@ -379,8 +379,10 @@ class RunnerDeployment(BaseModel):
                     pull_steps = self.storage.to_pull_step()
                     if isinstance(pull_steps, list):
                         create_payload["pull_steps"] = pull_steps
-                    else:
+                    elif pull_steps:
                         create_payload["pull_steps"] = [pull_steps]
+                    else:
+                        create_payload["pull_steps"] = []
                 else:
                     create_payload["pull_steps"] = []
 
@@ -426,9 +428,11 @@ class RunnerDeployment(BaseModel):
 
         if self.storage:
             pull_steps = self.storage.to_pull_step()
-            if not isinstance(pull_steps, list):
+            if pull_steps and not isinstance(pull_steps, list):
                 pull_steps = [pull_steps]
             update_payload["pull_steps"] = pull_steps
+        else:
+            update_payload["pull_steps"] = None
 
         await client.update_deployment(
             deployment_id,
