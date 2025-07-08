@@ -64,6 +64,7 @@ async def flow_run_state_change_event(
                 else None
             ),
             "prefect.state-type": validated_state.type.value,
+            "prefect.run-count": str(flow_run.run_count),
         },
         related=await _flow_run_related_resources_from_orm(
             session=session, flow_run=flow_run

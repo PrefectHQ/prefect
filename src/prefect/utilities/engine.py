@@ -700,6 +700,7 @@ def emit_task_run_state_change_event(
                 else ""
             ),
             "prefect.state-type": str(validated_state.type.value),
+            "prefect.run-count": str(task_run.run_count),
             "prefect.orchestration": "client",
         },
         follows=follows,
