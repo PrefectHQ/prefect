@@ -13,8 +13,8 @@ This guide covers how to trigger deployments on demand.
 ## Prerequisites
 
 In order to run a deployment, you need to have:
-- [Created a deployment](/v3/how-to-guides/deployments/create-deployments)
-- Started a [worker](/v3/concepts/workers) listening to your deployment's [work pool](/v3/concepts/work-pools)
+- [created a deployment](/v3/how-to-guides/deployments/create-deployments)
+- started a process ([`serve`](/v3/how-to-guides/deployment_infra/run-flows-in-local-processes) or a [worker](/v3/concepts/workers)) listening for scheduled runs of that deployment
 
 ## Run a deployment from the CLI
 
@@ -104,7 +104,7 @@ flow_run = run_deployment(
 ```
 
 <Note>
-By default, deployments triggered via `run_deployment` _from a parent flow_ will be treated as a subflow of the parent flow in the UI. To disable this, set `as_subflow=False`.
+By default, deployments triggered via `run_deployment` _from within another flow_ will be treated as a subflow of the parent flow in the UI. To disable this, set `as_subflow=False`.
 </Note>
 
 ### Async usage
