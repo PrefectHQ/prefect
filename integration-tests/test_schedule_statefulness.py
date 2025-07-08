@@ -19,11 +19,16 @@ import signal
 from typing import Any
 from uuid import uuid4
 
+import pytest
+
 from prefect import flow, get_client
 from prefect.client.schemas.objects import DeploymentSchedule
 from prefect.schedules import Cron
 
-DEPLOYMENT_NAME = f"my-deployment-{uuid4()}"
+
+@pytest.fixture()
+def deployment_name():
+    return f"my-deployment-{uuid4()}"
 
 
 @flow
@@ -41,7 +46,7 @@ def run_serve_with_schedule(
     signal.signal(signal.SIGALRM, _handler)
     signal.alarm(timeout)
     try:
-        my_flow.serve(name=DEPLOYMENT_NAME, **(serve_kwargs or {}))
+        my_flow.serve(**(serve_kwargs or {}))
     except KeyboardInterrupt:
         print("Serve interrupted")
     finally:
@@ -54,12 +59,14 @@ def check_deployment_schedules(deployment_name: str) -> list[DeploymentSchedule]
         return deployment.schedules
 
 
-def test_schedule_statefulness():
+def test_schedule_statefulness(deployment_name: str):
     # case 1: Schedule without slug
     print("\nTest case 1: Schedule without slug")
-    run_serve_with_schedule(serve_kwargs={"schedules": [Cron("0 9 * * *")]})
-    run_serve_with_schedule(serve_kwargs={"schedules": []})
-    schedules = check_deployment_schedules(f"my-flow/{DEPLOYMENT_NAME}")
+    run_serve_with_schedule(
+        serve_kwargs={"name": deployment_name, "schedules": [Cron("0 9 * * *")]}
+    )
+    run_serve_with_schedule(serve_kwargs={"name": deployment_name, "schedules": []})
+    schedules = check_deployment_schedules(f"my-flow/{deployment_name}")
     assert not schedules, (
         f"Expected no schedules after removing unnamed schedule: {schedules}"
     )
@@ -67,10 +74,13 @@ def test_schedule_statefulness():
     # case 2: Schedule with slug
     print("\nTest case 2: Schedule with slug")
     run_serve_with_schedule(
-        serve_kwargs={"schedules": [Cron("0 9 * * *", slug="every-day-at-9am")]}
+        serve_kwargs={
+            "name": deployment_name,
+            "schedules": [Cron("0 9 * * *", slug="every-day-at-9am")],
+        }
     )
     run_serve_with_schedule(serve_kwargs={"schedules": []})
-    schedules = check_deployment_schedules(f"my-flow/{DEPLOYMENT_NAME}")
+    schedules = check_deployment_schedules(f"my-flow/{deployment_name}")
     assert any(s.slug == "every-day-at-9am" for s in schedules), (
         f"Expected named schedule to persist: {schedules}"
     )
