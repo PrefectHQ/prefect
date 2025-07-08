@@ -3,11 +3,17 @@ from typing import Any
 
 import pytest
 
+from prefect import __development_base_path__, flow
 from prefect.client.orchestration import PrefectClient
 from prefect.runner import Runner
 from prefect.testing.cli import invoke_and_assert
 from prefect.testing.utilities import AsyncMock
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
+
+
+@flow(retries=2)
+def hello():
+    print("hello")
 
 
 class TestFlowServe:
@@ -37,7 +43,13 @@ class TestFlowServe:
     ):
         await run_sync_in_worker_thread(
             invoke_and_assert,
-            command=["flow", "serve", "flows/hello_world.py:hello", "--name", "test"],
+            command=[
+                "flow",
+                "serve",
+                f"{__development_base_path__}/tests/cli/test_flow.py:hello",
+                "--name",
+                "test",
+            ],
             expected_code=0,
             expected_output_contains=[
                 "Your flow 'hello' is being served and polling for scheduled runs!",
@@ -50,7 +62,10 @@ class TestFlowServe:
 
         assert deployment is not None
         assert deployment.name == "test"
-        assert deployment.entrypoint == "flows/hello_world.py:hello"
+        assert (
+            deployment.entrypoint
+            == f"{__development_base_path__}/tests/cli/test_flow.py:hello"
+        )
 
         mock_runner_start.assert_called_once()
 
@@ -62,7 +77,7 @@ class TestFlowServe:
             command=[
                 "flow",
                 "serve",
-                "flows/hello_world.py:hello",
+                f"{__development_base_path__}/tests/cli/test_flow.py:hello",
                 "--name",
                 "test",
                 "--interval",
@@ -85,7 +100,7 @@ class TestFlowServe:
             command=[
                 "flow",
                 "serve",
-                "flows/hello_world.py:hello",
+                f"{__development_base_path__}/tests/cli/test_flow.py:hello",
                 "--name",
                 "test",
                 "--cron",
@@ -106,7 +121,7 @@ class TestFlowServe:
             command=[
                 "flow",
                 "serve",
-                "flows/hello_world.py:hello",
+                f"{__development_base_path__}/tests/cli/test_flow.py:hello",
                 "--name",
                 "test",
                 "--rrule",
@@ -140,7 +155,7 @@ class TestFlowServe:
             command=[
                 "flow",
                 "serve",
-                "flows/hello_world.py:hello",
+                f"{__development_base_path__}/tests/cli/test_flow.py:hello",
                 "--name",
                 "test",
                 "--limit",
@@ -164,7 +179,7 @@ class TestFlowServe:
             command=[
                 "flow",
                 "serve",
-                "flows/hello_world.py:hello",
+                f"{__development_base_path__}/tests/cli/test_flow.py:hello",
                 "--name",
                 "test",
                 "--description",
