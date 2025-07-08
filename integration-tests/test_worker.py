@@ -95,6 +95,8 @@ def test_worker():
             uv.find_uv_bin(),
             "run",
             "--isolated",
+            "--with",
+            "prefect-kubernetes",
             "prefect",
             "worker",
             "start",
