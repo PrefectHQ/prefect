@@ -41,6 +41,7 @@ View details about a deployment.
 Example:
     
     \$ prefect deployment inspect "hello-world/my-deployment"
+    \$ prefect deployment inspect "hello-world/my-deployment" --output json
     &#123;
         'id': '610df9c3-0fb4-4856-b330-67f588d20201',
         'created': '2022-08-01T18:36:25.192102+00:00',
@@ -90,6 +91,14 @@ Example:
 </Accordion>
 
 
+
+<Accordion title="Options" defaultOpen>
+
+<ResponseField name="--output">
+    Specify an output format. Currently supports: json
+</ResponseField>
+
+</Accordion>
 
 </AccordionGroup>
 
@@ -257,6 +266,10 @@ Examples:
 
 <ResponseField name="--id">
     A deployment id to search for if no name is given
+</ResponseField>
+
+<ResponseField name="--all">
+    Delete all deployments
 </ResponseField>
 
 </Accordion>

@@ -18,6 +18,94 @@ import { automations } from "/snippets/resource-management/vars.mdx"
 <COMBINED name="automations" hrefTF={automations.tf} hrefAPI={automations.api} hrefCLI={automations.cli} />
 
 
+### Create automations with the CLI
+
+You can create automations from YAML or JSON files using the Prefect CLI:
+
+```bash
+# Create from a YAML file
+prefect automation create --from-file automation.yaml
+# or use the short form
+prefect automation create -f automation.yaml
+
+# Create from a JSON file  
+prefect automation create --from-file automation.json
+
+# Create from a JSON string
+prefect automation create --from-json '{"name": "my-automation", "trigger": {...}, "actions": [...]}'
+# or use the short form
+prefect automation create -j '{"name": "my-automation", "trigger": {...}, "actions": [...]}'
+```
+
+#### Single automation example
+
+Here's an example YAML file that creates an automation to cancel long-running flows:
+
+```yaml
+name: Cancel Long Running Flows
+description: Cancels flows running longer than 5 minutes
+enabled: true
+trigger:
+  type: event
+  posture: Reactive
+  match_state_name: RUNNING
+  match_state_duration_s: 300  # 5 minutes
+actions:
+  - type: cancel-flow-run
+```
+
+#### Multiple automations example
+
+You can also create multiple automations at once by using the `automations:` key. If any automation fails to create, the command will continue with the remaining automations and report both successes and failures:
+
+```yaml
+automations:
+  - name: Cancel Long Running Flows
+    description: Cancels flows running longer than 30 minutes
+    enabled: true
+    trigger:
+      type: event
+      posture: Reactive
+      expect:
+        - prefect.flow-run.Running
+      threshold: 1
+      for_each:
+        - prefect.resource.id
+    actions:
+      - type: cancel-flow-run
+        
+  - name: Notify on Flow Failure
+    description: Send notification when flows fail
+    enabled: true
+    trigger:
+      type: event
+      posture: Reactive
+      expect:
+        - prefect.flow-run.Failed
+      threshold: 1
+    actions:
+      - type: send-notification
+        subject: "Flow Failed: {{ event.resource.name }}"
+        body: "Flow run {{ event.resource.name }} has failed."
+```
+
+Or as a JSON array:
+
+```json
+[
+  {
+    "name": "First Automation",
+    "trigger": {...},
+    "actions": [...]
+  },
+  {
+    "name": "Second Automation", 
+    "trigger": {...},
+    "actions": [...]
+  }
+]
+```
+
 ### Create automations with the Python SDK
 
 You can create and access any automation with the Python SDK's `Automation` class and its methods.
