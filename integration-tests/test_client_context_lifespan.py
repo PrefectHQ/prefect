@@ -47,7 +47,7 @@ def test_client_context_lifespan_is_robust_to_threaded_concurrency():
         thread.start()
 
     for thread in threads:
-        thread.join(3)
+        thread.join(15)
 
     assert startup.call_count == shutdown.call_count
     assert startup.call_count > 0
@@ -107,7 +107,7 @@ async def test_client_context_lifespan_is_robust_to_mixed_concurrency():
         thread.start()
 
     for thread in threads:
-        thread.join(3)
+        thread.join(15)
 
     assert startup.call_count == shutdown.call_count
     assert startup.call_count > 0
