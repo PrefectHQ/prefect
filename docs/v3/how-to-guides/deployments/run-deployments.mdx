@@ -51,6 +51,7 @@ prefect deployment run my-flow/my-deployment --tag production --tag critical
 
 Use the `run_deployment` function for programmatic control:
 
+{/* pmd-metadata: notest */}
 ```python
 from prefect.deployments import run_deployment
 
@@ -110,6 +111,7 @@ By default, deployments triggered via `run_deployment` _from a parent flow_ will
 
 In an async context, you can use the `run_deployment` function as a coroutine:
 
+{/* pmd-metadata: notest */}
 ```python
 import asyncio
 from prefect.deployments import run_deployment
