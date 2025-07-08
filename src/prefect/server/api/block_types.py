@@ -43,7 +43,7 @@ async def create_block_type(
     return created_block_type
 
 
-@router.get("/{id}")
+@router.get("/{id:uuid}")
 async def read_block_type_by_id(
     block_type_id: UUID = Path(..., description="The block type ID", alias="id"),
     db: PrefectDBInterface = Depends(provide_database_interface),
@@ -98,7 +98,7 @@ async def read_block_types(
         )
 
 
-@router.patch("/{id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.patch("/{id:uuid}", status_code=status.HTTP_204_NO_CONTENT)
 async def update_block_type(
     block_type: schemas.actions.BlockTypeUpdate,
     block_type_id: UUID = Path(..., description="The block type ID", alias="id"),
@@ -129,7 +129,7 @@ async def update_block_type(
             )
 
 
-@router.delete("/{id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{id:uuid}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_block_type(
     block_type_id: UUID = Path(..., description="The block type ID", alias="id"),
     db: PrefectDBInterface = Depends(provide_database_interface),

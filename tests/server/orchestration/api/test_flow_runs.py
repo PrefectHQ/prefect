@@ -540,9 +540,7 @@ class TestReadFlowRun:
         we're not attempting query with any old string as a flow run ID."""
         with mock.patch("prefect.server.models.flow_runs.read_flow_run") as mock_read:
             response = await client.get("/flow_runs/THISAINTIT")
-            # Ideally this would be a 404, but we're letting FastAPI take care of this
-            # at the parameter parsing level, so it's a 422
-            assert response.status_code == 422, response.text
+            assert response.status_code == 404, response.text
 
         mock_read.assert_not_called()
 

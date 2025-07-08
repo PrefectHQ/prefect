@@ -176,7 +176,7 @@ async def read_task_run_counts_by_state(
         )
 
 
-@router.get("/{id}")
+@router.get("/{id:uuid}")
 async def read_task_run_with_flow_run_name(
     task_run_id: UUID = Path(..., description="The task run id", alias="id"),
     db: PrefectDBInterface = Depends(provide_database_interface),

@@ -65,7 +65,7 @@ async def create_work_queue(
     )
 
 
-@router.patch("/{id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.patch("/{id:uuid}", status_code=status.HTTP_204_NO_CONTENT)
 async def update_work_queue(
     work_queue: schemas.actions.WorkQueueUpdate,
     work_queue_id: UUID = Path(..., description="The work queue id", alias="id"),
@@ -108,7 +108,7 @@ async def read_work_queue_by_name(
     )
 
 
-@router.get("/{id}")
+@router.get("/{id:uuid}")
 async def read_work_queue(
     work_queue_id: UUID = Path(..., description="The work queue id", alias="id"),
     db: PrefectDBInterface = Depends(provide_database_interface),
@@ -129,7 +129,7 @@ async def read_work_queue(
     )
 
 
-@router.post("/{id}/get_runs")
+@router.post("/{id:uuid}/get_runs")
 async def read_work_queue_runs(
     background_tasks: BackgroundTasks,
     work_queue_id: UUID = Path(..., description="The work queue id", alias="id"),
@@ -201,7 +201,7 @@ async def read_work_queues(
     ]
 
 
-@router.delete("/{id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{id:uuid}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_work_queue(
     work_queue_id: UUID = Path(..., description="The work queue id", alias="id"),
     db: PrefectDBInterface = Depends(provide_database_interface),
@@ -219,7 +219,7 @@ async def delete_work_queue(
         )
 
 
-@router.get("/{id}/status")
+@router.get("/{id:uuid}/status")
 async def read_work_queue_status(
     work_queue_id: UUID = Path(..., description="The work queue id", alias="id"),
     db: PrefectDBInterface = Depends(provide_database_interface),

@@ -90,7 +90,7 @@ async def create_task_run(
     return new_task_run
 
 
-@router.patch("/{id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.patch("/{id:uuid}", status_code=status.HTTP_204_NO_CONTENT)
 async def update_task_run(
     task_run: schemas.actions.TaskRunUpdate,
     task_run_id: UUID = Path(..., description="The task run id", alias="id"),
@@ -174,7 +174,7 @@ async def task_run_history(
         )
 
 
-@router.get("/{id}")
+@router.get("/{id:uuid}")
 async def read_task_run(
     task_run_id: UUID = Path(..., description="The task run id", alias="id"),
     db: PrefectDBInterface = Depends(provide_database_interface),
@@ -265,7 +265,7 @@ async def paginate_task_runs(
         )
 
 
-@router.delete("/{id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{id:uuid}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_task_run(
     task_run_id: UUID = Path(..., description="The task run id", alias="id"),
     db: PrefectDBInterface = Depends(provide_database_interface),
@@ -281,7 +281,7 @@ async def delete_task_run(
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Task not found")
 
 
-@router.post("/{id}/set_state")
+@router.post("/{id:uuid}/set_state")
 async def set_task_run_state(
     task_run_id: UUID = Path(..., description="The task run id", alias="id"),
     state: schemas.actions.StateCreate = Body(..., description="The intended state."),
