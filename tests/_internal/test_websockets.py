@@ -12,6 +12,7 @@ from prefect._internal.websockets import (
 )
 from prefect.settings import (
     PREFECT_API_TLS_INSECURE_SKIP_VERIFY,
+    PREFECT_CLIENT_CUSTOM_HEADERS,
     temporary_settings,
 )
 
@@ -208,8 +209,6 @@ def test_websocket_proxy_creation_is_deferred():
 
 def test_websocket_custom_headers():
     """Test that custom headers from settings are added to extra_headers"""
-    from prefect.settings import PREFECT_CLIENT_CUSTOM_HEADERS
-
     custom_headers = {"X-Custom-Header": "test-value", "Authorization": "Bearer token"}
 
     with temporary_settings({PREFECT_CLIENT_CUSTOM_HEADERS: custom_headers}):
@@ -224,7 +223,6 @@ def test_websocket_custom_headers():
 
 def test_websocket_custom_headers_merge_with_existing():
     """Test that custom headers merge with existing extra_headers"""
-    from prefect.settings import PREFECT_CLIENT_CUSTOM_HEADERS
 
     custom_headers = {"X-Custom-Header": "test-value"}
     existing_headers = {"X-Existing-Header": "existing-value"}
@@ -242,7 +240,6 @@ def test_websocket_custom_headers_merge_with_existing():
 
 def test_websocket_custom_headers_protected_headers_warning():
     """Test that protected headers generate warnings and are ignored"""
-    from prefect.settings import PREFECT_CLIENT_CUSTOM_HEADERS
 
     custom_headers = {
         "User-Agent": "custom-agent",
@@ -270,7 +267,6 @@ def test_websocket_custom_headers_protected_headers_warning():
 
 def test_websocket_custom_headers_empty_settings():
     """Test that empty custom headers don't cause issues"""
-    from prefect.settings import PREFECT_CLIENT_CUSTOM_HEADERS
 
     with temporary_settings({PREFECT_CLIENT_CUSTOM_HEADERS: {}}):
         connector = WebsocketProxyConnect("wss://example.com")
@@ -284,7 +280,6 @@ def test_websocket_custom_headers_empty_settings():
 
 def test_websocket_custom_headers_with_websocket_connect():
     """Test that custom headers work with the websocket_connect utility function"""
-    from prefect.settings import PREFECT_CLIENT_CUSTOM_HEADERS
 
     custom_headers = {"X-Custom-Header": "test-value"}
 

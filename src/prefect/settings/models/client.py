@@ -87,6 +87,7 @@ class ClientSettings(PrefectBaseSettings):
         """,
     )
 
+    # this needs to be typing.Dict for now as dict[str, str] is not compatible with pydantic < 2.11
     custom_headers: Dict[str, str] = Field(
         default_factory=dict,
         description="""
