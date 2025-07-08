@@ -32,7 +32,7 @@ def _handler(signum, frame):
     raise KeyboardInterrupt("Simulating user interruption")
 
 
-if __name__ == "__main__":
+def test_multiprocessing_flow():
     TIMEOUT: int = 15
     INTERVAL_SECONDS: int = 3
     TAGS = ["unique", "integration"]

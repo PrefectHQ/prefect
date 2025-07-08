@@ -4,6 +4,8 @@ import sys
 from pathlib import Path
 from textwrap import dedent
 
+import uv
+
 from prefect import flow, get_client
 from prefect.deployments import run_deployment
 from prefect.docker.docker_image import DockerImage
@@ -27,14 +29,24 @@ def flow_that_needs_pandas() -> str:
     return "we're done"
 
 
-def main():
+def test_docker_deploy():
     """
     Deploy and run a flow in a Docker container with runtime package installation using uv.
     Demonstrates using EXTRA_PIP_PACKAGES to install dependencies at runtime.
     """
     try:
         subprocess.check_call(
-            ["prefect", "work-pool", "create", "test-docker-pool", "-t", "docker"],
+            [
+                uv.find_uv_bin(),
+                "run",
+                "--isolated",
+                "prefect",
+                "work-pool",
+                "create",
+                "test-docker-pool",
+                "-t",
+                "docker",
+            ],
             stdout=sys.stdout,
             stderr=sys.stderr,
         )
@@ -45,7 +57,7 @@ def main():
             dedent(
                 """
                 FROM prefecthq/prefect:3-latest
-                COPY flows/docker_deploy.py /opt/prefect/flows/docker_deploy.py
+                COPY integration-tests/test_docker_deploy.py /opt/prefect/integration-tests/test_docker_deploy.py
                 """
             )
         )
@@ -75,14 +87,17 @@ def main():
         # Execute the flow run
         subprocess.check_call(
             [
+                uv.find_uv_bin(),
+                "run",
+                "--isolated",
+                "--with",
+                "prefect-docker",
                 "prefect",
                 "worker",
                 "start",
                 "--pool",
                 "test-docker-pool",
                 "--run-once",
-                "--install-policy",
-                "if-not-present",
             ],
             stdout=sys.stdout,
             stderr=sys.stderr,
@@ -95,11 +110,16 @@ def main():
     finally:
         # Cleanup
         subprocess.check_call(
-            ["prefect", "--no-prompt", "work-pool", "delete", "test-docker-pool"],
+            [
+                uv.find_uv_bin(),
+                "run",
+                "--isolated",
+                "prefect",
+                "--no-prompt",
+                "work-pool",
+                "delete",
+                "test-docker-pool",
+            ],
             stdout=sys.stdout,
             stderr=sys.stderr,
         )
-
-
-if __name__ == "__main__":
-    main()
