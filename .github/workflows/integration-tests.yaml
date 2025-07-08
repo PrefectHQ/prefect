@@ -146,7 +146,7 @@ jobs:
       - name: Run integration flows
         env:
           PREFECT_API_URL: http://127.0.0.1:4200/api
-        run: >
+        run: |
           uv pip install pytest
           pytest integration-tests/ -n auto -vv
 
