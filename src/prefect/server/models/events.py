@@ -54,6 +54,7 @@ async def flow_run_state_change_event(
         resource={
             "prefect.resource.id": f"prefect.flow-run.{flow_run.id}",
             "prefect.resource.name": flow_run.name,
+            "prefect.run-count": str(flow_run.run_count),
             "prefect.state-message": truncated_to(
                 TRUNCATE_STATE_MESSAGES_AT, validated_state.message
             ),
@@ -64,7 +65,6 @@ async def flow_run_state_change_event(
                 else None
             ),
             "prefect.state-type": validated_state.type.value,
-            "prefect.run-count": str(flow_run.run_count),
         },
         related=await _flow_run_related_resources_from_orm(
             session=session, flow_run=flow_run
