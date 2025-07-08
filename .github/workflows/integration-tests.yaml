@@ -77,7 +77,6 @@ jobs:
           PREFECT_SERVER_LOGGING_LEVEL: DEBUG
         run: >
           uv run prefect server start --analytics-off --host 0.0.0.0 2>&1 > server.log &
-
           uv run ./scripts/wait-for-server.py
 
       - name: Run integration flows
@@ -85,7 +84,7 @@ jobs:
           PREFECT_API_URL: http://127.0.0.1:4200/api
           SERVER_VERSION: ${{ matrix.server-version.version }}
         run: >
-          uv run ./scripts/run-integration-flows.py flows/
+          uv run pytest integration-tests/ -n auto -vv
 
       - name: Show server logs
         if: always()
@@ -137,8 +136,7 @@ jobs:
           PREFECT_API_URL: http://127.0.0.1:4200/api
           PREFECT_SERVER_LOGGING_LEVEL: DEBUG
         run: >
-          uv run --isolated prefect server start --analytics-off --host 0.0.0.0 2>&1 > server.log &
-
+          uv run prefect server start --analytics-off --host 0.0.0.0 2>&1 > server.log &
           uv run --isolated ./scripts/wait-for-server.py
 
       - name: Verify the CLI isn't available in the active environment
@@ -148,9 +146,19 @@ jobs:
       - name: Run integration flows
         env:
           PREFECT_API_URL: http://127.0.0.1:4200/api
-        run: >
-          ./scripts/run-integration-flows.py flows/
-        
+        run: |
+          # Install dependencies for integration tests. We don't want to install the whole project because that will override the prefect-client build.
+          # We ignore test_task_worker.py because it relies on starting an ephemeral server via the `prefect.server` module which is not available in the client build.
+          uv pip install pytest \
+            uv \
+            docker \
+            sqlalchemy \
+            pytest-mypy-plugins \
+            pytest-asyncio \
+            pytest-xdist \
+            pytest-timeout \
+            pytest-env
+          pytest --ignore=integration-tests/test_task_worker.py integration-tests/ -n auto -vv
 
   sqlite-3-24-0:
     name: Test SQLite 3.24.0 Compatibility

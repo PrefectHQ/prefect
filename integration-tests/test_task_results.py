@@ -25,7 +25,7 @@ async def get_state_from_api(task_run_id: UUID) -> State[str]:
         return task_run.state
 
 
-if __name__ == "__main__":
+def test_task_results():
     task_state = wrapper_flow()
     assert task_state.result() == "Hello!"
     assert task_state.state_details.task_run_id is not None

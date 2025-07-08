@@ -7,6 +7,7 @@ from typing import Any, AsyncGenerator, Dict
 from uuid import uuid4
 
 import anyio
+import pytest
 
 from prefect import flow
 from prefect.client.orchestration import get_client
@@ -20,6 +21,8 @@ from prefect.events.filters import (
 )
 from prefect.logging import get_run_logger
 from prefect.types._datetime import now, parse_datetime
+
+SERVER_VERSION = os.getenv("SERVER_VERSION")
 
 
 @asynccontextmanager
@@ -49,7 +52,7 @@ async def create_or_replace_automation(
 
         automation["name"] = f"{automation['name']}:{uuid4()}"
 
-        response = await prefect._client.post("/automations", json=automation)
+        response = await prefect._client.post("/automations/", json=automation)
         response.raise_for_status()
 
         automation = response.json()
@@ -312,13 +315,33 @@ async def assess_sequence_automation():
             raise Exception("Sequence automation did not trigger in 60s")
 
 
-if __name__ == "__main__":
-    if os.getenv("SERVER_VERSION") == "9.9.9+for.the.tests":
-        print(
-            "Prefect Cloud has its own automation assessment integration test, skipping"
-        )
-    else:
-        asyncio.run(assess_reactive_automation())
-        asyncio.run(assess_proactive_automation())
-        asyncio.run(assess_compound_automation())
-        asyncio.run(assess_sequence_automation())
+@pytest.mark.skipif(
+    SERVER_VERSION == "9.9.9+for.the.tests",
+    reason="Prefect Cloud has its own automation assessment integration test, skipping",
+)
+async def test_reactive_automation():
+    await assess_reactive_automation()
+
+
+@pytest.mark.skipif(
+    SERVER_VERSION == "9.9.9+for.the.tests",
+    reason="Prefect Cloud has its own automation assessment integration test, skipping",
+)
+async def test_proactive_automation():
+    await assess_proactive_automation()
+
+
+@pytest.mark.skipif(
+    SERVER_VERSION == "9.9.9+for.the.tests",
+    reason="Prefect Cloud has its own automation assessment integration test, skipping",
+)
+async def test_compound_automation():
+    await assess_compound_automation()
+
+
+@pytest.mark.skipif(
+    SERVER_VERSION == "9.9.9+for.the.tests",
+    reason="Prefect Cloud has its own automation assessment integration test, skipping",
+)
+async def test_sequence_automation():
+    await assess_sequence_automation()

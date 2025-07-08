@@ -3,6 +3,9 @@ import subprocess
 import sys
 from threading import Thread
 from typing import List
+from uuid import uuid4
+
+import uv
 
 from prefect.events import Event
 from prefect.events.clients import get_events_subscriber
@@ -27,27 +30,43 @@ def run_event_listener(events: List[Event]):
     asyncio.run(watch_worker_events(events))
 
 
-def main():
+def test_worker():
+    WORKER_NAME = f"test-worker-{uuid4()}"  # noqa: F821
     events: List[Event] = []
 
     listener_thread = Thread(target=run_event_listener, args=(events,), daemon=True)
     listener_thread.start()
 
-    subprocess.check_call(
-        ["python", "-m", "pip", "install", "prefect-kubernetes>=0.5.0"],
-        stdout=sys.stdout,
-        stderr=sys.stderr,
-    )
     try:
         subprocess.check_output(
-            ["prefect", "work-pool", "delete", "test-worker-pool"],
+            [
+                uv.find_uv_bin(),
+                "run",
+                "--isolated",
+                "prefect",
+                "work-pool",
+                "delete",
+                "test-worker-pool",
+            ],
         )
     except subprocess.CalledProcessError:
         pass
 
     try:
         subprocess.check_output(
-            ["prefect", "work-pool", "create", "test-worker-pool", "-t", "nonsense"],
+            [
+                uv.find_uv_bin(),
+                "run",
+                "--isolated",
+                "--with",
+                "prefect-kubernetes>=0.5.0",
+                "prefect",
+                "work-pool",
+                "create",
+                "test-worker-pool",
+                "-t",
+                "nonsense",
+            ],
         )
     except subprocess.CalledProcessError as e:
         # Check that the error message contains kubernetes worker type
@@ -57,12 +76,27 @@ def main():
             )
 
     subprocess.check_call(
-        ["prefect", "work-pool", "create", "test-worker-pool", "-t", "kubernetes"],
+        [
+            uv.find_uv_bin(),
+            "run",
+            "--isolated",
+            "prefect",
+            "work-pool",
+            "create",
+            "test-worker-pool",
+            "-t",
+            "kubernetes",
+        ],
         stdout=sys.stdout,
         stderr=sys.stderr,
     )
     subprocess.check_call(
         [
+            uv.find_uv_bin(),
+            "run",
+            "--isolated",
+            "--with",
+            "prefect-kubernetes",
             "prefect",
             "worker",
             "start",
@@ -70,23 +104,33 @@ def main():
             "test-worker-pool",
             "-t",
             "kubernetes",
+            "-n",
+            WORKER_NAME,
             "--run-once",
         ],
         stdout=sys.stdout,
         stderr=sys.stderr,
     )
     subprocess.check_call(
-        ["python", "-m", "pip", "uninstall", "prefect-kubernetes", "-y"],
-        stdout=sys.stdout,
-        stderr=sys.stderr,
-    )
-    subprocess.check_call(
-        ["prefect", "--no-prompt", "work-pool", "delete", "test-worker-pool"],
+        [
+            uv.find_uv_bin(),
+            "run",
+            "--isolated",
+            "prefect",
+            "--no-prompt",
+            "work-pool",
+            "delete",
+            "test-worker-pool",
+        ],
         stdout=sys.stdout,
         stderr=sys.stderr,
     )
 
-    worker_events = [e for e in events if e.event.startswith("prefect.worker.")]
+    worker_events = [
+        e
+        for e in events
+        if e.event.startswith("prefect.worker.") and e.resource.name == WORKER_NAME
+    ]
     assert len(worker_events) == 2, (
         f"Expected 2 worker events, got {len(worker_events)}"
     )
@@ -102,7 +146,3 @@ def main():
     assert stop_events[0].follows == start_events[0].id, (
         "Stop event should follow start event"
     )
-
-
-if __name__ == "__main__":
-    main()

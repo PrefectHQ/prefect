@@ -16,7 +16,7 @@ async def load_flow(entrypoint: str) -> Flow[..., Any]:
 
 async def test_iteration():
     entrypoints = [
-        "flows/hello-world.py:hello",
+        "flows/hello_world.py:hello",
         "flows/whoami.py:whoami",
     ] * 5  # Load each flow 5 times concurrently
     futures = [load_flow(entrypoint) for entrypoint in entrypoints]
@@ -24,7 +24,7 @@ async def test_iteration():
     return len(flows)
 
 
-async def run_stress_test():
+async def test_load_flows_concurrently():
     for i in range(10):  # Run 10 iterations
         try:
             count = await test_iteration()
@@ -33,8 +33,3 @@ async def run_stress_test():
             print(f"Iteration {i + 1}: Failed with error: {str(e)}")
             return False
     return True
-
-
-if __name__ == "__main__":
-    success = asyncio.run(run_stress_test())
-    print(f"\nStress test {'passed' if success else 'failed'}")
