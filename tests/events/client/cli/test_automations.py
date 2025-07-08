@@ -558,3 +558,367 @@ def test_deleting_by_nonexistent_id(
     )
 
     delete_automation.assert_not_called()
+
+
+@pytest.fixture
+def create_automation() -> Generator[mock.AsyncMock, None, None]:
+    with mock.patch(
+        "prefect.client.orchestration.PrefectClient.create_automation", autospec=True
+    ) as m:
+        yield m
+
+
+def test_creating_automation_from_yaml_file(
+    create_automation: mock.AsyncMock,
+    tmp_path,
+):
+    automation_id = uuid4()
+    create_automation.return_value = automation_id
+
+    # Create a YAML file
+    yaml_file = tmp_path / "automation.yaml"
+    automation_data = {
+        "name": "My Test Automation",
+        "description": "Test automation from YAML",
+        "enabled": True,
+        "trigger": {
+            "type": "event",
+            "posture": "Reactive",
+            "expect": ["event.test"],
+            "threshold": 1,
+        },
+        "actions": [{"type": "do-nothing"}],
+    }
+    yaml_file.write_text(yaml.dump(automation_data))
+
+    invoke_and_assert(
+        ["automations", "create", "--from-file", str(yaml_file)],
+        expected_code=0,
+        expected_output_contains=[
+            f"Created automation 'My Test Automation' with id {automation_id}"
+        ],
+    )
+
+    create_automation.assert_awaited_once()
+
+
+def test_creating_automation_from_json_file(
+    create_automation: mock.AsyncMock,
+    tmp_path,
+):
+    automation_id = uuid4()
+    create_automation.return_value = automation_id
+
+    # Create a JSON file
+    json_file = tmp_path / "automation.json"
+    automation_data = {
+        "name": "My JSON Automation",
+        "description": "Test automation from JSON",
+        "enabled": True,
+        "trigger": {
+            "type": "event",
+            "posture": "Reactive",
+            "expect": ["event.test"],
+            "threshold": 1,
+        },
+        "actions": [{"type": "do-nothing"}],
+    }
+    json_file.write_text(orjson.dumps(automation_data).decode())
+
+    invoke_and_assert(
+        ["automations", "create", "--from-file", str(json_file)],
+        expected_code=0,
+        expected_output_contains=[
+            f"Created automation 'My JSON Automation' with id {automation_id}"
+        ],
+    )
+
+    create_automation.assert_awaited_once()
+
+
+def test_creating_automation_from_json_string(
+    create_automation: mock.AsyncMock,
+):
+    automation_id = uuid4()
+    create_automation.return_value = automation_id
+
+    automation_data = {
+        "name": "My String Automation",
+        "description": "Test automation from JSON string",
+        "enabled": True,
+        "trigger": {
+            "type": "event",
+            "posture": "Reactive",
+            "expect": ["event.test"],
+            "threshold": 1,
+        },
+        "actions": [{"type": "do-nothing"}],
+    }
+    json_string = orjson.dumps(automation_data).decode()
+
+    invoke_and_assert(
+        ["automations", "create", "--from-json", json_string],
+        expected_code=0,
+        expected_output_contains=[
+            f"Created automation 'My String Automation' with id {automation_id}"
+        ],
+    )
+
+    create_automation.assert_awaited_once()
+
+
+def test_creating_automation_invalid_file_extension(
+    create_automation: mock.AsyncMock,
+    tmp_path,
+):
+    # Create a file with invalid extension
+    invalid_file = tmp_path / "automation.txt"
+    invalid_file.write_text("some content")
+
+    invoke_and_assert(
+        ["automations", "create", "--from-file", str(invalid_file)],
+        expected_code=1,
+        expected_output_contains=[
+            "File extension not recognized. Please use .yaml, .yml, or .json"
+        ],
+    )
+
+    create_automation.assert_not_called()
+
+
+def test_creating_automation_file_not_found(
+    create_automation: mock.AsyncMock,
+):
+    invoke_and_assert(
+        ["automations", "create", "--from-file", "nonexistent.yaml"],
+        expected_code=1,
+        expected_output_contains=["File not found: nonexistent.yaml"],
+    )
+
+    create_automation.assert_not_called()
+
+
+def test_creating_automation_invalid_json_string(
+    create_automation: mock.AsyncMock,
+):
+    invoke_and_assert(
+        ["automations", "create", "--from-json", "not-a-valid-json"],
+        expected_code=1,
+        expected_output_contains=["Invalid JSON:"],
+    )
+
+    create_automation.assert_not_called()
+
+
+def test_creating_automation_no_input(
+    create_automation: mock.AsyncMock,
+):
+    invoke_and_assert(
+        ["automations", "create"],
+        expected_code=1,
+        expected_output_contains=["Please provide either --from-file or --from-json"],
+    )
+
+    create_automation.assert_not_called()
+
+
+def test_creating_automation_both_inputs(
+    create_automation: mock.AsyncMock,
+    tmp_path,
+):
+    yaml_file = tmp_path / "automation.yaml"
+    yaml_file.write_text("name: test")
+
+    invoke_and_assert(
+        [
+            "automations",
+            "create",
+            "--from-file",
+            str(yaml_file),
+            "--from-json",
+            '{"name": "test"}',
+        ],
+        expected_code=1,
+        expected_output_contains=[
+            "Please provide either --from-file or --from-json, not both"
+        ],
+    )
+
+    create_automation.assert_not_called()
+
+
+def test_creating_automation_validation_error(
+    create_automation: mock.AsyncMock,
+    tmp_path,
+):
+    # Create a YAML file with invalid automation data
+    yaml_file = tmp_path / "invalid_automation.yaml"
+    automation_data = {
+        # Missing required fields like name and trigger
+        "description": "Invalid automation",
+    }
+    yaml_file.write_text(yaml.dump(automation_data))
+
+    invoke_and_assert(
+        ["automations", "create", "--from-file", str(yaml_file)],
+        expected_code=1,
+        expected_output_contains=["Failed to create 1 automation(s):"],
+    )
+
+    create_automation.assert_not_called()
+
+
+def test_creating_multiple_automations_with_automations_key(
+    create_automation: mock.AsyncMock,
+    tmp_path,
+):
+    automation_ids = [uuid4(), uuid4()]
+    create_automation.side_effect = automation_ids
+
+    # Create a YAML file with multiple automations
+    yaml_file = tmp_path / "automations.yaml"
+    data = {
+        "automations": [
+            {
+                "name": "First Automation",
+                "description": "First test automation",
+                "enabled": True,
+                "trigger": {
+                    "type": "event",
+                    "posture": "Reactive",
+                    "expect": ["event.test"],
+                    "threshold": 1,
+                },
+                "actions": [{"type": "do-nothing"}],
+            },
+            {
+                "name": "Second Automation",
+                "description": "Second test automation",
+                "enabled": True,
+                "trigger": {
+                    "type": "event",
+                    "posture": "Reactive",
+                    "expect": ["event.test2"],
+                    "threshold": 1,
+                },
+                "actions": [{"type": "do-nothing"}],
+            },
+        ]
+    }
+    yaml_file.write_text(yaml.dump(data))
+
+    invoke_and_assert(
+        ["automations", "create", "--from-file", str(yaml_file)],
+        expected_code=0,
+        expected_output_contains=[
+            "Created 2 automation(s):",
+            f"'First Automation' with id {automation_ids[0]}",
+            f"'Second Automation' with id {automation_ids[1]}",
+        ],
+    )
+
+    assert create_automation.await_count == 2
+
+
+def test_creating_multiple_automations_as_list(
+    create_automation: mock.AsyncMock,
+    tmp_path,
+):
+    automation_ids = [uuid4(), uuid4()]
+    create_automation.side_effect = automation_ids
+
+    # Create a JSON file with automations as a list
+    json_file = tmp_path / "automations.json"
+    data = [
+        {
+            "name": "First Automation",
+            "description": "First test automation",
+            "enabled": True,
+            "trigger": {
+                "type": "event",
+                "posture": "Reactive",
+                "expect": ["event.test"],
+                "threshold": 1,
+            },
+            "actions": [{"type": "do-nothing"}],
+        },
+        {
+            "name": "Second Automation",
+            "description": "Second test automation",
+            "enabled": True,
+            "trigger": {
+                "type": "event",
+                "posture": "Reactive",
+                "expect": ["event.test2"],
+                "threshold": 1,
+            },
+            "actions": [{"type": "do-nothing"}],
+        },
+    ]
+    json_file.write_text(orjson.dumps(data).decode())
+
+    invoke_and_assert(
+        ["automations", "create", "--from-file", str(json_file)],
+        expected_code=0,
+        expected_output_contains=[
+            "Created 2 automation(s):",
+            f"'First Automation' with id {automation_ids[0]}",
+            f"'Second Automation' with id {automation_ids[1]}",
+        ],
+    )
+
+    assert create_automation.await_count == 2
+
+
+def test_creating_multiple_automations_with_partial_failure(
+    create_automation: mock.AsyncMock,
+    tmp_path,
+):
+    # First automation succeeds, second fails
+    automation_id = uuid4()
+    create_automation.side_effect = [automation_id, Exception("Validation error")]
+
+    # Create a YAML file with multiple automations
+    yaml_file = tmp_path / "automations.yaml"
+    data = {
+        "automations": [
+            {
+                "name": "Good Automation",
+                "description": "This one works",
+                "enabled": True,
+                "trigger": {
+                    "type": "event",
+                    "posture": "Reactive",
+                    "expect": ["event.test"],
+                    "threshold": 1,
+                },
+                "actions": [{"type": "do-nothing"}],
+            },
+            {
+                "name": "Bad Automation",
+                "description": "This one fails",
+                "enabled": True,
+                "trigger": {
+                    "type": "event",
+                    "posture": "Reactive",
+                    "expect": ["event.test2"],
+                    "threshold": 1,
+                },
+                "actions": [{"type": "do-nothing"}],
+            },
+        ]
+    }
+    yaml_file.write_text(yaml.dump(data))
+
+    invoke_and_assert(
+        ["automations", "create", "--from-file", str(yaml_file)],
+        expected_code=1,
+        expected_output_contains=[
+            "Failed to create 1 automation(s):",
+            "Bad Automation: Validation error",
+            "Created 1 automation(s):",
+            f"'Good Automation' with id {automation_id}",
+        ],
+    )
+
+    assert create_automation.await_count == 2
