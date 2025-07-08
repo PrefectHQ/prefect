@@ -1,4 +1,4 @@
-from typing import ClassVar
+from typing import ClassVar, Dict
 
 from pydantic import AliasChoices, AliasPath, Field
 from pydantic_settings import SettingsConfigDict
@@ -85,6 +85,17 @@ class ClientSettings(PrefectBaseSettings):
         When enabled (`True`), the client automatically manages CSRF tokens by
         retrieving, storing, and including them in applicable state-changing requests
         """,
+    )
+
+    # this needs to be typing.Dict for now as dict[str, str] is not compatible with pydantic < 2.11
+    custom_headers: Dict[str, str] = Field(
+        default_factory=dict,
+        description="""
+        Custom HTTP headers to include with every API request to the Prefect server.
+        Headers are specified as key-value pairs. Note that headers like 'User-Agent'
+        and CSRF-related headers are managed by Prefect and cannot be overridden.
+        """,
+        examples=[{"X-Custom-Header": "value"}, {"Authorization": "Bearer token"}],
     )
 
     metrics: ClientMetricsSettings = Field(
