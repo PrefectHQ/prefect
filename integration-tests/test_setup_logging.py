@@ -18,7 +18,6 @@ def myflow():
     return "Hello"
 
 
-if __name__ == "__main__":
+def test_setup_logging():
     result = myflow()
-
     assert result == "Hello"

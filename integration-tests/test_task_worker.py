@@ -20,8 +20,8 @@ from prefect.settings import (
 
 CLIENT_SECRET = SERVER_SECRET = "very-secret-server-auth-string"
 CLIENT_DUMMY_API_KEY = "dummy-key-should-be-ignored"
-STARTUP_TIMEOUT = 5
-CONNECTION_TIMEOUT = 5
+STARTUP_TIMEOUT = 30
+CONNECTION_TIMEOUT = 30
 
 counter = 0
 
@@ -51,7 +51,7 @@ async def run_ephemeral_server_with_auth() -> AsyncGenerator[str, None]:
             server.stop()
 
 
-async def smoke_test_authed_task_worker():
+async def test_authed_task_worker():
     async with run_ephemeral_server_with_auth() as api_url:
         try:
             with temporary_settings(
@@ -73,7 +73,3 @@ async def smoke_test_authed_task_worker():
         except Exception as e:
             print(f"task worker failed to connect: {e!r}")
             raise
-
-
-if __name__ == "__main__":
-    anyio.run(smoke_test_authed_task_worker)

@@ -1,4 +1,3 @@
-import asyncio
 import sys
 from io import StringIO
 from pathlib import Path
@@ -6,7 +5,7 @@ from pathlib import Path
 from prefect.utilities.processutils import run_process
 
 
-async def main():
+async def test_check_output_of_interrupted_serve():
     python_executable = sys.executable
 
     stderr_buffer = StringIO()
@@ -45,7 +44,3 @@ async def main():
         )
 
     print("All expected log messages were found")
-
-
-if __name__ == "__main__":
-    asyncio.run(main())

@@ -189,13 +189,13 @@ A flow `entrypoint` is the path to the file where the flow is located within tha
 {path}:{flow_name}
 ```
 
-For example, the following code will load the `hello` flow from the `flows/hello_world.py` file in the `PrefectHQ/prefect` repository:
+For example, the following code will load the `hello` flow from the `flows/hello_world.py` file in the `PrefectHQ/examples` repository:
 ```python load_from_url.py
 from prefect import flow
 
 
 my_flow = flow.from_source(
-    source="https://github.com/PrefectHQ/prefect.git",
+    source="https://github.com/PrefectHQ/examples.git",
     entrypoint="flows/hello_world.py:hello"
 )
 
