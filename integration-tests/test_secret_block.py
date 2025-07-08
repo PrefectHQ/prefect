@@ -20,5 +20,5 @@ def save_and_load_secret():
     assert secret.get() == "super secret contents", secret
 
 
-if __name__ == "__main__":
+def test_secret_block():
     save_and_load_secret()

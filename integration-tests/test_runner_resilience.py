@@ -4,10 +4,7 @@ Demonstrate that process workers are resilient when flow files go missing.
 Workers should continue operating when they can't load flow files for hook execution.
 """
 
-import asyncio
 import shutil
-import sys
-import tempfile
 from pathlib import Path
 from textwrap import dedent
 
@@ -15,13 +12,12 @@ from prefect import flow
 from prefect.runner import Runner
 
 
-async def test_runner_resilience_with_missing_file():
+async def test_runner_resilience_with_missing_file(tmp_path: Path):
     """Test that runners handle missing flow files gracefully"""
 
-    temp_dir = Path(tempfile.mkdtemp())
-    flow_file = temp_dir / "my_flow.py"
+    flow_file = tmp_path / "my_flow.py"
 
-    print(f"Working in: {temp_dir}")
+    print(f"Working in: {tmp_path}")
 
     # Create a flow file with on_crashed hook
     flow_content = dedent("""
@@ -49,7 +45,7 @@ async def test_runner_resilience_with_missing_file():
             # Deploy the flow
             deployment_id = await runner.add_flow(
                 await flow.from_source(
-                    source=str(temp_dir),
+                    source=str(tmp_path),
                     entrypoint="my_flow.py:my_flow",
                 ),
                 name="test-deployment",
@@ -91,8 +87,8 @@ async def test_runner_resilience_with_missing_file():
 
     finally:
         # Cleanup
-        if temp_dir.exists():
-            shutil.rmtree(temp_dir, ignore_errors=True)
+        if tmp_path.exists():
+            shutil.rmtree(tmp_path, ignore_errors=True)
 
     if not runner_crashed:
         print("\n✅ Runner survived missing flow file!")
@@ -101,18 +97,3 @@ async def test_runner_resilience_with_missing_file():
     else:
         print("\nRunner crashed - this demonstrates the bug")
         return False
-
-
-def main():
-    """Run the test"""
-    try:
-        success = asyncio.run(test_runner_resilience_with_missing_file())
-        if not success:
-            sys.exit(1)
-    except Exception as e:
-        print(f"\nTest failed with exception: {type(e).__name__}: {e}")
-        sys.exit(1)
-
-
-if __name__ == "__main__":
-    main()
