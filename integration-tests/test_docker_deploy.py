@@ -47,7 +47,7 @@ def test_docker_deploy():
             dedent(
                 """
                 FROM prefecthq/prefect:3-latest
-                COPY flows/test_docker_deploy.py /opt/prefect/flows/test_docker_deploy.py
+                COPY integration-tests/test_docker_deploy.py /opt/prefect/integration-tests/test_docker_deploy.py
                 """
             )
         )
