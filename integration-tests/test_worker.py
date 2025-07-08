@@ -37,16 +37,12 @@ def test_worker():
     listener_thread = Thread(target=run_event_listener, args=(events,), daemon=True)
     listener_thread.start()
 
-    subprocess.check_call(
-        [uv.find_uv_bin(), "pip", "install", "prefect-kubernetes>=0.5.0"],
-        stdout=sys.stdout,
-        stderr=sys.stderr,
-    )
     try:
         subprocess.check_output(
             [
                 uv.find_uv_bin(),
                 "run",
+                "--isolated",
                 "prefect",
                 "work-pool",
                 "delete",
@@ -61,6 +57,9 @@ def test_worker():
             [
                 uv.find_uv_bin(),
                 "run",
+                "--isolated",
+                "--with",
+                "prefect-kubernetes>=0.5.0",
                 "prefect",
                 "work-pool",
                 "create",
@@ -80,6 +79,7 @@ def test_worker():
         [
             uv.find_uv_bin(),
             "run",
+            "--isolated",
             "prefect",
             "work-pool",
             "create",
@@ -94,6 +94,7 @@ def test_worker():
         [
             uv.find_uv_bin(),
             "run",
+            "--isolated",
             "prefect",
             "worker",
             "start",
@@ -109,14 +110,10 @@ def test_worker():
         stderr=sys.stderr,
     )
     subprocess.check_call(
-        ["uv", "pip", "uninstall", "prefect-kubernetes"],
-        stdout=sys.stdout,
-        stderr=sys.stderr,
-    )
-    subprocess.check_call(
         [
             uv.find_uv_bin(),
             "run",
+            "--isolated",
             "prefect",
             "--no-prompt",
             "work-pool",

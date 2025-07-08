@@ -4,6 +4,7 @@ import sys
 from pathlib import Path
 
 import anyio
+import uv
 
 import prefect
 from prefect.deployments import run_deployment
@@ -17,7 +18,17 @@ async def read_flow_run(flow_run_id):
 def test_deploy():
     try:
         subprocess.check_call(
-            ["prefect", "work-pool", "create", "test-deploy-pool", "-t", "process"],
+            [
+                uv.find_uv_bin(),
+                "run",
+                "--isolated",
+                "prefect",
+                "work-pool",
+                "create",
+                "test-deploy-pool",
+                "-t",
+                "process",
+            ],
             stdout=sys.stdout,
             stderr=sys.stderr,
         )
@@ -37,6 +48,9 @@ def test_deploy():
 
         subprocess.check_call(
             [
+                uv.find_uv_bin(),
+                "run",
+                "--isolated",
                 "prefect",
                 "flow-run",
                 "execute",
@@ -51,7 +65,16 @@ def test_deploy():
 
     finally:
         subprocess.check_call(
-            ["prefect", "--no-prompt", "work-pool", "delete", "test-deploy-pool"],
+            [
+                uv.find_uv_bin(),
+                "run",
+                "--isolated",
+                "prefect",
+                "--no-prompt",
+                "work-pool",
+                "delete",
+                "test-deploy-pool",
+            ],
             stdout=sys.stdout,
             stderr=sys.stderr,
         )

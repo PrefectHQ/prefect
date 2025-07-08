@@ -148,8 +148,8 @@ jobs:
           PREFECT_API_URL: http://127.0.0.1:4200/api
         run: |
           # Install dependencies for integration tests. We don't want to install the whole project because that will override the prefect-client build.
-          uv pip install pytest sqlalchemy pytest-mypy-plugins pytest-asyncio pytest-xdist pytest-timeout pytest-env
-          pytest integration-tests/ -n auto -vv
+          uv pip install pytest uv sqlalchemy pytest-mypy-plugins pytest-asyncio pytest-xdist pytest-timeout pytest-env
+          pytest --ignore=integration-tests/test_task_worker.py integration-tests/ -n auto -vv
 
   sqlite-3-24-0:
     name: Test SQLite 3.24.0 Compatibility

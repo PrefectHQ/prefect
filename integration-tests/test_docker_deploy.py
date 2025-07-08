@@ -36,7 +36,17 @@ def test_docker_deploy():
     """
     try:
         subprocess.check_call(
-            ["prefect", "work-pool", "create", "test-docker-pool", "-t", "docker"],
+            [
+                uv.find_uv_bin(),
+                "run",
+                "--isolated",
+                "prefect",
+                "work-pool",
+                "create",
+                "test-docker-pool",
+                "-t",
+                "docker",
+            ],
             stdout=sys.stdout,
             stderr=sys.stderr,
         )
@@ -74,13 +84,14 @@ def test_docker_deploy():
             timeout=0,
         )
 
-        subprocess.check_call(
-            [uv.find_uv_bin(), "pip", "install", "prefect-docker"],
-        )
-
         # Execute the flow run
         subprocess.check_call(
             [
+                uv.find_uv_bin(),
+                "run",
+                "--isolated",
+                "--with",
+                "prefect-docker",
                 "prefect",
                 "worker",
                 "start",
@@ -99,7 +110,16 @@ def test_docker_deploy():
     finally:
         # Cleanup
         subprocess.check_call(
-            ["prefect", "--no-prompt", "work-pool", "delete", "test-docker-pool"],
+            [
+                uv.find_uv_bin(),
+                "run",
+                "--isolated",
+                "prefect",
+                "--no-prompt",
+                "work-pool",
+                "delete",
+                "test-docker-pool",
+            ],
             stdout=sys.stdout,
             stderr=sys.stderr,
         )
