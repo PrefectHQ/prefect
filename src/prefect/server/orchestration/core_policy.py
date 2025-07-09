@@ -690,6 +690,11 @@ class RetryFailedFlows(FlowRunOrchestrationRule):
         run_count = context.run.run_count
 
         if run_settings.retries is None or run_count > run_settings.retries:
+            # Clear retry type to allow for future infrastructure level retries (e.g. via the UI)
+            updated_policy = context.run.empirical_policy.model_dump()
+            updated_policy["retry_type"] = None
+            context.run.empirical_policy = core.FlowRunPolicy(**updated_policy)
+
             return  # Retry count exceeded, allow transition to failed
 
         scheduled_start_time = now("UTC") + datetime.timedelta(
