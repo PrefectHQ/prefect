@@ -54,6 +54,7 @@ async def flow_run_state_change_event(
         resource={
             "prefect.resource.id": f"prefect.flow-run.{flow_run.id}",
             "prefect.resource.name": flow_run.name,
+            "prefect.run-count": str(flow_run.run_count),
             "prefect.state-message": truncated_to(
                 TRUNCATE_STATE_MESSAGES_AT, validated_state.message
             ),
