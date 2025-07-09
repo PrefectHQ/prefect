@@ -11,10 +11,13 @@ import asyncio
 import datetime
 import importlib.util
 import inspect
+import json
 import os
 import re
+import subprocess
 import sys
 import tempfile
+import uuid
 import warnings
 from copy import copy
 from functools import partial, update_wrapper
@@ -51,11 +54,9 @@ from typing_extensions import Literal, ParamSpec
 from prefect._experimental.sla.objects import SlaTypes
 from prefect._internal.concurrency.api import create_call, from_async
 from prefect._versioning import VersionType
-from prefect.blocks.core import Block
 from prefect.client.schemas.filters import WorkerFilter, WorkerFilterStatus
 from prefect.client.schemas.objects import ConcurrencyLimitConfig, FlowRun
 from prefect.client.utilities import client_injector
-from prefect.docker.docker_image import DockerImage
 from prefect.events import DeploymentTriggerTypes, TriggerTypes
 from prefect.exceptions import (
     InvalidNameError,
@@ -109,7 +110,9 @@ from ._internal.pydantic.v2_validated_func import (
 )
 
 if TYPE_CHECKING:
+    from prefect.docker.docker_image import DockerImage
     from prefect.workers.base import BaseWorker
+
 
 T = TypeVar("T")  # Generic type var for capturing the inner return type of async funcs
 R = TypeVar("R")  # The return type of the user's function
@@ -588,6 +591,8 @@ class Flow(Generic[P, R]):
 
         def resolve_block_reference(data: Any | dict[str, Any]) -> Any:
             if isinstance(data, dict) and "$ref" in data:
+                from prefect.blocks.core import Block
+
                 return Block.load_from_ref(data["$ref"], _sync=True)
             return data
 
@@ -1373,7 +1378,7 @@ class Flow(Generic[P, R]):
         self,
         name: str,
         work_pool_name: Optional[str] = None,
-        image: Optional[Union[str, DockerImage]] = None,
+        image: Optional[Union[str, "DockerImage"]] = None,
         build: bool = True,
         push: bool = True,
         work_queue_name: Optional[str] = None,
@@ -2053,6 +2058,11 @@ class InfrastructureBoundFlow(Flow[P, R]):
         self.job_variables = job_variables
         self.worker_cls = worker_cls
 
+    @property
+    def work_pool(self) -> str:
+        return self._work_pool
+
+
     @overload
     def __call__(self: "Flow[P, NoReturn]", *args: P.args, **kwargs: P.kwargs) -> None:
         # `NoReturn` matches if a type can't be inferred for the function which stops a
@@ -2146,6 +2156,10 @@ class InfrastructureBoundFlow(Flow[P, R]):
 
         Submit the flow to run on remote infrastructure.
 
+        This method will spin up a local worker to submit the flow to remote infrastructure. To
+        submit the flow to remote infrastructure without spinning up a local worker, use
+        `dispatch` instead.
+
         Args:
             *args: Positional arguments to pass to the flow.
             **kwargs: Keyword arguments to pass to the flow.
@@ -2181,6 +2195,162 @@ class InfrastructureBoundFlow(Flow[P, R]):
                 )
 
         return run_coro_as_sync(submit_func())
+
+    def dispatch(self, *args: P.args, **kwargs: P.kwargs) -> PrefectFlowRunFuture[R]:
+        """
+        EXPERIMENTAL: This method is experimental and may be removed or changed in future
+            releases.
+
+        Dispatch the flow to run on remote infrastructure.
+
+        This method will create a flow run for an existing worker to submit to remote infrastructure.
+        If you don't have a worker available, use `submit` instead.
+
+        Args:
+            *args: Positional arguments to pass to the flow.
+            **kwargs: Keyword arguments to pass to the flow.
+
+        Returns:
+            A `PrefectFlowRunFuture` that can be used to retrieve the result of the flow run.
+
+        Examples:
+            Dispatch a flow to run on Kubernetes:
+
+            ```python
+            from prefect import flow
+            from prefect_kubernetes.experimental import kubernetes
+
+            @kubernetes(work_pool="my-kubernetes-work-pool")
+            @flow
+            def my_flow(x: int, y: int):
+                return x + y
+
+            future = my_flow.dispatch(x=1, y=2)
+            result = future.result()
+            print(result)
+            ```
+        """
+        from prefect._experimental.bundles import (
+            convert_step_to_command,
+            create_bundle_for_flow_run,
+        )
+
+        if (
+            self.work_pool.storage_configuration.bundle_upload_step is None
+            or self.work_pool.storage_configuration.bundle_execution_step is None
+        ):
+            raise RuntimeError(
+                f"Storage is not configured for work pool {self.work_pool.name!r}. "
+                "Please configure storage for the work pool by running `prefect "
+                "work-pool storage configure`."
+            )
+
+        from prefect.results import get_result_store, resolve_result_storage
+
+        current_result_store = get_result_store()
+        # Check result storage and use the work pool default if needed
+        if (
+            current_result_store.result_storage is None
+            or isinstance(current_result_store.result_storage, LocalFileSystem)
+            and self.result_storage is None
+        ):
+            if (
+                self.work_pool.storage_configuration.default_result_storage_block_id
+                is None
+            ):
+                logger.warning(
+                    f"Flow {self.name!r} has no result storage configured. Please configure "
+                    "result storage for the flow if you want to retrieve the result for the flow run."
+                )
+            else:
+                # Use the work pool's default result storage block for the flow run to ensure the caller can retrieve the result
+                flow = self.with_options(
+                    result_storage=resolve_result_storage(
+                        self.work_pool.storage_configuration.default_result_storage_block_id, _sync=True
+                    ),
+                    persist_result=True,
+                )
+        else:
+            flow = self
+
+        bundle_key = str(uuid.uuid4())
+        upload_command = convert_step_to_command(
+            self.work_pool.storage_configuration.bundle_upload_step,
+            bundle_key,
+            quiet=True,
+        )
+        execute_command = convert_step_to_command(
+            self.work_pool.storage_configuration.bundle_execution_step, bundle_key
+        )
+
+        job_variables = (job_variables or {}) | {"command": " ".join(execute_command)}
+        parameters = parameters or {}
+
+        # Create a parent task run if this is a child flow run to ensure it shows up as a child flow in the UI
+        parent_task_run = None
+        if flow_run_ctx := FlowRunContext.get():
+            parent_task = Task[Any, Any](
+                name=flow.name,
+                fn=flow.fn,
+                version=flow.version,
+            )
+            parent_task_run = await parent_task.create_run(
+                flow_run_context=flow_run_ctx,
+                parameters=parameters,
+            )
+
+        flow_run = await self.client.create_flow_run(
+            flow,
+            parameters=flow.serialize_parameters(parameters),
+            state=Pending(),
+            job_variables=job_variables,
+            work_pool_name=self.work_pool.name,
+            tags=TagsContext.get().current_tags,
+            parent_task_run_id=getattr(parent_task_run, "id", None),
+        )
+        # if task_status is not None:
+        #     # Emit the flow run object to .submit to allow it to return a future as soon as possible
+        #     task_status.started(flow_run)
+        # Avoid an API call to get the flow
+        # api_flow = APIFlow(id=flow_run.flow_id, name=flow.name, labels={})
+        flow_run_logger = flow_run_logger(flow_run=flow_run, flow=flow)
+
+        # configuration = await self.job_configuration.from_template_and_values(
+        #     base_job_template=self.work_pool.base_job_template,
+        #     values=job_variables,
+        #     client=self._client,
+        # )
+        # configuration.prepare_for_flow_run(
+        #     flow_run=flow_run,
+        #     flow=api_flow,
+        #     work_pool=self.work_pool,
+        #     worker_name=self.name,
+        # )
+
+        bundle = create_bundle_for_flow_run(flow=flow, flow_run=flow_run)
+
+        # Write the bundle to a temporary directory so it can be uploaded to the bundle storage
+        # via the upload command
+        with tempfile.TemporaryDirectory() as temp_dir:
+            Path(temp_dir).joinpath(bundle_key).write_bytes(
+                json.dumps(bundle).encode("utf-8")
+            )
+
+            try:
+                full_command = upload_command + [bundle_key]
+                logger.debug(
+                    "Uploading execution bundle with command: %s", full_command
+                )
+                subprocess.check_call(
+                    full_command,
+                    cwd=temp_dir,
+                )
+            except subprocess.CalledProcessError as e:
+                raise RuntimeError(e.stderr.decode("utf-8")) from e
+
+        logger.debug("Successfully uploaded execution bundle")
+
+        return PrefectFlowRunFuture(flow_run_id=flow_run.id)
 
     def with_options(
         self,
@@ -2629,6 +2799,8 @@ async def load_flow_from_flow_run(
             storage_document = await client.read_block_document(
                 deployment.storage_document_id
             )
+            from prefect.blocks.core import Block
+
             storage_block = Block._from_block_document(storage_document)
         else:
             basepath = deployment.path
