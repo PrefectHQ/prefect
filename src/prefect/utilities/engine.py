@@ -690,6 +690,7 @@ def emit_task_run_state_change_event(
         resource={
             "prefect.resource.id": f"prefect.task-run.{task_run.id}",
             "prefect.resource.name": task_run.name,
+            "prefect.run-count": str(task_run.run_count),
             "prefect.state-message": truncated_to(
                 state_message_truncation_length, validated_state.message
             ),
