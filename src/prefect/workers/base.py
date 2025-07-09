@@ -1220,22 +1220,23 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
         """
         run_logger = self.get_flow_run_logger(flow_run)
 
-        try:
-            await self.client.read_deployment(getattr(flow_run, "deployment_id"))
-        except (ObjectNotFound, AttributeError):
-            self._logger.exception(
-                f"Deployment {flow_run.deployment_id} no longer exists. "
-                f"Flow run {flow_run.id} will not be submitted for"
-                " execution"
-            )
-            self._submitting_flow_run_ids.remove(flow_run.id)
-            await self._mark_flow_run_as_cancelled(
-                flow_run,
-                state_updates=dict(
-                    message=f"Deployment {flow_run.deployment_id} no longer exists, cancelled run."
-                ),
-            )
-            return
+        if flow_run.deployment_id:
+            try:
+                await self.client.read_deployment(getattr(flow_run, "deployment_id"))
+            except (ObjectNotFound, AttributeError):
+                self._logger.exception(
+                    f"Deployment {flow_run.deployment_id} no longer exists. "
+                    f"Flow run {flow_run.id} will not be submitted for"
+                    " execution"
+                )
+                self._submitting_flow_run_ids.remove(flow_run.id)
+                await self._mark_flow_run_as_cancelled(
+                    flow_run,
+                    state_updates=dict(
+                        message=f"Deployment {flow_run.deployment_id} no longer exists, cancelled run."
+                    ),
+                )
+                return
 
         ready_to_submit = await self._propose_pending_state(flow_run)
         self._logger.debug(f"Ready to submit {flow_run.id}: {ready_to_submit}")

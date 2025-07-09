@@ -2058,11 +2058,6 @@ class InfrastructureBoundFlow(Flow[P, R]):
         self.job_variables = job_variables
         self.worker_cls = worker_cls
 
-    @property
-    def work_pool(self) -> str:
-        return self._work_pool
-
-
     @overload
     def __call__(self: "Flow[P, NoReturn]", *args: P.args, **kwargs: P.kwargs) -> None:
         # `NoReturn` matches if a type can't be inferred for the function which stops a
@@ -2230,127 +2225,127 @@ class InfrastructureBoundFlow(Flow[P, R]):
             print(result)
             ```
         """
+        from prefect import get_client
         from prefect._experimental.bundles import (
             convert_step_to_command,
             create_bundle_for_flow_run,
         )
-
-        if (
-            self.work_pool.storage_configuration.bundle_upload_step is None
-            or self.work_pool.storage_configuration.bundle_execution_step is None
-        ):
-            raise RuntimeError(
-                f"Storage is not configured for work pool {self.work_pool.name!r}. "
-                "Please configure storage for the work pool by running `prefect "
-                "work-pool storage configure`."
-            )
-
+        from prefect.context import FlowRunContext, TagsContext
         from prefect.results import get_result_store, resolve_result_storage
+        from prefect.states import Pending, Scheduled
+        from prefect.tasks import Task
 
-        current_result_store = get_result_store()
-        # Check result storage and use the work pool default if needed
-        if (
-            current_result_store.result_storage is None
-            or isinstance(current_result_store.result_storage, LocalFileSystem)
-            and self.result_storage is None
-        ):
+        with get_client(sync_client=True) as client:
+            work_pool = client.read_work_pool(self.work_pool)
+
             if (
-                self.work_pool.storage_configuration.default_result_storage_block_id
-                is None
+                work_pool.storage_configuration.bundle_upload_step is None
+                or work_pool.storage_configuration.bundle_execution_step is None
             ):
-                logger.warning(
-                    f"Flow {self.name!r} has no result storage configured. Please configure "
-                    "result storage for the flow if you want to retrieve the result for the flow run."
+                raise RuntimeError(
+                    f"Storage is not configured for work pool {work_pool.name!r}. "
+                    "Please configure storage for the work pool by running `prefect "
+                    "work-pool storage configure`."
                 )
+
+            current_result_store = get_result_store()
+            # Check result storage and use the work pool default if needed
+            if (
+                current_result_store.result_storage is None
+                or isinstance(current_result_store.result_storage, LocalFileSystem)
+                and self.result_storage is None
+            ):
+                if (
+                    work_pool.storage_configuration.default_result_storage_block_id
+                    is None
+                ):
+                    logger.warning(
+                        f"Flow {self.name!r} has no result storage configured. Please configure "
+                        "result storage for the flow if you want to retrieve the result for the flow run."
+                    )
+                else:
+                    # Use the work pool's default result storage block for the flow run to ensure the caller can retrieve the result
+                    flow = self.with_options(
+                        result_storage=resolve_result_storage(
+                            work_pool.storage_configuration.default_result_storage_block_id,
+                            _sync=True,
+                        ),
+                        persist_result=True,
+                    )
             else:
-                # Use the work pool's default result storage block for the flow run to ensure the caller can retrieve the result
-                flow = self.with_options(
-                    result_storage=resolve_result_storage(
-                        self.work_pool.storage_configuration.default_result_storage_block_id, _sync=True
-                    ),
-                    persist_result=True,
-                )
-        else:
-            flow = self
+                flow = self
 
-        bundle_key = str(uuid.uuid4())
-        upload_command = convert_step_to_command(
-            self.work_pool.storage_configuration.bundle_upload_step,
-            bundle_key,
-            quiet=True,
-        )
-        execute_command = convert_step_to_command(
-            self.work_pool.storage_configuration.bundle_execution_step, bundle_key
-        )
-
-        job_variables = (job_variables or {}) | {"command": " ".join(execute_command)}
-        parameters = parameters or {}
-
-        # Create a parent task run if this is a child flow run to ensure it shows up as a child flow in the UI
-        parent_task_run = None
-        if flow_run_ctx := FlowRunContext.get():
-            parent_task = Task[Any, Any](
-                name=flow.name,
-                fn=flow.fn,
-                version=flow.version,
+            bundle_key = str(uuid.uuid4())
+            upload_command = convert_step_to_command(
+                work_pool.storage_configuration.bundle_upload_step,
+                bundle_key,
+                quiet=True,
             )
-            parent_task_run = await parent_task.create_run(
-                flow_run_context=flow_run_ctx,
-                parameters=parameters,
+            execute_command = convert_step_to_command(
+                work_pool.storage_configuration.bundle_execution_step, bundle_key
             )
 
-        flow_run = await self.client.create_flow_run(
-            flow,
-            parameters=flow.serialize_parameters(parameters),
-            state=Pending(),
-            job_variables=job_variables,
-            work_pool_name=self.work_pool.name,
-            tags=TagsContext.get().current_tags,
-            parent_task_run_id=getattr(parent_task_run, "id", None),
-        )
-        # if task_status is not None:
-        #     # Emit the flow run object to .submit to allow it to return a future as soon as possible
-        #     task_status.started(flow_run)
-        # Avoid an API call to get the flow
-        # api_flow = APIFlow(id=flow_run.flow_id, name=flow.name, labels={})
-        flow_run_logger = flow_run_logger(flow_run=flow_run, flow=flow)
+            job_variables = (self.job_variables or {}) | {
+                "command": " ".join(execute_command)
+            }
+            parameters = get_call_parameters(self, args, kwargs)
 
-        # configuration = await self.job_configuration.from_template_and_values(
-        #     base_job_template=self.work_pool.base_job_template,
-        #     values=job_variables,
-        #     client=self._client,
-        # )
-        # configuration.prepare_for_flow_run(
-        #     flow_run=flow_run,
-        #     flow=api_flow,
-        #     work_pool=self.work_pool,
-        #     worker_name=self.name,
-        # )
+            # Create a parent task run if this is a child flow run to ensure it shows up as a child flow in the UI
+            parent_task_run = None
+            if flow_run_ctx := FlowRunContext.get():
+                parent_task = Task[Any, Any](
+                    name=flow.name,
+                    fn=flow.fn,
+                    version=flow.version,
+                )
+                parent_task_run = run_coro_as_sync(
+                    parent_task.create_run(
+                        flow_run_context=flow_run_ctx,
+                        parameters=parameters,
+                    )
+                )
 
-        bundle = create_bundle_for_flow_run(flow=flow, flow_run=flow_run)
-
-        # Write the bundle to a temporary directory so it can be uploaded to the bundle storage
-        # via the upload command
-        with tempfile.TemporaryDirectory() as temp_dir:
-            Path(temp_dir).joinpath(bundle_key).write_bytes(
-                json.dumps(bundle).encode("utf-8")
+            flow_run = client.create_flow_run(
+                flow,
+                parameters=flow.serialize_parameters(parameters),
+                # Start out in pending to prevent a worker from starting the flow run before the bundle is uploaded
+                state=Pending(),
+                job_variables=job_variables,
+                work_pool_name=work_pool.name,
+                tags=TagsContext.get().current_tags,
+                parent_task_run_id=getattr(parent_task_run, "id", None),
             )
 
-            try:
-                full_command = upload_command + [bundle_key]
-                logger.debug(
-                    "Uploading execution bundle with command: %s", full_command
-                )
-                subprocess.check_call(
-                    full_command,
-                    cwd=temp_dir,
-                )
-            except subprocess.CalledProcessError as e:
-                raise RuntimeError(e.stderr.decode("utf-8")) from e
+            run_logger = flow_run_logger(flow_run=flow_run, flow=flow)
 
-        logger.debug("Successfully uploaded execution bundle")
+            bundle = create_bundle_for_flow_run(flow=flow, flow_run=flow_run)
 
-        return PrefectFlowRunFuture(flow_run_id=flow_run.id)
+            # Write the bundle to a temporary directory so it can be uploaded to the bundle storage
+            # via the upload command
+            with tempfile.TemporaryDirectory() as temp_dir:
+                Path(temp_dir).joinpath(bundle_key).write_bytes(
+                    json.dumps(bundle).encode("utf-8")
+                )
+
+                try:
+                    full_command = upload_command + [bundle_key]
+                    run_logger.debug(
+                        "Uploading execution bundle with command: %s", full_command
+                    )
+                    subprocess.check_call(
+                        full_command,
+                        cwd=temp_dir,
+                    )
+                except subprocess.CalledProcessError as e:
+                    raise RuntimeError(e.stderr.decode("utf-8")) from e
+
+            run_logger.debug("Successfully uploaded execution bundle")
+
+            # Set flow run to scheduled now that the bundle is uploaded and ready to be executed
+            client.set_flow_run_state(flow_run.id, state=Scheduled())
+
+            # TODO: It'd be nice to be able to return the future sooner
+            return PrefectFlowRunFuture(flow_run_id=flow_run.id)
 
     def with_options(
         self,
