@@ -10,7 +10,86 @@ Prefect is a workflow orchestration tool that helps you build, deploy, run, and 
 In this tutorial, you'll deploy your first workflow to Prefect -- by specifying what code should run, where it should run, and when it should run. Choose your preferred approach below:
 
 <Tabs>
-  <Tab title="Cloud">
+  <Tab title="GitHub">
+  Using the `prefect-cloud` CLI, you can deploy any Python script in a GitHub repository.
+  ### Prerequisites
+  You'll need the following to get started with Prefect Cloud:
+    - [A free Prefect Cloud account](https://app.prefect.cloud/auth/sign-in)
+    - [uv](https://docs.astral.sh/uv/getting-started/installation/) installed on your system
+  <Steps>
+    <Step title="Log in to Prefect Cloud">
+    ```bash
+    uvx prefect-cloud login
+    ```
+    </Step>
+    <Step title="Connect to GitHub">
+    ```bash
+    uvx prefect-cloud github setup
+    ```
+    </Step>
+    <Step title="Deploy your workflow">
+    ```bash
+    uvx prefect-cloud deploy <path/to/file.py:function_name> \
+      --from <github-account>/<repo-name> \
+      --name <deployment_name>
+    ```
+    If you don't have a script to deploy, you can use this example:
+    ```bash
+    uvx prefect-cloud deploy examples/hello.py:hello_world \
+      --from PrefectHQ/prefect-cloud
+      --name github_quickstart
+    ```
+    </Step>
+    <Step title="Run your deployment">
+    ```bash
+    uvx prefect-cloud run <flow_name>/<deployment_name>
+    ````
+    If using the example script, run:
+    ```bash
+    uvx prefect-cloud run hello_world/github_quickstart
+    ```
+    </Step>
+    <Step title="Schedule your deployment">
+    ```bash
+    uvx prefect-cloud schedule <flow_name>/<deployment_name> <SCHEDULE>
+    ````
+    If using the example script, run:
+    ```bash
+    uvx prefect-cloud schedule hello_world/github_quickstart "0 * * * *"
+    ```
+    </Step>
+
+  </Steps>
+
+
+  ### Additional Options
+
+  **Add Dependencies**
+  ```bash
+  # Add dependencies
+  prefect-cloud deploy ... --with pandas --with numpy
+
+  # Or install from requirements file at runtime
+  prefect-cloud deploy ... --with-requirements </path/to/requirements.txt>
+  ```
+
+  **Include Environment Variables**
+  ```bash
+  prefect-cloud deploy ... --env KEY=VALUE --env KEY2=VALUE2
+  ```
+
+  **Include Secrets as Environment Variables**
+
+  ```bash
+  # Create or replace secrets with actual values
+  prefect-cloud deploy ... --secret API_KEY=actual-secret-value --secret DB_PASSWORD=another-secret-value
+
+  # Reference existing secret blocks
+  prefect-cloud deploy ... --secret API_KEY="{existing-api-key-block}" --secret DB_PASSWORD="{my-database-password}"
+  ```
+
+  </Tab>
+  <Tab title="Manual">
     <Steps>
       <Step title="Create and login to your Prefect Cloud account.">
         Prefect uses a database to store workflow metadata.
