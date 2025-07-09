@@ -44,7 +44,12 @@ def create_check_handler(
     timeout: int = 2,
 ):
     def handler(signum: int, frame: Any):
-        schedules = check_deployment_schedules(f"my-flow/{deployment_name}")
+        try:
+            schedules = check_deployment_schedules(f"my-flow/{deployment_name}")
+        except Exception as e:
+            print(f"Error checking schedules: {e}")
+            schedules = []
+
         if check_function(schedules) or num_checks <= 0:
             raise KeyboardInterrupt("Simulating user interruption")
         else:
