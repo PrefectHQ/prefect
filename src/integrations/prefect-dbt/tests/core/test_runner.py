@@ -130,7 +130,7 @@ class TestPrefectDbtRunnerInitialization:
         assert runner.raise_on_failure is True
         assert runner.client is not None
         assert runner.include_compiled_code is False
-        assert runner.enable_assets is True
+        assert runner.disable_assets is False
         assert runner._force_nodes_as_tasks is False
 
     def test_accepts_custom_configuration(
@@ -603,15 +603,15 @@ class TestPrefectDbtRunnerCallbackCreation:
 
         assert callable(callback)
 
-    def test_enable_assets_logic_in_node_started_callback(
+    def test_disable_assets_logic_in_node_started_callback(
         self, mock_task_state, mock_manifest_node, mock_manifest
     ):
-        """Test that enable_assets logic correctly combines node config and runner setting."""
+        """Test that disable_assets logic correctly combines node config and runner setting."""
         context = {"test": "context"}
 
         mock_manifest.nodes = {mock_manifest_node.unique_id: mock_manifest_node}
 
-        runner_disabled = PrefectDbtRunner(manifest=mock_manifest, enable_assets=False)
+        runner_disabled = PrefectDbtRunner(manifest=mock_manifest, disable_assets=True)
         mock_manifest_node.config.meta = {"prefect": {}}
 
         with patch.object(runner_disabled, "_call_task") as mock_call_task:
