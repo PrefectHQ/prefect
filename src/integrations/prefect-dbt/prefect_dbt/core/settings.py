@@ -73,6 +73,9 @@ class PrefectDbtSettings(BaseSettings):
         """
         Context manager that creates a temporary directory with a resolved profiles.yml file.
 
+        Args:
+            include_profiles: Whether to include the resolved profiles.yml in the yield.
+
         Yields:
             str: Path to temporary directory containing the resolved profiles.yml.
                 Directory and contents are automatically cleaned up after context exit.
