@@ -22,7 +22,11 @@ classifiers = [
   "Programming Language :: Python :: 3.12",
   "Topic :: Software Development :: Libraries",
 ]
-dependencies = ["prefect>=3.4.7", "ray[default]>=2.0.0"]
+dependencies = [
+    "prefect>=3.4.7",
+    "ray[default]>=2.0.0",
+    "opentelemetry-proto>=1.34.0",  # Pin to avoid protobuf descriptor errors with Ray
+]
 dynamic = ["version"]
 
 [dependency-groups]
