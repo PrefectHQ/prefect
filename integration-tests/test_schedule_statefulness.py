@@ -23,6 +23,7 @@ import pytest
 
 from prefect import flow, get_client
 from prefect.client.schemas.objects import DeploymentSchedule
+from prefect.client.schemas.schedules import CronSchedule
 from prefect.schedules import Cron
 
 
@@ -64,6 +65,10 @@ def test_schedule_statefulness(deployment_name: str):
     print("\nTest case 1: Schedule without slug")
     run_serve_with_schedule(
         serve_kwargs={"name": deployment_name, "schedules": [Cron("0 9 * * *")]}
+    )
+    schedules = check_deployment_schedules(f"my-flow/{deployment_name}")
+    assert any(s.schedule == CronSchedule(cron="0 9 * * *") for s in schedules), (
+        f"Expected schedule to persist: {schedules}"
     )
     run_serve_with_schedule(serve_kwargs={"name": deployment_name, "schedules": []})
     schedules = check_deployment_schedules(f"my-flow/{deployment_name}")
