@@ -56,6 +56,7 @@ async def test_task_state_change_happy_path(
         {
             "prefect.resource.id": f"prefect.task-run.{task_run.id}",
             "prefect.resource.name": task_run.name,
+            "prefect.run-count": str(task_run.run_count),
             "prefect.state-message": "",
             "prefect.state-type": "PENDING",
             "prefect.state-name": "Pending",
@@ -103,6 +104,7 @@ async def test_task_state_change_happy_path(
         {
             "prefect.resource.id": f"prefect.task-run.{task_run.id}",
             "prefect.resource.name": task_run.name,
+            "prefect.run-count": str(task_run.run_count),
             "prefect.state-message": "",
             "prefect.state-type": "RUNNING",
             "prefect.state-name": "Running",
@@ -159,6 +161,7 @@ async def test_task_state_change_happy_path(
         {
             "prefect.resource.id": f"prefect.task-run.{task_run.id}",
             "prefect.resource.name": task_run.name,
+            "prefect.run-count": str(task_run.run_count),
             "prefect.state-message": "",
             "prefect.state-type": "COMPLETED",
             "prefect.state-name": "Completed",
@@ -254,6 +257,7 @@ async def test_task_state_change_task_failure(
         {
             "prefect.resource.id": f"prefect.task-run.{task_run.id}",
             "prefect.resource.name": task_run.name,
+            "prefect.run-count": str(task_run.run_count),
             "prefect.state-message": "",
             "prefect.state-type": "PENDING",
             "prefect.state-name": "Pending",
@@ -301,6 +305,7 @@ async def test_task_state_change_task_failure(
         {
             "prefect.resource.id": f"prefect.task-run.{task_run.id}",
             "prefect.resource.name": task_run.name,
+            "prefect.run-count": str(task_run.run_count),
             "prefect.state-message": "",
             "prefect.state-type": "RUNNING",
             "prefect.state-name": "Running",
@@ -357,6 +362,7 @@ async def test_task_state_change_task_failure(
         {
             "prefect.resource.id": f"prefect.task-run.{task_run.id}",
             "prefect.resource.name": task_run.name,
+            "prefect.run-count": str(task_run.run_count),
             "prefect.state-message": (
                 "Task run encountered an exception ValueError: "
                 "Here's a happy little accident."
@@ -498,6 +504,7 @@ async def test_apply_async_emits_scheduled_event(
         {
             "prefect.resource.id": f"prefect.task-run.{task_run_id}",
             "prefect.resource.name": task_run.name,
+            "prefect.run-count": str(task_run.run_count),
             "prefect.state-message": "",
             "prefect.state-type": "SCHEDULED",
             "prefect.state-name": "Scheduled",

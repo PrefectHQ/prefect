@@ -804,7 +804,7 @@ async def test_cancelling_to_cancelled_transitions(
         {
             "prefect.resource.id": f"prefect.flow-run.{flow_run.id}",
             "prefect.resource.name": flow_run.name,
-            "prefect.resource.run-count": str(flow_run.run_count),
+            "prefect.run-count": str(flow_run.run_count),
             "prefect.state-message": "",
             "prefect.state-name": "Cancelled",
             "prefect.state-timestamp": updated_flow_run.state.timestamp.isoformat(),
