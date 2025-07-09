@@ -11,10 +11,8 @@ import asyncio
 import datetime
 import importlib.util
 import inspect
-import json
 import os
 import re
-import subprocess
 import sys
 import tempfile
 import uuid
@@ -2229,6 +2227,7 @@ class InfrastructureBoundFlow(Flow[P, R]):
         from prefect._experimental.bundles import (
             convert_step_to_command,
             create_bundle_for_flow_run,
+            upload_bundle_to_storage,
         )
         from prefect.context import FlowRunContext, TagsContext
         from prefect.results import get_result_store, resolve_result_storage
@@ -2316,30 +2315,8 @@ class InfrastructureBoundFlow(Flow[P, R]):
                 parent_task_run_id=getattr(parent_task_run, "id", None),
             )
 
-            run_logger = flow_run_logger(flow_run=flow_run, flow=flow)
-
             bundle = create_bundle_for_flow_run(flow=flow, flow_run=flow_run)
-
-            # Write the bundle to a temporary directory so it can be uploaded to the bundle storage
-            # via the upload command
-            with tempfile.TemporaryDirectory() as temp_dir:
-                Path(temp_dir).joinpath(bundle_key).write_bytes(
-                    json.dumps(bundle).encode("utf-8")
-                )
-
-                try:
-                    full_command = upload_command + [bundle_key]
-                    run_logger.debug(
-                        "Uploading execution bundle with command: %s", full_command
-                    )
-                    subprocess.check_call(
-                        full_command,
-                        cwd=temp_dir,
-                    )
-                except subprocess.CalledProcessError as e:
-                    raise RuntimeError(e.stderr.decode("utf-8")) from e
-
-            run_logger.debug("Successfully uploaded execution bundle")
+            upload_bundle_to_storage(bundle, bundle_key, upload_command)
 
             # Set flow run to scheduled now that the bundle is uploaded and ready to be executed
             client.set_flow_run_state(flow_run.id, state=Scheduled())
