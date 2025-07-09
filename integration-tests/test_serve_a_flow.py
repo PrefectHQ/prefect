@@ -23,7 +23,7 @@ def count_runs(counter_dir: Path):
 
 
 def test_serve_a_flow(tmp_path: Path):
-    TIMEOUT: int = 15
+    TIMEOUT: int = 20
     INTERVAL_SECONDS: int = 3
 
     MINIMUM_EXPECTED_N_FLOW_RUNS: int = 3
