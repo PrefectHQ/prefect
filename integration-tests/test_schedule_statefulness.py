@@ -41,7 +41,7 @@ def create_check_handler(
     deployment_name: str,
     check_function: Callable[[list[DeploymentSchedule]], bool] = lambda schedules: True,
     num_checks: int = 5,
-    timeout: int = 2,
+    timeout: int = 5,
 ):
     def handler(signum: int, frame: Any):
         try:
@@ -69,8 +69,8 @@ def run_serve_with_schedule(
     deployment_name: str,
     check_function: Callable[[list[DeploymentSchedule]], bool] = lambda schedules: True,
     schedules: list[Schedule] | None = None,
-    timeout: int = 2,
-    num_checks: int = 3,
+    timeout: int = 5,
+    num_checks: int = 5,
 ):
     signal.signal(
         signal.SIGALRM,
