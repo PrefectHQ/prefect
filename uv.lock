@@ -4563,12 +4563,14 @@ dev = [
 name = "prefect-ray"
 source = { directory = "src/integrations/prefect-ray" }
 dependencies = [
+    { name = "opentelemetry-proto" },
     { name = "prefect" },
     { name = "ray", extra = ["default"] },
 ]
 
 [package.metadata]
 requires-dist = [
+    { name = "opentelemetry-proto", specifier = ">=1.34.0" },
     { name = "prefect", directory = "." },
     { name = "ray", extras = ["default"], specifier = ">=2.0.0" },
 ]
