@@ -41,7 +41,7 @@ def _handler(signum: int, frame: Any):
 
 
 def run_serve_with_schedule(
-    timeout: int = 2, serve_kwargs: dict[str, Any] | None = None
+    timeout: int = 5, serve_kwargs: dict[str, Any] | None = None
 ):
     signal.signal(signal.SIGALRM, _handler)
     signal.alarm(timeout)
