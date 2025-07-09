@@ -174,25 +174,20 @@ The deployment name is not required to be unique across all deployments, but is 
 for a given flow ID. This means you will often see references to the deployment's unique identifying name
 `{FLOW_NAME}/{DEPLOYMENT_NAME}`.
 
-For example, to trigger a deployment run from the Prefect CLI:
+You can trigger deployment runs in multiple ways. For a complete guide, see [Run deployments](/v3/how-to-guides/deployments/run-deployments).
 
+Quick examples:
+
+From the CLI:
 ```bash
 prefect deployment run my-first-flow/my-first-deployment
 ```
 
-or from the Python SDK with [`run_deployment`](https://reference.prefect.io/prefect/deployments/flow_runs/#prefect.deployments.flow_runs.run_deployment):
-
-{/* pmd-metadata: notest */}
+From Python:
 ```python
 from prefect.deployments import run_deployment
 
-
-run_deployment(
-    name="my-first-flow/my-first-deployment",
-    parameters={"my_param": "42"},
-    job_variables={"env": {"MY_ENV_VAR": "staging"}},
-    timeout=0, # don't wait for the run to finish
-)
+run_deployment(name="my-first-flow/my-first-deployment")
 ```
 
 The other two fields are:
