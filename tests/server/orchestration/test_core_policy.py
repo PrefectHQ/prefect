@@ -582,6 +582,33 @@ class TestFlowRetryingRule:
 
         assert ctx.run.empirical_policy.retry_type == "in_process"
 
+    async def test_clears_retry_type_on_exhausted_retries(
+        self,
+        session,
+        initialize_orchestration,
+    ):
+        """
+        Regression test for https://github.com/PrefectHQ/prefect/issues/17913
+        """
+        retry_policy = [RetryFailedFlows]
+        initial_state_type = states.StateType.RUNNING
+        proposed_state_type = states.StateType.FAILED
+        intended_transition = (initial_state_type, proposed_state_type)
+        ctx = await initialize_orchestration(
+            session,
+            "flow",
+            *intended_transition,
+        )
+        ctx.run.run_count = 2
+        ctx.run_settings.retries = 1
+
+        async with contextlib.AsyncExitStack() as stack:
+            for rule in retry_policy:
+                ctx = await stack.enter_async_context(rule(ctx, *intended_transition))
+            await ctx.validate_proposed_state()
+
+        assert ctx.run.empirical_policy.retry_type is None
+
 
 class TestManualFlowRetries:
     async def test_can_manual_retry_with_arbitrary_state_name(
