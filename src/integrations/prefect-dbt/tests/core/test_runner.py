@@ -30,15 +30,8 @@ def mock_manifest():
     manifest.nodes = {}
     manifest.metadata = Mock()
     manifest.metadata.adapter_type = "snowflake"
+    manifest.metadata.project_name = "test_project"
     return manifest
-
-
-@pytest.fixture
-def mock_project():
-    """Create a mock dbt project."""
-    project = Mock()
-    project.project_name = "test_project"
-    return project
 
 
 @pytest.fixture
@@ -137,6 +130,7 @@ class TestPrefectDbtRunnerInitialization:
         assert runner.raise_on_failure is True
         assert runner.client is not None
         assert runner.include_compiled_code is False
+        assert runner.disable_assets is False
         assert runner._force_nodes_as_tasks is False
 
     def test_accepts_custom_configuration(
@@ -213,44 +207,6 @@ class TestPrefectDbtRunnerManifestLoading:
         assert result == mock_manifest
 
 
-class TestPrefectDbtRunnerProjectLoading:
-    """Test project loading functionality."""
-
-    def test_project_loading_success(self, tmp_path: Path):
-        """Test successful project loading."""
-        runner = PrefectDbtRunner()
-        runner._project_dir = tmp_path
-
-        with patch(
-            "prefect_dbt.core.runner.Project.from_project_root"
-        ) as mock_from_project:
-            mock_project = Mock()
-            mock_from_project.return_value = mock_project
-
-            result = runner.project
-
-            assert result == mock_project
-            mock_from_project.assert_called_once()
-
-    def test_project_loading_uses_settings_project_dir(
-        self, tmp_path: Path, mock_settings
-    ):
-        """Test that project loading uses settings.project_dir when available."""
-        mock_settings.project_dir = tmp_path
-        runner = PrefectDbtRunner(settings=mock_settings)
-
-        with patch(
-            "prefect_dbt.core.runner.Project.from_project_root"
-        ) as mock_from_project:
-            mock_project = Mock()
-            mock_from_project.return_value = mock_project
-
-            result = runner.project
-
-            assert result == mock_project
-            mock_from_project.assert_called_once()
-
-
 class TestPrefectDbtRunnerGraphLoading:
     """Test graph loading functionality."""
 
@@ -284,17 +240,25 @@ class TestPrefectDbtRunnerGraphLoading:
             mock_set_graph.assert_called_once_with(add_test_edges=True)
 
 
+class TestPrefectDbtRunnerProjectName:
+    """Test project name functionality."""
+
+    def test_project_name_from_manifest(self, mock_manifest):
+        """Test that project name is set from manifest."""
+        runner = PrefectDbtRunner(manifest=mock_manifest)
+        assert runner.project_name == "test_project"
+
+
 class TestPrefectDbtRunnerCompiledCode:
     """Test compiled code functionality."""
 
     def test_get_compiled_code_path_uses_project_name(
-        self, tmp_path: Path, mock_project, mock_manifest_node
+        self, tmp_path: Path, mock_manifest, mock_manifest_node
     ):
         """Test that compiled code path uses project name correctly."""
-        runner = PrefectDbtRunner()
+        runner = PrefectDbtRunner(manifest=mock_manifest)
         runner._project_dir = tmp_path
         runner._target_path = Path("target")
-        runner._project = mock_project
 
         result = runner._get_compiled_code_path(mock_manifest_node)
 
@@ -317,13 +281,12 @@ class TestPrefectDbtRunnerCompiledCode:
         assert result == ""
 
     def test_get_compiled_code_returns_formatted_sql_when_enabled(
-        self, tmp_path: Path, mock_project, mock_manifest_node
+        self, tmp_path: Path, mock_manifest, mock_manifest_node
     ):
         """Test that compiled code returns formatted SQL when enabled."""
-        runner = PrefectDbtRunner(include_compiled_code=True)
+        runner = PrefectDbtRunner(manifest=mock_manifest, include_compiled_code=True)
         runner._project_dir = tmp_path
         runner._target_path = Path("target")
-        runner._project = mock_project
 
         # Create compiled SQL file
         compiled_path = tmp_path / "target" / "compiled" / "test_project" / "models"
@@ -336,13 +299,12 @@ class TestPrefectDbtRunnerCompiledCode:
         assert "SELECT * FROM test_table" in result
 
     def test_get_compiled_code_returns_empty_when_file_not_found(
-        self, tmp_path: Path, mock_project, mock_manifest_node
+        self, tmp_path: Path, mock_manifest, mock_manifest_node
     ):
         """Test that compiled code returns empty when file not found."""
-        runner = PrefectDbtRunner(include_compiled_code=True)
+        runner = PrefectDbtRunner(manifest=mock_manifest, include_compiled_code=True)
         runner._project_dir = tmp_path
         runner._target_path = Path("target")
-        runner._project = mock_project
 
         result = runner._get_compiled_code(mock_manifest_node)
 
@@ -640,6 +602,35 @@ class TestPrefectDbtRunnerCallbackCreation:
         )
 
         assert callable(callback)
+
+    def test_disable_assets_logic_in_node_started_callback(
+        self, mock_task_state, mock_manifest_node, mock_manifest
+    ):
+        """Test that disable_assets logic correctly combines node config and runner setting."""
+        context = {"test": "context"}
+
+        mock_manifest.nodes = {mock_manifest_node.unique_id: mock_manifest_node}
+
+        runner_disabled = PrefectDbtRunner(manifest=mock_manifest, disable_assets=True)
+        mock_manifest_node.config.meta = {"prefect": {}}
+
+        with patch.object(runner_disabled, "_call_task") as mock_call_task:
+            callback = runner_disabled._create_node_started_callback(
+                mock_task_state, context
+            )
+
+            mock_event = Mock(spec=EventMsg)
+            mock_event.info = Mock()
+            mock_event.info.name = "NodeStart"
+            mock_event.data = Mock()
+            mock_event.data.node_info = Mock()
+            mock_event.data.node_info.unique_id = mock_manifest_node.unique_id
+
+            callback(mock_event)
+
+            mock_call_task.assert_called_once_with(
+                mock_task_state, mock_manifest_node, context, False
+            )
 
 
 class TestPrefectDbtRunnerManifestNodeOperations:
