@@ -45,6 +45,8 @@ may result in variables that are templated into the task definition payload bein
 ignored.
 """
 
+from __future__ import annotations
+
 import copy
 import json
 import logging
@@ -52,7 +54,18 @@ import shlex
 import sys
 import time
 from copy import deepcopy
-from typing import Any, Dict, Generator, List, NamedTuple, Optional, Tuple, Type, Union
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Dict,
+    Generator,
+    List,
+    NamedTuple,
+    Optional,
+    Tuple,
+    Type,
+    Union,
+)
 from uuid import UUID
 
 import anyio
@@ -74,6 +87,10 @@ from prefect.workers.base import (
     BaseWorkerResult,
 )
 from prefect_aws.credentials import AwsCredentials, ClientType
+from prefect_aws.settings import AwsSettings
+
+if TYPE_CHECKING:
+    from prefect.client.schemas.objects import APIFlow, DeploymentResponse, WorkPool
 
 # Internal type alias for ECS clients which are generated dynamically in botocore
 _ECSClient = Any
@@ -173,7 +190,9 @@ def _drop_empty_keys_from_dict(taskdef: dict):
                     _drop_empty_keys_from_dict(v)
 
 
-def _get_container(containers: List[dict], name: str) -> Optional[dict]:
+def _get_container(
+    containers: list[dict[str, Any]], name: str
+) -> Optional[dict[str, Any]]:
     """
     Extract a container from a list of containers or container definitions.
     If not found, `None` is returned.
@@ -287,6 +306,20 @@ class ECSJobConfiguration(BaseJobConfiguration):
             "provided to capture logs from the container."
         ),
     )
+
+    def prepare_for_flow_run(
+        self,
+        flow_run: "FlowRun",
+        deployment: "DeploymentResponse | None" = None,
+        flow: "APIFlow | None" = None,
+        work_pool: "WorkPool | None" = None,
+        worker_name: str | None = None,
+    ) -> None:
+        super().prepare_for_flow_run(flow_run, deployment, flow, work_pool, worker_name)
+        settings = AwsSettings()
+        if settings.ecs_worker.api_secret_arn:
+            # Remove the PREFECT_API_KEY from the environment variables because it will be set in the secrets
+            del self.env["PREFECT_API_KEY"]
 
     @model_validator(mode="after")
     def task_run_request_requires_arn_if_no_task_definition_given(self) -> Self:
@@ -1339,7 +1372,7 @@ class ECSWorker(BaseWorker):
                 or ECS_DEFAULT_CONTAINER_NAME
             )
 
-        container = _get_container(
+        container: dict[str, Any] | None = _get_container(
             task_definition["containerDefinitions"], container_name
         )
         if container is None:
@@ -1356,6 +1389,9 @@ class ECSWorker(BaseWorker):
             else:
                 container = {"name": container_name}
                 task_definition["containerDefinitions"].append(container)
+
+        if TYPE_CHECKING:
+            assert container is not None
 
         # Image is required so make sure it's present
         container.setdefault("image", get_prefect_image_name())
@@ -1429,6 +1465,20 @@ class ECSWorker(BaseWorker):
             task_definition["memory"] = str(task_definition["memory"])
 
         _drop_empty_keys_from_dict(task_definition)
+
+        settings = AwsSettings()
+        if settings.ecs_worker.api_secret_arn:
+            # Add the PREFECT_API_KEY to the secrets
+            container["secrets"] = [
+                {
+                    "name": "PREFECT_API_KEY",
+                    "valueFrom": settings.ecs_worker.api_secret_arn,
+                }
+            ]
+            # Remove the PREFECT_API_KEY from the environment variables
+            for item in tuple(container.get("environment", [])):
+                if item["name"] == "PREFECT_API_KEY":
+                    container["environment"].remove(item)  # type: ignore
 
         return task_definition
 
