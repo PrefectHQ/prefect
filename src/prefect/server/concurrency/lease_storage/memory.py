@@ -2,20 +2,22 @@ from datetime import datetime, timedelta, timezone
 from uuid import UUID, uuid4
 
 from prefect.server.concurrency.lease_storage import (
-    ConcurrencyLeaseStorage,
+    ConcurrencyLeaseStorage as _ConcurrencyLeaseStorage,
+)
+from prefect.server.concurrency.lease_storage import (
     ConcurrencyLimitLeaseMetadata,
 )
 from prefect.server.utilities.leasing import ResourceLease
 
 
-class MemoryConcurrencyLeaseStorage(ConcurrencyLeaseStorage):
+class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
     """
     A singleton concurrency lease storage implementation that stores leases in memory.
     """
 
-    _instance: "MemoryConcurrencyLeaseStorage | None" = None
+    _instance: "ConcurrencyLeaseStorage | None" = None
 
-    def __new__(cls) -> "MemoryConcurrencyLeaseStorage":
+    def __new__(cls) -> "ConcurrencyLeaseStorage":
         if cls._instance is None:
             cls._instance = super().__new__(cls)
         return cls._instance
