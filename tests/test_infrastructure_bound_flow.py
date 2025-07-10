@@ -1,4 +1,5 @@
 import base64
+import inspect
 import os
 import subprocess
 import sys
@@ -39,6 +40,7 @@ from prefect.workers.process import ProcessWorker
 
 
 class FakeResultStorageBlock(WritableFileSystem):
+    _block_type_slug = f"fake-result-storage-block-{uuid.uuid4()}"
     place: str = Field(default="test-place")
 
     async def read_path(self, path: str) -> bytes:
@@ -81,9 +83,11 @@ class TestInfrastructureBoundFlow:
         }
 
         result_storage_block = FakeResultStorageBlock(place="test-place")
-        block_document_id = await result_storage_block.save(
-            name="my-result-storage-block"
-        )
+        maybe_coro = result_storage_block.save(name="my-result-storage-block")
+        if inspect.isawaitable(maybe_coro):
+            block_document_id = await maybe_coro
+        else:
+            block_document_id = maybe_coro
 
         return await prefect_client.create_work_pool(
             WorkPoolCreate(
@@ -366,7 +370,7 @@ class TestInfrastructureBoundFlow:
             flow=my_flow, work_pool=work_pool.name, worker_cls=ProcessWorker
         )
 
-        future = infrastructure_bound_flow.submit(x=1, y="not an int")
+        future = infrastructure_bound_flow.submit(x=1, y="not an int")  # pyright: ignore[reportArgumentType] wrong type for test
         with pytest.raises(TypeError):
             future.result()
 
@@ -479,14 +483,18 @@ class TestInfrastructureBoundFlow:
         async def parent_flow():
             flow_run_ctx = FlowRunContext.get()
             future = infrastructure_bound_flow.dispatch()
-            return flow_run_ctx.flow_run.id, future.flow_run_id
+            flow_run = getattr(flow_run_ctx, "flow_run", None)
+            flow_run_id = flow_run.id if flow_run else None
+            return flow_run_id, future.flow_run_id
 
         parent_flow_run_id, child_flow_run_id = await parent_flow()
+        assert parent_flow_run_id is not None
         parent_flow_run = await prefect_client.read_flow_run(parent_flow_run_id)
         child_flow_run = await prefect_client.read_flow_run(child_flow_run_id)
+        assert child_flow_run.parent_task_run_id is not None
         parent_task_run = await prefect_client.read_task_run(
             child_flow_run.parent_task_run_id
-        )
+        )  # pyright: ignore[reportArgumentType] wrong type for test
         assert child_flow_run.parent_task_run_id == parent_task_run.id
         assert parent_task_run.flow_run_id == parent_flow_run.id
 
