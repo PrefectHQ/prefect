@@ -34,6 +34,8 @@ from prefect_aws.workers.ecs_worker import (
 from pydantic import ValidationError
 
 from prefect.server.schemas.core import FlowRun
+from prefect.settings import PREFECT_API_KEY
+from prefect.settings.context import temporary_settings
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.slugify import slugify
 from prefect.utilities.templating import find_placeholders
@@ -86,6 +88,12 @@ def inject_moto_patches(moto_mock, patches: Dict[str, List[Callable]]):
                 setattr(
                     backend, attr, partial(injected_call, original_method, attr_patches)
                 )
+
+
+@pytest.fixture
+def prefect_api_key_setting():
+    with temporary_settings({PREFECT_API_KEY: "test-api-key"}):
+        yield
 
 
 def patch_run_task(mock, run_task, *args, **kwargs):
@@ -2648,3 +2656,66 @@ async def test_task_definitions_equal_secrets_ordering():
         assert result is True, (
             "Task definitions with reordered secrets should be considered equal"
         )
+
+
+@pytest.mark.usefixtures("ecs_mocks", "prefect_api_key_setting")
+async def test_run_task_with_api_key(
+    aws_credentials: AwsCredentials, flow_run: FlowRun
+):
+    configuration = await construct_configuration(
+        aws_credentials=aws_credentials,
+    )
+    configuration.prepare_for_flow_run(flow_run)
+
+    work_pool_name = "test"
+    session = aws_credentials.get_boto3_session()
+    ecs_client = session.client("ecs")
+    async with ECSWorker(work_pool_name=work_pool_name) as worker:
+        result = await run_then_stop_task(worker, configuration, flow_run)
+
+    assert result.status_code == 0
+    _, task_arn = parse_identifier(result.identifier)
+
+    task = describe_task(ecs_client, task_arn)
+
+    assert any(
+        env
+        for env in task["overrides"]["containerOverrides"][0]["environment"]
+        if env["name"] == "PREFECT_API_KEY" and env["value"] == "test-api-key"
+    )
+
+
+@pytest.mark.usefixtures("ecs_mocks", "prefect_api_key_setting")
+async def test_run_task_with_api_key_secret_arn(
+    aws_credentials: AwsCredentials, flow_run: FlowRun
+):
+    configuration = await construct_configuration(
+        aws_credentials=aws_credentials,
+        prefect_api_key_secret_arn="arn:aws:secretsmanager:us-east-1:123456789012:secret:prefect-worker-api-key",
+    )
+    configuration.prepare_for_flow_run(flow_run)
+
+    work_pool_name = "test"
+    session = aws_credentials.get_boto3_session()
+    ecs_client = session.client("ecs")
+    async with ECSWorker(work_pool_name=work_pool_name) as worker:
+        result = await run_then_stop_task(worker, configuration, flow_run)
+
+    assert result.status_code == 0
+    _, task_arn = parse_identifier(result.identifier)
+
+    task = describe_task(ecs_client, task_arn)
+    task_definition = describe_task_definition(ecs_client, task)
+
+    assert task_definition["containerDefinitions"][0]["secrets"] == [
+        {
+            "name": "PREFECT_API_KEY",
+            "valueFrom": "arn:aws:secretsmanager:us-east-1:123456789012:secret:prefect-worker-api-key",
+        }
+    ]
+
+    assert not any(
+        env
+        for env in task["overrides"]["containerOverrides"][0]["environment"]
+        if env["name"] == "PREFECT_API_KEY"
+    )
