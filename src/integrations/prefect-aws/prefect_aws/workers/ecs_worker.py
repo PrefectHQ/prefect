@@ -87,7 +87,6 @@ from prefect.workers.base import (
     BaseWorkerResult,
 )
 from prefect_aws.credentials import AwsCredentials, ClientType
-from prefect_aws.settings import AwsSettings
 
 if TYPE_CHECKING:
     from prefect.client.schemas.objects import APIFlow, DeploymentResponse, WorkPool
@@ -295,6 +294,7 @@ class ECSJobConfiguration(BaseJobConfiguration):
     container_name: Optional[str] = Field(default=None)
     cluster: Optional[str] = Field(default=None)
     match_latest_revision_in_family: bool = Field(default=False)
+    prefect_api_key_secret_arn: Optional[str] = Field(default=None)
 
     execution_role_arn: Optional[str] = Field(
         title="Execution Role ARN",
@@ -316,9 +316,8 @@ class ECSJobConfiguration(BaseJobConfiguration):
         worker_name: str | None = None,
     ) -> None:
         super().prepare_for_flow_run(flow_run, deployment, flow, work_pool, worker_name)
-        settings = AwsSettings()
-        if settings.ecs_worker.api_secret_arn:
-            # Remove the PREFECT_API_KEY from the environment variables because it will be set in the secrets
+        if self.prefect_api_key_secret_arn:
+            # Remove the PREFECT_API_KEY from the environment variables because it will be provided via a secret
             del self.env["PREFECT_API_KEY"]
 
     @model_validator(mode="after")
@@ -423,6 +422,7 @@ class ECSVariables(BaseVariables):
     """
 
     task_definition_arn: Optional[str] = Field(
+        title="Task Definition ARN",
         default=None,
         description=(
             "An identifier for an existing task definition to use. If set, options that"
@@ -513,6 +513,15 @@ class ECSVariables(BaseVariables):
             f"specified, a default value of {ECS_DEFAULT_CONTAINER_NAME} will be used "
             "and if that is not found in the task definition the first container will "
             "be used."
+        ),
+    )
+    prefect_api_key_secret_arn: Optional[str] = Field(
+        title="Prefect API Key Secret ARN",
+        default=None,
+        description=(
+            "An ARN of an AWS secret to use to provide an Prefect API key to created ECS "
+            "tasks. If not provided, the PREFECT_API_KEY environment variable will be "
+            "used if the worker is provided with a Prefect API key."
         ),
     )
     task_role_arn: Optional[str] = Field(
@@ -1466,13 +1475,12 @@ class ECSWorker(BaseWorker):
 
         _drop_empty_keys_from_dict(task_definition)
 
-        settings = AwsSettings()
-        if settings.ecs_worker.api_secret_arn:
+        if configuration.prefect_api_key_secret_arn:
             # Add the PREFECT_API_KEY to the secrets
             container["secrets"] = [
                 {
                     "name": "PREFECT_API_KEY",
-                    "valueFrom": settings.ecs_worker.api_secret_arn,
+                    "valueFrom": configuration.prefect_api_key_secret_arn,
                 }
             ]
             # Remove the PREFECT_API_KEY from the environment variables

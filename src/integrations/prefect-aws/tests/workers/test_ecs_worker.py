@@ -2660,7 +2660,7 @@ async def test_task_definitions_equal_secrets_ordering():
 
 @pytest.mark.usefixtures("ecs_mocks", "prefect_api_key_setting")
 async def test_run_task_with_api_key(
-    aws_credentials: AwsCredentials, flow_run: FlowRun, monkeypatch: pytest.MonkeyPatch
+    aws_credentials: AwsCredentials, flow_run: FlowRun
 ):
     configuration = await construct_configuration(
         aws_credentials=aws_credentials,
@@ -2687,15 +2687,11 @@ async def test_run_task_with_api_key(
 
 @pytest.mark.usefixtures("ecs_mocks", "prefect_api_key_setting")
 async def test_run_task_with_api_key_secret_arn(
-    aws_credentials: AwsCredentials, flow_run: FlowRun, monkeypatch: pytest.MonkeyPatch
+    aws_credentials: AwsCredentials, flow_run: FlowRun
 ):
-    monkeypatch.setenv(
-        "PREFECT_INTEGRATIONS_AWS_ECS_WORKER_API_SECRET_ARN",
-        "arn:aws:secretsmanager:us-east-1:123456789012:secret:prefect-worker-api-key",
-    )
-
     configuration = await construct_configuration(
         aws_credentials=aws_credentials,
+        prefect_api_key_secret_arn="arn:aws:secretsmanager:us-east-1:123456789012:secret:prefect-worker-api-key",
     )
     configuration.prepare_for_flow_run(flow_run)
 
