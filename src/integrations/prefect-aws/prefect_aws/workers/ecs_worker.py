@@ -519,9 +519,9 @@ class ECSVariables(BaseVariables):
         title="Prefect API Key Secret ARN",
         default=None,
         description=(
-            "An ARN of an AWS secret to use to provide an Prefect API key to created ECS "
-            "tasks. If not provided, the PREFECT_API_KEY environment variable will be "
-            "used if the worker is provided with a Prefect API key."
+            "An ARN of an AWS secret containing a Prefect API key. This key will be used "
+            "to authenticate ECS tasks with Prefect Cloud. If not provided, the "
+            "PREFECT_API_KEY environment variable will be used if the worker has one."
         ),
     )
     task_role_arn: Optional[str] = Field(
