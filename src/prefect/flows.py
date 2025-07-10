@@ -2223,6 +2223,11 @@ class InfrastructureBoundFlow(Flow[P, R]):
             print(result)
             ```
         """
+        warnings.warn(
+            "Dispatching flows to remote infrastructure is experimental. The interface "
+            "and behavior of this method are subject to change.",
+            category=FutureWarning,
+        )
         from prefect import get_client
         from prefect._experimental.bundles import (
             convert_step_to_command,
@@ -2233,6 +2238,9 @@ class InfrastructureBoundFlow(Flow[P, R]):
         from prefect.results import get_result_store, resolve_result_storage
         from prefect.states import Pending, Scheduled
         from prefect.tasks import Task
+
+        # Get parameters to error early if they are invalid
+        parameters = get_call_parameters(self, args, kwargs)
 
         with get_client(sync_client=True) as client:
             work_pool = client.read_work_pool(self.work_pool)
@@ -2287,7 +2295,6 @@ class InfrastructureBoundFlow(Flow[P, R]):
             job_variables = (self.job_variables or {}) | {
                 "command": " ".join(execute_command)
             }
-            parameters = get_call_parameters(self, args, kwargs)
 
             # Create a parent task run if this is a child flow run to ensure it shows up as a child flow in the UI
             parent_task_run = None
