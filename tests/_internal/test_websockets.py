@@ -10,6 +10,7 @@ from prefect._internal.websockets import (
     create_ssl_context_for_websocket,
     websocket_connect,
 )
+from prefect.events.clients import events_in_socket_from_api_url
 from prefect.settings import (
     PREFECT_API_TLS_INSECURE_SKIP_VERIFY,
     PREFECT_CLIENT_CUSTOM_HEADERS,
@@ -280,13 +281,17 @@ def test_websocket_custom_headers_empty_settings():
         )
 
 
-def test_websocket_custom_headers_with_websocket_connect():
+async def test_websocket_custom_headers_with_websocket_connect(hosted_api_server: str):
     """Test that custom headers work with the websocket_connect utility function"""
 
     custom_headers = {"X-Custom-Header": "test-value"}
 
     with temporary_settings({PREFECT_CLIENT_CUSTOM_HEADERS: custom_headers}):
-        connector = websocket_connect("wss://example.com")
+        connector = websocket_connect(events_in_socket_from_api_url(hosted_api_server))
+        # Make sure we can connect to the websocket successfully with the custom headers
+        async with connector as websocket:
+            pong = await websocket.ping()
+            await pong
 
         # Check that custom headers are in additional_headers
         assert "additional_headers" in connector._kwargs
