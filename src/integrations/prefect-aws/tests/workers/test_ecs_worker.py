@@ -1775,11 +1775,11 @@ async def test_worker_cache_miss_for_registered_task_definitions_clears_from_cac
         result_1 = await run_then_stop_task(worker, configuration, flow_run)
 
         # Fail to retrieve from cache on next run
-        worker._retrieve_task_definition = MagicMock(
-            side_effect=RuntimeError("failure retrieving from cache")
-        )
-
-        result_2 = await run_then_stop_task(worker, configuration, flow_run)
+        with mock_patch(
+            "prefect_aws.workers.ecs_worker.task_definition.retrieve_task_definition",
+            side_effect=RuntimeError("failure retrieving from cache"),
+        ):
+            result_2 = await run_then_stop_task(worker, configuration, flow_run)
 
     assert result_2.status_code == 0
 
@@ -2512,24 +2512,27 @@ async def test_task_definitions_equal_logs_differences(caplog):
 
     logger = logging.getLogger("prefect.workers.ecs")
 
-    async with ECSWorker(work_pool_name="test") as worker:
-        with caplog.at_level(logging.DEBUG, logger="prefect.workers.ecs"):
-            result = worker._task_definitions_equal(taskdef_1, taskdef_2, logger)
+    with caplog.at_level(logging.DEBUG, logger="prefect.workers.ecs"):
+        from prefect_aws.workers.ecs_worker.task_definition import (
+            task_definitions_equal,
+        )
 
-            assert result is False
+        result = task_definitions_equal(taskdef_1, taskdef_2, logger)
 
-            assert (
-                "Keys only in retrieved task definition: {'executionRoleArn'}"
-                in caplog.text
-            )
-            assert "Value differs for key 'containerDefinitions'" in caplog.text
+        assert result is False
 
-            assert "Generated:  " in caplog.text
-            assert "Retrieved: " in caplog.text
-            assert "prefecthq/prefect:2-latest" in caplog.text
-            assert "prefecthq/prefect:3-latest" in caplog.text
-            assert "256" in caplog.text
-            assert "512" in caplog.text
+        assert (
+            "Keys only in retrieved task definition: {'executionRoleArn'}"
+            in caplog.text
+        )
+        assert "Value differs for key 'containerDefinitions'" in caplog.text
+
+        assert "Generated:  " in caplog.text
+        assert "Retrieved: " in caplog.text
+        assert "prefecthq/prefect:2-latest" in caplog.text
+        assert "prefecthq/prefect:3-latest" in caplog.text
+        assert "256" in caplog.text
+        assert "512" in caplog.text
 
 
 async def test_task_definitions_equal_environment_variable_ordering():
@@ -2576,15 +2579,14 @@ async def test_task_definitions_equal_environment_variable_ordering():
 
     logger = logging.getLogger("prefect.workers.ecs")
 
-    async with ECSWorker(work_pool_name="test") as worker:
-        # This should return True since the task definitions are semantically identical
-        result = worker._task_definitions_equal(
-            taskdef_generated, taskdef_from_aws, logger
-        )
+    # This should return True since the task definitions are semantically identical
+    from prefect_aws.workers.ecs_worker.task_definition import task_definitions_equal
 
-        assert result is True, (
-            "Task definitions with reordered environment variables should be considered equal"
-        )
+    result = task_definitions_equal(taskdef_generated, taskdef_from_aws, logger)
+
+    assert result is True, (
+        "Task definitions with reordered environment variables should be considered equal"
+    )
 
 
 async def test_task_definitions_equal_secrets_ordering():
@@ -2641,10 +2643,11 @@ async def test_task_definitions_equal_secrets_ordering():
 
     logger = logging.getLogger("prefect.workers.ecs")
 
-    async with ECSWorker(work_pool_name="test") as worker:
-        # This should return True since the task definitions are semantically identical
-        result = worker._task_definitions_equal(taskdef_1, taskdef_2, logger)
+    # This should return True since the task definitions are semantically identical
+    from prefect_aws.workers.ecs_worker.task_definition import task_definitions_equal
 
-        assert result is True, (
-            "Task definitions with reordered secrets should be considered equal"
-        )
+    result = task_definitions_equal(taskdef_1, taskdef_2, logger)
+
+    assert result is True, (
+        "Task definitions with reordered secrets should be considered equal"
+    )
