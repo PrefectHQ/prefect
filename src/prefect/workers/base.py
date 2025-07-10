@@ -1274,6 +1274,7 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
         task_status: anyio.abc.TaskStatus[int | Exception] | None = None,
     ) -> BaseWorkerResult | Exception:
         run_logger = self.get_flow_run_logger(flow_run)
+        starting_run_count = flow_run.run_count
 
         try:
             configuration = await self._get_configuration(flow_run)
@@ -1319,13 +1320,24 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
                 )
             )
 
-        if result.status_code != 0:
-            await self._propose_crashed_state(
+        api_flow_run = await self._client.read_flow_run(flow_run_id=flow_run.id)
+        terminal_state = api_flow_run.state
+        api_run_count = api_flow_run.run_count
+
+        # After any number of in-process tries/retries, the process has exited but the flow run is still in a running state
+        is_still_running = (
+            terminal_state
+            and terminal_state.is_running()
+            and api_run_count > starting_run_count
+        )
+
+        if result.status_code != 0 and is_still_running:
+            run_logger.info(
+                f"Flow run '{flow_run.id}' exited with non-zero status code {result.status_code} but is still in a running state. Marking as crashed."
+            )
+            terminal_state = await self._propose_crashed_state(
                 flow_run,
-                (
-                    "Flow run infrastructure exited with non-zero status code"
-                    f" {result.status_code}."
-                ),
+                f"Flow run process exited with non-zero status code {result.status_code}.",
             )
 
         if submitted_event:
