@@ -5,15 +5,15 @@ import pytest
 
 from prefect.server.concurrency.lease_storage import ConcurrencyLimitLeaseMetadata
 from prefect.server.concurrency.lease_storage.memory import (
-    MemoryConcurrencyLeaseStorage,
+    ConcurrencyLeaseStorage,
 )
 from prefect.server.utilities.leasing import ResourceLease
 
 
 class TestMemoryConcurrencyLeaseStorage:
     def test_singleton_pattern(self):
-        instance1 = MemoryConcurrencyLeaseStorage()
-        instance2 = MemoryConcurrencyLeaseStorage()
+        instance1 = ConcurrencyLeaseStorage()
+        instance2 = ConcurrencyLeaseStorage()
         assert instance1 is instance2
 
         instance1.leases = {
@@ -22,8 +22,8 @@ class TestMemoryConcurrencyLeaseStorage:
         assert instance1.leases == instance2.leases
 
     @pytest.fixture
-    def storage(self) -> MemoryConcurrencyLeaseStorage:
-        storage = MemoryConcurrencyLeaseStorage()
+    def storage(self) -> ConcurrencyLeaseStorage:
+        storage = ConcurrencyLeaseStorage()
         storage.leases.clear()
         storage.expirations.clear()
         return storage
@@ -37,7 +37,7 @@ class TestMemoryConcurrencyLeaseStorage:
         return ConcurrencyLimitLeaseMetadata(slots=5)
 
     async def test_create_lease_without_metadata(
-        self, storage: MemoryConcurrencyLeaseStorage, sample_resource_ids: list[UUID]
+        self, storage: ConcurrencyLeaseStorage, sample_resource_ids: list[UUID]
     ):
         ttl = timedelta(minutes=5)
         lease = await storage.create_lease(sample_resource_ids, ttl)
@@ -49,7 +49,7 @@ class TestMemoryConcurrencyLeaseStorage:
 
     async def test_create_lease_with_metadata(
         self,
-        storage: MemoryConcurrencyLeaseStorage,
+        storage: ConcurrencyLeaseStorage,
         sample_resource_ids: list[UUID],
         sample_metadata: ConcurrencyLimitLeaseMetadata,
     ):
@@ -62,7 +62,7 @@ class TestMemoryConcurrencyLeaseStorage:
         assert len(storage.expirations) == 1
 
     async def test_read_lease_existing(
-        self, storage: MemoryConcurrencyLeaseStorage, sample_resource_ids: list[UUID]
+        self, storage: ConcurrencyLeaseStorage, sample_resource_ids: list[UUID]
     ):
         ttl = timedelta(minutes=5)
         await storage.create_lease(sample_resource_ids, ttl)
@@ -74,15 +74,13 @@ class TestMemoryConcurrencyLeaseStorage:
         assert read_lease.resource_ids == sample_resource_ids
         assert read_lease.metadata is None
 
-    async def test_read_lease_non_existing(
-        self, storage: MemoryConcurrencyLeaseStorage
-    ):
+    async def test_read_lease_non_existing(self, storage: ConcurrencyLeaseStorage):
         non_existing_id = uuid4()
         lease = await storage.read_lease(non_existing_id)
         assert lease is None
 
     async def test_renew_lease(
-        self, storage: MemoryConcurrencyLeaseStorage, sample_resource_ids: list[UUID]
+        self, storage: ConcurrencyLeaseStorage, sample_resource_ids: list[UUID]
     ):
         ttl = timedelta(minutes=5)
         await storage.create_lease(sample_resource_ids, ttl)
@@ -97,7 +95,7 @@ class TestMemoryConcurrencyLeaseStorage:
         assert new_expiration > original_expiration
 
     async def test_release_lease(
-        self, storage: MemoryConcurrencyLeaseStorage, sample_resource_ids: list[UUID]
+        self, storage: ConcurrencyLeaseStorage, sample_resource_ids: list[UUID]
     ):
         ttl = timedelta(minutes=5)
         await storage.create_lease(sample_resource_ids, ttl)
@@ -111,15 +109,13 @@ class TestMemoryConcurrencyLeaseStorage:
         assert lease_id not in storage.leases
         assert lease_id not in storage.expirations
 
-    async def test_release_lease_non_existing(
-        self, storage: MemoryConcurrencyLeaseStorage
-    ):
+    async def test_release_lease_non_existing(self, storage: ConcurrencyLeaseStorage):
         non_existing_id = uuid4()
         # should not raise an exception
         await storage.release_lease(non_existing_id)
 
     async def test_read_expired_lease_ids_no_expired(
-        self, storage: MemoryConcurrencyLeaseStorage, sample_resource_ids: list[UUID]
+        self, storage: ConcurrencyLeaseStorage, sample_resource_ids: list[UUID]
     ):
         ttl = timedelta(minutes=5)
         await storage.create_lease(sample_resource_ids, ttl)
@@ -128,7 +124,7 @@ class TestMemoryConcurrencyLeaseStorage:
         assert expired_ids == []
 
     async def test_read_expired_lease_ids_with_expired(
-        self, storage: MemoryConcurrencyLeaseStorage, sample_resource_ids: list[UUID]
+        self, storage: ConcurrencyLeaseStorage, sample_resource_ids: list[UUID]
     ):
         expired_ttl = timedelta(seconds=-1)
         await storage.create_lease(sample_resource_ids, expired_ttl)
@@ -138,7 +134,7 @@ class TestMemoryConcurrencyLeaseStorage:
         assert expired_ids[0] in storage.leases
 
     async def test_read_expired_lease_ids_with_limit(
-        self, storage: MemoryConcurrencyLeaseStorage, sample_resource_ids: list[UUID]
+        self, storage: ConcurrencyLeaseStorage, sample_resource_ids: list[UUID]
     ):
         expired_ttl = timedelta(seconds=-1)
         await storage.create_lease(sample_resource_ids, expired_ttl)
@@ -149,7 +145,7 @@ class TestMemoryConcurrencyLeaseStorage:
         assert len(expired_ids) == 2
 
     async def test_read_expired_lease_ids_mixed_expiration(
-        self, storage: MemoryConcurrencyLeaseStorage, sample_resource_ids: list[UUID]
+        self, storage: ConcurrencyLeaseStorage, sample_resource_ids: list[UUID]
     ):
         expired_ttl = timedelta(seconds=-1)
         valid_ttl = timedelta(minutes=5)
