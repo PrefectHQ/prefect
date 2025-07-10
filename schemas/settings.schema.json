@@ -239,6 +239,25 @@
                     "title": "Csrf Support Enabled",
                     "type": "boolean"
                 },
+                "custom_headers": {
+                    "additionalProperties": {
+                        "type": "string"
+                    },
+                    "description": "\n        Custom HTTP headers to include with every API request to the Prefect server.\n        Headers are specified as key-value pairs. Note that headers like 'User-Agent'\n        and CSRF-related headers are managed by Prefect and cannot be overridden.\n        ",
+                    "examples": [
+                        {
+                            "X-Custom-Header": "value"
+                        },
+                        {
+                            "Authorization": "Bearer token"
+                        }
+                    ],
+                    "supported_environment_variables": [
+                        "PREFECT_CLIENT_CUSTOM_HEADERS"
+                    ],
+                    "title": "Custom Headers",
+                    "type": "object"
+                },
                 "metrics": {
                     "$ref": "#/$defs/ClientMetricsSettings",
                     "supported_environment_variables": []

@@ -251,7 +251,7 @@ def visit_collection(
     max_depth: int = ...,
     context: dict[str, VT] = ...,
     remove_annotations: bool = ...,
-    _seen: Optional[set[int]] = ...,
+    _seen: Optional[dict[int, Any]] = ...,
 ) -> Any: ...
 
 
@@ -264,7 +264,7 @@ def visit_collection(
     max_depth: int = ...,
     context: None = None,
     remove_annotations: bool = ...,
-    _seen: Optional[set[int]] = ...,
+    _seen: Optional[dict[int, Any]] = ...,
 ) -> Any: ...
 
 
@@ -277,7 +277,7 @@ def visit_collection(
     max_depth: int = ...,
     context: dict[str, VT] = ...,
     remove_annotations: bool = ...,
-    _seen: Optional[set[int]] = ...,
+    _seen: Optional[dict[int, Any]] = ...,
 ) -> Optional[Any]: ...
 
 
@@ -290,7 +290,7 @@ def visit_collection(
     max_depth: int = ...,
     context: None = None,
     remove_annotations: bool = ...,
-    _seen: Optional[set[int]] = ...,
+    _seen: Optional[dict[int, Any]] = ...,
 ) -> Optional[Any]: ...
 
 
@@ -303,7 +303,7 @@ def visit_collection(
     max_depth: int = ...,
     context: dict[str, VT] = ...,
     remove_annotations: bool = ...,
-    _seen: Optional[set[int]] = ...,
+    _seen: Optional[dict[int, Any]] = ...,
 ) -> None: ...
 
 
@@ -315,7 +315,7 @@ def visit_collection(
     max_depth: int = -1,
     context: Optional[dict[str, VT]] = None,
     remove_annotations: bool = False,
-    _seen: Optional[set[int]] = None,
+    _seen: Optional[dict[int, Any]] = None,
 ) -> Optional[Any]:
     """
     Visits and potentially transforms every element of an arbitrary Python collection.
@@ -374,7 +374,7 @@ def visit_collection(
     """
 
     if _seen is None:
-        _seen = set()
+        _seen = {}
 
     if context is not None:
         _callback = cast(Callable[[Any, dict[str, VT]], Any], visit_fn)
@@ -426,10 +426,16 @@ def visit_collection(
 
     # If we have reached the maximum depth or we have already visited this object,
     # return the result if we are returning data, otherwise return None
-    if max_depth == 0 or id(expr) in _seen:
+    obj_id = id(expr)
+    if max_depth == 0:
         return result if return_data else None
-    else:
-        _seen.add(id(expr))
+    elif obj_id in _seen:
+        # Return the cached transformed result
+        return _seen[obj_id] if return_data else None
+
+    # Mark this object as being processed to handle circular references
+    # We'll update with the actual result later
+    _seen[obj_id] = expr
 
     # Then visit every item in the expression if it is a collection
 
@@ -526,6 +532,10 @@ def visit_collection(
                 for private_attr in expr.__private_attributes__:
                     setattr(model_instance, private_attr, getattr(expr, private_attr))
                 result = model_instance
+
+    # Update the cache with the final transformed result
+    if return_data:
+        _seen[obj_id] = result
 
     if return_data:
         return result
