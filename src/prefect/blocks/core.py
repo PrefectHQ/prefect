@@ -164,7 +164,12 @@ def _collect_secret_fields(
     secrets list, supporting nested Union / Dict / Tuple / List / BaseModel fields.
     Also, note, this function mutates the input secrets list, thus does not return anything.
     """
-    if get_origin(type_) in (Union, types.UnionType, dict, list, tuple):
+    nested_types = (Union, dict, list, tuple)
+    if sys.version_info > (3, 9):
+        nested_types = nested_types + (
+            getattr(types, "UnionType", None),
+        )  # getattr is for safety
+    if get_origin(type_) in nested_types:
         for nested_type in get_args(type_):
             _collect_secret_fields(name, nested_type, secrets)
         return
