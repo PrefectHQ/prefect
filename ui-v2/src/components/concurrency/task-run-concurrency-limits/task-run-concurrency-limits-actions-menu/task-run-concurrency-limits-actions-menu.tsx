@@ -1,3 +1,4 @@
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
 	DropdownMenu,
@@ -7,7 +8,6 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Icon } from "@/components/ui/icons";
-import { toast } from "sonner";
 
 type TaskRunConcurrencyLimitsActionsMenuProps = {
 	id: string;

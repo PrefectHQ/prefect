@@ -1,3 +1,5 @@
+import { Link } from "@tanstack/react-router";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { DOCS_LINKS } from "@/components/ui/docs-link";
 import {
@@ -8,8 +10,6 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Icon } from "@/components/ui/icons";
-import { Link } from "@tanstack/react-router";
-import { toast } from "sonner";
 
 type Props = {
 	id: string;

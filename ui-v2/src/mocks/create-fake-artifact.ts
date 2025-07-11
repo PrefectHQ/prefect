@@ -1,4 +1,3 @@
-import type { components } from "@/api/prefect";
 import {
 	randAlphaNumeric,
 	randPastDate,
@@ -6,6 +5,7 @@ import {
 	randUuid,
 	randWord,
 } from "@ngneat/falso";
+import type { components } from "@/api/prefect";
 
 export const createFakeArtifact = (
 	overrides?: Partial<components["schemas"]["Artifact"]>,

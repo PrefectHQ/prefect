@@ -7,17 +7,17 @@ sidebarTitle: base
 
 ## Classes
 
-### `BaseJobConfiguration` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/workers/base.py#L102"><Icon icon="github" size="14" /></a></sup>
+### `BaseJobConfiguration` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/workers/base.py#L102" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 **Methods:**
 
-#### `is_using_a_runner` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/workers/base.py#L134"><Icon icon="github" size="14" /></a></sup>
+#### `is_using_a_runner` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/workers/base.py#L134" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 is_using_a_runner(self) -> bool
 ```
 
-#### `json_template` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/workers/base.py#L205"><Icon icon="github" size="14" /></a></sup>
+#### `json_template` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/workers/base.py#L205" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 json_template(cls) -> dict[str, Any]
@@ -36,7 +36,7 @@ e.g.
 ```
 
 
-#### `prepare_for_flow_run` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/workers/base.py#L229"><Icon icon="github" size="14" /></a></sup>
+#### `prepare_for_flow_run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/workers/base.py#L229" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 prepare_for_flow_run(self, flow_run: 'FlowRun', deployment: 'DeploymentResponse | None' = None, flow: 'APIFlow | None' = None, work_pool: 'WorkPool | None' = None, worker_name: str | None = None) -> None
@@ -56,11 +56,11 @@ the flow run.
 - `worker_name`: The name of the worker that is submitting the flow run.
 
 
-### `BaseVariables` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/workers/base.py#L372"><Icon icon="github" size="14" /></a></sup>
+### `BaseVariables` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/workers/base.py#L372" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 **Methods:**
 
-#### `model_json_schema` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/workers/base.py#L396"><Icon icon="github" size="14" /></a></sup>
+#### `model_json_schema` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/workers/base.py#L396" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 model_json_schema(cls, by_alias: bool = True, ref_template: str = '#/definitions/{model}', schema_generator: Type[GenerateJsonSchema] = GenerateJsonSchema, mode: Literal['validation', 'serialization'] = 'validation') -> dict[str, Any]
@@ -69,55 +69,55 @@ model_json_schema(cls, by_alias: bool = True, ref_template: str = '#/definitions
 TODO\: stop overriding this method - use GenerateSchema in ConfigDict instead?
 
 
-### `BaseWorkerResult` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/workers/base.py#L423"><Icon icon="github" size="14" /></a></sup>
+### `BaseWorkerResult` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/workers/base.py#L423" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
-### `BaseWorker` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/workers/base.py#L438"><Icon icon="github" size="14" /></a></sup>
+### `BaseWorker` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/workers/base.py#L438" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 **Methods:**
 
-#### `client` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/workers/base.py#L514"><Icon icon="github" size="14" /></a></sup>
+#### `client` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/workers/base.py#L514" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 client(self) -> PrefectClient
 ```
 
-#### `work_pool` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/workers/base.py#L522"><Icon icon="github" size="14" /></a></sup>
+#### `work_pool` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/workers/base.py#L522" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 work_pool(self) -> WorkPool
 ```
 
-#### `limiter` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/workers/base.py#L530"><Icon icon="github" size="14" /></a></sup>
+#### `limiter` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/workers/base.py#L530" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 limiter(self) -> anyio.CapacityLimiter
 ```
 
-#### `get_documentation_url` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/workers/base.py#L538"><Icon icon="github" size="14" /></a></sup>
+#### `get_documentation_url` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/workers/base.py#L538" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 get_documentation_url(cls) -> str
 ```
 
-#### `get_logo_url` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/workers/base.py#L542"><Icon icon="github" size="14" /></a></sup>
+#### `get_logo_url` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/workers/base.py#L542" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 get_logo_url(cls) -> str
 ```
 
-#### `get_description` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/workers/base.py#L546"><Icon icon="github" size="14" /></a></sup>
+#### `get_description` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/workers/base.py#L546" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 get_description(cls) -> str
 ```
 
-#### `get_default_base_job_template` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/workers/base.py#L550"><Icon icon="github" size="14" /></a></sup>
+#### `get_default_base_job_template` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/workers/base.py#L550" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 get_default_base_job_template(cls) -> dict[str, Any]
 ```
 
-#### `get_worker_class_from_type` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/workers/base.py#L568"><Icon icon="github" size="14" /></a></sup>
+#### `get_worker_class_from_type` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/workers/base.py#L568" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 get_worker_class_from_type(type: str) -> Optional[Type['BaseWorker[Any, Any, Any]']]
@@ -127,7 +127,7 @@ Returns the worker class for a given worker type. If the worker type
 is not recognized, returns None.
 
 
-#### `get_all_available_worker_types` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/workers/base.py#L581"><Icon icon="github" size="14" /></a></sup>
+#### `get_all_available_worker_types` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/workers/base.py#L581" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 get_all_available_worker_types() -> list[str]
@@ -136,19 +136,19 @@ get_all_available_worker_types() -> list[str]
 Returns all worker types available in the local registry.
 
 
-#### `get_name_slug` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/workers/base.py#L591"><Icon icon="github" size="14" /></a></sup>
+#### `get_name_slug` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/workers/base.py#L591" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 get_name_slug(self) -> str
 ```
 
-#### `get_flow_run_logger` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/workers/base.py#L594"><Icon icon="github" size="14" /></a></sup>
+#### `get_flow_run_logger` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/workers/base.py#L594" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 get_flow_run_logger(self, flow_run: 'FlowRun') -> PrefectLogAdapter
 ```
 
-#### `is_worker_still_polling` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/workers/base.py#L955"><Icon icon="github" size="14" /></a></sup>
+#### `is_worker_still_polling` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/workers/base.py#L955" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 is_worker_still_polling(self, query_interval_seconds: float) -> bool
@@ -166,7 +166,7 @@ The instance property `self._last_polled_time`
 is currently set/updated in `get_and_submit_flow_runs()`
 
 
-#### `get_status` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/workers/base.py#L1344"><Icon icon="github" size="14" /></a></sup>
+#### `get_status` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/workers/base.py#L1344" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 get_status(self) -> dict[str, Any]

@@ -124,6 +124,64 @@ def generate_reports():
     create_detailed_report(data)
 ```
 
+## Dynamic asset materialization
+
+Use [the `with_options` pattern](/v3/api-ref/python/prefect-tasks#with-options) to dynamically change asset keys and dependencies at runtime. This is useful when you need to parameterize asset paths based on flow inputs, dates, or other runtime conditions:
+
+```python
+from prefect import flow
+from prefect.assets import materialize
+from datetime import datetime
+
+
+@materialize("s3://my-bucket/daily-report.csv")
+def generate_daily_report(date: str):
+    # Process and save daily report
+    pass
+
+
+@flow
+def dynamic_reporting_pipeline():
+    base_task = generate_daily_report
+    today = datetime.now().strftime("%Y-%m-%d")
+    
+    # Dynamically set asset key based on date
+    daily_task = base_task.with_options(
+        assets=[f"s3://my-bucket/reports/{today}/daily-report.csv"]
+    )
+    
+    daily_task(today)
+```
+
+You can also dynamically modify asset dependencies alongside the materialized assets:
+
+```python
+from prefect import flow
+from prefect.assets import materialize
+
+
+@materialize(
+    "s3://my-bucket/processed-data.csv",
+    asset_deps=["s3://my-bucket/raw-data.csv"]
+)
+def process_data(environment: str):
+    pass
+
+
+@flow
+def environment_specific_pipeline(env: str):
+    base_task = process_data
+    
+    # Use different assets based on environment
+    env_task = base_task.with_options(
+        assets=[f"s3://my-bucket/{env}/processed-data.csv"],
+        asset_deps=[f"s3://my-bucket/{env}/raw-data.csv"]
+    )
+    
+    env_task(env)
+```
+
+This pattern enables you to reuse the same processing logic across different environments, time periods, or data partitions while maintaining proper asset lineage tracking.
 
 ## Further Reading
 

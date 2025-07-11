@@ -1,9 +1,9 @@
-import { buildFLowDetailsQuery } from "@/api/flows";
-import { Icon } from "@/components/ui/icons";
-import { Skeleton } from "@/components/ui/skeleton";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { Suspense } from "react";
+import { buildFLowDetailsQuery } from "@/api/flows";
+import { Icon } from "@/components/ui/icons";
+import { Skeleton } from "@/components/ui/skeleton";
 
 type FlowLinkProps = {
 	flowId: string;

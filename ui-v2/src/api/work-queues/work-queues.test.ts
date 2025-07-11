@@ -1,14 +1,14 @@
-import { createFakeWorkQueue } from "@/mocks";
 import { QueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { renderHook, waitFor } from "@testing-library/react";
 import { buildApiUrl, createWrapper, server } from "@tests/utils";
-import { http, HttpResponse } from "msw";
+import { HttpResponse, http } from "msw";
 import { describe, expect, it } from "vitest";
+import { createFakeWorkQueue } from "@/mocks";
 import {
-	type WorkQueue,
 	buildFilterWorkPoolWorkQueuesQuery,
 	buildFilterWorkQueuesQuery,
 	buildWorkQueueDetailsQuery,
+	type WorkQueue,
 } from "./work-queues";
 
 describe("work queues api", () => {

@@ -1,8 +1,8 @@
-import * as useIsOverflowingModule from "@/hooks/use-is-overflowing";
 import { randUuid } from "@ngneat/falso";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
+import * as useIsOverflowingModule from "@/hooks/use-is-overflowing";
 import { ScheduleBadge, ScheduleBadgeGroup } from ".";
 
 describe("ScheduleBadge", () => {

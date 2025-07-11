@@ -40,7 +40,7 @@ from pathlib import Path
 from shutil import copytree
 from tempfile import TemporaryDirectory
 from typing import Optional, Tuple, Union
-from urllib.parse import urlparse, urlunparse
+from urllib.parse import quote, urlparse, urlunparse
 
 from pydantic import Field, model_validator
 from typing_extensions import Self
@@ -123,8 +123,11 @@ class BitBucketRepository(ReadableDeploymentStorage):
             username = self.bitbucket_credentials.username
             if username is None:
                 username = "x-token-auth"
+            # Encode special characters in username and token
+            safe_username = quote(username or "")
+            safe_token = quote(token or "")
             updated_components = url_components._replace(
-                netloc=f"{username}:{token}@{url_components.netloc}"
+                netloc=f"{safe_username}:{safe_token}@{url_components.netloc}"
             )
             full_url = urlunparse(updated_components)
         else:

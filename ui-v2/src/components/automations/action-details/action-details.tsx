@@ -1,3 +1,4 @@
+import { Link } from "@tanstack/react-router";
 import type { Automation } from "@/api/automations";
 import type { BlockDocument } from "@/api/block-documents";
 import type { Deployment } from "@/api/deployments";
@@ -18,7 +19,6 @@ import { JsonInput } from "@/components/ui/json-input";
 import { StateBadge } from "@/components/ui/state-badge";
 import { Typography } from "@/components/ui/typography";
 import { capitalize } from "@/utils";
-import { Link } from "@tanstack/react-router";
 
 const ACTION_TYPE_TO_STRING = {
 	"cancel-flow-run": "Cancel flow run",
@@ -183,7 +183,10 @@ const ActionResource = ({ children }: { children: React.ReactNode }) => (
 const ActionResourceName = ({
 	iconId,
 	name,
-}: { name: string; iconId: IconId }) => (
+}: {
+	name: string;
+	iconId: IconId;
+}) => (
 	<div className="text-xs flex items-center">
 		<Icon id={iconId} className="size-4 mr-1" />
 		{name}
@@ -232,27 +235,25 @@ export const DeploymentActionDetails = ({
 	job_variables,
 }: DeploymentActionDetailsProps) => {
 	return (
-		<>
-			<ActionResource>
-				<label htmlFor={`${label}-${deployment.id}`}>{label}:</label>
-				<Link
-					to="/deployments/deployment/$id"
-					params={{ id: deployment.id }}
-					aria-label={deployment.name}
-				>
-					<ActionResourceName iconId="Rocket" name={deployment.name} />
-				</Link>
-				{parameters !== undefined && (
-					<RunDeploymentJsonDialog title="Parameters" payload={parameters} />
-				)}
-				{job_variables !== undefined && (
-					<RunDeploymentJsonDialog
-						title="Job Variables"
-						payload={job_variables}
-					/>
-				)}
-			</ActionResource>
-		</>
+		<ActionResource>
+			<label htmlFor={`${label}-${deployment.id}`}>{label}:</label>
+			<Link
+				to="/deployments/deployment/$id"
+				params={{ id: deployment.id }}
+				aria-label={deployment.name}
+			>
+				<ActionResourceName iconId="Rocket" name={deployment.name} />
+			</Link>
+			{parameters !== undefined && (
+				<RunDeploymentJsonDialog title="Parameters" payload={parameters} />
+			)}
+			{job_variables !== undefined && (
+				<RunDeploymentJsonDialog
+					title="Job Variables"
+					payload={job_variables}
+				/>
+			)}
+		</ActionResource>
 	);
 };
 

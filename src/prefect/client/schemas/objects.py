@@ -305,48 +305,58 @@ class State(TimeSeriesBaseModel, ObjectBaseModel, Generic[R]):
         Examples:
             Get the result from a flow state
 
-            >>> @flow
-            >>> def my_flow():
-            >>>     return "hello"
-            >>> my_flow(return_state=True).result()
-            hello
+            ```python
+            @flow
+            def my_flow():
+                return "hello"
+            my_flow(return_state=True).result()
+            # hello
+            ```
 
             Get the result from a failed state
 
-            >>> @flow
-            >>> def my_flow():
-            >>>     raise ValueError("oh no!")
-            >>> state = my_flow(return_state=True)  # Error is wrapped in FAILED state
-            >>> state.result()  # Raises `ValueError`
+            ```python
+            @flow
+            def my_flow():
+                raise ValueError("oh no!")
+            state = my_flow(return_state=True)  # Error is wrapped in FAILED state
+            state.result()  # Raises `ValueError`
+            ```
 
             Get the result from a failed state without erroring
 
-            >>> @flow
-            >>> def my_flow():
-            >>>     raise ValueError("oh no!")
-            >>> state = my_flow(return_state=True)
-            >>> result = state.result(raise_on_failure=False)
-            >>> print(result)
-            ValueError("oh no!")
+            ```python
+            @flow
+            def my_flow():
+                raise ValueError("oh no!")
+            state = my_flow(return_state=True)
+            result = state.result(raise_on_failure=False)
+            print(result)
+            # ValueError("oh no!")
+            ```
 
 
             Get the result from a flow state in an async context
 
-            >>> @flow
-            >>> async def my_flow():
-            >>>     return "hello"
-            >>> state = await my_flow(return_state=True)
-            >>> await state.result()
-            hello
+            ```python
+            @flow
+            async def my_flow():
+                return "hello"
+            state = await my_flow(return_state=True)
+            await state.result()
+            # hello
+            ```
 
             Get the result with `raise_on_failure` from a flow run in a different memory space
 
-            >>> @flow
-            >>> async def my_flow():
-            >>>     raise ValueError("oh no!")
-            >>> my_flow.deploy("my_deployment/my_flow")
-            >>> flow_run = run_deployment("my_deployment/my_flow")
-            >>> await flow_run.state.result(raise_on_failure=True) # Raises `ValueError("oh no!")`
+            ```python
+            @flow
+            async def my_flow():
+                raise ValueError("oh no!")
+            my_flow.deploy("my_deployment/my_flow")
+            flow_run = run_deployment("my_deployment/my_flow")
+            await flow_run.state.result(raise_on_failure=True) # Raises `ValueError("oh no!")`
+            ```
         """
         from prefect.states import get_state_result
 

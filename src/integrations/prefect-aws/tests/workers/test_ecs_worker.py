@@ -1,6 +1,7 @@
 import json
 import logging
 from functools import partial
+from itertools import product
 from typing import Any, Awaitable, Callable, Dict, List, Optional
 from unittest.mock import ANY, MagicMock
 from unittest.mock import patch as mock_patch
@@ -33,6 +34,8 @@ from prefect_aws.workers.ecs_worker import (
 from pydantic import ValidationError
 
 from prefect.server.schemas.core import FlowRun
+from prefect.settings import PREFECT_API_KEY
+from prefect.settings.context import temporary_settings
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.slugify import slugify
 from prefect.utilities.templating import find_placeholders
@@ -52,6 +55,11 @@ TEST_TASK_DEFINITION = yaml.safe_load(TEST_TASK_DEFINITION_YAML)
 @pytest.fixture
 def flow_run():
     return FlowRun(flow_id=uuid4(), deployment_id=uuid4())
+
+
+@pytest.fixture
+def flow_run_no_deployment():
+    return FlowRun(flow_id=uuid4())
 
 
 @pytest.fixture
@@ -80,6 +88,12 @@ def inject_moto_patches(moto_mock, patches: Dict[str, List[Callable]]):
                 setattr(
                     backend, attr, partial(injected_call, original_method, attr_patches)
                 )
+
+
+@pytest.fixture
+def prefect_api_key_setting():
+    with temporary_settings({PREFECT_API_KEY: "test-api-key"}):
+        yield
 
 
 def patch_run_task(mock, run_task, *args, **kwargs):
@@ -1494,16 +1508,22 @@ async def test_run_task_error_handling(
 
 @pytest.mark.usefixtures("ecs_mocks")
 @pytest.mark.parametrize(
-    "cloudwatch_logs_options",
-    [
-        {
-            "awslogs-stream-prefix": "override-prefix",
-            "max-buffer-size": "2m",
-        },
-        {
-            "max-buffer-size": "2m",
-        },
-    ],
+    "cloudwatch_logs_options,flow_run",
+    product(
+        [
+            {
+                "awslogs-stream-prefix": "override-prefix",
+                "max-buffer-size": "2m",
+            },
+            {
+                "max-buffer-size": "2m",
+            },
+        ],
+        [
+            FlowRun(deployment_id=uuid4(), flow_id=uuid4()),
+            FlowRun(deployment_id=None, flow_id=uuid4()),
+        ],
+    ),
 )
 async def test_cloudwatch_log_options(
     aws_credentials: AwsCredentials, flow_run: FlowRun, cloudwatch_logs_options: dict
@@ -1528,9 +1548,12 @@ async def test_cloudwatch_log_options(
     task_definition = describe_task_definition(ecs_client, task)
 
     for container in task_definition["containerDefinitions"]:
-        prefix = f"prefect-logs_{work_pool_name}_{flow_run.deployment_id}"
         if cloudwatch_logs_options.get("awslogs-stream-prefix"):
             prefix = cloudwatch_logs_options["awslogs-stream-prefix"]
+        elif flow_run.deployment_id:
+            prefix = f"prefect-logs_{work_pool_name}_{flow_run.deployment_id}"
+        else:
+            prefix = f"prefect-logs_{work_pool_name}_{flow_run.flow_id}"
         if container["name"] == ECS_DEFAULT_CONTAINER_NAME:
             # Assert that the container has logging configured with user
             # provided options
@@ -1717,6 +1740,35 @@ async def test_worker_caches_registered_task_definitions(
 
 
 @pytest.mark.usefixtures("ecs_mocks")
+async def test_worker_caches_registered_task_definitions_no_deployment(
+    aws_credentials: AwsCredentials, flow_run_no_deployment: FlowRun
+):
+    configuration = await construct_configuration(
+        aws_credentials=aws_credentials, command="echo test"
+    )
+
+    session = aws_credentials.get_boto3_session()
+    ecs_client = session.client("ecs")
+
+    async with ECSWorker(work_pool_name="test") as worker:
+        result_1 = await run_then_stop_task(
+            worker, configuration, flow_run_no_deployment
+        )
+        result_2 = await run_then_stop_task(
+            worker, configuration, flow_run_no_deployment
+        )
+
+    assert result_2.status_code == 0
+    _, task_arn_1 = parse_identifier(result_1.identifier)
+    task_1 = describe_task(ecs_client, task_arn_1)
+    _, task_arn_2 = parse_identifier(result_2.identifier)
+    task_2 = describe_task(ecs_client, task_arn_2)
+
+    assert task_1["taskDefinitionArn"] == task_2["taskDefinitionArn"]
+    assert flow_run_no_deployment.flow_id in _TASK_DEFINITION_CACHE
+
+
+@pytest.mark.usefixtures("ecs_mocks")
 async def test_worker_cache_miss_for_registered_task_definitions_clears_from_cache(
     aws_credentials: AwsCredentials, flow_run: FlowRun
 ):
@@ -1751,7 +1803,7 @@ async def test_worker_cache_miss_for_registered_task_definitions_clears_from_cac
 
 
 @pytest.mark.usefixtures("ecs_mocks")
-async def test_worker_task_definition_cache_is_per_deployment_id(
+async def test_worker_task_definition_cache_is_per_deployment_id_or_flow_id(
     aws_credentials: AwsCredentials, flow_run: FlowRun
 ):
     configuration = await construct_configuration(
@@ -1768,15 +1820,27 @@ async def test_worker_task_definition_cache_is_per_deployment_id(
             configuration,
             flow_run.model_copy(update=dict(deployment_id=uuid4())),
         )
+        result_3 = await run_then_stop_task(
+            worker,
+            configuration,
+            flow_run.model_copy(update=dict(deployment_id=None)),
+        )
 
     assert result_2.status_code == 0
+    assert result_3.status_code == 0
 
     _, task_arn_1 = parse_identifier(result_1.identifier)
     task_1 = describe_task(ecs_client, task_arn_1)
     _, task_arn_2 = parse_identifier(result_2.identifier)
     task_2 = describe_task(ecs_client, task_arn_2)
+    _, task_arn_3 = parse_identifier(result_3.identifier)
+    task_3 = describe_task(ecs_client, task_arn_3)
 
-    assert task_1["taskDefinitionArn"] != task_2["taskDefinitionArn"]
+    assert (
+        task_1["taskDefinitionArn"]
+        != task_2["taskDefinitionArn"]
+        != task_3["taskDefinitionArn"]
+    )
 
 
 @pytest.mark.usefixtures("ecs_mocks")
@@ -2400,6 +2464,30 @@ async def test_get_or_generate_family(
 
 
 @pytest.mark.usefixtures("ecs_mocks")
+async def test_get_or_generate_family_no_deployment(
+    aws_credentials: AwsCredentials, flow_run_no_deployment: FlowRun
+):
+    configuration = await construct_configuration(
+        aws_credentials=aws_credentials,
+    )
+
+    work_pool_name = "test"
+    session = aws_credentials.get_boto3_session()
+    ecs_client = session.client("ecs")
+    family = f"{ECS_DEFAULT_FAMILY}_{work_pool_name}_{flow_run_no_deployment.flow_id}"
+
+    async with ECSWorker(work_pool_name="test") as worker:
+        result = await run_then_stop_task(worker, configuration, flow_run_no_deployment)
+
+    assert result.status_code == 0
+    _, task_arn = parse_identifier(result.identifier)
+
+    task = describe_task(ecs_client, task_arn)
+    task_definition = describe_task_definition(ecs_client, task)
+    assert task_definition["family"] == family
+
+
+@pytest.mark.usefixtures("ecs_mocks")
 async def test_task_definitions_equal_logs_differences(caplog):
     taskdef_1 = {
         "containerDefinitions": [
@@ -2568,3 +2656,66 @@ async def test_task_definitions_equal_secrets_ordering():
         assert result is True, (
             "Task definitions with reordered secrets should be considered equal"
         )
+
+
+@pytest.mark.usefixtures("ecs_mocks", "prefect_api_key_setting")
+async def test_run_task_with_api_key(
+    aws_credentials: AwsCredentials, flow_run: FlowRun
+):
+    configuration = await construct_configuration(
+        aws_credentials=aws_credentials,
+    )
+    configuration.prepare_for_flow_run(flow_run)
+
+    work_pool_name = "test"
+    session = aws_credentials.get_boto3_session()
+    ecs_client = session.client("ecs")
+    async with ECSWorker(work_pool_name=work_pool_name) as worker:
+        result = await run_then_stop_task(worker, configuration, flow_run)
+
+    assert result.status_code == 0
+    _, task_arn = parse_identifier(result.identifier)
+
+    task = describe_task(ecs_client, task_arn)
+
+    assert any(
+        env
+        for env in task["overrides"]["containerOverrides"][0]["environment"]
+        if env["name"] == "PREFECT_API_KEY" and env["value"] == "test-api-key"
+    )
+
+
+@pytest.mark.usefixtures("ecs_mocks", "prefect_api_key_setting")
+async def test_run_task_with_api_key_secret_arn(
+    aws_credentials: AwsCredentials, flow_run: FlowRun
+):
+    configuration = await construct_configuration(
+        aws_credentials=aws_credentials,
+        prefect_api_key_secret_arn="arn:aws:secretsmanager:us-east-1:123456789012:secret:prefect-worker-api-key",
+    )
+    configuration.prepare_for_flow_run(flow_run)
+
+    work_pool_name = "test"
+    session = aws_credentials.get_boto3_session()
+    ecs_client = session.client("ecs")
+    async with ECSWorker(work_pool_name=work_pool_name) as worker:
+        result = await run_then_stop_task(worker, configuration, flow_run)
+
+    assert result.status_code == 0
+    _, task_arn = parse_identifier(result.identifier)
+
+    task = describe_task(ecs_client, task_arn)
+    task_definition = describe_task_definition(ecs_client, task)
+
+    assert task_definition["containerDefinitions"][0]["secrets"] == [
+        {
+            "name": "PREFECT_API_KEY",
+            "valueFrom": "arn:aws:secretsmanager:us-east-1:123456789012:secret:prefect-worker-api-key",
+        }
+    ]
+
+    assert not any(
+        env
+        for env in task["overrides"]["containerOverrides"][0]["environment"]
+        if env["name"] == "PREFECT_API_KEY"
+    )

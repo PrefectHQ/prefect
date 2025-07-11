@@ -7,6 +7,7 @@ to avoid duplication between events and logs clients.
 
 import os
 import ssl
+import warnings
 from typing import Any, Generator, Optional
 from urllib.parse import urlparse
 from urllib.request import proxy_bypass
@@ -74,9 +75,10 @@ class WebsocketProxyConnect(connect):
                 "Unsupported scheme %s. Expected 'ws' or 'wss'. " % u.scheme
             )
 
-        self._proxy = (
-            Proxy.from_url(proxy_url) if proxy_url and not proxy_bypass(host) else None
-        )
+        # Store proxy URL for deferred creation. Creating the proxy object here
+        # can bind asyncio futures to the wrong event loop when multiple WebSocket
+        # connections are initialized at different times (e.g., events + logs clients).
+        self._proxy_url = proxy_url if proxy_url and not proxy_bypass(host) else None
         self._host = host
         self._port = port
 
@@ -85,9 +87,45 @@ class WebsocketProxyConnect(connect):
         if ssl_context:
             self._kwargs.setdefault("ssl", ssl_context)
 
+        # Add custom headers from settings
+        custom_headers = get_current_settings().client.custom_headers
+        if custom_headers:
+            # Get existing additional_headers or create new dict
+            additional_headers = self._kwargs.get("additional_headers", {})
+            if not isinstance(additional_headers, dict):
+                additional_headers = {}
+
+            for header_name, header_value in custom_headers.items():
+                # Check for protected headers that shouldn't be overridden
+                if header_name.lower() in {
+                    "user-agent",
+                    "sec-websocket-key",
+                    "sec-websocket-version",
+                    "sec-websocket-extensions",
+                    "sec-websocket-protocol",
+                    "connection",
+                    "upgrade",
+                    "host",
+                }:
+                    warnings.warn(
+                        f"Custom header '{header_name}' is ignored because it conflicts with "
+                        f"a protected WebSocket header. Protected headers include: "
+                        f"User-Agent, Sec-WebSocket-Key, Sec-WebSocket-Version, "
+                        f"Sec-WebSocket-Extensions, Sec-WebSocket-Protocol, Connection, "
+                        f"Upgrade, Host",
+                        UserWarning,
+                        stacklevel=2,
+                    )
+                else:
+                    additional_headers[header_name] = header_value
+
+            self._kwargs["additional_headers"] = additional_headers
+
     async def _proxy_connect(self: Self) -> ClientConnection:
-        if self._proxy:
-            sock = await self._proxy.connect(
+        if self._proxy_url:
+            # Create proxy in the current event loop context
+            proxy = Proxy.from_url(self._proxy_url)
+            sock = await proxy.connect(
                 dest_host=self._host,
                 dest_port=self._port,
             )

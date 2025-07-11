@@ -1,12 +1,11 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { DetailsStep } from "./details-step";
-
-import { AutomationWizardSchema } from "@/components/automations/automations-wizard/automation-schema";
-import { Form } from "@/components/ui/form";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useForm } from "react-hook-form";
 import { describe, expect, it } from "vitest";
+import { AutomationWizardSchema } from "@/components/automations/automations-wizard/automation-schema";
+import { Form } from "@/components/ui/form";
+import { DetailsStep } from "./details-step";
 
 const DetailsStepFormContainer = () => {
 	const form = useForm({

@@ -15,7 +15,6 @@ import yaml
 from prefect_snowflake import SnowflakeCredentials
 from pydantic import Field
 from slugify import slugify
-from snowflake.connector import SnowflakeConnection
 from snowflake.core import Root
 from snowflake.core.exceptions import NotFoundError
 from snowflake.core.service import (
@@ -185,6 +184,14 @@ class SPCSWorkerConfiguration(BaseJobConfiguration):
         default=False,
         description="Direct flow log output back to the worker's console.",
     )
+    pool_start_timeout_seconds: int = Field(
+        default=600,
+        description="The number of seconds to wait for the compute pool to start before considering the run failed.",
+    )
+    service_start_timeout_seconds: int = Field(
+        default=300,
+        description="The number of seconds to wait for the job service to start before considering the run failed.",
+    )
     service_watch_poll_interval: int = Field(
         default=5,
         description="The number of seconds to wait between Snowflake API calls while monitoring the state of the service.",
@@ -223,6 +230,16 @@ class SPCSWorkerConfiguration(BaseJobConfiguration):
         # Remove the platformMonitor section if there are no metrics groups.
         if not self.metrics_groups:
             self.job_manifest["spec"].pop("platformMonitor")
+
+        if self.pool_start_timeout_seconds < 0:
+            raise ValueError(
+                "pool_start_timeout_seconds must be a non-negative integer."
+            )
+
+        if self.service_start_timeout_seconds < 0:
+            raise ValueError(
+                "service_start_timeout_seconds must be a non-negative integer."
+            )
 
 
 class SPCSServiceTemplateVariables(BaseVariables):
@@ -313,6 +330,14 @@ class SPCSServiceTemplateVariables(BaseVariables):
         default=False,
         description="Direct flow log output back to the worker's console.",
     )
+    pool_start_timeout_seconds: int = Field(
+        default=600,
+        description="The number of seconds to wait for the compute pool to start before considering the run failed.",
+    )
+    service_start_timeout_seconds: int = Field(
+        default=300,
+        description="The number of seconds to wait for the job service to start before considering the run failed.",
+    )
     service_watch_poll_interval: int = Field(
         default=5,
         description="The number of seconds to wait between Snowflake API calls while monitoring the state of the service.",
@@ -349,29 +374,7 @@ class SPCSWorker(BaseWorker):
             The result of the flow run.
 
         """
-        run_start_time = datetime.datetime.now(datetime.timezone.utc)
-
-        # If SNOWFLAKE_HOST is defined, we're probably running in Snowflake.
-        # That means we can run as the service account.
-        if os.getenv("SNOWFLAKE_HOST"):
-
-            def get_login_token() -> str:
-                with Path("/snowflake/session/token").open("r") as f:
-                    return f.read()
-
-            connection_parameters = {
-                "host": os.getenv("SNOWFLAKE_HOST"),
-                "account": os.getenv("SNOWFLAKE_ACCOUNT"),
-                "token": get_login_token(),
-                "authenticator": "oauth",
-            }
-        else:
-            connection_parameters = {
-                "account": configuration.snowflake_credentials.account,
-                "user": configuration.snowflake_credentials.user,
-                "private_key": configuration.snowflake_credentials.resolve_private_key(),
-                "role": configuration.snowflake_credentials.role,
-            }
+        connection_parameters = self._get_snowflake_connection_parameters(configuration)
 
         session = snowflake.connector.connect(**connection_parameters)
         root = Root(session)
@@ -380,7 +383,6 @@ class SPCSWorker(BaseWorker):
         job_service_name = await run_sync_in_worker_thread(
             self._create_and_start_service,
             root,
-            session,
             flow_run,
             configuration,
         )
@@ -396,7 +398,6 @@ class SPCSWorker(BaseWorker):
             job_service_name,
             root,
             configuration,
-            run_start_time,
         )
 
         # We're done in Snowflake, close the connection.
@@ -414,7 +415,6 @@ class SPCSWorker(BaseWorker):
     def _create_and_start_service(
         self,
         root: Root,
-        session: SnowflakeConnection,
         flow_run: FlowRun,
         configuration: SPCSWorkerConfiguration,
     ) -> str:
@@ -447,10 +447,12 @@ class SPCSWorker(BaseWorker):
         job_service_name: str,
         root: Root,
         configuration: SPCSWorkerConfiguration,
-        run_start_time: datetime,
     ) -> int:
-        [database, schema, compute_pool] = configuration.compute_pool.split(".")
+        pool_start_datetime = datetime.datetime.now(datetime.timezone.utc)
+        pool_start_time_seconds = pool_start_datetime.timestamp()
+        pool_timeout = configuration.pool_start_timeout_seconds
 
+        [database, schema, compute_pool] = configuration.compute_pool.split(".")
         pool = root.compute_pools[compute_pool]
 
         while True:
@@ -460,13 +462,24 @@ class SPCSWorker(BaseWorker):
             if pool_state == "ACTIVE":
                 break
 
+            elapsed_time = time.time() - pool_start_time_seconds
+
+            if pool_timeout and elapsed_time > pool_timeout:
+                raise RuntimeError(
+                    f"Timed out after {elapsed_time} s while waiting for compute pool start."
+                )
+
             self._logger.info(
                 f"Compute pool {compute_pool} is in state {pool_state}, checking for ACTIVE state again in {configuration.service_watch_poll_interval} seconds."
             )
             time.sleep(configuration.service_watch_poll_interval)
 
+        service_start_datetime = datetime.datetime.now(datetime.timezone.utc)
+        service_start_time_seconds = service_start_datetime.timestamp()
+        service_timeout = configuration.service_start_timeout_seconds
+
         service = root.databases[database].schemas[schema].services[job_service_name]
-        last_log_time = run_start_time
+        last_log_time = service_start_datetime
 
         while True:
             # Sleep first, give the job service a chance to start.
@@ -500,12 +513,51 @@ class SPCSWorker(BaseWorker):
                     "INTERNAL_ERROR",
                 ):
                     break
-            except NotFoundError:
+            except NotFoundError as not_found_error:
+                elapsed_time = time.time() - service_start_time_seconds
+
+                if service_timeout and elapsed_time > service_timeout:
+                    raise RuntimeError(
+                        f"Timed out after {elapsed_time} s while waiting for service start."
+                    ) from not_found_error
+
                 self._logger.info(
                     f"Service {job_service_name} isn't running yet, polling for status again in {configuration.service_watch_poll_interval} seconds."
                 )
 
         return 0
+
+    @staticmethod
+    def _get_snowflake_connection_parameters(
+        configuration: SPCSWorkerConfiguration,
+    ) -> dict[str, Any]:
+        """Get the Snowflake connection parameters for the worker.
+
+        Args:
+            configuration: The worker configuration.
+
+        Returns:
+            A dictionary containing the Snowflake connection parameters.
+
+        """
+        # If SNOWFLAKE_HOST is defined, we're probably running in Snowflake.
+        # That means we can run as the service account.
+        if os.getenv("SNOWFLAKE_HOST"):
+            connection_parameters = {
+                "host": os.getenv("SNOWFLAKE_HOST"),
+                "account": os.getenv("SNOWFLAKE_ACCOUNT"),
+                "token": Path("/snowflake/session/token").read_text(),
+                "authenticator": "oauth",
+            }
+        else:
+            connection_parameters = {
+                "account": configuration.snowflake_credentials.account,
+                "user": configuration.snowflake_credentials.user,
+                "private_key": configuration.snowflake_credentials.resolve_private_key(),
+                "role": configuration.snowflake_credentials.role,
+            }
+
+        return connection_parameters
 
     @staticmethod
     def _slugify_service_name(service_name: str, flow_run_id: UUID) -> Optional[str]:

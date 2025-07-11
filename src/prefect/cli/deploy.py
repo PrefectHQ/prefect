@@ -1354,14 +1354,16 @@ def _parse_name_from_pattern(
 
     Example:
 
-    >>> deploy_configs = [
-    ...     {"name": "my-deployment-1", "entrypoint": "flow-name-1"},
-    ...     {"name": "my-deployment-2", "entrypoint": "flow-name-2"},
-    ...     {"name": "my-deployment-3", "entrypoint": "flow-name-3"},
-    ... ]
+    ```python
+    deploy_configs = [
+        {"name": "my-deployment-1", "entrypoint": "flow-name-1"},
+        {"name": "my-deployment-2", "entrypoint": "flow-name-2"},
+        {"name": "my-deployment-3", "entrypoint": "flow-name-3"},
+    ]
 
-    >>> _parse_name_from_pattern(deploy_configs, "flow-name-1/*")
-    ["my-deployment-1"]
+    _parse_name_from_pattern(deploy_configs, "flow-name-1/*")
+    # ["my-deployment-1"]
+    ```
 
     Args:
         deploy_configs: A list of deploy configs

@@ -21,6 +21,12 @@ from prefect.settings.models.testing import TestingSettings
 from prefect.settings.models.worker import WorkerSettings
 from prefect.utilities.collections import deep_merge_dicts, set_in_dict
 
+from ._defaults import (
+    default_database_connection_url,
+    default_profiles_path,
+    default_ui_url,
+    substitute_home_template,
+)
 from .api import APISettings
 from .cli import CLISettings
 from .client import ClientSettings
@@ -52,9 +58,12 @@ class Settings(PrefectBaseSettings):
         description="The path to the Prefect home directory. Defaults to ~/.prefect",
     )
 
-    profiles_path: Optional[Path] = Field(
-        default=None,
-        description="The path to a profiles configuration file.",
+    profiles_path: Annotated[Path, BeforeValidator(substitute_home_template)] = Field(
+        default_factory=default_profiles_path,
+        description=(
+            "The path to a profiles configuration file. Supports $PREFECT_HOME templating."
+            " Defaults to $PREFECT_HOME/profiles.toml."
+        ),
     )
 
     debug_mode: bool = Field(
@@ -175,14 +184,14 @@ class Settings(PrefectBaseSettings):
 
     @model_validator(mode="after")
     def post_hoc_settings(self) -> Self:
-        """refactor on resolution of https://github.com/pydantic/pydantic/issues/9789
+        """Handle remaining complex default assignments that aren't yet migrated to dependent settings.
 
-        we should not be modifying __pydantic_fields_set__ directly, but until we can
-        define dependencies between defaults in a first-class way, we need clean up
-        post-hoc default assignments to keep set/unset fields correct after instantiation.
+        With Pydantic 2.10's dependent settings feature, we've migrated simple path-based defaults
+        to use default_factory. The remaining items here require access to the full Settings instance
+        or have complex interdependencies that will be migrated in future PRs.
         """
         if self.ui_url is None:
-            self.ui_url = _default_ui_url(self)
+            self.ui_url = default_ui_url(self)
             self.__pydantic_fields_set__.remove("ui_url")
         if self.server.ui.api_url is None:
             if self.api.url:
@@ -193,27 +202,15 @@ class Settings(PrefectBaseSettings):
                     f"http://{self.server.api.host}:{self.server.api.port}/api"
                 )
                 self.server.ui.__pydantic_fields_set__.remove("api_url")
-        if self.profiles_path is None or "PREFECT_HOME" in str(self.profiles_path):
-            self.profiles_path = Path(f"{self.home}/profiles.toml")
-            self.__pydantic_fields_set__.remove("profiles_path")
-        if self.results.local_storage_path is None:
-            self.results.local_storage_path = Path(f"{self.home}/storage")
-            self.results.__pydantic_fields_set__.remove("local_storage_path")
-        if self.server.memo_store_path is None:
-            self.server.memo_store_path = Path(f"{self.home}/memo_store.toml")
-            self.server.__pydantic_fields_set__.remove("memo_store_path")
         if self.debug_mode or self.testing.test_mode:
             self.logging.level = "DEBUG"
             self.internal.logging_level = "DEBUG"
             self.logging.__pydantic_fields_set__.remove("level")
             self.internal.__pydantic_fields_set__.remove("logging_level")
 
-        if self.logging.config_path is None:
-            self.logging.config_path = Path(f"{self.home}/logging.yml")
-            self.logging.__pydantic_fields_set__.remove("config_path")
         # Set default database connection URL if not provided
         if self.server.database.connection_url is None:
-            self.server.database.connection_url = _default_database_connection_url(self)
+            self.server.database.connection_url = default_database_connection_url(self)
             self.server.database.__pydantic_fields_set__.remove("connection_url")
         db_url = self.server.database.connection_url.get_secret_value()
         if (
@@ -238,6 +235,7 @@ class Settings(PrefectBaseSettings):
             )
             self.server.database.connection_url = SecretStr(db_url)
             self.server.database.__pydantic_fields_set__.remove("connection_url")
+
         return self
 
     @model_validator(mode="after")
@@ -330,37 +328,6 @@ class Settings(PrefectBaseSettings):
         return str(hash(tuple((key, value) for key, value in env_variables.items())))
 
 
-def _default_ui_url(settings: "Settings") -> Optional[str]:
-    value = settings.ui_url
-    if value is not None:
-        return value
-
-    # Otherwise, infer a value from the API URL
-    ui_url = api_url = settings.api.url
-
-    if not api_url:
-        return None
-    assert ui_url is not None
-
-    cloud_url = settings.cloud.api_url
-    cloud_ui_url = settings.cloud.ui_url
-    if api_url.startswith(cloud_url) and cloud_ui_url:
-        ui_url = ui_url.replace(cloud_url, cloud_ui_url)
-
-    if ui_url.endswith("/api"):
-        # Handles open-source APIs
-        ui_url = ui_url[:-4]
-
-    # Handles Cloud APIs with content after `/api`
-    ui_url = ui_url.replace("/api/", "/")
-
-    # Update routing
-    ui_url = ui_url.replace("/accounts/", "/account/")
-    ui_url = ui_url.replace("/workspaces/", "/workspace/")
-
-    return ui_url
-
-
 def _warn_on_misconfigured_api_url(settings: "Settings"):
     """
     Validator for settings warning if the API URL is misconfigured.
@@ -402,54 +369,6 @@ def _warn_on_misconfigured_api_url(settings: "Settings"):
             warnings.warn("\n".join(warnings_list), stacklevel=2)
 
     return settings
-
-
-def _default_database_connection_url(settings: "Settings") -> SecretStr:
-    value: str = f"sqlite+aiosqlite:///{settings.home}/prefect.db"
-    if settings.server.database.driver == "postgresql+asyncpg":
-        required = [
-            "host",
-            "user",
-            "name",
-            "password",
-        ]
-        missing = [
-            attr for attr in required if getattr(settings.server.database, attr) is None
-        ]
-        if missing:
-            raise ValueError(
-                f"Missing required database connection settings: {', '.join(missing)}"
-            )
-
-        from sqlalchemy import URL
-
-        value = URL(
-            drivername=settings.server.database.driver,
-            host=settings.server.database.host,
-            port=settings.server.database.port or 5432,
-            username=settings.server.database.user,
-            password=(
-                settings.server.database.password.get_secret_value()
-                if settings.server.database.password
-                else None
-            ),
-            database=settings.server.database.name,
-            query=[],  # type: ignore
-        ).render_as_string(hide_password=False)
-
-    elif settings.server.database.driver == "sqlite+aiosqlite":
-        if settings.server.database.name:
-            value = (
-                f"{settings.server.database.driver}:///{settings.server.database.name}"
-            )
-        else:
-            value = f"sqlite+aiosqlite:///{settings.home}/prefect.db"
-
-    elif settings.server.database.driver:
-        raise ValueError(
-            f"Unsupported database driver: {settings.server.database.driver}"
-        )
-    return SecretStr(value)
 
 
 def canonical_environment_prefix(settings: "Settings") -> str:

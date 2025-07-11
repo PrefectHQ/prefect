@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from pathlib import Path
 from typing import ClassVar, Optional
 
@@ -5,6 +7,8 @@ from pydantic import AliasChoices, AliasPath, Field
 from pydantic_settings import SettingsConfigDict
 
 from prefect.settings.base import PrefectBaseSettings, build_settings_config
+
+from ._defaults import default_local_storage_path
 
 
 class ResultsSettings(PrefectBaseSettings):
@@ -34,9 +38,9 @@ class ResultsSettings(PrefectBaseSettings):
         ),
     )
 
-    local_storage_path: Optional[Path] = Field(
-        default=None,
-        description="The path to a directory to store results in.",
+    local_storage_path: Path = Field(
+        default_factory=default_local_storage_path,
+        description="The default location for locally persisted results. Defaults to $PREFECT_HOME/storage.",
         validation_alias=AliasChoices(
             AliasPath("local_storage_path"),
             "prefect_results_local_storage_path",

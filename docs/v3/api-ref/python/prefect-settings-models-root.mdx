@@ -7,7 +7,7 @@ sidebarTitle: root
 
 ## Functions
 
-### `canonical_environment_prefix` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/settings/models/root.py#L455"><Icon icon="github" size="14" /></a></sup>
+### `canonical_environment_prefix` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/settings/models/root.py#L374" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 canonical_environment_prefix(settings: 'Settings') -> str
@@ -15,7 +15,7 @@ canonical_environment_prefix(settings: 'Settings') -> str
 
 ## Classes
 
-### `Settings` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/settings/models/root.py#L41"><Icon icon="github" size="14" /></a></sup>
+### `Settings` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/settings/models/root.py#L47" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 
 Settings for Prefect using Pydantic settings.
@@ -25,20 +25,20 @@ See https://docs.pydantic.dev/latest/concepts/pydantic_settings
 
 **Methods:**
 
-#### `post_hoc_settings` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/settings/models/root.py#L177"><Icon icon="github" size="14" /></a></sup>
+#### `post_hoc_settings` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/settings/models/root.py#L186" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 post_hoc_settings(self) -> Self
 ```
 
-refactor on resolution of https://github.com/pydantic/pydantic/issues/9789
+Handle remaining complex default assignments that aren't yet migrated to dependent settings.
 
-we should not be modifying __pydantic_fields_set__ directly, but until we can
-define dependencies between defaults in a first-class way, we need clean up
-post-hoc default assignments to keep set/unset fields correct after instantiation.
+With Pydantic 2.10's dependent settings feature, we've migrated simple path-based defaults
+to use default_factory. The remaining items here require access to the full Settings instance
+or have complex interdependencies that will be migrated in future PRs.
 
 
-#### `emit_warnings` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/settings/models/root.py#L244"><Icon icon="github" size="14" /></a></sup>
+#### `emit_warnings` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/settings/models/root.py#L242" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 emit_warnings(self) -> Self
@@ -47,7 +47,7 @@ emit_warnings(self) -> Self
 More post-hoc validation of settings, including warnings for misconfigurations.
 
 
-#### `copy_with_update` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/settings/models/root.py#L253"><Icon icon="github" size="14" /></a></sup>
+#### `copy_with_update` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/settings/models/root.py#L251" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 copy_with_update(self: Self, updates: Optional[Mapping['Setting', Any]] = None, set_defaults: Optional[Mapping['Setting', Any]] = None, restore_defaults: Optional[Iterable['Setting']] = None) -> Self
@@ -66,7 +66,7 @@ the given settings will only be overridden if they were not set.
 - A new Settings object.
 
 
-#### `hash_key` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/settings/models/root.py#L324"><Icon icon="github" size="14" /></a></sup>
+#### `hash_key` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/settings/models/root.py#L322" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 hash_key(self) -> str

@@ -12,7 +12,7 @@ Utilities for working with clients.
 
 ## Functions
 
-### `get_or_create_client` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/utilities.py#L31"><Icon icon="github" size="14" /></a></sup>
+### `get_or_create_client` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/utilities.py#L31" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 get_or_create_client(client: Optional['PrefectClient'] = None) -> tuple['PrefectClient', bool]
@@ -28,13 +28,13 @@ Returns provided client, infers a client from context if available, or creates a
 - - tuple: a tuple of the client and a boolean indicating if the client was inferred from context
 
 
-### `client_injector` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/utilities.py#L63"><Icon icon="github" size="14" /></a></sup>
+### `client_injector` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/utilities.py#L63" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 client_injector(func: Callable[Concatenate['PrefectClient', P], Coroutine[Any, Any, R]]) -> Callable[P, Coroutine[Any, Any, R]]
 ```
 
-### `inject_client` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/utilities.py#L74"><Icon icon="github" size="14" /></a></sup>
+### `inject_client` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/utilities.py#L74" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 inject_client(fn: Callable[P, Coroutine[Any, Any, R]]) -> Callable[P, Coroutine[Any, Any, R]]

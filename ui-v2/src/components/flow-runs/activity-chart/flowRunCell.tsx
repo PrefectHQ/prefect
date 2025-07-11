@@ -1,6 +1,6 @@
+import { TooltipContent, TooltipTrigger } from "@radix-ui/react-tooltip";
 import type { FlowRun } from "@/api/flow-runs";
 import { Tooltip } from "@/components/ui/tooltip";
-import { TooltipContent, TooltipTrigger } from "@radix-ui/react-tooltip";
 import { Popover } from "./popover";
 
 export type FlowRunCellProps = {

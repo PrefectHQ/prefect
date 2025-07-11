@@ -1,0 +1,161 @@
+---
+title: How to run Prefect on Windows
+sidebarTitle: Run Prefect on Windows
+description: Learn how to run Prefect server and workers on Windows with PowerShell.
+---
+
+Prefect provides first-class Windows support with native PowerShell integration and full feature parity with other platforms. This guide covers Windows-specific setup and best practices.
+
+## Windows support
+
+Prefect provides comprehensive Windows support with the Windows ecosystem. Prefect automatically detects PowerShell and uses it as the default shell on Windows, allowing you to run shell commands and scripts naturally without additional configuration. The subprocess execution is fully compatible with Windows process management.
+
+Windows path conventions are fully supported, including UNC paths for network storage. This allows you to configure Prefect to use network shares for databases, storage, and other resources, which is particularly useful in enterprise environments where shared storage is common:
+
+```powershell
+# Configure database on network share using UNC paths
+prefect config set PREFECT_HOME="\\server\share\prefect-data"
+
+# Or use mapped drives
+prefect config set PREFECT_HOME="Z:\prefect-data"
+
+# Standard Windows paths work as expected
+prefect config set PREFECT_HOME="C:\ProgramData\Prefect"
+```
+
+Environment variables work using standard Windows conventions and can be set using PowerShell syntax, either for the current session or permanently for the user:
+
+```powershell
+# Set for current session
+$env:PREFECT_API_DATABASE_TIMEOUT = "600"
+
+# Set permanently for user
+[System.Environment]::SetEnvironmentVariable("PREFECT_API_DATABASE_TIMEOUT", "600", "User")
+```
+
+Shell tasks automatically use PowerShell on Windows, providing access to the full Windows command ecosystem:
+
+```python
+from prefect import flow
+from prefect_shell import shell_run_command
+
+@flow
+def windows_flow():
+    # This will run in PowerShell by default on Windows
+    result = shell_run_command(command="Get-Process prefect")
+    return result
+```
+
+## Database configuration and workers
+
+By default, Prefect uses SQLite stored at `%USERPROFILE%\.prefect\prefect.db` with no additional configuration needed. For production deployments, you can configure PostgreSQL using standard connection strings:
+
+```powershell
+prefect config set PREFECT_API_DATABASE_CONNECTION_URL="postgresql+asyncpg://postgres:password@localhost:5432/prefect"
+```
+
+Prefect workers on Windows support both process execution and Docker containers. Process workers run flows directly as Windows processes. Docker workers can leverage Windows containers for isolated execution environments:
+
+```powershell
+# Run flows as Windows processes
+prefect worker start --pool my-process-pool --type process
+
+# Use Windows containers with Docker Desktop
+docker pull mcr.microsoft.com/windows/servercore:ltsc2019
+prefect worker start --pool my-docker-pool --type docker
+```
+
+## Security and performance considerations
+
+Windows environments require specific security configurations for optimal Prefect operation. You'll need to allow Prefect server through Windows Firewall and configure PowerShell execution policies. Additionally, antivirus software can significantly impact performance if not configured properly.
+
+Configure Windows Firewall to allow Prefect server traffic on port 4200:
+
+```powershell
+# Run as Administrator
+New-NetFirewallRule -DisplayName "Prefect Server" -Direction Inbound -Port 4200 -Protocol TCP -Action Allow
+```
+
+If you encounter PowerShell execution policy errors when running scripts or deployments, configure the execution policy for the current user:
+
+```powershell
+# Set execution policy for current user
+Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
+```
+
+For better performance, consider adding these directories to your antivirus exclusions: `%USERPROFILE%\.prefect\`, your Python installation directory, and temporary directories used by flows. This prevents real-time scanning from interfering with Prefect operations.
+
+## Production deployment as Windows service
+
+For production environments, you should run Prefect server as a Windows service to ensure it starts automatically and runs reliably. The Non-Sucking Service Manager (NSSM) is the recommended tool for this purpose. Download NSSM from [nssm.cc](https://nssm.cc) and install the service with administrator privileges:
+
+```powershell
+# Run as Administrator
+nssm install PrefectServer
+nssm set PrefectServer Application "C:\Path\To\Python\python.exe"
+nssm set PrefectServer AppParameters "-m prefect server start"
+nssm set PrefectServer AppDirectory "C:\Path\To\Your\Project"
+
+# Set environment variables if needed
+nssm set PrefectServer AppEnvironmentExtra "PREFECT_API_URL=http://localhost:4200/api"
+
+nssm start PrefectServer
+```
+
+This configuration ensures Prefect server starts automatically when Windows boots and provides proper service management capabilities including automatic restarts on failure.
+
+## Troubleshooting common Windows issues
+
+Several Windows-specific issues can occur when running Prefect. The most common problems relate to PATH configuration, encoding issues, port conflicts, and permission errors.
+
+### Command not found errors
+
+These typically indicate PATH issues. Verify that the Python Scripts directory is in your PATH and restart PowerShell after making changes. You can also try running `where prefect` to see if the command is found.
+
+For example, if the `prefect` command isn't found, you'll need to add the Python Scripts directory to your `PATH`. This is a common issue on Windows when Python isn't installed system-wide:
+
+```powershell
+# Check if Scripts directory is in PATH
+$env:PATH -split ';' | Select-String "Scripts"
+
+# Add Scripts directory to PATH (replace with your Python path)
+$scriptsPath = "C:\Users\$env:USERNAME\AppData\Local\Programs\Python\Python39\Scripts"
+$env:PATH += ";$scriptsPath"
+```
+
+### Port conflicts 
+
+These can prevent the server from starting. Check what's using port 4200 and kill the process if necessary:
+```powershell
+# Check what's using port 4200
+netstat -ano | findstr :4200
+
+# Kill process if needed (replace PID with actual process ID)
+taskkill /PID 1234 /F
+```
+
+Alternatively, you can configure Prefect server to use a different port by setting the `PREFECT_SERVER_API_HOST` and `PREFECT_SERVER_API_PORT` environment variables:
+```powershell
+# Set server to use port 8080 instead of 4200
+$env:PREFECT_SERVER_API_PORT = "8080"
+prefect server start
+
+# Update client configuration to match
+prefect config set PREFECT_API_URL="http://127.0.0.1:8080/api"
+```
+
+### Character encoding errors
+
+Character encoding errors (particularly `'charmap' codec` errors) can occur on some Windows systems. Set the Python I/O encoding to UTF-8:
+```powershell
+$env:PYTHONIOENCODING = "UTF-8"
+```
+
+### Permission errors 
+
+Permission errors often require running PowerShell as Administrator for system-wide changes, or checking file permissions on Prefect directories. Network connectivity issues typically involve Windows Firewall rules or corporate proxy settings.
+
+
+## Additional Resources
+
+For additional help with Windows-specific issues, check the [Prefect Community Slack](https://prefect.io/slack), search [GitHub Issues](https://github.com/PrefectHQ/prefect/issues) for Windows-related problems, or review PowerShell execution logs for detailed error messages.

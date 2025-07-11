@@ -14,7 +14,7 @@ with options for logging output, scheduling, and deployment customization.
 
 ## Functions
 
-### `output_stream` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/cli/shell.py#L34"><Icon icon="github" size="14" /></a></sup>
+### `output_stream` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/shell.py#L34" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 output_stream(pipe: IO[str], logger_function: Callable[[str], None]) -> None
@@ -28,7 +28,7 @@ Read from a pipe line by line and log using the provided logging function.
 - `logger_function`: A logging function from the logger.
 
 
-### `output_collect` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/cli/shell.py#L47"><Icon icon="github" size="14" /></a></sup>
+### `output_collect` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/shell.py#L47" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 output_collect(pipe: IO[str], container: list[str]) -> None
@@ -42,7 +42,7 @@ Collects output from a subprocess pipe and stores it in a container list.
 - `container`: A list to store the collected output lines.
 
 
-### `run_shell_process` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/cli/shell.py#L60"><Icon icon="github" size="14" /></a></sup>
+### `run_shell_process` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/shell.py#L60" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 run_shell_process(command: str, log_output: bool = True, stream_stdout: bool = False, log_stderr: bool = False, popen_kwargs: Optional[Dict[str, Any]] = None)

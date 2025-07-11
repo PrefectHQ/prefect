@@ -12,7 +12,7 @@ Module containing the base workflow task class and decorator - for most use case
 
 ## Functions
 
-### `task_input_hash` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/tasks.py#L162"><Icon icon="github" size="14" /></a></sup>
+### `task_input_hash` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/tasks.py#L162" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 task_input_hash(context: 'TaskRunContext', arguments: dict[str, Any]) -> Optional[str]
@@ -32,7 +32,7 @@ indicating that a cache key could not be generated for the given inputs.
 - a string hash if hashing succeeded, else `None`
 
 
-### `exponential_backoff` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/tasks.py#L188"><Icon icon="github" size="14" /></a></sup>
+### `exponential_backoff` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/tasks.py#L188" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 exponential_backoff(backoff_factor: float) -> Callable[[int], list[float]]
@@ -50,7 +50,7 @@ increase the delay time by powers of 2.
 - a callable that can be passed to the task constructor
 
 
-### `task` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/tasks.py#L1811"><Icon icon="github" size="14" /></a></sup>
+### `task` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/tasks.py#L1869" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 task(__fn: Optional[Callable[P, R]] = None)
@@ -123,52 +123,75 @@ to its retry policy.
 **Examples:**
 
 Define a simple task
->>> @task
->>> def add(x, y):
->>>     return x + y
+
+```python
+@task
+def add(x, y):
+    return x + y
+```
+
 Define an async task
->>> @task
->>> async def add(x, y):
->>>     return x + y
+
+```python
+@task
+async def add(x, y):
+    return x + y
+```
+
 Define a task with tags and a description
->>> @task(tags={"a", "b"}, description="This task is empty but its my first!")
->>> def my_task():
->>>     pass
+
+```python
+@task(tags={"a", "b"}, description="This task is empty but its my first!")
+def my_task():
+    pass
+```
+
 Define a task with a custom name
->>> @task(name="The Ultimate Task")
->>> def my_task():
->>>     pass
+
+```python
+@task(name="The Ultimate Task")
+def my_task():
+    pass
+```
+
 Define a task that retries 3 times with a 5 second delay between attempts
->>> from random import randint
->>>
->>> @task(retries=3, retry_delay_seconds=5)
->>> def my_task():
->>>     x = randint(0, 5)
->>>     if x >= 3:  # Make a task that fails sometimes
->>>         raise ValueError("Retry me please!")
->>>     return x
+
+```python
+from random import randint
+
+@task(retries=3, retry_delay_seconds=5)
+def my_task():
+    x = randint(0, 5)
+    if x >= 3:  # Make a task that fails sometimes
+        raise ValueError("Retry me please!")
+    return x
+```
+
 Define a task that is cached for a day based on its inputs
->>> from prefect.tasks import task_input_hash
->>> from datetime import timedelta
->>>
->>> @task(cache_key_fn=task_input_hash, cache_expiration=timedelta(days=1))
->>> def my_task():
->>>     return "hello"
+
+```python
+from prefect.tasks import task_input_hash
+from datetime import timedelta
+
+@task(cache_key_fn=task_input_hash, cache_expiration=timedelta(days=1))
+def my_task():
+    return "hello"
+```
 
 
 ## Classes
 
-### `TaskRunNameCallbackWithParameters` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/tasks.py#L103"><Icon icon="github" size="14" /></a></sup>
+### `TaskRunNameCallbackWithParameters` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/tasks.py#L103" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 **Methods:**
 
-#### `is_callback_with_parameters` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/tasks.py#L105"><Icon icon="github" size="14" /></a></sup>
+#### `is_callback_with_parameters` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/tasks.py#L105" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 is_callback_with_parameters(cls, callable: Callable[..., str]) -> TypeIs[Self]
 ```
 
-### `TaskOptions` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/tasks.py#L123"><Icon icon="github" size="14" /></a></sup>
+### `TaskOptions` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/tasks.py#L123" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 
 A TypedDict representing all available task configuration options.
@@ -176,7 +199,7 @@ A TypedDict representing all available task configuration options.
 This can be used with `Unpack` to provide type hints for **kwargs.
 
 
-### `Task` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/tasks.py#L300"><Icon icon="github" size="14" /></a></sup>
+### `Task` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/tasks.py#L300" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 
 A Prefect task definition.
@@ -250,25 +273,25 @@ to its retry policy.
 
 **Methods:**
 
-#### `ismethod` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/tasks.py#L613"><Icon icon="github" size="14" /></a></sup>
+#### `ismethod` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/tasks.py#L613" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 ismethod(self) -> bool
 ```
 
-#### `isclassmethod` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/tasks.py#L617"><Icon icon="github" size="14" /></a></sup>
+#### `isclassmethod` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/tasks.py#L617" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 isclassmethod(self) -> bool
 ```
 
-#### `isstaticmethod` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/tasks.py#L621"><Icon icon="github" size="14" /></a></sup>
+#### `isstaticmethod` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/tasks.py#L621" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 isstaticmethod(self) -> bool
 ```
 
-#### `with_options` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/tasks.py#L645"><Icon icon="github" size="14" /></a></sup>
+#### `with_options` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/tasks.py#L645" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 with_options(self) -> 'Task[P, R]'
@@ -317,94 +340,100 @@ always continue to its retry policy.
 
 Examples:
 
-    Create a new task from an existing task and update the name
+    Create a new task from an existing task and update the name:
 
-    >>> @task(name="My task")
-    >>> def my_task():
-    >>>     return 1
-    >>>
-    >>> new_task = my_task.with_options(name="My new task")
+    ```python
+    @task(name="My task")
+    def my_task():
+        return 1
 
-    Create a new task from an existing task and update the retry settings
+    new_task = my_task.with_options(name="My new task")
+    ```
 
-    >>> from random import randint
-    >>>
-    >>> @task(retries=1, retry_delay_seconds=5)
-    >>> def my_task():
-    >>>     x = randint(0, 5)
-    >>>     if x >= 3:  # Make a task that fails sometimes
-    >>>         raise ValueError("Retry me please!")
-    >>>     return x
-    >>>
-    >>> new_task = my_task.with_options(retries=5, retry_delay_seconds=2)
+    Create a new task from an existing task and update the retry settings:
 
-    Use a task with updated options within a flow
+    ```python
+    from random import randint
 
-    >>> @task(name="My task")
-    >>> def my_task():
-    >>>     return 1
-    >>>
-    >>> @flow
-    >>> my_flow():
-    >>>     new_task = my_task.with_options(name="My new task")
-    >>>     new_task()
+    @task(retries=1, retry_delay_seconds=5)
+    def my_task():
+        x = randint(0, 5)
+        if x >= 3:  # Make a task that fails sometimes
+            raise ValueError("Retry me please!")
+        return x
+
+    new_task = my_task.with_options(retries=5, retry_delay_seconds=2)
+    ```
+
+    Use a task with updated options within a flow:
+
+    ```python
+    @task(name="My task")
+    def my_task():
+        return 1
+
+    @flow
+    my_flow():
+        new_task = my_task.with_options(name="My new task")
+        new_task()
+    ```
 
 
-#### `on_completion` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/tasks.py#L817"><Icon icon="github" size="14" /></a></sup>
+#### `on_completion` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/tasks.py#L824" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 on_completion(self, fn: StateHookCallable) -> StateHookCallable
 ```
 
-#### `on_failure` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/tasks.py#L821"><Icon icon="github" size="14" /></a></sup>
+#### `on_failure` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/tasks.py#L828" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 on_failure(self, fn: StateHookCallable) -> StateHookCallable
 ```
 
-#### `on_commit` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/tasks.py#L825"><Icon icon="github" size="14" /></a></sup>
+#### `on_commit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/tasks.py#L832" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 on_commit(self, fn: Callable[['Transaction'], None]) -> Callable[['Transaction'], None]
 ```
 
-#### `on_rollback` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/tasks.py#L831"><Icon icon="github" size="14" /></a></sup>
+#### `on_rollback` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/tasks.py#L838" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 on_rollback(self, fn: Callable[['Transaction'], None]) -> Callable[['Transaction'], None]
 ```
 
-#### `submit` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/tasks.py#L1140"><Icon icon="github" size="14" /></a></sup>
+#### `submit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/tasks.py#L1147" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 submit(self: 'Task[P, R]', *args: P.args, **kwargs: P.kwargs) -> PrefectFuture[R]
 ```
 
-#### `submit` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/tasks.py#L1147"><Icon icon="github" size="14" /></a></sup>
+#### `submit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/tasks.py#L1154" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 submit(self: 'Task[P, Coroutine[Any, Any, R]]', *args: P.args, **kwargs: P.kwargs) -> PrefectFuture[R]
 ```
 
-#### `submit` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/tasks.py#L1156"><Icon icon="github" size="14" /></a></sup>
+#### `submit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/tasks.py#L1163" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 submit(self: 'Task[P, R]', *args: P.args, **kwargs: P.kwargs) -> PrefectFuture[R]
 ```
 
-#### `submit` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/tasks.py#L1165"><Icon icon="github" size="14" /></a></sup>
+#### `submit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/tasks.py#L1172" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 submit(self: 'Task[P, Coroutine[Any, Any, R]]', *args: P.args, **kwargs: P.kwargs) -> State[R]
 ```
 
-#### `submit` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/tasks.py#L1174"><Icon icon="github" size="14" /></a></sup>
+#### `submit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/tasks.py#L1181" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 submit(self: 'Task[P, R]', *args: P.args, **kwargs: P.kwargs) -> State[R]
 ```
 
-#### `submit` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/tasks.py#L1182"><Icon icon="github" size="14" /></a></sup>
+#### `submit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/tasks.py#L1189" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 submit(self: 'Union[Task[P, R], Task[P, Coroutine[Any, Any, R]]]', *args: Any, **kwargs: Any)
@@ -435,103 +464,118 @@ Examples:
 
     Define a task
 
-    >>> from prefect import task
-    >>> @task
-    >>> def my_task():
-    >>>     return "hello"
+    ```python
+    from prefect import task
+    @task
+    def my_task():
+        return "hello"
+    ```
 
     Run a task in a flow
 
-    >>> from prefect import flow
-    >>> @flow
-    >>> def my_flow():
-    >>>     my_task.submit()
+    ```python
+    from prefect import flow
+    @flow
+    def my_flow():
+        my_task.submit()
+    ```
 
     Wait for a task to finish
 
-    >>> @flow
-    >>> def my_flow():
-    >>>     my_task.submit().wait()
+    ```python
+    @flow
+    def my_flow():
+        my_task.submit().wait()
+    ```
 
     Use the result from a task in a flow
 
-    >>> @flow
-    >>> def my_flow():
-    >>>     print(my_task.submit().result())
-    >>>
-    >>> my_flow()
-    hello
+    ```python
+    @flow
+    def my_flow():
+        print(my_task.submit().result())
+
+    my_flow()
+    # hello
+    ```
 
     Run an async task in an async flow
 
-    >>> @task
-    >>> async def my_async_task():
-    >>>     pass
-    >>>
-    >>> @flow
-    >>> async def my_flow():
-    >>>     my_async_task.submit()
+    ```python
+    @task
+    async def my_async_task():
+        pass
+
+    @flow
+    async def my_flow():
+        my_async_task.submit()
+    ```
 
     Run a sync task in an async flow
 
-    >>> @flow
-    >>> async def my_flow():
-    >>>     my_task.submit()
+    ```python
+    @flow
+    async def my_flow():
+        my_task.submit()
+    ```
 
     Enforce ordering between tasks that do not exchange data
-    >>> @task
-    >>> def task_1():
-    >>>     pass
-    >>>
-    >>> @task
-    >>> def task_2():
-    >>>     pass
-    >>>
-    >>> @flow
-    >>> def my_flow():
-    >>>     x = task_1.submit()
-    >>>
-    >>>     # task 2 will wait for task_1 to complete
-    >>>     y = task_2.submit(wait_for=[x])
+
+    ```python
+    @task
+    def task_1():
+        pass
+
+    @task
+    def task_2():
+        pass
+
+    @flow
+    def my_flow():
+        x = task_1.submit()
+
+        # task 2 will wait for task_1 to complete
+        y = task_2.submit(wait_for=[x])
+    ```
 
 
-#### `map` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/tasks.py#L1307"><Icon icon="github" size="14" /></a></sup>
-
-```python
-map(self: 'Task[P, R]', *args: Any, **kwargs: Any) -> list[State[R]]
-```
-
-#### `map` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/tasks.py#L1317"><Icon icon="github" size="14" /></a></sup>
-
-```python
-map(self: 'Task[P, R]', *args: Any, **kwargs: Any) -> PrefectFutureList[R]
-```
-
-#### `map` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/tasks.py#L1326"><Icon icon="github" size="14" /></a></sup>
+#### `map` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/tasks.py#L1329" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 map(self: 'Task[P, R]', *args: Any, **kwargs: Any) -> list[State[R]]
 ```
 
-#### `map` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/tasks.py#L1336"><Icon icon="github" size="14" /></a></sup>
+#### `map` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/tasks.py#L1339" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 map(self: 'Task[P, R]', *args: Any, **kwargs: Any) -> PrefectFutureList[R]
 ```
 
-#### `map` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/tasks.py#L1345"><Icon icon="github" size="14" /></a></sup>
+#### `map` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/tasks.py#L1348" target="_blank"><Icon icon="github" size="14" /></a></sup>
+
+```python
+map(self: 'Task[P, R]', *args: Any, **kwargs: Any) -> list[State[R]]
+```
+
+#### `map` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/tasks.py#L1358" target="_blank"><Icon icon="github" size="14" /></a></sup>
+
+```python
+map(self: 'Task[P, R]', *args: Any, **kwargs: Any) -> PrefectFutureList[R]
+```
+
+#### `map` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/tasks.py#L1367" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 map(self: 'Task[P, Coroutine[Any, Any, R]]', *args: Any, **kwargs: Any) -> list[State[R]]
 ```
 
-#### `map` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/tasks.py#L1355"><Icon icon="github" size="14" /></a></sup>
+#### `map` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/tasks.py#L1377" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 map(self: 'Task[P, Coroutine[Any, Any, R]]', *args: Any, **kwargs: Any) -> PrefectFutureList[R]
 ```
 
-#### `map` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/tasks.py#L1364"><Icon icon="github" size="14" /></a></sup>
+#### `map` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/tasks.py#L1386" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 map(self, *args: Any, **kwargs: Any) -> Union[list[State[R]], PrefectFutureList[R]]
@@ -571,86 +615,103 @@ Examples:
 
     Define a task
 
-    >>> from prefect import task
-    >>> @task
-    >>> def my_task(x):
-    >>>     return x + 1
+    ```python
+    from prefect import task
+    @task
+    def my_task(x):
+        return x + 1
+    ```
 
     Create mapped tasks
 
-    >>> from prefect import flow
-    >>> @flow
-    >>> def my_flow():
-    >>>     return my_task.map([1, 2, 3])
+    ```python
+    from prefect import flow
+    @flow
+    def my_flow():
+        return my_task.map([1, 2, 3])
+    ```
 
     Wait for all mapped tasks to finish
 
-    >>> @flow
-    >>> def my_flow():
-    >>>     futures = my_task.map([1, 2, 3])
-    >>>     futures.wait():
-    >>>     # Now all of the mapped tasks have finished
-    >>>     my_task(10)
+    ```python
+    @flow
+    def my_flow():
+        futures = my_task.map([1, 2, 3])
+        futures.wait():
+        # Now all of the mapped tasks have finished
+        my_task(10)
+    ```
 
     Use the result from mapped tasks in a flow
 
-    >>> @flow
-    >>> def my_flow():
-    >>>     futures = my_task.map([1, 2, 3])
-    >>>     for x in futures.result():
-    >>>         print(x)
-    >>> my_flow()
-    2
-    3
-    4
+    ```python
+    @flow
+    def my_flow():
+        futures = my_task.map([1, 2, 3])
+        for x in futures.result():
+            print(x)
+    my_flow()
+    # 2
+    # 3
+    # 4
+    ```
 
     Enforce ordering between tasks that do not exchange data
-    >>> @task
-    >>> def task_1(x):
-    >>>     pass
-    >>>
-    >>> @task
-    >>> def task_2(y):
-    >>>     pass
-    >>>
-    >>> @flow
-    >>> def my_flow():
-    >>>     x = task_1.submit()
-    >>>
-    >>>     # task 2 will wait for task_1 to complete
-    >>>     y = task_2.map([1, 2, 3], wait_for=[x])
-    >>>     return y
+
+    ```python
+    @task
+    def task_1(x):
+        pass
+
+    @task
+    def task_2(y):
+        pass
+
+    @flow
+    def my_flow():
+        x = task_1.submit()
+
+        # task 2 will wait for task_1 to complete
+        y = task_2.map([1, 2, 3], wait_for=[x])
+        return y
+    ```
 
     Use a non-iterable input as a constant across mapped tasks
-    >>> @task
-    >>> def display(prefix, item):
-    >>>    print(prefix, item)
-    >>>
-    >>> @flow
-    >>> def my_flow():
-    >>>     return display.map("Check it out: ", [1, 2, 3])
-    >>>
-    >>> my_flow()
-    Check it out: 1
-    Check it out: 2
-    Check it out: 3
+
+    ```python
+    @task
+    def display(prefix, item):
+       print(prefix, item)
+
+    @flow
+    def my_flow():
+        return display.map("Check it out: ", [1, 2, 3])
+
+    my_flow()
+    # Check it out: 1
+    # Check it out: 2
+    # Check it out: 3
+    ```
 
     Use `unmapped` to treat an iterable argument as a constant
-    >>> from prefect import unmapped
-    >>>
-    >>> @task
-    >>> def add_n_to_items(items, n):
-    >>>     return [item + n for item in items]
-    >>>
-    >>> @flow
-    >>> def my_flow():
-    >>>     return add_n_to_items.map(unmapped([10, 20]), n=[1, 2, 3])
-    >>>
-    >>> my_flow()
-    [[11, 21], [12, 22], [13, 23]]
+
+    ```python
+    from prefect import unmapped
+
+    @task
+    def add_n_to_items(items, n):
+        return [item + n for item in items]
+
+    @flow
+    def my_flow():
+        return add_n_to_items.map(unmapped([10, 20]), n=[1, 2, 3])
+
+    my_flow()
+    # [[11, 21], [12, 22], [13, 23]]
+    ```
 
 
-#### `apply_async` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/tasks.py#L1530"><Icon icon="github" size="14" /></a></sup>
+#### `apply_async` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/tasks.py#L1569" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 apply_async(self, args: Optional[tuple[Any, ...]] = None, kwargs: Optional[dict[str, Any]] = None, wait_for: Optional[Iterable[PrefectFuture[R]]] = None, dependencies: Optional[dict[str, set[RunInput]]] = None) -> PrefectDistributedFuture[R]
@@ -669,50 +730,59 @@ Examples:
 
     Define a task
 
-    >>> from prefect import task
-    >>> @task
-    >>> def my_task(name: str = "world"):
-    >>>     return f"hello {name}"
+    ```python
+    from prefect import task
+    @task
+    def my_task(name: str = "world"):
+        return f"hello {name}"
+    ```
 
     Create a pending task run for the task
 
-    >>> from prefect import flow
-    >>> @flow
-    >>> def my_flow():
-    >>>     my_task.apply_async(("marvin",))
+    ```python
+    from prefect import flow
+    @flow
+    def my_flow():
+        my_task.apply_async(("marvin",))
+    ```
 
     Wait for a task to finish
 
-    >>> @flow
-    >>> def my_flow():
-    >>>     my_task.apply_async(("marvin",)).wait()
+    ```python
+    @flow
+    def my_flow():
+        my_task.apply_async(("marvin",)).wait()
+    ```
 
+    ```python
+    @flow
+    def my_flow():
+        print(my_task.apply_async(("marvin",)).result())
 
-    >>> @flow
-    >>> def my_flow():
-    >>>     print(my_task.apply_async(("marvin",)).result())
-    >>>
-    >>> my_flow()
-    hello marvin
+    my_flow()
+    # hello marvin
+    ```
 
     TODO\: Enforce ordering between tasks that do not exchange data
-    >>> @task
-    >>> def task_1():
-    >>>     pass
-    >>>
-    >>> @task
-    >>> def task_2():
-    >>>     pass
-    >>>
-    >>> @flow
-    >>> def my_flow():
-    >>>     x = task_1.apply_async()
-    >>>
-    >>>     # task 2 will wait for task_1 to complete
-    >>>     y = task_2.apply_async(wait_for=[x])
+    ```python
+    @task
+    def task_1():
+        pass
+
+    @task
+    def task_2():
+        pass
+
+    @flow
+    def my_flow():
+        x = task_1.apply_async()
+
+        # task 2 will wait for task_1 to complete
+        y = task_2.apply_async(wait_for=[x])
+    ```
 
 
-#### `delay` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/tasks.py#L1635"><Icon icon="github" size="14" /></a></sup>
+#### `delay` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/tasks.py#L1683" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 delay(self, *args: P.args, **kwargs: P.kwargs) -> PrefectDistributedFuture[R]
@@ -727,35 +797,43 @@ Examples:
 
         Define a task
 
-        >>> from prefect import task
-        >>> @task
-        >>> def my_task(name: str = "world"):
-        >>>     return f"hello {name}"
+        ```python
+        from prefect import task
+        @task
+        def my_task(name: str = "world"):
+            return f"hello {name}"
+        ```
 
         Create a pending task run for the task
 
-        >>> from prefect import flow
-        >>> @flow
-        >>> def my_flow():
-        >>>     my_task.delay("marvin")
+        ```python
+        from prefect import flow
+        @flow
+        def my_flow():
+            my_task.delay("marvin")
+        ```
 
         Wait for a task to finish
 
-        >>> @flow
-        >>> def my_flow():
-        >>>     my_task.delay("marvin").wait()
+        ```python
+        @flow
+        def my_flow():
+            my_task.delay("marvin").wait()
+        ```
 
         Use the result from a task in a flow
 
-        >>> @flow
-        >>> def my_flow():
-        >>>     print(my_task.delay("marvin").result())
-        >>>
-        >>> my_flow()
-        hello marvin
+        ```python
+        @flow
+        def my_flow():
+            print(my_task.delay("marvin").result())
+
+        my_flow()
+        # hello marvin
+        ```
 
 
-### `MaterializingTask` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/tasks.py#L2014"><Icon icon="github" size="14" /></a></sup>
+### `MaterializingTask` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/tasks.py#L2084" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 
 A task that materializes Assets.
@@ -765,3 +843,11 @@ A task that materializes Assets.
 - `materialized_by`: An optional tool that materialized the asset e.g. "dbt" or "spark"
 - `**task_kwargs`: All other Task arguments
 
+
+**Methods:**
+
+#### `with_options` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/tasks.py#L2109" target="_blank"><Icon icon="github" size="14" /></a></sup>
+
+```python
+with_options(self, assets: Optional[Sequence[Union[str, Asset]]] = None, **task_kwargs: Unpack[TaskOptions]) -> 'MaterializingTask[P, R]'
+```

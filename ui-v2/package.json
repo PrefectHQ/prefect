@@ -80,8 +80,8 @@
 		"zod": "^3.24.3"
 	},
 	"devDependencies": {
-		"@biomejs/biome": "1.9.4",
-		"@eslint/js": "^9.29.0",
+		"@biomejs/biome": "2.0.6",
+		"@eslint/js": "^9.30.1",
 		"@storybook/addon-docs": "^9.0.12",
 		"@storybook/react-vite": "^9.0.12",
 		"@tailwindcss/postcss": "^4.1.4",
@@ -102,12 +102,12 @@
 		"@types/react-dom": "19.1.2",
 		"@vitejs/plugin-react-swc": "^3.9.0",
 		"@vitest/coverage-v8": "^3.1.1",
-		"eslint": "^9.29.0",
+		"eslint": "^9.30.1",
 		"eslint-plugin-jest-dom": "^5.5.0",
 		"eslint-plugin-react": "^7.37.5",
 		"eslint-plugin-react-hooks": "^5.2.0",
 		"eslint-plugin-react-refresh": "^0.4.20",
-		"eslint-plugin-storybook": "^9.0.13",
+		"eslint-plugin-storybook": "^9.0.15",
 		"eslint-plugin-testing-library": "^7.5.3",
 		"eslint-plugin-unused-imports": "^4.1.4",
 		"globals": "^16.0.0",
@@ -119,11 +119,13 @@
 		"storybook": "^9.0.12",
 		"tailwindcss": "^4.0.8",
 		"typescript": "^5.8.3",
-		"typescript-eslint": "^8.35.0",
+		"typescript-eslint": "^8.35.1",
 		"vite": "^6.3.4",
 		"vitest": "^3.0.5"
 	},
 	"lint-staged": {
-		"*.{js,jsx,ts,tsx}": ["eslint --fix"]
+		"*.{js,jsx,ts,tsx}": [
+			"eslint --fix"
+		]
 	}
 }

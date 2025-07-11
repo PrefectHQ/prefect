@@ -108,6 +108,27 @@ def test_inspect_variable(variable):
     )
 
 
+def test_inspect_variable_with_json_output(variable):
+    """Test variable inspect command with JSON output flag."""
+    import json
+
+    result = invoke_and_assert(
+        ["variable", "inspect", variable.name, "--output", "json"],
+        expected_code=0,
+    )
+
+    # Parse JSON output and verify it's valid JSON
+    output_data = json.loads(result.stdout.strip())
+
+    # Verify key fields are present
+    assert "id" in output_data
+    assert "name" in output_data
+    assert "value" in output_data
+    assert output_data["id"] == str(variable.id)
+    assert output_data["name"] == variable.name
+    assert output_data["value"] == variable.value
+
+
 def test_delete_variable_doesnt_exist():
     invoke_and_assert(
         ["variable", "delete", "doesnt_exist"],

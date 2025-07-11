@@ -1,7 +1,8 @@
+import { Link } from "@tanstack/react-router";
 import type { Deployment } from "@/api/deployments";
 import { GlobalConcurrencyLimitSelect } from "@/components/global-concurrency-limit/global-concurrency-limit-select";
-import { SchemaForm } from "@/components/schemas";
 import type { PrefectSchemaObject } from "@/components/schemas";
+import { SchemaForm } from "@/components/schemas";
 import { Button } from "@/components/ui/button";
 import {
 	Form,
@@ -19,7 +20,6 @@ import { TagsInput } from "@/components/ui/tags-input";
 import { Typography } from "@/components/ui/typography";
 import { WorkPoolSelect } from "@/components/work-pools/work-pool-select";
 import { WorkQueueSelect } from "@/components/work-pools/work-queue-select";
-import { Link } from "@tanstack/react-router";
 import { LimitCollissionStrategySelect } from "./limit-collision-strategy-select";
 import { useDeploymentForm } from "./use-deployment-form";
 

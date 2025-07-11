@@ -1,8 +1,3 @@
-import type {
-	FlowRun,
-	FlowRunWithDeploymentAndFlow,
-	FlowRunWithFlow,
-} from "@/api/flow-runs";
 import {
 	randAnimal,
 	randHex,
@@ -12,6 +7,11 @@ import {
 	randUuid,
 	randWord,
 } from "@ngneat/falso";
+import type {
+	FlowRun,
+	FlowRunWithDeploymentAndFlow,
+	FlowRunWithFlow,
+} from "@/api/flow-runs";
 import { createFakeDeployment } from "./create-fake-deployment";
 import { createFakeFlow } from "./create-fake-flow";
 import { createFakeState } from "./create-fake-state";

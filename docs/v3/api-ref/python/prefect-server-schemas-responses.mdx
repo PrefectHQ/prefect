@@ -12,43 +12,43 @@ Schemas for special responses from the Prefect REST API.
 
 ## Classes
 
-### `SetStateStatus` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/schemas/responses.py#L26"><Icon icon="github" size="14" /></a></sup>
+### `SetStateStatus` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/responses.py#L26" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 
 Enumerates return statuses for setting run states.
 
 
-### `StateAcceptDetails` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/schemas/responses.py#L35"><Icon icon="github" size="14" /></a></sup>
+### `StateAcceptDetails` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/responses.py#L35" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 
 Details associated with an ACCEPT state transition.
 
 
-### `StateRejectDetails` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/schemas/responses.py#L47"><Icon icon="github" size="14" /></a></sup>
+### `StateRejectDetails` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/responses.py#L47" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 
 Details associated with a REJECT state transition.
 
 
-### `StateAbortDetails` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/schemas/responses.py#L62"><Icon icon="github" size="14" /></a></sup>
+### `StateAbortDetails` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/responses.py#L62" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 
 Details associated with an ABORT state transition.
 
 
-### `StateWaitDetails` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/schemas/responses.py#L77"><Icon icon="github" size="14" /></a></sup>
+### `StateWaitDetails` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/responses.py#L77" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 
 Details associated with a WAIT state transition.
 
 
-### `HistoryResponseState` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/schemas/responses.py#L99"><Icon icon="github" size="14" /></a></sup>
+### `HistoryResponseState` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/responses.py#L99" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 
 Represents a single state's history over an interval.
 
 
-### `HistoryResponse` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/schemas/responses.py#L123"><Icon icon="github" size="14" /></a></sup>
+### `HistoryResponse` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/responses.py#L123" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 
 Represents a history of aggregation states over an interval
@@ -56,84 +56,84 @@ Represents a history of aggregation states over an interval
 
 **Methods:**
 
-#### `validate_timestamps` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/schemas/responses.py#L138"><Icon icon="github" size="14" /></a></sup>
+#### `validate_timestamps` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/responses.py#L138" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 validate_timestamps(cls, values: dict) -> dict
 ```
 
-### `OrchestrationResult` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/schemas/responses.py#L157"><Icon icon="github" size="14" /></a></sup>
+### `OrchestrationResult` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/responses.py#L157" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 
 A container for the output of state orchestration.
 
 
-### `WorkerFlowRunResponse` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/schemas/responses.py#L167"><Icon icon="github" size="14" /></a></sup>
+### `WorkerFlowRunResponse` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/responses.py#L167" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
-### `FlowRunResponse` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/schemas/responses.py#L175"><Icon icon="github" size="14" /></a></sup>
+### `FlowRunResponse` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/responses.py#L175" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 **Methods:**
 
-#### `model_validate` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/schemas/responses.py#L312"><Icon icon="github" size="14" /></a></sup>
+#### `model_validate` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/responses.py#L312" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 model_validate(cls: Type[Self], obj: Any) -> Self
 ```
 
-### `TaskRunResponse` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/schemas/responses.py#L347"><Icon icon="github" size="14" /></a></sup>
+### `TaskRunResponse` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/responses.py#L347" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
-### `DeploymentResponse` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/schemas/responses.py#L402"><Icon icon="github" size="14" /></a></sup>
+### `DeploymentResponse` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/responses.py#L402" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 **Methods:**
 
-#### `model_validate` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/schemas/responses.py#L509"><Icon icon="github" size="14" /></a></sup>
+#### `model_validate` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/responses.py#L509" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 model_validate(cls: Type[Self], obj: Any) -> Self
 ```
 
-### `WorkQueueResponse` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/schemas/responses.py#L530"><Icon icon="github" size="14" /></a></sup>
+### `WorkQueueResponse` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/responses.py#L530" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 **Methods:**
 
-#### `model_validate` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/schemas/responses.py#L540"><Icon icon="github" size="14" /></a></sup>
+#### `model_validate` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/responses.py#L540" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 model_validate(cls: Type[Self], obj: Any) -> Self
 ```
 
-### `WorkQueueWithStatus` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/schemas/responses.py#L559"><Icon icon="github" size="14" /></a></sup>
+### `WorkQueueWithStatus` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/responses.py#L559" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 
 Combines a work queue and its status details into a single object
 
 
-### `WorkerResponse` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/schemas/responses.py#L567"><Icon icon="github" size="14" /></a></sup>
+### `WorkerResponse` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/responses.py#L567" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 **Methods:**
 
-#### `model_validate` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/schemas/responses.py#L574"><Icon icon="github" size="14" /></a></sup>
+#### `model_validate` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/responses.py#L574" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 model_validate(cls: Type[Self], obj: Any) -> Self
 ```
 
-### `GlobalConcurrencyLimitResponse` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/schemas/responses.py#L604"><Icon icon="github" size="14" /></a></sup>
+### `GlobalConcurrencyLimitResponse` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/responses.py#L604" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 
 A response object for global concurrency limits.
 
 
-### `FlowPaginationResponse` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/schemas/responses.py#L623"><Icon icon="github" size="14" /></a></sup>
+### `FlowPaginationResponse` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/responses.py#L623" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
-### `FlowRunPaginationResponse` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/schemas/responses.py#L631"><Icon icon="github" size="14" /></a></sup>
+### `FlowRunPaginationResponse` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/responses.py#L631" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
-### `TaskRunPaginationResponse` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/schemas/responses.py#L639"><Icon icon="github" size="14" /></a></sup>
+### `TaskRunPaginationResponse` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/responses.py#L639" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
-### `DeploymentPaginationResponse` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/schemas/responses.py#L647"><Icon icon="github" size="14" /></a></sup>
+### `DeploymentPaginationResponse` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/responses.py#L647" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
-### `SchemaValuePropertyError` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/schemas/responses.py#L655"><Icon icon="github" size="14" /></a></sup>
+### `SchemaValuePropertyError` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/responses.py#L655" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
-### `SchemaValueIndexError` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/schemas/responses.py#L660"><Icon icon="github" size="14" /></a></sup>
+### `SchemaValueIndexError` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/responses.py#L660" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
-### `SchemaValuesValidationResponse` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/schemas/responses.py#L668"><Icon icon="github" size="14" /></a></sup>
+### `SchemaValuesValidationResponse` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/responses.py#L668" target="_blank"><Icon icon="github" size="14" /></a></sup>

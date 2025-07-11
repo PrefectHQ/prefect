@@ -17,7 +17,7 @@ from textwrap import dedent
 from time import sleep
 from typing import TYPE_CHECKING, Any, Coroutine, Generator, List, Union
 from unittest import mock
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import anyio
 import pytest
@@ -55,6 +55,7 @@ from prefect.events.clients import (
 from prefect.events.schemas.automations import Posture
 from prefect.events.schemas.deployment_triggers import DeploymentEventTrigger
 from prefect.events.schemas.events import Event
+from prefect.exceptions import ScriptError
 from prefect.flows import Flow
 from prefect.logging.loggers import flow_run_logger
 from prefect.runner.runner import Runner
@@ -69,7 +70,7 @@ from prefect.settings import (
     PREFECT_RUNNER_SERVER_ENABLE,
     temporary_settings,
 )
-from prefect.states import Cancelling
+from prefect.states import Cancelling, Crashed
 from prefect.testing.utilities import AsyncMock
 from prefect.types._datetime import now
 from prefect.utilities import processutils
@@ -625,6 +626,52 @@ class TestRunner:
             dict(name="step-two-b"),
         ]
 
+    async def test_runner_deployment_clears_pull_steps_when_storage_removed(
+        self, prefect_client: PrefectClient, work_pool
+    ):
+        """Test that pull steps are cleared when storage is removed from a deployment.
+
+        This addresses issue #18335 where pull steps would persist after removing
+        storage, causing flow runs to fail.
+        """
+
+        @flow
+        def test_flow():
+            pass
+
+        # Create deployment with storage
+        deployment_with_storage = RunnerDeployment(
+            name="test-clear-pullsteps",
+            flow_name="test_flow",
+            work_pool_name=work_pool.name,
+            storage=_PullStepStorage(
+                pull_steps=[dict(name="step-one"), dict(name="step-two")]
+            ),
+        )
+
+        deployment_id = await deployment_with_storage.apply()
+        api_deployment = await prefect_client.read_deployment(deployment_id)
+
+        # Verify pull steps exist
+        assert api_deployment.pull_steps == [
+            dict(name="step-one"),
+            dict(name="step-two"),
+        ]
+
+        # Update deployment without storage (simulating switch to Docker)
+        deployment_no_storage = RunnerDeployment(
+            name="test-clear-pullsteps",
+            flow_name="test_flow",
+            work_pool_name=work_pool.name,
+            # No storage - pull steps should be cleared
+        )
+
+        await deployment_no_storage.apply()
+        api_deployment = await prefect_client.read_deployment(deployment_id)
+
+        # Verify pull steps were cleared
+        assert api_deployment.pull_steps is None
+
     @pytest.mark.parametrize(
         "kwargs",
         [
@@ -1154,6 +1201,65 @@ class TestRunner:
         assert flow_run.state.is_crashed()
         # check to make sure on_cancellation hook was called
         assert "This flow crashed!" in caplog.text
+
+    @pytest.mark.parametrize(
+        "exception,hook_type",
+        [
+            # Test various exceptions that can occur when loading flows
+            (
+                ScriptError(
+                    user_exc=FileNotFoundError("File not found"), path="/missing.py"
+                ),
+                "crashed",
+            ),
+            (ValueError("Flow run does not have an associated deployment"), "crashed"),
+            (RuntimeError("Unexpected error!"), "crashed"),
+            # Also test cancellation hooks
+            (
+                ScriptError(
+                    user_exc=FileNotFoundError("File not found"), path="/missing.py"
+                ),
+                "cancellation",
+            ),
+        ],
+    )
+    async def test_runner_handles_exceptions_in_hooks(
+        self,
+        exception,
+        hook_type,
+        caplog: pytest.LogCaptureFixture,
+    ):
+        """Test that exceptions during flow loading don't crash the runner"""
+
+        runner = Runner()
+
+        # Create a mock flow run
+        mock_flow_run = MagicMock()
+        mock_flow_run.id = "test-flow-run-id"
+        mock_flow_run.deployment_id = "test-deployment-id"
+        mock_flow_run.name = "test-flow-run"
+
+        # Mock load_flow_from_flow_run to raise the exception
+        with patch(
+            "prefect.runner.runner.load_flow_from_flow_run", side_effect=exception
+        ):
+            # Run the appropriate hook method
+            if hook_type == "crashed":
+                state = Crashed(message="Test crash")
+                await runner._run_on_crashed_hooks(mock_flow_run, state)
+                expected_msg = (
+                    "Runner failed to retrieve flow to execute on_crashed hooks"
+                )
+            else:
+                state = Cancelling(message="Test cancellation")
+                await runner._run_on_cancellation_hooks(mock_flow_run, state)
+                expected_msg = (
+                    "Runner failed to retrieve flow to execute on_cancellation hooks"
+                )
+
+        # Verify warning was logged with exception details
+        assert expected_msg in caplog.text
+        assert type(exception).__name__ in caplog.text
 
     @pytest.mark.usefixtures("use_hosted_api_server")
     async def test_runner_does_not_emit_heartbeats_for_single_flow_run_if_not_set(

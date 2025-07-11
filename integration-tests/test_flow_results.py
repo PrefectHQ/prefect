@@ -15,7 +15,7 @@ async def get_state_from_api(flow_run_id):
         return flow_run.state
 
 
-if __name__ == "__main__":
+def test_flow_results():
     state = hello(return_state=True)
     assert state.result() == "Hello!", f"Got state {state}"
 

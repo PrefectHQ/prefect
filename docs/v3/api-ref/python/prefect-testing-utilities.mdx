@@ -12,7 +12,7 @@ Internal utilities for tests.
 
 ## Functions
 
-### `exceptions_equal` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/testing/utilities.py#L40"><Icon icon="github" size="14" /></a></sup>
+### `exceptions_equal` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/testing/utilities.py#L40" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 exceptions_equal(a: Exception, b: Exception) -> bool
@@ -24,13 +24,13 @@ will fail if the exception is serialized/deserialized so this utility does its
 best to assert equality using the type and args used to initialize the exception
 
 
-### `kubernetes_environments_equal` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/testing/utilities.py#L60"><Icon icon="github" size="14" /></a></sup>
+### `kubernetes_environments_equal` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/testing/utilities.py#L60" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 kubernetes_environments_equal(actual: list[dict[str, str]], expected: list[dict[str, str]] | dict[str, str]) -> bool
 ```
 
-### `assert_does_not_warn` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/testing/utilities.py#L97"><Icon icon="github" size="14" /></a></sup>
+### `assert_does_not_warn` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/testing/utilities.py#L97" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 assert_does_not_warn(ignore_warnings: list[type[Warning]] | None = None) -> Generator[None, None, None]
@@ -44,7 +44,7 @@ Parameters:
 - ignore_warnings: List of warning types to ignore. Example: [DeprecationWarning, UserWarning]
 
 
-### `prefect_test_harness` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/testing/utilities.py#L120"><Icon icon="github" size="14" /></a></sup>
+### `prefect_test_harness` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/testing/utilities.py#L120" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 prefect_test_harness(server_startup_timeout: int | None = 30)
@@ -60,31 +60,33 @@ Defaults to 30 seconds. If set to `None`, the value of
 
 **Examples:**
 
->>> from prefect import flow
->>> from prefect.testing.utilities import prefect_test_harness
->>>
->>>
->>> @flow
->>> def my_flow():
->>>     return 'Done!'
->>>
->>> with prefect_test_harness():
->>>     assert my_flow() == 'Done!' # run against temporary db
+```python
+from prefect import flow
+from prefect.testing.utilities import prefect_test_harness
 
 
-### `assert_blocks_equal` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/testing/utilities.py#L202"><Icon icon="github" size="14" /></a></sup>
+@flow
+def my_flow():
+    return 'Done!'
+
+with prefect_test_harness():
+    assert my_flow() == 'Done!' # run against temporary db
+```
+
+
+### `assert_blocks_equal` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/testing/utilities.py#L204" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 assert_blocks_equal(found: Block, expected: Block, exclude_private: bool = True, **kwargs: Any) -> None
 ```
 
-### `a_test_step` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/testing/utilities.py#L283"><Icon icon="github" size="14" /></a></sup>
+### `a_test_step` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/testing/utilities.py#L285" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 a_test_step(**kwargs: Any) -> dict[str, Any]
 ```
 
-### `b_test_step` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/testing/utilities.py#L294"><Icon icon="github" size="14" /></a></sup>
+### `b_test_step` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/testing/utilities.py#L296" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 b_test_step(**kwargs: Any) -> dict[str, Any]

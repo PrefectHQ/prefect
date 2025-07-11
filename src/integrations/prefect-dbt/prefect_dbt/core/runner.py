@@ -16,12 +16,19 @@ from dbt.artifacts.schemas.results import (
 )
 from dbt.artifacts.schemas.run import RunExecutionResult
 from dbt.cli.main import dbtRunner
+from dbt.compilation import Linker
+from dbt.config.runtime import RuntimeConfig
 from dbt.contracts.graph.manifest import Manifest
 from dbt.contracts.graph.nodes import ManifestNode
+from dbt.contracts.state import (
+    load_result_state,  # type: ignore[reportUnknownMemberType]
+)
+from dbt.graph.graph import Graph, UniqueId
 from dbt_common.events.base_types import EventLevel, EventMsg
 from google.protobuf.json_format import MessageToDict
 
 from prefect import get_client, get_run_logger
+from prefect._internal.uuid7 import uuid7
 from prefect.assets import Asset, AssetProperties
 from prefect.cache_policies import NO_CACHE
 from prefect.client.orchestration import PrefectClient
@@ -41,6 +48,11 @@ FAILURE_STATUSES = [
     NodeStatus.Error,
     NodeStatus.Fail,
     NodeStatus.RuntimeErr,
+]
+SKIPPED_STATUSES = [
+    RunStatus.Skipped,
+    TestStatus.Skipped,
+    NodeStatus.Skipped,
 ]
 MATERIALIZATION_NODE_TYPES = [
     NodeType.Model,
@@ -71,8 +83,6 @@ def execute_dbt_node(
     2. Wait for the node to finish using efficient threading.Event
     3. Check the node's status and fail if it's in a failure state
     """
-    task_state.set_task_logger(node_id, get_run_logger())
-
     # Wait for the node to finish using efficient threading.Event
     task_state.wait_for_node_completion(node_id)
 
@@ -92,9 +102,8 @@ def execute_dbt_node(
 class PrefectDbtRunner:
     """A runner for executing dbt commands with Prefect integration.
 
-    This class provides methods to run dbt commands while integrating with Prefect's
-    logging and events capabilities. It handles manifest parsing, logging,
-    and emitting events for dbt operations.
+    This class enables the invocation of dbt commands while integrating with Prefect's
+    logging and assets capabilities.
 
     Args:
         manifest: Optional pre-loaded dbt manifest
@@ -102,6 +111,12 @@ class PrefectDbtRunner:
         raise_on_failure: Whether to raise an error if the dbt command encounters a
             non-exception failure
         client: Optional Prefect client instance
+        include_compiled_code: Whether to include compiled code in the asset description
+        disable_assets: Global override for disabling asset generation for dbt nodes. If
+            True, assets will not be created for any dbt nodes, even if the node's prefect
+            config has enable_assets set to True.
+        _force_nodes_as_tasks: Whether to force each dbt node execution to have a Prefect task
+            representation when `.invoke()` is called outside of a flow or task run
     """
 
     def __init__(
@@ -111,17 +126,25 @@ class PrefectDbtRunner:
         raise_on_failure: bool = True,
         client: Optional[PrefectClient] = None,
         include_compiled_code: bool = False,
+        disable_assets: bool = False,
+        _force_nodes_as_tasks: bool = False,
     ):
         self._manifest: Optional[Manifest] = manifest
         self.settings = settings or PrefectDbtSettings()
         self.raise_on_failure = raise_on_failure
         self.client = client or get_client()
         self.include_compiled_code = include_compiled_code
+        self.disable_assets = disable_assets
+        self._force_nodes_as_tasks = _force_nodes_as_tasks
 
+        self._project_name: Optional[str] = None
         self._target_path: Optional[Path] = None
         self._profiles_dir: Optional[Path] = None
         self._project_dir: Optional[Path] = None
         self._log_level: Optional[EventLevel] = None
+        self._config: Optional[RuntimeConfig] = None
+        self._graph: Optional[Graph] = None
+        self._skipped_nodes: set[str] = set()
 
     @property
     def target_path(self) -> Path:
@@ -145,6 +168,31 @@ class PrefectDbtRunner:
             self._set_manifest_from_project_dir()
             assert self._manifest is not None  # for type checking
         return self._manifest
+
+    @property
+    def graph(self) -> Graph:
+        if self._graph is None:
+            self._set_graph_from_manifest()
+            assert self._graph is not None
+        return self._graph
+
+    @property
+    def project_name(self) -> str:
+        if self._project_name is None:
+            self._set_project_name_from_manifest()
+            assert self._project_name is not None
+        return self._project_name
+
+    def _set_project_name_from_manifest(self) -> Optional[str]:
+        self._project_name = self.manifest.metadata.project_name
+
+    def _set_graph_from_manifest(self, add_test_edges: bool = False):
+        linker = Linker()
+        linker.link_graph(self.manifest)
+        if add_test_edges:
+            self.manifest.build_parent_and_child_maps()
+            linker.add_test_edges(self.manifest)
+        self._graph = Graph(linker.graph)
 
     def _set_manifest_from_project_dir(self):
         try:
@@ -193,7 +241,7 @@ class PrefectDbtRunner:
             Path(self.project_dir)
             / self.target_path
             / "compiled"
-            / str(Path(self.project_dir)).split("/")[-1]
+            / self.project_name
             / manifest_node.original_file_path
         )
 
@@ -314,9 +362,14 @@ class PrefectDbtRunner:
             [node[0].unique_id for node in upstream_manifest_nodes],
         )
 
+        task_run_id = uuid7()
+
+        task_state.set_task_run_id(manifest_node.unique_id, task_run_id)
+
         task_state.run_task_in_thread(
             manifest_node.unique_id,
             task,
+            task_run_id=task_run_id,
             parameters={
                 "task_state": task_state,
                 "node_id": manifest_node.unique_id,
@@ -339,9 +392,19 @@ class PrefectDbtRunner:
 
         def logging_callback(event: EventMsg):
             event_data = MessageToDict(event.data, preserving_proto_field_name=True)
-            if event_data.get("node_info"):
-                node_id = self._get_dbt_event_node_id(event)
-                logger = task_state.get_task_logger(node_id)
+            if (
+                event_data.get("node_info")
+                and (node_id := self._get_dbt_event_node_id(event))
+                not in self._skipped_nodes
+            ):
+                flow_run_context: Optional[dict[str, Any]] = context.get(
+                    "flow_run_context"
+                )
+                logger = task_state.get_task_logger(
+                    node_id,
+                    flow_run_context.get("flow_run") if flow_run_context else None,
+                    flow_run_context.get("flow") if flow_run_context else None,
+                )
             else:
                 try:
                     with hydrated_context(context) as run_context:
@@ -376,12 +439,18 @@ class PrefectDbtRunner:
         def node_started_callback(event: EventMsg):
             if event.info.name == "NodeStart":
                 node_id = self._get_dbt_event_node_id(event)
+                if node_id in self._skipped_nodes:
+                    return
+
                 manifest_node, prefect_config = self._get_manifest_node_and_config(
                     node_id
                 )
 
                 if manifest_node:
-                    enable_assets = prefect_config.get("enable_assets", True)
+                    enable_assets = (
+                        prefect_config.get("enable_assets", True)
+                        and not self.disable_assets
+                    )
                     try:
                         self._call_task(
                             task_state, manifest_node, context, enable_assets
@@ -394,15 +463,17 @@ class PrefectDbtRunner:
     def _create_node_finished_callback(
         self,
         task_state: NodeTaskTracker,
+        add_test_edges: bool = False,
     ) -> Callable[[EventMsg], None]:
         """Creates a callback function for ending tasks when nodes finish."""
 
         def node_finished_callback(event: EventMsg):
             if event.info.name == "NodeFinished":
                 node_id = self._get_dbt_event_node_id(event)
-                manifest_node, prefect_config = self._get_manifest_node_and_config(
-                    node_id
-                )
+                if node_id in self._skipped_nodes:
+                    return
+
+                manifest_node, _ = self._get_manifest_node_and_config(node_id)
 
                 if manifest_node:
                     try:
@@ -412,6 +483,23 @@ class PrefectDbtRunner:
                         )
                         event_message = self.get_dbt_event_msg(event)
                         task_state.set_node_status(node_id, event_data, event_message)
+
+                        node_info: Optional[dict[str, Any]] = event_data.get(
+                            "node_info"
+                        )
+                        node_status: Optional[str] = (
+                            node_info.get("node_status") if node_info else None
+                        )
+
+                        if (
+                            node_status in SKIPPED_STATUSES
+                            or node_status in FAILURE_STATUSES
+                        ):
+                            self._set_graph_from_manifest(add_test_edges=add_test_edges)
+                            for dep_node_id in self.graph.get_dependent_nodes(  # type: ignore[reportUnknownMemberType]
+                                UniqueId(node_id)
+                            ):  # type: ignore[reportUnknownMemberType]
+                                self._skipped_nodes.add(dep_node_id)  # type: ignore[reportUnknownMemberType]
                     except Exception as e:
                         print(e)
 
@@ -466,7 +554,18 @@ class PrefectDbtRunner:
         return args_copy
 
     def invoke(self, args: list[str], **kwargs: Any):
-        """Invokes a dbt command."""
+        """
+        Invokes a dbt command.
+
+        Supports the same arguments as `dbtRunner.invoke()`. https://docs.getdbt.com/reference/programmatic-invocations
+
+        Args:
+            args: List of command line arguments
+            **kwargs: Additional keyword arguments
+
+        Returns:
+            The result of the dbt command invocation
+        """
         # Handle kwargs for each setting
         for setting_name, _, converter in SETTINGS_CONFIG:
             self._update_setting_from_kwargs(setting_name, kwargs, converter)
@@ -479,27 +578,55 @@ class PrefectDbtRunner:
             )
 
         context = serialize_context()
+        in_flow_or_task_run = context.get("flow_run_context") or context.get(
+            "task_run_context"
+        )
         task_state = NodeTaskTracker()
 
-        callbacks = [
-            self._create_logging_callback(task_state, self.log_level, context),
-            self._create_node_started_callback(task_state, context),
-            self._create_node_finished_callback(task_state),
-        ]
+        add_test_edges = True if "build" in args_copy else False
+
+        if "retry" in args_copy:
+            previous_results = load_result_state(
+                Path(self.project_dir) / self.target_path / "run_results.json"
+            )
+            if not previous_results:
+                raise ValueError(
+                    f"Cannot retry. No previous results found at target path {self.target_path}"
+                )
+            previous_args = previous_results.args
+            self.previous_command_name = previous_args.get("which")
+            if self.previous_command_name == "build":
+                add_test_edges = True
+
+        callbacks = (
+            [
+                self._create_logging_callback(task_state, self.log_level, context),
+                self._create_node_started_callback(task_state, context),
+                self._create_node_finished_callback(
+                    task_state, add_test_edges=add_test_edges
+                ),
+            ]
+            if in_flow_or_task_run or self._force_nodes_as_tasks
+            else []
+        )
 
         # Add settings to kwargs if they're set
         invoke_kwargs = {
             "profiles_dir": str(self.profiles_dir),
             "project_dir": str(self.project_dir),
             "target_path": str(self.target_path),
-            "log_level": self.log_level,
+            "log_level": "none" if in_flow_or_task_run else str(self.log_level.value),
+            "log_level_file": str(self.log_level.value),
             **kwargs,
         }
 
-        res = dbtRunner(callbacks=callbacks).invoke(  # type: ignore[reportUnknownMemberType]
-            args_copy,
-            **invoke_kwargs,
-        )
+        with self.settings.resolve_profiles_yml() as profiles_dir:
+            invoke_kwargs["profiles_dir"] = profiles_dir
+
+            res = dbtRunner(callbacks=callbacks).invoke(  # type: ignore[reportUnknownMemberType]
+                args_copy,
+                **invoke_kwargs,
+            )
 
         if not res.success and res.exception:
             raise ValueError(
@@ -520,6 +647,6 @@ class PrefectDbtRunner:
                 if result.status in FAILURE_STATUSES
             ]
             raise ValueError(
-                f"Failures detected during invocation of dbt command '{''.join(args_copy)}':\n{os.linesep.join(failure_results)}"
+                f"Failures detected during invocation of dbt command '{' '.join(args_copy)}':\n{os.linesep.join(failure_results)}"
             )
         return res

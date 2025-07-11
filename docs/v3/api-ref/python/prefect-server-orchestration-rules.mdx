@@ -27,7 +27,7 @@ single line of user code.
 
 ## Classes
 
-### `OrchestrationContext` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/orchestration/rules.py#L72"><Icon icon="github" size="14" /></a></sup>
+### `OrchestrationContext` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/rules.py#L72" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 
 A container for a state transition, governed by orchestration rules.
@@ -52,7 +52,7 @@ should occur at all and nothing is written to the database.
 
 **Methods:**
 
-#### `initial_state_type` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/orchestration/rules.py#L126"><Icon icon="github" size="14" /></a></sup>
+#### `initial_state_type` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/rules.py#L126" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 initial_state_type(self) -> Optional[states.StateType]
@@ -61,7 +61,7 @@ initial_state_type(self) -> Optional[states.StateType]
 The state type of `self.initial_state` if it exists.
 
 
-#### `proposed_state_type` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/orchestration/rules.py#L132"><Icon icon="github" size="14" /></a></sup>
+#### `proposed_state_type` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/rules.py#L132" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 proposed_state_type(self) -> Optional[states.StateType]
@@ -70,7 +70,7 @@ proposed_state_type(self) -> Optional[states.StateType]
 The state type of `self.proposed_state` if it exists.
 
 
-#### `validated_state_type` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/orchestration/rules.py#L138"><Icon icon="github" size="14" /></a></sup>
+#### `validated_state_type` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/rules.py#L138" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 validated_state_type(self) -> Optional[states.StateType]
@@ -79,7 +79,7 @@ validated_state_type(self) -> Optional[states.StateType]
 The state type of `self.validated_state` if it exists.
 
 
-#### `run_settings` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/orchestration/rules.py#L143"><Icon icon="github" size="14" /></a></sup>
+#### `run_settings` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/rules.py#L143" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 run_settings(self) -> RP
@@ -88,7 +88,7 @@ run_settings(self) -> RP
 Run-level settings used to orchestrate the state transition.
 
 
-#### `safe_copy` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/orchestration/rules.py#L149"><Icon icon="github" size="14" /></a></sup>
+#### `safe_copy` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/rules.py#L149" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 safe_copy(self) -> Self
@@ -106,7 +106,7 @@ without risking mutation.
 - A mutation-safe copy of the `OrchestrationContext`
 
 
-#### `entry_context` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/orchestration/rules.py#L177"><Icon icon="github" size="14" /></a></sup>
+#### `entry_context` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/rules.py#L177" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 entry_context(self) -> tuple[Optional[states.State], Optional[states.State], Self]
@@ -120,7 +120,7 @@ to the database. These hooks have a consistent interface which can be generated
 with this method.
 
 
-#### `exit_context` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/orchestration/rules.py#L192"><Icon icon="github" size="14" /></a></sup>
+#### `exit_context` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/rules.py#L192" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 exit_context(self) -> tuple[Optional[states.State], Optional[states.State], Self]
@@ -134,7 +134,7 @@ to the database. These hooks have a consistent interface which can be generated
 with this method.
 
 
-### `FlowOrchestrationContext` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/orchestration/rules.py#L211"><Icon icon="github" size="14" /></a></sup>
+### `FlowOrchestrationContext` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/rules.py#L211" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 
 A container for a flow run state transition, governed by orchestration rules.
@@ -160,7 +160,7 @@ should occur at all and nothing is written to the database.
 
 **Methods:**
 
-#### `safe_copy` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/orchestration/rules.py#L336"><Icon icon="github" size="14" /></a></sup>
+#### `safe_copy` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/rules.py#L336" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 safe_copy(self) -> Self
@@ -178,7 +178,7 @@ without risking mutation.
 - A mutation-safe copy of `FlowOrchestrationContext`
 
 
-#### `run_settings` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/orchestration/rules.py#L356"><Icon icon="github" size="14" /></a></sup>
+#### `run_settings` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/rules.py#L356" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 run_settings(self) -> core.FlowRunPolicy
@@ -187,7 +187,7 @@ run_settings(self) -> core.FlowRunPolicy
 Run-level settings used to orchestrate the state transition.
 
 
-### `TaskOrchestrationContext` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/orchestration/rules.py#L368"><Icon icon="github" size="14" /></a></sup>
+### `TaskOrchestrationContext` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/rules.py#L368" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 
 A container for a task run state transition, governed by orchestration rules.
@@ -213,7 +213,7 @@ should occur at all and nothing is written to the database.
 
 **Methods:**
 
-#### `safe_copy` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/orchestration/rules.py#L497"><Icon icon="github" size="14" /></a></sup>
+#### `safe_copy` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/rules.py#L497" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 safe_copy(self) -> Self
@@ -231,7 +231,7 @@ without risking mutation.
 - A mutation-safe copy of `TaskOrchestrationContext`
 
 
-#### `run_settings` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/orchestration/rules.py#L517"><Icon icon="github" size="14" /></a></sup>
+#### `run_settings` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/rules.py#L517" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 run_settings(self) -> core.TaskRunPolicy
@@ -240,7 +240,7 @@ run_settings(self) -> core.TaskRunPolicy
 Run-level settings used to orchestrate the state transition.
 
 
-### `BaseOrchestrationRule` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/orchestration/rules.py#L534"><Icon icon="github" size="14" /></a></sup>
+### `BaseOrchestrationRule` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/rules.py#L534" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 
 An abstract base class used to implement a discrete piece of orchestration logic.
@@ -270,41 +270,47 @@ Examples:
 
     Create a rule:
 
-    >>> class BasicRule(BaseOrchestrationRule):
-    >>>     # allowed initial state types
-    >>>     FROM_STATES = [StateType.RUNNING]
-    >>>     # allowed proposed state types
-    >>>     TO_STATES = [StateType.COMPLETED, StateType.FAILED]
-    >>>
-    >>>     async def before_transition(initial_state, proposed_state, ctx):
-    >>>         # side effects and proposed state mutation can happen here
-    >>>         ...
-    >>>
-    >>>     async def after_transition(initial_state, validated_state, ctx):
-    >>>         # operations on states that have been validated can happen here
-    >>>         ...
-    >>>
-    >>>     async def cleanup(intitial_state, validated_state, ctx):
-    >>>         # reverts side effects generated by `before_transition` if necessary
-    >>>         ...
+    ```python
+    class BasicRule(BaseOrchestrationRule):
+        # allowed initial state types
+        FROM_STATES = [StateType.RUNNING]
+        # allowed proposed state types
+        TO_STATES = [StateType.COMPLETED, StateType.FAILED]
+
+        async def before_transition(initial_state, proposed_state, ctx):
+            # side effects and proposed state mutation can happen here
+            ...
+
+        async def after_transition(initial_state, validated_state, ctx):
+            # operations on states that have been validated can happen here
+            ...
+
+        async def cleanup(intitial_state, validated_state, ctx):
+            # reverts side effects generated by `before_transition` if necessary
+            ...
+    ```
 
     Use a rule:
 
-    >>> intended_transition = (StateType.RUNNING, StateType.COMPLETED)
-    >>> async with BasicRule(context, *intended_transition):
-    >>>     # context.proposed_state has been governed by BasicRule
-    >>>     ...
+    ```python
+    intended_transition = (StateType.RUNNING, StateType.COMPLETED)
+    async with BasicRule(context, *intended_transition):
+        # context.proposed_state has been governed by BasicRule
+        ...
+    ```
 
     Use multiple rules:
 
-    >>> rules = [BasicRule, BasicRule]
-    >>> intended_transition = (StateType.RUNNING, StateType.COMPLETED)
-    >>> async with contextlib.AsyncExitStack() as stack:
-    >>>     for rule in rules:
-    >>>         stack.enter_async_context(rule(context, *intended_transition))
-    >>>
-    >>>     # context.proposed_state has been governed by all rules
-    >>>     ...
+    ```python
+    rules = [BasicRule, BasicRule]
+    intended_transition = (StateType.RUNNING, StateType.COMPLETED)
+    async with contextlib.AsyncExitStack() as stack:
+        for rule in rules:
+            stack.enter_async_context(rule(context, *intended_transition))
+
+        # context.proposed_state has been governed by all rules
+        ...
+    ```
 
 **Args:**
 - `context`: A `FlowOrchestrationContext` or `TaskOrchestrationContext` that is
@@ -315,13 +321,13 @@ state type is not contained in `FROM_STATES`, no hooks will fire
 this state type is not contained in `TO_STATES`, no hooks will fire
 
 
-### `FlowRunOrchestrationRule` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/orchestration/rules.py#L945"><Icon icon="github" size="14" /></a></sup>
+### `FlowRunOrchestrationRule` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/rules.py#L951" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
-### `TaskRunOrchestrationRule` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/orchestration/rules.py#L951"><Icon icon="github" size="14" /></a></sup>
+### `TaskRunOrchestrationRule` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/rules.py#L957" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
-### `GenericOrchestrationRule` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/orchestration/rules.py#L957"><Icon icon="github" size="14" /></a></sup>
+### `GenericOrchestrationRule` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/rules.py#L963" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
-### `BaseUniversalTransform` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/orchestration/rules.py#L963"><Icon icon="github" size="14" /></a></sup>
+### `BaseUniversalTransform` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/rules.py#L969" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 
 An abstract base class used to implement privileged bookkeeping logic.
@@ -340,7 +346,7 @@ passed between transforms
 
 **Methods:**
 
-#### `nullified_transition` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/orchestration/rules.py#L1060"><Icon icon="github" size="14" /></a></sup>
+#### `nullified_transition` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/rules.py#L1066" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 nullified_transition(self) -> bool
@@ -355,7 +361,7 @@ nothing should be written to the database.
 - True if the transition is nullified, False otherwise.
 
 
-#### `exception_in_transition` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/orchestration/rules.py#L1073"><Icon icon="github" size="14" /></a></sup>
+#### `exception_in_transition` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/rules.py#L1079" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
 ```python
 exception_in_transition(self) -> bool
@@ -367,8 +373,8 @@ Determines if the transition has encountered an exception.
 - True if the transition is encountered an exception, False otherwise.
 
 
-### `TaskRunUniversalTransform` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/orchestration/rules.py#L1084"><Icon icon="github" size="14" /></a></sup>
+### `TaskRunUniversalTransform` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/rules.py#L1090" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
-### `FlowRunUniversalTransform` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/orchestration/rules.py#L1090"><Icon icon="github" size="14" /></a></sup>
+### `FlowRunUniversalTransform` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/rules.py#L1096" target="_blank"><Icon icon="github" size="14" /></a></sup>
 
-### `GenericUniversalTransform` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/orchestration/rules.py#L1096"><Icon icon="github" size="14" /></a></sup>
+### `GenericUniversalTransform` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/rules.py#L1102" target="_blank"><Icon icon="github" size="14" /></a></sup>

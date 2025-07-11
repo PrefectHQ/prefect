@@ -1,8 +1,8 @@
+import { useState } from "react";
 import {
 	type TaskRunConcurrencyLimit,
 	useListTaskRunConcurrencyLimits,
 } from "@/api/task-run-concurrency-limits";
-import { useState } from "react";
 
 import { TaskRunConcurrencyLimitsDataTable } from "@/components/concurrency/task-run-concurrency-limits/task-run-concurrency-limits-data-table";
 import { TaskRunConcurrencyLimitsEmptyState } from "@/components/concurrency/task-run-concurrency-limits/task-run-concurrency-limits-empty-state";
@@ -40,24 +40,22 @@ export const TaskRunConcurrencyLimitsView = () => {
 	};
 
 	return (
-		<>
-			<div className="flex flex-col gap-4">
-				<TaskRunConcurrencyLimitsHeader onAdd={handleAddRow} />
-				{data.length === 0 ? (
-					<TaskRunConcurrencyLimitsEmptyState onAdd={handleAddRow} />
-				) : (
-					<TaskRunConcurrencyLimitsDataTable
-						data={data}
-						onDeleteRow={handleDeleteRow}
-						onResetRow={handleResetRow}
-					/>
-				)}
-				<TaskRunConcurrencyLimitDialog
-					openDialog={openDialog}
-					onCloseDialog={handleCloseDialog}
-					onOpenChange={handleOpenChange}
+		<div className="flex flex-col gap-4">
+			<TaskRunConcurrencyLimitsHeader onAdd={handleAddRow} />
+			{data.length === 0 ? (
+				<TaskRunConcurrencyLimitsEmptyState onAdd={handleAddRow} />
+			) : (
+				<TaskRunConcurrencyLimitsDataTable
+					data={data}
+					onDeleteRow={handleDeleteRow}
+					onResetRow={handleResetRow}
 				/>
-			</div>
-		</>
+			)}
+			<TaskRunConcurrencyLimitDialog
+				openDialog={openDialog}
+				onCloseDialog={handleCloseDialog}
+				onOpenChange={handleOpenChange}
+			/>
+		</div>
 	);
 };

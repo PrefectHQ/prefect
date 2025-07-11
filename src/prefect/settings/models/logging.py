@@ -1,6 +1,6 @@
 from functools import partial
 from pathlib import Path
-from typing import Annotated, Any, ClassVar, Literal, Optional, Union
+from typing import Annotated, Any, ClassVar, Literal, Union
 
 from pydantic import (
     AliasChoices,
@@ -14,6 +14,8 @@ from typing_extensions import Self
 
 from prefect.settings.base import PrefectBaseSettings, build_settings_config
 from prefect.types import LogLevel, validate_set_T_from_delim_string
+
+from ._defaults import default_logging_config_path
 
 
 def max_log_size_smaller_than_batch_size(values: dict[str, Any]) -> dict[str, Any]:
@@ -95,9 +97,9 @@ class LoggingSettings(PrefectBaseSettings):
         description="The default logging level for Prefect loggers.",
     )
 
-    config_path: Optional[Path] = Field(
-        default=None,
-        description="The path to a custom YAML logging configuration file.",
+    config_path: Path = Field(
+        default_factory=default_logging_config_path,
+        description="A path to a logging configuration file. Defaults to $PREFECT_HOME/logging.yml",
         validation_alias=AliasChoices(
             AliasPath("config_path"),
             "prefect_logging_config_path",

@@ -1,8 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react";
-
+import { useDeferredValue, useMemo, useState } from "react";
 import type { Automation } from "@/api/automations";
 import { createFakeAutomation } from "@/mocks";
-import { useDeferredValue, useMemo, useState } from "react";
 import {
 	Combobox,
 	ComboboxCommandEmtpy,

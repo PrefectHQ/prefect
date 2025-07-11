@@ -723,37 +723,44 @@ class Task(Generic[P, R]):
 
         Examples:
 
-            Create a new task from an existing task and update the name
+            Create a new task from an existing task and update the name:
 
-            >>> @task(name="My task")
-            >>> def my_task():
-            >>>     return 1
-            >>>
-            >>> new_task = my_task.with_options(name="My new task")
+            ```python
+            @task(name="My task")
+            def my_task():
+                return 1
 
-            Create a new task from an existing task and update the retry settings
+            new_task = my_task.with_options(name="My new task")
+            ```
 
-            >>> from random import randint
-            >>>
-            >>> @task(retries=1, retry_delay_seconds=5)
-            >>> def my_task():
-            >>>     x = randint(0, 5)
-            >>>     if x >= 3:  # Make a task that fails sometimes
-            >>>         raise ValueError("Retry me please!")
-            >>>     return x
-            >>>
-            >>> new_task = my_task.with_options(retries=5, retry_delay_seconds=2)
+            Create a new task from an existing task and update the retry settings:
 
-            Use a task with updated options within a flow
+            ```python
+            from random import randint
 
-            >>> @task(name="My task")
-            >>> def my_task():
-            >>>     return 1
-            >>>
-            >>> @flow
-            >>> my_flow():
-            >>>     new_task = my_task.with_options(name="My new task")
-            >>>     new_task()
+            @task(retries=1, retry_delay_seconds=5)
+            def my_task():
+                x = randint(0, 5)
+                if x >= 3:  # Make a task that fails sometimes
+                    raise ValueError("Retry me please!")
+                return x
+
+            new_task = my_task.with_options(retries=5, retry_delay_seconds=2)
+            ```
+
+            Use a task with updated options within a flow:
+
+            ```python
+            @task(name="My task")
+            def my_task():
+                return 1
+
+            @flow
+            my_flow():
+                new_task = my_task.with_options(name="My new task")
+                new_task()
+            ```
+
         """
         return Task(
             fn=self.fn,
@@ -1212,64 +1219,79 @@ class Task(Generic[P, R]):
 
             Define a task
 
-            >>> from prefect import task
-            >>> @task
-            >>> def my_task():
-            >>>     return "hello"
+            ```python
+            from prefect import task
+            @task
+            def my_task():
+                return "hello"
+            ```
 
             Run a task in a flow
 
-            >>> from prefect import flow
-            >>> @flow
-            >>> def my_flow():
-            >>>     my_task.submit()
+            ```python
+            from prefect import flow
+            @flow
+            def my_flow():
+                my_task.submit()
+            ```
 
             Wait for a task to finish
 
-            >>> @flow
-            >>> def my_flow():
-            >>>     my_task.submit().wait()
+            ```python
+            @flow
+            def my_flow():
+                my_task.submit().wait()
+            ```
 
             Use the result from a task in a flow
 
-            >>> @flow
-            >>> def my_flow():
-            >>>     print(my_task.submit().result())
-            >>>
-            >>> my_flow()
-            hello
+            ```python
+            @flow
+            def my_flow():
+                print(my_task.submit().result())
+
+            my_flow()
+            # hello
+            ```
 
             Run an async task in an async flow
 
-            >>> @task
-            >>> async def my_async_task():
-            >>>     pass
-            >>>
-            >>> @flow
-            >>> async def my_flow():
-            >>>     my_async_task.submit()
+            ```python
+            @task
+            async def my_async_task():
+                pass
+
+            @flow
+            async def my_flow():
+                my_async_task.submit()
+            ```
 
             Run a sync task in an async flow
 
-            >>> @flow
-            >>> async def my_flow():
-            >>>     my_task.submit()
+            ```python
+            @flow
+            async def my_flow():
+                my_task.submit()
+            ```
 
             Enforce ordering between tasks that do not exchange data
-            >>> @task
-            >>> def task_1():
-            >>>     pass
-            >>>
-            >>> @task
-            >>> def task_2():
-            >>>     pass
-            >>>
-            >>> @flow
-            >>> def my_flow():
-            >>>     x = task_1.submit()
-            >>>
-            >>>     # task 2 will wait for task_1 to complete
-            >>>     y = task_2.submit(wait_for=[x])
+
+            ```python
+            @task
+            def task_1():
+                pass
+
+            @task
+            def task_2():
+                pass
+
+            @flow
+            def my_flow():
+                x = task_1.submit()
+
+                # task 2 will wait for task_1 to complete
+                y = task_2.submit(wait_for=[x])
+            ```
 
         """
 
@@ -1404,83 +1426,100 @@ class Task(Generic[P, R]):
 
             Define a task
 
-            >>> from prefect import task
-            >>> @task
-            >>> def my_task(x):
-            >>>     return x + 1
+            ```python
+            from prefect import task
+            @task
+            def my_task(x):
+                return x + 1
+            ```
 
             Create mapped tasks
 
-            >>> from prefect import flow
-            >>> @flow
-            >>> def my_flow():
-            >>>     return my_task.map([1, 2, 3])
+            ```python
+            from prefect import flow
+            @flow
+            def my_flow():
+                return my_task.map([1, 2, 3])
+            ```
 
             Wait for all mapped tasks to finish
 
-            >>> @flow
-            >>> def my_flow():
-            >>>     futures = my_task.map([1, 2, 3])
-            >>>     futures.wait():
-            >>>     # Now all of the mapped tasks have finished
-            >>>     my_task(10)
+            ```python
+            @flow
+            def my_flow():
+                futures = my_task.map([1, 2, 3])
+                futures.wait():
+                # Now all of the mapped tasks have finished
+                my_task(10)
+            ```
 
             Use the result from mapped tasks in a flow
 
-            >>> @flow
-            >>> def my_flow():
-            >>>     futures = my_task.map([1, 2, 3])
-            >>>     for x in futures.result():
-            >>>         print(x)
-            >>> my_flow()
-            2
-            3
-            4
+            ```python
+            @flow
+            def my_flow():
+                futures = my_task.map([1, 2, 3])
+                for x in futures.result():
+                    print(x)
+            my_flow()
+            # 2
+            # 3
+            # 4
+            ```
 
             Enforce ordering between tasks that do not exchange data
-            >>> @task
-            >>> def task_1(x):
-            >>>     pass
-            >>>
-            >>> @task
-            >>> def task_2(y):
-            >>>     pass
-            >>>
-            >>> @flow
-            >>> def my_flow():
-            >>>     x = task_1.submit()
-            >>>
-            >>>     # task 2 will wait for task_1 to complete
-            >>>     y = task_2.map([1, 2, 3], wait_for=[x])
-            >>>     return y
+
+            ```python
+            @task
+            def task_1(x):
+                pass
+
+            @task
+            def task_2(y):
+                pass
+
+            @flow
+            def my_flow():
+                x = task_1.submit()
+
+                # task 2 will wait for task_1 to complete
+                y = task_2.map([1, 2, 3], wait_for=[x])
+                return y
+            ```
 
             Use a non-iterable input as a constant across mapped tasks
-            >>> @task
-            >>> def display(prefix, item):
-            >>>    print(prefix, item)
-            >>>
-            >>> @flow
-            >>> def my_flow():
-            >>>     return display.map("Check it out: ", [1, 2, 3])
-            >>>
-            >>> my_flow()
-            Check it out: 1
-            Check it out: 2
-            Check it out: 3
+
+            ```python
+            @task
+            def display(prefix, item):
+               print(prefix, item)
+
+            @flow
+            def my_flow():
+                return display.map("Check it out: ", [1, 2, 3])
+
+            my_flow()
+            # Check it out: 1
+            # Check it out: 2
+            # Check it out: 3
+            ```
 
             Use `unmapped` to treat an iterable argument as a constant
-            >>> from prefect import unmapped
-            >>>
-            >>> @task
-            >>> def add_n_to_items(items, n):
-            >>>     return [item + n for item in items]
-            >>>
-            >>> @flow
-            >>> def my_flow():
-            >>>     return add_n_to_items.map(unmapped([10, 20]), n=[1, 2, 3])
-            >>>
-            >>> my_flow()
-            [[11, 21], [12, 22], [13, 23]]
+
+            ```python
+            from prefect import unmapped
+
+            @task
+            def add_n_to_items(items, n):
+                return [item + n for item in items]
+
+            @flow
+            def my_flow():
+                return add_n_to_items.map(unmapped([10, 20]), n=[1, 2, 3])
+
+            my_flow()
+            # [[11, 21], [12, 22], [13, 23]]
+            ```
         """
 
         from prefect.task_runners import TaskRunner
@@ -1548,47 +1587,56 @@ class Task(Generic[P, R]):
 
             Define a task
 
-            >>> from prefect import task
-            >>> @task
-            >>> def my_task(name: str = "world"):
-            >>>     return f"hello {name}"
+            ```python
+            from prefect import task
+            @task
+            def my_task(name: str = "world"):
+                return f"hello {name}"
+            ```
 
             Create a pending task run for the task
 
-            >>> from prefect import flow
-            >>> @flow
-            >>> def my_flow():
-            >>>     my_task.apply_async(("marvin",))
+            ```python
+            from prefect import flow
+            @flow
+            def my_flow():
+                my_task.apply_async(("marvin",))
+            ```
 
             Wait for a task to finish
 
-            >>> @flow
-            >>> def my_flow():
-            >>>     my_task.apply_async(("marvin",)).wait()
+            ```python
+            @flow
+            def my_flow():
+                my_task.apply_async(("marvin",)).wait()
+            ```
 
+            ```python
+            @flow
+            def my_flow():
+                print(my_task.apply_async(("marvin",)).result())
 
-            >>> @flow
-            >>> def my_flow():
-            >>>     print(my_task.apply_async(("marvin",)).result())
-            >>>
-            >>> my_flow()
-            hello marvin
+            my_flow()
+            # hello marvin
+            ```
 
             TODO: Enforce ordering between tasks that do not exchange data
-            >>> @task
-            >>> def task_1():
-            >>>     pass
-            >>>
-            >>> @task
-            >>> def task_2():
-            >>>     pass
-            >>>
-            >>> @flow
-            >>> def my_flow():
-            >>>     x = task_1.apply_async()
-            >>>
-            >>>     # task 2 will wait for task_1 to complete
-            >>>     y = task_2.apply_async(wait_for=[x])
+            ```python
+            @task
+            def task_1():
+                pass
+
+            @task
+            def task_2():
+                pass
+
+            @flow
+            def my_flow():
+                x = task_1.apply_async()
+
+                # task 2 will wait for task_1 to complete
+                y = task_2.apply_async(wait_for=[x])
+            ```
 
         """
         from prefect.utilities.visualization import (
@@ -1643,32 +1691,40 @@ class Task(Generic[P, R]):
 
                 Define a task
 
-                >>> from prefect import task
-                >>> @task
-                >>> def my_task(name: str = "world"):
-                >>>     return f"hello {name}"
+                ```python
+                from prefect import task
+                @task
+                def my_task(name: str = "world"):
+                    return f"hello {name}"
+                ```
 
                 Create a pending task run for the task
 
-                >>> from prefect import flow
-                >>> @flow
-                >>> def my_flow():
-                >>>     my_task.delay("marvin")
+                ```python
+                from prefect import flow
+                @flow
+                def my_flow():
+                    my_task.delay("marvin")
+                ```
 
                 Wait for a task to finish
 
-                >>> @flow
-                >>> def my_flow():
-                >>>     my_task.delay("marvin").wait()
+                ```python
+                @flow
+                def my_flow():
+                    my_task.delay("marvin").wait()
+                ```
 
                 Use the result from a task in a flow
 
-                >>> @flow
-                >>> def my_flow():
-                >>>     print(my_task.delay("marvin").result())
-                >>>
-                >>> my_flow()
-                hello marvin
+                ```python
+                @flow
+                def my_flow():
+                    print(my_task.delay("marvin").result())
+
+                my_flow()
+                # hello marvin
+                ```
         """
         return self.apply_async(args=args, kwargs=kwargs)
 
@@ -1684,11 +1740,13 @@ class Task(Generic[P, R]):
 
         Examples:
             Serve a task using the default task runner
-            >>> @task
-            >>> def my_task():
-            >>>     return 1
+            ```python
+            @task
+            def my_task():
+                return 1
 
-            >>> my_task.serve()
+            my_task.serve()
+            ```
         """
         from prefect.task_worker import serve
 
@@ -1907,47 +1965,59 @@ def task(
     Examples:
         Define a simple task
 
-        >>> @task
-        >>> def add(x, y):
-        >>>     return x + y
+        ```python
+        @task
+        def add(x, y):
+            return x + y
+        ```
 
         Define an async task
 
-        >>> @task
-        >>> async def add(x, y):
-        >>>     return x + y
+        ```python
+        @task
+        async def add(x, y):
+            return x + y
+        ```
 
         Define a task with tags and a description
 
-        >>> @task(tags={"a", "b"}, description="This task is empty but its my first!")
-        >>> def my_task():
-        >>>     pass
+        ```python
+        @task(tags={"a", "b"}, description="This task is empty but its my first!")
+        def my_task():
+            pass
+        ```
 
         Define a task with a custom name
 
-        >>> @task(name="The Ultimate Task")
-        >>> def my_task():
-        >>>     pass
+        ```python
+        @task(name="The Ultimate Task")
+        def my_task():
+            pass
+        ```
 
         Define a task that retries 3 times with a 5 second delay between attempts
 
-        >>> from random import randint
-        >>>
-        >>> @task(retries=3, retry_delay_seconds=5)
-        >>> def my_task():
-        >>>     x = randint(0, 5)
-        >>>     if x >= 3:  # Make a task that fails sometimes
-        >>>         raise ValueError("Retry me please!")
-        >>>     return x
+        ```python
+        from random import randint
+
+        @task(retries=3, retry_delay_seconds=5)
+        def my_task():
+            x = randint(0, 5)
+            if x >= 3:  # Make a task that fails sometimes
+                raise ValueError("Retry me please!")
+            return x
+        ```
 
         Define a task that is cached for a day based on its inputs
 
-        >>> from prefect.tasks import task_input_hash
-        >>> from datetime import timedelta
-        >>>
-        >>> @task(cache_key_fn=task_input_hash, cache_expiration=timedelta(days=1))
-        >>> def my_task():
-        >>>     return "hello"
+        ```python
+        from prefect.tasks import task_input_hash
+        from datetime import timedelta
+
+        @task(cache_key_fn=task_input_hash, cache_expiration=timedelta(days=1))
+        def my_task():
+            return "hello"
+        ```
     """
 
     if __fn:
@@ -2035,3 +2105,44 @@ class MaterializingTask(Task[P, R]):
             Asset(key=a) if isinstance(a, str) else a for a in assets
         ]
         self.materialized_by = materialized_by
+
+    def with_options(
+        self,
+        assets: Optional[Sequence[Union[str, Asset]]] = None,
+        **task_kwargs: Unpack[TaskOptions],
+    ) -> "MaterializingTask[P, R]":
+        import inspect
+
+        sig = inspect.signature(Task.__init__)
+
+        # Map parameter names to attribute names where they differ
+        # from parameter to attribute.
+        param_to_attr = {
+            "on_completion": "on_completion_hooks",
+            "on_failure": "on_failure_hooks",
+            "on_rollback": "on_rollback_hooks",
+            "on_commit": "on_commit_hooks",
+        }
+
+        # Build kwargs for Task constructor
+        init_kwargs = {}
+        for param_name in sig.parameters:
+            if param_name in ("self", "fn", "assets", "materialized_by"):
+                continue
+
+            attr_name = param_to_attr.get(param_name, param_name)
+            init_kwargs[param_name] = task_kwargs.get(
+                param_name, getattr(self, attr_name)
+            )
+
+        return MaterializingTask(
+            fn=self.fn,
+            assets=(
+                [Asset(key=a) if isinstance(a, str) else a for a in assets]
+                if assets is not None
+                else self.assets
+            ),
+            materialized_by=self.materialized_by,
+            # Now, the rest
+            **init_kwargs,
+        )

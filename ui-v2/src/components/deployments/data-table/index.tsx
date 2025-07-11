@@ -1,3 +1,15 @@
+import { Link } from "@tanstack/react-router";
+import type {
+	ColumnFiltersState,
+	OnChangeFn,
+	PaginationState,
+} from "@tanstack/react-table";
+import {
+	createColumnHelper,
+	getCoreRowModel,
+	useReactTable,
+} from "@tanstack/react-table";
+import { useCallback } from "react";
 import type { DeploymentWithFlow } from "@/api/deployments";
 import type { components } from "@/api/prefect";
 import { useDeleteDeploymentConfirmationDialog } from "@/components/deployments/use-delete-deployment-confirmation-dialog";
@@ -18,18 +30,6 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { TagBadgeGroup } from "@/components/ui/tag-badge-group";
 import { TagsInput } from "@/components/ui/tags-input";
 import { pluralize } from "@/utils";
-import { Link } from "@tanstack/react-router";
-import type {
-	ColumnFiltersState,
-	OnChangeFn,
-	PaginationState,
-} from "@tanstack/react-table";
-import {
-	createColumnHelper,
-	getCoreRowModel,
-	useReactTable,
-} from "@tanstack/react-table";
-import { useCallback } from "react";
 import { ActionsCell, ActivityCell } from "./cells";
 
 export type DeploymentsDataTableProps = {

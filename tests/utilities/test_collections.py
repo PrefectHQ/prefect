@@ -587,6 +587,98 @@ class TestVisitCollection:
         # After visitation, data should still not be evaluated
         assert not lazy._evaluated  # type: ignore
 
+    def test_visit_collection_shared_references(self):
+        """Test that shared references are transformed consistently"""
+
+        def _visitor(x: int):
+            if x == 0:
+                return 2
+            return x
+
+        # Create a structure with shared references
+        shared_list = [0, 1, 0, 1]
+        result = visit_collection(
+            {"a": shared_list, "b": shared_list}, _visitor, return_data=True
+        )
+
+        # Both 'a' and 'b' should have the transformed list
+        assert result == {"a": [2, 1, 2, 1], "b": [2, 1, 2, 1]}
+
+        # And they should point to the same object
+        assert result["a"] is result["b"]
+
+    def test_visit_collection_shared_dict_references(self):
+        """Test that shared dict references are transformed consistently"""
+
+        def _visitor(x: int):
+            if x == 0:
+                return 2
+            return x
+
+        shared_dict = {"x": 0, "y": 1}
+        result = visit_collection(
+            {"first": shared_dict, "second": shared_dict}, _visitor, return_data=True
+        )
+
+        # Both should be transformed
+        assert result == {"first": {"x": 2, "y": 1}, "second": {"x": 2, "y": 1}}
+
+        # And they should be the same object
+        assert result["first"] is result["second"]
+
+    def test_visit_collection_deeply_nested_shared_references(self):
+        """Test deeply nested structures with shared references"""
+
+        def _visitor(x):
+            if isinstance(x, int) and x % 2 == 0:
+                return x * 10
+            return x
+
+        shared_list = [2, 3, 4]
+        unique_list = [5, 6, 7]
+
+        data = {
+            "level1": {
+                "shared": shared_list,
+                "unique": unique_list,
+                "level2": {"also_shared": shared_list, "also_unique": unique_list},
+            },
+            "another_ref": shared_list,
+        }
+
+        result = visit_collection(data, _visitor, return_data=True)
+
+        # Check all shared references point to the same transformed object
+        assert result["level1"]["shared"] == [20, 3, 40]
+        assert result["level1"]["shared"] is result["level1"]["level2"]["also_shared"]
+        assert result["level1"]["shared"] is result["another_ref"]
+
+        # Check unique references are transformed but remain separate
+        assert result["level1"]["unique"] == [5, 60, 7]
+        assert result["level1"]["unique"] is result["level1"]["level2"]["also_unique"]
+
+    def test_visit_collection_circular_references(self):
+        """Test that circular references are handled without infinite recursion"""
+
+        def _visitor(x: int):
+            if x == 1:
+                return 2
+            return x
+
+        # Create a circular reference
+        circular = {"a": 1}
+        circular["self"] = circular
+
+        # This should not raise RecursionError
+        result = visit_collection(circular, _visitor, return_data=True)
+
+        # The top-level value should be transformed
+        assert result["a"] == 2
+
+        # The circular reference is preserved (though not with perfect identity)
+        assert "self" in result
+        assert "self" in result["self"]
+
 
 class TestRemoveKeys:
     def test_remove_single_key(self):

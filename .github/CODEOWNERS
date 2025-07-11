@@ -4,16 +4,8 @@
 # ui
 /ui                                  @znicholasbrown
 
-# documentation
-/docs                                @aaazzam @cicdw
-
 # integrations
-/src/integrations/prefect-dbt        @aaazzam @kevingrismore
-
-# GitHub takes into account the last file ref for review requests
-# this resets the file to global owners to avoid huge review teams
-/docs/v3/develop/settings-ref.mdx    @cicdw @desertaxle @zzstoatzz
-/docs/v3/api-ref/rest-api/server/schema.json    @cicdw @desertaxle @zzstoatzz
+/src/integrations/prefect-dbt        @cicdw @desertaxle @zzstoatzz @kevingrismore
 
 # imports
 /src/prefect/__init__.py             @aaazzam @chrisguidry @cicdw @desertaxle @zzstoatzz
