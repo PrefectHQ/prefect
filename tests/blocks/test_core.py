@@ -1161,7 +1161,7 @@ class TestAPICompatibility:
         assert block_document.block_schema.version == mock_version
 
     @pytest.mark.skipif(
-        sys.version_info < (3, 11), reason="requires python3.11 or higher for `| None`"
+        sys.version_info < (3, 10), reason="requires python3.10 or higher for `| None`"
     )
     def test_maintain_secrets_after_load_for_union_type(self):
         """
