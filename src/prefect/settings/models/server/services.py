@@ -409,6 +409,26 @@ class ServerServicesPauseExpirationsSettings(ServicesBaseSetting):
     )
 
 
+class ServerServicesRepossessorSettings(ServicesBaseSetting):
+    """
+    Settings for controlling the repossessor service
+    """
+
+    model_config: ClassVar[SettingsConfigDict] = build_settings_config(
+        ("server", "services", "repossessor")
+    )
+
+    enabled: bool = Field(
+        default=True,
+        description="Whether or not to start the repossessor service in the server application.",
+    )
+
+    loop_seconds: float = Field(
+        default=15,
+        description="The repossessor service will look for expired leases this often. Defaults to `15`.",
+    )
+
+
 class ServerServicesTaskRunRecorderSettings(ServicesBaseSetting):
     """
     Settings for controlling the task run recorder service
@@ -511,6 +531,10 @@ class ServerServicesSettings(PrefectBaseSettings):
     pause_expirations: ServerServicesPauseExpirationsSettings = Field(
         default_factory=ServerServicesPauseExpirationsSettings,
         description="Settings for controlling the pause expiration service",
+    )
+    repossessor: ServerServicesRepossessorSettings = Field(
+        default_factory=ServerServicesRepossessorSettings,
+        description="Settings for controlling the repossessor service",
     )
     task_run_recorder: ServerServicesTaskRunRecorderSettings = Field(
         default_factory=ServerServicesTaskRunRecorderSettings,

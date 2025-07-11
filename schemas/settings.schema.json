@@ -1720,6 +1720,31 @@
             "title": "ServerServicesPauseExpirationsSettings",
             "type": "object"
         },
+        "ServerServicesRepossessorSettings": {
+            "description": "Settings for controlling the repossessor service",
+            "properties": {
+                "enabled": {
+                    "default": true,
+                    "description": "Whether or not to start the repossessor service in the server application.",
+                    "supported_environment_variables": [
+                        "PREFECT_SERVER_SERVICES_REPOSSESSOR_ENABLED"
+                    ],
+                    "title": "Enabled",
+                    "type": "boolean"
+                },
+                "loop_seconds": {
+                    "default": 15,
+                    "description": "The repossessor service will look for expired leases this often. Defaults to `15`.",
+                    "supported_environment_variables": [
+                        "PREFECT_SERVER_SERVICES_REPOSSESSOR_LOOP_SECONDS"
+                    ],
+                    "title": "Loop Seconds",
+                    "type": "number"
+                }
+            },
+            "title": "ServerServicesRepossessorSettings",
+            "type": "object"
+        },
         "ServerServicesSchedulerSettings": {
             "description": "Settings for controlling the scheduler service",
             "properties": {
@@ -1847,6 +1872,10 @@
                 },
                 "pause_expirations": {
                     "$ref": "#/$defs/ServerServicesPauseExpirationsSettings",
+                    "supported_environment_variables": []
+                },
+                "repossessor": {
+                    "$ref": "#/$defs/ServerServicesRepossessorSettings",
                     "supported_environment_variables": []
                 },
                 "task_run_recorder": {
