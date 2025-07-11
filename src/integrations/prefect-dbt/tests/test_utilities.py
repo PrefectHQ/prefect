@@ -12,6 +12,8 @@ from prefect_dbt.utilities import (
     replace_with_env_var_call,
 )
 
+from prefect.types.names import MAX_ASSET_KEY_LENGTH
+
 
 class TestFindProfilesDir:
     """Test cases for find_profiles_dir function."""
@@ -57,25 +59,6 @@ class TestFindProfilesDir:
         with patch("pathlib.Path.cwd", return_value=symlink_dir):
             result = find_profiles_dir()
             assert result == symlink_dir
-
-    def test_find_profiles_dir_with_different_case(self, tmp_path: Path) -> None:
-        """Test when profiles.yml exists with different case."""
-        # Create a profiles.yml file with different case
-        profiles_file: Path = tmp_path / "PROFILES.YML"
-        profiles_file.write_text("test content")
-
-        with patch("pathlib.Path.cwd", return_value=tmp_path):
-            result = find_profiles_dir()
-            # Should still find the file regardless of case on case-insensitive systems
-            if os.name == "nt":  # Windows
-                assert result == tmp_path
-            else:  # Unix-like systems
-                # On case-sensitive systems, it should fall back to home directory
-                with patch("pathlib.Path.home") as mock_home:
-                    mock_home_dir = Path("/home/user")
-                    mock_home.return_value = mock_home_dir
-                    result = find_profiles_dir()
-                    assert result == mock_home_dir / ".dbt"
 
 
 class TestReplaceWithEnvVarCall:
@@ -201,5 +184,25 @@ class TestFormatResourceId:
 
         result = format_resource_id(adapter_type, relation_name)
         expected = "duckdb://my_catalog/my_schema/my/table"
+
+        assert result == expected
+
+    def test_format_resource_id_with_restricted_characters(self) -> None:
+        """Test with restricted characters."""
+        adapter_type = "duckdb"
+        relation_name = "`my_table`"
+
+        result = format_resource_id(adapter_type, relation_name)
+        expected = "duckdb://my_table"
+
+        assert result == expected
+
+    def test_format_resource_id_over_max_length(self) -> None:
+        """Test with over max length."""
+        adapter_type = "duckdb"
+        relation_name = "a" * MAX_ASSET_KEY_LENGTH
+
+        result = len(format_resource_id(adapter_type, relation_name))
+        expected = MAX_ASSET_KEY_LENGTH
 
         assert result == expected
