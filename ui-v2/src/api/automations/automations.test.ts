@@ -150,9 +150,11 @@ describe("automations queries and mutations", () => {
 		});
 
 		const {
+			/* eslint-disable @typescript-eslint/no-unused-vars */
 			id: _id,
 			created: _created,
 			updated: _updated,
+			/* eslint-enable @typescript-eslint/no-unused-vars */
 			...CREATE_AUTOMATION_PAYLOAD
 		} = NEW_AUTOMATION_DATA;
 
