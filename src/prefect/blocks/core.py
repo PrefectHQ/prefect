@@ -168,7 +168,6 @@ def _collect_secret_fields(
     # Include UnionType if it's available for the current Python version
     if union_type := getattr(types, "UnionType", None):
         nested_types = nested_types + (union_type,)
-    print(nested_types)
     if get_origin(type_) in nested_types:
         for nested_type in get_args(type_):
             _collect_secret_fields(name, nested_type, secrets)
