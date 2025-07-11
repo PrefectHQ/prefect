@@ -923,8 +923,14 @@ class Log(Base):
 
     name: Mapped[str]
     level: Mapped[int] = mapped_column(sa.SmallInteger, index=True)
-    flow_run_id: Mapped[Optional[uuid.UUID]] = mapped_column(index=True)
-    task_run_id: Mapped[Optional[uuid.UUID]] = mapped_column(index=True)
+    flow_run_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        sa.ForeignKey("flow_run.id", ondelete="CASCADE", use_alter=True),
+        index=True,
+    )
+    task_run_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        sa.ForeignKey("task_run.id", ondelete="CASCADE", use_alter=True),
+        index=True,
+    )
     message: Mapped[str] = mapped_column(sa.Text)
 
     # The client-side timestamp of this logged statement.
