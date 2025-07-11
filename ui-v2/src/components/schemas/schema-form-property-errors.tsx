@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { type SchemaFormErrors, isSchemaValueError } from "./types/errors";
+import { isSchemaValueError, type SchemaFormErrors } from "./types/errors";
 
 export type SchemaFormPropertyErrorsProps = {
 	errors: SchemaFormErrors;

@@ -1,14 +1,14 @@
-import { createFakeFlowRun } from "@/mocks";
 import { QueryClient } from "@tanstack/react-query";
 import {
-	RouterProvider,
 	createMemoryHistory,
 	createRootRoute,
 	createRouter,
+	RouterProvider,
 } from "@tanstack/react-router";
 import { waitFor } from "@testing-library/dom";
 import { render } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
+import { createFakeFlowRun } from "@/mocks";
 import { Popover, type PopoverProps } from "./popover";
 
 // Wraps component in test with a Tanstack router provider

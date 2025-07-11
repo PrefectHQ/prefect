@@ -1,12 +1,12 @@
+import { useSuspenseQuery } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
+import { Suspense } from "react";
 import type { Automation } from "@/api/automations";
 import { buildListAutomationsRelatedQuery } from "@/api/automations/automations";
 import type { Deployment } from "@/api/deployments";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icons";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useSuspenseQuery } from "@tanstack/react-query";
-import { Link } from "@tanstack/react-router";
-import { Suspense } from "react";
 
 type DeploymentTriggersProps = {
 	deployment: Deployment;

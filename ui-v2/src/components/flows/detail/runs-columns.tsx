@@ -1,6 +1,6 @@
-import type { components } from "@/api/prefect";
 import type { ColumnDef } from "@tanstack/react-table";
 import { format, parseISO } from "date-fns";
+import type { components } from "@/api/prefect";
 import { DeploymentCell, WorkPoolCell } from "./cells";
 
 type FlowRun = components["schemas"]["FlowRun"];

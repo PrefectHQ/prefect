@@ -1,3 +1,8 @@
+import { useSuspenseQueries } from "@tanstack/react-query";
+import { createFileRoute } from "@tanstack/react-router";
+import { zodValidator } from "@tanstack/zod-adapter";
+import { useCallback, useMemo } from "react";
+import { z } from "zod";
 import {
 	type ArtifactsFilter,
 	buildCountArtifactsQuery,
@@ -6,11 +11,6 @@ import {
 import { ArtifactsPage } from "@/components/artifacts/artifacts-page";
 import type { filterType } from "@/components/artifacts/types";
 import useDebounceCallback from "@/hooks/use-debounce-callback";
-import { useSuspenseQueries } from "@tanstack/react-query";
-import { createFileRoute } from "@tanstack/react-router";
-import { zodValidator } from "@tanstack/zod-adapter";
-import { useCallback, useMemo } from "react";
-import { z } from "zod";
 
 /**
  * Schema for validating URL search parameters for the artifacts page.

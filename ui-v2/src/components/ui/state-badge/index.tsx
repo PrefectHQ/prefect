@@ -1,5 +1,5 @@
-import type { components } from "@/api/prefect";
 import { cva } from "class-variance-authority";
+import type { components } from "@/api/prefect";
 
 import { ICONS as COMPONENT_ICONS } from "@/components/ui/icons";
 

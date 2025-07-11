@@ -1,12 +1,11 @@
-import { Stepper } from "@/components/ui/stepper";
-import { useStepper } from "@/hooks/use-stepper";
-
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { Form, FormMessage } from "@/components/ui/form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Link } from "@tanstack/react-router";
 import { useForm } from "react-hook-form";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Form, FormMessage } from "@/components/ui/form";
+import { Stepper } from "@/components/ui/stepper";
+import { useStepper } from "@/hooks/use-stepper";
 import { ActionsStep } from "./actions-step";
 import {
 	AutomationWizardSchema,

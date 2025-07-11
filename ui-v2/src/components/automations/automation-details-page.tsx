@@ -1,3 +1,4 @@
+import { useSuspenseQuery } from "@tanstack/react-query";
 import { type Automation, buildGetAutomationQuery } from "@/api/automations";
 import {
 	Breadcrumb,
@@ -8,7 +9,6 @@ import {
 	BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog";
-import { useSuspenseQuery } from "@tanstack/react-query";
 import {
 	AutomationActions,
 	AutomationDescription,

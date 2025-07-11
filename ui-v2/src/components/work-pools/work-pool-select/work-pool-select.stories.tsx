@@ -1,10 +1,9 @@
-import { createFakeWorkPool } from "@/mocks";
-import { reactQueryDecorator } from "@/storybook/utils";
 import type { Meta, StoryObj } from "@storybook/react";
 import { buildApiUrl } from "@tests/utils/handlers";
-import { http, HttpResponse } from "msw";
-
+import { HttpResponse, http } from "msw";
 import { useState } from "react";
+import { createFakeWorkPool } from "@/mocks";
+import { reactQueryDecorator } from "@/storybook/utils";
 import { WorkPoolSelect } from "./work-pool-select";
 
 const MOCK_WORK_POOLS_DATA = Array.from({ length: 5 }, createFakeWorkPool);

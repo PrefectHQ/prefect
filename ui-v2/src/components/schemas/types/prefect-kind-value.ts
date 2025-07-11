@@ -1,5 +1,5 @@
 import { isDefined, isRecord, isString } from "../utilities/guards";
-import { type PrefectKind, isPrefectKind } from "./prefect-kind";
+import { isPrefectKind, type PrefectKind } from "./prefect-kind";
 
 type BasePrefectKindValue<
 	TKind extends PrefectKind = PrefectKind,

@@ -1,11 +1,11 @@
-import {
-	type Deployment,
-	type DeploymentsPaginationFilter,
-	buildPaginateDeploymentsQuery,
-} from "@/api/deployments";
-import { type Flow, buildListFlowsQuery } from "@/api/flows";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
+import {
+	buildPaginateDeploymentsQuery,
+	type Deployment,
+	type DeploymentsPaginationFilter,
+} from "@/api/deployments";
+import { buildListFlowsQuery, type Flow } from "@/api/flows";
 
 export type DeploymentWithFlow = Deployment & {
 	flow: Flow | undefined;

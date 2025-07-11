@@ -1,9 +1,8 @@
-import type { components } from "@/api/prefect";
-import { ChartContainer, ChartTooltip } from "@/components/ui/chart";
 import { Link } from "@tanstack/react-router";
 import { cva } from "class-variance-authority";
 import { format, formatDistanceStrict } from "date-fns";
 import { Calendar, ChevronRight, Clock, Rocket } from "lucide-react";
+import type { ReactNode } from "react";
 import {
 	type RefObject,
 	useCallback,
@@ -12,10 +11,11 @@ import {
 	useRef,
 	useState,
 } from "react";
-import type { ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { Bar, BarChart, Cell, type TooltipProps } from "recharts";
 import type { Coordinate } from "recharts/types/util/types";
+import type { components } from "@/api/prefect";
+import { ChartContainer, ChartTooltip } from "@/components/ui/chart";
 import {
 	Card,
 	CardContent,
@@ -155,7 +155,9 @@ const useIsTooltipActive = (
  */
 export const FlowRunActivityBarGraphTooltipProvider = ({
 	children,
-}: { children: ReactNode }) => {
+}: {
+	children: ReactNode;
+}) => {
 	const [currentHolder, setCurrentHolder] = useState<string | undefined>(
 		undefined,
 	);

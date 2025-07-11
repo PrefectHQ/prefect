@@ -38,7 +38,7 @@ export function organizeFlowRunsWithGaps(
 	).fill(null) as null[];
 	const maxBucketIndex = buckets.length - 1;
 
-	const isFutureTimeSpan = endDate.getTime() > new Date().getTime();
+	const isFutureTimeSpan = endDate.getTime() > Date.now();
 
 	const bucketIncrementDirection = isFutureTimeSpan ? 1 : -1;
 	const sortedRuns = isFutureTimeSpan

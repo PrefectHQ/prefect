@@ -1,7 +1,6 @@
 import { Button } from "@/components/ui/button";
-import { useStepper } from "@/hooks/use-stepper";
-
 import { Stepper } from "@/components/ui/stepper";
+import { useStepper } from "@/hooks/use-stepper";
 
 const USAGE_STEPS = ["Trigger", "Actions", "Details"] as const;
 

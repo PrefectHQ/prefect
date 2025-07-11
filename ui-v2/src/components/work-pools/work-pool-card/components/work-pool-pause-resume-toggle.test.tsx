@@ -1,10 +1,10 @@
-import { Toaster } from "@/components/ui/sonner";
-import { createFakeWorkPool } from "@/mocks/create-fake-work-pool";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { buildApiUrl, createWrapper, server } from "@tests/utils";
-import { http, HttpResponse } from "msw";
+import { HttpResponse, http } from "msw";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { Toaster } from "@/components/ui/sonner";
+import { createFakeWorkPool } from "@/mocks/create-fake-work-pool";
 import { WorkPoolPauseResumeToggle } from "./work-pool-pause-resume-toggle";
 
 describe("WorkPoolPauseResumeToggle", () => {

@@ -1,7 +1,7 @@
-import { useDeleteDeploymentSchedule } from "@/api/deployments";
-import type { DeploymentSchedule } from "@/api/deployments";
-import { useDeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog";
 import { toast } from "sonner";
+import type { DeploymentSchedule } from "@/api/deployments";
+import { useDeleteDeploymentSchedule } from "@/api/deployments";
+import { useDeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog";
 import { getScheduleTitle } from "./get-schedule-title";
 
 export const useDeleteSchedule = () => {

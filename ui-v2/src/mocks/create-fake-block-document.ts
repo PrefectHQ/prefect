@@ -1,10 +1,10 @@
-import type { components } from "@/api/prefect";
 import {
 	randBoolean,
 	randPastDate,
 	randProductAdjective,
 	randUuid,
 } from "@ngneat/falso";
+import type { components } from "@/api/prefect";
 
 export const createFakeBlockDocument = (
 	overrides?: Partial<components["schemas"]["BlockDocument"]>,

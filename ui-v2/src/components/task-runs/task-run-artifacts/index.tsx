@@ -1,12 +1,12 @@
+import { useSuspenseQuery } from "@tanstack/react-query";
+import { LayoutGrid, Rows3 } from "lucide-react";
+import { useState } from "react";
 import { buildListArtifactsQuery } from "@/api/artifacts";
 import type { TaskRun } from "@/api/task-runs";
 import { ArtifactCard } from "@/components/artifacts/artifact-card";
 import { Card, CardContent } from "@/components/ui/card";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { cn } from "@/lib/utils";
-import { useSuspenseQuery } from "@tanstack/react-query";
-import { LayoutGrid, Rows3 } from "lucide-react";
-import { useState } from "react";
 
 type TaskRunArtifactsProps = {
 	taskRun: TaskRun;

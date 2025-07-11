@@ -1,3 +1,4 @@
+import { useMemo, useState } from "react";
 import { SearchInput } from "@/components/ui/input";
 import {
 	Table,
@@ -7,7 +8,6 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table";
-import { useMemo, useState } from "react";
 
 export type DetailTableProps = {
 	tableData: string;

@@ -36,7 +36,9 @@ export const useSchemaForm = () => {
 
 	const validateForm = async ({
 		schema,
-	}: { schema: Record<string, unknown> }) => {
+	}: {
+		schema: Record<string, unknown>;
+	}) => {
 		try {
 			const { errors, valid } = await validateSchemaValues(schema, values);
 			if (valid) {

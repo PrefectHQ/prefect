@@ -1,10 +1,9 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeAll, describe, expect, it, vi } from "vitest";
-
-import { Dialog } from "@/components/ui/dialog";
 import { createWrapper } from "@tests/utils";
 import { mockPointerEvents } from "@tests/utils/browser";
+import { beforeAll, describe, expect, it, vi } from "vitest";
+import { Dialog } from "@/components/ui/dialog";
 import {
 	IntervalScheduleForm,
 	type IntervalScheduleFormProps,
@@ -33,12 +32,10 @@ describe("CronScheduleForm", () => {
 		await user.clear(screen.getByLabelText(/value/i));
 		await user.type(screen.getByLabelText(/value/i), "100");
 
-		await user.click(screen.getByRole("combobox", { name: /interval/i }));
+		await user.click(screen.getByLabelText(/interval/i));
 		await user.click(screen.getByRole("option", { name: /hours/i }));
 
-		await user.click(
-			screen.getByRole("combobox", { name: /select timezone/i }),
-		);
+		await user.click(screen.getByLabelText(/select timezone/i));
 		await user.click(screen.getByRole("option", { name: /africa \/ asmera/i }));
 		await user.click(screen.getByRole("button", { name: /save/i }));
 

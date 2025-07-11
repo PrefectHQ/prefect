@@ -1,9 +1,9 @@
+import { cva } from "class-variance-authority";
+import React, { useCallback, useEffect, useMemo } from "react";
 import type { FlowRun } from "@/api/flow-runs";
 import type { components } from "@/api/prefect";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Typography } from "@/components/ui/typography";
-import { cva } from "class-variance-authority";
-import React, { useCallback, useEffect, useMemo } from "react";
 import { FlowRunCell } from "./flowRunCell";
 
 export type FlowRunsBarChartProps = {
@@ -64,7 +64,7 @@ const FlowRunsBarChart = ({
 			);
 			const maxBucketIndex = buckets.length - 1;
 
-			const isFutureTimeSpan = endWindow.getTime() > new Date().getTime();
+			const isFutureTimeSpan = endWindow.getTime() > Date.now();
 			const bucketIncrementDirection = isFutureTimeSpan ? 1 : -1;
 
 			const sortedRuns = isFutureTimeSpan

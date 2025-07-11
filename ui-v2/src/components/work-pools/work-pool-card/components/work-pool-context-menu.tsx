@@ -1,16 +1,15 @@
+import { Link } from "@tanstack/react-router";
+import { toast } from "sonner";
 import type { WorkPool } from "@/api/work-pools";
 import { Button } from "@/components/ui/button";
 import {
+	DropdownMenu,
 	DropdownMenuContent,
 	DropdownMenuItem,
 	DropdownMenuLabel,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-
-import { DropdownMenu } from "@/components/ui/dropdown-menu";
 import { Icon } from "@/components/ui/icons";
-import { Link } from "@tanstack/react-router";
-import { toast } from "sonner";
 
 export type WorkPoolContextMenuProps = {
 	workPool: WorkPool;

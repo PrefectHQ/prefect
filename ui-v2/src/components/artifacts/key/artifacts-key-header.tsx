@@ -1,3 +1,7 @@
+import { Link } from "@tanstack/react-router";
+import { useCallback } from "react";
+import Markdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import {
 	Breadcrumb,
 	BreadcrumbItem,
@@ -14,10 +18,6 @@ import {
 	MenubarTrigger,
 } from "@/components/ui/menubar";
 import { Typography } from "@/components/ui/typography";
-import { Link } from "@tanstack/react-router";
-import { useCallback } from "react";
-import Markdown from "react-markdown";
-import remarkGfm from "remark-gfm";
 
 type ArtifactsKeyHeaderProps = {
 	artifactKey: string;

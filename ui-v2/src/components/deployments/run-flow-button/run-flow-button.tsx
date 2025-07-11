@@ -1,3 +1,4 @@
+import { Link } from "@tanstack/react-router";
 import type { Deployment } from "@/api/deployments";
 import { useQuickRun } from "@/components/deployments/use-quick-run";
 import { Button } from "@/components/ui/button";
@@ -9,7 +10,6 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Icon } from "@/components/ui/icons";
-import { Link } from "@tanstack/react-router";
 
 export type RunFlowButtonProps = {
 	deployment: Deployment;

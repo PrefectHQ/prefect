@@ -1,11 +1,10 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeAll, describe, expect, it, vi } from "vitest";
-
-import { Dialog } from "@/components/ui/dialog";
-import { Toaster } from "@/components/ui/sonner";
 import { createWrapper } from "@tests/utils";
 import { mockPointerEvents } from "@tests/utils/browser";
+import { beforeAll, describe, expect, it, vi } from "vitest";
+import { Dialog } from "@/components/ui/dialog";
+import { Toaster } from "@/components/ui/sonner";
 import {
 	CronScheduleForm,
 	type CronScheduleFormProps,
@@ -36,9 +35,7 @@ describe("CronScheduleForm", () => {
 		await user.type(screen.getByLabelText(/value/i), "* * * * 1/2");
 
 		await user.click(screen.getByRole("switch", { name: /day or/i }));
-		await user.click(
-			screen.getByRole("combobox", { name: /select timezone/i }),
-		);
+		await user.click(screen.getByLabelText(/select timezone/i));
 		await user.click(screen.getByRole("option", { name: /africa \/ asmera/i }));
 		await user.click(screen.getByRole("button", { name: /save/i }));
 

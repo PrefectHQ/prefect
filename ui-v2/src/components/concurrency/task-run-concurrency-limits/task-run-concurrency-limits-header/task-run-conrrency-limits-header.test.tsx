@@ -1,8 +1,7 @@
-import { TaskRunConcurrencyLimitsHeader } from "./task-run-concurrency-limits-header";
-
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { expect, test, vi } from "vitest";
+import { TaskRunConcurrencyLimitsHeader } from "./task-run-concurrency-limits-header";
 
 test("TaskRunConcurrencyLimitsHeader can successfully call onAdd", async () => {
 	const user = userEvent.setup();

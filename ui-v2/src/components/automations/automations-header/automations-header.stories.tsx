@@ -1,5 +1,5 @@
-import { routerDecorator } from "@/storybook/utils";
 import type { Meta, StoryObj } from "@storybook/react";
+import { routerDecorator } from "@/storybook/utils";
 
 import { AutomationsHeader } from "./automations-header";
 

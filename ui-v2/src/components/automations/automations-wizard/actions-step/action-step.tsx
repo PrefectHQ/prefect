@@ -1,8 +1,8 @@
+import { useWatch } from "react-hook-form";
 import type { AutomationWizardSchema } from "@/components/automations/automations-wizard/automation-schema";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icons";
 import { Typography } from "@/components/ui/typography";
-import { useWatch } from "react-hook-form";
 import { ActionTypeSelect } from "./action-type-select";
 import { ChangeFlowRunStateFields } from "./change-flow-run-fields";
 import { SelectAutomationsFields } from "./select-automations-fields";

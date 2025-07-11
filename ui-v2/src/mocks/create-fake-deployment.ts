@@ -1,4 +1,3 @@
-import type { components } from "@/api/prefect";
 import {
 	rand,
 	randBoolean,
@@ -9,6 +8,7 @@ import {
 	randUuid,
 	randWord,
 } from "@ngneat/falso";
+import type { components } from "@/api/prefect";
 import { createFakeSchedule } from "./create-fake-schedule";
 
 export function createFakeDeployment(

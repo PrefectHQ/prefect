@@ -1,9 +1,9 @@
+import { Link } from "@tanstack/react-router";
+import humanizeDuration from "humanize-duration";
 import type { FlowRun } from "@/api/flow-runs";
 import { Icon } from "@/components/ui/icons";
 import { StateBadge } from "@/components/ui/state-badge";
 import { Typography } from "@/components/ui/typography";
-import { Link } from "@tanstack/react-router";
-import humanizeDuration from "humanize-duration";
 
 export type PopoverProps = {
 	name: string;

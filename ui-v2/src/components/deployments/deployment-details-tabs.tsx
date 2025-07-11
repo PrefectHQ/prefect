@@ -1,8 +1,8 @@
+import { getRouteApi, Link } from "@tanstack/react-router";
+import { type JSX, useMemo } from "react";
 import type { Deployment } from "@/api/deployments";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { DeploymentDetailsTabOptions } from "@/routes/deployments/deployment.$id";
-import { Link, getRouteApi } from "@tanstack/react-router";
-import { type JSX, useMemo } from "react";
 
 import { DeploymentConfiguration } from "./deployment-configuration";
 import { DeploymentDescription } from "./deployment-description";

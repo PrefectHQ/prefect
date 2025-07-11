@@ -1,5 +1,5 @@
-import { createFakeSchedule } from "@/mocks";
 import type { Meta, StoryObj } from "@storybook/react";
+import { createFakeSchedule } from "@/mocks";
 import { ScheduleBadgeGroup } from ".";
 
 export default {

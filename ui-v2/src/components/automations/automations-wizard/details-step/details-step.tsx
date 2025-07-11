@@ -1,3 +1,4 @@
+import { useFormContext } from "react-hook-form";
 import type { AutomationWizardSchema } from "@/components/automations/automations-wizard/automation-schema";
 import {
 	FormControl,
@@ -7,7 +8,6 @@ import {
 	FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { useFormContext } from "react-hook-form";
 
 export const DetailsStep = () => {
 	const form = useFormContext<AutomationWizardSchema>();

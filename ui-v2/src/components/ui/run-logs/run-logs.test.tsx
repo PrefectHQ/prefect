@@ -1,8 +1,7 @@
 import { fireEvent, render } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { RunLogs } from ".";
-
 import { createFakeLog, createFakeTaskRun } from "@/mocks";
+import { RunLogs } from ".";
 
 describe("RunLogs", () => {
 	it("should display a log level badge", () => {

@@ -1,10 +1,10 @@
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { zodValidator } from "@tanstack/zod-adapter";
+import { z } from "zod";
 import { buildListArtifactsQuery } from "@/api/artifacts";
 import { buildInfiniteFilterLogsQuery } from "@/api/logs";
 import { buildGetTaskRunDetailsQuery } from "@/api/task-runs";
 import { TaskRunDetailsPage } from "@/components/task-runs/task-run-details-page";
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { zodValidator } from "@tanstack/zod-adapter";
-import { z } from "zod";
 
 const searchParams = z.object({
 	tab: z

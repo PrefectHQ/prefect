@@ -1,7 +1,7 @@
 import { QueryClient } from "@tanstack/react-query";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { buildApiUrl, createWrapper, server } from "@tests/utils";
-import { http, HttpResponse } from "msw";
+import { HttpResponse, http } from "msw";
 import { describe, expect, it } from "vitest";
 
 import { createFakeGlobalConcurrencyLimit } from "@/mocks";

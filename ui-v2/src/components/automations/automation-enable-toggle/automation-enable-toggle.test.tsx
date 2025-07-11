@@ -1,9 +1,9 @@
-import { Toaster } from "@/components/ui/sonner";
-import { createFakeAutomation } from "@/mocks";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createWrapper } from "@tests/utils";
 import { expect, test } from "vitest";
+import { Toaster } from "@/components/ui/sonner";
+import { createFakeAutomation } from "@/mocks";
 import { AutomationEnableToggle } from "./automation-enable-toggle";
 
 const MOCK_DATA = createFakeAutomation({ enabled: true });

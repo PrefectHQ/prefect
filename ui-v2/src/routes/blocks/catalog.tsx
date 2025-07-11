@@ -1,10 +1,10 @@
-import { buildListFilterBlockTypesQuery } from "@/api/block-types";
-import { BlocksCatalogPage } from "@/components/blocks/blocks-catalog-page/blocks-catalog-page";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { zodValidator } from "@tanstack/zod-adapter";
 import { useCallback, useMemo } from "react";
 import { z } from "zod";
+import { buildListFilterBlockTypesQuery } from "@/api/block-types";
+import { BlocksCatalogPage } from "@/components/blocks/blocks-catalog-page/blocks-catalog-page";
 
 const searchParams = z.object({
 	blockName: z.string().optional(),

@@ -1,3 +1,9 @@
+import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
+import { createFileRoute } from "@tanstack/react-router";
+import type { PaginationState } from "@tanstack/react-table";
+import { zodValidator } from "@tanstack/zod-adapter";
+import { useCallback, useMemo } from "react";
+import { z } from "zod";
 import {
 	type BlockDocumentsFilter,
 	buildCountAllBlockDocumentsQuery,
@@ -6,12 +12,6 @@ import {
 } from "@/api/block-documents";
 import { buildListFilterBlockTypesQuery } from "@/api/block-types";
 import { BlocksPage } from "@/components/blocks/blocks-page";
-import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
-import { createFileRoute } from "@tanstack/react-router";
-import type { PaginationState } from "@tanstack/react-table";
-import { zodValidator } from "@tanstack/zod-adapter";
-import { useCallback, useMemo } from "react";
-import { z } from "zod";
 
 const searchParams = z.object({
 	blockName: z.string().optional(),

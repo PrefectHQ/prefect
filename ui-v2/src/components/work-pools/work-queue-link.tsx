@@ -1,10 +1,10 @@
+import { useSuspenseQuery } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
+import { Suspense } from "react";
 import { buildWorkQueueDetailsQuery } from "@/api/work-queues";
 import { Icon } from "@/components/ui/icons";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatusIcon } from "@/components/ui/status-badge";
-import { useSuspenseQuery } from "@tanstack/react-query";
-import { Link } from "@tanstack/react-router";
-import { Suspense } from "react";
 
 type WorkQueueLinkProps = {
 	workPoolName: string;

@@ -1,7 +1,7 @@
-import { buildDeploymentDetailsQuery } from "@/api/deployments";
-import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
+import { buildDeploymentDetailsQuery } from "@/api/deployments";
+import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog";
 
 import { DeploymentActionMenu } from "./deployment-action-menu";
 import { DeploymentDetailsHeader } from "./deployment-details-header";

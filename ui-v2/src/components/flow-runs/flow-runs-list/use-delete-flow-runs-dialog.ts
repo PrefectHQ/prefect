@@ -1,6 +1,6 @@
+import { toast } from "sonner";
 import { useDeleteFlowRun } from "@/api/flow-runs";
 import { useDeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog";
-import { toast } from "sonner";
 
 export const useDeleteFlowRunsDialog = () => {
 	const [dialogState, confirmDelete] = useDeleteConfirmationDialog();

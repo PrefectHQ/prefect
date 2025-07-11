@@ -1,6 +1,6 @@
-import { createFakeTaskRun } from "@/mocks";
 import { render } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
+import { createFakeTaskRun } from "@/mocks";
 import { TaskRunDetails } from "./task-run-details";
 
 describe("TaskRunDetails", () => {

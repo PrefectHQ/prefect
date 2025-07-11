@@ -1,8 +1,8 @@
+import { Link } from "@tanstack/react-router";
+import { useMemo } from "react";
 import type { ArtifactWithFlowRunAndTaskRun } from "@/api/artifacts";
 import { Card } from "@/components/ui/card";
 import { Typography } from "@/components/ui/typography";
-import { Link } from "@tanstack/react-router";
-import { useMemo } from "react";
 
 export type ArtifactTimelineCardProps = {
 	artifact: ArtifactWithFlowRunAndTaskRun;

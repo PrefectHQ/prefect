@@ -1,3 +1,4 @@
+import { useSuspenseQuery } from "@tanstack/react-query";
 import { type Automation, buildListAutomationsQuery } from "@/api/automations";
 import {
 	Breadcrumb,
@@ -7,7 +8,6 @@ import {
 } from "@/components/ui/breadcrumb";
 import { Card } from "@/components/ui/card";
 import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog";
-import { useSuspenseQuery } from "@tanstack/react-query";
 import { Typography } from "../ui/typography";
 import {
 	AutomationActions,

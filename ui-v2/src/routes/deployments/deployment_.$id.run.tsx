@@ -1,9 +1,9 @@
-import { buildDeploymentDetailsQuery } from "@/api/deployments";
-import { buildFilterWorkPoolWorkQueuesQuery } from "@/api/work-queues";
-import { CustomRunPage } from "@/components/deployments/custom-run-page";
 import { createFileRoute } from "@tanstack/react-router";
 import { zodValidator } from "@tanstack/zod-adapter";
 import { z } from "zod";
+import { buildDeploymentDetailsQuery } from "@/api/deployments";
+import { buildFilterWorkPoolWorkQueuesQuery } from "@/api/work-queues";
+import { CustomRunPage } from "@/components/deployments/custom-run-page";
 
 // nb: Revisit search params to determine if we're decoding the parameters correctly. Or if there are stricter typings
 // We'll know stricter types as we write more of the webapp

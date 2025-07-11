@@ -1,3 +1,6 @@
+import { cva } from "class-variance-authority";
+import { format, parseISO } from "date-fns";
+import humanizeDuration from "humanize-duration";
 import type { components } from "@/api/prefect";
 import {
 	Breadcrumb,
@@ -11,9 +14,6 @@ import { Icon } from "@/components/ui/icons";
 import { StateBadge } from "@/components/ui/state-badge";
 import { TagBadgeGroup } from "@/components/ui/tag-badge-group";
 import { Typography } from "@/components/ui/typography";
-import { cva } from "class-variance-authority";
-import { format, parseISO } from "date-fns";
-import humanizeDuration from "humanize-duration";
 
 const getValues = ({
 	flowRun,

@@ -1,9 +1,8 @@
-import { GlobalConcurrencyLimitsCreateOrEditDialog } from "./global-concurrency-limits-create-or-edit-dialog";
-
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createWrapper } from "@tests/utils";
 import { beforeAll, describe, expect, it, vi } from "vitest";
+import { GlobalConcurrencyLimitsCreateOrEditDialog } from "./global-concurrency-limits-create-or-edit-dialog";
 
 const MOCK_DATA = {
 	id: "0",

@@ -1,7 +1,7 @@
+import { Link } from "@tanstack/react-router";
 import type { BlockDocument } from "@/api/block-documents";
 import { BlockTypeLogo } from "@/components/block-type-logo/block-type-logo";
 import { Typography } from "@/components/ui/typography";
-import { Link } from "@tanstack/react-router";
 
 type BlockDocumentCellProps = {
 	blockDocument: BlockDocument;

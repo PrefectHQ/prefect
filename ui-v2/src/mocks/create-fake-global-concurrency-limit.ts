@@ -1,4 +1,3 @@
-import type { components } from "@/api/prefect";
 import {
 	randBoolean,
 	randNumber,
@@ -6,6 +5,7 @@ import {
 	randProductName,
 	randUuid,
 } from "@ngneat/falso";
+import type { components } from "@/api/prefect";
 
 export const createFakeGlobalConcurrencyLimit = (
 	overrides?: Partial<components["schemas"]["GlobalConcurrencyLimitResponse"]>,

@@ -1,5 +1,6 @@
-import { useUpdateDeploymentSchedule } from "@/api/deployments";
+import { toast } from "sonner";
 import type { DeploymentSchedule } from "@/api/deployments";
+import { useUpdateDeploymentSchedule } from "@/api/deployments";
 import { Switch } from "@/components/ui/switch";
 import {
 	Tooltip,
@@ -7,7 +8,6 @@ import {
 	TooltipProvider,
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { toast } from "sonner";
 import { getScheduleTitle } from "./get-schedule-title";
 
 type ScheduleToggleSwitchProps = {

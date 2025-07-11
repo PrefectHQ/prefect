@@ -1,3 +1,6 @@
+import type { Meta, StoryObj } from "@storybook/react";
+import { buildApiUrl } from "@tests/utils/handlers";
+import { HttpResponse, http } from "msw";
 import {
 	createFakeDeployment,
 	createFakeWorkPool,
@@ -8,9 +11,6 @@ import {
 	routerDecorator,
 	toastDecorator,
 } from "@/storybook/utils";
-import type { Meta, StoryObj } from "@storybook/react";
-import { buildApiUrl } from "@tests/utils/handlers";
-import { http, HttpResponse } from "msw";
 import { DeploymentForm } from "./deployment-form";
 
 const MOCK_WORK_POOLS_DATA = Array.from({ length: 5 }, createFakeWorkPool);

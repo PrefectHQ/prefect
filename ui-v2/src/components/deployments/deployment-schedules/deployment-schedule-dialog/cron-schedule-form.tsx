@@ -1,8 +1,14 @@
+import { zodResolver } from "@hookform/resolvers/zod";
+import { CronExpressionParser } from "cron-parser";
+import { useEffect } from "react";
+import { useForm } from "react-hook-form";
+import { toast } from "sonner";
+import { z } from "zod";
+import type { DeploymentSchedule } from "@/api/deployments";
 import {
 	useCreateDeploymentSchedule,
 	useUpdateDeploymentSchedule,
 } from "@/api/deployments";
-import type { DeploymentSchedule } from "@/api/deployments";
 import { Button } from "@/components/ui/button";
 import { CronInput } from "@/components/ui/cron-input";
 import {
@@ -25,12 +31,6 @@ import { Icon } from "@/components/ui/icons";
 import { Switch } from "@/components/ui/switch";
 import { TimezoneSelect } from "@/components/ui/timezone-select";
 import { Typography } from "@/components/ui/typography";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { CronExpressionParser } from "cron-parser";
-import { useEffect } from "react";
-import { useForm } from "react-hook-form";
-import { toast } from "sonner";
-import { z } from "zod";
 
 const verifyCronValue = (cronValue: string) => {
 	try {

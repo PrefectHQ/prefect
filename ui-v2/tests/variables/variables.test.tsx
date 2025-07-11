@@ -1,7 +1,6 @@
 import { Toaster } from "@/components/ui/sonner";
 import { VariablesDataTable } from "@/components/variables/data-table";
 import "@/mocks/mock-json-input";
-import { router } from "@/router";
 import { RouterProvider } from "@tanstack/react-router";
 import {
 	getByLabelText,
@@ -14,7 +13,7 @@ import {
 import userEvent from "@testing-library/user-event";
 import { buildApiUrl, createWrapper, server } from "@tests/utils";
 import { mockPointerEvents } from "@tests/utils/browser";
-import { http, HttpResponse } from "msw";
+import { HttpResponse, http } from "msw";
 import {
 	afterEach,
 	beforeAll,
@@ -24,6 +23,7 @@ import {
 	it,
 	vi,
 } from "vitest";
+import { router } from "@/router";
 
 const renderVariablesPage = async () => {
 	const user = userEvent.setup();
@@ -666,9 +666,7 @@ describe("Variables page", () => {
 				{ wrapper: createWrapper() },
 			);
 
-			const select = screen.getByRole("combobox", {
-				name: "Variable sort order",
-			});
+			const select = screen.getByLabelText("Variable sort order");
 			expect(screen.getByText("Created")).toBeVisible();
 
 			await user.click(select);
@@ -708,9 +706,7 @@ describe("Variables page", () => {
 				{ wrapper: createWrapper() },
 			);
 
-			const select = screen.getByRole("combobox", {
-				name: "Items per page",
-			});
+			const select = screen.getByLabelText("Items per page");
 			expect(screen.getByText("10")).toBeVisible();
 
 			await user.click(select);

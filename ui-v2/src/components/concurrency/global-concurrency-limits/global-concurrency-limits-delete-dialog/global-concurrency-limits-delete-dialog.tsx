@@ -1,3 +1,4 @@
+import { toast } from "sonner";
 import {
 	type GlobalConcurrencyLimit,
 	useDeleteGlobalConcurrencyLimit,
@@ -12,7 +13,6 @@ import {
 	DialogTitle,
 	DialogTrigger,
 } from "@/components/ui/dialog";
-import { toast } from "sonner";
 
 type GlobalConcurrencyLimitsDeleteDialogProps = {
 	limit: GlobalConcurrencyLimit;

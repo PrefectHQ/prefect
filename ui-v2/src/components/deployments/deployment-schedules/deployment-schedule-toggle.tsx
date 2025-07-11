@@ -1,3 +1,4 @@
+import { toast } from "sonner";
 import { type Deployment, useUpdateDeployment } from "@/api/deployments";
 import { Switch } from "@/components/ui/switch";
 import {
@@ -6,7 +7,6 @@ import {
 	TooltipProvider,
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { toast } from "sonner";
 
 type DeploymentScheduleToggleProps = {
 	deployment: Deployment;

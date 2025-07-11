@@ -1,3 +1,6 @@
+import { Link } from "@tanstack/react-router";
+import Markdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import type { BlockType } from "@/api/block-types";
 import { BlockTypeLogo } from "@/components/block-type-logo/block-type-logo";
 import { PythonBlockSnippet } from "@/components/blocks/python-example-snippet";
@@ -11,9 +14,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Typography } from "@/components/ui/typography";
-import { Link } from "@tanstack/react-router";
-import Markdown from "react-markdown";
-import remarkGfm from "remark-gfm";
 
 type BlockTypePageProps = {
 	blockType: BlockType;

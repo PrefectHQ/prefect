@@ -7,11 +7,11 @@ import { SchemaFormPropertyErrors } from "./schema-form-property-errors";
 import { SchemaFormPropertyLabel } from "./schema-form-property-label";
 import { SchemaFormPropertyMenu } from "./schema-form-property-menu";
 import {
+	isSchemaValueIndexError,
+	isSchemaValuePropertyError,
 	type SchemaFormErrors,
 	type SchemaValueIndexError,
 	type SchemaValuePropertyError,
-	isSchemaValueIndexError,
-	isSchemaValuePropertyError,
 } from "./types/errors";
 import { useSchemaFormContext } from "./use-schema-form-context";
 import { isDefined } from "./utilities/guards";

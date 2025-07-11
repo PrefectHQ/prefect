@@ -1,3 +1,5 @@
+import type { CellContext } from "@tanstack/react-table";
+import { toast } from "sonner";
 import type { GlobalConcurrencyLimit } from "@/api/global-concurrency-limits";
 import { Button } from "@/components/ui/button";
 import {
@@ -8,8 +10,6 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Icon } from "@/components/ui/icons";
-import type { CellContext } from "@tanstack/react-table";
-import { toast } from "sonner";
 
 type ActionsCellProps = CellContext<GlobalConcurrencyLimit, unknown> & {
 	onEditRow: (row: GlobalConcurrencyLimit) => void;

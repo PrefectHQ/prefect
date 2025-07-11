@@ -1,12 +1,3 @@
-import type { components } from "@/api/prefect";
-import { VariablesDataTable } from "@/components/variables/data-table";
-import { VariablesEmptyState } from "@/components/variables/empty-state";
-import { VariablesLayout } from "@/components/variables/layout";
-import {
-	VariableDialog,
-	useVariableDialog,
-} from "@/components/variables/variable-dialog";
-import { useVariables } from "@/hooks/variables";
 import { createFileRoute } from "@tanstack/react-router";
 import type {
 	ColumnFiltersState,
@@ -15,6 +6,15 @@ import type {
 import { zodValidator } from "@tanstack/zod-adapter";
 import { useCallback, useMemo } from "react";
 import { z } from "zod";
+import type { components } from "@/api/prefect";
+import { VariablesDataTable } from "@/components/variables/data-table";
+import { VariablesEmptyState } from "@/components/variables/empty-state";
+import { VariablesLayout } from "@/components/variables/layout";
+import {
+	useVariableDialog,
+	VariableDialog,
+} from "@/components/variables/variable-dialog";
+import { useVariables } from "@/hooks/variables";
 
 /**
  * Schema for validating URL search parameters for the variables page.

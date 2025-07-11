@@ -1,9 +1,9 @@
-import type { components } from "@/api/prefect";
 import {
 	infiniteQueryOptions,
 	keepPreviousData,
 	queryOptions,
 } from "@tanstack/react-query";
+import type { components } from "@/api/prefect";
 import { getQueryService } from "../service";
 
 type LogsFilter = components["schemas"]["Body_read_logs_logs_filter_post"];

@@ -1,6 +1,6 @@
-import type { TaskRunConcurrencyLimit } from "@/api/task-run-concurrency-limits";
 import { Link } from "@tanstack/react-router";
 import type { CellContext } from "@tanstack/react-table";
+import type { TaskRunConcurrencyLimit } from "@/api/task-run-concurrency-limits";
 
 type TagCellProps = CellContext<TaskRunConcurrencyLimit, string>;
 

@@ -1,11 +1,10 @@
+import { useSuspenseQuery } from "@tanstack/react-query";
+import clsx from "clsx";
 import { buildGetFlowRunsTaskRunsCountQuery } from "@/api/task-runs";
 import type { FlowRunCardData } from "@/components/flow-runs/flow-run-card";
 import { Icon } from "@/components/ui/icons";
-
 import { Typography } from "@/components/ui/typography";
 import { pluralize } from "@/utils";
-import { useSuspenseQuery } from "@tanstack/react-query";
-import clsx from "clsx";
 
 type FlowRunTaskRunsProps = {
 	flowRun: FlowRunCardData;

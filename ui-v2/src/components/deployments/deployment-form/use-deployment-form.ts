@@ -1,15 +1,15 @@
-import {
-	type Deployment,
-	useCreateDeployment,
-	useUpdateDeployment,
-} from "@/api/deployments";
-import { useSchemaForm } from "@/components/schemas";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useNavigate } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
+import {
+	type Deployment,
+	useCreateDeployment,
+	useUpdateDeployment,
+} from "@/api/deployments";
+import { useSchemaForm } from "@/components/schemas";
 
 type FormMode = "edit" | "duplicate";
 

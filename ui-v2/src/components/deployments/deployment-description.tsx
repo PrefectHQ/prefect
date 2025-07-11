@@ -1,6 +1,6 @@
-import type { Deployment } from "@/api/deployments";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import type { Deployment } from "@/api/deployments";
 
 type DeploymentDescriptionProps = {
 	deployment: Deployment;

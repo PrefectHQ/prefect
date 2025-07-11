@@ -1,14 +1,13 @@
-import { Icon } from "@/components/ui/icons";
 import { DotsHorizontalIcon } from "@radix-ui/react-icons";
-
+import { Link, type LinkProps } from "@tanstack/react-router";
+import * as React from "react";
 import {
 	Button,
 	type ButtonProps,
 	buttonVariants,
 } from "@/components/ui/button";
+import { Icon } from "@/components/ui/icons";
 import { cn } from "@/lib/utils";
-import { Link, type LinkProps } from "@tanstack/react-router";
-import * as React from "react";
 
 type PaginationProps = React.ComponentProps<"nav"> & {
 	className?: string;

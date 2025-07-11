@@ -1,21 +1,23 @@
-import { createFakeArtifact, createFakeTaskRun } from "@/mocks";
 import { QueryClient } from "@tanstack/react-query";
 import {
-	RouterProvider,
 	createMemoryHistory,
 	createRootRoute,
 	createRouter,
+	RouterProvider,
 } from "@tanstack/react-router";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { buildApiUrl, createWrapper, server } from "@tests/utils";
-import { http, HttpResponse } from "msw";
+import { HttpResponse, http } from "msw";
 import { beforeEach, describe, expect, it } from "vitest";
+import { createFakeArtifact, createFakeTaskRun } from "@/mocks";
 import { TaskRunArtifacts } from "./index";
 
 // Wraps component in test with a Tanstack router provider
 const TaskRunArtifactsRouter = ({
 	taskRun,
-}: { taskRun: ReturnType<typeof createFakeTaskRun> }) => {
+}: {
+	taskRun: ReturnType<typeof createFakeTaskRun>;
+}) => {
 	const rootRoute = createRootRoute({
 		component: () => <TaskRunArtifacts taskRun={taskRun} />,
 	});

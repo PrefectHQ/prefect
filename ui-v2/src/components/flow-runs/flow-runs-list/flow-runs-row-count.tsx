@@ -1,12 +1,11 @@
+import type { CheckedState } from "@radix-ui/react-checkbox";
+import { useMemo } from "react";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog";
 import { Icon } from "@/components/ui/icons";
 import { Typography } from "@/components/ui/typography";
 import { pluralize } from "@/utils";
-
-import { Checkbox } from "@/components/ui/checkbox";
-import type { CheckedState } from "@radix-ui/react-checkbox";
-import { useMemo } from "react";
 import type { FlowRunCardData } from "../flow-run-card";
 import { useDeleteFlowRunsDialog } from "./use-delete-flow-runs-dialog";
 

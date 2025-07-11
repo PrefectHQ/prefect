@@ -1,15 +1,15 @@
-import { Toaster } from "@/components/ui/sonner";
 import { QueryClient } from "@tanstack/react-query";
 import {
-	RouterProvider,
 	createMemoryHistory,
 	createRootRoute,
 	createRouter,
+	RouterProvider,
 } from "@tanstack/react-router";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createWrapper } from "@tests/utils";
 import { describe, expect, it, vi } from "vitest";
+import { Toaster } from "@/components/ui/sonner";
 import { BlocksRowCount, type BlocksRowCountProps } from "./blocks-row-count";
 
 // Wraps component in test with a Tanstack router provider

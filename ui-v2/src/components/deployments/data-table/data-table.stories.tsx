@@ -1,3 +1,8 @@
+import type { Meta, StoryObj } from "@storybook/react";
+import { buildApiUrl } from "@tests/utils/handlers";
+import { HttpResponse, http } from "msw";
+import { type ComponentProps, useMemo, useState } from "react";
+import { fn } from "storybook/test";
 import type { FlowRunWithDeploymentAndFlow } from "@/api/flow-runs";
 import { createFakeDeploymentWithFlow } from "@/mocks";
 import { createFakeFlowRunWithDeploymentAndFlow } from "@/mocks/create-fake-flow-run";
@@ -6,11 +11,6 @@ import {
 	routerDecorator,
 	toastDecorator,
 } from "@/storybook/utils";
-import type { Meta, StoryObj } from "@storybook/react";
-import { buildApiUrl } from "@tests/utils/handlers";
-import { http, HttpResponse } from "msw";
-import { type ComponentProps, useMemo, useState } from "react";
-import { fn } from "storybook/test";
 import { DeploymentsDataTable } from ".";
 
 export default {

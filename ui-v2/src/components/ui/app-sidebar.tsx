@@ -1,3 +1,4 @@
+import { Link } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import {
 	Sidebar,
@@ -9,7 +10,6 @@ import {
 	SidebarMenuButton,
 	SidebarMenuItem,
 } from "@/components/ui/sidebar";
-import { Link } from "@tanstack/react-router";
 
 export function AppSidebar() {
 	return (

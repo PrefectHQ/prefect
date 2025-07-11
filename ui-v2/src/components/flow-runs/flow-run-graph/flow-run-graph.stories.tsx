@@ -1,7 +1,7 @@
 import { TooltipProvider } from "@radix-ui/react-tooltip";
 import type { Meta, StoryObj } from "@storybook/react";
 import { buildApiUrl } from "@tests/utils/handlers";
-import { http, HttpResponse } from "msw";
+import { HttpResponse, http } from "msw";
 import type { ComponentProps } from "react";
 import DemoData from "./demo-data.json";
 import DemoEvents from "./demo-events.json";

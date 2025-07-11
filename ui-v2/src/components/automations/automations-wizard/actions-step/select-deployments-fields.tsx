@@ -1,3 +1,6 @@
+import { useState } from "react";
+import { useFormContext, useWatch } from "react-hook-form";
+import type { DeploymentWithFlow } from "@/api/deployments";
 import { useListDeploymentsWithFlows } from "@/api/deployments/use-list-deployments-with-flows";
 import {
 	type AutomationWizardSchema,
@@ -13,8 +16,6 @@ import {
 	ComboboxContent,
 	ComboboxTrigger,
 } from "@/components/ui/combobox";
-
-import type { DeploymentWithFlow } from "@/api/deployments";
 import {
 	FormField,
 	FormItem,
@@ -23,8 +24,6 @@ import {
 } from "@/components/ui/form";
 import { Icon } from "@/components/ui/icons";
 import useDebounce from "@/hooks/use-debounce";
-import { useState } from "react";
-import { useFormContext, useWatch } from "react-hook-form";
 import { LoadingSelectState } from "./loading-select-state";
 
 const INFER_OPTION = {

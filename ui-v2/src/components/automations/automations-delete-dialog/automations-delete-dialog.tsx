@@ -1,3 +1,4 @@
+import { toast } from "sonner";
 import { type Automation, useDeleteAutomation } from "@/api/automations";
 import { Button } from "@/components/ui/button";
 import {
@@ -9,7 +10,6 @@ import {
 	DialogTitle,
 	DialogTrigger,
 } from "@/components/ui/dialog";
-import { toast } from "sonner";
 
 type AutomationsDeleteDialogProps = {
 	automation: Automation;

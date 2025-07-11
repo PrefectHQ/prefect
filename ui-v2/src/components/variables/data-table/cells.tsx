@@ -1,3 +1,6 @@
+import type { CellContext } from "@tanstack/react-table";
+import { useRef } from "react";
+import { toast } from "sonner";
 import type { components } from "@/api/prefect";
 import { Button } from "@/components/ui/button";
 import {
@@ -16,9 +19,6 @@ import { Icon } from "@/components/ui/icons";
 import { JsonInput } from "@/components/ui/json-input";
 import { useIsOverflowing } from "@/hooks/use-is-overflowing";
 import { useDeleteVariable } from "@/hooks/variables";
-import type { CellContext } from "@tanstack/react-table";
-import { useRef } from "react";
-import { toast } from "sonner";
 
 type ActionsCellProps = CellContext<
 	components["schemas"]["Variable"],

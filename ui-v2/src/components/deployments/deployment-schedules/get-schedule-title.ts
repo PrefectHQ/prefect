@@ -1,7 +1,7 @@
-import type { DeploymentSchedule } from "@/api/deployments";
 import cronstrue from "cronstrue";
 import humanizeDuration from "humanize-duration";
 import { rrulestr } from "rrule";
+import type { DeploymentSchedule } from "@/api/deployments";
 
 export const getScheduleTitle = (deploymentSchedule: DeploymentSchedule) => {
 	const { schedule } = deploymentSchedule;

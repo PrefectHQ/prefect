@@ -1,7 +1,7 @@
-import { createFakeGlobalConcurrencyLimit } from "@/mocks";
-import { reactQueryDecorator, toastDecorator } from "@/storybook/utils";
 import type { Meta, StoryObj } from "@storybook/react";
 import { fn } from "storybook/test";
+import { createFakeGlobalConcurrencyLimit } from "@/mocks";
+import { reactQueryDecorator, toastDecorator } from "@/storybook/utils";
 import { Table as GlobalConcurrencyLimitsDataTable } from "./global-concurrency-limits-data-table";
 
 const MOCK_DATA = [

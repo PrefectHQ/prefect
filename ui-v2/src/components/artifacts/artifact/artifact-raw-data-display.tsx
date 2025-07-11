@@ -1,9 +1,9 @@
-import type { ArtifactWithFlowRunAndTaskRun } from "@/api/artifacts";
-import { Button } from "@/components/ui/button";
-import { Icon } from "@/components/ui/icons";
 import { EditorView, useCodeMirror } from "@uiw/react-codemirror";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
+import type { ArtifactWithFlowRunAndTaskRun } from "@/api/artifacts";
+import { Button } from "@/components/ui/button";
+import { Icon } from "@/components/ui/icons";
 
 type ArtifactDataDisplayProps = {
 	artifact: ArtifactWithFlowRunAndTaskRun;

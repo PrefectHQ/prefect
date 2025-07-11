@@ -1,6 +1,6 @@
+import { createFileRoute } from "@tanstack/react-router";
 import { buildDeploymentDetailsQuery } from "@/api/deployments";
 import { DeploymentDuplicatePage } from "@/components/deployments/deployment-duplicate-page";
-import { createFileRoute } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/deployments/deployment_/$id/duplicate")({
 	component: RouteComponent,

@@ -1,2 +1,2 @@
-export { Toggle } from "./toggle";
 export { toggleVariants } from "./styles";
+export { Toggle } from "./toggle";
