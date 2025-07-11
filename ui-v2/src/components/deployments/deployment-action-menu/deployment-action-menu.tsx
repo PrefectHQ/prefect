@@ -1,3 +1,5 @@
+import { Link } from "@tanstack/react-router";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
 	DropdownMenu,
@@ -7,8 +9,6 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Icon } from "@/components/ui/icons";
-import { Link } from "@tanstack/react-router";
-import { toast } from "sonner";
 
 export type DeploymentActionMenuProps = {
 	id: string;

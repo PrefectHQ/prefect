@@ -1,5 +1,5 @@
-import type { components } from "@/api/prefect";
 import { rand } from "@ngneat/falso";
+import type { components } from "@/api/prefect";
 
 export const BLOCK_TYPES: Array<components["schemas"]["BlockType"]> = [
 	{

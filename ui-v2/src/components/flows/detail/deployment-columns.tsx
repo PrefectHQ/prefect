@@ -1,3 +1,4 @@
+import type { ColumnDef } from "@tanstack/react-table";
 import type { components } from "@/api/prefect";
 import { Button } from "@/components/ui/button";
 import {
@@ -7,7 +8,6 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Icon } from "@/components/ui/icons";
-import type { ColumnDef } from "@tanstack/react-table";
 
 type Deployment = components["schemas"]["DeploymentResponse"];
 

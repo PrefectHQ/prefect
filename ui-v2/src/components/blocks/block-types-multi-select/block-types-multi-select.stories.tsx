@@ -1,9 +1,9 @@
-import { createFakeBlockType } from "@/mocks";
-import { reactQueryDecorator } from "@/storybook/utils";
 import type { Meta, StoryObj } from "@storybook/react";
 import { buildApiUrl } from "@tests/utils/handlers";
-import { http, HttpResponse } from "msw";
+import { HttpResponse, http } from "msw";
 import { useState } from "react";
+import { createFakeBlockType } from "@/mocks";
+import { reactQueryDecorator } from "@/storybook/utils";
 import { BlockTypesMultiSelect } from "./block-types-multi-select";
 
 const MOCK_BLOCK_TYPES = Array.from({ length: 5 }, createFakeBlockType);

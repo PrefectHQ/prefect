@@ -1,9 +1,8 @@
-import { TaskRunConcurrencyLimitsResetDialog } from "./task-run-concurrency-limits-reset-dialog";
-
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createWrapper } from "@tests/utils";
 import { expect, test, vi } from "vitest";
+import { TaskRunConcurrencyLimitsResetDialog } from "./task-run-concurrency-limits-reset-dialog";
 
 const MOCK_DATA = {
 	id: "0",

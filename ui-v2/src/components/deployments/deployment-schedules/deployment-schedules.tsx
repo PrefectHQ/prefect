@@ -1,8 +1,8 @@
+import { useMemo } from "react";
 import type { Deployment } from "@/api/deployments";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icons";
 import { Typography } from "@/components/ui/typography";
-import { useMemo } from "react";
 import { DeploymentScheduleItem } from "./deployment-schedule-item";
 import { DeploymentScheduleToggle } from "./deployment-schedule-toggle";
 

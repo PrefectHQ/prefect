@@ -1,8 +1,8 @@
+import { useSuspenseQuery } from "@tanstack/react-query";
+import { createFileRoute } from "@tanstack/react-router";
 import { type ArtifactsFilter, buildListArtifactsQuery } from "@/api/artifacts";
 import { useFilterArtifactsFlowTaskRuns } from "@/api/artifacts/use-get-artifacts-flow-task-runs/use-get-artifacts-flow-task-runs";
 import { ArtifactsKeyPage } from "@/components/artifacts/key/artifacts-key-page";
-import { useSuspenseQuery } from "@tanstack/react-query";
-import { createFileRoute } from "@tanstack/react-router";
 
 const buildFilterBody = (key: string): ArtifactsFilter => ({
 	artifacts: {

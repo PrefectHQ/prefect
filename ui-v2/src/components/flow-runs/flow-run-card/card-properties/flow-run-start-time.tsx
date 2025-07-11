@@ -1,3 +1,6 @@
+import humanizeDuration from "humanize-duration";
+import { useMemo } from "react";
+import type { FlowRunCardData } from "@/components/flow-runs/flow-run-card";
 import { Icon } from "@/components/ui/icons";
 import {
 	Tooltip,
@@ -6,10 +9,6 @@ import {
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { formatDate } from "@/utils/date";
-import humanizeDuration from "humanize-duration";
-import { useMemo } from "react";
-
-import type { FlowRunCardData } from "@/components/flow-runs/flow-run-card";
 
 type FlowRunStartTimeProps = { flowRun: FlowRunCardData };
 export const FlowRunStartTime = ({ flowRun }: FlowRunStartTimeProps) => {

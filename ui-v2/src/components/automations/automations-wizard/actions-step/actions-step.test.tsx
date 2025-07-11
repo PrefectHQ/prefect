@@ -1,3 +1,11 @@
+import { zodResolver } from "@hookform/resolvers/zod";
+import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { buildApiUrl, createWrapper, server } from "@tests/utils";
+import { mockPointerEvents } from "@tests/utils/browser";
+import { HttpResponse, http } from "msw";
+import { useForm } from "react-hook-form";
+import { beforeAll, describe, expect, it } from "vitest";
 import type { Automation } from "@/api/automations";
 import type { Deployment } from "@/api/deployments";
 import type { Flow } from "@/api/flows";
@@ -12,14 +20,6 @@ import {
 	createFakeWorkPool,
 	createFakeWorkQueue,
 } from "@/mocks";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { render, screen } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
-import { buildApiUrl, createWrapper, server } from "@tests/utils";
-import { mockPointerEvents } from "@tests/utils/browser";
-import { http, HttpResponse } from "msw";
-import { useForm } from "react-hook-form";
-import { beforeAll, describe, expect, it } from "vitest";
 import { ActionsStep } from "./actions-step";
 
 const ActionStepFormContainer = () => {

@@ -1,10 +1,10 @@
-import type { components } from "@/api/prefect";
-import { getQueryService } from "@/api/service";
 import {
 	queryOptions,
 	useMutation,
 	useQueryClient,
 } from "@tanstack/react-query";
+import type { components } from "@/api/prefect";
+import { getQueryService } from "@/api/service";
 
 export type WorkPool = components["schemas"]["WorkPool"];
 export type WorkPoolsFilter =

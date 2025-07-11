@@ -1,12 +1,11 @@
-import type { WorkPool } from "@/api/work-pools";
-
-import { createFakeWorkPool } from "@/mocks";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { buildApiUrl, createWrapper, server } from "@tests/utils";
 import { mockPointerEvents } from "@tests/utils/browser";
-import { http, HttpResponse } from "msw";
+import { HttpResponse, http } from "msw";
 import { beforeAll, describe, expect, it, vi } from "vitest";
+import type { WorkPool } from "@/api/work-pools";
+import { createFakeWorkPool } from "@/mocks";
 import { WorkPoolSelect } from "./work-pool-select";
 
 describe("WorkPoolSelect", () => {

@@ -1,6 +1,3 @@
-import type { FlowRunsFilter } from "@/api/flow-runs";
-import type { components } from "@/api/prefect";
-import { getQueryService } from "@/api/service";
 import type {
 	MutationFunction,
 	QueryFunction,
@@ -8,6 +5,9 @@ import type {
 	QueryObserverOptions,
 } from "@tanstack/react-query";
 import { format } from "date-fns";
+import type { FlowRunsFilter } from "@/api/flow-runs";
+import type { components } from "@/api/prefect";
+import { getQueryService } from "@/api/service";
 
 export const flowQueryParams = (
 	flowId: string,

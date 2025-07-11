@@ -1,8 +1,8 @@
+import { useSuspenseQuery } from "@tanstack/react-query";
+import { createFileRoute } from "@tanstack/react-router";
 import { buildGetArtifactQuery } from "@/api/artifacts";
 import { useGetArtifactFlowTaskRuns } from "@/api/artifacts/use-get-artifacts-flow-task-runs/use-get-artifacts-flow-task-runs";
 import { ArtifactDetailPage } from "@/components/artifacts/artifact/artifact-detail-page";
-import { useSuspenseQuery } from "@tanstack/react-query";
-import { createFileRoute } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/artifacts/artifact/$id")({
 	component: RouteComponent,

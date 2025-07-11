@@ -1,11 +1,11 @@
-import type { WorkQueue } from "@/api/work-queues";
-import { createFakeWorkQueue } from "@/mocks";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { buildApiUrl, createWrapper, server } from "@tests/utils";
 import { mockPointerEvents } from "@tests/utils/browser";
-import { http, HttpResponse } from "msw";
+import { HttpResponse, http } from "msw";
 import { beforeAll, describe, expect, it, vi } from "vitest";
+import type { WorkQueue } from "@/api/work-queues";
+import { createFakeWorkQueue } from "@/mocks";
 import { WorkQueueSelect } from "./work-queue-select";
 
 describe("WorkQueueSelect", () => {

@@ -1,11 +1,10 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeAll, describe, expect, it, vi } from "vitest";
-
-import { Dialog } from "@/components/ui/dialog";
-import { Toaster } from "@/components/ui/sonner";
 import { createWrapper } from "@tests/utils";
 import { mockPointerEvents } from "@tests/utils/browser";
+import { beforeAll, describe, expect, it, vi } from "vitest";
+import { Dialog } from "@/components/ui/dialog";
+import { Toaster } from "@/components/ui/sonner";
 import {
 	CronScheduleForm,
 	type CronScheduleFormProps,

@@ -1,7 +1,6 @@
 import { Toaster } from "@/components/ui/sonner";
 import { VariablesDataTable } from "@/components/variables/data-table";
 import "@/mocks/mock-json-input";
-import { router } from "@/router";
 import { RouterProvider } from "@tanstack/react-router";
 import {
 	getByLabelText,
@@ -14,7 +13,7 @@ import {
 import userEvent from "@testing-library/user-event";
 import { buildApiUrl, createWrapper, server } from "@tests/utils";
 import { mockPointerEvents } from "@tests/utils/browser";
-import { http, HttpResponse } from "msw";
+import { HttpResponse, http } from "msw";
 import {
 	afterEach,
 	beforeAll,
@@ -24,6 +23,7 @@ import {
 	it,
 	vi,
 } from "vitest";
+import { router } from "@/router";
 
 const renderVariablesPage = async () => {
 	const user = userEvent.setup();

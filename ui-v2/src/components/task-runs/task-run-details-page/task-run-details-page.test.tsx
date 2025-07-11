@@ -3,16 +3,16 @@ import { createFakeState, createFakeTaskRun } from "@/mocks";
 import "@/mocks/mock-json-input";
 import { QueryClient } from "@tanstack/react-query";
 import {
-	RouterProvider,
 	createMemoryHistory,
+	createRootRoute,
 	createRoute,
 	createRouter,
+	RouterProvider,
 } from "@tanstack/react-router";
-import { createRootRoute } from "@tanstack/react-router";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { buildApiUrl, createWrapper, server } from "@tests/utils";
-import { http, HttpResponse } from "msw";
+import { HttpResponse, http } from "msw";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { TaskRunDetailsPage } from ".";
 

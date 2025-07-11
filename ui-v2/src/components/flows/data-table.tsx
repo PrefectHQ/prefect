@@ -1,3 +1,12 @@
+import { useNavigate } from "@tanstack/react-router";
+import {
+	getCoreRowModel,
+	getPaginationRowModel,
+	type RowSelectionState,
+	useReactTable,
+} from "@tanstack/react-table";
+import { useState } from "react";
+import { type Flow, useDeleteFlowById } from "@/api/flows";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/ui/data-table";
 import {
@@ -8,17 +17,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Icon } from "@/components/ui/icons";
 import { Input } from "@/components/ui/input";
-import { useNavigate } from "@tanstack/react-router";
-import {
-	type RowSelectionState,
-	getCoreRowModel,
-	getPaginationRowModel,
-	useReactTable,
-} from "@tanstack/react-table";
-
-import { type Flow, useDeleteFlowById } from "@/api/flows";
 import { useSet } from "@/hooks/use-set";
-import { useState } from "react";
 import { columns } from "./columns";
 import { TableCountHeader } from "./table-count-header";
 
@@ -186,22 +185,20 @@ export default function FlowsTable({
 	};
 
 	return (
-		<>
-			<div className="h-full">
-				<header className="mb-2 flex flex-row justify-between">
-					<TableCountHeader
-						count={count}
-						handleDeleteRows={handleDeleteRows}
-						rowSelectionState={rowSelection}
-					/>
-					<div className="flex space-x-4">
-						<SearchComponent />
-						<FilterComponent />
-						<SortComponent />
-					</div>
-				</header>
-				<DataTable table={table} />
-			</div>
-		</>
+		<div className="h-full">
+			<header className="mb-2 flex flex-row justify-between">
+				<TableCountHeader
+					count={count}
+					handleDeleteRows={handleDeleteRows}
+					rowSelectionState={rowSelection}
+				/>
+				<div className="flex space-x-4">
+					<SearchComponent />
+					<FilterComponent />
+					<SortComponent />
+				</div>
+			</header>
+			<DataTable table={table} />
+		</div>
 	);
 }

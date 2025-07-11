@@ -1,3 +1,4 @@
+import { createContext, use, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
 	Command,
@@ -14,7 +15,6 @@ import {
 	PopoverTrigger,
 } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
-import { createContext, use, useState } from "react";
 
 const ComboboxContext = createContext<{
 	open: boolean;
@@ -55,8 +55,6 @@ const ComboboxTrigger = ({
 				aria-label={ariaLabel}
 				aria-expanded={open}
 				variant="outline"
-				// biome-ignore lint/a11y/useSemanticElements:
-				role="combobox"
 				className={cn(
 					"w-full justify-between",
 					selected && "text-muted-foreground",
@@ -70,11 +68,7 @@ const ComboboxTrigger = ({
 	);
 };
 
-const ComboboxContent = ({
-	children,
-}: {
-	children: React.ReactNode;
-}) => {
+const ComboboxContent = ({ children }: { children: React.ReactNode }) => {
 	return (
 		<PopoverContent fullWidth>
 			<Command shouldFilter={false}>{children}</Command>

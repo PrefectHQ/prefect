@@ -1,16 +1,17 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-
-import { Toaster } from "@/components/ui/sonner";
-import { createFakeWorkPool } from "@/mocks/create-fake-work-pool";
 import { QueryClient } from "@tanstack/react-query";
-import { RouterProvider } from "@tanstack/react-router";
-import { createMemoryHistory } from "@tanstack/react-router";
-import { createRouter } from "@tanstack/react-router";
-import { createRootRoute } from "@tanstack/react-router";
+import {
+	createMemoryHistory,
+	createRootRoute,
+	createRouter,
+	RouterProvider,
+} from "@tanstack/react-router";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createWrapper } from "@tests/utils";
 import { mockPointerEvents } from "@tests/utils/browser";
+import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { Toaster } from "@/components/ui/sonner";
+import { createFakeWorkPool } from "@/mocks/create-fake-work-pool";
 import {
 	WorkPoolContextMenu,
 	type WorkPoolContextMenuProps,

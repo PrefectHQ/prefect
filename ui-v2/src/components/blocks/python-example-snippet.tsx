@@ -1,5 +1,5 @@
-import { PythonInput } from "@/components/ui/python-input";
 import { useMemo } from "react";
+import { PythonInput } from "@/components/ui/python-input";
 
 type PythonBlockSnippetProps = {
 	codeExample: string;
