@@ -10,6 +10,7 @@ from prefect._internal.websockets import (
     create_ssl_context_for_websocket,
     websocket_connect,
 )
+from prefect.events.clients import events_in_socket_from_api_url
 from prefect.settings import (
     PREFECT_API_TLS_INSECURE_SKIP_VERIFY,
     PREFECT_CLIENT_CUSTOM_HEADERS,
@@ -160,9 +161,11 @@ def test_websocket_proxy_connect_no_server_hostname_for_ws():
 
 def test_websocket_proxy_connect_kwargs_preservation():
     """Test that additional kwargs are preserved"""
-    extra_headers = {"Authorization": "Bearer token"}
-    connector = WebsocketProxyConnect("wss://example.com", extra_headers=extra_headers)
-    assert connector._kwargs["extra_headers"] == extra_headers
+    additional_headers = {"Authorization": "Bearer token"}
+    connector = WebsocketProxyConnect(
+        "wss://example.com", additional_headers=additional_headers
+    )
+    assert connector._kwargs["additional_headers"] == additional_headers
 
 
 def test_create_ssl_context_with_custom_cert_file():
@@ -208,34 +211,34 @@ def test_websocket_proxy_creation_is_deferred():
 
 
 def test_websocket_custom_headers():
-    """Test that custom headers from settings are added to extra_headers"""
+    """Test that custom headers from settings are added to additional_headers"""
     custom_headers = {"X-Custom-Header": "test-value", "Authorization": "Bearer token"}
 
     with temporary_settings({PREFECT_CLIENT_CUSTOM_HEADERS: custom_headers}):
         connector = WebsocketProxyConnect("wss://example.com")
 
-        # Check that custom headers are in extra_headers
-        assert "extra_headers" in connector._kwargs
-        extra_headers = connector._kwargs["extra_headers"]
-        assert extra_headers["X-Custom-Header"] == "test-value"
-        assert extra_headers["Authorization"] == "Bearer token"
+        # Check that custom headers are in additional_headers
+        assert "additional_headers" in connector._kwargs
+        additional_headers = connector._kwargs["additional_headers"]
+        assert additional_headers["X-Custom-Header"] == "test-value"
+        assert additional_headers["Authorization"] == "Bearer token"
 
 
 def test_websocket_custom_headers_merge_with_existing():
-    """Test that custom headers merge with existing extra_headers"""
+    """Test that custom headers merge with existing additional_headers"""
 
     custom_headers = {"X-Custom-Header": "test-value"}
     existing_headers = {"X-Existing-Header": "existing-value"}
 
     with temporary_settings({PREFECT_CLIENT_CUSTOM_HEADERS: custom_headers}):
         connector = WebsocketProxyConnect(
-            "wss://example.com", extra_headers=existing_headers
+            "wss://example.com", additional_headers=existing_headers
         )
 
         # Check that both existing and custom headers are present
-        extra_headers = connector._kwargs["extra_headers"]
-        assert extra_headers["X-Custom-Header"] == "test-value"
-        assert extra_headers["X-Existing-Header"] == "existing-value"
+        additional_headers = connector._kwargs["additional_headers"]
+        assert additional_headers["X-Custom-Header"] == "test-value"
+        assert additional_headers["X-Existing-Header"] == "existing-value"
 
 
 def test_websocket_custom_headers_protected_headers_warning():
@@ -258,11 +261,11 @@ def test_websocket_custom_headers_protected_headers_warning():
             assert "Sec-WebSocket-Key" in str(w[1].message)
             assert "protected WebSocket header" in str(w[0].message)
 
-            # Only non-protected header should be in extra_headers
-            extra_headers = connector._kwargs["extra_headers"]
-            assert extra_headers["X-Custom-Header"] == "test-value"
-            assert "User-Agent" not in extra_headers
-            assert "Sec-WebSocket-Key" not in extra_headers
+            # Only non-protected header should be in additional_headers
+            additional_headers = connector._kwargs["additional_headers"]
+            assert additional_headers["X-Custom-Header"] == "test-value"
+            assert "User-Agent" not in additional_headers
+            assert "Sec-WebSocket-Key" not in additional_headers
 
 
 def test_websocket_custom_headers_empty_settings():
@@ -271,22 +274,26 @@ def test_websocket_custom_headers_empty_settings():
     with temporary_settings({PREFECT_CLIENT_CUSTOM_HEADERS: {}}):
         connector = WebsocketProxyConnect("wss://example.com")
 
-        # Should not have extra_headers if no custom headers
+        # Should not have additional_headers if no custom headers
         assert (
-            "extra_headers" not in connector._kwargs
-            or connector._kwargs["extra_headers"] == {}
+            "additional_headers" not in connector._kwargs
+            or connector._kwargs["additional_headers"] == {}
         )
 
 
-def test_websocket_custom_headers_with_websocket_connect():
+async def test_websocket_custom_headers_with_websocket_connect(hosted_api_server: str):
     """Test that custom headers work with the websocket_connect utility function"""
 
     custom_headers = {"X-Custom-Header": "test-value"}
 
     with temporary_settings({PREFECT_CLIENT_CUSTOM_HEADERS: custom_headers}):
-        connector = websocket_connect("wss://example.com")
+        connector = websocket_connect(events_in_socket_from_api_url(hosted_api_server))
+        # Make sure we can connect to the websocket successfully with the custom headers
+        async with connector as websocket:
+            pong = await websocket.ping()
+            await pong
 
-        # Check that custom headers are in extra_headers
-        assert "extra_headers" in connector._kwargs
-        extra_headers = connector._kwargs["extra_headers"]
-        assert extra_headers["X-Custom-Header"] == "test-value"
+        # Check that custom headers are in additional_headers
+        assert "additional_headers" in connector._kwargs
+        additional_headers = connector._kwargs["additional_headers"]
+        assert additional_headers["X-Custom-Header"] == "test-value"
