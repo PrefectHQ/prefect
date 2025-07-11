@@ -747,6 +747,64 @@ class TestDeleteTaskRun:
             )
         ) is None
 
+    async def test_delete_task_run_deletes_logs(self, task_run, session):
+        # create some task run and non task run logs
+        task_logs = [
+            models.logs.LogCreate(
+                name="prefect.task_run",
+                level=10,
+                message="just doing my task thing",
+                timestamp=now(),
+                flow_run_id=task_run.flow_run_id,
+                task_run_id=task_run.id,
+            ),
+            models.logs.LogCreate(
+                name="prefect.flow_run",
+                level=10,
+                message="still at task",
+                timestamp=now(),
+                flow_run_id=task_run.flow_run_id,
+                task_run_id=task_run.id,
+            ),
+        ]
+        non_task_logs = [
+            models.logs.LogCreate(
+                name="prefect.flow_run",
+                level=10,
+                message="random flow run message",
+                timestamp=now(),
+                flow_run_id=task_run.flow_run_id,
+            ),
+            models.logs.LogCreate(
+                name="prefect",
+                level=10,
+                message="random prefect message that's not related to a flow or task",
+                timestamp=now(),
+            ),
+        ]
+        await models.logs.create_logs(session=session, logs=task_logs + non_task_logs)
+
+        # make sure we can read back our logs
+        read_logs = await models.logs.read_logs(session=session, log_filter=None)
+        assert len(read_logs) == len(task_logs) + len(non_task_logs)
+
+        # delete our task run
+        assert await models.task_runs.delete_task_run(
+            session=session, task_run_id=task_run.id
+        )
+
+        # make sure the task run is deleted
+        assert (
+            await models.task_runs.read_task_run(
+                session=session, task_run_id=task_run.id
+            )
+        ) is None
+
+        # make sure the associated logs are deleted
+        remaining_logs = await models.logs.read_logs(session=session, log_filter=None)
+        assert len(remaining_logs) == len(non_task_logs)
+        assert all(log.task_run_id is None for log in remaining_logs)
+
 
 class TestPreventOrphanedConcurrencySlots:
     @pytest.fixture

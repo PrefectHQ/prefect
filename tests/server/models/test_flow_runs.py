@@ -1409,3 +1409,56 @@ class TestDeleteFlowRun:
 
         await session.refresh(concurrency_limit)
         assert concurrency_limit.active_slots == expected_slots
+
+    async def test_delete_flow_run_deletes_logs(self, flow, session):
+        # create a flow run to delete
+        flow_run = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(flow_id=flow.id),
+        )
+
+        # create some flow run and non flow run logs
+        flow_logs = [
+            models.logs.LogCreate(
+                name="prefect.flow_run",
+                level=10,
+                message="just doing my thing",
+                timestamp=now(),
+                flow_run_id=flow_run.id,
+            ),
+            models.logs.LogCreate(
+                name="prefect.flow_run",
+                level=10,
+                message="still flowing",
+                timestamp=now(),
+                flow_run_id=flow_run.id,
+            ),
+        ]
+        non_flow_logs = [
+            models.logs.LogCreate(
+                name="prefect",
+                level=10,
+                message="random prefect message that's not related to a flow",
+                timestamp=now(),
+            ),
+        ]
+        await models.logs.create_logs(session=session, logs=flow_logs + non_flow_logs)
+
+        # make sure we can read back our logs
+        read_logs = await models.logs.read_logs(session=session, log_filter=None)
+        assert len(read_logs) == len(flow_logs) + len(non_flow_logs)
+
+        assert await models.flow_runs.delete_flow_run(
+            session=session, flow_run_id=flow_run.id
+        )
+
+        # make sure the flow run is deleted
+        result = await models.flow_runs.read_flow_run(
+            session=session, flow_run_id=flow_run.id
+        )
+        assert result is None
+
+        # make sure the associated logs are deleted
+        remaining_logs = await models.logs.read_logs(session=session, log_filter=None)
+        assert len(remaining_logs) == len(non_flow_logs)
+        assert all(log.flow_run_id is None for log in remaining_logs)
