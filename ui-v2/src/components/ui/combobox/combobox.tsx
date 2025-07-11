@@ -54,6 +54,7 @@ const ComboboxTrigger = ({
 			<Button
 				aria-label={ariaLabel}
 				aria-expanded={open}
+				aria-haspopup="listbox"
 				variant="outline"
 				className={cn(
 					"w-full justify-between",

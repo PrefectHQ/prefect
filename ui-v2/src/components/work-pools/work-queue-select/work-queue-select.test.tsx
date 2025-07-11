@@ -50,15 +50,11 @@ describe("WorkQueueSelect", () => {
 		);
 
 		await waitFor(() =>
-			expect(
-				screen.getByRole("combobox", { name: /select a work queue/i }),
-			).toBeVisible(),
+			expect(screen.getByLabelText(/select a work queue/i)).toBeVisible(),
 		);
 
 		// ------------ Act
-		await user.click(
-			screen.getByRole("combobox", { name: /select a work queue/i }),
-		);
+		await user.click(screen.getByLabelText(/select a work queue/i));
 		await user.click(screen.getByRole("option", { name: "my work queue 0" }));
 
 		// ------------ Assert
@@ -93,15 +89,11 @@ describe("WorkQueueSelect", () => {
 		);
 
 		await waitFor(() =>
-			expect(
-				screen.getByRole("combobox", { name: /select a work queue/i }),
-			).toBeVisible(),
+			expect(screen.getByLabelText(/select a work queue/i)).toBeVisible(),
 		);
 
 		// ------------ Act
-		await user.click(
-			screen.getByRole("combobox", { name: /select a work queue/i }),
-		);
+		await user.click(screen.getByLabelText(/select a work queue/i));
 		await user.click(screen.getByRole("option", { name: "None" }));
 
 		// ------------ Assert

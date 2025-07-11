@@ -666,9 +666,7 @@ describe("Variables page", () => {
 				{ wrapper: createWrapper() },
 			);
 
-			const select = screen.getByRole("combobox", {
-				name: "Variable sort order",
-			});
+			const select = screen.getByLabelText("Variable sort order");
 			expect(screen.getByText("Created")).toBeVisible();
 
 			await user.click(select);
@@ -708,9 +706,7 @@ describe("Variables page", () => {
 				{ wrapper: createWrapper() },
 			);
 
-			const select = screen.getByRole("combobox", {
-				name: "Items per page",
-			});
+			const select = screen.getByLabelText("Items per page");
 			expect(screen.getByText("10")).toBeVisible();
 
 			await user.click(select);

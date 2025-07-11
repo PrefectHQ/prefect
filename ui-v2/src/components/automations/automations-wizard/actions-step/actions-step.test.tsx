@@ -46,9 +46,7 @@ describe("ActionsStep", () => {
 			// ------------ Setup
 			render(<ActionStepFormContainer />);
 			// ------------ Act
-			await user.click(
-				screen.getByRole("combobox", { name: /select action/i }),
-			);
+			await user.click(screen.getByLabelText(/select action/i));
 			await user.click(
 				screen.getByRole("option", { name: "Cancel a flow run" }),
 			);
@@ -196,17 +194,13 @@ describe("ActionsStep", () => {
 			});
 
 			// ------------ Act
-			await user.click(
-				screen.getByRole("combobox", { name: /select action/i }),
-			);
+			await user.click(screen.getByLabelText(/select action/i));
 			await user.click(
 				screen.getByRole("option", { name: "Pause an automation" }),
 			);
 
 			expect(screen.getAllByText("Infer Automation")).toBeTruthy();
-			await user.click(
-				screen.getByRole("combobox", { name: /select automation to pause/i }),
-			);
+			await user.click(screen.getByLabelText(/select automation to pause/i));
 
 			await user.click(screen.getByRole("option", { name: "my automation 0" }));
 			// ------------ Assert
@@ -227,17 +221,13 @@ describe("ActionsStep", () => {
 			});
 
 			// ------------ Act
-			await user.click(
-				screen.getByRole("combobox", { name: /select action/i }),
-			);
+			await user.click(screen.getByLabelText(/select action/i));
 			await user.click(
 				screen.getByRole("option", { name: "Resume an automation" }),
 			);
 
 			expect(screen.getAllByText("Infer Automation")).toBeTruthy();
-			await user.click(
-				screen.getByRole("combobox", { name: /select automation to resume/i }),
-			);
+			await user.click(screen.getByLabelText(/select automation to resume/i));
 
 			await user.click(screen.getByRole("option", { name: "my automation 1" }));
 
@@ -287,17 +277,13 @@ describe("ActionsStep", () => {
 			});
 
 			// ------------ Act
-			await user.click(
-				screen.getByRole("combobox", { name: /select action/i }),
-			);
+			await user.click(screen.getByLabelText(/select action/i));
 			await user.click(
 				screen.getByRole("option", { name: "Pause a deployment" }),
 			);
 
 			expect(screen.getAllByText("Infer Deployment")).toBeTruthy();
-			await user.click(
-				screen.getByRole("combobox", { name: /select deployment to pause/i }),
-			);
+			await user.click(screen.getByLabelText(/select deployment to pause/i));
 
 			await user.click(screen.getByRole("option", { name: "my deployment 0" }));
 			// ------------ Assert
@@ -322,19 +308,13 @@ describe("ActionsStep", () => {
 			});
 
 			// ------------ Act
-			await user.click(
-				screen.getByRole("combobox", { name: /select action/i }),
-			);
+			await user.click(screen.getByLabelText(/select action/i));
 			await user.click(
 				screen.getByRole("option", { name: "Resume a deployment" }),
 			);
 
 			expect(screen.getAllByText("Infer Deployment")).toBeTruthy();
-			await user.click(
-				screen.getByRole("combobox", {
-					name: /select deployment to resume/i,
-				}),
-			);
+			await user.click(screen.getByLabelText(/select deployment to resume/i));
 
 			await user.click(screen.getByRole("option", { name: "my deployment 1" }));
 
@@ -369,17 +349,13 @@ describe("ActionsStep", () => {
 			});
 
 			// ------------ Act
-			await user.click(
-				screen.getByRole("combobox", { name: /select action/i }),
-			);
+			await user.click(screen.getByLabelText(/select action/i));
 			await user.click(
 				screen.getByRole("option", { name: "Pause a work pool" }),
 			);
 
 			expect(screen.getAllByText("Infer Work Pool")).toBeTruthy();
-			await user.click(
-				screen.getByRole("combobox", { name: /select work pool to pause/i }),
-			);
+			await user.click(screen.getByLabelText(/select work pool to pause/i));
 
 			await user.click(screen.getByRole("option", { name: "my work pool 0" }));
 			// ------------ Assert
@@ -400,19 +376,13 @@ describe("ActionsStep", () => {
 			});
 
 			// ------------ Act
-			await user.click(
-				screen.getByRole("combobox", { name: /select action/i }),
-			);
+			await user.click(screen.getByLabelText(/select action/i));
 			await user.click(
 				screen.getByRole("option", { name: "Resume a work pool" }),
 			);
 
 			expect(screen.getAllByText("Infer Work Pool")).toBeTruthy();
-			await user.click(
-				screen.getByRole("combobox", {
-					name: /select work pool to resume/i,
-				}),
-			);
+			await user.click(screen.getByLabelText(/select work pool to resume/i));
 
 			await user.click(screen.getByRole("option", { name: "my work pool 1" }));
 
@@ -451,17 +421,13 @@ describe("ActionsStep", () => {
 			});
 
 			// ------------ Act
-			await user.click(
-				screen.getByRole("combobox", { name: /select action/i }),
-			);
+			await user.click(screen.getByLabelText(/select action/i));
 			await user.click(
 				screen.getByRole("option", { name: "Pause a work queue" }),
 			);
 
 			expect(screen.getAllByText("Infer Work Queue")).toBeTruthy();
-			await user.click(
-				screen.getByRole("combobox", { name: /select work queue to pause/i }),
-			);
+			await user.click(screen.getByLabelText(/select work queue to pause/i));
 
 			expect(screen.getByText("Work Pool A")).toBeVisible();
 			await user.click(screen.getByRole("option", { name: "my work queue 0" }));
@@ -489,19 +455,13 @@ describe("ActionsStep", () => {
 			});
 
 			// ------------ Act
-			await user.click(
-				screen.getByRole("combobox", { name: /select action/i }),
-			);
+			await user.click(screen.getByLabelText(/select action/i));
 			await user.click(
 				screen.getByRole("option", { name: "Resume a work queue" }),
 			);
 
 			expect(screen.getAllByText("Infer Work Queue")).toBeTruthy();
-			await user.click(
-				screen.getByRole("combobox", {
-					name: /select work queue to resume/i,
-				}),
-			);
+			await user.click(screen.getByLabelText(/select work queue to resume/i));
 
 			expect(screen.getByText("Work Pool A")).toBeVisible();
 			await user.click(screen.getByRole("option", { name: "my work queue 1" }));

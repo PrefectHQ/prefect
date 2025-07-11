@@ -35,9 +35,7 @@ describe("CronScheduleForm", () => {
 		await user.type(screen.getByLabelText(/value/i), "* * * * 1/2");
 
 		await user.click(screen.getByRole("switch", { name: /day or/i }));
-		await user.click(
-			screen.getByRole("combobox", { name: /select timezone/i }),
-		);
+		await user.click(screen.getByLabelText(/select timezone/i));
 		await user.click(screen.getByRole("option", { name: /africa \/ asmera/i }));
 		await user.click(screen.getByRole("button", { name: /save/i }));
 

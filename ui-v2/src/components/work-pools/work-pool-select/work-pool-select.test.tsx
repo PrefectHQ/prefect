@@ -34,15 +34,11 @@ describe("WorkPoolSelect", () => {
 		});
 
 		await waitFor(() =>
-			expect(
-				screen.getByRole("combobox", { name: /select a work pool/i }),
-			).toBeVisible(),
+			expect(screen.getByLabelText(/select a work pool/i)).toBeVisible(),
 		);
 
 		// ------------ Act
-		await user.click(
-			screen.getByRole("combobox", { name: /select a work pool/i }),
-		);
+		await user.click(screen.getByLabelText(/select a work pool/i));
 		await user.click(screen.getByRole("option", { name: "my work pool 0" }));
 
 		// ------------ Assert
@@ -70,15 +66,11 @@ describe("WorkPoolSelect", () => {
 		);
 
 		await waitFor(() =>
-			expect(
-				screen.getByRole("combobox", { name: /select a work pool/i }),
-			).toBeVisible(),
+			expect(screen.getByLabelText(/select a work pool/i)).toBeVisible(),
 		);
 
 		// ------------ Act
-		await user.click(
-			screen.getByRole("combobox", { name: /select a work pool/i }),
-		);
+		await user.click(screen.getByLabelText(/select a work pool/i));
 		await user.click(screen.getByRole("option", { name: "None" }));
 
 		// ------------ Assert
