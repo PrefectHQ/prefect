@@ -1,11 +1,11 @@
-import useDebounceCallback from "@/hooks/use-debounce-callback";
 import type { ObjectSubtype, SchemaObject } from "openapi-typescript";
 import { useCallback, useMemo, useRef } from "react";
+import useDebounceCallback from "@/hooks/use-debounce-callback";
 import { Card } from "../ui/card";
 import { SchemaFormProperty } from "./schema-form-property";
 import {
-	type SchemaFormErrors,
 	isSchemaValuePropertyError,
+	type SchemaFormErrors,
 } from "./types/errors";
 import type { PrefectObjectSubtype } from "./types/schemas";
 import { sortByPropertyPosition } from "./utilities/sortByPropertyPosition";

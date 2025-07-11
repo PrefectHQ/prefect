@@ -4,9 +4,9 @@ import {
 	randFutureDate,
 	randNumber,
 	randRecentDate,
+	randTimeZone,
 	randUuid,
 } from "@ngneat/falso";
-import { randTimeZone } from "@ngneat/falso";
 import type { components } from "../../src/api/prefect";
 import { randCron } from "./create-fake-cron";
 

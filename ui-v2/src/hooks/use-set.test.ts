@@ -1,7 +1,6 @@
 import { act, renderHook } from "@testing-library/react";
-import { useSet } from "./use-set";
-
 import { describe, expect, it } from "vitest";
+import { useSet } from "./use-set";
 
 describe("useSet", () => {
 	it("add() to set", () => {

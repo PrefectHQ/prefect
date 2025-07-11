@@ -1,6 +1,11 @@
+import { useSuspenseQuery } from "@tanstack/react-query";
+import { useRouter } from "@tanstack/react-router";
+import { MoreVertical } from "lucide-react";
+import { Suspense, useEffect, useState } from "react";
+import { toast } from "sonner";
 import {
-	type TaskRun,
 	buildGetTaskRunDetailsQuery,
+	type TaskRun,
 	useDeleteTaskRun,
 } from "@/api/task-runs";
 import { TaskRunArtifacts } from "@/components/task-runs/task-run-artifacts";
@@ -35,11 +40,6 @@ import {
 	TooltipContent,
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { useSuspenseQuery } from "@tanstack/react-query";
-import { useRouter } from "@tanstack/react-router";
-import { MoreVertical } from "lucide-react";
-import { Suspense, useEffect, useState } from "react";
-import { toast } from "sonner";
 
 type TaskRunDetailsPageProps = {
 	id: string;
@@ -128,7 +128,10 @@ export const TaskRunDetailsPage = ({
 const Header = ({
 	taskRun,
 	onDeleteRunClicked,
-}: { taskRun: TaskRun; onDeleteRunClicked: () => void }) => {
+}: {
+	taskRun: TaskRun;
+	onDeleteRunClicked: () => void;
+}) => {
 	const [dialogState, confirmDelete] = useDeleteConfirmationDialog();
 	return (
 		<div className="flex flex-row justify-between">

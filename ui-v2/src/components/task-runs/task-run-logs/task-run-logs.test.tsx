@@ -1,11 +1,11 @@
-import type { components } from "@/api/prefect";
-import { createFakeLog, createFakeTaskRun } from "@/mocks";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { buildApiUrl, createWrapper, server } from "@tests/utils";
 import { mockPointerEvents } from "@tests/utils/browser";
-import { http, HttpResponse } from "msw";
+import { HttpResponse, http } from "msw";
 import { beforeEach, describe, expect, it } from "vitest";
+import type { components } from "@/api/prefect";
+import { createFakeLog, createFakeTaskRun } from "@/mocks";
 import { TaskRunLogs } from ".";
 
 const MOCK_LOGS = [

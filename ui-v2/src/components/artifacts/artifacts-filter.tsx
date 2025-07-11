@@ -1,3 +1,4 @@
+import { useCallback, useMemo } from "react";
 import { SearchInput } from "@/components/ui/input";
 import {
 	Select,
@@ -7,7 +8,6 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import { pluralize } from "@/utils";
-import { useCallback, useMemo } from "react";
 import { Icon } from "../ui/icons";
 import { ToggleGroup, ToggleGroupItem } from "../ui/toggle-group";
 import { Typography } from "../ui/typography";

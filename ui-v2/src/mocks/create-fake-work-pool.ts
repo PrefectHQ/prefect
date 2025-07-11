@@ -1,4 +1,3 @@
-import type { components } from "@/api/prefect";
 import {
 	rand,
 	randBoolean,
@@ -8,7 +7,9 @@ import {
 	randProductName,
 	randUuid,
 } from "@ngneat/falso";
+import type { components } from "@/api/prefect";
 import { createFakeWorkPoolType } from "./create-fake-work-pool-type";
+
 const STATUS_TYPE_VALUES = ["READY", "NOT_READY", "PAUSED", null] as const;
 
 export const createFakeWorkPool = (

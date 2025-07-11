@@ -1,3 +1,13 @@
+import {
+	type ColumnFiltersState,
+	createColumnHelper,
+	getCoreRowModel,
+	type OnChangeFn,
+	type PaginationState,
+	useReactTable,
+} from "@tanstack/react-table";
+import type React from "react";
+import { useCallback, useMemo } from "react";
 import type { components } from "@/api/prefect";
 import { DataTable } from "@/components/ui/data-table";
 import { SearchInput } from "@/components/ui/input";
@@ -11,16 +21,6 @@ import {
 import { TagBadgeGroup } from "@/components/ui/tag-badge-group";
 import { TagsInput } from "@/components/ui/tags-input";
 import { pluralize } from "@/utils";
-import {
-	type ColumnFiltersState,
-	type OnChangeFn,
-	type PaginationState,
-	createColumnHelper,
-	getCoreRowModel,
-	useReactTable,
-} from "@tanstack/react-table";
-import { useCallback, useMemo } from "react";
-import type React from "react";
 import { ActionsCell, ValueCell } from "./cells";
 
 const columnHelper = createColumnHelper<components["schemas"]["Variable"]>();

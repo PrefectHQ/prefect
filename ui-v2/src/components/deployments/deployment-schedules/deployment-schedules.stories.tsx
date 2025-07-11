@@ -1,12 +1,12 @@
+import { randRecentDate, randUuid } from "@ngneat/falso";
+import type { Meta, StoryObj } from "@storybook/react";
+
+import { createFakeDeployment } from "@/mocks";
 import {
 	reactQueryDecorator,
 	routerDecorator,
 	toastDecorator,
 } from "@/storybook/utils";
-import type { Meta, StoryObj } from "@storybook/react";
-
-import { createFakeDeployment } from "@/mocks";
-import { randRecentDate, randUuid } from "@ngneat/falso";
 import { DeploymentSchedules } from "./deployment-schedules";
 
 const baseDeploymentSchedule = {

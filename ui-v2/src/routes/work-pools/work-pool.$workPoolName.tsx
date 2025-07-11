@@ -1,6 +1,6 @@
-import { buildGetWorkPoolQuery } from "@/api/work-pools/work-pools";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
+import { buildGetWorkPoolQuery } from "@/api/work-pools/work-pools";
 
 export const Route = createFileRoute("/work-pools/work-pool/$workPoolName")({
 	component: RouteComponent,

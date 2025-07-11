@@ -1,5 +1,3 @@
-import type { GlobalConcurrencyLimit } from "@/api/global-concurrency-limits";
-import { DataTable } from "@/components/ui/data-table";
 import { getRouteApi } from "@tanstack/react-router";
 import {
 	createColumnHelper,
@@ -7,9 +5,10 @@ import {
 	getPaginationRowModel,
 	useReactTable,
 } from "@tanstack/react-table";
-
-import { SearchInput } from "@/components/ui/input";
 import { useDeferredValue, useMemo } from "react";
+import type { GlobalConcurrencyLimit } from "@/api/global-concurrency-limits";
+import { DataTable } from "@/components/ui/data-table";
+import { SearchInput } from "@/components/ui/input";
 import { ActionsCell } from "./actions-cell";
 import { ActiveCell } from "./active-cell";
 

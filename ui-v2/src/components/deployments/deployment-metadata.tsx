@@ -1,8 +1,7 @@
 import type { Deployment } from "@/api/deployments";
-import { cn } from "@/lib/utils";
-
 import { StatusBadge } from "@/components/ui/status-badge";
 import { TagBadgeGroup } from "@/components/ui/tag-badge-group";
+import { cn } from "@/lib/utils";
 
 type DeploymentMetadataProps = {
 	deployment: Deployment;
@@ -16,9 +15,10 @@ const FieldLabel = ({ children }: { children: React.ReactNode }) => (
 const FieldValue = ({
 	className,
 	children,
-}: { className?: string; children: React.ReactNode }) => (
-	<dd className={cn("text-sm", className)}>{children}</dd>
-);
+}: {
+	className?: string;
+	children: React.ReactNode;
+}) => <dd className={cn("text-sm", className)}>{children}</dd>;
 export const DeploymentMetadata = ({ deployment }: DeploymentMetadataProps) => {
 	const TOP_FIELDS = [
 		{
@@ -115,7 +115,7 @@ export const DeploymentMetadata = ({ deployment }: DeploymentMetadataProps) => {
 			field: "Tags",
 			ComponentValue: () =>
 				deployment.tags && deployment.tags.length > 0 ? (
-					<dd aria-label={deployment.tags.toString()}>
+					<dd>
 						<TagBadgeGroup tags={deployment.tags} maxTagsDisplayed={4} />
 					</dd>
 				) : (

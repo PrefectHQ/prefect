@@ -1,13 +1,3 @@
-import {
-	type DeploymentsPaginationFilter,
-	buildCountDeploymentsQuery,
-	buildPaginateDeploymentsQuery,
-} from "@/api/deployments";
-import { buildListFlowsQuery } from "@/api/flows";
-import type { components } from "@/api/prefect";
-import { DeploymentsDataTable } from "@/components/deployments/data-table";
-import { DeploymentsEmptyState } from "@/components/deployments/empty-state";
-import { DeploymentsPageHeader } from "@/components/deployments/header";
 import { useQuery, useSuspenseQueries } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import type {
@@ -17,6 +7,17 @@ import type {
 import { zodValidator } from "@tanstack/zod-adapter";
 import { useCallback, useMemo } from "react";
 import { z } from "zod";
+import {
+	buildCountDeploymentsQuery,
+	buildPaginateDeploymentsQuery,
+	type DeploymentsPaginationFilter,
+} from "@/api/deployments";
+import { buildListFlowsQuery } from "@/api/flows";
+import type { components } from "@/api/prefect";
+import { DeploymentsDataTable } from "@/components/deployments/data-table";
+import { DeploymentsEmptyState } from "@/components/deployments/empty-state";
+import { DeploymentsPageHeader } from "@/components/deployments/header";
+
 /**
  * Schema for validating URL search parameters for the variables page.
  * @property {number} page - The page number to display. Must be positive. Defaults to 1.

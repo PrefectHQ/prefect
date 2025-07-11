@@ -1,9 +1,8 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeAll, describe, expect, it } from "vitest";
-
 import { mockPointerEvents } from "@tests/utils/browser";
 import { useState } from "react";
+import { beforeAll, describe, expect, it } from "vitest";
 import { StateFilter } from "./state-filter";
 import type { FlowRunState } from "./state-filters.constants";
 

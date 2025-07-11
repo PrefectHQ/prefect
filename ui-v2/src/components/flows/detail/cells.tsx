@@ -1,6 +1,6 @@
+import { useQuery } from "@tanstack/react-query";
 import type { components } from "@/api/prefect";
 import { getQueryService } from "@/api/service";
-import { useQuery } from "@tanstack/react-query";
 
 type FlowRun = components["schemas"]["FlowRun"];
 

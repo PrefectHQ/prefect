@@ -1,7 +1,7 @@
-import { type Deployment, useDeleteDeployment } from "@/api/deployments";
-import { useDeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog";
 import { useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
+import { type Deployment, useDeleteDeployment } from "@/api/deployments";
+import { useDeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog";
 
 export const useDeleteDeploymentConfirmationDialog = () => {
 	const navigate = useNavigate();

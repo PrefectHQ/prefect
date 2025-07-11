@@ -1,7 +1,7 @@
+import { DialogTrigger } from "@radix-ui/react-dialog";
 import { Button } from "@/components/ui/button";
 import { DialogFooter } from "@/components/ui/dialog";
 import { Typography } from "@/components/ui/typography";
-import { DialogTrigger } from "@radix-ui/react-dialog";
 
 export const RRuleScheduleForm = () => {
 	return (

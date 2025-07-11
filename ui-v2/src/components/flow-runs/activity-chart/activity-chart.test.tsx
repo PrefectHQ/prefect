@@ -1,6 +1,6 @@
-import { createFakeFlowRuns } from "@/mocks/create-fake-flow-run";
 import { render } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
+import { createFakeFlowRuns } from "@/mocks/create-fake-flow-run";
 import FlowRunsBarChart from "./activity-chart";
 
 describe("Flow Run Activity Chart", () => {

@@ -1,8 +1,11 @@
+import { useCallback, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icons/icon";
-import { TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { Tooltip } from "@/components/ui/tooltip";
-import { useCallback, useEffect } from "react";
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { isEventTargetInput } from "./utilities";
 
 type FlowRunGraphFullscreenButtonProps = {

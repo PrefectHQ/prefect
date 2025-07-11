@@ -1,6 +1,6 @@
-import { TagBadgeGroup } from "@/components/ui/tag-badge-group.tsx";
 import type { Meta, StoryObj } from "@storybook/react";
 import type { ComponentProps } from "react";
+import { TagBadgeGroup } from "@/components/ui/tag-badge-group.tsx";
 
 export default {
 	title: "UI/TagBadgeGroup",

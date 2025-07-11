@@ -1,19 +1,16 @@
-import { DataTable } from "@/components/ui/data-table";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useNavigate } from "@tanstack/react-router";
-import type { JSX } from "react";
-import { columns as deploymentColumns } from "./deployment-columns";
 import {
-	getFlowMetadata,
-	columns as metadataColumns,
-} from "./metadata-columns";
-import { columns as flowRunColumns } from "./runs-columns";
-
+	getCoreRowModel,
+	getPaginationRowModel,
+	useReactTable,
+} from "@tanstack/react-table";
+import type { JSX } from "react";
 import type { FlowRun } from "@/api/flow-runs";
 import type { Flow } from "@/api/flows";
 import type { components } from "@/api/prefect";
 import FlowRunsBarChart from "@/components/flow-runs/activity-chart/activity-chart";
 import { Button } from "@/components/ui/button";
+import { DataTable } from "@/components/ui/data-table";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
@@ -22,11 +19,13 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Icon } from "@/components/ui/icons";
 import { Input } from "@/components/ui/input";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { columns as deploymentColumns } from "./deployment-columns";
 import {
-	getCoreRowModel,
-	getPaginationRowModel,
-	useReactTable,
-} from "@tanstack/react-table";
+	getFlowMetadata,
+	columns as metadataColumns,
+} from "./metadata-columns";
+import { columns as flowRunColumns } from "./runs-columns";
 
 const SearchComponent = () => {
 	const navigate = useNavigate();

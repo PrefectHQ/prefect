@@ -1,12 +1,12 @@
-import { cn } from "@/lib/utils";
 import { python } from "@codemirror/lang-python";
 import {
 	type BasicSetupOptions,
 	EditorView,
 	useCodeMirror,
 } from "@uiw/react-codemirror";
-import React, { useRef, useEffect } from "react";
+import React, { useEffect, useRef } from "react";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 import { Button } from "./button";
 import { Icon } from "./icons";
 

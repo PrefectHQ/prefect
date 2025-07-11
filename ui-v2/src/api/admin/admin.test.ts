@@ -1,9 +1,9 @@
-import { createFakeServerSettings, createFakeVersion } from "@/mocks";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { renderHook, waitFor } from "@testing-library/react";
 import { buildApiUrl, createWrapper, server } from "@tests/utils";
-import { http, HttpResponse } from "msw";
+import { HttpResponse, http } from "msw";
 import { expect, test } from "vitest";
+import { createFakeServerSettings, createFakeVersion } from "@/mocks";
 
 import { buildGetSettingsQuery, buildGetVersionQuery } from "./admin";
 

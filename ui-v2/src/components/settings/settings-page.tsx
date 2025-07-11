@@ -1,5 +1,5 @@
-import { buildGetSettingsQuery, buildGetVersionQuery } from "@/api/admin";
 import { useSuspenseQuery } from "@tanstack/react-query";
+import { buildGetSettingsQuery, buildGetVersionQuery } from "@/api/admin";
 
 import { ColorModeSelect } from "./color-mode-select";
 import { Heading } from "./heading";

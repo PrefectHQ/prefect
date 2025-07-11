@@ -1,7 +1,7 @@
+import { useNavigate } from "@tanstack/react-router";
 import type { TaskRunConcurrencyLimit } from "@/api/task-run-concurrency-limits";
 import { TaskRunConcurrencyLimitsDeleteDialog } from "@/components/concurrency/task-run-concurrency-limits/task-run-concurrency-limits-delete-dialog";
 import { TaskRunConcurrencyLimitsResetDialog } from "@/components/concurrency/task-run-concurrency-limits/task-run-concurrency-limits-reset-dialog";
-import { useNavigate } from "@tanstack/react-router";
 
 export type Dialogs = null | "delete" | "reset";
 

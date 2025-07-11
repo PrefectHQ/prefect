@@ -1,10 +1,9 @@
+import Markdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import type { BlockType } from "@/api/block-types";
 import { BlockTypeLogo } from "@/components/block-type-logo/block-type-logo";
 import { Card } from "@/components/ui/card";
 import { Typography } from "@/components/ui/typography";
-
-import Markdown from "react-markdown";
-import remarkGfm from "remark-gfm";
 
 type BlockTypeDetailsProps = {
 	blockType: BlockType;

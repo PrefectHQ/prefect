@@ -1,5 +1,5 @@
-import type { PrefectSchemaObject } from "@/components/schemas/types/schemas";
 import type { Meta, StoryObj } from "@storybook/react";
+import type { PrefectSchemaObject } from "@/components/schemas/types/schemas";
 import { TestSchemaForm } from "./utilities";
 
 const userDefinition: PrefectSchemaObject = {

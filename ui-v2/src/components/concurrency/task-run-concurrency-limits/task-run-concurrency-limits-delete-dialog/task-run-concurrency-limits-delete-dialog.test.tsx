@@ -1,9 +1,8 @@
-import { TaskRunConcurrencyLimitsDeleteDialog } from "./task-run-concurrency-limits-delete-dialog";
-
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createWrapper } from "@tests/utils";
 import { expect, test, vi } from "vitest";
+import { TaskRunConcurrencyLimitsDeleteDialog } from "./task-run-concurrency-limits-delete-dialog";
 
 const MOCK_DATA = {
 	id: "0",

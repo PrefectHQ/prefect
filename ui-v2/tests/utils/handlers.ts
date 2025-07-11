@@ -1,4 +1,4 @@
-import { http, HttpResponse } from "msw";
+import { HttpResponse, http } from "msw";
 
 export const buildApiUrl = (path: string) => {
 	return `${import.meta.env.VITE_API_URL}${path}`;

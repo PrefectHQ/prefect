@@ -1,7 +1,7 @@
-import { MainLayout } from "@/components/layouts/MainLayout";
 import type { QueryClient } from "@tanstack/react-query";
-import { Outlet, createRootRouteWithContext } from "@tanstack/react-router";
+import { createRootRouteWithContext, Outlet } from "@tanstack/react-router";
 import { TanStackRouterDevtools } from "@tanstack/router-devtools";
+import { MainLayout } from "@/components/layouts/MainLayout";
 
 interface MyRouterContext {
 	queryClient: QueryClient;

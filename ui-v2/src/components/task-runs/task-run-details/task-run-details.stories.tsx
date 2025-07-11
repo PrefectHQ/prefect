@@ -1,6 +1,6 @@
-import { createFakeTaskRun } from "@/mocks";
 import { randUuid } from "@ngneat/falso";
 import type { Meta, StoryObj } from "@storybook/react";
+import { createFakeTaskRun } from "@/mocks";
 import { TaskRunDetails } from "./task-run-details";
 
 export default {

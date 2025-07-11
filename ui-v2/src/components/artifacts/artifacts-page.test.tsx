@@ -1,14 +1,14 @@
-import { createFakeArtifact } from "@/mocks";
 import { QueryClient } from "@tanstack/react-query";
 import {
-	RouterProvider,
 	createMemoryHistory,
 	createRootRoute,
 	createRouter,
+	RouterProvider,
 } from "@tanstack/react-router";
 import { render } from "@testing-library/react";
 import { createWrapper } from "@tests/utils";
 import { describe, expect, it, vi } from "vitest";
+import { createFakeArtifact } from "@/mocks";
 import { ArtifactsPage, type ArtifactsPageProps } from "./artifacts-page";
 
 // Wraps component in test with a Tanstack router provider

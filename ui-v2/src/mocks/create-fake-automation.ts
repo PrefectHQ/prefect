@@ -1,4 +1,3 @@
-import type { components } from "@/api/prefect";
 import {
 	randBoolean,
 	randPastDate,
@@ -6,6 +5,7 @@ import {
 	randProductName,
 	randUuid,
 } from "@ngneat/falso";
+import type { components } from "@/api/prefect";
 
 export const createFakeAutomation = (
 	overrides?: Partial<components["schemas"]["Automation"]>,

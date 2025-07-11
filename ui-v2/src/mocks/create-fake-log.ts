@@ -1,4 +1,3 @@
-import type { components } from "@/api/prefect";
 import {
 	randNumber,
 	randPastDate,
@@ -6,6 +5,7 @@ import {
 	randUuid,
 	randWord,
 } from "@ngneat/falso";
+import type { components } from "@/api/prefect";
 
 export const createFakeLog = (
 	overrides?: Partial<components["schemas"]["Log"]>,

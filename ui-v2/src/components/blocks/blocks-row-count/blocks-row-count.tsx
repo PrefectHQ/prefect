@@ -1,11 +1,11 @@
+import type { OnChangeFn, RowSelectionState } from "@tanstack/react-table";
+import { useMemo } from "react";
 import { useDeleteBlockDocumentConfirmationDialog } from "@/components/blocks/use-delete-block-document-confirmation-dialog";
 import { Button } from "@/components/ui/button";
 import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog";
 import { Icon } from "@/components/ui/icons";
 import { Typography } from "@/components/ui/typography";
 import { pluralize } from "@/utils";
-import type { OnChangeFn, RowSelectionState } from "@tanstack/react-table";
-import { useMemo } from "react";
 
 export type BlocksRowCountProps = {
 	count: number;

@@ -1,3 +1,4 @@
+import { Link } from "@tanstack/react-router";
 import {
 	Breadcrumb,
 	BreadcrumbItem,
@@ -5,7 +6,6 @@ import {
 } from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icons";
-import { Link } from "@tanstack/react-router";
 
 export const WorkPoolsPageHeader = () => (
 	<div className="flex items-center gap-2">

@@ -1,6 +1,5 @@
-import { describe, expect, it } from "vitest";
-
 import createClient from "openapi-fetch";
+import { describe, expect, it } from "vitest";
 import type { paths } from "../../src/api/prefect";
 
 describe("API Service", () => {

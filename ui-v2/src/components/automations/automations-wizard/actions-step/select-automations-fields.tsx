@@ -1,3 +1,6 @@
+import { useQuery } from "@tanstack/react-query";
+import { useDeferredValue, useMemo, useState } from "react";
+import { useFormContext } from "react-hook-form";
 import { type Automation, buildListAutomationsQuery } from "@/api/automations";
 import {
 	type AutomationWizardSchema,
@@ -13,16 +16,12 @@ import {
 	ComboboxContent,
 	ComboboxTrigger,
 } from "@/components/ui/combobox";
-
 import {
 	FormField,
 	FormItem,
 	FormLabel,
 	FormMessage,
 } from "@/components/ui/form";
-import { useQuery } from "@tanstack/react-query";
-import { useDeferredValue, useMemo, useState } from "react";
-import { useFormContext } from "react-hook-form";
 import { LoadingSelectState } from "./loading-select-state";
 
 const INFER_OPTION = {

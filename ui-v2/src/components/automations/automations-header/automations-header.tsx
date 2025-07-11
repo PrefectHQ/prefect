@@ -1,3 +1,4 @@
+import { Link } from "@tanstack/react-router";
 import {
 	Breadcrumb,
 	BreadcrumbItem,
@@ -6,7 +7,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { DocsLink } from "@/components/ui/docs-link";
 import { Icon } from "@/components/ui/icons";
-import { Link } from "@tanstack/react-router";
 
 export const AutomationsHeader = () => {
 	return (

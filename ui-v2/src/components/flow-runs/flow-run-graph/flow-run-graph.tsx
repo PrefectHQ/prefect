@@ -1,15 +1,15 @@
 import {
+	emitter,
 	type GraphItemSelection,
 	type RunGraphConfig,
 	type RunGraphNode,
 	type RunGraphStateEvent,
-	type ViewportDateRange,
-	emitter,
 	selectItem,
 	setConfig,
 	start,
 	stop,
 	updateViewportFromDateRange,
+	type ViewportDateRange,
 } from "@prefecthq/graphs";
 import {
 	type CSSProperties,
@@ -19,8 +19,7 @@ import {
 	useRef,
 	useState,
 } from "react";
-import { fetchFlowRunEvents } from "./api";
-import { fetchFlowRunGraph } from "./api";
+import { fetchFlowRunEvents, fetchFlowRunGraph } from "./api";
 import { stateTypeColors } from "./consts";
 import { FlowRunGraphActions } from "./flow-run-graph-actions";
 

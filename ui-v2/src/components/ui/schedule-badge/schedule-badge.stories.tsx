@@ -1,15 +1,15 @@
 import {
-	generateRandomCronSchedule,
-	generateRandomIntervalSchedule,
-	generateRandomRRuleSchedule,
-} from "@/mocks/create-fake-schedule";
-import {
 	randBoolean,
 	randNumber,
 	randRecentDate,
 	randUuid,
 } from "@ngneat/falso";
 import type { Meta, StoryObj } from "@storybook/react";
+import {
+	generateRandomCronSchedule,
+	generateRandomIntervalSchedule,
+	generateRandomRRuleSchedule,
+} from "@/mocks/create-fake-schedule";
 import { ScheduleBadge } from ".";
 
 export default {

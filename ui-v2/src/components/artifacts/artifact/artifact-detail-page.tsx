@@ -1,5 +1,5 @@
-import type { ArtifactWithFlowRunAndTaskRun } from "@/api/artifacts";
 import { useMemo } from "react";
+import type { ArtifactWithFlowRunAndTaskRun } from "@/api/artifacts";
 import { ArtifactDetailHeader } from "./artifact-detail-header";
 import { ArtifactDataDisplay } from "./artifact-raw-data-display";
 import { DetailImage } from "./detail-image";

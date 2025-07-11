@@ -1,7 +1,7 @@
-import type { components } from "@/api/prefect";
-import { capitalize } from "@/utils";
 import { cva } from "class-variance-authority";
 import { Circle, Pause } from "lucide-react";
+import type { components } from "@/api/prefect";
+import { capitalize } from "@/utils";
 import { Badge } from "../badge";
 
 type Status =

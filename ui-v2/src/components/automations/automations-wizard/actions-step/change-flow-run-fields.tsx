@@ -1,3 +1,4 @@
+import { useFormContext } from "react-hook-form";
 import type { components } from "@/api/prefect";
 import type { AutomationWizardSchema } from "@/components/automations/automations-wizard/automation-schema";
 import {
@@ -18,7 +19,7 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { useFormContext } from "react-hook-form";
+
 const FLOW_STATES = {
 	COMPLETED: "Completed",
 	RUNNING: "Running",

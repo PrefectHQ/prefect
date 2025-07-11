@@ -1,3 +1,4 @@
+import { toast } from "sonner";
 import {
 	type TaskRunConcurrencyLimit,
 	useDeleteTaskRunConcurrencyLimit,
@@ -12,7 +13,6 @@ import {
 	DialogTitle,
 	DialogTrigger,
 } from "@/components/ui/dialog";
-import { toast } from "sonner";
 
 type TaskRunConcurrencyLimitsDeleteDialogProps = {
 	data: TaskRunConcurrencyLimit;

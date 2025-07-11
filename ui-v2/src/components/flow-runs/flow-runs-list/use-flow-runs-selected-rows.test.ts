@@ -1,7 +1,6 @@
 import { act, renderHook } from "@testing-library/react";
-import { useFlowRunsSelectedRows } from "./use-flow-runs-selected-rows";
-
 import { describe, expect, it } from "vitest";
+import { useFlowRunsSelectedRows } from "./use-flow-runs-selected-rows";
 
 describe("useFlowRunsSelectedRows", () => {
 	it("addRow() to set", () => {

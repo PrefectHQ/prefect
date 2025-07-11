@@ -1,9 +1,9 @@
-import { buildListGlobalConcurrencyLimitsQuery } from "@/api/global-concurrency-limits";
-import { buildListTaskRunConcurrencyLimitsQuery } from "@/api/task-run-concurrency-limits";
-import { ConcurrencyLimitsPage } from "@/components/concurrency/concurrency-limits-page";
 import { createFileRoute } from "@tanstack/react-router";
 import { zodValidator } from "@tanstack/zod-adapter";
 import { z } from "zod";
+import { buildListGlobalConcurrencyLimitsQuery } from "@/api/global-concurrency-limits";
+import { buildListTaskRunConcurrencyLimitsQuery } from "@/api/task-run-concurrency-limits";
+import { ConcurrencyLimitsPage } from "@/components/concurrency/concurrency-limits-page";
 
 /**
  * Schema for validating URL search parameters for the Concurrency Limits page.

@@ -1,3 +1,12 @@
+import { QueryClient } from "@tanstack/react-query";
+import { renderHook, waitFor } from "@testing-library/react";
+import { buildApiUrl, createWrapper, server } from "@tests/utils";
+import { HttpResponse, http } from "msw";
+import { describe, expect, it } from "vitest";
+import type { BlockDocument } from "@/api/block-documents";
+import type { Deployment } from "@/api/deployments";
+import type { WorkPool } from "@/api/work-pools";
+import type { WorkQueue } from "@/api/work-queues";
 import {
 	createFakeAutomation,
 	createFakeBlockDocument,
@@ -5,16 +14,6 @@ import {
 	createFakeWorkPool,
 	createFakeWorkQueue,
 } from "@/mocks";
-
-import type { BlockDocument } from "@/api/block-documents";
-import type { Deployment } from "@/api/deployments";
-import type { WorkPool } from "@/api/work-pools";
-import type { WorkQueue } from "@/api/work-queues";
-import { QueryClient } from "@tanstack/react-query";
-import { renderHook, waitFor } from "@testing-library/react";
-import { buildApiUrl, createWrapper, server } from "@tests/utils";
-import { http, HttpResponse } from "msw";
-import { describe, expect, it } from "vitest";
 import type { Automation } from "../automations";
 import {
 	getResourceSets,

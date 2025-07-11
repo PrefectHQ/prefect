@@ -1,6 +1,6 @@
-import { Switch } from "@/components/ui/switch";
 import type { CheckedState } from "@radix-ui/react-checkbox";
 import type { BooleanSubtype, SchemaObject } from "openapi-typescript";
+import { Switch } from "@/components/ui/switch";
 import { SchemaFormInputEnum } from "./schema-form-input-enum";
 import { isWithPrimitiveEnum } from "./types/schemas";
 import { asType } from "./utilities/asType";

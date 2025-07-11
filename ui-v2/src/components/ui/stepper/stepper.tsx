@@ -1,8 +1,7 @@
-import { cn } from "@/lib/utils";
-
 import { Card } from "@/components/ui/card";
 import { Icon } from "@/components/ui/icons";
 import { Typography } from "@/components/ui/typography";
+import { cn } from "@/lib/utils";
 
 type StepperProps = {
 	currentStepNum: number;
@@ -10,7 +9,10 @@ type StepperProps = {
 	onClick: ({
 		stepName,
 		stepNum,
-	}: { stepName: string; stepNum: number }) => void;
+	}: {
+		stepName: string;
+		stepNum: number;
+	}) => void;
 	completedSteps: Set<number>;
 	visitedSteps: Set<number>;
 };

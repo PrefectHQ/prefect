@@ -1,9 +1,9 @@
+import type { Meta, StoryObj } from "@storybook/react";
+import { buildApiUrl } from "@tests/utils/handlers";
+import { HttpResponse, http } from "msw";
 import type { components } from "@/api/prefect";
 import { createFakeLog, createFakeTaskRun } from "@/mocks";
 import { reactQueryDecorator } from "@/storybook/utils";
-import type { Meta, StoryObj } from "@storybook/react";
-import { buildApiUrl } from "@tests/utils/handlers";
-import { http, HttpResponse } from "msw";
 import { TaskRunLogs } from ".";
 
 const MOCK_TASK_RUN_WITH_LOGS = createFakeTaskRun();

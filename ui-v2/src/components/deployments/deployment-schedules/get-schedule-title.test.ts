@@ -1,6 +1,6 @@
-import type { DeploymentSchedule } from "@/api/deployments";
 import { randRecentDate, randUuid } from "@ngneat/falso";
 import { describe, expect, it } from "vitest";
+import type { DeploymentSchedule } from "@/api/deployments";
 import { getScheduleTitle } from "./get-schedule-title";
 
 describe("getScheduleTitle()", () => {

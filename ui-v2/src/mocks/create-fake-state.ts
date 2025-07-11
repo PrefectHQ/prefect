@@ -1,6 +1,6 @@
+import { rand, randPastDate, randUuid } from "@ngneat/falso";
 import type { components } from "@/api/prefect";
 import { capitalize } from "@/utils";
-import { rand, randPastDate, randUuid } from "@ngneat/falso";
 
 type StateType = components["schemas"]["StateType"];
 

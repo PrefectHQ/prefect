@@ -1,8 +1,7 @@
-import { Toaster } from "@/components/ui/sonner";
-
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
+import { Toaster } from "@/components/ui/sonner";
 
 import { TaskRunConcurrencyLimitsActionsMenu } from "./task-run-concurrency-limits-actions-menu";
 

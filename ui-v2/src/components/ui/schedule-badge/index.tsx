@@ -1,3 +1,8 @@
+import cronstrue from "cronstrue";
+import { format } from "date-fns";
+import humanizeDuration from "humanize-duration";
+import { useRef } from "react";
+import { rrulestr } from "rrule";
 import type { components } from "@/api/prefect";
 import { Badge, type BadgeProps } from "@/components/ui/badge";
 import {
@@ -14,11 +19,6 @@ import {
 import { useIsOverflowing } from "@/hooks/use-is-overflowing";
 import { cn } from "@/lib/utils";
 import { capitalize } from "@/utils";
-import cronstrue from "cronstrue";
-import { format } from "date-fns";
-import humanizeDuration from "humanize-duration";
-import { useRef } from "react";
-import { rrulestr } from "rrule";
 
 type DeploymentSchedule = components["schemas"]["DeploymentSchedule"];
 type CronSchedule = components["schemas"]["CronSchedule"];

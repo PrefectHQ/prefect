@@ -1,8 +1,3 @@
-import type { Deployment } from "@/api/deployments";
-import { DataTable } from "@/components/ui/data-table";
-import { SearchInput } from "@/components/ui/input";
-import { Typography } from "@/components/ui/typography";
-import { pluralize } from "@/utils";
 import {
 	createColumnHelper,
 	getCoreRowModel,
@@ -10,6 +5,11 @@ import {
 	useReactTable,
 } from "@tanstack/react-table";
 import { useDeferredValue, useMemo, useState } from "react";
+import type { Deployment } from "@/api/deployments";
+import { DataTable } from "@/components/ui/data-table";
+import { SearchInput } from "@/components/ui/input";
+import { Typography } from "@/components/ui/typography";
+import { pluralize } from "@/utils";
 
 type DeploymentParametersTableProps = {
 	deployment: Deployment;

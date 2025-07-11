@@ -1,3 +1,13 @@
+import { flexRender, type Table as TanstackTable } from "@tanstack/react-table";
+import {
+	Pagination,
+	PaginationContent,
+	PaginationFirstButton,
+	PaginationItem,
+	PaginationLastButton,
+	PaginationNextButton,
+	PaginationPreviousButton,
+} from "@/components/ui/pagination";
 import {
 	Select,
 	SelectContent,
@@ -13,24 +23,9 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table";
-import { type Table as TanstackTable, flexRender } from "@tanstack/react-table";
-
-import {
-	Pagination,
-	PaginationContent,
-	PaginationFirstButton,
-	PaginationItem,
-	PaginationLastButton,
-	PaginationNextButton,
-	PaginationPreviousButton,
-} from "@/components/ui/pagination";
 import { cn } from "@/lib/utils";
 
-export function DataTable<TData>({
-	table,
-}: {
-	table: TanstackTable<TData>;
-}) {
+export function DataTable<TData>({ table }: { table: TanstackTable<TData> }) {
 	return (
 		<div className="flex flex-col gap-4">
 			<div className="rounded-md border">

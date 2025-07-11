@@ -1,9 +1,9 @@
-import { Toaster } from "@/components/ui/sonner";
 import { randRecentDate, randUuid } from "@ngneat/falso";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createWrapper } from "@tests/utils";
 import { expect, test } from "vitest";
+import { Toaster } from "@/components/ui/sonner";
 import { ScheduleToggleSwitch } from "./schedule-toggle-switch";
 
 const MOCK_DEPLOYMENT_SCHEDULE = {

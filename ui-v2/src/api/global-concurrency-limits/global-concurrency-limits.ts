@@ -1,11 +1,11 @@
-import type { components } from "@/api/prefect";
-import { getQueryService } from "@/api/service";
 import {
 	queryOptions,
 	useMutation,
 	useQueryClient,
 	useSuspenseQuery,
 } from "@tanstack/react-query";
+import type { components } from "@/api/prefect";
+import { getQueryService } from "@/api/service";
 
 export type GlobalConcurrencyLimit =
 	components["schemas"]["GlobalConcurrencyLimitResponse"];

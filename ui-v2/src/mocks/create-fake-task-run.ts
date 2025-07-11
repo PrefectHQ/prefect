@@ -1,4 +1,3 @@
-import type { TaskRun } from "@/api/task-runs";
 import {
 	randAlphaNumeric,
 	randNumber,
@@ -7,6 +6,7 @@ import {
 	randVerb,
 	randWord,
 } from "@ngneat/falso";
+import type { TaskRun } from "@/api/task-runs";
 import { createFakeState } from "./create-fake-state";
 
 export const createFakeTaskRun = (overrides?: Partial<TaskRun>): TaskRun => {

@@ -1,10 +1,9 @@
-import { createFakeWorkQueue } from "@/mocks";
-import { reactQueryDecorator } from "@/storybook/utils";
 import type { Meta, StoryObj } from "@storybook/react";
 import { buildApiUrl } from "@tests/utils/handlers";
-import { http, HttpResponse } from "msw";
-
+import { HttpResponse, http } from "msw";
 import { useState } from "react";
+import { createFakeWorkQueue } from "@/mocks";
+import { reactQueryDecorator } from "@/storybook/utils";
 import { WorkQueueSelect } from "./work-queue-select";
 
 const MOCK_WORK_QUEUES_DATA = Array.from({ length: 5 }, () =>

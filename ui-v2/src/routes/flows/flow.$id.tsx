@@ -1,10 +1,10 @@
-import type { components } from "@/api/prefect";
-import FlowDetail from "@/components/flows/detail";
-import { FlowQuery } from "@/components/flows/queries";
 import { useSuspenseQueries } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router"; // Import createFileRoute function from @tanstack/react-router
 import { zodValidator } from "@tanstack/zod-adapter";
 import { z } from "zod";
+import type { components } from "@/api/prefect";
+import FlowDetail from "@/components/flows/detail";
+import { FlowQuery } from "@/components/flows/queries";
 
 // Route for /flows/flow/$id
 

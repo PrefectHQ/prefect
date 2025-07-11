@@ -1,8 +1,8 @@
+import { useSuspenseQuery } from "@tanstack/react-query";
+import { createFileRoute } from "@tanstack/react-router";
 import { buildListFilterBlockSchemasQuery } from "@/api/block-schemas";
 import { buildGetBlockTypeQuery } from "@/api/block-types";
 import { BlockDocumentCreatePage } from "@/components/blocks/block-document-create-page";
-import { useSuspenseQuery } from "@tanstack/react-query";
-import { createFileRoute } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/blocks/catalog_/$slug_/create")({
 	component: RouteComponent,

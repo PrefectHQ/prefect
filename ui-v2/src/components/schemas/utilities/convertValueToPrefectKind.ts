@@ -5,8 +5,10 @@ import type {
 	SchemaObject,
 } from "openapi-typescript";
 import type { PrefectKind } from "../types/prefect-kind";
-import type { PrefectKindValueJinja } from "../types/prefect-kind-value";
-import type { PrefectKindValueJson } from "../types/prefect-kind-value";
+import type {
+	PrefectKindValueJinja,
+	PrefectKindValueJson,
+} from "../types/prefect-kind-value";
 import { getPrefectKindFromValue } from "../types/prefect-kind-value";
 import { isAnyOfObject, isArray, isRecord } from "./guards";
 import { mergeSchemaPropertyDefinition } from "./mergeSchemaPropertyDefinition";

@@ -178,13 +178,12 @@ exports[`property.type > boolean > enum 1`] = `
           <button
             aria-controls="radix-«r2s»"
             aria-expanded="false"
-            aria-haspopup="dialog"
+            aria-haspopup="listbox"
             aria-label="Select undefined"
             class="inline-flex items-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input bg-background shadow-xs hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2 w-full justify-between"
             data-slot="popover-trigger"
             data-state="closed"
             id="«r2p»"
-            role="combobox"
             type="button"
           >
             Select
@@ -582,13 +581,12 @@ exports[`property.type > integer > enum 1`] = `
           <button
             aria-controls="radix-«r2f»"
             aria-expanded="false"
-            aria-haspopup="dialog"
+            aria-haspopup="listbox"
             aria-label="Select undefined"
             class="inline-flex items-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input bg-background shadow-xs hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2 w-full justify-between"
             data-slot="popover-trigger"
             data-state="closed"
             id="«r2c»"
-            role="combobox"
             type="button"
           >
             Select
@@ -1054,13 +1052,12 @@ exports[`property.type > number > enum 1`] = `
           <button
             aria-controls="radix-«r22»"
             aria-expanded="false"
-            aria-haspopup="dialog"
+            aria-haspopup="listbox"
             aria-label="Select undefined"
             class="inline-flex items-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input bg-background shadow-xs hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2 w-full justify-between"
             data-slot="popover-trigger"
             data-state="closed"
             id="«r1v»"
-            role="combobox"
             type="button"
           >
             Select
@@ -1438,13 +1435,12 @@ exports[`property.type > string > enum 1`] = `
           <button
             aria-controls="radix-«r1d»"
             aria-expanded="false"
-            aria-haspopup="dialog"
+            aria-haspopup="listbox"
             aria-label="Select undefined"
             class="inline-flex items-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input bg-background shadow-xs hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2 w-full justify-between"
             data-slot="popover-trigger"
             data-state="closed"
             id="«r1a»"
-            role="combobox"
             type="button"
           >
             Select
@@ -1555,13 +1551,12 @@ exports[`property.type > string > enum with default 1`] = `
           <button
             aria-controls="radix-«r1l»"
             aria-expanded="false"
-            aria-haspopup="dialog"
+            aria-haspopup="listbox"
             aria-label="Select undefined"
             class="inline-flex items-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input bg-background shadow-xs hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2 w-full justify-between text-muted-foreground"
             data-slot="popover-trigger"
             data-state="closed"
             id="«r1i»"
-            role="combobox"
             type="button"
           >
             foo
@@ -1672,13 +1667,12 @@ exports[`property.type > string > enum with value 1`] = `
           <button
             aria-controls="radix-«r1h»"
             aria-expanded="false"
-            aria-haspopup="dialog"
+            aria-haspopup="listbox"
             aria-label="Select undefined"
             class="inline-flex items-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input bg-background shadow-xs hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2 w-full justify-between text-muted-foreground"
             data-slot="popover-trigger"
             data-state="closed"
             id="«r1e»"
-            role="combobox"
             type="button"
           >
             foo
@@ -3537,13 +3531,12 @@ exports[`property.type > unknown > with value 1`] = `
           <button
             aria-controls="radix-«r36»"
             aria-expanded="false"
-            aria-haspopup="dialog"
+            aria-haspopup="listbox"
             aria-label="Select undefined"
             class="inline-flex items-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input bg-background shadow-xs hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2 w-full justify-between text-muted-foreground"
             data-slot="popover-trigger"
             data-state="closed"
             id="«r33»"
-            role="combobox"
             type="button"
           >
             foo

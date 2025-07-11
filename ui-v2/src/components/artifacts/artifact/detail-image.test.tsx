@@ -1,6 +1,6 @@
-import { createFakeArtifact } from "@/mocks";
 import { render } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
+import { createFakeArtifact } from "@/mocks";
 import { DetailImage } from "./detail-image";
 
 describe("ArtifactDetailImage", () => {

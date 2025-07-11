@@ -1,7 +1,7 @@
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import type { TabOptions } from "@/routes/concurrency-limits";
 import { getRouteApi } from "@tanstack/react-router";
 import type { JSX } from "react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import type { TabOptions } from "@/routes/concurrency-limits";
 
 const routeApi = getRouteApi("/concurrency-limits/");
 

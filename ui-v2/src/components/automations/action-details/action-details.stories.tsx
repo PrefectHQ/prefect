@@ -1,3 +1,4 @@
+import type { Meta, StoryObj } from "@storybook/react";
 import type { Automation } from "@/api/automations";
 import type { BlockDocument } from "@/api/block-documents";
 import type { Deployment } from "@/api/deployments";
@@ -11,7 +12,6 @@ import {
 	createFakeWorkQueue,
 } from "@/mocks";
 import { routerDecorator } from "@/storybook/utils";
-import type { Meta, StoryObj } from "@storybook/react";
 import { ActionDetails } from "./action-details";
 
 const ACTIONS: Array<Automation["actions"][number]> = [

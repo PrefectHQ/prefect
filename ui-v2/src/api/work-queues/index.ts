@@ -1,7 +1,7 @@
 export {
-	type WorkQueue,
-	type WorkQueuesFilter,
+	buildFilterWorkPoolWorkQueuesQuery,
 	buildFilterWorkQueuesQuery,
 	buildWorkQueueDetailsQuery,
-	buildFilterWorkPoolWorkQueuesQuery,
+	type WorkQueue,
+	type WorkQueuesFilter,
 } from "./work-queues";

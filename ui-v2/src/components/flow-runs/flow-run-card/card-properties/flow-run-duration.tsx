@@ -1,3 +1,4 @@
+import humanizeDuration from "humanize-duration";
 import type { FlowRunCardData } from "@/components/flow-runs/flow-run-card";
 import { Icon } from "@/components/ui/icons";
 import {
@@ -6,7 +7,6 @@ import {
 	TooltipProvider,
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
-import humanizeDuration from "humanize-duration";
 
 type FlowRunDurationProps = {
 	flowRun: FlowRunCardData;

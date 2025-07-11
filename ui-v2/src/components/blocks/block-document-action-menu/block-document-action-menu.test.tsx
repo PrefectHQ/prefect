@@ -1,17 +1,15 @@
-import { Toaster } from "@/components/ui/sonner";
-
-import { render, screen, waitFor } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
-
-import { createFakeBlockDocument } from "@/mocks";
 import { QueryClient } from "@tanstack/react-query";
 import {
-	RouterProvider,
 	createMemoryHistory,
 	createRootRoute,
 	createRouter,
+	RouterProvider,
 } from "@tanstack/react-router";
+import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { describe, expect, it, vi } from "vitest";
+import { Toaster } from "@/components/ui/sonner";
+import { createFakeBlockDocument } from "@/mocks";
 import {
 	BlockDocumentActionMenu,
 	type BlockDocumentActionMenuProps,

@@ -1,12 +1,10 @@
-import { createFileRoute } from "@tanstack/react-router";
-
-import { getQueryService } from "@/api/service"; // Service object that makes requests to the Prefect API
-
-import { type Flow, buildCountFlowsFilteredQuery } from "@/api/flows";
-import FlowsPage from "@/components/flows/flows-page";
 import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
+import { createFileRoute } from "@tanstack/react-router";
 import { zodValidator } from "@tanstack/zod-adapter";
 import { z } from "zod";
+import { buildCountFlowsFilteredQuery, type Flow } from "@/api/flows";
+import { getQueryService } from "@/api/service"; // Service object that makes requests to the Prefect API
+import FlowsPage from "@/components/flows/flows-page";
 
 // Route for /flows/
 

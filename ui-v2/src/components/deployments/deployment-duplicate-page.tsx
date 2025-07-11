@@ -1,5 +1,5 @@
-import { buildDeploymentDetailsQuery } from "@/api/deployments";
 import { useSuspenseQuery } from "@tanstack/react-query";
+import { buildDeploymentDetailsQuery } from "@/api/deployments";
 import { DeploymentActionHeader } from "./deployment-action-header";
 import { DeploymentForm } from "./deployment-form";
 

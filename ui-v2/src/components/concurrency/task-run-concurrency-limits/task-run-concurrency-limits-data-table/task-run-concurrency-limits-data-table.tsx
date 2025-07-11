@@ -1,7 +1,3 @@
-import type { TaskRunConcurrencyLimit } from "@/api/task-run-concurrency-limits";
-import { TaskRunConcurrencyLimitsActionsMenu } from "@/components/concurrency/task-run-concurrency-limits/task-run-concurrency-limits-actions-menu";
-import { DataTable } from "@/components/ui/data-table";
-import { SearchInput } from "@/components/ui/input";
 import { getRouteApi } from "@tanstack/react-router";
 import {
 	createColumnHelper,
@@ -10,6 +6,10 @@ import {
 	useReactTable,
 } from "@tanstack/react-table";
 import { useDeferredValue, useMemo } from "react";
+import type { TaskRunConcurrencyLimit } from "@/api/task-run-concurrency-limits";
+import { TaskRunConcurrencyLimitsActionsMenu } from "@/components/concurrency/task-run-concurrency-limits/task-run-concurrency-limits-actions-menu";
+import { DataTable } from "@/components/ui/data-table";
+import { SearchInput } from "@/components/ui/input";
 
 import { ActiveTaskRunCells } from "./active-task-runs-cell";
 import { TagCell } from "./tag-cell";

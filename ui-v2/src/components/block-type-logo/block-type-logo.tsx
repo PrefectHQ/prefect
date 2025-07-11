@@ -1,5 +1,5 @@
-import type { BlockType } from "@/api/block-types";
 import { cva } from "class-variance-authority";
+import type { BlockType } from "@/api/block-types";
 
 type BlockTypeLogoProps = {
 	alt?: string;

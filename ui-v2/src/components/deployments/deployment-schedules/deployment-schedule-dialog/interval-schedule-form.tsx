@@ -1,8 +1,13 @@
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useEffect } from "react";
+import { useForm } from "react-hook-form";
+import { toast } from "sonner";
+import { z } from "zod";
+import type { DeploymentSchedule } from "@/api/deployments";
 import {
 	useCreateDeploymentSchedule,
 	useUpdateDeploymentSchedule,
 } from "@/api/deployments";
-import type { DeploymentSchedule } from "@/api/deployments";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { DialogFooter, DialogTrigger } from "@/components/ui/dialog";
@@ -32,11 +37,6 @@ import { Switch } from "@/components/ui/switch";
 import { TimezoneSelect } from "@/components/ui/timezone-select";
 import { cn } from "@/lib/utils";
 import { formatDate } from "@/utils/date";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { useEffect } from "react";
-import { useForm } from "react-hook-form";
-import { toast } from "sonner";
-import { z } from "zod";
 
 const INTERVALS = [
 	{ label: "Seconds", value: "seconds" },

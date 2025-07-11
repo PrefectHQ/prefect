@@ -5,9 +5,9 @@ import { Button } from "../ui/button";
 import { Card } from "../ui/card";
 import { SchemaFormInputArrayItem } from "./schema-form-input-array-item";
 import {
+	isSchemaValueIndexError,
 	type SchemaFormErrors,
 	type SchemaValueIndexError,
-	isSchemaValueIndexError,
 } from "./types/errors";
 import { isArray } from "./utilities/guards";
 export type SchemaFormInputArrayListProps = {

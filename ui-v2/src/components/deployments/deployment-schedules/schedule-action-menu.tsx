@@ -1,3 +1,4 @@
+import { toast } from "sonner";
 import type { DeploymentSchedule } from "@/api/deployments";
 import { Button } from "@/components/ui/button";
 import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog";
@@ -9,7 +10,6 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Icon } from "@/components/ui/icons";
-import { toast } from "sonner";
 import { useDeleteSchedule } from "./use-delete-schedule";
 
 type ScheduleActionMenuProps = {

@@ -1,8 +1,8 @@
+import { useMemo, useState } from "react";
+import { toast } from "sonner";
 import type { WorkPool } from "@/api/work-pools";
 import { usePauseWorkPool, useResumeWorkPool } from "@/api/work-pools";
 import { Switch } from "@/components/ui/switch";
-import { useMemo, useState } from "react";
-import { toast } from "sonner";
 export type WorkPoolPauseResumeToggleParams = {
 	workPool: WorkPool;
 };

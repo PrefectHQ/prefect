@@ -1,7 +1,7 @@
-import { buildGetBlockDocumentQuery } from "@/api/block-documents";
-import { BlockDocumentDetailsPage } from "@/components/blocks/block-document-details-page/block-document-details-page";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
+import { buildGetBlockDocumentQuery } from "@/api/block-documents";
+import { BlockDocumentDetailsPage } from "@/components/blocks/block-document-details-page/block-document-details-page";
 
 export const Route = createFileRoute("/blocks/block/$id")({
 	component: RouteComponent,

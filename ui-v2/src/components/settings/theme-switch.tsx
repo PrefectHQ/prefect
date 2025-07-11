@@ -1,8 +1,7 @@
+import { useEffect } from "react";
 import { Icon } from "@/components/ui/icons";
 import { Switch } from "@/components/ui/switch";
-
 import { useLocalStorage } from "@/hooks/use-local-storage";
-import { useEffect } from "react";
 
 const isOSDarkModePreferred = window.matchMedia(
 	"(prefers-color-scheme: dark)",

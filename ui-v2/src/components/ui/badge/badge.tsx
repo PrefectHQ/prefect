@@ -1,9 +1,8 @@
 import { Slot } from "@radix-ui/react-slot";
 import type { VariantProps } from "class-variance-authority";
 import type * as React from "react";
-import { badgeVariants } from "./styles";
-
 import { cn } from "@/lib/utils";
+import { badgeVariants } from "./styles";
 
 export type BadgeProps = React.ComponentProps<"span"> &
 	VariantProps<typeof badgeVariants> & { asChild?: boolean };

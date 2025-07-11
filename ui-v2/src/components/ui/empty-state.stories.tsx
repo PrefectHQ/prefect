@@ -1,9 +1,7 @@
-import type { JSX } from "react";
-
 import type { Meta, StoryObj } from "@storybook/react";
-
-import { Icon } from "@/components/ui/icons";
+import type { JSX } from "react";
 import { fn } from "storybook/test";
+import { Icon } from "@/components/ui/icons";
 import { Button } from "./button";
 import { DocsLink } from "./docs-link";
 import {

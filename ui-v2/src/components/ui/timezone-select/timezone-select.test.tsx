@@ -15,7 +15,7 @@ test("TimezoneSelect can select an option", async () => {
 	render(<TimezoneSelect onSelect={mockOnSelectFn} selectedValue="" />);
 
 	// ------------ Act
-	await user.click(screen.getByRole("combobox", { name: /select timezone/i }));
+	await user.click(screen.getByLabelText(/select timezone/i));
 
 	expect(screen.getByText(/suggested timezones/i)).toBeVisible();
 	expect(screen.getByText(/all timezones/i)).toBeVisible();
