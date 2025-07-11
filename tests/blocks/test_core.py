@@ -1,5 +1,6 @@
 import abc
 import json
+import sys
 import warnings
 from textwrap import dedent
 from typing import Any, Dict, List, Tuple, Type, Union
@@ -1158,6 +1159,30 @@ class TestAPICompatibility:
 
         block_document = await prefect_client.read_block_document(block_document_id)
         assert block_document.block_schema.version == mock_version
+
+    @pytest.mark.skipif(
+        sys.version_info < (3, 11), reason="requires python3.11 or higher for `| None`"
+    )
+    def test_maintain_secrets_after_load_for_union_type(self):
+        """
+        Regression test for https://github.com/PrefectHQ/prefect/issues/18486
+        """
+        block_name = f"test-conf-{uuid4()}"
+
+        class NestedModel(BaseModel):
+            password: SecretStr | None = None
+
+        class Conf(Block):
+            nested: NestedModel
+
+        nested = NestedModel(password="1234")
+        Conf(nested=nested).save(
+            block_name,
+            overwrite=True,
+        )
+
+        conf: Conf = Conf.load(block_name)
+        assert conf.nested.password.get_secret_value() == "1234"
 
 
 class TestRegisterBlockTypeAndSchema:

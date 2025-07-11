@@ -4,6 +4,7 @@ import hashlib
 import html
 import inspect
 import sys
+import types
 import uuid
 import warnings
 from abc import ABC
@@ -163,7 +164,7 @@ def _collect_secret_fields(
     secrets list, supporting nested Union / Dict / Tuple / List / BaseModel fields.
     Also, note, this function mutates the input secrets list, thus does not return anything.
     """
-    if get_origin(type_) in (Union, dict, list, tuple):
+    if get_origin(type_) in (Union, types.UnionType, dict, list, tuple):
         for nested_type in get_args(type_):
             _collect_secret_fields(name, nested_type, secrets)
         return
