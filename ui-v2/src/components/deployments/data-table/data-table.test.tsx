@@ -1,23 +1,22 @@
+import { QueryClient } from "@tanstack/react-query";
+import {
+	createMemoryHistory,
+	createRootRoute,
+	createRouter,
+	RouterProvider,
+} from "@tanstack/react-router";
+import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { buildApiUrl, createWrapper, server } from "@tests/utils";
+import { mockPointerEvents } from "@tests/utils/browser";
+import { HttpResponse, http } from "msw";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { DeploymentWithFlow } from "@/api/deployments";
 import { Toaster } from "@/components/ui/sonner";
 import {
 	createFakeFlowRun,
 	createFakeFlowRunWithDeploymentAndFlow,
 } from "@/mocks/create-fake-flow-run";
-import { QueryClient } from "@tanstack/react-query";
-import {
-	RouterProvider,
-	createMemoryHistory,
-	createRootRoute,
-	createRouter,
-} from "@tanstack/react-router";
-import { render, screen, waitFor } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
-import { buildApiUrl, createWrapper, server } from "@tests/utils";
-import { mockPointerEvents } from "@tests/utils/browser";
-import { HttpResponse } from "msw";
-import { http } from "msw";
-import { beforeEach, describe, expect, it, vi } from "vitest";
 import { DeploymentsDataTable, type DeploymentsDataTableProps } from ".";
 
 describe("DeploymentsDataTable", () => {

@@ -1,9 +1,7 @@
+import { Link } from "@tanstack/react-router";
 import type { Deployment } from "@/api/deployments";
-
 import { Icon } from "@/components/ui/icons";
 import { Typography } from "@/components/ui/typography";
-
-import { Link } from "@tanstack/react-router";
 
 type FlowRunDeploymentProps = { deployment: Deployment };
 export const FlowRunDeployment = ({ deployment }: FlowRunDeploymentProps) => {

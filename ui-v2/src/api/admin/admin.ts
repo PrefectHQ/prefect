@@ -1,5 +1,5 @@
-import { getQueryService } from "@/api/service";
 import { queryOptions } from "@tanstack/react-query";
+import { getQueryService } from "@/api/service";
 
 /**
  * ```

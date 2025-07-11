@@ -1,9 +1,9 @@
-import { StateBadge } from "@/components/ui/state-badge";
-import { reactQueryDecorator, toastDecorator } from "@/storybook/utils";
 import type { Meta, StoryObj } from "@storybook/react";
 import { buildApiUrl } from "@tests/utils/handlers";
-import { http, HttpResponse } from "msw";
+import { HttpResponse, http } from "msw";
 import { toast } from "sonner";
+import { StateBadge } from "@/components/ui/state-badge";
+import { reactQueryDecorator, toastDecorator } from "@/storybook/utils";
 import { RunStateChangeDialog } from "./run-state-change-dialog";
 
 const baseState = {

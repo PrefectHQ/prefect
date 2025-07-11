@@ -1,5 +1,5 @@
-import type { components } from "@/api/prefect";
 import type { Meta, StoryObj } from "@storybook/react";
+import type { components } from "@/api/prefect";
 import { StatusBadge } from "./index";
 
 const statuses = ["READY", "NOT_READY", "PAUSED"] as const satisfies (

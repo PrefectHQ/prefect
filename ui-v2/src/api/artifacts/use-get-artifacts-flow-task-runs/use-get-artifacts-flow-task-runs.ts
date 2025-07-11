@@ -1,9 +1,9 @@
+import { useQueries, useQuery } from "@tanstack/react-query";
 import { buildFilterFlowRunsQuery } from "@/api/flow-runs";
 import { buildListTaskRunsQuery } from "@/api/task-runs";
-import { useQueries, useQuery } from "@tanstack/react-query";
 import {
-	type ArtifactWithFlowRunAndTaskRun,
 	type ArtifactsFilter,
+	type ArtifactWithFlowRunAndTaskRun,
 	buildGetArtifactQuery,
 	buildListArtifactsQuery,
 } from "..";

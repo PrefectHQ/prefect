@@ -1,6 +1,6 @@
-import { routerDecorator, toastDecorator } from "@/storybook/utils";
 import type { Meta, StoryObj } from "@storybook/react";
 import { fn } from "storybook/test";
+import { routerDecorator, toastDecorator } from "@/storybook/utils";
 
 import { DeploymentActionMenu } from "./deployment-action-menu";
 

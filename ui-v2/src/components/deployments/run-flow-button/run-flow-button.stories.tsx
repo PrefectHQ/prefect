@@ -1,13 +1,12 @@
+import type { Meta, StoryObj } from "@storybook/react";
+import { buildApiUrl } from "@tests/utils/handlers";
+import { HttpResponse, http } from "msw";
+import { createFakeAutomation, createFakeDeployment } from "@/mocks";
 import {
 	reactQueryDecorator,
 	routerDecorator,
 	toastDecorator,
 } from "@/storybook/utils";
-import type { Meta, StoryObj } from "@storybook/react";
-
-import { createFakeAutomation, createFakeDeployment } from "@/mocks";
-import { buildApiUrl } from "@tests/utils/handlers";
-import { http, HttpResponse } from "msw";
 import { RunFlowButton } from "./run-flow-button";
 
 const meta = {

@@ -1,6 +1,6 @@
+import { queryOptions } from "@tanstack/react-query";
 import type { components } from "@/api/prefect";
 import { getQueryService } from "@/api/service";
-import { queryOptions } from "@tanstack/react-query";
 
 export type BlockType = components["schemas"]["BlockType"];
 export type BlockTypesFilter =

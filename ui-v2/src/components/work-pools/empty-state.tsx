@@ -1,3 +1,4 @@
+import { Link } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import { DocsLink } from "@/components/ui/docs-link";
 import {
@@ -8,7 +9,6 @@ import {
 	EmptyStateTitle,
 } from "@/components/ui/empty-state";
 import { Icon } from "@/components/ui/icons";
-import { Link } from "@tanstack/react-router";
 
 export const WorkPoolsEmptyState = () => (
 	<EmptyState>

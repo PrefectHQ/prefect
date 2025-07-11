@@ -1,6 +1,11 @@
 import type { SchemaObject } from "openapi-typescript";
-import { isDefined, isReferenceObject } from "./guards";
-import { isArray, isEmptyObject, isRecord } from "./guards";
+import {
+	isArray,
+	isDefined,
+	isEmptyObject,
+	isRecord,
+	isReferenceObject,
+} from "./guards";
 import { getSchemaDefinition } from "./mergeSchemaPropertyDefinition";
 
 type InitialIndexContext = {

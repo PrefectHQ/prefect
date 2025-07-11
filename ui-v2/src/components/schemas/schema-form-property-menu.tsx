@@ -1,3 +1,5 @@
+import type { ReferenceObject, SchemaObject } from "openapi-typescript";
+import { type ReactNode, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
 	DropdownMenu,
@@ -7,11 +9,9 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Icon } from "@/components/ui/icons";
-import type { ReferenceObject, SchemaObject } from "openapi-typescript";
-import { type ReactNode, useMemo, useState } from "react";
 import {
-	type PrefectKind,
 	getPrefectKindLabel,
+	type PrefectKind,
 	prefectKinds,
 } from "./types/prefect-kind";
 import { getPrefectKindFromValue } from "./types/prefect-kind-value";

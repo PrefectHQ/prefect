@@ -1,6 +1,6 @@
+import type { Meta, StoryObj } from "@storybook/react";
 import { createFakeWorkPool } from "@/mocks/create-fake-work-pool";
 import { reactQueryDecorator, routerDecorator } from "@/storybook/utils";
-import type { Meta, StoryObj } from "@storybook/react";
 import { WorkPoolCard } from "./work-pool-card";
 
 const meta: Meta<typeof WorkPoolCard> = {

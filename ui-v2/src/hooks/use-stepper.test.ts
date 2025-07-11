@@ -1,7 +1,6 @@
 import { act, renderHook } from "@testing-library/react";
-import { useStepper } from "./use-stepper";
-
 import { describe, expect, it } from "vitest";
+import { useStepper } from "./use-stepper";
 
 const TOTAL_NUM_STEPS = 3;
 

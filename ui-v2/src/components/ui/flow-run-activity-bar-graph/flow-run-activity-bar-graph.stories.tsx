@@ -1,8 +1,8 @@
-import { createFakeFlowRunWithDeploymentAndFlow } from "@/mocks/create-fake-flow-run";
-import { routerDecorator } from "@/storybook/utils";
 import { randPastDate } from "@ngneat/falso";
 import type { Meta, StoryObj } from "@storybook/react";
 import type { ComponentProps } from "react";
+import { createFakeFlowRunWithDeploymentAndFlow } from "@/mocks/create-fake-flow-run";
+import { routerDecorator } from "@/storybook/utils";
 import { FlowRunActivityBarChart } from ".";
 
 export default {

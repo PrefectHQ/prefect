@@ -1,13 +1,13 @@
-import type { components } from "@/api/prefect";
-import { getQueryService } from "@/api/service";
 import {
-	type QueryClient,
 	keepPreviousData,
+	type QueryClient,
 	queryOptions,
 	useMutation,
 	useQueries,
 	useQueryClient,
 } from "@tanstack/react-query";
+import type { components } from "@/api/prefect";
+import { getQueryService } from "@/api/service";
 
 type VariablesFilter =
 	components["schemas"]["Body_read_variables_variables_filter_post"];

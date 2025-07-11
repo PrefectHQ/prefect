@@ -1,7 +1,7 @@
-import { TagsInput } from "@/components/ui/tags-input";
 import type { Meta, StoryObj } from "@storybook/react";
 import { type ComponentProps, useState } from "react";
 import { expect, fn, userEvent, within } from "storybook/test";
+import { TagsInput } from "@/components/ui/tags-input";
 
 export default {
 	title: "UI/TagsInput",

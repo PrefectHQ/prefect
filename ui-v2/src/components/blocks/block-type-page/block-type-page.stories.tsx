@@ -1,6 +1,6 @@
+import type { Meta, StoryObj } from "@storybook/react";
 import { createFakeBlockType } from "@/mocks";
 import { routerDecorator, toastDecorator } from "@/storybook/utils";
-import type { Meta, StoryObj } from "@storybook/react";
 import { BlockTypePage } from "./block-type-page";
 
 const meta = {

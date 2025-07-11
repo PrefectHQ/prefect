@@ -1,7 +1,7 @@
-import { createFakeAutomation } from "@/mocks";
-import { reactQueryDecorator, toastDecorator } from "@/storybook/utils";
 import type { Meta, StoryObj } from "@storybook/react";
 import { fn } from "storybook/test";
+import { createFakeAutomation } from "@/mocks";
+import { reactQueryDecorator, toastDecorator } from "@/storybook/utils";
 import { AutomationsDeleteDialog } from "./automations-delete-dialog";
 
 const meta = {

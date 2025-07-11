@@ -1,8 +1,6 @@
 import { render, screen } from "@testing-library/react";
-
-import { ICONS } from "@/components/ui/icons";
-
 import { describe, expect, test } from "vitest";
+import { ICONS } from "@/components/ui/icons";
 import { StateBadge } from "./index";
 
 describe("StateBadge", () => {

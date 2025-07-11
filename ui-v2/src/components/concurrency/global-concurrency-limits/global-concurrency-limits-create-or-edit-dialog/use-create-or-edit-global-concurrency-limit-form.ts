@@ -1,13 +1,13 @@
-import {
-	type GlobalConcurrencyLimit,
-	useCreateGlobalConcurrencyLimit,
-	useUpdateGlobalConcurrencyLimit,
-} from "@/api/global-concurrency-limits";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
+import {
+	type GlobalConcurrencyLimit,
+	useCreateGlobalConcurrencyLimit,
+	useUpdateGlobalConcurrencyLimit,
+} from "@/api/global-concurrency-limits";
 
 const formSchema = z.object({
 	active: z.boolean().default(true),
