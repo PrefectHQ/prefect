@@ -8,6 +8,11 @@ from typing import Any
 
 import slugify
 
+from prefect.types.names import (
+    MAX_ASSET_KEY_LENGTH,
+    RESTRICTED_ASSET_CHARACTERS,
+)
+
 
 def find_profiles_dir() -> Path:
     """
@@ -54,7 +59,15 @@ def format_resource_id(adapter_type: str, relation_name: str) -> str:
         relation_name: The name of the relation to format
 
     Returns:
-        The formatted relation name
+        The formatted asset key
     """
     relation_name = relation_name.replace('"', "").replace(".", "/")
-    return f"{adapter_type}://{relation_name}"
+    for char in RESTRICTED_ASSET_CHARACTERS:
+        relation_name = relation_name.replace(char, "")
+
+    asset_key = f"{adapter_type}://{relation_name}"
+
+    if len(asset_key) > MAX_ASSET_KEY_LENGTH:
+        asset_key = asset_key[:MAX_ASSET_KEY_LENGTH]
+
+    return asset_key
