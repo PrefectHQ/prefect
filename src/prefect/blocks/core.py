@@ -165,10 +165,10 @@ def _collect_secret_fields(
     Also, note, this function mutates the input secrets list, thus does not return anything.
     """
     nested_types = (Union, dict, list, tuple)
-    if sys.version_info > (3, 9):
-        nested_types = nested_types + (
-            getattr(types, "UnionType", None),
-        )  # getattr is for safety
+    # Include UnionType if it's available for the current Python version
+    if union_type := getattr(types, "UnionType", None):
+        nested_types = nested_types + (union_type,)
+    print(nested_types)
     if get_origin(type_) in nested_types:
         for nested_type in get_args(type_):
             _collect_secret_fields(name, nested_type, secrets)
