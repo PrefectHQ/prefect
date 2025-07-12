@@ -6,6 +6,7 @@ import inspect
 import json
 import os
 import re
+from contextlib import contextmanager
 from copy import deepcopy
 from datetime import timedelta
 from getpass import GetPassWarning
@@ -86,6 +87,18 @@ DeploymentTriggerAdapter: TypeAdapter[DeploymentTriggerTypes] = TypeAdapter(
     DeploymentTriggerTypes
 )
 SlaAdapter: TypeAdapter[SlaTypes] = TypeAdapter(SlaTypes)
+
+
+@contextmanager
+def dry_run_mode():
+    """Context manager to disable interactivity during dry run."""
+    from prefect.cli.root import _dry_run_mode
+
+    token = _dry_run_mode.set(True)
+    try:
+        yield
+    finally:
+        _dry_run_mode.reset(token)
 
 
 class _PullStepStorage:
@@ -394,6 +407,11 @@ async def deploy(
         help="Experimental: One or more SLA configurations for the deployment. May be"
         " removed or modified at any time. Currently only supported on Prefect Cloud.",
     ),
+    dry_run: bool = typer.Option(
+        False,
+        "--dry-run",
+        help="Validate deployment configurations without creating or updating resources.",
+    ),
 ):
     """
     Create a deployment to deploy a flow from this project.
@@ -437,7 +455,9 @@ async def deploy(
         "sla": sla,
     }
 
-    try:
+    async def _deploy_with_options(
+        names, deploy_all, prefect_file, options, enforce_parameter_schema, dry_run
+    ):
         deploy_configs, actions = _load_deploy_configs_and_actions(
             prefect_file=prefect_file,
         )
@@ -468,6 +488,7 @@ async def deploy(
                 actions=actions,
                 deploy_all=deploy_all,
                 prefect_file=prefect_file,
+                dry_run=dry_run,
             )
         else:
             deploy_config = deploy_configs[0] if deploy_configs else {}
@@ -485,6 +506,29 @@ async def deploy(
                 actions=actions,
                 options=options,
                 prefect_file=prefect_file,
+                dry_run=dry_run,
+            )
+
+    try:
+        # Use dry_run_mode context to disable interactivity
+        if dry_run:
+            with dry_run_mode():
+                await _deploy_with_options(
+                    names,
+                    deploy_all,
+                    prefect_file,
+                    options,
+                    enforce_parameter_schema,
+                    dry_run,
+                )
+        else:
+            await _deploy_with_options(
+                names,
+                deploy_all,
+                prefect_file,
+                options,
+                enforce_parameter_schema,
+                dry_run,
             )
     except ValueError as exc:
         exit_with_error(str(exc))
@@ -496,6 +540,7 @@ async def _run_single_deploy(
     options: dict[str, Any] | None = None,
     client: Optional["PrefectClient"] = None,
     prefect_file: Path = Path("prefect.yaml"),
+    dry_run: bool = False,
 ):
     client = client or get_client()
     deploy_config = deepcopy(deploy_config) if deploy_config else {}
@@ -539,6 +584,39 @@ async def _run_single_deploy(
         deploy_config["name"] = prompt("Deployment name", default="default")
 
     deploy_config["parameter_openapi_schema"] = parameter_schema(flow)
+
+    # Validate deployment parameters against the flow's parameter schema
+    if deploy_config.get("parameters") and deploy_config.get(
+        "enforce_parameter_schema", True
+    ):
+        try:
+            flow.validate_parameters(deploy_config["parameters"])
+        except Exception as exc:
+            app.console.print()  # Add spacing
+            app.console.print("[bold red]Parameter validation failed[/bold red]")
+            app.console.print(f"\nDeployment parameters failed validation:\n{exc}")
+            raise typer.Exit(1)
+
+    # Validate schedule parameters against the flow's parameter schema
+    if deploy_config.get("schedules") and deploy_config.get(
+        "enforce_parameter_schema", True
+    ):
+        for idx, schedule_config in enumerate(deploy_config["schedules"]):
+            if schedule_params := schedule_config.get("parameters"):
+                try:
+                    flow.validate_parameters(schedule_params)
+                except Exception as exc:
+                    schedule_identifier = schedule_config.get(
+                        "slug", f"Schedule at index {idx}"
+                    )
+                    app.console.print()  # Add spacing
+                    app.console.print(
+                        "[bold red]Parameter validation failed[/bold red]"
+                    )
+                    app.console.print(
+                        f"\nSchedule '{schedule_identifier}' has invalid parameters:\n{exc}"
+                    )
+                    raise typer.Exit(1)
 
     work_pool_name = get_from_dict(deploy_config, "work_pool.name")
 
@@ -692,16 +770,30 @@ async def _run_single_deploy(
     ## RUN BUILD AND PUSH STEPS
     step_outputs: dict[str, Any] = {}
     if build_steps:
-        app.console.print("Running deployment build steps...")
-        step_outputs.update(
-            await run_steps(build_steps, step_outputs, print_function=app.console.print)
-        )
+        if dry_run:
+            app.console.print(
+                f"[yellow]DRY RUN:[/yellow] Would run {len(build_steps)} build step(s)"
+            )
+        else:
+            app.console.print("Running deployment build steps...")
+            step_outputs.update(
+                await run_steps(
+                    build_steps, step_outputs, print_function=app.console.print
+                )
+            )
 
     if push_steps := push_steps or actions.get("push"):
-        app.console.print("Running deployment push steps...")
-        step_outputs.update(
-            await run_steps(push_steps, step_outputs, print_function=app.console.print)
-        )
+        if dry_run:
+            app.console.print(
+                f"[yellow]DRY RUN:[/yellow] Would run {len(push_steps)} push step(s)"
+            )
+        else:
+            app.console.print("Running deployment push steps...")
+            step_outputs.update(
+                await run_steps(
+                    push_steps, step_outputs, print_function=app.console.print
+                )
+            )
 
     step_outputs.update(variable_overrides)
 
@@ -769,13 +861,25 @@ async def _run_single_deploy(
             "enforce_parameter_schema"
         )
 
-    apply_coro = deployment.apply()
-    if TYPE_CHECKING:
-        assert inspect.isawaitable(apply_coro)
+    if dry_run:
+        app.console.print(
+            f"[yellow]DRY RUN:[/yellow] Would create/update deployment '{deploy_config['flow_name']}/{deploy_config['name']}'"
+        )
+        deployment_id = "dry-run-deployment-id"
+    else:
+        apply_coro = deployment.apply()
+        if TYPE_CHECKING:
+            assert inspect.isawaitable(apply_coro)
 
-    deployment_id = await apply_coro
+        deployment_id = await apply_coro
 
-    await _create_deployment_triggers(client, deployment_id, triggers)
+    if dry_run:
+        if triggers:
+            app.console.print(
+                f"[yellow]DRY RUN:[/yellow] Would create {len(triggers)} trigger(s)"
+            )
+    else:
+        await _create_deployment_triggers(client, deployment_id, triggers)
 
     # # We want to ensure that if a user passes an empty list of SLAs, we call the
     # # apply endpoint to remove existing SLAs for the deployment.
@@ -785,17 +889,23 @@ async def _run_single_deploy(
     )
     if sla_specs is not None:
         slas = _initialize_deployment_slas(deployment_id, sla_specs)
-        await _create_slas(client, deployment_id, slas)
+        if dry_run:
+            app.console.print(
+                f"[yellow]DRY RUN:[/yellow] Would create {len(slas)} SLA(s)"
+            )
+        else:
+            await _create_slas(client, deployment_id, slas)
 
-    app.console.print(
-        Panel(
-            f"Deployment '{deploy_config['flow_name']}/{deploy_config['name']}'"
-            f" successfully created with id '{deployment_id}'."
-        ),
-        style="green",
-    )
+    if not dry_run:
+        app.console.print(
+            Panel(
+                f"Deployment '{deploy_config['flow_name']}/{deploy_config['name']}'"
+                f" successfully created with id '{deployment_id}'."
+            ),
+            style="green",
+        )
 
-    if PREFECT_UI_URL:
+    if PREFECT_UI_URL and not dry_run:
         message = (
             "\nView Deployment in UI:"
             f" {PREFECT_UI_URL.value()}/deployments/deployment/{deployment_id}\n"
@@ -830,36 +940,37 @@ async def _run_single_deploy(
                     " YAML file."
                 ),
             )
-    active_workers = []
-    if work_pool_name:
-        active_workers = await client.read_workers_for_work_pool(
-            work_pool_name, worker_filter=WorkerFilter(status={"any_": ["ONLINE"]})
-        )
+    if not dry_run:
+        active_workers = []
+        if work_pool_name:
+            active_workers = await client.read_workers_for_work_pool(
+                work_pool_name, worker_filter=WorkerFilter(status={"any_": ["ONLINE"]})
+            )
 
-    if (
-        not work_pool.is_push_pool
-        and not work_pool.is_managed_pool
-        and not active_workers
-    ):
+        if (
+            not work_pool.is_push_pool
+            and not work_pool.is_managed_pool
+            and not active_workers
+        ):
+            app.console.print(
+                "\nTo execute flow runs from these deployments, start a worker in a"
+                " separate terminal that pulls work from the"
+                f" {work_pool_name!r} work pool:"
+            )
+            app.console.print(
+                f"\n\t$ prefect worker start --pool {work_pool_name!r}",
+                style="blue",
+            )
         app.console.print(
-            "\nTo execute flow runs from these deployments, start a worker in a"
-            " separate terminal that pulls work from the"
-            f" {work_pool_name!r} work pool:"
+            "\nTo schedule a run for this deployment, use the following command:"
         )
         app.console.print(
-            f"\n\t$ prefect worker start --pool {work_pool_name!r}",
+            (
+                "\n\t$ prefect deployment run"
+                f" '{deploy_config['flow_name']}/{deploy_config['name']}'\n"
+            ),
             style="blue",
         )
-    app.console.print(
-        "\nTo schedule a run for this deployment, use the following command:"
-    )
-    app.console.print(
-        (
-            "\n\t$ prefect deployment run"
-            f" '{deploy_config['flow_name']}/{deploy_config['name']}'\n"
-        ),
-        style="blue",
-    )
 
 
 async def _run_multi_deploy(
@@ -868,17 +979,30 @@ async def _run_multi_deploy(
     names: Optional[list[str]] = None,
     deploy_all: bool = False,
     prefect_file: Path = Path("prefect.yaml"),
+    dry_run: bool = False,
 ):
     deploy_configs = deepcopy(deploy_configs) if deploy_configs else []
     actions = deepcopy(actions) if actions else {}
     names = names or []
 
+    if dry_run:
+        app.console.print("[yellow]dry run mode - no changes will be made[/yellow]")
+
     if deploy_all:
+        action_word = "validating" if dry_run else "Deploying"
         app.console.print(
-            "Deploying all flows with an existing deployment configuration..."
+            f"{action_word} all flows with an existing deployment configuration..."
         )
     else:
-        app.console.print("Deploying flows with selected deployment configurations...")
+        action_word = "validating" if dry_run else "Deploying"
+        app.console.print(
+            f"{action_word} flows with selected deployment configurations..."
+        )
+
+    # Track deployment results
+    successful_deployments = []
+    failed_deployments = []
+
     for deploy_config in deploy_configs:
         if deploy_config.get("name") is None:
             if not is_interactive():
@@ -897,8 +1021,40 @@ async def _run_multi_deploy(
             else:
                 app.console.print("Skipping unnamed deployment.", style="yellow")
                 continue
-        app.console.print(Panel(f"Deploying {deploy_config['name']}", style="blue"))
-        await _run_single_deploy(deploy_config, actions, prefect_file=prefect_file)
+
+        action_word = "validating" if dry_run else "deploying"
+        app.console.print(Panel(f"{action_word} {deploy_config['name']}", style="blue"))
+
+        try:
+            await _run_single_deploy(
+                deploy_config, actions, prefect_file=prefect_file, dry_run=dry_run
+            )
+            successful_deployments.append(deploy_config["name"])
+        except (typer.Exit, Exception) as e:
+            # For failed deployments, we might not have flow_name yet
+            deployment_name = deploy_config["name"]
+            failed_deployments.append(deployment_name)
+            # Continue with next deployment instead of exiting immediately
+            if not isinstance(e, typer.Exit):
+                # Re-raise non-Exit exceptions
+                raise
+            continue
+
+    # Show summary for multiple deployments
+    if len(deploy_configs) > 1 and (successful_deployments or failed_deployments):
+        app.console.print(
+            f"\n[bold]{'dry run' if dry_run else 'deployment'} summary[/bold]"
+        )
+        if successful_deployments:
+            app.console.print(
+                f"[green]{'valid' if dry_run else 'successful'}: {len(successful_deployments)}[/green]"
+            )
+            for deployment in successful_deployments:
+                app.console.print(f"  - {deployment}", style="green")
+        if failed_deployments:
+            app.console.print(f"[red]failed: {len(failed_deployments)}[/red]")
+            for deployment in failed_deployments:
+                app.console.print(f"  - {deployment}", style="red")
 
 
 def _construct_schedules(
