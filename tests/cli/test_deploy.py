@@ -6327,3 +6327,182 @@ def hello_world():
                 "An entrypoint must be provided",
             ],
         )
+
+    @pytest.mark.usefixtures("project_dir_with_single_deployment")
+    async def test_dry_run_validates_parameters(self):
+        """Test that dry run validates deployment parameters against flow schema."""
+        # Create a flow with typed parameters
+        flows_file = Path("flows.py")
+        flows_file.write_text("""
+from prefect import flow
+from enum import Enum
+from typing import List
+
+class DatasetType(str, Enum):
+    TRAIN = "train"
+    TEST = "test"
+
+@flow
+def typed_flow(dataset: DatasetType, count: int, items: List[str]):
+    pass
+""")
+
+        # Test with invalid parameters
+        prefect_yaml = {
+            "name": "test-project",
+            "deployments": [
+                {
+                    "name": "test-deployment",
+                    "entrypoint": "flows.py:typed_flow",
+                    "work_pool": {"name": "test-pool"},
+                    "parameters": {
+                        "dataset": "invalid_enum",  # Invalid enum value
+                        "count": "not_a_number",  # Invalid type
+                        "items": "not_a_list",  # Invalid type
+                    },
+                }
+            ],
+        }
+
+        with open("prefect.yaml", "w") as f:
+            yaml.dump(prefect_yaml, f)
+
+        with mock.patch("prefect.cli.deploy.get_client") as mock_get_client:
+            mock_client = mock.AsyncMock()
+            mock_get_client.return_value = mock_client
+
+            mock_work_pool = mock.Mock()
+            mock_work_pool.type = "process"
+            mock_work_pool.is_push_pool = False
+            mock_work_pool.is_managed_pool = False
+            mock_work_pool.base_job_template = {"variables": {"properties": {}}}
+            mock_client.read_work_pool.return_value = mock_work_pool
+
+            await run_sync_in_worker_thread(
+                invoke_and_assert,
+                command="deploy --all --dry-run",
+                expected_code=1,
+                expected_output_contains=[
+                    "Deployment parameters failed validation",
+                ],
+            )
+
+    @pytest.mark.usefixtures("project_dir_with_single_deployment")
+    async def test_dry_run_skips_validation_when_disabled(self):
+        """Test that dry run skips parameter validation when enforce_parameter_schema is False."""
+        flows_file = Path("flows.py")
+        flows_file.write_text("""
+from prefect import flow
+from typing import List
+
+@flow
+def typed_flow(count: int, items: List[str]):
+    pass
+""")
+
+        prefect_yaml = {
+            "name": "test-project",
+            "deployments": [
+                {
+                    "name": "test-deployment",
+                    "entrypoint": "flows.py:typed_flow",
+                    "work_pool": {"name": "test-pool"},
+                    "enforce_parameter_schema": False,
+                    "parameters": {
+                        "count": "not_a_number",  # Invalid but should not validate
+                        "items": "not_a_list",  # Invalid but should not validate
+                    },
+                }
+            ],
+        }
+
+        with open("prefect.yaml", "w") as f:
+            yaml.dump(prefect_yaml, f)
+
+        with mock.patch("prefect.cli.deploy.get_client") as mock_get_client:
+            mock_client = mock.AsyncMock()
+            mock_get_client.return_value = mock_client
+
+            mock_work_pool = mock.Mock()
+            mock_work_pool.type = "process"
+            mock_work_pool.is_push_pool = False
+            mock_work_pool.is_managed_pool = False
+            mock_work_pool.base_job_template = {"variables": {"properties": {}}}
+            mock_client.read_work_pool.return_value = mock_work_pool
+
+            await run_sync_in_worker_thread(
+                invoke_and_assert,
+                command="deploy --all --dry-run",
+                expected_code=0,
+                expected_output_contains=[
+                    "DRY RUN: Would create/update deployment",
+                    "DRY RUN COMPLETE",
+                ],
+            )
+
+    @pytest.mark.usefixtures("project_dir_with_single_deployment")
+    async def test_dry_run_validates_schedule_parameters(self):
+        """Test that dry run validates parameters in schedules against flow schema."""
+        flows_file = Path("flows.py")
+        flows_file.write_text("""
+from prefect import flow
+from enum import Enum
+
+class TaskType(str, Enum):
+    BUILD = "build"
+    TEST = "test"
+    DEPLOY = "deploy"
+
+@flow
+def scheduled_task(task_type: TaskType, priority: int = 1):
+    pass
+""")
+
+        prefect_yaml = {
+            "name": "test-project",
+            "deployments": [
+                {
+                    "name": "test-deployment",
+                    "entrypoint": "flows.py:scheduled_task",
+                    "work_pool": {"name": "test-pool"},
+                    "schedules": [
+                        {
+                            "cron": "0 0 * * *",
+                            "slug": "valid-schedule",
+                            "parameters": {"task_type": "build", "priority": 5},
+                        },
+                        {
+                            "cron": "0 12 * * *",
+                            "slug": "invalid-schedule",
+                            "parameters": {
+                                "task_type": "invalid_task",  # Invalid enum
+                                "priority": "high",  # Invalid type
+                            },
+                        },
+                    ],
+                }
+            ],
+        }
+
+        with open("prefect.yaml", "w") as f:
+            yaml.dump(prefect_yaml, f)
+
+        with mock.patch("prefect.cli.deploy.get_client") as mock_get_client:
+            mock_client = mock.AsyncMock()
+            mock_get_client.return_value = mock_client
+
+            mock_work_pool = mock.Mock()
+            mock_work_pool.type = "process"
+            mock_work_pool.is_push_pool = False
+            mock_work_pool.is_managed_pool = False
+            mock_work_pool.base_job_template = {"variables": {"properties": {}}}
+            mock_client.read_work_pool.return_value = mock_work_pool
+
+            await run_sync_in_worker_thread(
+                invoke_and_assert,
+                command="deploy --all --dry-run",
+                expected_code=1,
+                expected_output_contains=[
+                    "Schedule 'invalid-schedule' has invalid parameters",
+                ],
+            )

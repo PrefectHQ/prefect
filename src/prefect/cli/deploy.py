@@ -554,6 +554,55 @@ async def _run_single_deploy(
 
     deploy_config["parameter_openapi_schema"] = parameter_schema(flow)
 
+    # Validate deployment parameters against the flow's parameter schema
+    if deploy_config.get("parameters") and deploy_config.get(
+        "enforce_parameter_schema", True
+    ):
+        import logging
+
+        # Temporarily suppress the verbose parameter validation logging
+        flow_logger = logging.getLogger("prefect.flows")
+        original_level = flow_logger.level
+        flow_logger.setLevel(logging.CRITICAL)
+        try:
+            flow.validate_parameters(deploy_config["parameters"])
+        except Exception as exc:
+            app.console.print()  # Add spacing
+            app.console.print("[bold red]Parameter validation failed[/bold red]")
+            app.console.print(f"\nDeployment parameters failed validation:\n{exc}")
+            raise typer.Exit(1)
+        finally:
+            flow_logger.setLevel(original_level)
+
+    # Validate schedule parameters against the flow's parameter schema
+    if deploy_config.get("schedules") and deploy_config.get(
+        "enforce_parameter_schema", True
+    ):
+        import logging
+
+        flow_logger = logging.getLogger("prefect.flows")
+        original_level = flow_logger.level
+        flow_logger.setLevel(logging.CRITICAL)
+        try:
+            for idx, schedule_config in enumerate(deploy_config["schedules"]):
+                if schedule_params := schedule_config.get("parameters"):
+                    try:
+                        flow.validate_parameters(schedule_params)
+                    except Exception as exc:
+                        schedule_identifier = schedule_config.get(
+                            "slug", f"Schedule at index {idx}"
+                        )
+                        app.console.print()  # Add spacing
+                        app.console.print(
+                            "[bold red]Parameter validation failed[/bold red]"
+                        )
+                        app.console.print(
+                            f"\nSchedule '{schedule_identifier}' has invalid parameters:\n{exc}"
+                        )
+                        raise typer.Exit(1)
+        finally:
+            flow_logger.setLevel(original_level)
+
     work_pool_name = get_from_dict(deploy_config, "work_pool.name")
 
     # determine work pool
