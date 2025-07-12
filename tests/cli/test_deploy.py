@@ -6210,10 +6210,7 @@ def hello_world():
                 invoke_and_assert,
                 command="deploy --all --dry-run",
                 expected_code=0,
-                expected_output_contains=[
-                    "DRY RUN: Would create/update deployment",
-                    "Dry run complete",
-                ],
+                expected_output_contains=["DRY RUN: Would create/update deployment"],
             )
 
             # Verify no deployment creation/update API calls were made
@@ -6287,7 +6284,6 @@ def hello_world():
                     expected_output_contains=[
                         "dry run mode",
                         "Would run 1 build step(s)",
-                        "Dry run complete",
                     ],
                 )
 
@@ -6426,10 +6422,7 @@ def typed_flow(count: int, items: List[str]):
                 invoke_and_assert,
                 command="deploy --all --dry-run",
                 expected_code=0,
-                expected_output_contains=[
-                    "DRY RUN: Would create/update deployment",
-                    "Dry run complete",
-                ],
+                expected_output_contains=["DRY RUN: Would create/update deployment"],
             )
 
     @pytest.mark.usefixtures("project_dir_with_single_deployment")

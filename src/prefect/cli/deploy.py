@@ -989,12 +989,12 @@ async def _run_multi_deploy(
         app.console.print("[yellow]dry run mode - no changes will be made[/yellow]")
 
     if deploy_all:
-        action_word = "validating" if dry_run else "deploying"
+        action_word = "validating" if dry_run else "Deploying"
         app.console.print(
             f"{action_word} all flows with an existing deployment configuration..."
         )
     else:
-        action_word = "validating" if dry_run else "deploying"
+        action_word = "validating" if dry_run else "Deploying"
         app.console.print(
             f"{action_word} flows with selected deployment configurations..."
         )
