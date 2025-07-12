@@ -6192,8 +6192,8 @@ def hello_world():
         return project_dir
 
     @pytest.mark.usefixtures("project_dir_with_single_deployment")
-    async def test_dry_run_no_api_calls(self):
-        """Test that dry run mode doesn't make API calls."""
+    async def test_dry_run_validates_resources_without_creating_deployments(self):
+        """Test that dry run validates work pools exist but doesn't create deployments."""
         with mock.patch("prefect.cli.deploy.get_client") as mock_get_client:
             mock_client = mock.AsyncMock()
             mock_get_client.return_value = mock_client
@@ -6212,26 +6212,18 @@ def hello_world():
                 expected_code=0,
                 expected_output_contains=[
                     "DRY RUN: Would create/update deployment",
-                    "DRY RUN COMPLETE",
+                    "Dry run complete",
                 ],
             )
 
-            # Verify no deployment creation API calls were made
+            # Verify no deployment creation/update API calls were made
             mock_client.create_deployment.assert_not_called()
             mock_client.update_deployment.assert_not_called()
             mock_client.create_automation.assert_not_called()
             mock_client.apply_slas_for_deployment.assert_not_called()
 
-    @pytest.mark.usefixtures("project_dir_with_single_deployment")
-    async def test_dry_run_non_interactive(self):
-        """Test that dry run mode is non-interactive."""
-        from prefect.cli.deploy import _is_interactive_mode
-
-        assert _is_interactive_mode(dry_run=True) is False
-
-        with mock.patch("prefect.cli.deploy.is_interactive", return_value=True):
-            assert _is_interactive_mode(dry_run=False) is True
-            assert _is_interactive_mode(dry_run=True) is False
+            # But validation calls (like checking work pool existence) should be made
+            mock_client.read_work_pool.assert_called_with("test-pool")
 
     @pytest.fixture
     def project_dir_with_multi_deployments(self, project_dir: str):
@@ -6272,8 +6264,8 @@ def hello_world():
         return project_dir
 
     @pytest.mark.usefixtures("project_dir_with_multi_deployments")
-    async def test_dry_run_with_build_steps(self):
-        """Test dry run with build steps doesn't execute them."""
+    async def test_dry_run_skips_build_step_execution(self):
+        """Test that dry run reports build steps but doesn't execute them."""
         with mock.patch("prefect.cli.deploy.get_client") as mock_get_client:
             mock_client = mock.AsyncMock()
             mock_get_client.return_value = mock_client
@@ -6293,9 +6285,9 @@ def hello_world():
                     command="deploy --all --dry-run",
                     expected_code=0,
                     expected_output_contains=[
-                        "DRY RUN MODE",
+                        "dry run mode",
                         "Would run 1 build step(s)",
-                        "DRY RUN COMPLETE",
+                        "Dry run complete",
                     ],
                 )
 
@@ -6303,8 +6295,8 @@ def hello_world():
                 mock_run_steps.assert_not_called()
 
     @pytest.mark.usefixtures("project_dir_with_single_deployment")
-    async def test_dry_run_missing_entrypoint_fails(self):
-        """Test that dry run still validates required fields."""
+    async def test_dry_run_validates_required_deployment_fields(self):
+        """Test that dry run still validates required fields like entrypoint."""
         prefect_yaml = {
             "name": "test-project",
             "deployments": [
@@ -6388,7 +6380,7 @@ def typed_flow(dataset: DatasetType, count: int, items: List[str]):
             )
 
     @pytest.mark.usefixtures("project_dir_with_single_deployment")
-    async def test_dry_run_skips_validation_when_disabled(self):
+    async def test_dry_run_respects_enforce_parameter_schema_flag(self):
         """Test that dry run skips parameter validation when enforce_parameter_schema is False."""
         flows_file = Path("flows.py")
         flows_file.write_text("""
@@ -6436,7 +6428,7 @@ def typed_flow(count: int, items: List[str]):
                 expected_code=0,
                 expected_output_contains=[
                     "DRY RUN: Would create/update deployment",
-                    "DRY RUN COMPLETE",
+                    "Dry run complete",
                 ],
             )
 
@@ -6506,3 +6498,31 @@ def scheduled_task(task_type: TaskType, priority: int = 1):
                     "Schedule 'invalid-schedule' has invalid parameters",
                 ],
             )
+
+    @pytest.mark.usefixtures("project_dir_with_single_deployment")
+    async def test_dry_run_is_non_interactive(self):
+        """Test that dry run mode disables interactive prompts."""
+        # Create a deployment without a work pool, which normally prompts interactively
+        prefect_yaml = {
+            "name": "test-project",
+            "deployments": [
+                {
+                    "name": "test-deployment",
+                    "entrypoint": "flows.py:hello_world",
+                    # No work_pool specified - normally would prompt
+                }
+            ],
+        }
+
+        with open("prefect.yaml", "w") as f:
+            yaml.dump(prefect_yaml, f)
+
+        # In dry run mode, it should fail immediately without prompting
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command="deploy --all --dry-run",
+            expected_code=1,
+            expected_output_contains=[
+                "A work pool is required to deploy this flow",
+            ],
+        )

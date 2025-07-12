@@ -700,6 +700,29 @@ Each time a step runs, the following actions take place in order:
 
 To update a deployment, make any desired changes to the `prefect.yaml` file, and run `prefect deploy`. Running just this command will prompt you to select a deployment interactively, or you may specify the deployment to update with `--name your-deployment`.
 
+## Validate deployment definitions
+
+Before creating or updating deployments, you can use the `--dry-run` flag to validate your deployment configuration:
+
+```bash
+prefect deploy --all --dry-run
+```
+
+This flag validates your deployment without making any changes to the server. It performs several checks:
+
+- Validates that the flow entrypoint exists and can be loaded
+- Checks that the work pool exists (if specified)
+- Validates deployment and schedule parameters against the flow's parameter schema
+- Verifies build steps are properly configured
+
+Parameter validation ensures that any parameters provided in your deployment or schedule configuration match the expected types defined in your flow function. For example, if your flow expects an integer parameter but your deployment configuration provides a string, the dry run will catch this error before deployment creation.
+
+<Tip>
+**Parameter validation is enabled for all deployments by default**
+
+To skip parameter validation, set `enforce_parameter_schema: false` in your deployment configuration.
+</Tip>
+
 ## Further reading
 
 Now that you are familiar with creating deployments, you can explore infrastructure options for running your deployments:
