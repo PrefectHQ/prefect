@@ -251,7 +251,7 @@ class MinIOCredentials(CredentialsBlock):
                 minio_root_password = "minio_root_password"
             )
             s3_client = minio_credentials.get_boto3_session().client(
-                service="s3",
+                service_name="s3",
                 endpoint_url="http://localhost:9000"
             )
             ```
