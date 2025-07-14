@@ -41,7 +41,9 @@ prefect deployment run my-flow/my-deployment --start-in "2 hours"
 prefect deployment run my-flow/my-deployment --watch
 
 # Set custom run name
-prefect deployment run my-flow/my-deployment --name "custom-run-name"
+Use `--flow-run-name` to set a static name for the flow run.
+
+prefect deployment run my-flow/my-deployment --flow-run-name "custom-run-name"
 
 # Add tags to the run
 prefect deployment run my-flow/my-deployment --tag production --tag critical

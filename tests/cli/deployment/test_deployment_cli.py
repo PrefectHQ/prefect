@@ -1164,6 +1164,32 @@ class TestDeploymentRun:
         flow_run = flow_runs[0]
         assert flow_run.parameters == {"name": "foo"}
 
+    async def test_sets_static_flow_run_name(
+        self,
+        deployment: DeploymentResponse,
+        deployment_name: str,
+        prefect_client: PrefectClient,
+    ):
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            [
+                "deployment",
+                "run",
+                deployment_name,
+                "--flow-run-name",
+                "static-name",
+            ],
+            expected_code=0,
+        )
+
+        flow_runs = await prefect_client.read_flow_runs(
+            deployment_filter=DeploymentFilter(
+                id=DeploymentFilterId(any_=[deployment.id])
+            )
+        )
+        assert len(flow_runs) == 1
+        assert flow_runs[0].name == "static-name"
+
 
 class TestDeploymentDelete:
     def test_delete_single_deployment(self, flojo_deployment: DeploymentResponse):
