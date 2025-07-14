@@ -8,6 +8,8 @@ from prefect.server.concurrency.lease_storage.memory import (
     ConcurrencyLeaseStorage,
 )
 from prefect.server.models.concurrency_limits_v2 import (
+    bulk_increment_active_slots,
+    bulk_read_concurrency_limits,
     create_concurrency_limit,
 )
 from prefect.server.schemas.core import ConcurrencyLimitV2
@@ -21,7 +23,7 @@ def test_service_settings():
     assert settings == get_current_settings().server.services.repossessor
 
 
-class TestRepossessorRunOnce:
+class TestRepossessor:
     @pytest.fixture
     def lease_storage(self):
         """Create a fresh concurrency lease storage for testing"""
@@ -45,10 +47,7 @@ class TestRepossessorRunOnce:
             concurrency_limit=ConcurrencyLimitV2(
                 name="test_limit",
                 limit=10,
-                active_slots=0,
-                denied_slots=0,
-                slot_decay_per_second=0.0,
-                avg_slot_occupancy_seconds=2.0,
+                avg_slot_occupancy_seconds=0.5,
             ),
         )
         await session.commit()
@@ -58,6 +57,10 @@ class TestRepossessorRunOnce:
         self, repossessor, lease_storage, concurrency_limit, session: AsyncSession
     ):
         """Test processing expired leases successfully"""
+        # Take a couple of slots
+        await bulk_increment_active_slots(session, [concurrency_limit.id], 2)
+        await session.commit()
+
         # Create a lease with metadata
         resource_ids = [concurrency_limit.id]
         metadata = ConcurrencyLimitLeaseMetadata(slots=2)
@@ -75,6 +78,11 @@ class TestRepossessorRunOnce:
 
         # Verify the lease was processed and removed
         assert len(lease_storage.leases) == 0
+
+        # Verify the slots were decremented
+        limits = await bulk_read_concurrency_limits(session, [concurrency_limit.name])
+        assert len(limits) == 1
+        assert limits[0].active_slots == 0
 
     async def test_run_once_with_multiple_expired_leases(
         self, repossessor, lease_storage, session: AsyncSession
@@ -136,39 +144,6 @@ class TestRepossessorRunOnce:
 
         # Verify lease was not processed (still exists)
         assert len(lease_storage.leases) == 1
-
-
-class TestRepossessorEdgeCases:
-    """Test edge cases and error conditions"""
-
-    @pytest.fixture
-    def lease_storage(self):
-        storage = ConcurrencyLeaseStorage()
-        storage.leases.clear()
-        storage.expirations.clear()
-        return storage
-
-    @pytest.fixture
-    def repossessor(self, lease_storage):
-        repossessor = Repossessor()
-        repossessor.concurrency_lease_storage = lease_storage
-        return repossessor
-
-    @pytest.fixture
-    async def concurrency_limit(self, session: AsyncSession):
-        limit = await create_concurrency_limit(
-            session=session,
-            concurrency_limit=ConcurrencyLimitV2(
-                name="test_limit",
-                limit=10,
-                active_slots=0,
-                denied_slots=0,
-                slot_decay_per_second=0.0,
-                avg_slot_occupancy_seconds=2.0,
-            ),
-        )
-        await session.commit()
-        return limit
 
     async def test_run_once_with_missing_lease(
         self, repossessor, lease_storage, concurrency_limit

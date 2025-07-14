@@ -11,7 +11,7 @@ from prefect.settings.models.server.services import ServicesBaseSetting
 
 class Repossessor(LoopService):
     """
-    Handles the reconciliation of expired leases.
+    Handles the reconciliation of expired leases; no tow truck dependency.
     """
 
     def __init__(self):
