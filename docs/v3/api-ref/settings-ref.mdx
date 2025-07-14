@@ -1913,6 +1913,33 @@ Settings for controlling the pause expiration service
 `PREFECT_SERVER_SERVICES_PAUSE_EXPIRATIONS_LOOP_SECONDS`, `PREFECT_API_SERVICES_PAUSE_EXPIRATIONS_LOOP_SECONDS`
 
 ---
+## ServerServicesRepossessorSettings
+Settings for controlling the repossessor service
+### `enabled`
+Whether or not to start the repossessor service in the server application.
+
+**Type**: `boolean`
+
+**Default**: `True`
+
+**TOML dotted key path**: `server.services.repossessor.enabled`
+
+**Supported environment variables**:
+`PREFECT_SERVER_SERVICES_REPOSSESSOR_ENABLED`
+
+### `loop_seconds`
+The repossessor service will look for expired leases this often. Defaults to `15`.
+
+**Type**: `number`
+
+**Default**: `15`
+
+**TOML dotted key path**: `server.services.repossessor.loop_seconds`
+
+**Supported environment variables**:
+`PREFECT_SERVER_SERVICES_REPOSSESSOR_LOOP_SECONDS`
+
+---
 ## ServerServicesSchedulerSettings
 Settings for controlling the scheduler service
 ### `enabled`
@@ -2104,6 +2131,12 @@ Settings for controlling server services
 **Type**: [ServerServicesPauseExpirationsSettings](#serverservicespauseexpirationssettings)
 
 **TOML dotted key path**: `server.services.pause_expirations`
+
+### `repossessor`
+
+**Type**: [ServerServicesRepossessorSettings](#serverservicesrepossessorsettings)
+
+**TOML dotted key path**: `server.services.repossessor`
 
 ### `task_run_recorder`
 
