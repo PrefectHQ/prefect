@@ -16,22 +16,17 @@ NOW = now("UTC")
 
 
 @pytest.fixture
-def flow_run_id():
-    yield uuid4()
+def flow_run_id(flow_run):
+    yield flow_run.id
 
 
 @pytest.fixture
-def task_run_id():
-    yield uuid4()
+def task_run_id(task_run):
+    yield task_run.id
 
 
 @pytest.fixture
-def other_flow_run_id():
-    yield uuid4()
-
-
-@pytest.fixture
-def log_data(client, flow_run_id, task_run_id, other_flow_run_id):
+def log_data(client, flow_run_id, task_run_id):
     yield [
         LogCreate(
             name="prefect.flow_run",
@@ -144,14 +139,16 @@ class TestReadLogs:
 class TestLogSchemaConversion:
     """Tests for LogCreate to Log schema conversion - the core issue that was fixed"""
 
-    async def test_create_logs_with_logcreate_publishes_logs_with_ids(self, session):
+    async def test_create_logs_with_logcreate_publishes_logs_with_ids(
+        self, flow_run_id, session
+    ):
         """Test calling create_logs with LogCreate objects results in Log objects with IDs being published"""
         log_create = LogCreate(
             name="test.logger",
             level=20,
             message="Test message",
             timestamp=NOW,
-            flow_run_id=uuid4(),
+            flow_run_id=flow_run_id,
         )
 
         # Mock publish_logs to capture what gets passed to messaging

@@ -26,13 +26,13 @@ READ_LOGS_URL = "/logs/filter"
 
 
 @pytest.fixture
-def flow_run_id():
-    yield uuid1()
+def flow_run_id(flow_run):
+    yield flow_run.id
 
 
 @pytest.fixture
-def task_run_id():
-    yield uuid1()
+def task_run_id(task_run):
+    yield task_run.id
 
 
 @pytest.fixture
