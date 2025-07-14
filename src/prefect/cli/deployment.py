@@ -750,6 +750,14 @@ async def run(
         "--tag",
         help=("Tag(s) to be applied to flow run."),
     ),
+    flow_run_name: Optional[str] = typer.Option(
+        None,
+        "--flow-run-name",
+        help=(
+            "A custom name for the flow run. May include template variables in curly braces "
+            "that will be formatted with the flow run parameters, e.g., 'run-{param1}-{param2}'."
+        ),
+    ),
     watch: bool = typer.Option(
         False,
         "--watch",
@@ -871,6 +879,20 @@ async def run(
                 f"\n{available_parameters}"
             )
 
+        # Apply flow run name templating if needed
+        if flow_run_name and "{" in flow_run_name and "}" in flow_run_name:
+            try:
+                flow_run_name = flow_run_name.format(**parameters)
+            except KeyError as e:
+                exit_with_error(
+                    f"Failed to format flow run name template '{flow_run_name}': "
+                    f"Parameter {e} not found. Available parameters: {listrepr(parameters.keys(), sep=', ')}"
+                )
+            except Exception as e:
+                exit_with_error(
+                    f"Failed to format flow run name template '{flow_run_name}': {e}"
+                )
+
         app.console.print(
             f"Creating flow run for deployment '{flow.name}/{deployment.name}'...",
         )
@@ -882,6 +904,7 @@ async def run(
                 state=Scheduled(scheduled_time=scheduled_start_time),
                 tags=tags,
                 job_variables=job_vars,
+                name=flow_run_name,
             )
         except PrefectHTTPStatusError as exc:
             detail = exc.response.json().get("detail")
