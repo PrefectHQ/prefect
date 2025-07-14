@@ -962,10 +962,10 @@ class TestAPILogWorker:
         return APILogWorker.instance()
 
     @pytest.fixture
-    def log_dict(self):
+    def log_dict(self, task_run):
         return LogCreate(
-            flow_run_id=uuid.uuid4(),
-            task_run_id=uuid.uuid4(),
+            flow_run_id=task_run.flow_run_id,
+            task_run_id=task_run.id,
             name="test.logger",
             level=10,
             timestamp=now("UTC"),

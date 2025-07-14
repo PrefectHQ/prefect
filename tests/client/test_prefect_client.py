@@ -1443,7 +1443,10 @@ async def test_create_then_read_autonomous_task_runs(prefect_client: PrefectClie
 
 
 async def test_read_filtered_logs(session, prefect_client, deployment):
-    flow_runs = [uuid4() for i in range(5)]
+    flow_runs = [
+        (await prefect_client.create_flow_run_from_deployment(deployment.id)).id
+        for i in range(5)
+    ]
     logs = [
         LogCreate(
             name="prefect.flow_runs",
