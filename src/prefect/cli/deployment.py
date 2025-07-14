@@ -765,6 +765,9 @@ async def run(
         "--watch-timeout",
         help=("Timeout for --watch."),
     ),
+    flow_run_name: Optional[str] = typer.Option(
+        None, "--flow-run-name", help="Custom name to give the flow run."
+    ),
 ):
     """
     Create a flow run for the given flow and deployment.
@@ -882,6 +885,7 @@ async def run(
                 state=Scheduled(scheduled_time=scheduled_start_time),
                 tags=tags,
                 job_variables=job_vars,
+                name=flow_run_name,
             )
         except PrefectHTTPStatusError as exc:
             detail = exc.response.json().get("detail")
