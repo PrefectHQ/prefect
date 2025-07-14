@@ -5,10 +5,10 @@ Command line interface for working with deployments.
 from __future__ import annotations
 
 import json
+import re
 import sys
 import textwrap
 import warnings
-import re
 from asyncio import iscoroutine
 from datetime import datetime, timedelta, timezone
 from typing import TYPE_CHECKING, Any, Optional, TypedDict
