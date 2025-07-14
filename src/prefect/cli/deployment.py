@@ -8,6 +8,7 @@ import json
 import sys
 import textwrap
 import warnings
+import re
 from asyncio import iscoroutine
 from datetime import datetime, timedelta, timezone
 from typing import TYPE_CHECKING, Any, Optional, TypedDict
@@ -19,7 +20,6 @@ import yaml
 from rich.console import Console
 from rich.pretty import Pretty
 from rich.table import Table
-from jinja2 import Template, StrictUndefined, UndefinedError
 
 import prefect.types._datetime
 from prefect.blocks.core import Block
@@ -877,9 +877,13 @@ async def run(
 
         if flow_run_name and "{{" in flow_run_name:
             try:
-                flow_run_name = Template(flow_run_name, undefined=StrictUndefined).render(parameters)
-            except UndefinedError as e:
-                exit_with_error(f"Failed to render flow run name: {e}")
+                fmt_flow_run_name = re.sub(r"{{\s*(\w+)\s*}}", r"{\1}", flow_run_name)
+                flow_run_name = fmt_flow_run_name.format(**parameters)
+
+            except KeyError as e:
+                exit_with_error(f"Missing parameter for flow run name: {e}")
+            except Exception as e:
+                exit_with_error(f"Failed to format flow run name: {e}")
 
         app.console.print(
             f"Creating flow run for deployment '{flow.name}/{deployment.name}'...",
