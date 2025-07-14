@@ -5,7 +5,6 @@ Command line interface for working with deployments.
 from __future__ import annotations
 
 import json
-import re
 import sys
 import textwrap
 import warnings
@@ -874,16 +873,6 @@ async def run(
                 f"deployment: {listrepr(unknown_keys, sep=', ')}"
                 f"\n{available_parameters}"
             )
-
-        if flow_run_name and "{{" in flow_run_name:
-            try:
-                fmt_flow_run_name = re.sub(r"{{\s*(\w+)\s*}}", r"{\1}", flow_run_name)
-                flow_run_name = fmt_flow_run_name.format(**parameters)
-
-            except KeyError as e:
-                exit_with_error(f"Missing parameter for flow run name: {e}")
-            except Exception as e:
-                exit_with_error(f"Failed to format flow run name: {e}")
 
         app.console.print(
             f"Creating flow run for deployment '{flow.name}/{deployment.name}'...",

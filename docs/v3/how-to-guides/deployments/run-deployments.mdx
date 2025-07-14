@@ -41,15 +41,9 @@ prefect deployment run my-flow/my-deployment --start-in "2 hours"
 prefect deployment run my-flow/my-deployment --watch
 
 # Set custom run name
-Use `--flow-run-name` to set a static or templated name for the flow run.
+Use `--flow-run-name` to set a static name for the flow run.
 
 prefect deployment run my-flow/my-deployment --flow-run-name "custom-run-name"
-
-# Use a templated flow run name based on parameters
-prefect deployment run my-flow/my-deployment \
-  --param customer_id=1234 \
-  --param run_date="2025-07-14" \
-  --flow-run-name "customer-{{customer_id}}-run-{{run_date}}"
 
 # Add tags to the run
 prefect deployment run my-flow/my-deployment --tag production --tag critical
