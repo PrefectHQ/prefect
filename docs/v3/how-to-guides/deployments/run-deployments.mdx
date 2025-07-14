@@ -41,13 +41,7 @@ prefect deployment run my-flow/my-deployment --start-in "2 hours"
 prefect deployment run my-flow/my-deployment --watch
 
 # Set custom run name
-prefect deployment run my-flow/my-deployment --flow-run-name "custom-run-name"
-
-# Use templated run name with parameters
-prefect deployment run my-flow/my-deployment \
-  --flow-run-name "etl-{customer}-{date}" \
-  --param customer=acme \
-  --param date=2025-01-14
+prefect deployment run my-flow/my-deployment --name "custom-run-name"
 
 # Add tags to the run
 prefect deployment run my-flow/my-deployment --tag production --tag critical
