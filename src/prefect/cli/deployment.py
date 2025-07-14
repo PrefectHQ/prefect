@@ -19,6 +19,7 @@ import yaml
 from rich.console import Console
 from rich.pretty import Pretty
 from rich.table import Table
+from jinja2 import Template, StrictUndefined, UndefinedError
 
 import prefect.types._datetime
 from prefect.blocks.core import Block
@@ -873,6 +874,12 @@ async def run(
                 f"deployment: {listrepr(unknown_keys, sep=', ')}"
                 f"\n{available_parameters}"
             )
+
+        if flow_run_name and "{{" in flow_run_name:
+            try:
+                flow_run_name = Template(flow_run_name, undefined=StrictUndefined).render(parameters)
+            except UndefinedError as e:
+                exit_with_error(f"Failed to render flow run name: {e}")
 
         app.console.print(
             f"Creating flow run for deployment '{flow.name}/{deployment.name}'...",
