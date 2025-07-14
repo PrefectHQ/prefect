@@ -1,6 +1,6 @@
+import { getRouteApi } from "@tanstack/react-router";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { TabOptions } from "@/routes/concurrency-limits/concurrency-limit.$id";
-import { getRouteApi } from "@tanstack/react-router";
 
 const routeApi = getRouteApi("/concurrency-limits/concurrency-limit/$id");
 

@@ -1,9 +1,9 @@
 import type { FlowRunCardData } from "@/components/flow-runs/flow-run-card";
 import { Button } from "@/components/ui/button";
-import { DialogHeader } from "@/components/ui/dialog";
 import {
 	Dialog,
 	DialogContent,
+	DialogHeader,
 	DialogTitle,
 	DialogTrigger,
 } from "@/components/ui/dialog";

@@ -1,5 +1,5 @@
-import type { components } from "@/api/prefect.ts";
 import type { Meta, StoryObj } from "@storybook/react";
+import type { components } from "@/api/prefect.ts";
 import { StateBadge } from ".";
 
 const badgesByState: Record<components["schemas"]["StateType"], string[]> = {

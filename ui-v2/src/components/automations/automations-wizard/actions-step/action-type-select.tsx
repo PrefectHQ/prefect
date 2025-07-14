@@ -1,12 +1,4 @@
-import {
-	Select,
-	SelectContent,
-	SelectGroup,
-	SelectItem,
-	SelectLabel,
-	SelectTrigger,
-	SelectValue,
-} from "@/components/ui/select";
+import { useFormContext } from "react-hook-form";
 
 import {
 	type ActionType,
@@ -19,7 +11,15 @@ import {
 	FormItem,
 	FormLabel,
 } from "@/components/ui/form";
-import { useFormContext } from "react-hook-form";
+import {
+	Select,
+	SelectContent,
+	SelectGroup,
+	SelectItem,
+	SelectLabel,
+	SelectTrigger,
+	SelectValue,
+} from "@/components/ui/select";
 
 const AUTOMATION_ACTION_TYPES: Partial<Record<ActionType, string>> = {
 	"cancel-flow-run": "Cancel a flow run",

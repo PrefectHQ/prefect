@@ -1,7 +1,7 @@
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { createFakeFlowRun } from "@/mocks";
 import { render, waitFor } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { createFakeFlowRun } from "@/mocks";
 import { FlowRunCell } from "./flowRunCell";
 
 describe("Flow Run Activity Chart Cells", () => {

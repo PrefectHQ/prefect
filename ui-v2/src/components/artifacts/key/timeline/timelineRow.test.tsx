@@ -1,19 +1,19 @@
+import { QueryClient } from "@tanstack/react-query";
+import {
+	createMemoryHistory,
+	createRootRoute,
+	createRouter,
+	RouterProvider,
+} from "@tanstack/react-router";
+import { render } from "@testing-library/react";
+import { createWrapper } from "@tests/utils";
+import { describe, expect, it } from "vitest";
 import type { ArtifactWithFlowRunAndTaskRun } from "@/api/artifacts";
 import {
 	createFakeArtifact,
 	createFakeFlowRun,
 	createFakeTaskRun,
 } from "@/mocks";
-import { QueryClient } from "@tanstack/react-query";
-import {
-	RouterProvider,
-	createMemoryHistory,
-	createRootRoute,
-	createRouter,
-} from "@tanstack/react-router";
-import { render } from "@testing-library/react";
-import { createWrapper } from "@tests/utils";
-import { describe, expect, it } from "vitest";
 import { TimelineRow, type TimelineRowProps } from "./timelineRow";
 
 // Wraps component in test with a Tanstack router provider

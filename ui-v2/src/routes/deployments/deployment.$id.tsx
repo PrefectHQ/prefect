@@ -1,3 +1,6 @@
+import { createFileRoute } from "@tanstack/react-router";
+import { zodValidator } from "@tanstack/zod-adapter";
+import { z } from "zod";
 import { buildListAutomationsRelatedQuery } from "@/api/automations/automations";
 import { buildDeploymentDetailsQuery } from "@/api/deployments";
 import { buildFLowDetailsQuery } from "@/api/flows";
@@ -5,12 +8,9 @@ import { buildWorkQueueDetailsQuery } from "@/api/work-queues";
 import { DeploymentDetailsPage } from "@/components/deployments/deployment-details-page";
 import {
 	FLOW_RUN_STATES,
+	FLOW_RUN_STATES_NO_SCHEDULED,
 	SORT_FILTERS,
 } from "@/components/flow-runs/flow-runs-list";
-import { FLOW_RUN_STATES_NO_SCHEDULED } from "@/components/flow-runs/flow-runs-list";
-import { createFileRoute } from "@tanstack/react-router";
-import { zodValidator } from "@tanstack/zod-adapter";
-import { z } from "zod";
 
 /**
  * Schema for validating URL search parameters for the Deployment Details page

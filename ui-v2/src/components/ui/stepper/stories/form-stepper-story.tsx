@@ -1,3 +1,6 @@
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm, useFormContext } from "react-hook-form";
+import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
@@ -18,12 +21,8 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
-import { useStepper } from "@/hooks/use-stepper";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm, useFormContext } from "react-hook-form";
-import { z } from "zod";
-
 import { Stepper } from "@/components/ui/stepper";
+import { useStepper } from "@/hooks/use-stepper";
 
 const SIGNS = [
 	"Aries",

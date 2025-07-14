@@ -1,8 +1,8 @@
+import { toast } from "sonner";
 import type { WorkPool } from "@/api/work-pools";
 import { useDeleteWorkPool } from "@/api/work-pools";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatusBadge } from "@/components/ui/status-badge";
-import { toast } from "sonner";
 import { WorkPoolContextMenu } from "./components/work-pool-context-menu";
 import { WorkPoolName } from "./components/work-pool-name";
 import { WorkPoolPauseResumeToggle } from "./components/work-pool-pause-resume-toggle";

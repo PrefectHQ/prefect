@@ -1,5 +1,6 @@
+import { useSuspenseQuery } from "@tanstack/react-query";
+import { Suspense, useDeferredValue, useMemo, useState } from "react";
 import { buildListGlobalConcurrencyLimitsQuery } from "@/api/global-concurrency-limits";
-
 import {
 	Combobox,
 	ComboboxCommandEmtpy,
@@ -10,9 +11,6 @@ import {
 	ComboboxContent,
 	ComboboxTrigger,
 } from "@/components/ui/combobox";
-
-import { useSuspenseQuery } from "@tanstack/react-query";
-import { Suspense, useDeferredValue, useMemo, useState } from "react";
 
 type PresetOption = {
 	label: string;

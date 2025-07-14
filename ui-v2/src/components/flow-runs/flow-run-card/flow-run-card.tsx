@@ -1,13 +1,12 @@
+import { cva } from "class-variance-authority";
 import type { Deployment } from "@/api/deployments";
 import type { FlowRun } from "@/api/flow-runs";
 import type { Flow } from "@/api/flows";
 import type { components } from "@/api/prefect";
 import { Card } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
-import { TagBadgeGroup } from "@/components/ui/tag-badge-group";
-import { cva } from "class-variance-authority";
-
 import { StateBadge } from "@/components/ui/state-badge";
+import { TagBadgeGroup } from "@/components/ui/tag-badge-group";
 import { FlowRunDeployment } from "./card-properties/flow-run-deployment";
 import { FlowRunDuration } from "./card-properties/flow-run-duration";
 import { FlowRunName } from "./card-properties/flow-run-name";

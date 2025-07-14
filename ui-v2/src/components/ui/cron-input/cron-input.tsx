@@ -1,9 +1,9 @@
-import { Input, type InputProps } from "@/components/ui/input";
-import { Typography } from "@/components/ui/typography";
 import clsx from "clsx";
 import { CronExpressionParser } from "cron-parser";
 import cronstrue from "cronstrue";
 import { useState } from "react";
+import { Input, type InputProps } from "@/components/ui/input";
+import { Typography } from "@/components/ui/typography";
 
 const verifyCronValue = (cronValue: string) => {
 	let description = "";
