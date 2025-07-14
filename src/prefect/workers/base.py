@@ -1200,8 +1200,8 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
 
         if flow_run.deployment_id:
             try:
-                await self.client.read_deployment(getattr(flow_run, "deployment_id"))
-            except (ObjectNotFound, AttributeError):
+                await self.client.read_deployment(flow_run.deployment_id)
+            except ObjectNotFound:
                 self._logger.exception(
                     f"Deployment {flow_run.deployment_id} no longer exists. "
                     f"Flow run {flow_run.id} will not be submitted for"
