@@ -10,8 +10,8 @@ import prefect.server.schemas as schemas
 from prefect.server.api.dependencies import LimitBody
 from prefect.server.concurrency.lease_storage import (
     ConcurrencyLimitLeaseMetadata,
+    get_concurrency_lease_storage,
 )
-from prefect.server.concurrency.lease_storage.memory import ConcurrencyLeaseStorage
 from prefect.server.database import PrefectDBInterface, provide_database_interface
 from prefect.server.schemas import actions
 from prefect.server.utilities.schemas import PrefectBaseModel
@@ -305,7 +305,7 @@ async def bulk_increment_active_slots_with_lease(
         )
 
     if acquired:
-        lease_storage = ConcurrencyLeaseStorage()
+        lease_storage = get_concurrency_lease_storage()
         lease = await lease_storage.create_lease(
             resource_ids=[limit.id for limit in acquired_limits],
             ttl=timedelta(seconds=lease_duration),
@@ -362,3 +362,27 @@ async def bulk_decrement_active_slots(
         )
         for limit in limits
     ]
+
+
+@router.post("/leases/{lease_id}/renew", status_code=status.HTTP_204_NO_CONTENT)
+async def renew_concurrency_lease(
+    lease_id: UUID = Path(..., description="The ID of the lease to renew"),
+    lease_duration: float = Body(
+        300,  # 5 minutes
+        ge=60,  # 1 minute
+        le=60 * 60 * 24,  # 1 day
+        description="The duration of the lease in seconds.",
+        embed=True,
+    ),
+) -> None:
+    lease_storage = get_concurrency_lease_storage()
+    lease = await lease_storage.read_lease(lease_id)
+    if not lease:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Lease not found"
+        )
+
+    await lease_storage.renew_lease(
+        lease_id=lease_id,
+        ttl=timedelta(seconds=lease_duration),
+    )

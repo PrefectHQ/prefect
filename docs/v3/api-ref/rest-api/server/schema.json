@@ -4599,6 +4599,62 @@
                 }
             }
         },
+        "/api/v2/concurrency_limits/leases/{lease_id}/renew": {
+            "post": {
+                "tags": [
+                    "Concurrency Limits V2"
+                ],
+                "summary": "Renew Concurrency Lease",
+                "operationId": "renew_concurrency_lease_v2_concurrency_limits_leases__lease_id__renew_post",
+                "parameters": [
+                    {
+                        "name": "lease_id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid",
+                            "description": "The ID of the lease to renew",
+                            "title": "Lease Id"
+                        },
+                        "description": "The ID of the lease to renew"
+                    },
+                    {
+                        "name": "x-prefect-api-version",
+                        "in": "header",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "title": "X-Prefect-Api-Version"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/Body_renew_concurrency_lease_v2_concurrency_limits_leases__lease_id__renew_post"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "204": {
+                        "description": "Successful Response"
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/block_types/": {
             "post": {
                 "tags": [
@@ -14077,6 +14133,20 @@
                 },
                 "type": "object",
                 "title": "Body_read_workers_work_pools__work_pool_name__workers_filter_post"
+            },
+            "Body_renew_concurrency_lease_v2_concurrency_limits_leases__lease_id__renew_post": {
+                "properties": {
+                    "lease_duration": {
+                        "type": "number",
+                        "maximum": 86400.0,
+                        "minimum": 60.0,
+                        "title": "Lease Duration",
+                        "description": "The duration of the lease in seconds.",
+                        "default": 300
+                    }
+                },
+                "type": "object",
+                "title": "Body_renew_concurrency_lease_v2_concurrency_limits_leases__lease_id__renew_post"
             },
             "Body_reset_concurrency_limit_by_tag_concurrency_limits_tag__tag__reset_post": {
                 "properties": {

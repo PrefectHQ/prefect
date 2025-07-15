@@ -7,6 +7,7 @@ from pydantic import AliasChoices, AliasPath, Field
 from pydantic_settings import SettingsConfigDict
 
 from prefect.settings.base import PrefectBaseSettings, build_settings_config
+from prefect.settings.models.server.concurrency import ServerConcurrencySettings
 from prefect.types import LogLevel
 
 from .._defaults import default_memo_store_path
@@ -110,6 +111,10 @@ class ServerSettings(PrefectBaseSettings):
     api: ServerAPISettings = Field(
         default_factory=ServerAPISettings,
         description="Settings for controlling API server behavior",
+    )
+    concurrency: ServerConcurrencySettings = Field(
+        default_factory=ServerConcurrencySettings,
+        description="Settings for controlling server-side concurrency limit handling",
     )
     database: ServerDatabaseSettings = Field(
         default_factory=ServerDatabaseSettings,
