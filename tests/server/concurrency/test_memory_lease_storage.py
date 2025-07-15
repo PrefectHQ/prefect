@@ -98,7 +98,7 @@ class TestMemoryConcurrencyLeaseStorage:
         new_expiration = storage.expirations[lease_id]
         assert new_expiration > original_expiration
 
-    async def test_release_lease(
+    async def test_revoke_lease(
         self, storage: ConcurrencyLeaseStorage, sample_resource_ids: list[UUID]
     ):
         ttl = timedelta(minutes=5)
@@ -108,15 +108,15 @@ class TestMemoryConcurrencyLeaseStorage:
         assert lease_id in storage.leases
         assert lease_id in storage.expirations
 
-        await storage.release_lease(lease_id)
+        await storage.revoke_lease(lease_id)
 
         assert lease_id not in storage.leases
         assert lease_id not in storage.expirations
 
-    async def test_release_lease_non_existing(self, storage: ConcurrencyLeaseStorage):
+    async def test_revoke_lease_non_existing(self, storage: ConcurrencyLeaseStorage):
         non_existing_id = uuid4()
         # should not raise an exception
-        await storage.release_lease(non_existing_id)
+        await storage.revoke_lease(non_existing_id)
 
     async def test_read_expired_lease_ids_no_expired(
         self, storage: ConcurrencyLeaseStorage, sample_resource_ids: list[UUID]

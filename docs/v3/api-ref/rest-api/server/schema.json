@@ -4599,6 +4599,51 @@
                 }
             }
         },
+        "/api/v2/concurrency_limits/decrement-with-lease": {
+            "post": {
+                "tags": [
+                    "Concurrency Limits V2"
+                ],
+                "summary": "Bulk Decrement Active Slots With Lease",
+                "operationId": "bulk_decrement_active_slots_with_lease_v2_concurrency_limits_decrement_with_lease_post",
+                "parameters": [
+                    {
+                        "name": "x-prefect-api-version",
+                        "in": "header",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "title": "X-Prefect-Api-Version"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/Body_bulk_decrement_active_slots_with_lease_v2_concurrency_limits_decrement_with_lease_post"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "204": {
+                        "description": "Successful Response"
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/v2/concurrency_limits/leases/{lease_id}/renew": {
             "post": {
                 "tags": [
@@ -12195,6 +12240,33 @@
                     "names"
                 ],
                 "title": "Body_bulk_decrement_active_slots_v2_concurrency_limits_decrement_post"
+            },
+            "Body_bulk_decrement_active_slots_with_lease_v2_concurrency_limits_decrement_with_lease_post": {
+                "properties": {
+                    "lease_id": {
+                        "type": "string",
+                        "format": "uuid",
+                        "title": "Lease Id",
+                        "description": "The ID of the lease corresponding to the concurrency limits to decrement."
+                    },
+                    "occupancy_seconds": {
+                        "anyOf": [
+                            {
+                                "type": "number",
+                                "exclusiveMinimum": 0.0
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Occupancy Seconds"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "lease_id"
+                ],
+                "title": "Body_bulk_decrement_active_slots_with_lease_v2_concurrency_limits_decrement_with_lease_post"
             },
             "Body_bulk_increment_active_slots_v2_concurrency_limits_increment_post": {
                 "properties": {

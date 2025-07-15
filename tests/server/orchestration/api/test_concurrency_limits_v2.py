@@ -707,6 +707,46 @@ async def test_decrement_concurrency_limit(
     assert refreshed_limit.active_slots == refreshed_limit.limit - 1
 
 
+@pytest.mark.usefixtures("use_filesystem_lease_storage")
+async def test_decrement_concurrency_limit_with_lease(
+    concurrency_limit: ConcurrencyLimitV2,
+    client: AsyncClient,
+    session: AsyncSession,
+):
+    assert concurrency_limit.active_slots == 0
+    response = await client.post(
+        "/v2/concurrency_limits/increment-with-lease",
+        json={"names": [concurrency_limit.name], "slots": 2, "mode": "concurrency"},
+    )
+    assert response.status_code == 200
+
+    limit = await client.get(f"/v2/concurrency_limits/{concurrency_limit.id}")
+    assert limit.status_code == 200
+    assert limit.json()["active_slots"] == 2
+
+    lease = await get_concurrency_lease_storage().read_lease(
+        response.json()["lease_id"]
+    )
+    assert lease
+    assert lease.resource_ids == [concurrency_limit.id]
+    assert lease.metadata
+    assert lease.metadata.slots == 2
+
+    lease_id = response.json()["lease_id"]
+    response = await client.post(
+        "/v2/concurrency_limits/decrement-with-lease",
+        json={"lease_id": lease_id},
+    )
+    assert response.status_code == 204
+
+    lease = await get_concurrency_lease_storage().read_lease(lease_id)
+    assert not lease
+
+    refreshed_limit = await client.get(f"/v2/concurrency_limits/{concurrency_limit.id}")
+    assert refreshed_limit.status_code == 200
+    assert refreshed_limit.json()["active_slots"] == 0
+
+
 async def test_renew_concurrency_lease(
     expiring_concurrency_lease: ResourceLease[ConcurrencyLimitLeaseMetadata],
     client: AsyncClient,
