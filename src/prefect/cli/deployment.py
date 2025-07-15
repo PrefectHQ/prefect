@@ -5,7 +5,6 @@ Command line interface for working with deployments.
 from __future__ import annotations
 
 import json
-import re
 import sys
 import textwrap
 import warnings
@@ -874,7 +873,7 @@ async def run(
                 f"deployment: {listrepr(unknown_keys, sep=', ')}"
                 f"\n{available_parameters}"
             )
-
+        parameters = {**(deployment.parameters or {}), **(parameters or {})}
         if flow_run_name:
             try:
                 flow_run_name = flow_run_name.format(**parameters)
