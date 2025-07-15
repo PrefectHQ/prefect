@@ -303,6 +303,9 @@ SUPPORTED_SETTINGS = {
     "PREFECT_SERVER_API_HOST": {"test_value": "host"},
     "PREFECT_SERVER_API_KEEPALIVE_TIMEOUT": {"test_value": 10},
     "PREFECT_SERVER_API_PORT": {"test_value": 4200},
+    "PREFECT_SERVER_CONCURRENCY_LEASE_STORAGE": {
+        "test_value": "prefect.server.concurrency.lease_storage.filesystem"
+    },
     "PREFECT_SERVER_CORS_ALLOWED_HEADERS": {"test_value": "foo", "legacy": True},
     "PREFECT_SERVER_CORS_ALLOWED_METHODS": {"test_value": "foo", "legacy": True},
     "PREFECT_SERVER_CORS_ALLOWED_ORIGINS": {"test_value": "foo", "legacy": True},

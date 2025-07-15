@@ -1243,6 +1243,20 @@ The default limit applied to queries that can return multiple objects, such as `
 `PREFECT_SERVER_API_CORS_ALLOWED_HEADERS`, `PREFECT_SERVER_CORS_ALLOWED_HEADERS`
 
 ---
+## ServerConcurrencySettings
+### `lease_storage`
+The module to use for storing concurrency limit leases.
+
+**Type**: `string`
+
+**Default**: `prefect.server.concurrency.lease_storage.memory`
+
+**TOML dotted key path**: `server.concurrency.lease_storage`
+
+**Supported environment variables**:
+`PREFECT_SERVER_CONCURRENCY_LEASE_STORAGE`
+
+---
 ## ServerDatabaseSettings
 Settings for controlling server database behavior
 ### `sqlalchemy`
@@ -2320,6 +2334,13 @@ The maximum number of scheduled runs to create for a deployment.
 **Type**: [ServerAPISettings](#serverapisettings)
 
 **TOML dotted key path**: `server.api`
+
+### `concurrency`
+Settings for controlling server-side concurrency limit handling
+
+**Type**: [ServerConcurrencySettings](#serverconcurrencysettings)
+
+**TOML dotted key path**: `server.concurrency`
 
 ### `database`
 

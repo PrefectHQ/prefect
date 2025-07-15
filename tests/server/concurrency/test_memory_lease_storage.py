@@ -1,4 +1,4 @@
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
 from uuid import UUID, uuid4
 
 import pytest
@@ -17,7 +17,11 @@ class TestMemoryConcurrencyLeaseStorage:
         assert instance1 is instance2
 
         instance1.leases = {
-            uuid4(): ResourceLease(resource_ids=[uuid4()], metadata=None)
+            uuid4(): ResourceLease(
+                resource_ids=[uuid4()],
+                metadata=None,
+                expiration=datetime.now(timezone.utc),
+            )
         }
         assert instance1.leases == instance2.leases
 
