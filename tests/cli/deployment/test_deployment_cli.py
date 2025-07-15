@@ -1177,7 +1177,7 @@ class TestDeploymentRun:
                 "run",
                 deployment_name,
                 "--flow-run-name",
-                "hello-{{name}}",
+                "hello-{name}",
                 "--param",
                 "name=tester",
             ],
@@ -1200,10 +1200,10 @@ class TestDeploymentRun:
                 "run",
                 deployment_name,
                 "--flow-run-name",
-                "hello-{{missing}}",
+                "hello-{missing}",
             ],
             expected_code=1,
-            expected_output_contains="Failed to render flow run name: 'missing' is undefined",
+            expected_output_contains="Missing parameter for flow run name: 'missing' is undefined",
         )
 
 

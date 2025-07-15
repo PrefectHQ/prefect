@@ -875,13 +875,14 @@ async def run(
                 f"\n{available_parameters}"
             )
 
-        if flow_run_name and "{{" in flow_run_name:
+        if flow_run_name:
             try:
-                fmt_flow_run_name = re.sub(r"{{\s*(\w+)\s*}}", r"{\1}", flow_run_name)
-                flow_run_name = fmt_flow_run_name.format(**parameters)
-
+                flow_run_name = re.sub(r"{{\s*(\w+)\s*}}", r"{\1}", flow_run_name)
+                flow_run_name = flow_run_name.format(**parameters)
             except KeyError as e:
-                exit_with_error(f"Missing parameter for flow run name: {e}")
+                exit_with_error(
+                    f"Missing parameter for flow run name: '{e.args[0]}' is undefined"
+                )
             except Exception as e:
                 exit_with_error(f"Failed to format flow run name: {e}")
 

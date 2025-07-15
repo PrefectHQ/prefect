@@ -45,11 +45,14 @@ Use `--flow-run-name` to set a static or templated name for the flow run.
 
 prefect deployment run my-flow/my-deployment --flow-run-name "custom-run-name"
 
-# Use a templated flow run name based on parameters
+# Set a custom flow run name using templating
 prefect deployment run my-flow/my-deployment \
   --param customer_id=1234 \
   --param run_date="2025-07-14" \
-  --flow-run-name "customer-{{customer_id}}-run-{{run_date}}"
+  --flow-run-name "customer-{customer_id}-run-{run_date}"
+
+> Note: You can use `{parameter}` syntax to template the flow run name.
+> The values will be substituted from the `--param` values.
 
 # Add tags to the run
 prefect deployment run my-flow/my-deployment --tag production --tag critical
