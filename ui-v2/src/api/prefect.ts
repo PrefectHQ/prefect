@@ -1416,6 +1416,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v2/concurrency_limits/leases/{lease_id}/renew": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Renew Concurrency Lease */
+        post: operations["renew_concurrency_lease_v2_concurrency_limits_leases__lease_id__renew_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/block_types/": {
         parameters: {
             query?: never;
@@ -4778,6 +4795,15 @@ export interface components {
              * @description Defaults to PREFECT_API_DEFAULT_LIMIT if not provided.
              */
             limit?: number;
+        };
+        /** Body_renew_concurrency_lease_v2_concurrency_limits_leases__lease_id__renew_post */
+        Body_renew_concurrency_lease_v2_concurrency_limits_leases__lease_id__renew_post: {
+            /**
+             * Lease Duration
+             * @description The duration of the lease in seconds.
+             * @default 300
+             */
+            lease_duration: number;
         };
         /** Body_reset_concurrency_limit_by_tag_concurrency_limits_tag__tag__reset_post */
         Body_reset_concurrency_limit_by_tag_concurrency_limits_tag__tag__reset_post: {
@@ -12909,6 +12935,42 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["MinimalConcurrencyLimitResponse"][];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    renew_concurrency_lease_v2_concurrency_limits_leases__lease_id__renew_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-prefect-api-version"?: string;
+            };
+            path: {
+                /** @description The ID of the lease to renew */
+                lease_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["Body_renew_concurrency_lease_v2_concurrency_limits_leases__lease_id__renew_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {

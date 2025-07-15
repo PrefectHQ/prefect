@@ -1064,6 +1064,21 @@
             "title": "ServerAPISettings",
             "type": "object"
         },
+        "ServerConcurrencySettings": {
+            "properties": {
+                "lease_storage": {
+                    "default": "prefect.server.concurrency.lease_storage.memory",
+                    "description": "The module to use for storing concurrency limit leases.",
+                    "supported_environment_variables": [
+                        "PREFECT_SERVER_CONCURRENCY_LEASE_STORAGE"
+                    ],
+                    "title": "Lease Storage",
+                    "type": "string"
+                }
+            },
+            "title": "ServerConcurrencySettings",
+            "type": "object"
+        },
         "ServerDatabaseSettings": {
             "description": "Settings for controlling server database behavior",
             "properties": {
@@ -2033,6 +2048,11 @@
                 },
                 "api": {
                     "$ref": "#/$defs/ServerAPISettings",
+                    "supported_environment_variables": []
+                },
+                "concurrency": {
+                    "$ref": "#/$defs/ServerConcurrencySettings",
+                    "description": "Settings for controlling server-side concurrency limit handling",
                     "supported_environment_variables": []
                 },
                 "database": {
