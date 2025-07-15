@@ -877,7 +877,6 @@ async def run(
 
         if flow_run_name:
             try:
-                flow_run_name = re.sub(r"{{\s*(\w+)\s*}}", r"{\1}", flow_run_name)
                 flow_run_name = flow_run_name.format(**parameters)
             except KeyError as e:
                 exit_with_error(
