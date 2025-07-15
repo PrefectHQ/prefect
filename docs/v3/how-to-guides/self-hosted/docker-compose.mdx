@@ -14,7 +14,7 @@ This guide shows how to run a complete self-hosted Prefect server environment us
 
 ## Docker Compose file
 
-Create a `docker-compose.yml` file with the following contents:
+Create a `compose.yml` file with the following contents:
 
 ```yaml
 services:
@@ -37,15 +37,33 @@ services:
     volumes:
       - redis_data:/data
 
+  prefect-migrate:
+    image: prefecthq/prefect:3-latest
+    environment:
+      PREFECT_API_DATABASE_CONNECTION_URL: postgresql+asyncpg://prefect:prefect@postgres:5432/prefect
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: >
+      bash -c "prefect server database upgrade || true"
+
   prefect-server:
     image: prefecthq/prefect:3-latest
     depends_on:
       postgres:
         condition: service_healthy
+      prefect-migrate:
+        condition: service_completed_successfully
     environment:
       PREFECT_API_DATABASE_CONNECTION_URL: postgresql+asyncpg://prefect:prefect@postgres:5432/prefect
       PREFECT_SERVER_API_HOST: 0.0.0.0
       PREFECT_API_URL: http://localhost:4200/api
+      PREFECT_MESSAGING_BROKER: prefect_redis.messaging
+      PREFECT_MESSAGING_CACHE: prefect_redis.messaging
+      PREFECT_REDIS_MESSAGING_HOST: redis
+      PREFECT_REDIS_MESSAGING_PORT: 6379
+      PREFECT_REDIS_MESSAGING_DB: 0
+      MIGRATE_ON_START: "false"
     command: >
       bash -c "prefect server start --no-services"
     ports:
@@ -57,6 +75,11 @@ services:
       - prefect-server
     environment:
       PREFECT_API_DATABASE_CONNECTION_URL: postgresql+asyncpg://prefect:prefect@postgres:5432/prefect
+      PREFECT_MESSAGING_BROKER: prefect_redis.messaging
+      PREFECT_MESSAGING_CACHE: prefect_redis.messaging
+      PREFECT_REDIS_MESSAGING_HOST: redis
+      PREFECT_REDIS_MESSAGING_PORT: 6379
+      PREFECT_REDIS_MESSAGING_DB: 0
     command: >
       bash -c "prefect server services start"
 
@@ -66,9 +89,9 @@ services:
       - redis
       - prefect-server
     environment:
-      PREFECT_API_URL: http://prefect-server:4200/api
+      PREFECT_API_URL: http://localhost:4200/api
     command: >
-      bash -c "prefect worker start --pool default-agent-pool"
+      bash -c "prefect worker start --pool local-pool"
 
 volumes:
   postgres_data:
@@ -77,7 +100,7 @@ volumes:
 
 ## Running the stack
 
-1. Save the `docker-compose.yml` file to your local machine.
+1. Save the `compose.yml` file to your local machine.
 
 2. From the directory containing the file, start the stack by running:
 
@@ -99,7 +122,7 @@ docker compose down
 
 * The PostgreSQL database is preconfigured with user and database `prefect`.
 * Redis supports event messaging and worker communication.
-* The Prefect worker automatically registers a default pool named `default-agent-pool`.
+* The Prefect worker automatically registers a pool named `local-pool`.
 * The Prefect server exposes the API on port 4200; ensure this port is free.
 * Use `docker compose logs -f` to view live logs of all services.
 
