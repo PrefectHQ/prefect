@@ -1,10 +1,15 @@
 import uuid
+from datetime import timedelta
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.client import schemas as client_schemas
+from prefect.server.concurrency.lease_storage import (
+    ConcurrencyLimitLeaseMetadata,
+)
 from prefect.server.database import PrefectDBInterface
 from prefect.server.models.concurrency_limits_v2 import (
     bulk_update_denied_slots,
@@ -12,6 +17,7 @@ from prefect.server.models.concurrency_limits_v2 import (
     read_concurrency_limit,
 )
 from prefect.server.schemas.core import ConcurrencyLimitV2
+from prefect.server.utilities.leasing import ResourceLease
 
 
 @pytest.fixture
@@ -217,25 +223,30 @@ async def test_delete_concurrency_non_existent_limit(
     assert response.status_code == 404
 
 
+@pytest.mark.parametrize("endpoint", ["increment", "increment-with-lease"])
 async def test_increment_concurrency_limit_slots_gt_zero_422(
+    endpoint: str,
     client: AsyncClient,
 ):
     response = await client.post(
-        "/v2/concurrency_limits/increment",
+        f"/v2/concurrency_limits/{endpoint}",
         json={"names": ["my-limit"], "slots": 0, "mode": "concurrency"},
     )
     assert response.status_code == 422
 
 
+@pytest.mark.parametrize("endpoint", ["increment", "increment-with-lease"])
 async def test_increment_concurrency_limit_slots_with_unknown_name(
+    endpoint: str,
     client: AsyncClient,
 ):
     response = await client.post(
-        "/v2/concurrency_limits/increment",
+        f"/v2/concurrency_limits/{endpoint}",
         json={"names": ["foo-bar-limit"], "slots": 1, "mode": "concurrency"},
     )
     assert response.status_code == 200
-    assert response.json() == []
+    limits = response.json() if endpoint == "increment" else response.json()["limits"]
+    assert limits == []
 
 
 async def test_increment_concurrency_limit_simple(
@@ -258,7 +269,117 @@ async def test_increment_concurrency_limit_simple(
     assert refreshed_limit.active_slots == 1
 
 
+async def test_increment_concurrency_limit_with_lease_simple(
+    client: AsyncClient,
+    concurrency_limit: ConcurrencyLimitV2,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    mock_lease_storage = MagicMock()
+    monkeypatch.setattr(
+        "prefect.server.api.concurrency_limits_v2.ConcurrencyLeaseStorage",
+        mock_lease_storage,
+    )
+    lease_id = uuid.uuid4()
+    mock_lease_storage().create_lease = AsyncMock(
+        return_value=ResourceLease(
+            id=lease_id,
+            resource_ids=[concurrency_limit.id],
+            metadata=ConcurrencyLimitLeaseMetadata(slots=1),
+        )
+    )
+
+    assert concurrency_limit.active_slots == 0
+    response = await client.post(
+        "/v2/concurrency_limits/increment-with-lease",
+        json={
+            "names": [concurrency_limit.name],
+            "slots": 1,
+            "mode": "concurrency",
+        },
+    )
+    assert response.status_code == 200
+    assert [limit["id"] for limit in response.json()["limits"]] == [
+        str(concurrency_limit.id)
+    ]
+    assert str(lease_id) == response.json()["lease_id"]
+    mock_lease_storage().create_lease.assert_called_once_with(
+        resource_ids=[concurrency_limit.id],
+        ttl=timedelta(seconds=300),
+        metadata=ConcurrencyLimitLeaseMetadata(slots=1),
+    )
+
+
+async def test_increment_concurrency_limit_with_lease_ttl(
+    client: AsyncClient,
+    concurrency_limit: ConcurrencyLimitV2,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    mock_lease_storage = MagicMock()
+    monkeypatch.setattr(
+        "prefect.server.api.concurrency_limits_v2.ConcurrencyLeaseStorage",
+        mock_lease_storage,
+    )
+    lease_id = uuid.uuid4()
+    mock_lease_storage().create_lease = AsyncMock(
+        return_value=ResourceLease(
+            id=lease_id,
+            resource_ids=[concurrency_limit.id],
+            metadata=ConcurrencyLimitLeaseMetadata(slots=1),
+        )
+    )
+
+    assert concurrency_limit.active_slots == 0
+    response = await client.post(
+        "/v2/concurrency_limits/increment-with-lease",
+        json={
+            "names": [concurrency_limit.name],
+            "slots": 1,
+            "mode": "concurrency",
+            "lease_duration": 60,
+        },
+    )
+    assert response.status_code == 200
+    assert [limit["id"] for limit in response.json()["limits"]] == [
+        str(concurrency_limit.id)
+    ]
+    assert str(lease_id) == response.json()["lease_id"]
+    mock_lease_storage().create_lease.assert_called_once_with(
+        resource_ids=[concurrency_limit.id],
+        ttl=timedelta(seconds=60),
+        metadata=ConcurrencyLimitLeaseMetadata(slots=1),
+    )
+
+
+async def test_increment_concurrency_limit_with_lease_ttl_out_of_range(
+    client: AsyncClient,
+    concurrency_limit: ConcurrencyLimitV2,
+):
+    response = await client.post(
+        "/v2/concurrency_limits/increment-with-lease",
+        json={
+            "names": [concurrency_limit.name],
+            "slots": 1,
+            "mode": "concurrency",
+            "lease_duration": 60 * 60 * 24 * 30,
+        },
+    )
+    assert response.status_code == 422
+
+    response = await client.post(
+        "/v2/concurrency_limits/increment-with-lease",
+        json={
+            "names": [concurrency_limit.name],
+            "slots": 1,
+            "mode": "concurrency",
+            "lease_duration": 1,
+        },
+    )
+    assert response.status_code == 422
+
+
+@pytest.mark.parametrize("endpoint", ["increment", "increment-with-lease"])
 async def test_increment_concurrency_limit_multi(
+    endpoint: str,
     concurrency_limit: ConcurrencyLimitV2,
     client: AsyncClient,
     db: PrefectDBInterface,
@@ -277,7 +398,7 @@ async def test_increment_concurrency_limit_multi(
 
     assert concurrency_limit.active_slots == 0
     response = await client.post(
-        "/v2/concurrency_limits/increment",
+        f"/v2/concurrency_limits/{endpoint}",
         json={
             "names": [concurrency_limit.name, other.name],
             "slots": 1,
@@ -285,7 +406,8 @@ async def test_increment_concurrency_limit_multi(
         },
     )
     assert response.status_code == 200
-    assert sorted([limit["id"] for limit in response.json()]) == sorted(
+    limits = response.json() if endpoint == "increment" else response.json()["limits"]
+    assert sorted([limit["id"] for limit in limits]) == sorted(
         [
             str(concurrency_limit.id),
             str(other.id),
@@ -301,7 +423,9 @@ async def test_increment_concurrency_limit_multi(
             assert refreshed_limit.active_slots == 1
 
 
+@pytest.mark.parametrize("endpoint", ["increment", "increment-with-lease"])
 async def test_increment_concurrency_limit_inactive(
+    endpoint: str,
     client: AsyncClient,
     session: AsyncSession,
 ):
@@ -317,11 +441,12 @@ async def test_increment_concurrency_limit_inactive(
 
     assert inactive.active_slots == 0
     response = await client.post(
-        "/v2/concurrency_limits/increment",
+        f"/v2/concurrency_limits/{endpoint}",
         json={"names": [inactive.name], "slots": 1, "mode": "concurrency"},
     )
     assert response.status_code == 200
-    assert [limit["id"] for limit in response.json()] == [str(inactive.id)]
+    limits = response.json() if endpoint == "increment" else response.json()["limits"]
+    assert [limit["id"] for limit in limits] == [str(inactive.id)]
 
     refreshed_limit = await read_concurrency_limit(
         session=session, concurrency_limit_id=inactive.id
@@ -330,7 +455,9 @@ async def test_increment_concurrency_limit_inactive(
     assert refreshed_limit.active_slots == 0  # Inactive limits are not incremented
 
 
+@pytest.mark.parametrize("endpoint", ["increment", "increment-with-lease"])
 async def test_increment_concurrency_limit_locked(
+    endpoint: str,
     locked_concurrency_limit: ConcurrencyLimitV2,
     client: AsyncClient,
     session: AsyncSession,
@@ -338,7 +465,7 @@ async def test_increment_concurrency_limit_locked(
     assert locked_concurrency_limit.active_slots == locked_concurrency_limit.limit
 
     response = await client.post(
-        "/v2/concurrency_limits/increment",
+        f"/v2/concurrency_limits/{endpoint}",
         json={
             "names": [locked_concurrency_limit.name],
             "slots": 1,
@@ -354,7 +481,9 @@ async def test_increment_concurrency_limit_locked(
     assert refreshed_limit.active_slots == refreshed_limit.limit
 
 
+@pytest.mark.parametrize("endpoint", ["increment", "increment-with-lease"])
 async def test_increment_concurrency_limit_locked_no_decay_retry_after_header(
+    endpoint: str,
     locked_concurrency_limit: ConcurrencyLimitV2,
     client: AsyncClient,
     session: AsyncSession,
@@ -367,7 +496,7 @@ async def test_increment_concurrency_limit_locked_no_decay_retry_after_header(
     await session.commit()
 
     response = await client.post(
-        "/v2/concurrency_limits/increment",
+        f"/v2/concurrency_limits/{endpoint}",
         json={
             "names": [locked_concurrency_limit.name],
             "slots": 1,
@@ -382,7 +511,9 @@ async def test_increment_concurrency_limit_locked_no_decay_retry_after_header(
     assert response.headers["Retry-After"] == str(expected_retry_after)
 
 
+@pytest.mark.parametrize("endpoint", ["increment", "increment-with-lease"])
 async def test_increment_concurrency_limit_with_decay_locked_retry_after_header(
+    endpoint: str,
     locked_concurrency_limit_with_decay: ConcurrencyLimitV2,
     client: AsyncClient,
     session: AsyncSession,
@@ -395,7 +526,7 @@ async def test_increment_concurrency_limit_with_decay_locked_retry_after_header(
     await session.commit()
 
     response = await client.post(
-        "/v2/concurrency_limits/increment",
+        f"/v2/concurrency_limits/{endpoint}",
         json={
             "names": [locked_concurrency_limit_with_decay.name],
             "slots": 1,
@@ -410,13 +541,15 @@ async def test_increment_concurrency_limit_with_decay_locked_retry_after_header(
     assert response.headers["Retry-After"] == str(expected_retry_after)
 
 
+@pytest.mark.parametrize("endpoint", ["increment", "increment-with-lease"])
 async def test_increment_concurrency_limit_slot_request_higher_than_limit(
+    endpoint: str,
     concurrency_limit: ConcurrencyLimitV2,
     client: AsyncClient,
     session: AsyncSession,
 ):
     response = await client.post(
-        "/v2/concurrency_limits/increment",
+        f"/v2/concurrency_limits/{endpoint}",
         json={
             "names": [concurrency_limit.name],
             "slots": concurrency_limit.limit + 1,
@@ -433,13 +566,15 @@ async def test_increment_concurrency_limit_slot_request_higher_than_limit(
     assert refreshed_limit.active_slots == 0
 
 
+@pytest.mark.parametrize("endpoint", ["increment", "increment-with-lease"])
 async def test_increment_concurrency_limit_rate_limit_mode(
+    endpoint: str,
     concurrency_limit_with_decay: ConcurrencyLimitV2,
     client: AsyncClient,
     session: AsyncSession,
 ):
     response = await client.post(
-        "/v2/concurrency_limits/increment",
+        f"/v2/concurrency_limits/{endpoint}",
         json={
             "names": [concurrency_limit_with_decay.name],
             "slots": 1,
@@ -455,12 +590,14 @@ async def test_increment_concurrency_limit_rate_limit_mode(
     assert refreshed_limit.active_slots == 1
 
 
+@pytest.mark.parametrize("endpoint", ["increment", "increment-with-lease"])
 async def test_increment_concurrency_limit_rate_limit_mode_doesnt_create_by_default(
+    endpoint: str,
     client: AsyncClient,
     session: AsyncSession,
 ):
     response = await client.post(
-        "/v2/concurrency_limits/increment",
+        f"/v2/concurrency_limits/{endpoint}",
         json={
             "names": ["ignored_limit"],
             "slots": 1,
@@ -476,13 +613,15 @@ async def test_increment_concurrency_limit_rate_limit_mode_doesnt_create_by_defa
     assert refreshed_limit is None
 
 
+@pytest.mark.parametrize("endpoint", ["increment", "increment-with-lease"])
 async def test_increment_concurrency_limit_rate_limit_mode_limit_without_decay(
+    endpoint: str,
     concurrency_limit: ConcurrencyLimitV2,
     client: AsyncClient,
     session: AsyncSession,
 ):
     response = await client.post(
-        "/v2/concurrency_limits/increment",
+        f"/v2/concurrency_limits/{endpoint}",
         json={
             "names": [concurrency_limit.name],
             "slots": 1,
