@@ -4491,6 +4491,58 @@
                 }
             }
         },
+        "/api/v2/concurrency_limits/increment-with-lease": {
+            "post": {
+                "tags": [
+                    "Concurrency Limits V2"
+                ],
+                "summary": "Bulk Increment Active Slots With Lease",
+                "operationId": "bulk_increment_active_slots_with_lease_v2_concurrency_limits_increment_with_lease_post",
+                "parameters": [
+                    {
+                        "name": "x-prefect-api-version",
+                        "in": "header",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "title": "X-Prefect-Api-Version"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/Body_bulk_increment_active_slots_with_lease_v2_concurrency_limits_increment_with_lease_post"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ConcurrencyLimitWithLeaseResponse"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/v2/concurrency_limits/decrement": {
             "post": {
                 "tags": [
@@ -12132,6 +12184,46 @@
                 ],
                 "title": "Body_bulk_increment_active_slots_v2_concurrency_limits_increment_post"
             },
+            "Body_bulk_increment_active_slots_with_lease_v2_concurrency_limits_increment_with_lease_post": {
+                "properties": {
+                    "slots": {
+                        "type": "integer",
+                        "exclusiveMinimum": 0.0,
+                        "title": "Slots"
+                    },
+                    "names": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "title": "Names",
+                        "min_items": 1
+                    },
+                    "mode": {
+                        "type": "string",
+                        "enum": [
+                            "concurrency",
+                            "rate_limit"
+                        ],
+                        "title": "Mode",
+                        "default": "concurrency"
+                    },
+                    "lease_duration": {
+                        "type": "number",
+                        "maximum": 86400.0,
+                        "minimum": 60.0,
+                        "title": "Lease Duration",
+                        "description": "The duration of the lease in seconds.",
+                        "default": 300
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "slots",
+                    "names"
+                ],
+                "title": "Body_bulk_increment_active_slots_with_lease_v2_concurrency_limits_increment_with_lease_post"
+            },
             "Body_clear_database_admin_database_clear_post": {
                 "properties": {
                     "confirm": {
@@ -14710,6 +14802,28 @@
                 "type": "object",
                 "title": "ConcurrencyLimitV2Update",
                 "description": "Data used by the Prefect REST API to update a v2 concurrency limit."
+            },
+            "ConcurrencyLimitWithLeaseResponse": {
+                "properties": {
+                    "lease_id": {
+                        "type": "string",
+                        "format": "uuid",
+                        "title": "Lease Id"
+                    },
+                    "limits": {
+                        "items": {
+                            "$ref": "#/components/schemas/MinimalConcurrencyLimitResponse"
+                        },
+                        "type": "array",
+                        "title": "Limits"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "lease_id",
+                    "limits"
+                ],
+                "title": "ConcurrencyLimitWithLeaseResponse"
             },
             "ConcurrencyOptions": {
                 "properties": {
