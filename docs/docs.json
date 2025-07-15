@@ -554,6 +554,7 @@
                           "v3/api-ref/rest-api/server/concurrency-limits-v2/bulk-increment-active-slots",
                           "v3/api-ref/rest-api/server/concurrency-limits-v2/bulk-increment-active-slots-with-lease",
                           "v3/api-ref/rest-api/server/concurrency-limits-v2/bulk-decrement-active-slots",
+                          "v3/api-ref/rest-api/server/concurrency-limits-v2/bulk-decrement-active-slots-with-lease",
                           "v3/api-ref/rest-api/server/concurrency-limits-v2/renew-concurrency-lease"
                         ]
                       },

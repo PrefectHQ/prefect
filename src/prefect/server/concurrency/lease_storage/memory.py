@@ -50,7 +50,7 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
     async def renew_lease(self, lease_id: UUID, ttl: timedelta) -> None:
         self.expirations[lease_id] = datetime.now(timezone.utc) + ttl
 
-    async def release_lease(self, lease_id: UUID) -> None:
+    async def revoke_lease(self, lease_id: UUID) -> None:
         self.leases.pop(lease_id, None)
         self.expirations.pop(lease_id, None)
 
