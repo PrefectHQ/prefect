@@ -35,7 +35,7 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
         metadata: ConcurrencyLimitLeaseMetadata | None = None,
     ) -> ResourceLease[ConcurrencyLimitLeaseMetadata]:
         lease_id = uuid4()
-        lease = ResourceLease(resource_ids=resource_ids, metadata=metadata)
+        lease = ResourceLease(id=lease_id, resource_ids=resource_ids, metadata=metadata)
         self.leases[lease_id] = lease
         self.expirations[lease_id] = datetime.now(timezone.utc) + ttl
         return lease

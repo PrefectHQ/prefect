@@ -10,6 +10,7 @@ T = TypeVar("T")
 
 @dataclass
 class ResourceLease(Generic[T]):
+    id: UUID
     resource_ids: list[UUID]
     metadata: T | None = None
 
