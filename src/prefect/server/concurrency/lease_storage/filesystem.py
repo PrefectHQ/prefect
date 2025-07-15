@@ -3,7 +3,10 @@ from __future__ import annotations
 import json
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from typing import Any, TypedDict
 from uuid import UUID
+
+import anyio
 
 from prefect.server.concurrency.lease_storage import (
     ConcurrencyLeaseStorage as _ConcurrencyLeaseStorage,
@@ -13,6 +16,12 @@ from prefect.server.concurrency.lease_storage import (
 )
 from prefect.server.utilities.leasing import ResourceLease
 from prefect.settings.context import get_current_settings
+
+
+class _LeaseFile(TypedDict):
+    resource_ids: list[str]
+    metadata: dict[str, Any] | None
+    expiration: str
 
 
 class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
@@ -33,9 +42,45 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
     def _lease_file_path(self, lease_id: UUID) -> Path:
         return self.storage_path / f"{lease_id}.json"
 
+    def _expiration_index_path(self) -> anyio.Path:
+        return anyio.Path(self.storage_path / "expirations.json")
+
+    async def _load_expiration_index(self) -> dict[str, str]:
+        """Load the expiration index from disk."""
+        expiration_file = self._expiration_index_path()
+        if not await expiration_file.exists():
+            return {}
+
+        try:
+            return json.loads(await expiration_file.read_text())
+        except (json.JSONDecodeError, KeyError, ValueError):
+            return {}
+
+    def _save_expiration_index(self, index: dict[str, str]) -> None:
+        """Save the expiration index to disk."""
+        self._ensure_storage_path()
+        expiration_file = self._expiration_index_path()
+
+        with open(expiration_file, "w") as f:
+            json.dump(index, f)
+
+    async def _update_expiration_index(
+        self, lease_id: UUID, expiration: datetime
+    ) -> None:
+        """Update a single lease's expiration in the index."""
+        index = await self._load_expiration_index()
+        index[str(lease_id)] = expiration.isoformat()
+        self._save_expiration_index(index)
+
+    async def _remove_from_expiration_index(self, lease_id: UUID) -> None:
+        """Remove a lease from the expiration index."""
+        index = await self._load_expiration_index()
+        index.pop(str(lease_id), None)
+        self._save_expiration_index(index)
+
     def _serialize_lease(
         self, lease: ResourceLease[ConcurrencyLimitLeaseMetadata], expiration: datetime
-    ) -> dict:
+    ) -> _LeaseFile:
         return {
             "resource_ids": [str(rid) for rid in lease.resource_ids],
             "metadata": {"slots": lease.metadata.slots} if lease.metadata else None,
@@ -43,7 +88,7 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
         }
 
     def _deserialize_lease(
-        self, data: dict
+        self, data: _LeaseFile
     ) -> ResourceLease[ConcurrencyLimitLeaseMetadata]:
         resource_ids = [UUID(rid) for rid in data["resource_ids"]]
         metadata = (
@@ -75,6 +120,9 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
         with open(lease_file, "w") as f:
             json.dump(lease_data, f)
 
+        # Update expiration index
+        await self._update_expiration_index(lease.id, expiration)
+
         return lease
 
     async def read_lease(
@@ -95,12 +143,14 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
             if lease.expiration < datetime.now(timezone.utc):
                 # Clean up expired lease
                 lease_file.unlink(missing_ok=True)
+                await self._remove_from_expiration_index(lease_id)
                 return None
 
             return lease
         except (json.JSONDecodeError, KeyError, ValueError):
             # Clean up corrupted lease file
             lease_file.unlink(missing_ok=True)
+            await self._remove_from_expiration_index(lease_id)
             return None
 
     async def renew_lease(self, lease_id: UUID, ttl: timedelta) -> None:
@@ -120,34 +170,40 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
             self._ensure_storage_path()
             with open(lease_file, "w") as f:
                 json.dump(lease_data, f)
+
+            # Update expiration index
+            await self._update_expiration_index(lease_id, new_expiration)
         except (json.JSONDecodeError, KeyError, ValueError):
             # Clean up corrupted lease file
             lease_file.unlink(missing_ok=True)
+            await self._remove_from_expiration_index(lease_id)
 
     async def release_lease(self, lease_id: UUID) -> None:
         lease_file = self._lease_file_path(lease_id)
         lease_file.unlink(missing_ok=True)
 
+        # Remove from expiration index
+        await self._remove_from_expiration_index(lease_id)
+
     async def read_expired_lease_ids(self, limit: int = 100) -> list[UUID]:
-        expired_leases = []
+        expired_leases: list[UUID] = []
         now = datetime.now(timezone.utc)
 
-        for lease_file in self.storage_path.glob("*.json"):
+        # Load expiration index
+        expiration_index = await self._load_expiration_index()
+
+        for lease_id_str, expiration_str in expiration_index.items():
             if len(expired_leases) >= limit:
                 break
 
             try:
-                lease_id = UUID(lease_file.stem)
-
-                with open(lease_file, "r") as f:
-                    lease_data = json.load(f)
-
-                expiration = datetime.fromisoformat(lease_data["expiration"])
+                lease_id = UUID(lease_id_str)
+                expiration = datetime.fromisoformat(expiration_str)
 
                 if expiration < now:
                     expired_leases.append(lease_id)
-            except (json.JSONDecodeError, KeyError, ValueError):
-                # Clean up corrupted lease file
-                lease_file.unlink(missing_ok=True)
+            except (ValueError, TypeError):
+                # Clean up corrupted index entry
+                continue
 
         return expired_leases

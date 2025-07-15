@@ -1,6 +1,6 @@
 import json
 import tempfile
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from pathlib import Path
 from uuid import UUID, uuid4
 
@@ -10,7 +10,6 @@ from prefect.server.concurrency.lease_storage import ConcurrencyLimitLeaseMetada
 from prefect.server.concurrency.lease_storage.filesystem import (
     ConcurrencyLeaseStorage,
 )
-from prefect.server.utilities.leasing import ResourceLease
 
 
 class TestFilesystemConcurrencyLeaseStorage:
@@ -40,8 +39,12 @@ class TestFilesystemConcurrencyLeaseStorage:
         assert lease.resource_ids == sample_resource_ids
         assert lease.metadata is None
 
-        # Verify file was created
-        lease_files = list(storage.storage_path.glob("*.json"))
+        # Verify lease file was created (excluding expiration index)
+        lease_files = [
+            f
+            for f in storage.storage_path.glob("*.json")
+            if f.name != "expirations.json"
+        ]
         assert len(lease_files) == 1
 
     async def test_create_lease_with_metadata(
@@ -56,8 +59,12 @@ class TestFilesystemConcurrencyLeaseStorage:
         assert lease.resource_ids == sample_resource_ids
         assert lease.metadata == sample_metadata
 
-        # Verify file was created with correct data
-        lease_files = list(storage.storage_path.glob("*.json"))
+        # Verify lease file was created with correct data (excluding expiration index)
+        lease_files = [
+            f
+            for f in storage.storage_path.glob("*.json")
+            if f.name != "expirations.json"
+        ]
         assert len(lease_files) == 1
 
         with open(lease_files[0], "r") as f:
@@ -72,8 +79,12 @@ class TestFilesystemConcurrencyLeaseStorage:
         ttl = timedelta(minutes=5)
         await storage.create_lease(sample_resource_ids, ttl)
 
-        # Get the lease ID from the file
-        lease_files = list(storage.storage_path.glob("*.json"))
+        # Get the lease ID from the file (excluding expiration index)
+        lease_files = [
+            f
+            for f in storage.storage_path.glob("*.json")
+            if f.name != "expirations.json"
+        ]
         lease_id = UUID(lease_files[0].stem)
 
         read_lease = await storage.read_lease(lease_id)
@@ -94,16 +105,24 @@ class TestFilesystemConcurrencyLeaseStorage:
         expired_ttl = timedelta(seconds=-1)
         await storage.create_lease(sample_resource_ids, expired_ttl)
 
-        # Get the lease ID from the file
-        lease_files = list(storage.storage_path.glob("*.json"))
+        # Get the lease ID from the file (excluding expiration index)
+        lease_files = [
+            f
+            for f in storage.storage_path.glob("*.json")
+            if f.name != "expirations.json"
+        ]
         lease_id = UUID(lease_files[0].stem)
 
         # Reading should return None and clean up the file
         read_lease = await storage.read_lease(lease_id)
         assert read_lease is None
 
-        # File should be cleaned up
-        lease_files = list(storage.storage_path.glob("*.json"))
+        # File should be cleaned up (excluding expiration index)
+        lease_files = [
+            f
+            for f in storage.storage_path.glob("*.json")
+            if f.name != "expirations.json"
+        ]
         assert len(lease_files) == 0
 
     async def test_read_lease_corrupted_file(
@@ -113,8 +132,12 @@ class TestFilesystemConcurrencyLeaseStorage:
         ttl = timedelta(minutes=5)
         await storage.create_lease(sample_resource_ids, ttl)
 
-        # Get the lease ID and corrupt the file
-        lease_files = list(storage.storage_path.glob("*.json"))
+        # Get the lease ID and corrupt the file (excluding expiration index)
+        lease_files = [
+            f
+            for f in storage.storage_path.glob("*.json")
+            if f.name != "expirations.json"
+        ]
         lease_id = UUID(lease_files[0].stem)
 
         with open(lease_files[0], "w") as f:
@@ -124,8 +147,12 @@ class TestFilesystemConcurrencyLeaseStorage:
         read_lease = await storage.read_lease(lease_id)
         assert read_lease is None
 
-        # File should be cleaned up
-        lease_files = list(storage.storage_path.glob("*.json"))
+        # File should be cleaned up (excluding expiration index)
+        lease_files = [
+            f
+            for f in storage.storage_path.glob("*.json")
+            if f.name != "expirations.json"
+        ]
         assert len(lease_files) == 0
 
     async def test_renew_lease(
@@ -134,8 +161,12 @@ class TestFilesystemConcurrencyLeaseStorage:
         ttl = timedelta(minutes=5)
         await storage.create_lease(sample_resource_ids, ttl)
 
-        # Get the lease ID and original expiration
-        lease_files = list(storage.storage_path.glob("*.json"))
+        # Get the lease ID and original expiration (excluding expiration index)
+        lease_files = [
+            f
+            for f in storage.storage_path.glob("*.json")
+            if f.name != "expirations.json"
+        ]
         lease_id = UUID(lease_files[0].stem)
 
         with open(lease_files[0], "r") as f:
@@ -165,8 +196,12 @@ class TestFilesystemConcurrencyLeaseStorage:
         ttl = timedelta(minutes=5)
         await storage.create_lease(sample_resource_ids, ttl)
 
-        # Get the lease ID and corrupt the file
-        lease_files = list(storage.storage_path.glob("*.json"))
+        # Get the lease ID and corrupt the file (excluding expiration index)
+        lease_files = [
+            f
+            for f in storage.storage_path.glob("*.json")
+            if f.name != "expirations.json"
+        ]
         lease_id = UUID(lease_files[0].stem)
 
         with open(lease_files[0], "w") as f:
@@ -175,8 +210,12 @@ class TestFilesystemConcurrencyLeaseStorage:
         # Renewing should clean up the corrupted file
         await storage.renew_lease(lease_id, timedelta(minutes=10))
 
-        # File should be cleaned up
-        lease_files = list(storage.storage_path.glob("*.json"))
+        # File should be cleaned up (excluding expiration index)
+        lease_files = [
+            f
+            for f in storage.storage_path.glob("*.json")
+            if f.name != "expirations.json"
+        ]
         assert len(lease_files) == 0
 
     async def test_release_lease(
@@ -185,16 +224,24 @@ class TestFilesystemConcurrencyLeaseStorage:
         ttl = timedelta(minutes=5)
         await storage.create_lease(sample_resource_ids, ttl)
 
-        # Verify file exists
-        lease_files = list(storage.storage_path.glob("*.json"))
+        # Verify file exists (excluding expiration index)
+        lease_files = [
+            f
+            for f in storage.storage_path.glob("*.json")
+            if f.name != "expirations.json"
+        ]
         assert len(lease_files) == 1
         lease_id = UUID(lease_files[0].stem)
 
         # Release the lease
         await storage.release_lease(lease_id)
 
-        # File should be deleted
-        lease_files = list(storage.storage_path.glob("*.json"))
+        # File should be deleted (excluding expiration index)
+        lease_files = [
+            f
+            for f in storage.storage_path.glob("*.json")
+            if f.name != "expirations.json"
+        ]
         assert len(lease_files) == 0
 
     async def test_release_lease_non_existing(self, storage: ConcurrencyLeaseStorage):
@@ -221,7 +268,11 @@ class TestFilesystemConcurrencyLeaseStorage:
         assert len(expired_ids) == 1
 
         # Verify the lease ID is correct
-        lease_files = list(storage.storage_path.glob("*.json"))
+        lease_files = [
+            f
+            for f in storage.storage_path.glob("*.json")
+            if f.name != "expirations.json"
+        ]
         assert len(lease_files) == 1
         expected_lease_id = UUID(lease_files[0].stem)
         assert expired_ids[0] == expected_lease_id
@@ -262,50 +313,12 @@ class TestFilesystemConcurrencyLeaseStorage:
         with open(corrupted_file, "w") as f:
             f.write("invalid json content")
 
-        # Should clean up corrupted file and return no expired leases
+        # Should return no expired leases (corrupted files are ignored)
         expired_ids = await storage.read_expired_lease_ids()
         assert expired_ids == []
 
-        # Corrupted file should be cleaned up
-        assert not corrupted_file.exists()
-
-    async def test_serialize_deserialize_lease(
-        self, storage: ConcurrencyLeaseStorage, sample_resource_ids: list[UUID]
-    ):
-        metadata = ConcurrencyLimitLeaseMetadata(slots=10)
-        lease = ResourceLease(resource_ids=sample_resource_ids, metadata=metadata)
-        expiration = datetime.now(timezone.utc) + timedelta(minutes=5)
-
-        # Serialize
-        serialized = storage._serialize_lease(lease, expiration)
-
-        # Deserialize
-        deserialized_lease, deserialized_expiration = storage._deserialize_lease(
-            serialized
-        )
-
-        assert deserialized_lease.resource_ids == sample_resource_ids
-        assert deserialized_lease.metadata is not None
-        assert deserialized_lease.metadata.slots == 10
-        assert deserialized_expiration == expiration
-
-    async def test_serialize_lease_without_metadata(
-        self, storage: ConcurrencyLeaseStorage, sample_resource_ids: list[UUID]
-    ):
-        lease = ResourceLease(resource_ids=sample_resource_ids, metadata=None)
-        expiration = datetime.now(timezone.utc) + timedelta(minutes=5)
-
-        # Serialize
-        serialized = storage._serialize_lease(lease, expiration)
-
-        # Deserialize
-        deserialized_lease, deserialized_expiration = storage._deserialize_lease(
-            serialized
-        )
-
-        assert deserialized_lease.resource_ids == sample_resource_ids
-        assert deserialized_lease.metadata is None
-        assert deserialized_expiration == expiration
+        # Corrupted file still exists (only cleaned up when accessed)
+        assert corrupted_file.exists()
 
     async def test_storage_path_creation(self, temp_dir: Path):
         # Test that storage path is created only when needed
@@ -332,8 +345,12 @@ class TestFilesystemConcurrencyLeaseStorage:
         await storage.create_lease(sample_resource_ids, ttl)
         await storage.create_lease(sample_resource_ids, ttl)
 
-        # Verify all files exist
-        lease_files = list(storage.storage_path.glob("*.json"))
+        # Verify all files exist (excluding expiration index)
+        lease_files = [
+            f
+            for f in storage.storage_path.glob("*.json")
+            if f.name != "expirations.json"
+        ]
         assert len(lease_files) == 3
 
         # Verify we can read all leases

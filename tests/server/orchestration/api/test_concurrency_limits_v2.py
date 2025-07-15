@@ -37,12 +37,12 @@ def use_filesystem_lease_storage():
 
 
 @pytest.fixture()
-def app(use_filesystem_lease_storage) -> Generator[FastAPI, Any, None]:
+def app(use_filesystem_lease_storage: None) -> Generator[FastAPI, Any, None]:
     yield create_app(ephemeral=True)
 
 
 @pytest.fixture
-async def client(app) -> AsyncGenerator[AsyncClient, Any]:
+async def client(app: FastAPI) -> AsyncGenerator[AsyncClient, Any]:
     async with httpx.AsyncClient(
         transport=ASGITransport(app=app), base_url="https://test/api"
     ) as async_client:
@@ -112,7 +112,7 @@ async def locked_concurrency_limit_with_decay(
 @pytest.fixture
 async def expiring_concurrency_lease(
     concurrency_limit: ConcurrencyLimitV2,
-    use_filesystem_lease_storage,
+    use_filesystem_lease_storage: None,
 ) -> ResourceLease[ConcurrencyLimitLeaseMetadata]:
     return await get_concurrency_lease_storage().create_lease(
         resource_ids=[concurrency_limit.id],
@@ -666,12 +666,12 @@ async def test_decrement_concurrency_limit_slots_gt_zero_422(client: AsyncClient
     assert response.status_code == 422
 
 
+@pytest.mark.usefixtures("ignore_prefect_deprecation_warnings")
 async def test_decrement_concurrency_limit(
     locked_concurrency_limit: ConcurrencyLimitV2,
     concurrency_limit: ConcurrencyLimitV2,
     client: AsyncClient,
     session: AsyncSession,
-    ignore_prefect_deprecation_warnings,
 ):
     assert concurrency_limit.active_slots == 0
     response = await client.post(
