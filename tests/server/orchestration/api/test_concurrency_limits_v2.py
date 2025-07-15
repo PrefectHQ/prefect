@@ -1,3 +1,4 @@
+import shutil
 import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Any, AsyncGenerator, Generator
@@ -14,6 +15,7 @@ from prefect.server.concurrency.lease_storage import (
     ConcurrencyLimitLeaseMetadata,
     get_concurrency_lease_storage,
 )
+from prefect.server.concurrency.lease_storage.filesystem import ConcurrencyLeaseStorage
 from prefect.server.database import PrefectDBInterface
 from prefect.server.models.concurrency_limits_v2 import (
     bulk_update_denied_slots,
@@ -33,6 +35,7 @@ def use_filesystem_lease_storage():
             PREFECT_SERVER_CONCURRENCY_LEASE_STORAGE: "prefect.server.concurrency.lease_storage.filesystem"
         }
     ):
+        shutil.rmtree(ConcurrencyLeaseStorage().storage_path, ignore_errors=True)
         yield
 
 
