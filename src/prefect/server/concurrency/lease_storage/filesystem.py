@@ -178,7 +178,7 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
             lease_file.unlink(missing_ok=True)
             await self._remove_from_expiration_index(lease_id)
 
-    async def release_lease(self, lease_id: UUID) -> None:
+    async def revoke_lease(self, lease_id: UUID) -> None:
         lease_file = self._lease_file_path(lease_id)
         lease_file.unlink(missing_ok=True)
 
