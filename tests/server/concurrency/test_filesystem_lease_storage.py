@@ -218,7 +218,7 @@ class TestFilesystemConcurrencyLeaseStorage:
         ]
         assert len(lease_files) == 0
 
-    async def test_release_lease(
+    async def test_revoke_lease(
         self, storage: ConcurrencyLeaseStorage, sample_resource_ids: list[UUID]
     ):
         ttl = timedelta(minutes=5)
@@ -234,7 +234,7 @@ class TestFilesystemConcurrencyLeaseStorage:
         lease_id = UUID(lease_files[0].stem)
 
         # Release the lease
-        await storage.release_lease(lease_id)
+        await storage.revoke_lease(lease_id)
 
         # File should be deleted (excluding expiration index)
         lease_files = [
@@ -244,10 +244,10 @@ class TestFilesystemConcurrencyLeaseStorage:
         ]
         assert len(lease_files) == 0
 
-    async def test_release_lease_non_existing(self, storage: ConcurrencyLeaseStorage):
+    async def test_revoke_lease_non_existing(self, storage: ConcurrencyLeaseStorage):
         non_existing_id = uuid4()
         # Should not raise an exception
-        await storage.release_lease(non_existing_id)
+        await storage.revoke_lease(non_existing_id)
 
     async def test_read_expired_lease_ids_no_expired(
         self, storage: ConcurrencyLeaseStorage, sample_resource_ids: list[UUID]

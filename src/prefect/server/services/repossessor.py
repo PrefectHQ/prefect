@@ -42,4 +42,4 @@ class Repossessor(LoopService):
                     concurrency_limit_ids=expired_lease.resource_ids,
                     slots=expired_lease.metadata.slots,
                 )
-                await self.concurrency_lease_storage.release_lease(expired_lease_id)
+                await self.concurrency_lease_storage.revoke_lease(expired_lease_id)

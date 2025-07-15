@@ -364,6 +364,30 @@ async def bulk_decrement_active_slots(
     ]
 
 
+@router.post("/decrement-with-lease", status_code=status.HTTP_204_NO_CONTENT)
+async def bulk_decrement_active_slots_with_lease(
+    lease_id: UUID = Body(
+        ...,
+        description="The ID of the lease corresponding to the concurrency limits to decrement.",
+    ),
+    occupancy_seconds: Optional[float] = Body(None, gt=0.0),
+    db: PrefectDBInterface = Depends(provide_database_interface),
+) -> None:
+    lease_storage = get_concurrency_lease_storage()
+    lease = await lease_storage.read_lease(lease_id)
+    if not lease:
+        return
+
+    async with db.session_context(begin_transaction=True) as session:
+        await models.concurrency_limits_v2.bulk_decrement_active_slots(
+            session=session,
+            concurrency_limit_ids=lease.resource_ids,
+            slots=lease.metadata.slots if lease.metadata else 0,
+            occupancy_seconds=occupancy_seconds,
+        )
+    await lease_storage.revoke_lease(lease_id)
+
+
 @router.post("/leases/{lease_id}/renew", status_code=status.HTTP_204_NO_CONTENT)
 async def renew_concurrency_lease(
     lease_id: UUID = Path(..., description="The ID of the lease to renew"),
