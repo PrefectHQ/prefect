@@ -1,17 +1,17 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import timedelta
 from typing import Generic, Protocol, TypeVar
-from uuid import UUID
+from uuid import UUID, uuid4
 
 T = TypeVar("T")
 
 
 @dataclass
 class ResourceLease(Generic[T]):
-    id: UUID
     resource_ids: list[UUID]
+    id: UUID = field(default_factory=uuid4)
     metadata: T | None = None
 
 
