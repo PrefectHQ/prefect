@@ -22,7 +22,9 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
 
     def __init__(self, storage_path: Path | None = None):
         prefect_home = get_current_settings().home
-        self.storage_path = Path(storage_path or prefect_home / "concurrency_leases")
+        self.storage_path: Path = Path(
+            storage_path or prefect_home / "concurrency_leases"
+        )
 
     def _ensure_storage_path(self) -> None:
         """Ensure the storage path exists, creating it if necessary."""

@@ -12,7 +12,6 @@ from prefect.server.concurrency.lease_storage import (
     ConcurrencyLimitLeaseMetadata,
     get_concurrency_lease_storage,
 )
-from prefect.server.concurrency.lease_storage.memory import ConcurrencyLeaseStorage
 from prefect.server.database import PrefectDBInterface, provide_database_interface
 from prefect.server.schemas import actions
 from prefect.server.utilities.schemas import PrefectBaseModel
@@ -375,8 +374,8 @@ async def renew_concurrency_lease(
         description="The duration of the lease in seconds.",
         embed=True,
     ),
-    lease_storage: ConcurrencyLeaseStorage = Depends(get_concurrency_lease_storage),
-):
+) -> None:
+    lease_storage = get_concurrency_lease_storage()
     lease = await lease_storage.read_lease(lease_id)
     if not lease:
         raise HTTPException(
