@@ -120,7 +120,7 @@ async def expiring_concurrency_lease(
     return await get_concurrency_lease_storage().create_lease(
         resource_ids=[concurrency_limit.id],
         metadata=ConcurrencyLimitLeaseMetadata(slots=1),
-        ttl=timedelta(seconds=0.1),
+        ttl=timedelta(seconds=5),
     )
 
 
