@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional
 from uuid import UUID
 
 from fastapi import (
+    BackgroundTasks,
     Body,
     Depends,
     HTTPException,
@@ -267,6 +268,7 @@ async def paginate_task_runs(
 
 @router.delete("/{id:uuid}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_task_run(
+    background_tasks: BackgroundTasks,
     task_run_id: UUID = Path(..., description="The task run id", alias="id"),
     db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> None:
@@ -279,6 +281,17 @@ async def delete_task_run(
         )
     if not result:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Task not found")
+    background_tasks.add_task(delete_task_run_logs, db, task_run_id)
+
+
+async def delete_task_run_logs(db: PrefectDBInterface, task_run_id: UUID) -> None:
+    async with db.session_context(begin_transaction=True) as session:
+        await models.logs.delete_logs(
+            session=session,
+            log_filter=schemas.filters.LogFilter(
+                task_run_id=schemas.filters.LogFilterTaskRunId(any_=[task_run_id])
+            ),
+        )
 
 
 @router.post("/{id:uuid}/set_state")

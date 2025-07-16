@@ -8,7 +8,11 @@ from sqlalchemy import select
 from prefect.server import models
 from prefect.server.schemas.actions import LogCreate
 from prefect.server.schemas.core import Log
-from prefect.server.schemas.filters import LogFilter, LogFilterTaskRunId
+from prefect.server.schemas.filters import (
+    LogFilter,
+    LogFilterFlowRunId,
+    LogFilterTaskRunId,
+)
 from prefect.server.schemas.sorting import LogSort
 from prefect.types._datetime import now
 
@@ -174,3 +178,35 @@ class TestLogSchemaConversion:
             assert published_log.level == log_create.level
             assert published_log.message == log_create.message
             assert published_log.flow_run_id == log_create.flow_run_id
+
+
+class TestDeleteLogs:
+    async def test_delete_logs_flow_run_id(self, session, logs, flow_run_id):
+        log_filter = LogFilter(flow_run_id=LogFilterFlowRunId(any_=[flow_run_id]))
+        logs = await models.logs.read_logs(session=session, log_filter=log_filter)
+
+        assert len(logs) == 3
+        assert all([log.flow_run_id == flow_run_id for log in logs])
+
+        num_deleted = await models.logs.delete_logs(
+            session=session, log_filter=log_filter
+        )
+        assert num_deleted == len(logs)
+
+        logs = await models.logs.read_logs(session=session, log_filter=log_filter)
+        assert len(logs) == 0, logs
+
+    async def test_delete_logs_task_run_id(self, session, logs, task_run_id):
+        log_filter = LogFilter(task_run_id=LogFilterTaskRunId(any_=[task_run_id]))
+        logs = await models.logs.read_logs(session=session, log_filter=log_filter)
+
+        assert len(logs) == 1
+        assert all([log.task_run_id == task_run_id for log in logs])
+
+        num_deleted = await models.logs.delete_logs(
+            session=session, log_filter=log_filter
+        )
+        assert num_deleted == len(logs)
+
+        logs = await models.logs.read_logs(session=session, log_filter=log_filter)
+        assert len(logs) == 0, logs

@@ -11,6 +11,7 @@ from uuid import UUID
 import orjson
 import sqlalchemy as sa
 from fastapi import (
+    BackgroundTasks,
     Body,
     Depends,
     HTTPException,
@@ -570,6 +571,7 @@ async def read_flow_runs(
 
 @router.delete("/{id:uuid}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_flow_run(
+    background_tasks: BackgroundTasks,
     flow_run_id: UUID = Path(..., description="The flow run id", alias="id"),
     db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> None:
@@ -583,6 +585,17 @@ async def delete_flow_run(
     if not result:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Flow run not found"
+        )
+    background_tasks.add_task(delete_flow_run_logs, db, flow_run_id)
+
+
+async def delete_flow_run_logs(db: PrefectDBInterface, flow_run_id: UUID) -> None:
+    async with db.session_context(begin_transaction=True) as session:
+        await models.logs.delete_logs(
+            session=session,
+            log_filter=schemas.filters.LogFilter(
+                flow_run_id=schemas.filters.LogFilterFlowRunId(any_=[flow_run_id])
+            ),
         )
 
 
