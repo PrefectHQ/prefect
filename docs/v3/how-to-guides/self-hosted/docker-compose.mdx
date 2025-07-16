@@ -36,34 +36,21 @@ services:
     image: redis:7
     volumes:
       - redis_data:/data
-
-  prefect-migrate:
-    image: prefecthq/prefect:3-latest
-    environment:
-      PREFECT_API_DATABASE_CONNECTION_URL: postgresql+asyncpg://prefect:prefect@postgres:5432/prefect
-    depends_on:
-      postgres:
-        condition: service_healthy
-    command: >
-      bash -c "prefect server database upgrade || true"
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   prefect-server:
     image: prefecthq/prefect:3-latest
     depends_on:
       postgres:
         condition: service_healthy
-      prefect-migrate:
-        condition: service_completed_successfully
     environment:
       PREFECT_API_DATABASE_CONNECTION_URL: postgresql+asyncpg://prefect:prefect@postgres:5432/prefect
       PREFECT_SERVER_API_HOST: 0.0.0.0
-      PREFECT_API_URL: http://localhost:4200/api
-      PREFECT_MESSAGING_BROKER: prefect_redis.messaging
-      PREFECT_MESSAGING_CACHE: prefect_redis.messaging
-      PREFECT_REDIS_MESSAGING_HOST: redis
-      PREFECT_REDIS_MESSAGING_PORT: 6379
-      PREFECT_REDIS_MESSAGING_DB: 0
-      MIGRATE_ON_START: "false"
+      PREFECT_API_URL: http://prefect-server:4200/api
     command: >
       bash -c "prefect server start --no-services"
     ports:
@@ -75,11 +62,6 @@ services:
       - prefect-server
     environment:
       PREFECT_API_DATABASE_CONNECTION_URL: postgresql+asyncpg://prefect:prefect@postgres:5432/prefect
-      PREFECT_MESSAGING_BROKER: prefect_redis.messaging
-      PREFECT_MESSAGING_CACHE: prefect_redis.messaging
-      PREFECT_REDIS_MESSAGING_HOST: redis
-      PREFECT_REDIS_MESSAGING_PORT: 6379
-      PREFECT_REDIS_MESSAGING_DB: 0
     command: >
       bash -c "prefect server services start"
 
@@ -89,7 +71,7 @@ services:
       - redis
       - prefect-server
     environment:
-      PREFECT_API_URL: http://localhost:4200/api
+      PREFECT_API_URL: http://prefect-server:4200/api
     command: >
       bash -c "prefect worker start --pool local-pool"
 
@@ -121,7 +103,7 @@ docker compose down
 ## Notes
 
 * The PostgreSQL database is preconfigured with user and database `prefect`.
-* Redis supports event messaging and worker communication.
+* Redis is a required service that supports event messaging and worker communication. Messaging environment variables are omitted here for simplicity.
 * The Prefect worker automatically registers a pool named `local-pool`.
 * The Prefect server exposes the API on port 4200; ensure this port is free.
 * Use `docker compose logs -f` to view live logs of all services.
