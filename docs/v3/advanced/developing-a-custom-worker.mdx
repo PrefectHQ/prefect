@@ -38,9 +38,9 @@ Here's an example `prepare_for_flow_run` method that adds a label to the executi
 
 ```python
 def prepare_for_flow_run(
-    self, flow_run, deployment = None, flow = None,
+    self, flow_run, deployment = None, flow = None, work_pool = None, worker_name = None
 ):  
-    super().prepare_for_flow_run(flow_run, deployment, flow)  
+    super().prepare_for_flow_run(flow_run, deployment, flow, work_pool, worker_name)  
     self.labels.append("my-custom-label")
 ```
 
@@ -52,13 +52,13 @@ from prefect.workers.base import BaseJobConfiguration
 
 class MyWorkerConfiguration(BaseJobConfiguration):
     memory: int = Field(
-            default=1024,
-            description="Memory allocation for the execution environment."
-        )
+        default=1024,
+        description="Memory allocation for the execution environment."
+    )
     cpu: int = Field(
-            default=500, 
-            description="CPU allocation for the execution environment."
-        )
+        default=500, 
+        description="CPU allocation for the execution environment."
+    )
 ```
 
 This configuration class will populate the `job_configuration` section of the resulting base job template. 
@@ -124,18 +124,18 @@ from prefect.workers.base import BaseJobConfiguration
 
 class MyWorkerConfiguration(BaseJobConfiguration):
     memory: str = Field(
-            default="1024Mi",
-            description="Memory allocation for the execution environment."
-            template="{{ memory_request }}Mi"
-        )
+        default="1024Mi",
+        description="Memory allocation for the execution environment.",
+        json_schema_extra=dict(template="{{ memory_request }}Mi")
+    )
     cpu: str = Field(
-            default="500m", 
-            description="CPU allocation for the execution environment."
-            template="{{ cpu_request }}m"
-        )
+        default="500m", 
+        description="CPU allocation for the execution environment.",
+        json_schema_extra=dict(template="{{ cpu_request }}m")
+    )
 ```
 
-Notice that we changed the type of each attribute to `str` to accommodate the units, and we added a new `template` attribute to each attribute. The `template` attribute is used to populate the `job_configuration` section of the resulting base job template.
+Notice that we changed the type of each attribute to `str` to accommodate the units, and we added a new `json_schema_extra` attribute to each attribute. The `template` key in `json_schema_extra` is used to populate the `job_configuration` section of the resulting base job template.
 
 For this example, the `job_configuration` section of the resulting base job template would look like this:
 
@@ -192,6 +192,8 @@ When executing flow runs within cloud services, workers will often need credenti
 For example, if you want to allow the user to configure AWS credentials, you can do so like this:
 
 ```python
+from prefect.workers.base import BaseJobConfiguration
+
 from prefect_aws import AwsCredentials
 
 class MyWorkerConfiguration(BaseJobConfiguration):
@@ -224,13 +226,13 @@ from prefect.workers.base import BaseVariables
 
 class MyWorkerTemplateVariables(BaseVariables):
     memory_request: int = Field(
-            default=1024,
-            description="Memory allocation for the execution environment."
-        )
+        default=1024,
+        description="Memory allocation for the execution environment."
+    )
     cpu_request: int = Field(
-            default=500, 
-            description="CPU allocation for the execution environment."
-        )
+        default=500, 
+        description="CPU allocation for the execution environment."
+    )
 ```
 
 When `MyWorkerTemplateVariables` is used in conjunction with `MyWorkerConfiguration` from the [Customizing Configuration Attribute Templates](#customizing-configuration-attribute-templates) section, the resulting base job template will look like this:
@@ -311,9 +313,9 @@ The `run` method has the following signature:
 
 ```python
  async def run(
-        self, flow_run: FlowRun, configuration: BaseJobConfiguration, task_status: Optional[anyio.abc.TaskStatus] = None,
-    ) -> BaseWorkerResult:
-        ...
+    self, flow_run: FlowRun, configuration: BaseJobConfiguration, task_status: Optional[anyio.abc.TaskStatus] = None,
+) -> BaseWorkerResult:
+    ...
 ```
 
 The `run` method is passed: the flow run to execute, the execution environment configuration for the flow run, and a task status object that allows the worker to track whether the flow run was submitted successfully.
@@ -330,16 +332,6 @@ class MyWorkerResult(BaseWorkerResult):
 If you would like to return more information about a flow run, then additional attributes can be added to the `BaseWorkerResult` class.
 
 
-#### `kill_infrastructure`
-
-Workers must implement a `kill_infrastructure` method to support flow run cancellation. The `kill_infrastructure` method is called when a flow run is canceled and is passed an identifier for the infrastructure to tear down and the execution environment configuration for the flow run.
-
-The `infrastructure_pid` passed to the `kill_infrastructure` method is the same identifier used to mark a flow run execution as started in the `run` method. The `infrastructure_pid` must be a string, but it can take on any format you choose. 
-
-The `infrastructure_pid` should contain enough information to uniquely identify the infrastructure created for a flow run when used with the `job_configuration` passed to the `kill_infrastructure` method. Examples of useful information include: the cluster name, the hostname, the process ID, the container ID, etc.
-
-If a worker cannot tear down infrastructure created for a flow run, the `kill_infrastructure` command should raise an `InfrastructureNotFound` or `InfrastructureNotAvailable` exception.
-
 ### Worker Implementation Example
 
 Below is an example of a worker implementation. This example is not intended to be a complete implementation but to illustrate the aforementioned concepts.
@@ -349,25 +341,25 @@ from prefect.workers.base import BaseWorker, BaseWorkerResult, BaseJobConfigurat
 
 class MyWorkerConfiguration(BaseJobConfiguration):
     memory: str = Field(
-            default="1024Mi",
-            description="Memory allocation for the execution environment."
-            template="{{ memory_request }}Mi"
-        )
+        default="1024Mi",
+        description="Memory allocation for the execution environment.",
+        json_schema_extra=dict(template="{{ memory_request }}Mi")
+    )
     cpu: str = Field(
-            default="500m", 
-            description="CPU allocation for the execution environment."
-            template="{{ cpu_request }}m"
-        )
+        default="500m", 
+        description="CPU allocation for the execution environment.",
+        json_schema_extra=dict(template="{{ cpu_request }}m")
+    )
 
 class MyWorkerTemplateVariables(BaseVariables):
     memory_request: int = Field(
-            default=1024,
-            description="Memory allocation for the execution environment."
-        )
+        default=1024,
+        description="Memory allocation for the execution environment."
+    )
     cpu_request: int = Field(
-            default=500, 
-            description="CPU allocation for the execution environment."
-        )
+        default=500, 
+        description="CPU allocation for the execution environment."
+    )
 
 class MyWorkerResult(BaseWorkerResult):
     """Result returned by the MyWorker."""
@@ -399,10 +391,6 @@ class MyWorker(BaseWorker):
             status_code=exit_code,
             identifier=job.id,
         )
-
-    async def kill_infrastructure(self, infrastructure_pid: str, configuration: BaseJobConfiguration) -> None:
-        # Tear down the execution environment
-        await self._kill_job(infrastructure_pid, configuration)
 ```
 
 Most of the execution logic is omitted from the example above, but it shows that the typical order of operations in the `run` method is:
