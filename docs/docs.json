@@ -1396,7 +1396,7 @@
   "logo": {
     "light": "/logos/logo-word-black.svg",
     "dark": "/logos/logo-word-white.svg",
-    "href": "https://prefect.io"
+    "href": "https://docs.prefect.io"
   },
   "api": {
     "playground": {
