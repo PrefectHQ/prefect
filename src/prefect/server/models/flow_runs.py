@@ -619,6 +619,23 @@ async def with_system_labels_for_flow_run(
     """Augment user supplied labels with system default labels for a flow
     run."""
 
+    user_supplied_labels = flow_run.labels or {}
+
+    # `deployment_id` is deprecated on `schemas.actions.FlowRunCreate`. Only
+    # check `deployment_id` if given an instance of a `schemas.core.FlowRun`.
+    if isinstance(flow_run, schemas.core.FlowRun) and flow_run.deployment_id:
+        deployment = await models.deployments.read_deployment(
+            session, deployment_id=flow_run.deployment_id
+        )
+        if deployment:
+            # Use the deployment flow run utility for consistent label generation
+            return await models.deployments.with_system_labels_for_deployment_flow_run(
+                session=session,
+                deployment=deployment,
+                user_supplied_labels=user_supplied_labels,
+            )
+
+    # If the flow run is not part of a deployment, generate basic flow labels
     default_labels = cast(
         schemas.core.KeyValueLabels,
         {
@@ -626,24 +643,7 @@ async def with_system_labels_for_flow_run(
         },
     )
 
-    parent_labels: schemas.core.KeyValueLabels = {}
-    user_supplied_labels = flow_run.labels or {}
-
-    # `deployment_id` is deprecated on `schemas.actions.FlowRunCreate`. Only
-    # check `deployment_id` if given an instance of a `schemas.core.FlowRun`.
-    if isinstance(flow_run, schemas.core.FlowRun) and flow_run.deployment_id:
-        default_labels["prefect.deployment.id"] = str(flow_run.deployment_id)
-        deployment = await models.deployments.read_deployment(
-            session, deployment_id=flow_run.deployment_id
-        )
-        parent_labels = deployment.labels if deployment and deployment.labels else {}
-    else:
-        # If the flow run is not part of a deployment then we need to check for
-        # labels from the flow. We don't use this when there is a deployment as
-        # the deployment would have inherited the flow labels already.
-        parent_labels = (
-            await models.flows.read_flow_labels(session, flow_run.flow_id) or {}
-        )
+    parent_labels = await models.flows.read_flow_labels(session, flow_run.flow_id) or {}
 
     return parent_labels | default_labels | user_supplied_labels
 
