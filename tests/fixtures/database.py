@@ -1255,3 +1255,38 @@ async def concurrency_limit_v2(session: AsyncSession) -> ConcurrencyLimitV2:
     await session.commit()
 
     return ConcurrencyLimitV2.model_validate(concurrency_limit, from_attributes=True)
+
+
+@pytest.fixture
+def log_data(client, task_run):
+    NOW = now("UTC")
+    yield [
+        models.logs.LogCreate(
+            name="prefect.flow_run",
+            level=10,
+            message="Ahoy, captain",
+            timestamp=NOW,
+        ),
+        models.logs.LogCreate(
+            name="prefect.flow_run",
+            level=20,
+            message="Aye-aye, captain!",
+            timestamp=(NOW + datetime.timedelta(minutes=1)),
+            flow_run_id=task_run.flow_run_id,
+        ),
+        models.logs.LogCreate(
+            name="prefect.task_run",
+            level=50,
+            message="Black flag ahead, captain!",
+            timestamp=(NOW + datetime.timedelta(hours=1)),
+            flow_run_id=task_run.flow_run_id,
+            task_run_id=task_run.id,
+        ),
+    ]
+
+
+@pytest.fixture
+async def logs(log_data, session):
+    await models.logs.create_logs(session=session, logs=log_data)
+    await session.commit()
+    return log_data
