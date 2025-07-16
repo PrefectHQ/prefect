@@ -1104,6 +1104,194 @@ class TestScheduledRuns:
         # no runs with missing states
         assert result.scalar() == 0
 
+    async def test_deployment_flow_run_labels_utility_function(self, session, flow):
+        """Test the with_system_labels_for_deployment_flow_run utility function."""
+        # Create a deployment with custom labels
+        deployment = await models.deployments.create_deployment(
+            session=session,
+            deployment=schemas.core.Deployment(
+                name="test-deployment",
+                flow_id=flow.id,
+                labels={
+                    "deployment.custom": "value",
+                    "environment": "test",
+                },
+            ),
+        )
+
+        # Test the utility function with user-supplied labels
+        labels = await models.deployments.with_system_labels_for_deployment_flow_run(
+            session=session,
+            deployment=deployment,
+            user_supplied_labels={"user": "custom"},
+        )
+
+        # Verify all expected labels are present
+        assert labels["prefect.flow.id"] == str(flow.id)
+        assert labels["prefect.deployment.id"] == str(deployment.id)
+        assert labels["deployment.custom"] == "value"
+        assert labels["environment"] == "test"
+        assert labels["user"] == "custom"
+
+        # Test without user-supplied labels
+        labels_no_user = (
+            await models.deployments.with_system_labels_for_deployment_flow_run(
+                session=session, deployment=deployment, user_supplied_labels=None
+            )
+        )
+
+        # Verify system and deployment labels are present
+        assert labels_no_user["prefect.flow.id"] == str(flow.id)
+        assert labels_no_user["prefect.deployment.id"] == str(deployment.id)
+        assert labels_no_user["deployment.custom"] == "value"
+        assert labels_no_user["environment"] == "test"
+        assert "user" not in labels_no_user
+
+    async def test_manual_and_scheduled_flow_runs_have_consistent_labels(
+        self, session, flow
+    ):
+        """Test that manual and scheduled flow runs get consistent labels."""
+        # Create a deployment with custom labels and schedules
+        deployment = await models.deployments.create_deployment(
+            session=session,
+            deployment=schemas.core.Deployment(
+                name="test-deployment",
+                flow_id=flow.id,
+                labels={
+                    "deployment.env": "production",
+                    "deployment.team": "data",
+                },
+                schedules=[
+                    schemas.core.DeploymentSchedule(
+                        schedule=schemas.schedules.IntervalSchedule(
+                            interval=datetime.timedelta(days=1),
+                            anchor_date=datetime.datetime(2020, 1, 1),
+                        ),
+                        active=True,
+                    )
+                ],
+            ),
+        )
+
+        # Create a manual flow run
+        manual_flow_run = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id,
+                deployment_id=deployment.id,
+                labels={"run.type": "manual"},
+            ),
+        )
+
+        # Create scheduled flow runs
+        scheduled_run_ids = await models.deployments.schedule_runs(
+            session=session,
+            deployment_id=deployment.id,
+            min_runs=1,
+            max_runs=1,
+        )
+
+        assert len(scheduled_run_ids) == 1
+        scheduled_flow_run = await models.flow_runs.read_flow_run(
+            session=session, flow_run_id=scheduled_run_ids[0]
+        )
+
+        # Both runs should have the same system labels
+        expected_system_labels = {
+            "prefect.flow.id": str(flow.id),
+            "prefect.deployment.id": str(deployment.id),
+        }
+
+        # Both runs should have the same deployment labels
+        expected_deployment_labels = {
+            "deployment.env": "production",
+            "deployment.team": "data",
+        }
+
+        # Verify manual run has all expected labels
+        for key, value in expected_system_labels.items():
+            assert manual_flow_run.labels[key] == value
+
+        for key, value in expected_deployment_labels.items():
+            assert manual_flow_run.labels[key] == value
+
+        # Manual run should have its custom label
+        assert manual_flow_run.labels["run.type"] == "manual"
+
+        # Verify scheduled run has all expected labels
+        for key, value in expected_system_labels.items():
+            assert scheduled_flow_run.labels[key] == value
+
+        for key, value in expected_deployment_labels.items():
+            assert scheduled_flow_run.labels[key] == value
+
+        # Scheduled run should NOT have the manual run's custom label
+        assert "run.type" not in scheduled_flow_run.labels
+
+        # Verify that both runs have labels (not None)
+        assert manual_flow_run.labels is not None
+        assert scheduled_flow_run.labels is not None
+
+        # Both runs should have at least the system and deployment labels
+        assert len(manual_flow_run.labels) >= 4  # system + deployment + run.type
+        assert len(scheduled_flow_run.labels) >= 4  # system + deployment labels
+
+    async def test_scheduled_flow_runs_inherit_deployment_labels(self, session, flow):
+        """Test that scheduled flow runs inherit labels from their deployment."""
+        # Create a deployment with multiple label types and schedules
+        deployment = await models.deployments.create_deployment(
+            session=session,
+            deployment=schemas.core.Deployment(
+                name="test-deployment",
+                flow_id=flow.id,
+                labels={
+                    "project": "analytics",
+                    "owner": "team-data",
+                    "priority": "high",
+                    "cost-center": "engineering",
+                },
+                schedules=[
+                    schemas.core.DeploymentSchedule(
+                        schedule=schemas.schedules.IntervalSchedule(
+                            interval=datetime.timedelta(days=1),
+                            anchor_date=datetime.datetime(2020, 1, 1),
+                        ),
+                        active=True,
+                    )
+                ],
+            ),
+        )
+
+        # Create scheduled flow runs
+        scheduled_run_ids = await models.deployments.schedule_runs(
+            session=session,
+            deployment_id=deployment.id,
+            min_runs=2,
+            max_runs=2,
+        )
+
+        assert len(scheduled_run_ids) == 2
+
+        # Check that all scheduled runs have the deployment labels
+        for run_id in scheduled_run_ids:
+            scheduled_run = await models.flow_runs.read_flow_run(
+                session=session, flow_run_id=run_id
+            )
+
+            # Should have system labels
+            assert scheduled_run.labels["prefect.flow.id"] == str(flow.id)
+            assert scheduled_run.labels["prefect.deployment.id"] == str(deployment.id)
+
+            # Should have all deployment labels
+            assert scheduled_run.labels["project"] == "analytics"
+            assert scheduled_run.labels["owner"] == "team-data"
+            assert scheduled_run.labels["priority"] == "high"
+            assert scheduled_run.labels["cost-center"] == "engineering"
+
+            # Should be auto-scheduled
+            assert scheduled_run.auto_scheduled is True
+            assert "auto-scheduled" in scheduled_run.tags
+
 
 class TestUpdateDeployment:
     async def test_updating_deployment_creates_associated_work_queue(
