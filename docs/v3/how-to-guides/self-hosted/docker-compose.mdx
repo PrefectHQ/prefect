@@ -114,10 +114,11 @@ docker compose down
 ## Notes
 
 * The PostgreSQL database is preconfigured with user and database `prefect`.
-* Redis is a required service that supports event messaging and worker communication. Messaging environment variables are omitted here for simplicity.
+* Redis is not strictly required but is recommended as the messaging broker when [scaling a Prefect server installation](/v3/advanced/self-hosted).
 * The Prefect worker automatically registers a pool named `local-pool`.
 * The Prefect server exposes the API on port 4200; ensure this port is free.
-* Use `docker compose logs -f` to view live logs of all services.
+* Use `docker compose logs -f` to view live logs for all services.
+* This `compose.yml` does not configure authentication. See the [authentication guide](/v3/advanced/security-settings#basic-authentication) for more information.
 
 ## Troubleshooting
 
