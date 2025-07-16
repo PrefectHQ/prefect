@@ -1,3 +1,4 @@
+import asyncio
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from typing import Optional, Union
@@ -10,7 +11,12 @@ from ._asyncio import (
     AcquireConcurrencySlotTimeoutError as AcquireConcurrencySlotTimeoutError,
 )
 from ._asyncio import ConcurrencySlotAcquisitionError as ConcurrencySlotAcquisitionError
-from ._asyncio import aacquire_concurrency_slots, arelease_concurrency_slots
+from ._asyncio import (
+    aacquire_concurrency_slots,
+    aacquire_concurrency_slots_with_lease,
+    amaintain_concurrency_lease,
+    arelease_concurrency_slots_with_lease,
+)
 from ._events import (
     emit_concurrency_acquisition_events,
     emit_concurrency_release_events,
@@ -24,9 +30,11 @@ async def concurrency(
     occupy: int = 1,
     timeout_seconds: Optional[float] = None,
     max_retries: Optional[int] = None,
+    lease_duration: float = 300,
     strict: bool = False,
 ) -> AsyncGenerator[None, None]:
-    """A context manager that acquires and releases concurrency slots from the
+    """A
+    context manager that acquires and releases concurrency slots from the
     given concurrency limits.
 
     Args:
@@ -35,6 +43,7 @@ async def concurrency(
         timeout_seconds: The number of seconds to wait for the slots to be acquired before
             raising a `TimeoutError`. A timeout of `None` will wait indefinitely.
         max_retries: The maximum number of retries to acquire the concurrency slots.
+        lease_duration: The duration of the lease for the acquired slots in seconds.
         strict: A boolean specifying whether to raise an error if the concurrency limit does not exist.
             Defaults to `False`.
 
@@ -61,23 +70,32 @@ async def concurrency(
 
     names = names if isinstance(names, list) else [names]
 
-    limits = await aacquire_concurrency_slots(
-        names,
-        occupy,
+    response = await aacquire_concurrency_slots_with_lease(
+        names=names,
+        slots=occupy,
         timeout_seconds=timeout_seconds,
         max_retries=max_retries,
+        lease_duration=lease_duration,
         strict=strict,
     )
     acquisition_time = now("UTC")
-    emitted_events = emit_concurrency_acquisition_events(limits, occupy)
+    emitted_events = emit_concurrency_acquisition_events(response.limits, occupy)
+
+    lease_renewal_task = asyncio.create_task(
+        amaintain_concurrency_lease(response.lease_id, lease_duration)
+    )
 
     try:
         yield
     finally:
+        lease_renewal_task.cancel()
+        await lease_renewal_task
+
         occupancy_period = now("UTC") - acquisition_time
         try:
-            await arelease_concurrency_slots(
-                names, occupy, occupancy_period.total_seconds()
+            await arelease_concurrency_slots_with_lease(
+                lease_id=response.lease_id,
+                occupancy_seconds=occupancy_period.total_seconds(),
             )
         except anyio.get_cancelled_exc_class():
             # The task was cancelled before it could release the slots. Add the
@@ -88,7 +106,7 @@ async def concurrency(
                     (names, occupy, occupancy_period.total_seconds())
                 )
 
-        emit_concurrency_release_events(limits, occupy, emitted_events)
+        emit_concurrency_release_events(response.limits, occupy, emitted_events)
 
 
 async def rate_limit(
@@ -97,9 +115,11 @@ async def rate_limit(
     timeout_seconds: Optional[float] = None,
     strict: bool = False,
 ) -> None:
-    """Block execution until an `occupy` number of slots of the concurrency
-    limits given in `names` are acquired. Requires that all given concurrency
-    limits have a slot decay.
+    """
+    Block execution until an `occupy` number of slots of the concurrency
+    limits given in `names` are acquired.
+
+    Requires that all given concurrency limits have a slot decay.
 
     Args:
         names: The names of the concurrency limits to acquire slots from.

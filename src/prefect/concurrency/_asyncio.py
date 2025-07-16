@@ -1,11 +1,18 @@
 import asyncio
+import logging
 from typing import Literal, Optional
+from uuid import UUID
 
 import httpx
 
 from prefect.client.orchestration import get_client
-from prefect.client.schemas.responses import MinimalConcurrencyLimitResponse
+from prefect.client.schemas.responses import (
+    ConcurrencyLimitWithLeaseResponse,
+    MinimalConcurrencyLimitResponse,
+)
+from prefect.logging import get_logger
 from prefect.logging.loggers import get_run_logger
+from prefect.utilities.timeout import timeout_async
 
 from .services import ConcurrencySlotAcquisitionService
 
@@ -16,6 +23,9 @@ class ConcurrencySlotAcquisitionError(Exception):
 
 class AcquireConcurrencySlotTimeoutError(TimeoutError):
     """Raised when acquiring a concurrency slot times out."""
+
+
+logger: logging.Logger = get_logger("concurrency")
 
 
 async def aacquire_concurrency_slots(
@@ -58,6 +68,93 @@ async def aacquire_concurrency_slots(
     return retval
 
 
+async def aacquire_concurrency_slots_with_lease(
+    names: list[str],
+    slots: int,
+    mode: Literal["concurrency", "rate_limit"] = "concurrency",
+    timeout_seconds: Optional[float] = None,
+    max_retries: Optional[int] = None,
+    lease_duration: float = 300,
+    strict: bool = False,
+) -> ConcurrencyLimitWithLeaseResponse:
+    try:
+        # Use a run logger if available
+        logger = get_run_logger()
+    except Exception:
+        logger = get_logger("concurrency")
+
+    try:
+        with timeout_async(seconds=timeout_seconds):
+            async with get_client() as client:
+                while True:
+                    try:
+                        response = await client.increment_concurrency_slots_with_lease(
+                            names=names,
+                            slots=slots,
+                            mode=mode,
+                            lease_duration=lease_duration,
+                        )
+                        retval = ConcurrencyLimitWithLeaseResponse.model_validate(
+                            response.json()
+                        )
+                        if not retval.limits:
+                            if strict:
+                                raise ConcurrencySlotAcquisitionError(
+                                    f"Concurrency limits {names!r} must be created before acquiring slots"
+                                )
+                            else:
+                                logger.warning(
+                                    f"Concurrency limits {names!r} do not exist - skipping acquisition."
+                                )
+
+                        return retval
+                    except httpx.HTTPStatusError as exc:
+                        if not exc.response.status_code == 423:  # HTTP_423_LOCKED
+                            raise
+
+                        if max_retries is not None and max_retries <= 0:
+                            raise exc
+                        retry_after = float(exc.response.headers["Retry-After"])
+                        logger.debug(
+                            f"Unable to acquire concurrency slot. Retrying in {retry_after} second(s)."
+                        )
+                        await asyncio.sleep(retry_after)
+                        if max_retries is not None:
+                            max_retries -= 1
+    except TimeoutError as timeout:
+        raise AcquireConcurrencySlotTimeoutError(
+            f"Attempt to acquire concurrency slots timed out after {timeout_seconds} second(s)"
+        ) from timeout
+    except Exception as exc:
+        raise ConcurrencySlotAcquisitionError(
+            f"Unable to acquire concurrency slots on {names!r}"
+        ) from exc
+
+
+async def amaintain_concurrency_lease(
+    lease_id: UUID,
+    lease_duration: float,
+) -> None:
+    """
+    Maintain a concurrency lease by renewing it after the given interval.
+
+    Args:
+        lease_id: The ID of the lease to maintain.
+        lease_duration: The duration of the lease in seconds.
+    """
+    async with get_client() as client:
+        try:
+            while True:
+                await asyncio.sleep(  # Renew the lease 3/4 of the way through the lease duration
+                    lease_duration * 0.75
+                )
+                await client.renew_concurrency_lease(
+                    lease_id=lease_id, lease_duration=lease_duration
+                )
+        except asyncio.CancelledError:
+            pass
+
+
 async def arelease_concurrency_slots(
     names: list[str], slots: int, occupancy_seconds: float
 ) -> list[MinimalConcurrencyLimitResponse]:
@@ -66,6 +163,16 @@ async def arelease_concurrency_slots(
             names=names, slots=slots, occupancy_seconds=occupancy_seconds
         )
         return _response_to_minimal_concurrency_limit_response(response)
+
+
+async def arelease_concurrency_slots_with_lease(
+    lease_id: UUID,
+    occupancy_seconds: float,
+) -> None:
+    async with get_client() as client:
+        await client.release_concurrency_slots_with_lease(
+            lease_id=lease_id, occupancy_seconds=occupancy_seconds
+        )
 
 
 def _response_to_minimal_concurrency_limit_response(
