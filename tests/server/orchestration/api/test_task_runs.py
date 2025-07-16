@@ -679,7 +679,7 @@ class TestDeleteTaskRuns:
         response = await client.delete(f"/task_runs/{task_run.id}")
         assert response.status_code == status.HTTP_204_NO_CONTENT, response.text
 
-        async with asyncio.timeout(10):
+        async def read_logs():
             # because deletion happens in the background,
             # loop until we get what we expect or we time out
             while True:
@@ -690,10 +690,11 @@ class TestDeleteTaskRuns:
                 )
                 # we should get back our non task run logs
                 if len(post_delete_logs) == len(logs) - len(task_run_logs):
-                    break
+                    return post_delete_logs
                 asyncio.sleep(1)
 
-        assert all([log.task_run_id is None for log in post_delete_logs])
+        logs = await asyncio.wait_for(read_logs(), 10)
+        assert all([log.task_run_id is None for log in logs])
 
 
 class TestSetTaskRunState:
