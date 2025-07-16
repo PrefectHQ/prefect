@@ -1,3 +1,4 @@
+import asyncio
 import datetime
 import uuid
 from uuid import uuid4
@@ -668,6 +669,31 @@ class TestDeleteTaskRuns:
     async def test_delete_task_run_returns_404_if_does_not_exist(self, client):
         response = await client.delete(f"/task_runs/{uuid4()}")
         assert response.status_code == status.HTTP_404_NOT_FOUND
+
+    async def test_delete_task_run_deletes_logs(self, task_run, logs, client, session):
+        # make sure we have task run logs
+        task_run_logs = [log for log in logs if log.task_run_id is not None]
+        assert len(task_run_logs) > 0
+
+        # delete the task run
+        response = await client.delete(f"/task_runs/{task_run.id}")
+        assert response.status_code == status.HTTP_204_NO_CONTENT, response.text
+
+        async with asyncio.timeout(10):
+            # because deletion happens in the background,
+            # loop until we get what we expect or we time out
+            while True:
+                # make sure we no longer have task run logs
+                post_delete_logs = await models.logs.read_logs(
+                    session=session,
+                    log_filter=None,
+                )
+                # we should get back our non task run logs
+                if len(post_delete_logs) == len(logs) - len(task_run_logs):
+                    break
+                asyncio.sleep(1)
+
+        assert all([log.task_run_id is None for log in post_delete_logs])
 
 
 class TestSetTaskRunState:

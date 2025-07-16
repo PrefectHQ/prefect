@@ -1,3 +1,4 @@
+import asyncio
 import datetime
 from typing import List, Optional
 from unittest import mock
@@ -1341,6 +1342,31 @@ class TestDeleteFlowRuns:
 
         await session.refresh(concurrency_limit)
         assert concurrency_limit.active_slots == expected_slots
+
+    async def test_delete_flow_run_deletes_logs(self, flow_run, logs, client, session):
+        # make sure we have flow run logs
+        flow_run_logs = [log for log in logs if log.flow_run_id is not None]
+        assert len(flow_run_logs) > 0
+
+        # delete the flow run
+        response = await client.delete(f"/flow_runs/{flow_run.id}")
+        assert response.status_code == status.HTTP_204_NO_CONTENT, response.text
+
+        async with asyncio.timeout(10):
+            # because deletion happens in the background,
+            # loop until we get what we expect or we time out
+            while True:
+                # make sure we no longer have flow run logs
+                post_delete_logs = await models.logs.read_logs(
+                    session=session,
+                    log_filter=None,
+                )
+                # we should get back our non flow run logs
+                if len(post_delete_logs) == len(logs) - len(flow_run_logs):
+                    break
+                asyncio.sleep(1)
+
+        assert all([log.flow_run_id is None for log in post_delete_logs])
 
 
 class TestResumeFlowrun:
