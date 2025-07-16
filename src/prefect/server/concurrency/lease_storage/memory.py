@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
-from uuid import UUID, uuid4
+from uuid import UUID
 
 from prefect.server.concurrency.lease_storage import (
     ConcurrencyLeaseStorage as _ConcurrencyLeaseStorage,
@@ -34,10 +34,12 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
         ttl: timedelta,
         metadata: ConcurrencyLimitLeaseMetadata | None = None,
     ) -> ResourceLease[ConcurrencyLimitLeaseMetadata]:
-        lease_id = uuid4()
-        lease = ResourceLease(id=lease_id, resource_ids=resource_ids, metadata=metadata)
-        self.leases[lease_id] = lease
-        self.expirations[lease_id] = datetime.now(timezone.utc) + ttl
+        expiration = datetime.now(timezone.utc) + ttl
+        lease = ResourceLease(
+            resource_ids=resource_ids, metadata=metadata, expiration=expiration
+        )
+        self.leases[lease.id] = lease
+        self.expirations[lease.id] = expiration
         return lease
 
     async def read_lease(
@@ -48,7 +50,7 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
     async def renew_lease(self, lease_id: UUID, ttl: timedelta) -> None:
         self.expirations[lease_id] = datetime.now(timezone.utc) + ttl
 
-    async def release_lease(self, lease_id: UUID) -> None:
+    async def revoke_lease(self, lease_id: UUID) -> None:
         self.leases.pop(lease_id, None)
         self.expirations.pop(lease_id, None)
 

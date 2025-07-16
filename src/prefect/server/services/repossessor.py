@@ -1,6 +1,6 @@
-from prefect.server.concurrency.lease_storage import ConcurrencyLeaseStorage
-from prefect.server.concurrency.lease_storage.memory import (
-    ConcurrencyLeaseStorage as MemoryConcurrencyLeaseStorage,
+from prefect.server.concurrency.lease_storage import (
+    ConcurrencyLeaseStorage,
+    get_concurrency_lease_storage,
 )
 from prefect.server.database.dependencies import provide_database_interface
 from prefect.server.models.concurrency_limits_v2 import bulk_decrement_active_slots
@@ -17,7 +17,7 @@ class Repossessor(LoopService):
     def __init__(self):
         super().__init__()
         self.concurrency_lease_storage: ConcurrencyLeaseStorage = (
-            MemoryConcurrencyLeaseStorage()
+            get_concurrency_lease_storage()
         )
 
     @classmethod
@@ -42,4 +42,4 @@ class Repossessor(LoopService):
                     concurrency_limit_ids=expired_lease.resource_ids,
                     slots=expired_lease.metadata.slots,
                 )
-                await self.concurrency_lease_storage.release_lease(expired_lease_id)
+                await self.concurrency_lease_storage.revoke_lease(expired_lease_id)
