@@ -193,8 +193,8 @@ For example, if you want to allow the user to configure AWS credentials, you can
 
 ```python
 from prefect.workers.base import BaseJobConfiguration
-
 from prefect_aws import AwsCredentials
+from pydantic import Field
 
 class MyWorkerConfiguration(BaseJobConfiguration):
     aws_credentials: AwsCredentials | None = Field(
@@ -312,10 +312,18 @@ In addition to the attributes above, you must also implement a `run` method. The
 The `run` method has the following signature:
 
 ```python
- async def run(
-    self, flow_run: FlowRun, configuration: BaseJobConfiguration, task_status: Optional[anyio.abc.TaskStatus] = None,
-) -> BaseWorkerResult:
-    ...
+import anyio
+import anyio.abc
+from prefect.client.schemas.objects import FlowRun
+from prefect.workers.base import BaseWorkerResult, BaseJobConfiguration
+
+
+async def run(
+    self,
+    flow_run: FlowRun,
+    configuration: BaseJobConfiguration,
+    task_status: anyio.abc.TaskStatus = anyio.TASK_STATUS_IGNORED,
+) -> BaseWorkerResult: ...
 ```
 
 The `run` method is passed: the flow run to execute, the execution environment configuration for the flow run, and a task status object that allows the worker to track whether the flow run was submitted successfully.
@@ -337,7 +345,11 @@ If you would like to return more information about a flow run, then additional a
 Below is an example of a worker implementation. This example is not intended to be a complete implementation but to illustrate the aforementioned concepts.
 
 ```python
+import anyio
+import anyio.abc
+from prefect.client.schemas.objects import FlowRun,
 from prefect.workers.base import BaseWorker, BaseWorkerResult, BaseJobConfiguration, BaseVariables
+from pydantic import Field
 
 class MyWorkerConfiguration(BaseJobConfiguration):
     memory: str = Field(
@@ -373,15 +385,14 @@ class MyWorker(BaseWorker):
     _description = "My worker description."
 
     async def run(
-        self, flow_run: FlowRun, configuration: BaseJobConfiguration, task_status: Optional[anyio.abc.TaskStatus] = None,
+        self, flow_run: FlowRun, configuration: BaseJobConfiguration, task_status: anyio.abc.TaskStatus = anyio.TASK_STATUS_IGNORED,
     ) -> BaseWorkerResult:
         # Create the execution environment and start execution
         job = await self._create_and_start_job(configuration)
 
-        if task_status:
-            # Use a unique ID to mark the run as started. This ID is later used to tear down infrastructure
-            # if the flow run is cancelled.
-            task_status.started(job.id) 
+        # Use a unique ID to mark the run as started. This ID is later used to tear down infrastructure
+        # if the flow run is cancelled.
+        task_status.started(job.id) 
 
         # Monitor the execution
         job_status = await self._watch_job(job, configuration)
