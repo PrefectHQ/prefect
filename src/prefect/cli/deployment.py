@@ -873,6 +873,16 @@ async def run(
                 f"deployment: {listrepr(unknown_keys, sep=', ')}"
                 f"\n{available_parameters}"
             )
+        templating_parameters = {**(deployment.parameters or {}), **(parameters or {})}
+        if flow_run_name:
+            try:
+                flow_run_name = flow_run_name.format(**templating_parameters)
+            except KeyError as e:
+                exit_with_error(
+                    f"Missing parameter for flow run name: '{e.args[0]}' is undefined"
+                )
+            except Exception as e:
+                exit_with_error(f"Failed to format flow run name: {e}")
 
         app.console.print(
             f"Creating flow run for deployment '{flow.name}/{deployment.name}'...",
