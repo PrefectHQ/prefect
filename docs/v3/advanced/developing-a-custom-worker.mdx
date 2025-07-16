@@ -197,7 +197,7 @@ from prefect.workers.base import BaseJobConfiguration
 from prefect_aws import AwsCredentials
 
 class MyWorkerConfiguration(BaseJobConfiguration):
-    aws_credentials: AwsCredentials = Field(
+    aws_credentials: AwsCredentials | None = Field(
         default=None,
         description="AWS credentials to use when creating AWS resources."
     )
