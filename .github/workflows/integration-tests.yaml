@@ -75,6 +75,8 @@ jobs:
         env:
           PREFECT_API_URL: http://127.0.0.1:4200/api
           PREFECT_SERVER_LOGGING_LEVEL: DEBUG
+          PREFECT_SERVER_CONCURRENCY_LEASE_STORAGE: "prefect.server.concurrency.lease_storage.filesystem"
+          PREFECT_SERVER_SERVICES_REPOSSESSOR_LOOP_SECONDS: "1"
         run: >
           uv run prefect server start --analytics-off --host 0.0.0.0 2>&1 > server.log &
           uv run ./scripts/wait-for-server.py
@@ -82,6 +84,7 @@ jobs:
       - name: Run integration flows
         env:
           PREFECT_API_URL: http://127.0.0.1:4200/api
+          PREFECT_SERVER_CONCURRENCY_LEASE_STORAGE: "prefect.server.concurrency.lease_storage.filesystem"
           SERVER_VERSION: ${{ matrix.server-version.version }}
         run: >
           uv run pytest integration-tests/ -n auto -vv
