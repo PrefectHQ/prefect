@@ -1,16 +1,16 @@
 ---
-title: Run Prefect Server with Docker Compose
-sidebarTitle: Prefect Server with Docker Compose
-description: Deploy a self-hosted Prefect server environment using Docker Compose, including PostgreSQL, Redis, server, services, and worker.
+title: How to run the Prefect Server via Docker Compose
+sidebarTitle: Run the Prefect Server via Docker Compose
+description: Deploy a self-hosted Prefect server environment using Docker Compose, including PostgreSQL, Redis, server, background services, and worker.
 ---
 
 This guide shows how to run a complete self-hosted Prefect server environment using Docker Compose. This setup includes the following services:
 
-- PostgreSQL database  
-- Redis message broker  
-- Prefect server  
-- Prefect background services  
-- Prefect worker  
+- `postgres`: PostgreSQL database
+- `redis`: Redis message broker
+- `prefect-server`: Prefect server  
+- `prefect-services`: Prefect background services  
+- `prefect-worker`: Prefect worker  
 
 ## Docker Compose file
 
