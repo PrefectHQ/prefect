@@ -351,7 +351,7 @@ class ConcurrencyLimitClient(BaseClient):
             "POST",
             "/v2/concurrency_limits/decrement-with-lease",
             json={
-                "lease_id": lease_id,
+                "lease_id": str(lease_id),
                 "occupancy_seconds": occupancy_seconds,
             },
         )
@@ -794,7 +794,7 @@ class ConcurrencyLimitAsyncClient(BaseAsyncClient):
             "POST",
             "/v2/concurrency_limits/decrement-with-lease",
             json={
-                "lease_id": lease_id,
+                "lease_id": str(lease_id),
                 "occupancy_seconds": occupancy_seconds,
             },
         )

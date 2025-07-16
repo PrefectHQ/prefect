@@ -143,16 +143,13 @@ async def amaintain_concurrency_lease(
         lease_duration: The duration of the lease in seconds.
     """
     async with get_client() as client:
-        try:
-            while True:
-                await asyncio.sleep(  # Renew the lease 3/4 of the way through the lease duration
-                    lease_duration * 0.75
-                )
-                await client.renew_concurrency_lease(
-                    lease_id=lease_id, lease_duration=lease_duration
-                )
-        except asyncio.CancelledError:
-            pass
+        while True:
+            await asyncio.sleep(  # Renew the lease 3/4 of the way through the lease duration
+                lease_duration * 0.75
+            )
+            await client.renew_concurrency_lease(
+                lease_id=lease_id, lease_duration=lease_duration
+            )
 
 
 async def arelease_concurrency_slots(

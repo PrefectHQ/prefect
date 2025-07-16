@@ -89,7 +89,10 @@ async def concurrency(
         yield
     finally:
         lease_renewal_task.cancel()
-        await lease_renewal_task
+        try:
+            await lease_renewal_task
+        except asyncio.CancelledError:
+            pass
 
         occupancy_period = now("UTC") - acquisition_time
         try:
@@ -139,8 +142,8 @@ async def rate_limit(
     names = names if isinstance(names, list) else [names]
 
     limits = await aacquire_concurrency_slots(
-        names,
-        occupy,
+        names=names,
+        slots=occupy,
         mode="rate_limit",
         timeout_seconds=timeout_seconds,
         strict=strict,
