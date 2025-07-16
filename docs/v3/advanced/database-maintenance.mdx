@@ -10,6 +10,24 @@ Self-hosted Prefect deployments require database maintenance to ensure optimal p
 This guide is for advanced users managing production deployments. Always test maintenance operations in a non-production environment first, if possible.
 </Warning>
 
+## Quick reference
+
+**Daily tasks:**
+- Check disk space and table sizes
+- Monitor bloat levels (> 50% requires action)
+- Run retention policies for old flow runs
+
+**Weekly tasks:**
+- Review autovacuum performance
+- Check index usage and bloat
+- Analyze high-traffic tables
+
+**Red flags requiring immediate action:**
+- Disk usage > 80%
+- Table bloat > 100%
+- Connection count approaching limit
+- Autovacuum hasn't run in 24+ hours
+
 ## Database growth monitoring
 
 Prefect stores flow runs, task runs, logs, and artifacts that accumulate over time. Monitor your database regularly to understand growth patterns specific to your usage.
@@ -30,6 +48,22 @@ FROM pg_stat_user_tables
 WHERE schemaname = 'public'
 ORDER BY pg_total_relation_size(schemaname||'.'||relname) DESC
 LIMIT 20;
+```
+
+### Monitor disk space
+
+Track overall disk usage to prevent outages:
+
+```sql
+-- Check database disk usage
+SELECT 
+    current_setting('data_directory') AS data_directory,
+    pg_size_pretty(pg_database_size('prefect')) AS database_size,
+    pg_size_pretty(pg_total_relation_size('public.events')) AS events_table_size,
+    pg_size_pretty(pg_total_relation_size('public.log')) AS log_table_size;
+
+-- Check available disk space (requires pg_stat_disk extension or shell access)
+-- Run from shell: df -h /path/to/postgresql/data
 ```
 
 Common large tables in Prefect databases:
@@ -60,6 +94,26 @@ WHERE schemaname = 'public'
 ORDER BY bloat_percent DESC;
 ```
 
+### Monitor index bloat
+
+Indexes can also bloat and impact performance:
+
+```sql
+-- Check index sizes and bloat
+SELECT 
+    schemaname,
+    relname AS tablename,
+    indexrelname AS indexname,
+    pg_size_pretty(pg_relation_size(indexrelid)) AS index_size,
+    idx_scan AS index_scans,
+    idx_tup_read AS tuples_read,
+    idx_tup_fetch AS tuples_fetched
+FROM pg_stat_user_indexes
+WHERE schemaname = 'public'
+ORDER BY pg_relation_size(indexrelid) DESC
+LIMIT 20;
+```
+
 ## PostgreSQL VACUUM
 
 VACUUM reclaims storage occupied by dead tuples. While PostgreSQL runs autovacuum automatically, you may need manual intervention for heavily updated tables.
@@ -75,8 +129,13 @@ VACUUM ANALYZE task_run;
 VACUUM ANALYZE log;
 
 -- VACUUM FULL (rebuilds table, requires exclusive lock)
--- Only use during maintenance windows
+-- WARNING: This COMPLETELY LOCKS the table - no reads or writes!
+-- Can take HOURS on large tables. Only use as last resort.
 VACUUM FULL flow_run;
+
+-- Better alternative: pg_repack (if installed)
+-- Rebuilds tables online without blocking
+-- pg_repack -t flow_run -d prefect
 ```
 
 ### Monitor autovacuum
@@ -101,6 +160,44 @@ FROM pg_stat_user_tables
 WHERE schemaname = 'public'
 ORDER BY last_autovacuum NULLS FIRST;
 ```
+
+### Tune autovacuum for Prefect workloads
+
+Prefect's write patterns require more aggressive autovacuum settings than defaults:
+
+```sql
+-- For high-volume events table (INSERT/DELETE heavy)
+ALTER TABLE events SET (
+    autovacuum_vacuum_scale_factor = 0.05,  -- Default is 0.2
+    autovacuum_vacuum_threshold = 1000,
+    autovacuum_analyze_scale_factor = 0.02  -- Keep stats current
+);
+
+-- For state tables (INSERT-heavy)
+ALTER TABLE flow_run_state SET (
+    autovacuum_vacuum_scale_factor = 0.1,
+    autovacuum_analyze_scale_factor = 0.05
+);
+
+-- For frequently updated tables
+ALTER TABLE flow_run SET (
+    autovacuum_vacuum_scale_factor = 0.1,
+    autovacuum_vacuum_threshold = 500
+);
+```
+
+### When to take action
+
+**Bloat thresholds:**
+- **< 20% bloat**: Normal, autovacuum should handle
+- **20-50% bloat**: Monitor closely, consider manual VACUUM
+- **> 50% bloat**: Manual VACUUM recommended
+- **> 100% bloat**: Significant performance impact, urgent action needed
+
+**Warning signs:**
+- Autovacuum hasn't run in > 24 hours on active tables
+- Query performance degrading over time
+- Disk space usage growing faster than data volume
 
 ## Data retention
 
@@ -150,12 +247,26 @@ async def delete_old_flow_runs(
         deleted_total = 0
         
         while flow_runs:
+            batch_deleted = 0
+            failed_deletes = []
+            
             # Delete each flow run through the API
             for flow_run in flow_runs:
-                await client.delete_flow_run(flow_run.id)
-                deleted_total += 1
-                
-            logger.info(f"Deleted batch of {len(flow_runs)} flow runs (total: {deleted_total})")
+                try:
+                    await client.delete_flow_run(flow_run.id)
+                    deleted_total += 1
+                    batch_deleted += 1
+                except Exception as e:
+                    logger.warning(f"Failed to delete flow run {flow_run.id}: {e}")
+                    failed_deletes.append(flow_run.id)
+                    
+                # Rate limiting - adjust based on your API capacity
+                if batch_deleted % 10 == 0:
+                    await asyncio.sleep(0.5)
+                    
+            logger.info(f"Deleted {batch_deleted}/{len(flow_runs)} flow runs (total: {deleted_total})")
+            if failed_deletes:
+                logger.warning(f"Failed to delete {len(failed_deletes)} flow runs")
             
             # Get next batch
             flow_runs = await client.read_flow_runs(
@@ -163,8 +274,8 @@ async def delete_old_flow_runs(
                 limit=batch_size
             )
             
-            # Small delay between batches
-            await asyncio.sleep(0.1)
+            # Delay between batches to avoid overwhelming the API
+            await asyncio.sleep(1.0)
         
         logger.info(f"Retention complete. Total deleted: {deleted_total}")
 
@@ -249,8 +360,52 @@ SELECT
 FROM pg_stat_activity;
 ```
 
+## Automating database maintenance
+
+### Schedule maintenance tasks
+
+Schedule the retention flow to run automatically. See [how to create deployments](/v3/how-to-guides/deployments/create-deployments) for creating scheduled deployments.
+
+For example, you could run the retention flow daily at 2 AM to clean up old flow runs.
+
+### Recommended maintenance schedule
+
+- **Hourly**: Monitor disk space and connection count
+- **Daily**: Run retention policies, check bloat levels
+- **Weekly**: Analyze tables, review autovacuum performance
+- **Monthly**: REINDEX heavily used indexes, full database backup
+
+## Troubleshooting common issues
+
+### "VACUUM is taking forever"
+- Check for long-running transactions blocking VACUUM: 
+  ```sql
+  SELECT pid, age(clock_timestamp(), query_start), usename, query 
+  FROM pg_stat_activity 
+  WHERE state <> 'idle' AND query NOT ILIKE '%vacuum%' 
+  ORDER BY age DESC;
+  ```
+- Consider using `pg_repack` instead of `VACUUM FULL`
+- Run during low-traffic periods
+
+### "Database is growing despite retention policies"
+- Verify event retention is configured: `prefect config view | grep EVENTS_RETENTION`
+- Check if autovacuum is running on the events table
+- Ensure retention flow is actually executing (check flow run history)
+
+### "Queries are getting slower over time"
+- Update table statistics: `ANALYZE;`
+- Check for missing indexes using `pg_stat_user_tables`
+- Review query plans with `EXPLAIN ANALYZE`
+
+### "Connection limit reached"
+- Implement connection pooling immediately
+- Check for connection leaks: connections in 'idle' state for hours
+- Reduce Prefect worker/agent connection counts
+
 ## Further reading
 
 - [PostgreSQL documentation on VACUUM](https://www.postgresql.org/docs/current/sql-vacuum.html)
 - [PostgreSQL routine maintenance](https://www.postgresql.org/docs/current/routine-vacuuming.html)
 - [Monitoring PostgreSQL](https://www.postgresql.org/docs/current/monitoring-stats.html)
+- [pg_repack extension](https://github.com/reorg/pg_repack)
