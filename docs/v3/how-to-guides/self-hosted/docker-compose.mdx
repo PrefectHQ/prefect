@@ -47,33 +47,44 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      redis:
+        condition: service_healthy
     environment:
       PREFECT_API_DATABASE_CONNECTION_URL: postgresql+asyncpg://prefect:prefect@postgres:5432/prefect
       PREFECT_SERVER_API_HOST: 0.0.0.0
-      PREFECT_API_URL: http://prefect-server:4200/api
-    command: >
-      bash -c "prefect server start --no-services"
+      PREFECT_MESSAGING_BROKER: prefect_redis.messaging
+      PREFECT_MESSAGING_CACHE: prefect_redis.messaging
+      PREFECT_REDIS_MESSAGING_HOST: redis
+      PREFECT_REDIS_MESSAGING_PORT: 6379
+      PREFECT_REDIS_MESSAGING_DB: 0
+    command: prefect server start --no-services
     ports:
       - "4200:4200"
 
   prefect-services:
     image: prefecthq/prefect:3-latest
     depends_on:
-      - prefect-server
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     environment:
       PREFECT_API_DATABASE_CONNECTION_URL: postgresql+asyncpg://prefect:prefect@postgres:5432/prefect
-    command: >
-      bash -c "prefect server services start"
+      PREFECT_MESSAGING_BROKER: prefect_redis.messaging
+      PREFECT_MESSAGING_CACHE: prefect_redis.messaging
+      PREFECT_REDIS_MESSAGING_HOST: redis
+      PREFECT_REDIS_MESSAGING_PORT: 6379
+      PREFECT_REDIS_MESSAGING_DB: 0
+    command: prefect server services start
 
   prefect-worker:
     image: prefecthq/prefect:3-latest
     depends_on:
-      - redis
-      - prefect-server
+      prefect-server:
+        condition: service_started
     environment:
       PREFECT_API_URL: http://prefect-server:4200/api
-    command: >
-      bash -c "prefect worker start --pool local-pool"
+    command: prefect worker start --pool local-pool
 
 volumes:
   postgres_data:
