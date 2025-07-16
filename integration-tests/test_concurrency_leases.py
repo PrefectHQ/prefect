@@ -87,7 +87,7 @@ async def test_async_concurrency_with_leases(concurrency_limit_name: str):
     await lease_storage.renew_lease(active_lease_ids[0], timedelta(seconds=0))
 
     # Wait for the lease to be revoked
-    while (await lease_storage.read_expired_lease_ids()) == []:
+    while (await lease_storage.read_expired_lease_ids()) != []:
         await asyncio.sleep(1)
 
     # Check that the concurrency limit has no slots taken after the lease is revoked

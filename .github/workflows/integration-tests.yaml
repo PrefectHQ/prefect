@@ -151,7 +151,7 @@ jobs:
           PREFECT_API_URL: http://127.0.0.1:4200/api
         run: |
           # Install dependencies for integration tests. We don't want to install the whole project because that will override the prefect-client build.
-          # We ignore test_task_worker.py because it relies on starting an ephemeral server via the `prefect.server` module which is not available in the client build.
+          # We ignore some test files because they rely on server code that is not available in the client build.
           uv pip install pytest \
             uv \
             docker \
@@ -161,7 +161,7 @@ jobs:
             pytest-xdist \
             pytest-timeout \
             pytest-env
-          pytest --ignore=integration-tests/test_task_worker.py integration-tests/ -n auto -vv
+          pytest --ignore=integration-tests/test_task_worker.py --ignore=integration-tests/test_concurrency_leases.py integration-tests/ -n auto -vv
 
   sqlite-3-24-0:
     name: Test SQLite 3.24.0 Compatibility
