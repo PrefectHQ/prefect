@@ -110,6 +110,7 @@ Implement data retention policies to manage database growth. The following examp
 Using the Prefect API ensures proper cleanup of all related data, including logs and artifacts. The API handles cascade deletions and triggers necessary background tasks.
 </Note>
 
+{/* pmd-metadata: notest */}
 ```python
 import asyncio
 from datetime import datetime, timedelta, timezone
@@ -173,6 +174,7 @@ async def retention_flow():
 
 In some cases, you may need to use direct SQL for performance reasons or when the API is unavailable. Be aware that direct deletion bypasses application-level cascade logic:
 
+{/* pmd-metadata: notest */}
 ```python
 # Direct SQL only deletes what's defined by database foreign keys
 # Logs and artifacts may be orphaned without proper cleanup
