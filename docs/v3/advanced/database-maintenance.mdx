@@ -23,17 +23,17 @@ SELECT pg_size_pretty(pg_database_size('prefect')) AS database_size;
 -- Table sizes with row counts
 SELECT 
     schemaname,
-    tablename,
-    pg_size_pretty(pg_total_relation_size(schemaname||'.'||tablename)) AS total_size,
+    relname AS tablename,
+    pg_size_pretty(pg_total_relation_size(schemaname||'.'||relname)) AS total_size,
     to_char(n_live_tup, 'FM999,999,999') AS row_count
 FROM pg_stat_user_tables
 WHERE schemaname = 'public'
-ORDER BY pg_total_relation_size(schemaname||'.'||tablename) DESC
+ORDER BY pg_total_relation_size(schemaname||'.'||relname) DESC
 LIMIT 20;
 ```
 
 Common large tables in Prefect databases:
-- `event` - Automatically generated for all state changes (often the largest table)
+- `events` - Automatically generated for all state changes (often the largest table)
 - `log` - Flow and task run logs
 - `flow_run` and `task_run` - Execution records
 - `flow_run_state` and `task_run_state` - State history
@@ -45,7 +45,7 @@ PostgreSQL tables can accumulate "dead tuples" from updates and deletes. Monitor
 ```sql
 SELECT
     schemaname,
-    tablename,
+    relname AS tablename,
     n_live_tup AS live_tuples,
     n_dead_tup AS dead_tuples,
     CASE WHEN n_live_tup > 0 
@@ -92,7 +92,7 @@ SHOW autovacuum_vacuum_threshold;
 -- Check when tables were last vacuumed
 SELECT 
     schemaname,
-    tablename,
+    relname AS tablename,
     last_vacuum,
     last_autovacuum,
     vacuum_count,
@@ -115,7 +115,9 @@ Using the Prefect API ensures proper cleanup of all related data, including logs
 import asyncio
 from datetime import datetime, timedelta, timezone
 from prefect import flow, task, get_run_logger
-from prefect.client import get_client
+from prefect.client.orchestration import get_client
+from prefect.client.schemas.filters import FlowRunFilter, FlowRunFilterState, FlowRunFilterStateType, FlowRunFilterStartTime
+from prefect.client.schemas.objects import StateType
 
 @task
 async def delete_old_flow_runs(
@@ -128,12 +130,20 @@ async def delete_old_flow_runs(
     async with get_client() as client:
         cutoff = datetime.now(timezone.utc) - timedelta(days=days_to_keep)
         
+        # Create filter for old completed flow runs
+        # Note: Using start_time because created time filtering is not available
+        flow_run_filter = FlowRunFilter(
+            start_time=FlowRunFilterStartTime(before_=cutoff),
+            state=FlowRunFilterState(
+                type=FlowRunFilterStateType(
+                    any_=[StateType.COMPLETED, StateType.FAILED, StateType.CANCELLED]
+                )
+            )
+        )
+        
         # Get flow runs to delete
         flow_runs = await client.read_flow_runs(
-            filter={
-                "created": {"before_": cutoff},
-                "state": {"type": {"any_": ["COMPLETED", "FAILED", "CANCELLED"]}}
-            },
+            flow_run_filter=flow_run_filter,
             limit=batch_size
         )
         
@@ -149,10 +159,7 @@ async def delete_old_flow_runs(
             
             # Get next batch
             flow_runs = await client.read_flow_runs(
-                filter={
-                    "created": {"before_": cutoff},
-                    "state": {"type": {"any_": ["COMPLETED", "FAILED", "CANCELLED"]}}
-                },
+                flow_run_filter=flow_run_filter,
                 limit=batch_size
             )
             
@@ -188,10 +195,12 @@ async with asyncpg.connect(connection_url) as conn:
 
 ### Important considerations
 
-1. **Test first**: Run with `SELECT` instead of `DELETE` to preview what will be removed
-2. **Start conservative**: Begin with longer retention periods and adjust based on needs
-3. **Monitor performance**: Large deletes can impact database performance
-4. **Backup**: Always backup before major cleanup operations
+1. **Filtering limitation**: The current API filters by `start_time` (when the flow run began execution), not `created` time (when the flow run was created in the database). This means flows that were created but never started won't be deleted.
+
+2. **Test first**: Run with `SELECT` instead of `DELETE` to preview what will be removed
+3. **Start conservative**: Begin with longer retention periods and adjust based on needs
+4. **Monitor performance**: Large deletes can impact database performance
+5. **Backup**: Always backup before major cleanup operations
 
 ## Event retention
 
@@ -216,11 +225,11 @@ Monitor your event table growth:
 ```sql
 -- Event table size and row count
 SELECT 
-    pg_size_pretty(pg_total_relation_size('public.event')) AS total_size,
+    pg_size_pretty(pg_total_relation_size('public.events')) AS total_size,
     to_char(count(*), 'FM999,999,999') AS row_count,
     min(occurred) AS oldest_event,
     max(occurred) AS newest_event
-FROM event;
+FROM events;
 ```
 
 <Note>
@@ -240,7 +249,7 @@ SELECT
 FROM pg_stat_activity;
 ```
 
-## Additional resources
+## Further reading
 
 - [PostgreSQL documentation on VACUUM](https://www.postgresql.org/docs/current/sql-vacuum.html)
 - [PostgreSQL routine maintenance](https://www.postgresql.org/docs/current/routine-vacuuming.html)
