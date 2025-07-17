@@ -115,7 +115,8 @@ async def concurrency(
         lease_renewal_task.cancel()
         try:
             await lease_renewal_task
-        except Exception:
+        except (asyncio.CancelledError, Exception):
+            # Handling for errors will be done in the callback
             pass
 
         occupancy_period = now("UTC") - acquisition_time
