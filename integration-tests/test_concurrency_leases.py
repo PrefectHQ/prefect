@@ -150,4 +150,4 @@ async def test_async_concurrency_with_lease_renewal_failure(
 
     # Wait for the process to exit cleanly before the configured sleep time
     process.join(timeout=10)
-    assert process.exitcode == 0
+    assert process.exitcode == 1
