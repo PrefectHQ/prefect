@@ -5,6 +5,7 @@ from typing import Optional, Union
 
 import anyio
 
+from prefect.logging.loggers import get_logger, get_run_logger
 from prefect.types._datetime import now
 
 from ._asyncio import (
@@ -86,12 +87,35 @@ async def concurrency(
     )
 
     try:
-        yield
+        with anyio.CancelScope() as scope:
+
+            def handle_lease_renewal_failure(task: asyncio.Task[None]):
+                exc = task.exception()
+                if exc:
+                    try:
+                        # Use a run logger if available
+                        logger = get_run_logger()
+                    except Exception:
+                        logger = get_logger("concurrency")
+                    if strict:
+                        logger.error(
+                            "Concurrency lease renewal failed - slots are no longer reserved. Terminating execution to prevent over-allocation."
+                        )
+                        scope.cancel()
+                    else:
+                        logger.warning(
+                            "Concurrency lease renewal failed - slots are no longer reserved. Execution will continue, but concurrency limits may be exceeded."
+                        )
+
+            # Add a callback to stop execution if the lease renewal fails and strict is True
+            lease_renewal_task.add_done_callback(handle_lease_renewal_failure)
+
+            yield
     finally:
         lease_renewal_task.cancel()
         try:
             await lease_renewal_task
-        except asyncio.CancelledError:
+        except Exception:
             pass
 
         occupancy_period = now("UTC") - acquisition_time
