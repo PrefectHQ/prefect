@@ -19,6 +19,7 @@ from prefect.settings.context import get_current_settings
 
 
 class _LeaseFile(TypedDict):
+    id: str
     resource_ids: list[str]
     metadata: dict[str, Any] | None
     expiration: str
@@ -82,6 +83,7 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
         self, lease: ResourceLease[ConcurrencyLimitLeaseMetadata], expiration: datetime
     ) -> _LeaseFile:
         return {
+            "id": str(lease.id),
             "resource_ids": [str(rid) for rid in lease.resource_ids],
             "metadata": {"slots": lease.metadata.slots} if lease.metadata else None,
             "expiration": expiration.isoformat(),
@@ -90,6 +92,7 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
     def _deserialize_lease(
         self, data: _LeaseFile
     ) -> ResourceLease[ConcurrencyLimitLeaseMetadata]:
+        lease_id = UUID(data["id"])
         resource_ids = [UUID(rid) for rid in data["resource_ids"]]
         metadata = (
             ConcurrencyLimitLeaseMetadata(slots=data["metadata"]["slots"])
@@ -98,7 +101,10 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
         )
         expiration = datetime.fromisoformat(data["expiration"])
         lease = ResourceLease(
-            resource_ids=resource_ids, metadata=metadata, expiration=expiration
+            id=lease_id,
+            resource_ids=resource_ids,
+            metadata=metadata,
+            expiration=expiration,
         )
         return lease
 
