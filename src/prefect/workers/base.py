@@ -3,9 +3,6 @@ from __future__ import annotations
 import abc
 import asyncio
 import datetime
-import json
-import subprocess
-import tempfile
 import threading
 import uuid
 import warnings
@@ -762,9 +759,10 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
         task_status: anyio.abc.TaskStatus["FlowRun"] | None = None,
     ):
         """
-        Submits a flow run to the Kubernetes worker.
+        Submits a flow for the worker to kick off execution for.
         """
         from prefect._experimental.bundles import (
+            aupload_bundle_to_storage,
             convert_step_to_command,
             create_bundle_for_flow_run,
         )
@@ -860,27 +858,7 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
         )
 
         bundle = create_bundle_for_flow_run(flow=flow, flow_run=flow_run)
-
-        # Write the bundle to a temporary directory so it can be uploaded to the bundle storage
-        # via the upload command
-        with tempfile.TemporaryDirectory() as temp_dir:
-            await (
-                anyio.Path(temp_dir)
-                .joinpath(bundle_key)
-                .write_bytes(json.dumps(bundle).encode("utf-8"))
-            )
-
-            try:
-                full_command = upload_command + [bundle_key]
-                logger.debug(
-                    "Uploading execution bundle with command: %s", full_command
-                )
-                await anyio.run_process(
-                    full_command,
-                    cwd=temp_dir,
-                )
-            except subprocess.CalledProcessError as e:
-                raise RuntimeError(e.stderr.decode("utf-8")) from e
+        await aupload_bundle_to_storage(bundle, bundle_key, upload_command)
 
         logger.debug("Successfully uploaded execution bundle")
 
@@ -1220,22 +1198,23 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
         """
         run_logger = self.get_flow_run_logger(flow_run)
 
-        try:
-            await self.client.read_deployment(getattr(flow_run, "deployment_id"))
-        except (ObjectNotFound, AttributeError):
-            self._logger.exception(
-                f"Deployment {flow_run.deployment_id} no longer exists. "
-                f"Flow run {flow_run.id} will not be submitted for"
-                " execution"
-            )
-            self._submitting_flow_run_ids.remove(flow_run.id)
-            await self._mark_flow_run_as_cancelled(
-                flow_run,
-                state_updates=dict(
-                    message=f"Deployment {flow_run.deployment_id} no longer exists, cancelled run."
-                ),
-            )
-            return
+        if flow_run.deployment_id:
+            try:
+                await self.client.read_deployment(flow_run.deployment_id)
+            except ObjectNotFound:
+                self._logger.exception(
+                    f"Deployment {flow_run.deployment_id} no longer exists. "
+                    f"Flow run {flow_run.id} will not be submitted for"
+                    " execution"
+                )
+                self._submitting_flow_run_ids.remove(flow_run.id)
+                await self._mark_flow_run_as_cancelled(
+                    flow_run,
+                    state_updates=dict(
+                        message=f"Deployment {flow_run.deployment_id} no longer exists, cancelled run."
+                    ),
+                )
+                return
 
         ready_to_submit = await self._propose_pending_state(flow_run)
         self._logger.debug(f"Ready to submit {flow_run.id}: {ready_to_submit}")
