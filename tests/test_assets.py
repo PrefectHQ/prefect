@@ -1,6 +1,7 @@
 import pytest
 
 from prefect.assets import Asset, AssetProperties, materialize
+from prefect.assets.core import MAX_ASSET_DESCRIPTION_LENGTH
 from prefect.context import AssetContext
 from prefect.events.worker import EventsWorker
 from prefect.flows import flow
@@ -235,6 +236,32 @@ def test_asset_as_resource_excludes_unset_properties():
     # Ensure unset fields are not included
     assert "prefect.asset.description" not in resource
     assert "prefect.asset.url" not in resource
+
+
+def test_asset_description_max_length():
+    # Test with description exactly at the limit
+    exact_limit_description = "X" * MAX_ASSET_DESCRIPTION_LENGTH
+    properties_exact = AssetProperties(description=exact_limit_description)
+    assert len(properties_exact.description) == MAX_ASSET_DESCRIPTION_LENGTH
+    assert properties_exact.description == exact_limit_description
+
+    # Test with description under the limit
+    short_description = "Short description"
+    properties_short = AssetProperties(description=short_description)
+    assert properties_short.description == short_description
+
+    # Test with None description
+    properties_none = AssetProperties(description=None)
+    assert properties_none.description is None
+
+    # Test that description longer than 5000 characters raises ValidationError
+    long_description = "A" * (MAX_ASSET_DESCRIPTION_LENGTH + 1)
+
+    with pytest.raises(
+        ValueError,
+        match=f"String should have at most {MAX_ASSET_DESCRIPTION_LENGTH} characters",
+    ):
+        AssetProperties(description=long_description)
 
 
 # =============================================================================
