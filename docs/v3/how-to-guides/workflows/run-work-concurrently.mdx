@@ -358,13 +358,14 @@ def my_flow():
 
 ## Handling failures in concurrent work
 
-When running tasks concurrently, sometimes you might want all concurrent work to complete, even if some tasks fail.
+Instead of failing your entire workflow when a single concurrent task fails, you may want to run concurrent work to completion, even if some tasks fail. To run tasks concurrently and handle failures afterwards, use the `wait()` utility along with the `.state` attribute on futures:
 
-Here are different approaches to run concurrent work to completion and handle failures:
+```python
+from typing import Any
 
-<CodeGroup>
-```python Using .map() with return_state
 from prefect import flow, task
+from prefect.futures import wait
+from prefect.states import State
 
 @task
 def process_data(item: int) -> str:
@@ -376,18 +377,21 @@ def process_data(item: int) -> str:
 def batch_processing():
     items = [1, -2, 3, -4, 5]
     
-    # Get states instead of results
-    states = process_data.map(items, return_state=True)
+    # Submit all tasks and return the futures
+    futures = process_data.map(items)
     
-    # Separate successful and failed results
-    successful = []
-    failed = []
+    # Wait for all futures to complete concurrently
+    done, not_done = wait(futures)
     
-    for i, state in enumerate(states):
-        if state.is_completed():
-            successful.append(state.result())
+    # Check each future's state
+    successful: list[Any] = []
+    failed: list[State] = []
+    
+    for future in done:
+        if future.state.is_completed():
+            successful.append(future.result())
         else:
-            failed.append((items[i], state))
+            failed.append(future.state)
     
     print(f"Processed {len(successful)} items successfully")
     print(f"Failed to process {len(failed)} items")
@@ -395,78 +399,11 @@ def batch_processing():
     return successful
 ```
 
-```python Using .submit() with return_state
-from prefect import flow, task
-
-@task
-def process_data(item: int) -> str:
-    if item < 0:
-        raise ValueError(f"Cannot process negative value: {item}")
-    return f"Processed {item}"
-
-@flow
-def batch_processing():
-    items = [1, -2, 3, -4, 5]
-    
-    # Submit individually for more control
-    states = []
-    for item in items:
-        state = process_data.submit(item, return_state=True)
-        states.append((item, state))
-    
-    # Separate successful and failed results
-    successful = []
-    failed = []
-    
-    for item, state in states:
-        if state.is_completed():
-            successful.append(state.result())
-        else:
-            failed.append((item, state))
-    
-    print(f"Processed {len(successful)} items successfully")
-    print(f"Failed to process {len(failed)} items")
-    
-    return successful
-```
-
-```python Using allow_failure for dependent tasks
-from prefect import flow, task
-from prefect.utilities.annotations import allow_failure
-
-@task  
-def process_data(item: int) -> str:
-    if item < 0:
-        raise ValueError(f"Cannot process negative value: {item}")
-    return f"Processed {item}"
-
-@task
-def save_result(result_or_error) -> str:
-    # With allow_failure, failed tasks pass their exception
-    if isinstance(result_or_error, Exception):
-        return f"Logged failure: {type(result_or_error).__name__}"
-    return f"Saved: {result_or_error}"
-
-@flow
-def batch_processing():
-    items = [1, -2, 3, -4, 5]
-    results = []
-    
-    for item in items:
-        # Submit processing task (might fail)
-        future = process_data.submit(item)
-        # Save result regardless of success/failure
-        saved = save_result.submit(allow_failure(future))
-        results.append(saved.result())
-    
-    return results
-```
-</CodeGroup>
+The `wait()` function returns two sets of futures: `done` and `not_done`. Each future has a `.state` attribute you can inspect to determine how the associated task run's result (or exception) should be treated downstream.
 
 <Note>
-Use `.map()` for concurrent batch processing, `.submit()` for individual control, or `allow_failure` when downstream tasks must run regardless of upstream failures.
+The "right way" to handle failures will depend on your use case. Review the [final state determination](/v3/concepts/states#final-state-determination) documentation for more information.
 </Note>
-
 
 
 ## Using `asyncio`
