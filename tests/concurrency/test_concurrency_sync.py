@@ -7,8 +7,8 @@ from starlette import status
 from prefect import flow, task
 from prefect.concurrency.asyncio import ConcurrencySlotAcquisitionError
 from prefect.concurrency.sync import (
-    _acquire_concurrency_slots,
-    _release_concurrency_slots,
+    _acquire_concurrency_slots_with_lease,
+    _release_concurrency_slots_with_lease,
     concurrency,
     rate_limit,
 )
@@ -29,11 +29,11 @@ def test_concurrency_orchestrates_api(concurrency_limit: ConcurrencyLimitV2):
 
     with mock.patch(
         "prefect.concurrency.sync._acquire_concurrency_slots",
-        wraps=_acquire_concurrency_slots,
+        wraps=_acquire_concurrency_slots_with_lease,
     ) as acquire_spy:
         with mock.patch(
             "prefect.concurrency.sync._release_concurrency_slots",
-            wraps=_release_concurrency_slots,
+            wraps=_release_concurrency_slots_with_lease,
         ) as release_spy:
             resource_heavy()
 
@@ -259,11 +259,11 @@ def test_rate_limit_orchestrates_api(concurrency_limit_with_decay: ConcurrencyLi
 
     with mock.patch(
         "prefect.concurrency.sync._acquire_concurrency_slots",
-        wraps=_acquire_concurrency_slots,
+        wraps=_acquire_concurrency_slots_with_lease,
     ) as acquire_spy:
         with mock.patch(
             "prefect.concurrency.sync._release_concurrency_slots",
-            wraps=_release_concurrency_slots,
+            wraps=_release_concurrency_slots_with_lease,
         ) as release_spy:
             resource_heavy()
 
