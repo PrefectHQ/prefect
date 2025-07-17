@@ -358,7 +358,9 @@ def my_flow():
 
 ## Handling failures in concurrent work
 
-When running tasks concurrently, a single failure will raise an exception by default. Here are different approaches to handle failures:
+When running tasks concurrently, sometimes you might want all concurrent work to complete, even if some tasks fail.
+
+Here are different approaches to run concurrent work to completion and handle failures:
 
 <CodeGroup>
 ```python Using .map() with return_state
