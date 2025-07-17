@@ -3,14 +3,18 @@ from __future__ import annotations
 import asyncio
 import base64
 import gzip
+import json
+import logging
 import multiprocessing
 import multiprocessing.context
 import os
 import subprocess
 import sys
 from pathlib import Path
+import tempfile
 from typing import Any, TypedDict
 
+import anyio
 import cloudpickle  # pyright: ignore[reportMissingTypeStubs]
 
 from prefect.client.schemas.objects import FlowRun
@@ -18,11 +22,14 @@ from prefect.context import SettingsContext, get_settings_context, serialize_con
 from prefect.engine import handle_engine_signals
 from prefect.flow_engine import run_flow
 from prefect.flows import Flow
+from prefect.logging import get_logger
 from prefect.settings.context import get_current_settings
 from prefect.settings.models.root import Settings
 from prefect.utilities.slugify import slugify
 
 from .execute import execute_bundle_from_file
+
+logger: logging.Logger = get_logger(__name__)
 
 
 def _get_uv_path() -> str:
@@ -244,6 +251,64 @@ def convert_step_to_command(
     command.extend(["--key", key])
 
     return command
+
+
+def upload_bundle_to_storage(
+    bundle: SerializedBundle, key: str, upload_command: list[str]
+) -> None:
+    """
+    Uploads a bundle to storage.
+
+    Args:
+        bundle: The serialized bundle to upload.
+        key: The key to use for the remote file when uploading.
+        upload_command: The command to use to upload the bundle as a list of strings.
+    """
+    # Write the bundle to a temporary directory so it can be uploaded to the bundle storage
+    # via the upload command
+    with tempfile.TemporaryDirectory() as temp_dir:
+        Path(temp_dir).joinpath(key).write_bytes(json.dumps(bundle).encode("utf-8"))
+
+        try:
+            full_command = upload_command + [key]
+            logger.debug("Uploading execution bundle with command: %s", full_command)
+            subprocess.check_call(
+                full_command,
+                cwd=temp_dir,
+            )
+        except subprocess.CalledProcessError as e:
+            raise RuntimeError(e.stderr.decode("utf-8")) from e
+
+
+async def aupload_bundle_to_storage(
+    bundle: SerializedBundle, key: str, upload_command: list[str]
+) -> None:
+    """
+    Asynchronously uploads a bundle to storage.
+
+    Args:
+        bundle: The serialized bundle to upload.
+        key: The key to use for the remote file when uploading.
+        upload_command: The command to use to upload the bundle as a list of strings.
+    """
+    # Write the bundle to a temporary directory so it can be uploaded to the bundle storage
+    # via the upload command
+    with tempfile.TemporaryDirectory() as temp_dir:
+        await (
+            anyio.Path(temp_dir)
+            .joinpath(key)
+            .write_bytes(json.dumps(bundle).encode("utf-8"))
+        )
+
+        try:
+            full_command = upload_command + [key]
+            logger.debug("Uploading execution bundle with command: %s", full_command)
+            await anyio.run_process(
+                full_command,
+                cwd=temp_dir,
+            )
+        except subprocess.CalledProcessError as e:
+            raise RuntimeError(e.stderr.decode("utf-8")) from e
 
 
 __all__ = [
