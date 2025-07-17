@@ -1,4 +1,5 @@
 from unittest import mock
+from uuid import UUID
 
 import pytest
 from httpx import HTTPStatusError, Request, Response
@@ -7,6 +8,7 @@ from starlette import status
 from prefect import flow, task
 from prefect.concurrency.asyncio import ConcurrencySlotAcquisitionError
 from prefect.concurrency.sync import (
+    _acquire_concurrency_slots,
     _acquire_concurrency_slots_with_lease,
     _release_concurrency_slots_with_lease,
     concurrency,
@@ -28,11 +30,11 @@ def test_concurrency_orchestrates_api(concurrency_limit: ConcurrencyLimitV2):
     assert not executed
 
     with mock.patch(
-        "prefect.concurrency.sync._acquire_concurrency_slots",
+        "prefect.concurrency.sync._acquire_concurrency_slots_with_lease",
         wraps=_acquire_concurrency_slots_with_lease,
     ) as acquire_spy:
         with mock.patch(
-            "prefect.concurrency.sync._release_concurrency_slots",
+            "prefect.concurrency.sync._release_concurrency_slots_with_lease",
             wraps=_release_concurrency_slots_with_lease,
         ) as release_spy:
             resource_heavy()
@@ -42,6 +44,7 @@ def test_concurrency_orchestrates_api(concurrency_limit: ConcurrencyLimitV2):
                 1,
                 timeout_seconds=None,
                 max_retries=None,
+                lease_duration=300,
                 strict=False,
             )
 
@@ -49,9 +52,8 @@ def test_concurrency_orchestrates_api(concurrency_limit: ConcurrencyLimitV2):
             # for, so here we really just want to make sure that the value
             # passed as `occupy_seconds` is > 0.
 
-            names, occupy, occupy_seconds = release_spy.call_args[0]
-            assert names == ["test"]
-            assert occupy == 1
+            lease_id, occupy_seconds = release_spy.call_args[0]
+            assert isinstance(lease_id, UUID)
             assert occupy_seconds > 0
 
     assert executed
@@ -185,11 +187,11 @@ def test_rate_limit_without_limit_names_sync(names):
     assert not executed
 
     with mock.patch(
-        "prefect.concurrency.sync._acquire_concurrency_slots",
+        "prefect.concurrency.sync._acquire_concurrency_slots_with_lease",
         wraps=lambda *args, **kwargs: None,
     ) as acquire_spy:
         with mock.patch(
-            "prefect.concurrency.sync._release_concurrency_slots",
+            "prefect.concurrency.sync._release_concurrency_slots_with_lease",
             wraps=lambda *args, **kwargs: None,
         ) as release_spy:
             resource_heavy()
@@ -259,25 +261,17 @@ def test_rate_limit_orchestrates_api(concurrency_limit_with_decay: ConcurrencyLi
 
     with mock.patch(
         "prefect.concurrency.sync._acquire_concurrency_slots",
-        wraps=_acquire_concurrency_slots_with_lease,
+        wraps=_acquire_concurrency_slots,
     ) as acquire_spy:
-        with mock.patch(
-            "prefect.concurrency.sync._release_concurrency_slots",
-            wraps=_release_concurrency_slots_with_lease,
-        ) as release_spy:
-            resource_heavy()
+        resource_heavy()
 
-            acquire_spy.assert_called_once_with(
-                ["test"],
-                1,
-                mode="rate_limit",
-                timeout_seconds=None,
-                strict=False,
-            )
-
-            # When used as a rate limit concurrency slots are not explicitly
-            # released.
-            release_spy.assert_not_called()
+        acquire_spy.assert_called_once_with(
+            ["test"],
+            1,
+            mode="rate_limit",
+            timeout_seconds=None,
+            strict=False,
+        )
 
     assert executed
 
@@ -436,11 +430,11 @@ def test_concurrency_without_limit_names_sync(names):
     assert not executed
 
     with mock.patch(
-        "prefect.concurrency.sync._acquire_concurrency_slots",
+        "prefect.concurrency.sync._acquire_concurrency_slots_with_lease",
         wraps=lambda *args, **kwargs: None,
     ) as acquire_spy:
         with mock.patch(
-            "prefect.concurrency.sync._release_concurrency_slots",
+            "prefect.concurrency.sync._release_concurrency_slots_with_lease",
             wraps=lambda *args, **kwargs: None,
         ) as release_spy:
             resource_heavy()
