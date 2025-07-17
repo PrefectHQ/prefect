@@ -8,6 +8,8 @@ Self-hosted Prefect deployments require database maintenance to ensure optimal p
 
 <Warning>
 This guide is for advanced users managing production deployments. Always test maintenance operations in a non-production environment first, if possible.
+
+Exact numbers included in this guide will vary based on your workload and installation.
 </Warning>
 
 ## Quick reference
@@ -163,7 +165,7 @@ ORDER BY last_autovacuum NULLS FIRST;
 
 ### Tune autovacuum for Prefect workloads
 
-Prefect's write patterns require more aggressive autovacuum settings than defaults:
+Depending on your workload, your write patterns may require more aggressive autovacuum settings than defaults:
 
 ```sql
 -- For high-volume events table (INSERT/DELETE heavy)
