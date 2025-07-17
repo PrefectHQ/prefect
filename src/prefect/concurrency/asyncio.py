@@ -5,6 +5,7 @@ from typing import Optional, Union
 
 import anyio
 
+from prefect._internal.concurrency.cancellation import AsyncCancelScope
 from prefect.logging.loggers import get_logger, get_run_logger
 from prefect.types._datetime import now
 
@@ -87,7 +88,7 @@ async def concurrency(
     )
 
     try:
-        with anyio.CancelScope() as scope:
+        with AsyncCancelScope() as cancel_scope:
 
             def handle_lease_renewal_failure(task: asyncio.Task[None]):
                 exc = task.exception()
@@ -101,7 +102,7 @@ async def concurrency(
                         logger.error(
                             "Concurrency lease renewal failed - slots are no longer reserved. Terminating execution to prevent over-allocation."
                         )
-                        scope.cancel()
+                        cancel_scope.cancel()
                     else:
                         logger.warning(
                             "Concurrency lease renewal failed - slots are no longer reserved. Execution will continue, but concurrency limits may be exceeded."
