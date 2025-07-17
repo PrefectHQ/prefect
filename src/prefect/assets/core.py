@@ -7,6 +7,8 @@ from pydantic import ConfigDict, Field
 from prefect._internal.schemas.bases import PrefectBaseModel
 from prefect.types import ValidAssetKey
 
+MAX_ASSET_DESCRIPTION_LENGTH = 2500
+
 
 class AssetProperties(PrefectBaseModel):
     """
@@ -22,7 +24,9 @@ class AssetProperties(PrefectBaseModel):
         default=None, description="Visitable url to view the Asset."
     )
     description: Optional[str] = Field(
-        default=None, description="Description of the Asset."
+        default=None,
+        description="Description of the Asset.",
+        max_length=MAX_ASSET_DESCRIPTION_LENGTH,
     )
     owners: Optional[list[str]] = Field(
         default=None, description="Owners of the Asset."
