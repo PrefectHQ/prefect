@@ -18,6 +18,7 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
     """
 
     _instance: "ConcurrencyLeaseStorage | None" = None
+    _initialized: bool = False
 
     def __new__(cls) -> "ConcurrencyLeaseStorage":
         if cls._instance is None:
@@ -25,8 +26,12 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
         return cls._instance
 
     def __init__(self):
+        if self.__class__._initialized:
+            return
+
         self.leases: dict[UUID, ResourceLease[ConcurrencyLimitLeaseMetadata]] = {}
         self.expirations: dict[UUID, datetime] = {}
+        self.__class__._initialized = True
 
     async def create_lease(
         self,
