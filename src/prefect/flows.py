@@ -2151,7 +2151,7 @@ class InfrastructureBoundFlow(Flow[P, R]):
 
         This method will spin up a local worker to submit the flow to remote infrastructure. To
         submit the flow to remote infrastructure without spinning up a local worker, use
-        `dispatch` instead.
+        `submit_to_work_pool` instead.
 
         Args:
             *args: Positional arguments to pass to the flow.
@@ -2189,12 +2189,14 @@ class InfrastructureBoundFlow(Flow[P, R]):
 
         return run_coro_as_sync(submit_func())
 
-    def dispatch(self, *args: P.args, **kwargs: P.kwargs) -> PrefectFlowRunFuture[R]:
+    def submit_to_work_pool(
+        self, *args: P.args, **kwargs: P.kwargs
+    ) -> PrefectFlowRunFuture[R]:
         """
         EXPERIMENTAL: This method is experimental and may be removed or changed in future
             releases.
 
-        Dispatch the flow to run on remote infrastructure.
+        Submits the flow to run on remote infrastructure.
 
         This method will create a flow run for an existing worker to submit to remote infrastructure.
         If you don't have a worker available, use `submit` instead.
@@ -2218,7 +2220,7 @@ class InfrastructureBoundFlow(Flow[P, R]):
             def my_flow(x: int, y: int):
                 return x + y
 
-            future = my_flow.dispatch(x=1, y=2)
+            future = my_flow.submit_to_work_pool(x=1, y=2)
             result = future.result()
             print(result)
             ```

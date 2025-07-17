@@ -397,7 +397,7 @@ class TestInfrastructureBoundFlow:
             flow=my_flow, work_pool=work_pool.name, worker_cls=ProcessWorker
         )
 
-        future = infrastructure_bound_flow.dispatch(x=1, y=2)
+        future = infrastructure_bound_flow.submit_to_work_pool(x=1, y=2)
         assert future.state.is_scheduled()
         expected_upload_command = [
             "uv",
@@ -464,7 +464,7 @@ class TestInfrastructureBoundFlow:
         with pytest.raises(
             RuntimeError, match="Storage is not configured for work pool"
         ):
-            infrastructure_bound_flow.dispatch(x=1, y=2)
+            infrastructure_bound_flow.submit_to_work_pool(x=1, y=2)
 
     @pytest.mark.filterwarnings("ignore::FutureWarning")
     @pytest.mark.usefixtures("mock_subprocess_check_call")
@@ -484,7 +484,7 @@ class TestInfrastructureBoundFlow:
         @flow
         async def parent_flow():
             flow_run_ctx = FlowRunContext.get()
-            future = infrastructure_bound_flow.dispatch()
+            future = infrastructure_bound_flow.submit_to_work_pool()
             flow_run = getattr(flow_run_ctx, "flow_run", None)
             flow_run_id = flow_run.id if flow_run else None
             return flow_run_id, future.flow_run_id
@@ -546,7 +546,7 @@ class TestInfrastructureBoundFlow:
             flow=unprepared_flow, work_pool=work_pool.name, worker_cls=ProcessWorker
         )
 
-        future = infrastructure_bound_flow.dispatch()
+        future = infrastructure_bound_flow.submit_to_work_pool()
 
         # Start the worker to pick up and "run" the flow
         await SubmitterOfUnpreparedFlows(work_pool_name=work_pool.name).start(
