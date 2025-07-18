@@ -139,13 +139,6 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
 
             lease = self._deserialize_lease(lease_data)
 
-            # Check if lease is expired
-            if lease.expiration < datetime.now(timezone.utc):
-                # Clean up expired lease
-                lease_file.unlink(missing_ok=True)
-                await self._remove_from_expiration_index(lease_id)
-                return None
-
             return lease
         except (json.JSONDecodeError, KeyError, ValueError):
             # Clean up corrupted lease file
@@ -185,11 +178,31 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
         # Remove from expiration index
         await self._remove_from_expiration_index(lease_id)
 
+    async def read_active_lease_ids(self, limit: int = 100) -> list[UUID]:
+        active_leases: list[UUID] = []
+        now = datetime.now(timezone.utc)
+
+        expiration_index = await self._load_expiration_index()
+
+        for lease_id_str, expiration_str in expiration_index.items():
+            if len(active_leases) >= limit:
+                break
+
+            try:
+                lease_id = UUID(lease_id_str)
+                expiration = datetime.fromisoformat(expiration_str)
+
+                if expiration > now:
+                    active_leases.append(lease_id)
+            except (ValueError, TypeError):
+                continue
+
+        return active_leases
+
     async def read_expired_lease_ids(self, limit: int = 100) -> list[UUID]:
         expired_leases: list[UUID] = []
         now = datetime.now(timezone.utc)
 
-        # Load expiration index
         expiration_index = await self._load_expiration_index()
 
         for lease_id_str, expiration_str in expiration_index.items():
@@ -203,7 +216,6 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
                 if expiration < now:
                     expired_leases.append(lease_id)
             except (ValueError, TypeError):
-                # Clean up corrupted index entry
                 continue
 
         return expired_leases

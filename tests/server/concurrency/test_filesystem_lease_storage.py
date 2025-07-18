@@ -1,6 +1,6 @@
 import json
 import tempfile
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from uuid import UUID, uuid4
 
@@ -113,17 +113,10 @@ class TestFilesystemConcurrencyLeaseStorage:
         ]
         lease_id = UUID(lease_files[0].stem)
 
-        # Reading should return None and clean up the file
+        # Reading should return return the lease
         read_lease = await storage.read_lease(lease_id)
-        assert read_lease is None
-
-        # File should be cleaned up (excluding expiration index)
-        lease_files = [
-            f
-            for f in storage.storage_path.glob("*.json")
-            if f.name != "expirations.json"
-        ]
-        assert len(lease_files) == 0
+        assert read_lease is not None
+        assert read_lease.expiration < datetime.now(timezone.utc)
 
     async def test_read_lease_corrupted_file(
         self, storage: ConcurrencyLeaseStorage, sample_resource_ids: list[UUID]
