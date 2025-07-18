@@ -216,15 +216,33 @@ Next, create an ECS task definition that specifies the Docker image for the Pref
 
 - For the `PREFECT_API_KEY`:
   - **Prefect Cloud users**: If you are on a paid plan you can create a [service account](/v3/manage/cloud/manage-users/service-accounts) for the worker. If you are on a free plan, you can pass a user's API key.
-  - **Self-hosted Prefect server users**: There is no concept of a `PREFECT_API_KEY` in a self-hosted Prefect server. Simply remove the `PREFECT_API_KEY` environment variable from your task definition.
+  - **Self-hosted Prefect server users**: There is no concept of a `PREFECT_API_KEY` in a self-hosted Prefect server. You should either:
+    - Remove the `PREFECT_API_KEY` environment variable from your task definition (if your server has no authentication)
+    - Replace it with `PREFECT_API_AUTH_STRING` containing your basic auth credentials (if your server uses [basic authentication](/v3/advanced/security-settings#basic-authentication))
 
 <Note>
-**Example for self-hosted Prefect server:**
+**Examples for self-hosted Prefect server:**
+
+Without authentication:
 ```json
 "environment": [
     {
         "name": "PREFECT_API_URL",
         "value": "http://your-prefect-server:4200/api"
+    }
+]
+```
+
+With basic authentication:
+```json
+"environment": [
+    {
+        "name": "PREFECT_API_URL",
+        "value": "http://your-prefect-server:4200/api"
+    },
+    {
+        "name": "PREFECT_API_AUTH_STRING",
+        "value": "admin:yourpassword"
     }
 ]
 ```
