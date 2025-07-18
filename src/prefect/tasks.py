@@ -609,8 +609,8 @@ class Task(Generic[P, R]):
             else []
         )
 
-        # Temporary storage for dependencies from wait_for()
-        self._wait_for_dependencies: Optional[OneOrManyFutureOrResult[Any]] = None
+        # Temporary storage for upstream dependencies
+        self._upstream_dependencies: Optional[OneOrManyFutureOrResult[Any]] = None
 
     @property
     def ismethod(self) -> bool:
@@ -844,14 +844,14 @@ class Task(Generic[P, R]):
         self.on_rollback_hooks.append(fn)
         return fn
 
-    def wait_for(
+    def depends_on(
         self, upstream: Optional[OneOrManyFutureOrResult[Any]]
     ) -> "Task[P, R]":
         """
-        Configure this task to wait for upstream dependencies.
+        Set upstream dependencies for this task that will be used on the next submit.
 
-        This allows type-safe specification of explicit task dependencies.
-        The dependencies are cleared after the next submission.
+        This provides a type-safe way to specify task dependencies without mixing
+        them with the task's parameters. The dependencies are cleared after submission.
 
         Args:
             upstream: Upstream task futures to wait for before starting the task
@@ -860,7 +860,6 @@ class Task(Generic[P, R]):
             This task instance for method chaining
 
         Examples:
-            Run a task with dependencies:
             ```python
             @task
             def upstream_task() -> int:
@@ -874,88 +873,12 @@ class Task(Generic[P, R]):
             def my_flow():
                 future = upstream_task.submit()
                 # Type-safe way to specify dependencies
-                state = downstream_task.wait_for([future]).submit_and_return_state(5)
-                if state.is_completed():
-                    print(state.result())
+                future2 = downstream_task.depends_on([future]).submit(5)
+                print(future2.result())
             ```
         """
-        self._wait_for_dependencies = upstream
+        self._upstream_dependencies = upstream
         return self
-
-    def submit_and_return_state(
-        self: "Union[Task[P, R], Task[P, Coroutine[Any, Any, R]]]",
-        *args: P.args,
-        **kwargs: P.kwargs,
-    ) -> State[R]:
-        """
-        Submit a run of the task to the engine and return its final state.
-
-        This is a type-safe alternative to `submit(*args, return_state=True, **kwargs)`.
-        For tasks with dependencies, use `with_dependencies()` first.
-
-        This method is always synchronous, even if the underlying user function is asynchronous.
-
-        Args:
-            *args: Arguments to run the task with
-            **kwargs: Keyword arguments to run the task with
-
-        Returns:
-            The final state of the task run, including the result or any error information.
-
-        Examples:
-            Check task success before continuing:
-            ```python
-            @task
-            def my_task(x: int) -> str:
-                if x < 0:
-                    raise ValueError("x must be positive")
-                return f"Result: {x}"
-
-            @flow
-            def my_flow():
-                state = my_task.submit_and_return_state(5)
-                if state.is_completed():
-                    print(f"Success: {state.result()}")
-                else:
-                    print(f"Failed: {state.name}")
-            ```
-
-            With dependencies:
-            ```python
-            @task
-            def task_a() -> int:
-                return 1
-
-            @task
-            def task_b(x: int) -> int:
-                return x + 1
-
-            @flow
-            def my_flow():
-                future_a = task_a.submit()
-                # Use with_dependencies() for type-safe dependency handling
-                state_b = task_b.with_dependencies([future_a]).submit_and_return_state(5)
-                print(state_b.result())  # 6
-            ```
-        """
-        if not (flow_run_context := FlowRunContext.get()):
-            raise RuntimeError(
-                "Tasks cannot be run outside of a flow."
-                " You may need to call `.submit_and_return_state()` within a flow function"
-                " or use `.delay()` to submit a task for deferred execution."
-            )
-
-        # Use and clear any stored dependencies
-        wait_for = self._wait_for_dependencies
-        self._wait_for_dependencies = None
-
-        # Submit with dependencies if any
-        parameters = get_call_parameters(self.fn, args, kwargs)
-        future = flow_run_context.task_runner.submit(self, parameters, wait_for)
-
-        # Wait for completion and return the state
-        future.wait()
-        return future.state
 
     async def create_run(
         self,
@@ -1432,6 +1355,11 @@ class Task(Generic[P, R]):
             raise VisualizationUnsupportedError(
                 "`task.submit()` is not currently supported by `flow.visualize()`"
             )
+
+        # Use stored dependencies if available, then clear them
+        if self._upstream_dependencies is not None:
+            wait_for = self._upstream_dependencies
+            self._upstream_dependencies = None
 
         task_runner = flow_run_context.task_runner
         future = task_runner.submit(self, parameters, wait_for)
