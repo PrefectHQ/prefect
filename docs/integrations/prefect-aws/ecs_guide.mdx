@@ -2,6 +2,10 @@
 title: ECS Worker Guide
 ---
 
+<Note>
+This guide is valid for users of self-hosted Prefect server or Prefect Cloud users with a tier that allows hybrid work pools.
+</Note>
+
 ## Why use ECS for flow run execution?
 
 ECS (Elastic Container Service) tasks are a good option for executing Prefect flow runs for several reasons:
@@ -210,7 +214,39 @@ Next, create an ECS task definition that specifies the Docker image for the Pref
 
 - Use `prefect config view` to view the `PREFECT_API_URL` for your current Prefect profile. Use this to replace `<prefect-api-url>`.
 
-- For the `PREFECT_API_KEY`, if you are on a paid plan you can create a [service account](/v3/manage/cloud/manage-users/service-accounts) for the worker. If your are on a free plan, you can pass a user's API key.
+- For the `PREFECT_API_KEY`:
+  - **Prefect Cloud users**: If you are on a paid plan you can create a [service account](/v3/manage/cloud/manage-users/service-accounts) for the worker. If you are on a free plan, you can pass a user's API key.
+  - **Self-hosted Prefect server users**: There is no concept of a `PREFECT_API_KEY` in a self-hosted Prefect server. You should either:
+    - Remove the `PREFECT_API_KEY` environment variable from your task definition (if your server has no authentication)
+    - Replace it with `PREFECT_API_AUTH_STRING` containing your basic auth credentials (if your server uses [basic authentication](/v3/advanced/security-settings#basic-authentication))
+
+<Note>
+**Examples for self-hosted Prefect server:**
+
+Without authentication:
+```json
+"environment": [
+    {
+        "name": "PREFECT_API_URL",
+        "value": "http://your-prefect-server:4200/api"
+    }
+]
+```
+
+With basic authentication:
+```json
+"environment": [
+    {
+        "name": "PREFECT_API_URL",
+        "value": "http://your-prefect-server:4200/api"
+    },
+    {
+        "name": "PREFECT_API_AUTH_STRING",
+        "value": "admin:yourpassword"
+    }
+]
+```
+</Note>
 
 - Replace both instances of `<ecs-task-role-arn>` with the ARN of the IAM role you created in Step 2. You can grab this by running:
 ```
