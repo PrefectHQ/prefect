@@ -1,6 +1,6 @@
-import type { components } from "@/api/prefect";
-
-type WorkerMetadata = components["schemas"]["WorkerMetadata"];
+type WorkerMetadata = {
+	[key: string]: unknown;
+};
 
 export const createFakeWorkerMetadata = (
 	overrides?: Partial<WorkerMetadata>,

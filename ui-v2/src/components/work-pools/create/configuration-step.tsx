@@ -98,33 +98,23 @@ export const ConfigurationStep = ({
 		}
 	}, [schema, formValues, value, onChange, isPrefectAgent]);
 
-	// Special handling for prefect-agent type
-	if (isPrefectAgent) {
-		return (
-			<div className="space-y-4">
-				<p className="text-sm">
-					Prefect Agents handle infrastructure configuration via infrastructure
-					blocks attached to deployments. You can hit <strong>Create</strong> to
-					create this work pool and then head over to the{" "}
-					<strong>Blocks</strong> tab to create an infrastructure block for your
-					deployments.
-				</p>
-				<p className="text-sm">
-					To learn more about how to configure infrastructure for Prefect
-					Agents, check out the{" "}
-					<a
-						href="https://docs.prefect.io/latest/concepts/infrastructure/"
-						target="_blank"
-						rel="noopener noreferrer"
-						className="text-blue-600 hover:underline"
-					>
-						docs
-					</a>
-					.
-				</p>
-			</div>
-		);
-	}
+	// TODO: Fix JsonInput typing for onChange
+	const handleJsonChange: React.FormEventHandler<HTMLDivElement> &
+		((value: string) => void) = (value) => {
+		try {
+			if (typeof value !== "string") {
+				return;
+			}
+			const parsed = JSON.parse(value) as {
+				job_configuration?: Record<string, unknown>;
+				variables?: unknown;
+			};
+			onChange(parsed as Record<string, unknown>);
+			setJsonError(null);
+		} catch {
+			setJsonError("Invalid JSON");
+		}
+	};
 
 	return (
 		<div className="space-y-4">
@@ -214,18 +204,7 @@ export const ConfigurationStep = ({
 							<JsonInput
 								id="json-editor"
 								value={JSON.stringify(baseJobTemplate, null, 2)}
-								onChange={(value: string) => {
-									try {
-										const parsed = JSON.parse(value) as {
-											job_configuration?: Record<string, unknown>;
-											variables?: unknown;
-										};
-										onChange(parsed as Record<string, unknown>);
-										setJsonError(null);
-									} catch {
-										setJsonError("Invalid JSON");
-									}
-								}}
+								onChange={handleJsonChange}
 								className="min-h-[400px]"
 							/>
 						</div>
