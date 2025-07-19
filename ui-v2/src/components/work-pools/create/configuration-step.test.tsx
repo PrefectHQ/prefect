@@ -297,24 +297,4 @@ describe("ConfigurationStep", () => {
 			}
 		});
 	});
-
-	it("shows special message for prefect-agent type", async () => {
-		const queryClient = new QueryClient();
-		render(
-			<ConfigurationStepWithSuspense
-				workPoolType="prefect-agent"
-				value={undefined}
-				onChange={mockOnChange}
-			/>,
-			{ wrapper: createWrapper({ queryClient }) },
-		);
-
-		await waitFor(() => {
-			expect(
-				screen.getByText(/Prefect Agents handle infrastructure configuration/),
-			).toBeInTheDocument();
-		});
-		expect(screen.getByText(/docs/)).toBeInTheDocument();
-		expect(screen.queryByRole("tab")).not.toBeInTheDocument();
-	});
 });

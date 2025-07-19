@@ -23,9 +23,6 @@ export const ConfigurationStep = ({
 	const { data: workersData } = useSuspenseQuery(buildListWorkersQuery());
 	const [jsonError, setJsonError] = useState<string | null>(null);
 
-	// Check if this is a prefect-agent type
-	const isPrefectAgent = workPoolType === "prefect-agent";
-
 	// Find the selected worker configuration
 	const workerConfig = useMemo(() => {
 		if (!workersData || !workPoolType) return null;
@@ -89,14 +86,11 @@ export const ConfigurationStep = ({
 
 	// Set initial base_job_template structure when schema is available
 	useEffect(() => {
-		if (schema && !value && !isPrefectAgent) {
-			// Set the initial structure with default values
-			onChange({
-				job_configuration: formValues,
-				variables: schema,
-			} as Record<string, unknown>);
-		}
-	}, [schema, formValues, value, onChange, isPrefectAgent]);
+		onChange({
+			job_configuration: formValues,
+			variables: schema,
+		} as Record<string, unknown>);
+	}, [schema, formValues, onChange]);
 
 	// TODO: Fix JsonInput typing for onChange
 	const handleJsonChange: React.FormEventHandler<HTMLDivElement> &
