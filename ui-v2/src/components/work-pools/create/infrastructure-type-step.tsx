@@ -93,7 +93,6 @@ export const InfrastructureTypeStep = ({
 								name="infrastructure-type"
 								value={worker.type}
 								checked={value === worker.type}
-								onChange={() => {}} // Remove onChange to prevent duplicate calls
 								className="flex-shrink-0"
 								id={worker.type}
 							/>

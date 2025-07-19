@@ -110,18 +110,9 @@ export const WorkPoolCreateWizard = () => {
 		}
 	};
 
-	const handleSubmit = async () => {
-		await submit();
-	};
-
 	return (
 		<Form {...form}>
-			<form
-				onSubmit={(e) => {
-					e.preventDefault();
-					void handleSubmit();
-				}}
-			>
+			<form onSubmit={(e) => void form.handleSubmit(submit)(e)}>
 				<div className="flex flex-col gap-8">
 					<Stepper
 						steps={WIZARD_STEPS}
@@ -150,13 +141,7 @@ export const WorkPoolCreateWizard = () => {
 								Previous
 							</Button>
 							{stepper.isFinalStep ? (
-								<Button
-									type="button"
-									onClick={() => {
-										void handleSubmit();
-									}}
-									disabled={isSubmitting}
-								>
+								<Button type="submit" disabled={isSubmitting}>
 									{isSubmitting ? "Creating..." : "Create"}
 								</Button>
 							) : (

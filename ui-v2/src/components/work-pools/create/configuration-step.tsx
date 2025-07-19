@@ -1,5 +1,5 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { buildListWorkersQuery } from "@/api/workers";
 import { SchemaForm } from "@/components/schemas/schema-form";
 import type { PrefectSchemaObject } from "@/components/schemas/types/schemas";
@@ -83,14 +83,6 @@ export const ConfigurationStep = ({
 
 	const hasSchemaProperties =
 		schema?.properties && Object.keys(schema.properties).length > 0;
-
-	// Set initial base_job_template structure when schema is available
-	useEffect(() => {
-		onChange({
-			job_configuration: formValues,
-			variables: schema,
-		} as Record<string, unknown>);
-	}, [schema, formValues, onChange]);
 
 	// TODO: Fix JsonInput typing for onChange
 	const handleJsonChange: React.FormEventHandler<HTMLDivElement> &
