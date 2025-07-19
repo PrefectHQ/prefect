@@ -34,8 +34,6 @@ export const useWorkPoolCreateWizard = () => {
 			return;
 		}
 
-		// The ConfigurationStep now passes the complete base_job_template structure
-		// with both job_configuration and variables
 		const workPoolCreate: WorkPoolCreate = {
 			name: workPoolData.name,
 			type: workPoolData.type,
