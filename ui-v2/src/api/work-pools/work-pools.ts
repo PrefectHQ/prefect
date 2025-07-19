@@ -246,8 +246,8 @@ export const useCreateWorkPoolMutation = () => {
 			return res.data;
 		},
 		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: queryKeyFactory.lists() });
-			queryClient.invalidateQueries({ queryKey: queryKeyFactory.counts() });
+			void queryClient.invalidateQueries({ queryKey: queryKeyFactory.lists() });
+			void queryClient.invalidateQueries({ queryKey: queryKeyFactory.counts() });
 		},
 	});
 };

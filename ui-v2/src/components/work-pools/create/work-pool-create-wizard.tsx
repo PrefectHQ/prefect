@@ -63,7 +63,7 @@ export const WorkPoolCreateWizard = () => {
 					}}
 				/>
 			),
-			validate: async () => {
+			validate: () => {
 				const result = validateInfrastructureType(workPoolData);
 				if (!result.isValid && result.errors.type) {
 					form.setError("type", { message: result.errors.type[0] });
@@ -75,7 +75,7 @@ export const WorkPoolCreateWizard = () => {
 			render: () => (
 				<InformationStep values={workPoolData} onChange={updateWorkPoolData} />
 			),
-			validate: async () => {
+			validate: () => {
 				const result = validateInformation(workPoolData);
 				if (!result.isValid) {
 					Object.entries(result.errors).forEach(([field, errors]) => {
@@ -99,12 +99,12 @@ export const WorkPoolCreateWizard = () => {
 					}
 				/>
 			),
-			validate: async () => true, // Configuration step validation is handled by the schema form
+			validate: () => true, // Configuration step validation is handled by the schema form
 		},
 	} as const;
 
-	const handleIncrementStep = async (step: WizardStep) => {
-		const isValid = await WIZARD_STEPS_MAP[step].validate();
+	const handleIncrementStep = (step: WizardStep) => {
+		const isValid = WIZARD_STEPS_MAP[step].validate();
 		if (isValid) {
 			stepper.incrementStep();
 		}
@@ -152,7 +152,9 @@ export const WorkPoolCreateWizard = () => {
 							{stepper.isFinalStep ? (
 								<Button
 									type="button"
-									onClick={handleSubmit}
+									onClick={() => {
+										void handleSubmit();
+									}}
 									disabled={isSubmitting}
 								>
 									{isSubmitting ? "Creating..." : "Create"}
@@ -160,7 +162,9 @@ export const WorkPoolCreateWizard = () => {
 							) : (
 								<Button
 									type="button"
-									onClick={() => void handleIncrementStep(currentStep)}
+									onClick={() => {
+					void handleIncrementStep(currentStep);
+				}}
 								>
 									Next
 								</Button>

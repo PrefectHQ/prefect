@@ -84,19 +84,6 @@ export const ConfigurationStep = ({
 		};
 	}, [formValues, schema]);
 
-	const handleJsonChange = (jsonString: string) => {
-		try {
-			const parsed = JSON.parse(jsonString) as {
-				job_configuration?: Record<string, unknown>;
-				variables?: unknown;
-			};
-			// Pass the entire parsed object as the base_job_template
-			onChange(parsed as Record<string, unknown>);
-			setJsonError(null);
-		} catch {
-			setJsonError("Invalid JSON");
-		}
-	};
 
 	const hasSchemaProperties =
 		schema?.properties && Object.keys(schema.properties).length > 0;
@@ -228,7 +215,18 @@ export const ConfigurationStep = ({
 							<JsonInput
 								id="json-editor"
 								value={JSON.stringify(baseJobTemplate, null, 2)}
-								onChange={handleJsonChange as any}
+								onChange={(value: string) => {
+									try {
+										const parsed = JSON.parse(value) as {
+											job_configuration?: Record<string, unknown>;
+											variables?: unknown;
+										};
+										onChange(parsed as Record<string, unknown>);
+										setJsonError(null);
+									} catch {
+										setJsonError("Invalid JSON");
+									}
+								}}
 								className="min-h-[400px]"
 							/>
 						</div>

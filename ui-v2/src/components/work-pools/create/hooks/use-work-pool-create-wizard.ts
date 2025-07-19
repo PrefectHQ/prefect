@@ -49,7 +49,7 @@ export const useWorkPoolCreateWizard = () => {
 			const createdWorkPool =
 				await createWorkPoolMutation.mutateAsync(workPoolCreate);
 			toast.success("Work pool created successfully");
-			navigate({ to: `/work-pools/work-pool/${createdWorkPool.name}` });
+			void navigate({ to: `/work-pools/work-pool/${createdWorkPool.name}` });
 		} catch (error) {
 			// Error handling is done by the mutation's onError callback
 			console.error("Failed to create work pool:", error);
@@ -57,7 +57,7 @@ export const useWorkPoolCreateWizard = () => {
 	}, [workPoolData, createWorkPoolMutation, navigate]);
 
 	const cancel = useCallback(() => {
-		navigate({ to: "/work-pools" });
+		void navigate({ to: "/work-pools" });
 	}, [navigate]);
 
 	return {

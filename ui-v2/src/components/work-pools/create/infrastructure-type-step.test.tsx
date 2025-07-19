@@ -50,7 +50,7 @@ const mockWorkersResponse = {
 };
 
 // Wrapper component with Suspense
-const InfrastructureTypeStepWithSuspense = (props: any) => (
+const InfrastructureTypeStepWithSuspense = (props: React.ComponentProps<typeof InfrastructureTypeStep>) => (
 	<Suspense fallback={<div>Loading...</div>}>
 		<InfrastructureTypeStep {...props} />
 	</Suspense>

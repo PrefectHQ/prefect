@@ -181,7 +181,7 @@ describe("useWorkPoolCreateWizard", () => {
 	});
 
 	it("structures base_job_template correctly when submitting", async () => {
-		let submittedData: any = null;
+		let submittedData: unknown = null;
 
 		server.use(
 			http.post(buildApiUrl("/work_pools/"), async ({ request }) => {

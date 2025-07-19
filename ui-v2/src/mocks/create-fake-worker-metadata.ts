@@ -84,7 +84,7 @@ export const createFakeWorkersMetadataResponse = () => {
 				type: "process",
 				display_name: "Process",
 				description: "Execute flow runs as subprocesses",
-			}),
+			}) as Record<string, unknown>,
 		},
 		"prefect-aws": {
 			ecs: createFakeWorkerMetadata({
@@ -92,7 +92,7 @@ export const createFakeWorkersMetadataResponse = () => {
 				display_name: "AWS ECS",
 				description: "Execute flow runs on AWS ECS",
 				logo_url: "https://example.com/ecs.png",
-			}),
+			}) as Record<string, unknown>,
 		},
 		"prefect-kubernetes": {
 			kubernetes: createFakeWorkerMetadata({
@@ -101,7 +101,7 @@ export const createFakeWorkersMetadataResponse = () => {
 				description: "Execute flow runs in Kubernetes",
 				logo_url: "https://example.com/k8s.png",
 				is_beta: true,
-			}),
+			}) as Record<string, unknown>,
 		},
 	};
 };
