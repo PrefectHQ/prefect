@@ -24,7 +24,7 @@ const Stepper = ({
 	visitedSteps,
 }: StepperProps) => {
 	return (
-		<Card className="p-4 flex items-center justify-around">
+		<Card className="p-4 flex flex-row flex-nowrap items-center justify-around">
 			{steps.map((step, i) => {
 				const isCurrentStep = currentStepNum === i;
 				const isStepVisited = visitedSteps.has(i);

@@ -26,3 +26,7 @@ export { createFakeTaskRun } from "./create-fake-task-run";
 export { createFakeVersion } from "./create-fake-version";
 export { createFakeWorkPool } from "./create-fake-work-pool";
 export { createFakeWorkQueue } from "./create-fake-work-queue";
+export {
+	createFakeWorkerMetadata,
+	createFakeWorkersMetadataResponse,
+} from "./create-fake-worker-metadata";
