@@ -12,6 +12,7 @@ T = TypeVar("T")
 class ResourceLease(Generic[T]):
     resource_ids: list[UUID]
     expiration: datetime
+    created_at: datetime = field(default_factory=datetime.now)
     id: UUID = field(default_factory=uuid4)
     metadata: T | None = None
 
