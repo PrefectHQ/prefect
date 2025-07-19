@@ -7,6 +7,7 @@ import type { components } from "@/api/prefect";
 import { getQueryService } from "@/api/service";
 
 export type WorkPool = components["schemas"]["WorkPool"];
+export type WorkPoolCreate = components["schemas"]["WorkPoolCreate"];
 export type WorkPoolsFilter =
 	components["schemas"]["Body_read_work_pools_work_pools_filter_post"];
 export type WorkPoolsCountFilter =
@@ -225,4 +226,28 @@ export const useDeleteWorkPool = () => {
 	});
 
 	return { deleteWorkPool, ...rest };
+};
+
+/**
+ * Hook for creating a work pool
+ * @returns Mutation for creating a work pool
+ */
+export const useCreateWorkPoolMutation = () => {
+	const queryClient = useQueryClient();
+
+	return useMutation({
+		mutationFn: async (workPoolData: WorkPoolCreate) => {
+			const res = await getQueryService().POST("/work_pools/", {
+				body: workPoolData,
+			});
+			if (!res.data) {
+				throw new Error("'data' expected");
+			}
+			return res.data;
+		},
+		onSuccess: () => {
+			queryClient.invalidateQueries({ queryKey: queryKeyFactory.lists() });
+			queryClient.invalidateQueries({ queryKey: queryKeyFactory.counts() });
+		},
+	});
 };
