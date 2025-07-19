@@ -163,8 +163,8 @@ export const WorkPoolCreateWizard = () => {
 								<Button
 									type="button"
 									onClick={() => {
-					void handleIncrementStep(currentStep);
-				}}
+										void handleIncrementStep(currentStep);
+									}}
 								>
 									Next
 								</Button>

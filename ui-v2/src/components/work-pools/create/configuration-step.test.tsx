@@ -10,7 +10,11 @@ import { ConfigurationStep } from "./configuration-step";
 
 // Mock the SchemaForm component
 vi.mock("@/components/schemas/schema-form", () => ({
-	SchemaForm: ({ onValuesChange }: { onValuesChange: (values: Record<string, unknown>) => void }) => (
+	SchemaForm: ({
+		onValuesChange,
+	}: {
+		onValuesChange: (values: Record<string, unknown>) => void;
+	}) => (
 		<div data-testid="schema-form">
 			<div>Schema Form Mock</div>
 			<button
@@ -25,7 +29,13 @@ vi.mock("@/components/schemas/schema-form", () => ({
 
 // Mock the JsonInput component
 vi.mock("@/components/ui/json-input", () => ({
-	JsonInput: ({ value, onChange }: { value: string; onChange: (value: string) => void }) => (
+	JsonInput: ({
+		value,
+		onChange,
+	}: {
+		value: string;
+		onChange: (value: string) => void;
+	}) => (
 		<textarea
 			data-testid="json-input"
 			value={value}
@@ -43,7 +53,9 @@ vi.mock("@/components/ui/json-input", () => ({
 const mockWorkersResponse = createFakeWorkersMetadataResponse();
 
 // Wrapper component with Suspense
-const ConfigurationStepWithSuspense = (props: React.ComponentProps<typeof ConfigurationStep>) => (
+const ConfigurationStepWithSuspense = (
+	props: React.ComponentProps<typeof ConfigurationStep>,
+) => (
 	<Suspense fallback={<div>Loading...</div>}>
 		<ConfigurationStep {...props} />
 	</Suspense>
@@ -140,8 +152,9 @@ describe("ConfigurationStep", () => {
 		await user.click(updateButton);
 
 		expect(mockOnChange).toHaveBeenCalled();
-		const lastCall =
-			mockOnChange.mock.calls[mockOnChange.mock.calls.length - 1]?.[0] as Record<string, unknown>;
+		const lastCall = mockOnChange.mock.calls[
+			mockOnChange.mock.calls.length - 1
+		]?.[0] as Record<string, unknown>;
 		expect(lastCall).toHaveProperty("job_configuration", {
 			command: "new-command",
 		});
@@ -263,7 +276,10 @@ describe("ConfigurationStep", () => {
 			expect(valueString).toBeTruthy();
 			// The value in the textarea includes quotes, so we need to handle it properly
 			try {
-				const displayedValue = JSON.parse(valueString) as Record<string, unknown>;
+				const displayedValue = JSON.parse(valueString) as Record<
+					string,
+					unknown
+				>;
 				expect(displayedValue).toHaveProperty("job_configuration");
 				expect(displayedValue).toHaveProperty("variables");
 			} catch {
@@ -272,7 +288,10 @@ describe("ConfigurationStep", () => {
 					.slice(1, -1)
 					.replace(/\\n/g, "\n")
 					.replace(/\\"/g, '"');
-				const displayedValue = JSON.parse(unquotedValue) as Record<string, unknown>;
+				const displayedValue = JSON.parse(unquotedValue) as Record<
+					string,
+					unknown
+				>;
 				expect(displayedValue).toHaveProperty("job_configuration");
 				expect(displayedValue).toHaveProperty("variables");
 			}

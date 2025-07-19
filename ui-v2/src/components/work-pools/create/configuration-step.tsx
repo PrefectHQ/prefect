@@ -84,7 +84,6 @@ export const ConfigurationStep = ({
 		};
 	}, [formValues, schema]);
 
-
 	const hasSchemaProperties =
 		schema?.properties && Object.keys(schema.properties).length > 0;
 
