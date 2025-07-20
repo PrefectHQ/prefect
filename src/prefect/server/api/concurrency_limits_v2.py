@@ -369,6 +369,7 @@ async def bulk_decrement_active_slots_with_lease(
     lease_id: UUID = Body(
         ...,
         description="The ID of the lease corresponding to the concurrency limits to decrement.",
+        embed=True,
     ),
     db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> None:
