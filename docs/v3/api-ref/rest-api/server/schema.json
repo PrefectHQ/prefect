@@ -4622,10 +4622,7 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "type": "string",
-                                "format": "uuid",
-                                "description": "The ID of the lease corresponding to the concurrency limits to decrement.",
-                                "title": "Lease Id"
+                                "$ref": "#/components/schemas/Body_bulk_decrement_active_slots_with_lease_v2_concurrency_limits_decrement_with_lease_post"
                             }
                         }
                     }
@@ -12243,6 +12240,21 @@
                     "names"
                 ],
                 "title": "Body_bulk_decrement_active_slots_v2_concurrency_limits_decrement_post"
+            },
+            "Body_bulk_decrement_active_slots_with_lease_v2_concurrency_limits_decrement_with_lease_post": {
+                "properties": {
+                    "lease_id": {
+                        "type": "string",
+                        "format": "uuid",
+                        "title": "Lease Id",
+                        "description": "The ID of the lease corresponding to the concurrency limits to decrement."
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "lease_id"
+                ],
+                "title": "Body_bulk_decrement_active_slots_with_lease_v2_concurrency_limits_decrement_with_lease_post"
             },
             "Body_bulk_increment_active_slots_v2_concurrency_limits_increment_post": {
                 "properties": {

@@ -4058,6 +4058,15 @@ export interface components {
              */
             create_if_missing?: boolean;
         };
+        /** Body_bulk_decrement_active_slots_with_lease_v2_concurrency_limits_decrement_with_lease_post */
+        Body_bulk_decrement_active_slots_with_lease_v2_concurrency_limits_decrement_with_lease_post: {
+            /**
+             * Lease Id
+             * Format: uuid
+             * @description The ID of the lease corresponding to the concurrency limits to decrement.
+             */
+            lease_id: string;
+        };
         /** Body_bulk_increment_active_slots_v2_concurrency_limits_increment_post */
         Body_bulk_increment_active_slots_v2_concurrency_limits_increment_post: {
             /** Slots */
@@ -12975,7 +12984,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": string;
+                "application/json": components["schemas"]["Body_bulk_decrement_active_slots_with_lease_v2_concurrency_limits_decrement_with_lease_post"];
             };
         };
         responses: {
