@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import { App } from "../src/app";
 import { router } from "../src/router";
 
-describe("Navigation tests", async () => {
+describe("Navigation tests", () => {
 	it.each([
 		["/dashboard", "Dashboard"],
 		["/runs", "Runs"],
