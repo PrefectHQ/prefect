@@ -2,6 +2,8 @@ import { QueryClient } from "@tanstack/react-query";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createWrapper } from "@tests/utils";
+import type React from "react";
+import { FormProvider, useForm } from "react-hook-form";
 import { describe, expect, it, vi } from "vitest";
 import { InfrastructureTypeStep } from "./infrastructure-type-step";
 import type { WorkPoolFormValues } from "./types";
@@ -42,6 +44,16 @@ describe("InfrastructureTypeStep", () => {
 		onNext: vi.fn(),
 	};
 
+	const TestWrapper = ({ children }: { children: React.ReactNode }) => {
+		const form = useForm<{ type: string }>({
+			defaultValues: {
+				type: "",
+			},
+		});
+
+		return <FormProvider {...form}>{children}</FormProvider>;
+	};
+
 	const renderComponent = (props = {}) => {
 		const queryClient = new QueryClient({
 			defaultOptions: {
@@ -57,8 +69,17 @@ describe("InfrastructureTypeStep", () => {
 			mockWorkersResponse,
 		);
 
+		const Wrapper = ({ children }: { children: React.ReactNode }) => {
+			const QueryWrapper = createWrapper({ queryClient });
+			return (
+				<QueryWrapper>
+					<TestWrapper>{children}</TestWrapper>
+				</QueryWrapper>
+			);
+		};
+
 		return render(<InfrastructureTypeStep {...defaultProps} {...props} />, {
-			wrapper: createWrapper({ queryClient }),
+			wrapper: Wrapper,
 		});
 	};
 

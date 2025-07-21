@@ -125,31 +125,33 @@ export function InfrastructureTypeStep({
 							>
 								{options.map(
 									({ label, value, logoUrl, description, isBeta }) => (
-										<RadioGroupItem
+										<div
 											key={value}
-											value={value}
-											className="p-4 hover:bg-accent/50"
+											className="flex items-center space-x-3 p-4 rounded-lg border hover:bg-accent/50"
 										>
-											<div className="grid grid-flow-col mx-2 gap-4 items-center">
-												<LogoImage url={logoUrl} alt={label} size="md" />
-												<div className="flex flex-col gap-2">
-													<p className="text-base font-medium flex items-center">
-														{label}
-														{isBeta && (
-															<Badge
-																variant="secondary"
-																className="ml-2 text-xs"
-															>
-																Beta
-															</Badge>
-														)}
-													</p>
-													<p className="text-sm text-muted-foreground">
-														{description}
-													</p>
+											<RadioGroupItem value={value} id={value} />
+											<label htmlFor={value} className="flex-1 cursor-pointer">
+												<div className="grid grid-flow-col gap-4 items-center">
+													<LogoImage url={logoUrl} alt={label} size="md" />
+													<div className="flex flex-col gap-2">
+														<p className="text-base font-medium flex items-center">
+															{label}
+															{isBeta && (
+																<Badge
+																	variant="secondary"
+																	className="ml-2 text-xs"
+																>
+																	Beta
+																</Badge>
+															)}
+														</p>
+														<p className="text-sm text-muted-foreground">
+															{description}
+														</p>
+													</div>
 												</div>
-											</div>
-										</RadioGroupItem>
+											</label>
+										</div>
 									),
 								)}
 							</RadioGroup>
