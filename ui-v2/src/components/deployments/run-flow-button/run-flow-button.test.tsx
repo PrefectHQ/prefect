@@ -46,9 +46,11 @@ describe("RunFlowButton", () => {
 			}),
 		);
 		const user = userEvent.setup();
-		render(<RunFlowButtonRouter deployment={MOCK_DEPLOYMENT} />, {
-			wrapper: createWrapper(),
-		});
+		await waitFor(() =>
+			render(<RunFlowButtonRouter deployment={MOCK_DEPLOYMENT} />, {
+				wrapper: createWrapper(),
+			}),
+		);
 
 		// ------------ Act
 		await user.click(screen.getByRole("button", { name: "Run", hidden: true }));
@@ -69,9 +71,11 @@ describe("RunFlowButton", () => {
 			},
 		});
 		const user = userEvent.setup();
-		render(<RunFlowButtonRouter deployment={MOCK_DEPLOYMENT} />, {
-			wrapper: createWrapper(),
-		});
+		await waitFor(() =>
+			render(<RunFlowButtonRouter deployment={MOCK_DEPLOYMENT} />, {
+				wrapper: createWrapper(),
+			}),
+		);
 
 		// ------------ Act
 

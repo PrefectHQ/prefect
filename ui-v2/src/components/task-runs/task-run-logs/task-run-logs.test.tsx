@@ -44,6 +44,7 @@ describe("TaskRunLogs", () => {
 				if (body.offset) {
 					filteredLogs = filteredLogs.slice(body.offset);
 				}
+
 				return HttpResponse.json(filteredLogs);
 			}),
 		);
@@ -51,9 +52,11 @@ describe("TaskRunLogs", () => {
 	it("displays logs with default filter (all levels)", async () => {
 		// Render component
 		const taskRun = createFakeTaskRun();
-		render(<TaskRunLogs taskRun={taskRun} />, {
-			wrapper: createWrapper(),
-		});
+		await waitFor(() =>
+			render(<TaskRunLogs taskRun={taskRun} virtualize={false} />, {
+				wrapper: createWrapper(),
+			}),
+		);
 
 		// Wait for logs to be rendered and verify:
 		// 1. At least one log is visible (accounting for virtualization)
@@ -81,7 +84,7 @@ describe("TaskRunLogs", () => {
 
 		// Render component
 		const taskRun = createFakeTaskRun();
-		render(<TaskRunLogs taskRun={taskRun} />, {
+		render(<TaskRunLogs taskRun={taskRun} virtualize={false} />, {
 			wrapper: createWrapper(),
 		});
 
@@ -123,9 +126,12 @@ describe("TaskRunLogs", () => {
 			state_type: "SCHEDULED",
 			state_name: "Scheduled",
 		});
-		const screen = render(<TaskRunLogs taskRun={taskRun} />, {
-			wrapper: createWrapper(),
-		});
+		const screen = render(
+			<TaskRunLogs taskRun={taskRun} virtualize={false} />,
+			{
+				wrapper: createWrapper(),
+			},
+		);
 
 		// Verify empty state is shown
 		await waitFor(() => {
@@ -147,9 +153,12 @@ describe("TaskRunLogs", () => {
 			state_name: "Running",
 		});
 
-		const screen = render(<TaskRunLogs taskRun={taskRun} />, {
-			wrapper: createWrapper(),
-		});
+		const screen = render(
+			<TaskRunLogs taskRun={taskRun} virtualize={false} />,
+			{
+				wrapper: createWrapper(),
+			},
+		);
 
 		// Verify empty state is shown
 		await waitFor(() => {
@@ -168,9 +177,12 @@ describe("TaskRunLogs", () => {
 			state_type: "COMPLETED",
 			state_name: "Completed",
 		});
-		const screen = render(<TaskRunLogs taskRun={taskRun} />, {
-			wrapper: createWrapper(),
-		});
+		const screen = render(
+			<TaskRunLogs taskRun={taskRun} virtualize={false} />,
+			{
+				wrapper: createWrapper(),
+			},
+		);
 
 		// Verify empty state is shown
 		await waitFor(() => {
@@ -191,7 +203,7 @@ describe("TaskRunLogs", () => {
 		);
 
 		const taskRun = createFakeTaskRun();
-		render(<TaskRunLogs taskRun={taskRun} />, {
+		render(<TaskRunLogs taskRun={taskRun} virtualize={false} />, {
 			wrapper: createWrapper(),
 		});
 
@@ -220,9 +232,12 @@ describe("TaskRunLogs", () => {
 
 		// Render component
 		const taskRun = createFakeTaskRun();
-		const screen = render(<TaskRunLogs taskRun={taskRun} />, {
-			wrapper: createWrapper(),
-		});
+		const screen = render(
+			<TaskRunLogs taskRun={taskRun} virtualize={false} />,
+			{
+				wrapper: createWrapper(),
+			},
+		);
 
 		await waitFor(() => {
 			expect(
