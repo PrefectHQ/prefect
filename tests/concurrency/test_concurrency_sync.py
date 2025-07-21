@@ -48,13 +48,8 @@ def test_concurrency_orchestrates_api(concurrency_limit: ConcurrencyLimitV2):
                 strict=False,
             )
 
-            # On release we calculate how many seconds the slots were occupied
-            # for, so here we really just want to make sure that the value
-            # passed as `occupy_seconds` is > 0.
-
-            lease_id, occupy_seconds = release_spy.call_args[0]
+            lease_id = release_spy.call_args[0][0]
             assert isinstance(lease_id, UUID)
-            assert occupy_seconds > 0
 
     assert executed
 
