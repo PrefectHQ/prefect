@@ -1,10 +1,10 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
-import { useForm } from "react-hook-form";
+import { useFormContext } from "react-hook-form";
 import { buildListWorkPoolTypesQuery } from "@/api/collections/collections";
 import { Badge } from "@/components/ui/badge";
 import {
-	Form,
+	FormControl,
 	FormField,
 	FormItem,
 	FormLabel,
@@ -13,28 +13,13 @@ import {
 import { LogoImage } from "@/components/ui/logo-image";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { titleCase } from "@/utils/utils";
-import type { WorkPoolFormValues, WorkPoolTypeSelectOption } from "./types";
+import type { WorkPoolTypeSelectOption } from "./types";
 
-interface InfrastructureTypeStepProps {
-	workPool: WorkPoolFormValues;
-	onWorkPoolChange: (workPool: WorkPoolFormValues) => void;
-	onNext: () => void;
-}
-
-export function InfrastructureTypeStep({
-	workPool,
-	onWorkPoolChange,
-	onNext,
-}: InfrastructureTypeStepProps) {
+export function InfrastructureTypeStep() {
+	const form = useFormContext();
 	const { data: workersResponse = {} } = useSuspenseQuery(
 		buildListWorkPoolTypesQuery(),
 	);
-
-	const form = useForm<{ type: string }>({
-		defaultValues: {
-			type: workPool.type || "",
-		},
-	});
 
 	const options = useMemo<WorkPoolTypeSelectOption[]>(() => {
 		const options: WorkPoolTypeSelectOption[] = [];
@@ -87,81 +72,54 @@ export function InfrastructureTypeStep({
 		});
 	}, [workersResponse]);
 
-	const handleTypeChange = (selectedType: string) => {
-		const updatedWorkPool = { ...workPool, type: selectedType };
-		onWorkPoolChange(updatedWorkPool);
-		form.setValue("type", selectedType);
-
-		// Auto-advance to next step
-		setTimeout(() => {
-			onNext();
-		}, 100);
-	};
-
-	const validateType = (value: string) => {
-		if (!value) {
-			return "Infrastructure type is required";
-		}
-		return true;
-	};
-
 	return (
-		<div className="space-y-4">
-			<FormLabel className="text-base font-medium">
-				Select the infrastructure you want to use to execute your flow runs
-			</FormLabel>
-
-			<Form {...form}>
-				<FormField
-					control={form.control}
-					name="type"
-					rules={{ validate: validateType }}
-					render={({ field, fieldState }) => (
-						<FormItem>
-							<RadioGroup
-								value={field.value}
-								onValueChange={handleTypeChange}
-								className="space-y-3"
-							>
-								{options.map(
-									({ label, value, logoUrl, description, isBeta }) => (
-										<div
-											key={value}
-											className="flex items-center space-x-3 p-4 rounded-lg border hover:bg-accent/50"
-										>
-											<RadioGroupItem value={value} id={value} />
-											<label htmlFor={value} className="flex-1 cursor-pointer">
-												<div className="flex items-center gap-4">
-													<LogoImage url={logoUrl} alt={label} size="md" />
-													<div className="flex flex-col gap-2 flex-1">
-														<p className="text-base font-medium flex items-center">
-															{label}
-															{isBeta && (
-																<Badge
-																	variant="secondary"
-																	className="ml-2 text-xs"
-																>
-																	Beta
-																</Badge>
-															)}
-														</p>
-														<p className="text-sm text-muted-foreground">
-															{description}
-														</p>
-													</div>
-												</div>
-											</label>
+		<FormField
+			control={form.control}
+			name="type"
+			render={({ field, fieldState }) => (
+				<FormItem>
+					<FormLabel className="text-base font-medium">
+						Select the infrastructure you want to use to execute your flow runs
+					</FormLabel>
+					<FormControl>
+						<RadioGroup
+							value={field.value as string}
+							onValueChange={(value: string) => field.onChange(value)}
+							className="space-y-3"
+						>
+							{options.map(({ label, value, logoUrl, description, isBeta }) => (
+								<div
+									key={value}
+									className="flex items-center space-x-3 p-4 rounded-lg border hover:bg-accent/50"
+								>
+									<RadioGroupItem value={value} id={value} />
+									<label htmlFor={value} className="flex-1 cursor-pointer">
+										<div className="flex items-center gap-4">
+											<LogoImage url={logoUrl} alt={label} size="md" />
+											<div className="flex flex-col gap-2 flex-1">
+												<p className="text-base font-medium flex items-center">
+													{label}
+													{isBeta && (
+														<Badge variant="secondary" className="ml-2 text-xs">
+															Beta
+														</Badge>
+													)}
+												</p>
+												<p className="text-sm text-muted-foreground">
+													{description}
+												</p>
+											</div>
 										</div>
-									),
-								)}
-							</RadioGroup>
-							{fieldState.error && (
-								<FormMessage>{fieldState.error.message}</FormMessage>
-							)}
-						</FormItem>
+									</label>
+								</div>
+							))}
+						</RadioGroup>
+					</FormControl>
+					{fieldState.error && (
+						<FormMessage>{fieldState.error.message}</FormMessage>
 					)}
-				/>
-			</Form>
-		</div>
+				</FormItem>
+			)}
+		/>
 	);
 }

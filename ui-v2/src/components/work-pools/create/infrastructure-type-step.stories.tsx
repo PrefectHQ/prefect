@@ -1,9 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { FormProvider, useForm } from "react-hook-form";
-import { fn } from "storybook/test";
 import { InfrastructureTypeStep } from "./infrastructure-type-step";
-import type { WorkPoolFormValues } from "./types";
 
 const mockWorkersResponse = {
 	prefect: {
@@ -106,19 +104,51 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const Default: Story = {
-	args: {
-		workPool: {} as WorkPoolFormValues,
-		onWorkPoolChange: fn(),
-		onNext: fn(),
-	},
+	args: {},
 };
 
 export const WithSelection: Story = {
-	args: {
-		workPool: { type: "process" } as WorkPoolFormValues,
-		onWorkPoolChange: fn(),
-		onNext: fn(),
-	},
+	decorators: [
+		(Story) => {
+			const queryClient = new QueryClient({
+				defaultOptions: {
+					queries: {
+						retry: false,
+						staleTime: Number.POSITIVE_INFINITY,
+					},
+				},
+			});
+
+			// Pre-populate the query cache with mock data
+			queryClient.setQueryData(
+				["collections", "work-pool-types"],
+				mockWorkersResponse,
+			);
+
+			const FormWrapper = () => {
+				const form = useForm<{ type: string }>({
+					defaultValues: {
+						type: "process",
+					},
+				});
+
+				return (
+					<FormProvider {...form}>
+						<Story />
+					</FormProvider>
+				);
+			};
+
+			return (
+				<QueryClientProvider client={queryClient}>
+					<div className="max-w-2xl">
+						<FormWrapper />
+					</div>
+				</QueryClientProvider>
+			);
+		},
+	],
+	args: {},
 };
 
 export const MinimalOptions: Story = {
@@ -168,9 +198,5 @@ export const MinimalOptions: Story = {
 			);
 		},
 	],
-	args: {
-		workPool: {} as WorkPoolFormValues,
-		onWorkPoolChange: fn(),
-		onNext: fn(),
-	},
+	args: {},
 };

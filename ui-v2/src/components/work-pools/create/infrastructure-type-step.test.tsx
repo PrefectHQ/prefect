@@ -6,7 +6,6 @@ import type React from "react";
 import { FormProvider, useForm } from "react-hook-form";
 import { describe, expect, it, vi } from "vitest";
 import { InfrastructureTypeStep } from "./infrastructure-type-step";
-import type { WorkPoolFormValues } from "./types";
 
 const mockWorkersResponse = {
 	prefect: {
@@ -38,12 +37,6 @@ vi.mock("@/api/collections/collections", () => ({
 }));
 
 describe("InfrastructureTypeStep", () => {
-	const defaultProps = {
-		workPool: {} as WorkPoolFormValues,
-		onWorkPoolChange: vi.fn(),
-		onNext: vi.fn(),
-	};
-
 	const TestWrapper = ({ children }: { children: React.ReactNode }) => {
 		const form = useForm<{ type: string }>({
 			defaultValues: {
@@ -54,7 +47,7 @@ describe("InfrastructureTypeStep", () => {
 		return <FormProvider {...form}>{children}</FormProvider>;
 	};
 
-	const renderComponent = (props = {}) => {
+	const renderComponent = () => {
 		const queryClient = new QueryClient({
 			defaultOptions: {
 				queries: {
@@ -78,7 +71,7 @@ describe("InfrastructureTypeStep", () => {
 			);
 		};
 
-		return render(<InfrastructureTypeStep {...defaultProps} {...props} />, {
+		return render(<InfrastructureTypeStep />, {
 			wrapper: Wrapper,
 		});
 	};
@@ -119,15 +112,10 @@ describe("InfrastructureTypeStep", () => {
 		});
 	});
 
-	it("calls onWorkPoolChange and onNext when option is selected", async () => {
+	it("updates form value when option is selected", async () => {
 		const user = userEvent.setup();
-		const onWorkPoolChange = vi.fn();
-		const onNext = vi.fn();
 
-		renderComponent({
-			onWorkPoolChange,
-			onNext,
-		});
+		renderComponent();
 
 		await waitFor(() => {
 			expect(screen.getByText("Process")).toBeInTheDocument();
@@ -136,17 +124,7 @@ describe("InfrastructureTypeStep", () => {
 		const processOption = screen.getByRole("radio", { name: /process/i });
 		await user.click(processOption);
 
-		expect(onWorkPoolChange).toHaveBeenCalledWith({
-			type: "process",
-		});
-
-		// Wait for the auto-advance timeout
-		await waitFor(
-			() => {
-				expect(onNext).toHaveBeenCalled();
-			},
-			{ timeout: 200 },
-		);
+		expect(processOption).toBeChecked();
 	});
 
 	it("sorts options with non-beta first, then alphabetically", async () => {
