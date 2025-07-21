@@ -28,9 +28,11 @@ import { router } from "@/router";
 const renderVariablesPage = async () => {
 	const user = userEvent.setup();
 	// Render with router provider
-	const result = render(<RouterProvider router={router} />, {
-		wrapper: createWrapper(),
-	});
+	const result = await waitFor(() =>
+		render(<RouterProvider router={router} />, {
+			wrapper: createWrapper(),
+		}),
+	);
 	await user.click(screen.getByRole("link", { name: "Variables" }));
 	return result;
 };
