@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { FormProvider, useForm } from "react-hook-form";
 import { fn } from "storybook/test";
 import { InfrastructureTypeStep } from "./infrastructure-type-step";
 import type { WorkPoolFormValues } from "./types";
@@ -76,10 +77,24 @@ const meta: Meta<typeof InfrastructureTypeStep> = {
 				mockWorkersResponse,
 			);
 
+			const FormWrapper = () => {
+				const form = useForm<{ type: string }>({
+					defaultValues: {
+						type: "",
+					},
+				});
+
+				return (
+					<FormProvider {...form}>
+						<Story />
+					</FormProvider>
+				);
+			};
+
 			return (
 				<QueryClientProvider client={queryClient}>
 					<div className="max-w-2xl">
-						<Story />
+						<FormWrapper />
 					</div>
 				</QueryClientProvider>
 			);
@@ -130,10 +145,24 @@ export const MinimalOptions: Story = {
 				minimalResponse,
 			);
 
+			const FormWrapper = () => {
+				const form = useForm<{ type: string }>({
+					defaultValues: {
+						type: "",
+					},
+				});
+
+				return (
+					<FormProvider {...form}>
+						<Story />
+					</FormProvider>
+				);
+			};
+
 			return (
 				<QueryClientProvider client={queryClient}>
 					<div className="max-w-2xl">
-						<Story />
+						<FormWrapper />
 					</div>
 				</QueryClientProvider>
 			);
