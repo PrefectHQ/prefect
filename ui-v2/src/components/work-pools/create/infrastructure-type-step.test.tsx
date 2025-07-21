@@ -141,7 +141,7 @@ describe("InfrastructureTypeStep", () => {
 		});
 	});
 
-	it("displays validation error when no option is selected", async () => {
+	it("displays validation error when no option is selected", () => {
 		renderComponent();
 
 		// The form validation would be triggered by form submission

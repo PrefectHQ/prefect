@@ -48,8 +48,8 @@ export const pluralize = (
  */
 export const titleCase = (str: string): string => {
 	return str
-		.replace(/^[-_]*(.)/, (_match, char) => char.toUpperCase())
-		.replace(/[-_]+(.)/g, (_match, char) => ` ${char.toUpperCase()}`);
+		.replace(/^[-_]*(.)/, (_match, char: string) => char.toUpperCase())
+		.replace(/[-_]+(.)/g, (_match, char: string) => ` ${char.toUpperCase()}`);
 };
 
 type TupleType<T extends unknown[]> = {
