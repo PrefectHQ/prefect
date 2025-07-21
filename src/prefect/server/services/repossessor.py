@@ -1,3 +1,5 @@
+from datetime import datetime, timezone
+
 from prefect.server.concurrency.lease_storage import (
     ConcurrencyLeaseStorage,
     get_concurrency_lease_storage,
@@ -37,9 +39,13 @@ class Repossessor(LoopService):
                 )
                 if expired_lease is None or expired_lease.metadata is None:
                     continue
+                occupancy_seconds = (
+                    datetime.now(timezone.utc) - expired_lease.created_at
+                ).total_seconds()
                 await bulk_decrement_active_slots(
                     session=session,
                     concurrency_limit_ids=expired_lease.resource_ids,
                     slots=expired_lease.metadata.slots,
+                    occupancy_seconds=occupancy_seconds,
                 )
                 await self.concurrency_lease_storage.revoke_lease(expired_lease_id)

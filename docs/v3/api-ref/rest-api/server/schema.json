@@ -12248,18 +12248,6 @@
                         "format": "uuid",
                         "title": "Lease Id",
                         "description": "The ID of the lease corresponding to the concurrency limits to decrement."
-                    },
-                    "occupancy_seconds": {
-                        "anyOf": [
-                            {
-                                "type": "number",
-                                "exclusiveMinimum": 0.0
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ],
-                        "title": "Occupancy Seconds"
                     }
                 },
                 "type": "object",

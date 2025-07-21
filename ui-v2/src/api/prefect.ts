@@ -4066,8 +4066,6 @@ export interface components {
              * @description The ID of the lease corresponding to the concurrency limits to decrement.
              */
             lease_id: string;
-            /** Occupancy Seconds */
-            occupancy_seconds?: number | null;
         };
         /** Body_bulk_increment_active_slots_v2_concurrency_limits_increment_post */
         Body_bulk_increment_active_slots_v2_concurrency_limits_increment_post: {
