@@ -1,4 +1,4 @@
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
 from typing import List, Literal, Optional, Union
 from uuid import UUID
 
@@ -369,14 +369,16 @@ async def bulk_decrement_active_slots_with_lease(
     lease_id: UUID = Body(
         ...,
         description="The ID of the lease corresponding to the concurrency limits to decrement.",
+        embed=True,
     ),
-    occupancy_seconds: Optional[float] = Body(None, gt=0.0),
     db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> None:
     lease_storage = get_concurrency_lease_storage()
     lease = await lease_storage.read_lease(lease_id)
     if not lease:
         return
+
+    occupancy_seconds = (datetime.now(timezone.utc) - lease.created_at).total_seconds()
 
     async with db.session_context(begin_transaction=True) as session:
         await models.concurrency_limits_v2.bulk_decrement_active_slots(
