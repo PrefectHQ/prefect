@@ -338,21 +338,18 @@ class ConcurrencyLimitClient(BaseClient):
     def release_concurrency_slots_with_lease(
         self,
         lease_id: "UUID",
-        occupancy_seconds: float,
     ) -> "Response":
         """
         Release concurrency slots for the specified lease.
 
         Args:
             lease_id: The ID of the lease corresponding to the concurrency limits to release.
-            occupancy_seconds: The duration in seconds that the slots were occupied.
         """
         return self.request(
             "POST",
             "/v2/concurrency_limits/decrement-with-lease",
             json={
                 "lease_id": str(lease_id),
-                "occupancy_seconds": occupancy_seconds,
             },
         )
 
@@ -781,21 +778,18 @@ class ConcurrencyLimitAsyncClient(BaseAsyncClient):
     async def release_concurrency_slots_with_lease(
         self,
         lease_id: "UUID",
-        occupancy_seconds: float,
     ) -> "Response":
         """
         Release concurrency slots for the specified lease.
 
         Args:
             lease_id: The ID of the lease corresponding to the concurrency limits to release.
-            occupancy_seconds: The duration in seconds that the slots were occupied.
         """
         return await self.request(
             "POST",
             "/v2/concurrency_limits/decrement-with-lease",
             json={
                 "lease_id": str(lease_id),
-                "occupancy_seconds": occupancy_seconds,
             },
         )
 

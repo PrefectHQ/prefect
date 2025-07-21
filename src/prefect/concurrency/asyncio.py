@@ -7,7 +7,6 @@ import anyio
 
 from prefect._internal.concurrency.cancellation import AsyncCancelScope
 from prefect.logging.loggers import get_logger, get_run_logger
-from prefect.types._datetime import now
 
 from ._asyncio import (
     AcquireConcurrencySlotTimeoutError as AcquireConcurrencySlotTimeoutError,
@@ -80,7 +79,6 @@ async def concurrency(
         lease_duration=lease_duration,
         strict=strict,
     )
-    acquisition_time = now("UTC")
     emitted_events = emit_concurrency_acquisition_events(response.limits, occupy)
 
     lease_renewal_task = asyncio.create_task(
@@ -120,20 +118,16 @@ async def concurrency(
             # Handling for errors will be done in the callback
             pass
 
-        occupancy_period = now("UTC") - acquisition_time
         try:
             await arelease_concurrency_slots_with_lease(
                 lease_id=response.lease_id,
-                occupancy_seconds=occupancy_period.total_seconds(),
             )
         except anyio.get_cancelled_exc_class():
-            # The task was cancelled before it could release the slots. Add the
-            # slots to the cleanup list so they can be released when the
+            # The task was cancelled before it could release the lease. Add the
+            # lease ID to the cleanup list so it can be released when the
             # concurrency context is exited.
             if ctx := ConcurrencyContext.get():
-                ctx.cleanup_slots.append(
-                    (names, occupy, occupancy_period.total_seconds())
-                )
+                ctx.cleanup_lease_ids.append(response.lease_id)
 
         emit_concurrency_release_events(response.limits, occupy, emitted_events)
 

@@ -164,12 +164,9 @@ async def arelease_concurrency_slots(
 
 async def arelease_concurrency_slots_with_lease(
     lease_id: UUID,
-    occupancy_seconds: float,
 ) -> None:
     async with get_client() as client:
-        await client.release_concurrency_slots_with_lease(
-            lease_id=lease_id, occupancy_seconds=occupancy_seconds
-        )
+        await client.release_concurrency_slots_with_lease(lease_id=lease_id)
 
 
 def _response_to_minimal_concurrency_limit_response(
