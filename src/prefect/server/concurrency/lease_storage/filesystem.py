@@ -22,6 +22,7 @@ class _LeaseFile(TypedDict):
     resource_ids: list[str]
     metadata: dict[str, Any] | None
     expiration: str
+    created_at: str
 
 
 class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
@@ -79,12 +80,13 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
         self._save_expiration_index(index)
 
     def _serialize_lease(
-        self, lease: ResourceLease[ConcurrencyLimitLeaseMetadata], expiration: datetime
+        self, lease: ResourceLease[ConcurrencyLimitLeaseMetadata]
     ) -> _LeaseFile:
         return {
             "resource_ids": [str(rid) for rid in lease.resource_ids],
             "metadata": {"slots": lease.metadata.slots} if lease.metadata else None,
-            "expiration": expiration.isoformat(),
+            "expiration": lease.expiration.isoformat(),
+            "created_at": lease.created_at.isoformat(),
         }
 
     def _deserialize_lease(
@@ -97,8 +99,12 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
             else None
         )
         expiration = datetime.fromisoformat(data["expiration"])
+        created_at = datetime.fromisoformat(data["created_at"])
         lease = ResourceLease(
-            resource_ids=resource_ids, metadata=metadata, expiration=expiration
+            resource_ids=resource_ids,
+            metadata=metadata,
+            expiration=expiration,
+            created_at=created_at,
         )
         return lease
 
@@ -115,7 +121,7 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
 
         self._ensure_storage_path()
         lease_file = self._lease_file_path(lease.id)
-        lease_data = self._serialize_lease(lease, expiration)
+        lease_data = self._serialize_lease(lease)
 
         with open(lease_file, "w") as f:
             json.dump(lease_data, f)

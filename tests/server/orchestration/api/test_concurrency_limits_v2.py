@@ -737,7 +737,7 @@ async def test_decrement_concurrency_limit_with_lease(
         "/v2/concurrency_limits/decrement-with-lease",
         json={"lease_id": lease_id},
     )
-    assert response.status_code == 204
+    assert response.status_code == 204, response.text
 
     lease = await get_concurrency_lease_storage().read_lease(lease_id)
     assert not lease
