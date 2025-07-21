@@ -5,7 +5,7 @@ import {
 	createRouter,
 	RouterProvider,
 } from "@tanstack/react-router";
-import { render } from "@testing-library/react";
+import { render, waitFor } from "@testing-library/react";
 import { createWrapper } from "@tests/utils";
 import { describe, expect, it } from "vitest";
 import type { ArtifactWithFlowRunAndTaskRun } from "@/api/artifacts";
@@ -33,7 +33,7 @@ const TimelineCardRouter = (props: TimelineRowProps) => {
 };
 
 describe("Timeline Container", () => {
-	it("renders timeline rows", () => {
+	it("renders timeline rows", async () => {
 		const artifact: ArtifactWithFlowRunAndTaskRun = createFakeArtifact({
 			id: "test-id",
 		});
@@ -51,9 +51,11 @@ describe("Timeline Container", () => {
 		artifact.flow_run = flowRun;
 		artifact.task_run = taskRun;
 
-		const { getByTestId } = render(<TimelineCardRouter artifact={artifact} />, {
-			wrapper: createWrapper(),
-		});
+		const { getByTestId } = await waitFor(() =>
+			render(<TimelineCardRouter artifact={artifact} />, {
+				wrapper: createWrapper(),
+			}),
+		);
 
 		expect(getByTestId("timeline-row-test-id")).toBeTruthy();
 	});
