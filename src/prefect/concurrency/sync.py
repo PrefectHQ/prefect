@@ -16,7 +16,6 @@ from prefect.client.schemas.responses import (
     MinimalConcurrencyLimitResponse,
 )
 from prefect.logging.loggers import get_logger, get_run_logger
-from prefect.types._datetime import now
 from prefect.utilities.asyncutils import run_coro_as_sync
 
 from ._asyncio import (
@@ -33,10 +32,8 @@ from ._events import (
 T = TypeVar("T")
 
 
-def _release_concurrency_slots_with_lease(
-    lease_id: UUID, occupancy_seconds: float
-) -> None:
-    run_coro_as_sync(arelease_concurrency_slots_with_lease(lease_id, occupancy_seconds))
+def _release_concurrency_slots_with_lease(lease_id: UUID) -> None:
+    run_coro_as_sync(arelease_concurrency_slots_with_lease(lease_id))
 
 
 def _acquire_concurrency_slots(
@@ -125,7 +122,6 @@ def concurrency(
         lease_duration=lease_duration,
         max_retries=max_retries,
     )
-    acquisition_time = now("UTC")
     emitted_events = emit_concurrency_acquisition_events(
         acquisition_response.limits, occupy
     )
@@ -166,10 +162,7 @@ def concurrency(
         # Cancel the lease renewal loop
         lease_renewal_call.cancel()
 
-        occupancy_period = now("UTC") - acquisition_time
-        _release_concurrency_slots_with_lease(
-            acquisition_response.lease_id, occupancy_period.total_seconds()
-        )
+        _release_concurrency_slots_with_lease(acquisition_response.lease_id)
         emit_concurrency_release_events(
             acquisition_response.limits, occupy, emitted_events
         )
