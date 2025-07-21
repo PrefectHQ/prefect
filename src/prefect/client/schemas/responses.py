@@ -477,6 +477,13 @@ class MinimalConcurrencyLimitResponse(PrefectBaseModel):
     limit: int
 
 
+class ConcurrencyLimitWithLeaseResponse(PrefectBaseModel):
+    model_config: ClassVar[ConfigDict] = ConfigDict(extra="ignore")
+
+    lease_id: UUID
+    limits: list[MinimalConcurrencyLimitResponse]
+
+
 class GlobalConcurrencyLimitResponse(ObjectBaseModel):
     """
     A response object for global concurrency limits.
