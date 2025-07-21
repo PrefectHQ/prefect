@@ -1,7 +1,7 @@
 import asyncio
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Literal, Optional
 
 import httpx
 from starlette import status
@@ -15,7 +15,9 @@ from prefect.utilities.timeout import timeout_async
 if TYPE_CHECKING:
     from prefect.client.orchestration import PrefectClient
 
-_Item: TypeAlias = tuple[int, str, Optional[float], Optional[int]]
+_Item: TypeAlias = tuple[
+    int, Literal["concurrency", "rate_limit"], Optional[float], Optional[int]
+]
 
 
 class ConcurrencySlotAcquisitionService(
@@ -35,7 +37,7 @@ class ConcurrencySlotAcquisitionService(
     async def acquire(
         self,
         slots: int,
-        mode: str,
+        mode: Literal["concurrency", "rate_limit"],
         timeout_seconds: Optional[float] = None,
         max_retries: Optional[int] = None,
     ) -> httpx.Response:
