@@ -131,7 +131,7 @@ export function InfrastructureTypeStep({
 										>
 											<RadioGroupItem value={value} id={value} />
 											<label htmlFor={value} className="flex-1 cursor-pointer">
-												<div className="flex items-start gap-4">
+												<div className="flex items-center gap-4">
 													<LogoImage url={logoUrl} alt={label} size="md" />
 													<div className="flex flex-col gap-2 flex-1">
 														<p className="text-base font-medium flex items-center">
