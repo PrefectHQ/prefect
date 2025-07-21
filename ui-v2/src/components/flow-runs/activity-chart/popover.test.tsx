@@ -33,16 +33,16 @@ describe("Flow Run Activity Chart Popover", () => {
 	});
 
 	it("renders popover", async () => {
-		const { getByTestId } = render(
-			<PopoverRouter name="test-flow" flowRun={flowRun} />,
+		const { getByTestId } = await waitFor(() =>
+			render(<PopoverRouter name="test-flow" flowRun={flowRun} />),
 		);
 
 		await waitFor(() => expect(getByTestId("popover")).toBeInTheDocument());
 	});
 
-	it("renders popover with expected content", () => {
-		const { getByText } = render(
-			<PopoverRouter name="testFlow" flowRun={flowRun} />,
+	it("renders popover with expected content", async () => {
+		const { getByText } = await waitFor(() =>
+			render(<PopoverRouter name="testFlow" flowRun={flowRun} />),
 		);
 
 		expect(getByText(flowRun.name ?? "")).toBeInTheDocument();

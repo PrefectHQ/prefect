@@ -52,7 +52,6 @@ vi.mock("@tanstack/react-query-devtool", () => ({
 
 vi.stubGlobal("scrollTo", vi.fn());
 
-// Add this to your existing setup.ts file
 class ResizeObserverMock {
 	observe() {}
 	unobserve() {}
@@ -71,7 +70,6 @@ const localStorageMock: Storage = {
 };
 vi.stubGlobal("localStorage", localStorageMock);
 
-// Add this along with the ResizeObserver mock
 Element.prototype.getBoundingClientRect = vi.fn(() => ({
 	width: 500,
 	height: 300,

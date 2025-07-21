@@ -40,14 +40,16 @@ describe("BlockDocumentActionMenu", () => {
 		const mockBlockDocument = createFakeBlockDocument({
 			name: "my-block-document",
 		});
-		render(
-			<>
-				<Toaster />
-				<BlockDocumentActionMenuRouter
-					blockDocument={mockBlockDocument}
-					onDelete={vi.fn()}
-				/>
-			</>,
+		await waitFor(() =>
+			render(
+				<>
+					<Toaster />
+					<BlockDocumentActionMenuRouter
+						blockDocument={mockBlockDocument}
+						onDelete={vi.fn()}
+					/>
+				</>,
+			),
 		);
 		// ------------ Act
 		await user.click(
@@ -66,11 +68,13 @@ describe("BlockDocumentActionMenu", () => {
 		const user = userEvent.setup();
 		const mockOnDeleteFn = vi.fn();
 
-		render(
-			<BlockDocumentActionMenuRouter
-				blockDocument={createFakeBlockDocument()}
-				onDelete={mockOnDeleteFn}
-			/>,
+		await waitFor(() =>
+			render(
+				<BlockDocumentActionMenuRouter
+					blockDocument={createFakeBlockDocument()}
+					onDelete={mockOnDeleteFn}
+				/>,
+			),
 		);
 
 		// ------------ Act
@@ -87,11 +91,13 @@ describe("BlockDocumentActionMenu", () => {
 		const user = userEvent.setup();
 
 		// ------------ Setup
-		render(
-			<BlockDocumentActionMenuRouter
-				blockDocument={createFakeBlockDocument()}
-				onDelete={vi.fn()}
-			/>,
+		await waitFor(() =>
+			render(
+				<BlockDocumentActionMenuRouter
+					blockDocument={createFakeBlockDocument()}
+					onDelete={vi.fn()}
+				/>,
+			),
 		);
 
 		// ------------ Act

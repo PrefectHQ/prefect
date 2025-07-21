@@ -97,40 +97,51 @@ describe("DeploymentsDataTable", () => {
 		return <RouterProvider router={router} />;
 	};
 
-	it("renders deployment name and flow name", () => {
-		render(<DeploymentsDataTableRouter {...defaultProps} />, {
-			wrapper: createWrapper(),
-		});
+	it("renders deployment name and flow name", async () => {
+		await waitFor(() =>
+			render(<DeploymentsDataTableRouter {...defaultProps} />, {
+				wrapper: createWrapper(),
+			}),
+		);
 		expect(screen.getByText("Test Deployment")).toBeInTheDocument();
 		expect(screen.getByText("test-flow")).toBeInTheDocument();
 	});
 
-	it("renders status badge", () => {
-		render(<DeploymentsDataTableRouter {...defaultProps} />, {
-			wrapper: createWrapper(),
-		});
+	it("renders status badge", async () => {
+		await waitFor(() =>
+			render(<DeploymentsDataTableRouter {...defaultProps} />, {
+				wrapper: createWrapper(),
+			}),
+		);
 
 		expect(screen.getByText("Ready")).toBeInTheDocument();
 	});
 
-	it("renders tags", () => {
-		render(<DeploymentsDataTableRouter {...defaultProps} />, {
-			wrapper: createWrapper(),
-		});
+	it("renders tags", async () => {
+		await waitFor(() =>
+			render(<DeploymentsDataTableRouter {...defaultProps} />, {
+				wrapper: createWrapper(),
+			}),
+		);
 
 		expect(screen.getByText("tag1")).toBeInTheDocument();
 		expect(screen.getByText("tag2")).toBeInTheDocument();
 	});
 
-	it("renders with empty deployments array", () => {
-		render(<DeploymentsDataTableRouter {...defaultProps} deployments={[]} />, {
-			wrapper: createWrapper(),
-		});
+	it("renders with empty deployments array", async () => {
+		await waitFor(() =>
+			render(
+				<DeploymentsDataTableRouter {...defaultProps} deployments={[]} />,
+				{
+					wrapper: createWrapper(),
+				},
+			),
+		);
 
 		expect(screen.queryByText("No Results")).not.toBeInTheDocument();
 	});
 
-	it("renders multiple deployments", () => {
+	it("renders multiple deployments", async () => {
 		const multipleDeployments = [
 			mockDeployment,
 			{
@@ -148,14 +159,16 @@ describe("DeploymentsDataTable", () => {
 			},
 		];
 
-		render(
-			<DeploymentsDataTableRouter
-				{...defaultProps}
-				deployments={multipleDeployments}
-			/>,
-			{
-				wrapper: createWrapper(),
-			},
+		await waitFor(() =>
+			render(
+				<DeploymentsDataTableRouter
+					{...defaultProps}
+					deployments={multipleDeployments}
+				/>,
+				{
+					wrapper: createWrapper(),
+				},
+			),
 		);
 
 		expect(screen.getByText("Test Deployment")).toBeInTheDocument();
@@ -172,9 +185,11 @@ describe("DeploymentsDataTable", () => {
 			}),
 		);
 
-		render(<DeploymentsDataTableRouter {...defaultProps} />, {
-			wrapper: createWrapper(),
-		});
+		await waitFor(() =>
+			render(<DeploymentsDataTableRouter {...defaultProps} />, {
+				wrapper: createWrapper(),
+			}),
+		);
 
 		await userEvent.click(screen.getByRole("button", { name: "Open menu" }));
 		const quickRunButton = screen.getByRole("menuitem", { name: "Quick Run" });
@@ -187,9 +202,11 @@ describe("DeploymentsDataTable", () => {
 	});
 
 	it("has an action menu item that links to create a custom run", async () => {
-		render(<DeploymentsDataTableRouter {...defaultProps} />, {
-			wrapper: createWrapper(),
-		});
+		await waitFor(() =>
+			render(<DeploymentsDataTableRouter {...defaultProps} />, {
+				wrapper: createWrapper(),
+			}),
+		);
 
 		await userEvent.click(screen.getByRole("button", { name: "Open menu" }));
 		expect(screen.getByRole("menuitem", { name: "Custom Run" })).toBeVisible();
@@ -197,9 +214,11 @@ describe("DeploymentsDataTable", () => {
 	});
 
 	it("has an action menu item that links to edit deployment", async () => {
-		render(<DeploymentsDataTableRouter {...defaultProps} />, {
-			wrapper: createWrapper(),
-		});
+		await waitFor(() =>
+			render(<DeploymentsDataTableRouter {...defaultProps} />, {
+				wrapper: createWrapper(),
+			}),
+		);
 
 		await userEvent.click(screen.getByRole("button", { name: "Open menu" }));
 		expect(screen.getByRole("menuitem", { name: "Edit" })).toBeVisible();
@@ -207,9 +226,11 @@ describe("DeploymentsDataTable", () => {
 	});
 
 	it("handles deletion", async () => {
-		render(<DeploymentsDataTableRouter {...defaultProps} />, {
-			wrapper: createWrapper(),
-		});
+		await waitFor(() =>
+			render(<DeploymentsDataTableRouter {...defaultProps} />, {
+				wrapper: createWrapper(),
+			}),
+		);
 
 		await userEvent.click(screen.getByRole("button", { name: "Open menu" }));
 		const deleteButton = screen.getByRole("menuitem", { name: "Delete" });
@@ -224,9 +245,11 @@ describe("DeploymentsDataTable", () => {
 	});
 
 	it("has an action menu item that links to duplicate deployment", async () => {
-		render(<DeploymentsDataTableRouter {...defaultProps} />, {
-			wrapper: createWrapper(),
-		});
+		await waitFor(() =>
+			render(<DeploymentsDataTableRouter {...defaultProps} />, {
+				wrapper: createWrapper(),
+			}),
+		);
 
 		await userEvent.click(screen.getByRole("button", { name: "Open menu" }));
 		expect(screen.getByRole("menuitem", { name: "Duplicate" })).toBeVisible();
@@ -235,12 +258,14 @@ describe("DeploymentsDataTable", () => {
 
 	it("calls onPaginationChange when pagination buttons are clicked", async () => {
 		const onPaginationChange = vi.fn();
-		render(
-			<DeploymentsDataTableRouter
-				{...defaultProps}
-				onPaginationChange={onPaginationChange}
-			/>,
-			{ wrapper: createWrapper() },
+		await waitFor(() =>
+			render(
+				<DeploymentsDataTableRouter
+					{...defaultProps}
+					onPaginationChange={onPaginationChange}
+				/>,
+				{ wrapper: createWrapper() },
+			),
 		);
 
 		await userEvent.click(
@@ -285,12 +310,14 @@ describe("DeploymentsDataTable", () => {
 
 		mockPointerEvents();
 		const onSortChange = vi.fn();
-		render(
-			<DeploymentsDataTableRouter
-				{...defaultProps}
-				onSortChange={onSortChange}
-			/>,
-			{ wrapper: createWrapper() },
+		await waitFor(() =>
+			render(
+				<DeploymentsDataTableRouter
+					{...defaultProps}
+					onSortChange={onSortChange}
+				/>,
+				{ wrapper: createWrapper() },
+			),
 		);
 
 		const select = screen.getByRole("combobox", {
@@ -314,13 +341,15 @@ describe("DeploymentsDataTable", () => {
 		const user = userEvent.setup();
 
 		const onColumnFiltersChange = vi.fn();
-		render(
-			<DeploymentsDataTableRouter
-				{...defaultProps}
-				columnFilters={[{ id: "flowOrDeploymentName", value: "start value" }]}
-				onColumnFiltersChange={onColumnFiltersChange}
-			/>,
-			{ wrapper: createWrapper() },
+		await waitFor(() =>
+			render(
+				<DeploymentsDataTableRouter
+					{...defaultProps}
+					columnFilters={[{ id: "flowOrDeploymentName", value: "start value" }]}
+					onColumnFiltersChange={onColumnFiltersChange}
+				/>,
+				{ wrapper: createWrapper() },
+			),
 		);
 
 		// Clear any initial calls from mounting
@@ -341,13 +370,15 @@ describe("DeploymentsDataTable", () => {
 		const user = userEvent.setup();
 
 		const onColumnFiltersChange = vi.fn();
-		render(
-			<DeploymentsDataTableRouter
-				{...defaultProps}
-				columnFilters={[{ id: "tags", value: ["tag3"] }]}
-				onColumnFiltersChange={onColumnFiltersChange}
-			/>,
-			{ wrapper: createWrapper() },
+		await waitFor(() =>
+			render(
+				<DeploymentsDataTableRouter
+					{...defaultProps}
+					columnFilters={[{ id: "tags", value: ["tag3"] }]}
+					onColumnFiltersChange={onColumnFiltersChange}
+				/>,
+				{ wrapper: createWrapper() },
+			),
 		);
 
 		// Clear any initial calls from mounting
