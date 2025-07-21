@@ -34,6 +34,24 @@ export const pluralize = (
 	return plural || `${singular}s`;
 };
 
+/**
+ * Converts a string to title case format by capitalizing first letters
+ * and converting underscores/hyphens to spaces
+ *
+ * @param str - The string to convert to title case
+ * @returns A title case formatted string
+ *
+ * @example
+ * ```ts
+ * const result = titleCase("hello_world-test") // "Hello World Test"
+ * ```
+ */
+export const titleCase = (str: string): string => {
+	return str
+		.replace(/^[-_]*(.)/, (_match, char) => char.toUpperCase())
+		.replace(/[-_]+(.)/g, (_match, char) => ` ${char.toUpperCase()}`);
+};
+
 type TupleType<T extends unknown[]> = {
 	values: Readonly<T>;
 	isValue: (value: unknown) => value is T[number];
