@@ -64,11 +64,16 @@ describe("WorkPoolContextMenu", () => {
 	const mockOnDelete = vi.fn();
 
 	it("renders the dropdown menu with correct options", async () => {
-		render(
-			<WorkPoolContextMenuRouter workPool={workPool} onDelete={mockOnDelete} />,
-			{
-				wrapper: createWrapper(),
-			},
+		await waitFor(() =>
+			render(
+				<WorkPoolContextMenuRouter
+					workPool={workPool}
+					onDelete={mockOnDelete}
+				/>,
+				{
+					wrapper: createWrapper(),
+				},
+			),
 		);
 
 		const user = userEvent.setup();
@@ -85,11 +90,16 @@ describe("WorkPoolContextMenu", () => {
 	});
 
 	it("copies the work pool ID to clipboard when 'Copy ID' is clicked", async () => {
-		render(
-			<WorkPoolContextMenuRouter workPool={workPool} onDelete={mockOnDelete} />,
-			{
-				wrapper: createWrapper(),
-			},
+		await waitFor(() =>
+			render(
+				<WorkPoolContextMenuRouter
+					workPool={workPool}
+					onDelete={mockOnDelete}
+				/>,
+				{
+					wrapper: createWrapper(),
+				},
+			),
 		);
 
 		const user = userEvent.setup();
@@ -110,11 +120,16 @@ describe("WorkPoolContextMenu", () => {
 	});
 
 	it("calls the onDelete function when 'Delete' is clicked", async () => {
-		render(
-			<WorkPoolContextMenuRouter workPool={workPool} onDelete={mockOnDelete} />,
-			{
-				wrapper: createWrapper(),
-			},
+		await waitFor(() =>
+			render(
+				<WorkPoolContextMenuRouter
+					workPool={workPool}
+					onDelete={mockOnDelete}
+				/>,
+				{
+					wrapper: createWrapper(),
+				},
+			),
 		);
 
 		const user = userEvent.setup();
@@ -129,11 +144,16 @@ describe("WorkPoolContextMenu", () => {
 	});
 
 	it("closes the menu when an option is selected", async () => {
-		render(
-			<WorkPoolContextMenuRouter workPool={workPool} onDelete={mockOnDelete} />,
-			{
-				wrapper: createWrapper(),
-			},
+		await waitFor(() =>
+			render(
+				<WorkPoolContextMenuRouter
+					workPool={workPool}
+					onDelete={mockOnDelete}
+				/>,
+				{
+					wrapper: createWrapper(),
+				},
+			),
 		);
 
 		const user = userEvent.setup();

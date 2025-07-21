@@ -29,15 +29,17 @@ const BlocksRowCountRouter = (props: BlocksRowCountProps) => {
 };
 
 describe("BlocksRowCount", () => {
-	it("renders total count when there is no selected values", () => {
+	it("renders total count when there is no selected values", async () => {
 		// ------------ Setup
-		render(
-			<BlocksRowCountRouter
-				count={101}
-				setRowSelection={vi.fn()}
-				rowSelection={{}}
-			/>,
-			{ wrapper: createWrapper() },
+		await waitFor(() =>
+			render(
+				<BlocksRowCountRouter
+					count={101}
+					setRowSelection={vi.fn()}
+					rowSelection={{}}
+				/>,
+				{ wrapper: createWrapper() },
+			),
 		);
 		// ------------ Assert
 		expect(screen.getByText("101 Blocks")).toBeVisible();
@@ -47,16 +49,18 @@ describe("BlocksRowCount", () => {
 		const user = userEvent.setup();
 		const mockSetRowSelection = vi.fn();
 		// ------------ Setup
-		render(
-			<>
-				<Toaster />
-				<BlocksRowCountRouter
-					count={1}
-					setRowSelection={mockSetRowSelection}
-					rowSelection={{ "1": true, "2": true }}
-				/>
-			</>,
-			{ wrapper: createWrapper() },
+		await waitFor(() =>
+			render(
+				<>
+					<Toaster />
+					<BlocksRowCountRouter
+						count={1}
+						setRowSelection={mockSetRowSelection}
+						rowSelection={{ "1": true, "2": true }}
+					/>
+				</>,
+				{ wrapper: createWrapper() },
+			),
 		);
 
 		// ------------ Act

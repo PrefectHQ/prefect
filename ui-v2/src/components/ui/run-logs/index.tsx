@@ -11,6 +11,7 @@ type RunLogsProps = {
 	logs: components["schemas"]["Log"][];
 	taskRun?: components["schemas"]["TaskRun"];
 	onBottomReached: () => void;
+	virtualize?: boolean;
 	className?: string;
 };
 
@@ -26,6 +27,7 @@ export const RunLogs = ({
 	logs,
 	taskRun,
 	onBottomReached,
+	virtualize = true,
 	className,
 }: RunLogsProps) => {
 	const parentRef = useRef<HTMLDivElement>(null);
@@ -36,7 +38,13 @@ export const RunLogs = ({
 		overscan: 5,
 	});
 
-	const virtualItems = virtualizer.getVirtualItems();
+	const virtualItems = virtualize
+		? virtualizer.getVirtualItems()
+		: Array.from({ length: logs.length }, (_, i) => ({
+				index: i,
+				size: 75,
+				start: i * 75,
+			}));
 
 	/**
 	 * This effect detects when the user has scrolled to the bottom of the logs.

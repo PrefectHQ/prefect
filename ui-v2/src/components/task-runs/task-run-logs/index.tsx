@@ -13,9 +13,13 @@ import {
 
 type TaskRunLogsProps = {
 	taskRun: components["schemas"]["TaskRun"];
+	virtualize?: boolean;
 };
 
-export const TaskRunLogs = ({ taskRun }: TaskRunLogsProps) => {
+export const TaskRunLogs = ({
+	taskRun,
+	virtualize = true,
+}: TaskRunLogsProps) => {
 	const [levelFilter, setLevelFilter] = useState<number>(0);
 	const [sortOrder, setSortOrder] = useState<
 		"TIMESTAMP_ASC" | "TIMESTAMP_DESC"
@@ -86,6 +90,7 @@ export const TaskRunLogs = ({ taskRun }: TaskRunLogsProps) => {
 							}
 						}}
 						className="max-h-[85vh]"
+						virtualize={virtualize}
 					/>
 				</div>
 			)}
