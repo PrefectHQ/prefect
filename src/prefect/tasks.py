@@ -610,7 +610,7 @@ class Task(Generic[P, R]):
         )
 
         # Temporary storage for upstream dependencies
-        self._upstream_dependencies: Optional[OneOrManyFutureOrResult[Any]] = None
+        self._upstream_dependencies: list[FutureOrResult[Any]] = []
 
     @property
     def ismethod(self) -> bool:
@@ -891,16 +891,11 @@ class Task(Generic[P, R]):
         if upstream is None:
             return self
 
-        if not isinstance(upstream, list):
-            upstream = [upstream]
-
-        # Accumulate dependencies
-        if self._upstream_dependencies is None:
-            self._upstream_dependencies = upstream
-        else:
-            if not isinstance(self._upstream_dependencies, list):
-                self._upstream_dependencies = [self._upstream_dependencies]
+        # Convert to list and extend
+        if isinstance(upstream, list):
             self._upstream_dependencies.extend(upstream)
+        else:
+            self._upstream_dependencies.append(upstream)
 
         return self
 
@@ -1200,9 +1195,9 @@ class Task(Generic[P, R]):
         from prefect.task_engine import run_task
 
         # Use stored dependencies if available, then clear them
-        if self._upstream_dependencies is not None:
+        if self._upstream_dependencies:
             wait_for = self._upstream_dependencies
-            self._upstream_dependencies = None
+            self._upstream_dependencies = []
 
         return run_task(
             task=self,
@@ -1386,9 +1381,9 @@ class Task(Generic[P, R]):
             )
 
         # Use stored dependencies if available, then clear them
-        if self._upstream_dependencies is not None:
+        if self._upstream_dependencies:
             wait_for = self._upstream_dependencies
-            self._upstream_dependencies = None
+            self._upstream_dependencies = []
 
         task_runner = flow_run_context.task_runner
         future = task_runner.submit(self, parameters, wait_for)
@@ -1613,9 +1608,9 @@ class Task(Generic[P, R]):
             )
 
         # Use stored dependencies if available, then clear them
-        if self._upstream_dependencies is not None:
+        if self._upstream_dependencies:
             wait_for = self._upstream_dependencies
-            self._upstream_dependencies = None
+            self._upstream_dependencies = []
 
         if deferred:
             parameters_list = expand_mapping_parameters(self.fn, parameters)

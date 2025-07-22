@@ -1028,7 +1028,7 @@ class TestTaskSubmit:
             assert future2.result() == 40
 
             # Verify internal state is cleared
-            assert my_task._upstream_dependencies is None
+            assert my_task._upstream_dependencies == []
 
         test_flow()
 
