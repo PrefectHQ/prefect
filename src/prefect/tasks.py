@@ -848,10 +848,11 @@ class Task(Generic[P, R]):
         self, upstream: Optional[OneOrManyFutureOrResult[Any]]
     ) -> "Task[P, R]":
         """
-        Set upstream dependencies for this task that will be used on the next submit.
+        Add upstream dependencies for this task that will be used on the next submit.
 
         This provides a type-safe way to specify task dependencies without mixing
-        them with the task's parameters. The dependencies are cleared after submission.
+        them with the task's parameters. Multiple calls to depends_on will accumulate
+        dependencies. The dependencies are cleared after submission.
 
         Args:
             upstream: Upstream task futures to wait for before starting the task
@@ -876,8 +877,33 @@ class Task(Generic[P, R]):
                 future2 = downstream_task.depends_on([future]).submit(5)
                 print(future2.result())
             ```
+
+            Chaining dependencies:
+            ```python
+            @flow
+            def my_flow():
+                a = task_a.submit()
+                b = task_b.submit()
+                # Depends on both a and b
+                c = task_c.depends_on([a]).depends_on([b]).submit()
+            ```
         """
-        self._upstream_dependencies = upstream
+        if upstream is None:
+            return self
+
+        # Convert to list for consistent handling
+        if not isinstance(upstream, list):
+            upstream = [upstream]
+
+        # Append to existing dependencies
+        if self._upstream_dependencies is None:
+            self._upstream_dependencies = upstream
+        else:
+            # Ensure existing deps are in list form
+            if not isinstance(self._upstream_dependencies, list):
+                self._upstream_dependencies = [self._upstream_dependencies]
+            self._upstream_dependencies.extend(upstream)
+
         return self
 
     async def create_run(
@@ -1174,6 +1200,11 @@ class Task(Generic[P, R]):
             )
 
         from prefect.task_engine import run_task
+
+        # Use stored dependencies if available, then clear them
+        if self._upstream_dependencies is not None:
+            wait_for = self._upstream_dependencies
+            self._upstream_dependencies = None
 
         return run_task(
             task=self,
@@ -1582,6 +1613,11 @@ class Task(Generic[P, R]):
             raise VisualizationUnsupportedError(
                 "`task.map()` is not currently supported by `flow.visualize()`"
             )
+
+        # Use stored dependencies if available, then clear them
+        if self._upstream_dependencies is not None:
+            wait_for = self._upstream_dependencies
+            self._upstream_dependencies = None
 
         if deferred:
             parameters_list = expand_mapping_parameters(self.fn, parameters)

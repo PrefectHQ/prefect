@@ -1101,7 +1101,7 @@ class TestTaskSubmit:
         test_flow()
 
     def test_depends_on_multiple_calls(self):
-        """Test calling depends_on multiple times (last one wins)"""
+        """Test calling depends_on multiple times accumulates dependencies"""
 
         @task
         def task_a():
@@ -1120,12 +1120,16 @@ class TestTaskSubmit:
             future_a = task_a.submit()
             future_b = task_b.submit()
 
-            # Call depends_on twice - second call should override
+            # Call depends_on twice - should accumulate both dependencies
             task_c_configured = task_c.depends_on([future_a])
             task_c_configured = task_c_configured.depends_on([future_b])
 
             future_c = task_c_configured.submit(10)
             assert future_c.result() == 10
+
+            # Both dependencies should have completed
+            assert future_a.state.is_completed()
+            assert future_b.state.is_completed()
 
         test_flow()
 
@@ -1169,6 +1173,141 @@ class TestTaskSubmit:
             assert future2.result() == 10
 
         await test_flow()
+
+    def test_depends_on_append_behavior(self):
+        """Test that chained depends_on calls append dependencies"""
+        import time
+
+        @task
+        def slow_task_a():
+            time.sleep(0.1)
+            return "A"
+
+        @task
+        def slow_task_b():
+            time.sleep(0.1)
+            return "B"
+
+        @task
+        def slow_task_c():
+            time.sleep(0.1)
+            return "C"
+
+        @task
+        def final_task():
+            return "Done"
+
+        @flow
+        def test_flow():
+            # Submit all tasks
+            a = slow_task_a.submit()
+            b = slow_task_b.submit()
+            c = slow_task_c.submit()
+
+            # Chain dependencies - should accumulate
+            final_future = (
+                final_task.depends_on([a]).depends_on([b]).depends_on([c]).submit()
+            )
+
+            # All dependencies should complete before final task
+            result = final_future.result()
+            assert result == "Done"
+            assert a.state.is_completed()
+            assert b.state.is_completed()
+            assert c.state.is_completed()
+
+        test_flow()
+
+    def test_depends_on_mixed_single_and_list(self):
+        """Test mixing single items and lists in depends_on"""
+
+        @task
+        def task_a():
+            return 1
+
+        @task
+        def task_b():
+            return 2
+
+        @task
+        def task_c():
+            return 3
+
+        @task
+        def final_task(msg):
+            return f"Result: {msg}"
+
+        @flow
+        def test_flow():
+            a = task_a.submit()
+            b = task_b.submit()
+            c = task_c.submit()
+
+            # Mix single and list dependencies
+            result = (
+                final_task.depends_on(a)  # Single item
+                .depends_on([b, c])  # List
+                .submit("test")
+            )
+
+            assert result.result() == "Result: test"
+            # All should have completed
+            assert a.state.is_completed()
+            assert b.state.is_completed()
+            assert c.state.is_completed()
+
+        test_flow()
+
+    def test_depends_on_with_call(self):
+        """Test that depends_on works with __call__ method"""
+
+        @task
+        def upstream():
+            return 42
+
+        @task
+        def downstream(x):
+            return f"Value: {x}"
+
+        @flow
+        def test_flow():
+            # Submit upstream
+            future = upstream.submit()
+
+            # Use depends_on with __call__
+            result = downstream.depends_on([future])(10)
+
+            # Should have waited for upstream
+            assert future.state.is_completed()
+            assert result == "Value: 10"
+
+        test_flow()
+
+    def test_depends_on_with_map(self):
+        """Test that depends_on works with map method"""
+
+        @task
+        def upstream():
+            return 42
+
+        @task
+        def process_item(x):
+            return x * 2
+
+        @flow
+        def test_flow():
+            # Submit upstream
+            future = upstream.submit()
+
+            # Use depends_on with map
+            futures = process_item.depends_on([future]).map([1, 2, 3])
+
+            # Should have waited for upstream
+            results = [f.result() for f in futures]
+            assert future.state.is_completed()
+            assert results == [2, 4, 6]
+
+        test_flow()
 
 
 class TestTaskStates:
