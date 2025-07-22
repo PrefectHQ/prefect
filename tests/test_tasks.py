@@ -954,6 +954,222 @@ class TestTaskSubmit:
         with pytest.raises(ValueError, match="deadlock"):
             my_flow()
 
+    def test_depends_on_with_single_dependency(self):
+        """Test depends_on with a single upstream dependency"""
+
+        @task
+        def upstream_task():
+            return 42
+
+        @task
+        def downstream_task(x):
+            return f"Result: {x}"
+
+        @flow
+        def test_flow():
+            future1 = upstream_task.submit()
+            future2 = downstream_task.depends_on([future1]).submit(10)
+
+            assert isinstance(future1, PrefectFuture)
+            assert isinstance(future2, PrefectFuture)
+            assert future1.result() == 42
+            assert future2.result() == "Result: 10"
+
+        test_flow()
+
+    def test_depends_on_with_multiple_dependencies(self):
+        """Test depends_on with multiple upstream dependencies"""
+
+        @task
+        def task_a():
+            return 1
+
+        @task
+        def task_b():
+            return 2
+
+        @task
+        def task_c(x):
+            return x + 10
+
+        @flow
+        def test_flow():
+            future_a = task_a.submit()
+            future_b = task_b.submit()
+            future_c = task_c.depends_on([future_a, future_b]).submit(5)
+
+            assert future_c.result() == 15
+
+        test_flow()
+
+    def test_depends_on_clears_after_submit(self):
+        """Test that dependencies are cleared after submit"""
+
+        @task
+        def my_task(x):
+            return x * 2
+
+        @task
+        def dep_task():
+            return 5
+
+        @flow
+        def test_flow():
+            dep = dep_task.submit()
+
+            # Set dependencies and submit
+            task_with_deps = my_task.depends_on([dep])
+            future1 = task_with_deps.submit(10)
+
+            # Submit again without calling depends_on - should have no dependencies
+            future2 = my_task.submit(20)
+
+            assert future1.result() == 20
+            assert future2.result() == 40
+
+            # Verify internal state is cleared
+            assert my_task._upstream_dependencies is None
+
+        test_flow()
+
+    def test_depends_on_returns_self(self):
+        """Test that depends_on returns the task instance for chaining"""
+
+        @task
+        def my_task():
+            return "test"
+
+        # Verify it returns the same instance
+        task_instance = my_task
+        result = task_instance.depends_on([])
+        assert result is task_instance
+
+    def test_depends_on_with_none(self):
+        """Test depends_on with None as dependencies"""
+
+        @task
+        def my_task(x):
+            return x
+
+        @flow
+        def test_flow():
+            future = my_task.depends_on(None).submit(5)
+            assert future.result() == 5
+
+        test_flow()
+
+    def test_depends_on_with_empty_list(self):
+        """Test depends_on with empty list of dependencies"""
+
+        @task
+        def my_task(x):
+            return x
+
+        @flow
+        def test_flow():
+            future = my_task.depends_on([]).submit(5)
+            assert future.result() == 5
+
+        test_flow()
+
+    def test_depends_on_overrides_wait_for_kwarg(self):
+        """Test that depends_on takes precedence over wait_for kwarg"""
+
+        @task
+        def task_a():
+            return "A"
+
+        @task
+        def task_b():
+            return "B"
+
+        @task
+        def task_c(x):
+            return f"C-{x}"
+
+        @flow
+        def test_flow():
+            future_a = task_a.submit()
+            future_b = task_b.submit()
+
+            # depends_on should override wait_for kwarg
+            future_c = task_c.depends_on([future_a]).submit(1, wait_for=[future_b])
+
+            # Should only wait for future_a, not future_b
+            assert future_c.result() == "C-1"
+
+        test_flow()
+
+    def test_depends_on_multiple_calls(self):
+        """Test calling depends_on multiple times (last one wins)"""
+
+        @task
+        def task_a():
+            return 1
+
+        @task
+        def task_b():
+            return 2
+
+        @task
+        def task_c(x):
+            return x
+
+        @flow
+        def test_flow():
+            future_a = task_a.submit()
+            future_b = task_b.submit()
+
+            # Call depends_on twice - second call should override
+            task_c_configured = task_c.depends_on([future_a])
+            task_c_configured = task_c_configured.depends_on([future_b])
+
+            future_c = task_c_configured.submit(10)
+            assert future_c.result() == 10
+
+        test_flow()
+
+    def test_depends_on_with_return_state(self):
+        """Test that depends_on works with return_state=True"""
+
+        @task
+        def upstream():
+            return 42
+
+        @task
+        def downstream(x):
+            return f"Value: {x}"
+
+        @flow
+        def test_flow():
+            future1 = upstream.submit()
+            state = downstream.depends_on([future1]).submit(10, return_state=True)
+
+            assert state.is_completed()
+            assert state.result() == "Value: 10"
+
+        test_flow()
+
+    async def test_depends_on_in_async_flow(self):
+        """Test depends_on in async context"""
+
+        @task
+        async def async_upstream():
+            return 100
+
+        @task
+        async def async_downstream(x):
+            return x * 2
+
+        @flow
+        async def test_flow():
+            future1 = async_upstream.submit()
+            future2 = async_downstream.depends_on([future1]).submit(5)
+
+            assert future2.result() == 10
+
+        await test_flow()
+
 
 class TestTaskStates:
     @pytest.mark.parametrize("error", [ValueError("Hello"), None])
