@@ -493,3 +493,4 @@ def _observed_flow_pauses(context: FlowRunContext) -> int:
     else:
         context.observed_flow_pauses["counter"] += 1
     return context.observed_flow_pauses["counter"]
+
