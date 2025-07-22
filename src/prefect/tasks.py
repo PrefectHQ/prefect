@@ -891,15 +891,13 @@ class Task(Generic[P, R]):
         if upstream is None:
             return self
 
-        # Convert to list for consistent handling
         if not isinstance(upstream, list):
             upstream = [upstream]
 
-        # Append to existing dependencies
+        # Accumulate dependencies
         if self._upstream_dependencies is None:
             self._upstream_dependencies = upstream
         else:
-            # Ensure existing deps are in list form
             if not isinstance(self._upstream_dependencies, list):
                 self._upstream_dependencies = [self._upstream_dependencies]
             self._upstream_dependencies.extend(upstream)
