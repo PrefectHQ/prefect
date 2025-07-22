@@ -364,17 +364,12 @@ async def test_rate_limit_without_limit_names(names):
     assert not executed
 
     with mock.patch(
-        "prefect.concurrency.sync._acquire_concurrency_slots",
+        "prefect.concurrency.asyncio.aacquire_concurrency_slots",
         wraps=lambda *args, **kwargs: None,
     ) as acquire_spy:
-        with mock.patch(
-            "prefect.concurrency.sync.arelease_concurrency_slots",
-            wraps=lambda *args, **kwargs: None,
-        ) as release_spy:
-            await resource_heavy()
+        await resource_heavy()
 
-            acquire_spy.assert_not_called()
-            release_spy.assert_not_called()
+        acquire_spy.assert_not_called()
 
     assert executed
 
@@ -391,11 +386,11 @@ async def test_concurrency_without_limit_names(names):
     assert not executed
 
     with mock.patch(
-        "prefect.concurrency.sync._acquire_concurrency_slots",
+        "prefect.concurrency.asyncio.aacquire_concurrency_slots_with_lease",
         wraps=lambda *args, **kwargs: None,
     ) as acquire_spy:
         with mock.patch(
-            "prefect.concurrency.sync.arelease_concurrency_slots",
+            "prefect.concurrency.asyncio.arelease_concurrency_slots_with_lease",
             wraps=lambda *args, **kwargs: None,
         ) as release_spy:
             await resource_heavy()

@@ -1,16 +1,28 @@
+import concurrent.futures
 from collections.abc import Generator
 from contextlib import contextmanager
 from typing import Optional, TypeVar, Union
+from uuid import UUID
 
 from typing_extensions import Literal
 
-from prefect.client.schemas.responses import MinimalConcurrencyLimitResponse
-from prefect.types._datetime import now
+from prefect._internal.concurrency.api import create_call
+from prefect._internal.concurrency.cancellation import (
+    WatcherThreadCancelScope,
+)
+from prefect._internal.concurrency.threads import get_global_loop
+from prefect.client.schemas.responses import (
+    ConcurrencyLimitWithLeaseResponse,
+    MinimalConcurrencyLimitResponse,
+)
+from prefect.logging.loggers import get_logger, get_run_logger
 from prefect.utilities.asyncutils import run_coro_as_sync
 
 from ._asyncio import (
     aacquire_concurrency_slots,
-    arelease_concurrency_slots,
+    aacquire_concurrency_slots_with_lease,
+    amaintain_concurrency_lease,
+    arelease_concurrency_slots_with_lease,
 )
 from ._events import (
     emit_concurrency_acquisition_events,
@@ -20,13 +32,8 @@ from ._events import (
 T = TypeVar("T")
 
 
-def _release_concurrency_slots(
-    names: list[str], slots: int, occupancy_seconds: float
-) -> list[MinimalConcurrencyLimitResponse]:
-    result = run_coro_as_sync(
-        arelease_concurrency_slots(names, slots, occupancy_seconds)
-    )
-    return result
+def _release_concurrency_slots_with_lease(lease_id: UUID) -> None:
+    run_coro_as_sync(arelease_concurrency_slots_with_lease(lease_id))
 
 
 def _acquire_concurrency_slots(
@@ -45,12 +52,30 @@ def _acquire_concurrency_slots(
     return result
 
 
+def _acquire_concurrency_slots_with_lease(
+    names: list[str],
+    slots: int,
+    mode: Literal["concurrency", "rate_limit"] = "concurrency",
+    timeout_seconds: Optional[float] = None,
+    max_retries: Optional[int] = None,
+    lease_duration: float = 300,
+    strict: bool = False,
+) -> ConcurrencyLimitWithLeaseResponse:
+    result = run_coro_as_sync(
+        aacquire_concurrency_slots_with_lease(
+            names, slots, mode, timeout_seconds, max_retries, lease_duration, strict
+        )
+    )
+    return result
+
+
 @contextmanager
 def concurrency(
     names: Union[str, list[str]],
     occupy: int = 1,
     timeout_seconds: Optional[float] = None,
     max_retries: Optional[int] = None,
+    lease_duration: float = 300,
     strict: bool = False,
 ) -> Generator[None, None, None]:
     """A context manager that acquires and releases concurrency slots from the
@@ -62,6 +87,7 @@ def concurrency(
         timeout_seconds: The number of seconds to wait for the slots to be acquired before
             raising a `TimeoutError`. A timeout of `None` will wait indefinitely.
         max_retries: The maximum number of retries to acquire the concurrency slots.
+        lease_duration: The duration of the lease for the acquired slots in seconds.
         strict: A boolean specifying whether to raise an error if the concurrency limit does not exist.
             Defaults to `False`.
 
@@ -88,22 +114,58 @@ def concurrency(
 
     names = names if isinstance(names, list) else [names]
 
-    limits: list[MinimalConcurrencyLimitResponse] = _acquire_concurrency_slots(
+    acquisition_response = _acquire_concurrency_slots_with_lease(
         names,
         occupy,
         timeout_seconds=timeout_seconds,
         strict=strict,
+        lease_duration=lease_duration,
         max_retries=max_retries,
     )
-    acquisition_time = now("UTC")
-    emitted_events = emit_concurrency_acquisition_events(limits, occupy)
+    emitted_events = emit_concurrency_acquisition_events(
+        acquisition_response.limits, occupy
+    )
+
+    # Start a loop to renew the lease on the global event loop to avoid blocking the main thread
+    global_loop = get_global_loop()
+    lease_renewal_call = create_call(
+        amaintain_concurrency_lease,
+        acquisition_response.lease_id,
+        lease_duration,
+    )
+    global_loop.submit(lease_renewal_call)
 
     try:
-        yield
+        with WatcherThreadCancelScope() as cancel_scope:
+
+            def handle_lease_renewal_failure(future: concurrent.futures.Future[None]):
+                exc = future.exception()
+                if exc:
+                    try:
+                        # Use a run logger if available
+                        logger = get_run_logger()
+                    except Exception:
+                        logger = get_logger("concurrency")
+                    if strict:
+                        logger.error(
+                            "Concurrency lease renewal failed - slots are no longer reserved. Terminating execution to prevent over-allocation."
+                        )
+                        assert cancel_scope.cancel()
+                    else:
+                        logger.warning(
+                            "Concurrency lease renewal failed - slots are no longer reserved. Execution will continue, but concurrency limits may be exceeded."
+                        )
+
+            lease_renewal_call.future.add_done_callback(handle_lease_renewal_failure)
+            yield
     finally:
-        occupancy_period = now("UTC") - acquisition_time
-        _release_concurrency_slots(names, occupy, occupancy_period.total_seconds())
-        emit_concurrency_release_events(limits, occupy, emitted_events)
+        # Cancel the lease renewal loop
+        lease_renewal_call.cancel()
+
+        _release_concurrency_slots_with_lease(acquisition_response.lease_id)
+        emit_concurrency_release_events(
+            acquisition_response.limits, occupy, emitted_events
+        )
 
 
 def rate_limit(
