@@ -1260,13 +1260,18 @@ class TestTaskSubmit:
 
     def test_depends_on_with_call(self):
         """Test that depends_on works with __call__ method"""
+        order = []
 
         @task
         def upstream():
+            order.append("upstream_start")
+            time.sleep(0.1)
+            order.append("upstream_end")
             return 42
 
         @task
         def downstream(x):
+            order.append("downstream")
             return f"Value: {x}"
 
         @flow
@@ -1281,17 +1286,25 @@ class TestTaskSubmit:
             assert future.state.is_completed()
             assert result == "Value: 10"
 
+            # Verify execution order
+            assert order == ["upstream_start", "upstream_end", "downstream"]
+
         test_flow()
 
     def test_depends_on_with_map(self):
         """Test that depends_on works with map method"""
+        order = []
 
         @task
         def upstream():
+            order.append("upstream_start")
+            time.sleep(0.1)
+            order.append("upstream_end")
             return 42
 
         @task
         def process_item(x):
+            order.append(f"process_{x}")
             return x * 2
 
         @flow
@@ -1307,7 +1320,38 @@ class TestTaskSubmit:
             assert future.state.is_completed()
             assert results == [2, 4, 6]
 
+            # Verify execution order - upstream completes before any processing
+            assert order[:2] == ["upstream_start", "upstream_end"]
+            assert set(order[2:]) == {"process_1", "process_2", "process_3"}
+
         test_flow()
+
+    async def test_depends_on_with_call_respects_failed_dependencies(self):
+        """Test that depends_on with __call__ doesn't run when dependencies fail"""
+
+        @task
+        def fail_task():
+            raise ValueError("Task failed!")
+
+        @task
+        def dependent_task(x):
+            return f"Value: {x}"
+
+        @flow
+        def test_flow():
+            # Submit failing task
+            future = fail_task.submit()
+
+            # This should wait for fail_task and go to NotReady since it failed
+            state = dependent_task.depends_on([future])(10, return_state=True)
+            return state
+
+        flow_state = test_flow(return_state=True)
+        task_state = await flow_state.result(raise_on_failure=False)
+
+        # Task should be in NotReady state because dependency failed
+        assert task_state.is_pending()
+        assert task_state.name == "NotReady"
 
 
 class TestTaskStates:
