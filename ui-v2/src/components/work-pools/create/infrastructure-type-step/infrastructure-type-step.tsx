@@ -13,7 +13,15 @@ import {
 import { LogoImage } from "@/components/ui/logo-image";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { titleCase } from "@/utils/utils";
-import type { WorkPoolTypeSelectOption } from "../types";
+
+type WorkPoolTypeSelectOption = {
+	label: string;
+	value: string;
+	logoUrl: string;
+	description: string;
+	documentationUrl?: string;
+	isBeta: boolean;
+};
 
 export function InfrastructureTypeStep() {
 	const form = useFormContext();
