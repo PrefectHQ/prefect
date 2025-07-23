@@ -1,5 +1,6 @@
 import uuid
 from typing import Any, Dict
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
@@ -13,6 +14,7 @@ from prefect.utilities.templating import (
     apply_values,
     find_placeholders,
     resolve_block_document_references,
+    resolve_block_templates_recursively,
     resolve_variables,
 )
 
@@ -507,6 +509,51 @@ class TestResolveBlockDocumentReferences:
         assert result == {
             "block_attribute": "https://example.com",
         }
+
+    @pytest.mark.asyncio
+    @patch("prefect.blocks.core.Block.load", new_callable=AsyncMock)
+    async def test_resolve_block_templates_recursively(self, mock_block_load):
+        mock_block_load.return_value = "mocked_value"
+
+        inputs = {
+            "param1": "{{ prefect.blocks.my_block_type.my_block_name }}",
+            "param2": "static_value",
+            "nested": {
+                "inner": "{{ prefect.blocks.other_type.other_name }}",
+                "deeper": [{"key": "{{ prefect.blocks.deep.block }}"}, "value"],
+            },
+            "list_param": [
+                "{{ prefect.blocks.another_type.block_x }}",
+                "no_template",
+                42,
+                None,
+                True,
+            ],
+            "non_block_template": "{{ prefect.secrets.api_key }}",
+            "malformed": "{{ prefect.blocks.. }}",
+            "multi_template": "{{ prefect.blocks.type1.name1 }} and {{ prefect.blocks.type2.name2 }}",
+        }
+
+        expected = {
+            "param1": "mocked_value",
+            "param2": "static_value",
+            "nested": {
+                "inner": "mocked_value",
+                "deeper": [{"key": "mocked_value"}, "value"],
+            },
+            "list_param": ["mocked_value", "no_template", 42, None, True],
+            "non_block_template": "{{ prefect.secrets.api_key }}",
+            "malformed": "{{ prefect.blocks.. }}",
+            "multi_template": "{{ prefect.blocks.type1.name1 }} and {{ prefect.blocks.type2.name2 }}",
+        }
+
+        result = await resolve_block_templates_recursively(inputs)
+        assert result == expected
+        assert mock_block_load.call_count == 4
+        mock_block_load.assert_any_call("my_block_type/my_block_name")
+        mock_block_load.assert_any_call("other_type/other_name")
+        mock_block_load.assert_any_call("another_type/block_x")
+        mock_block_load.assert_any_call("deep/block")
 
 
 class TestResolveVariables:

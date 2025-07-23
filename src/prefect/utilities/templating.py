@@ -14,6 +14,7 @@ from typing import (
     overload,
 )
 
+from prefect.blocks.core import Block
 from prefect.client.utilities import inject_client
 from prefect.logging.loggers import get_logger
 from prefect.utilities.annotations import NotSet
@@ -442,3 +443,33 @@ async def resolve_variables(template: T, client: Optional["PrefectClient"] = Non
         return [await resolve_variables(item, client=client) for item in template]
     else:
         return template
+
+
+BLOCK_TEMPLATE_PATTERN = re.compile(
+    r"{{\s*prefect\.blocks\.([a-zA-Z_][\w]*)\.([\w\-]+)\s*}}"
+)
+
+
+async def resolve_block_template_string(value: str):
+    if not isinstance(value, str):
+        return value
+
+    match = BLOCK_TEMPLATE_PATTERN.fullmatch(value.strip())
+    if not match:
+        return value
+
+    block_type, block_name = match.groups()
+    return await Block.load(f"{block_type}/{block_name}")
+
+
+async def resolve_block_templates_recursively(data: Any) -> Any:
+    if isinstance(data, dict):
+        return {
+            key: await resolve_block_templates_recursively(value)
+            for key, value in data.items()
+        }
+    elif isinstance(data, list):
+        return [await resolve_block_templates_recursively(item) for item in data]
+    elif isinstance(data, str) and BLOCK_TEMPLATE_PATTERN.fullmatch(data.strip()):
+        return await resolve_block_template_string(data)
+    return data
