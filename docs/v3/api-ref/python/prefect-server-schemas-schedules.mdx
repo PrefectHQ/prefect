@@ -12,7 +12,7 @@ Schedule schemas
 
 ## Classes
 
-### `IntervalSchedule` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/schedules.py#L71" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `IntervalSchedule` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/schemas/schedules.py#L71" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 A schedule formed by adding `interval` increments to an `anchor_date`. If no
@@ -44,13 +44,35 @@ if not provided, the current timestamp will be used.
 
 **Methods:**
 
-#### `validate_timezone` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/schedules.py#L110" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `validate_timezone` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/schemas/schedules.py#L110" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 validate_timezone(self)
 ```
 
-### `CronSchedule` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/schedules.py#L302" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `get_dates` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/schemas/schedules.py#L114" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+get_dates(self, n: Optional[int] = None, start: Optional[datetime.datetime] = None, end: Optional[datetime.datetime] = None) -> List[DateTime]
+```
+
+Retrieves dates from the schedule. Up to 1,000 candidate dates are checked
+following the start date.
+
+**Args:**
+- `n`: The number of dates to generate
+- `start`: The first returned date will be on or
+after this date. Defaults to None.  If a timezone-naive datetime is
+provided, it is assumed to be in the schedule's timezone.
+- `end`: The maximum scheduled date to return. If
+a timezone-naive datetime is provided, it is assumed to be in the
+schedule's timezone.
+
+**Returns:**
+- List[DateTime]: A list of dates
+
+
+### `CronSchedule` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/schemas/schedules.py#L302" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Cron schedule
@@ -77,19 +99,41 @@ behaves like fcron and enables you to e.g. define a job that executes each
 
 **Methods:**
 
-#### `validate_timezone` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/schedules.py#L338" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `validate_timezone` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/schemas/schedules.py#L338" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 validate_timezone(self)
 ```
 
-#### `valid_cron_string` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/schedules.py#L344" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `valid_cron_string` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/schemas/schedules.py#L344" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 valid_cron_string(cls, v: str) -> str
 ```
 
-### `RRuleSchedule` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/schedules.py#L477" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `get_dates` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/schemas/schedules.py#L347" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+get_dates(self, n: Optional[int] = None, start: Optional[datetime.datetime] = None, end: Optional[datetime.datetime] = None) -> List[DateTime]
+```
+
+Retrieves dates from the schedule. Up to 1,000 candidate dates are checked
+following the start date.
+
+**Args:**
+- `n`: The number of dates to generate
+- `start`: The first returned date will be on or
+after this date. Defaults to None.  If a timezone-naive datetime is
+provided, it is assumed to be in the schedule's timezone.
+- `end`: The maximum scheduled date to return. If
+a timezone-naive datetime is provided, it is assumed to be in the
+schedule's timezone.
+
+**Returns:**
+- List[DateTime]: A list of dates
+
+
+### `RRuleSchedule` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/schemas/schedules.py#L477" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 RRule schedule, based on the iCalendar standard
@@ -112,19 +156,19 @@ a 9am daily schedule with a UTC start date will maintain a 9am UTC time.
 
 **Methods:**
 
-#### `validate_rrule_str` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/schedules.py#L504" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `validate_rrule_str` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/schemas/schedules.py#L504" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 validate_rrule_str(cls, v: str) -> str
 ```
 
-#### `from_rrule` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/schedules.py#L508" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `from_rrule` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/schemas/schedules.py#L508" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 from_rrule(cls, rrule: dateutil.rrule.rrule | dateutil.rrule.rruleset) -> 'RRuleSchedule'
 ```
 
-#### `to_rrule` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/schedules.py#L565" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `to_rrule` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/schemas/schedules.py#L565" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 to_rrule(self) -> dateutil.rrule.rrule
@@ -132,4 +176,26 @@ to_rrule(self) -> dateutil.rrule.rrule
 
 Since rrule doesn't properly serialize/deserialize timezones, we localize dates
 here
+
+
+#### `get_dates` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/schemas/schedules.py#L620" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+get_dates(self, n: Optional[int] = None, start: datetime.datetime = None, end: datetime.datetime = None) -> List[DateTime]
+```
+
+Retrieves dates from the schedule. Up to 1,000 candidate dates are checked
+following the start date.
+
+**Args:**
+- `n`: The number of dates to generate
+- `start`: The first returned date will be on or
+after this date. Defaults to None.  If a timezone-naive datetime is
+provided, it is assumed to be in the schedule's timezone.
+- `end`: The maximum scheduled date to return. If
+a timezone-naive datetime is provided, it is assumed to be in the
+schedule's timezone.
+
+**Returns:**
+- List[DateTime]: A list of dates
 

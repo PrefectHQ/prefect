@@ -5,4 +5,37 @@ sidebarTitle: submit
 
 # `prefect.runner.submit`
 
-*This module is empty or contains only private/internal implementations.*
+## Functions
+
+### `submit_to_runner` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/runner/submit.py#L136" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+submit_to_runner(prefect_callable: Flow[Any, Any], parameters: dict[str, Any] | list[dict[str, Any]] | None = None, retry_failed_submissions: bool = True) -> FlowRun | list[FlowRun]
+```
+
+
+Submit a callable in the background via the runner webserver one or more times.
+
+**Args:**
+- `prefect_callable`: the callable to run (only flows are supported for now, but eventually tasks)
+- `parameters`: keyword arguments to pass to the callable. May be a list of dictionaries where
+each dictionary represents a discrete invocation of the callable
+- `retry_failed_submissions`: Whether to retry failed submissions to the runner webserver.
+
+
+### `wait_for_submitted_runs` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/runner/submit.py#L208" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+wait_for_submitted_runs(flow_run_filter: FlowRunFilter | None = None, task_run_filter: TaskRunFilter | None = None, timeout: float | None = None, poll_interval: float = 3.0) -> uuid.UUID | None
+```
+
+
+Wait for completion of any provided flow runs (eventually task runs), as well as subflow runs
+of the current flow run (if called from within a flow run and subflow runs exist).
+
+**Args:**
+- `flow_run_filter`: A filter to apply to the flow runs to wait for.
+- `task_run_filter`: A filter to apply to the task runs to wait for. # TODO\: /task/run
+- `timeout`: How long to wait for completion of all runs (seconds).
+- `poll_interval`: How long to wait between polling each run's state (seconds).
+

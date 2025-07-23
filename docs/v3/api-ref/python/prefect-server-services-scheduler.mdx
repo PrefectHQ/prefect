@@ -12,13 +12,13 @@ The Scheduler service.
 
 ## Classes
 
-### `TryAgain` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/scheduler.py#L34" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `TryAgain` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/services/scheduler.py#L34" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Internal control-flow exception used to retry the Scheduler's main loop
 
 
-### `Scheduler` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/scheduler.py#L38" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `Scheduler` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/services/scheduler.py#L38" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Schedules flow runs from deployments.
@@ -26,13 +26,29 @@ Schedules flow runs from deployments.
 
 **Methods:**
 
-#### `service_settings` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/scheduler.py#L48" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `service_settings` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/services/scheduler.py#L48" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 service_settings(cls) -> ServicesBaseSetting
 ```
 
-### `RecentDeploymentsScheduler` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/scheduler.py#L305" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `run_once` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/services/scheduler.py#L76" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+run_once(self, db: PrefectDBInterface) -> None
+```
+
+Schedule flow runs by:
+
+- Querying for deployments with active schedules
+- Generating the next set of flow runs based on each deployments schedule
+- Inserting all scheduled flow runs into the database
+
+All inserted flow runs are committed to the database at the termination of the
+loop.
+
+
+### `RecentDeploymentsScheduler` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/services/scheduler.py#L305" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Schedules deployments that were updated very recently
@@ -48,7 +64,7 @@ accelerate scheduling for any deployments that users are interacting with.
 
 **Methods:**
 
-#### `service_settings` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/scheduler.py#L322" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `service_settings` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/services/scheduler.py#L322" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 service_settings(cls) -> ServicesBaseSetting

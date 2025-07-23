@@ -7,71 +7,73 @@ sidebarTitle: responses
 
 ## Classes
 
-### `SetStateStatus` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/responses.py#L21" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `SetStateStatus` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/schemas/responses.py#L21" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Enumerates return statuses for setting run states.
 
 
-### `StateAcceptDetails` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/responses.py#L30" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `StateAcceptDetails` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/schemas/responses.py#L30" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Details associated with an ACCEPT state transition.
 
 
-### `StateRejectDetails` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/responses.py#L42" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `StateRejectDetails` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/schemas/responses.py#L42" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Details associated with a REJECT state transition.
 
 
-### `StateAbortDetails` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/responses.py#L57" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `StateAbortDetails` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/schemas/responses.py#L57" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Details associated with an ABORT state transition.
 
 
-### `StateWaitDetails` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/responses.py#L72" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `StateWaitDetails` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/schemas/responses.py#L72" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Details associated with a WAIT state transition.
 
 
-### `HistoryResponseState` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/responses.py#L94" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `HistoryResponseState` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/schemas/responses.py#L94" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Represents a single state's history over an interval.
 
 
-### `HistoryResponse` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/responses.py#L116" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `HistoryResponse` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/schemas/responses.py#L116" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Represents a history of aggregation states over an interval
 
 
-### `OrchestrationResult` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/responses.py#L135" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `OrchestrationResult` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/schemas/responses.py#L135" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 A container for the output of state orchestration.
 
 
-### `WorkerFlowRunResponse` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/responses.py#L145" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `WorkerFlowRunResponse` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/schemas/responses.py#L145" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
-### `FlowRunResponse` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/responses.py#L153" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `FlowRunResponse` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/schemas/responses.py#L153" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
-### `DeploymentResponse` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/responses.py#L309" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `DeploymentResponse` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/schemas/responses.py#L309" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 **Methods:**
 
-#### `as_related_resource` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/responses.py#L446" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `as_related_resource` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/schemas/responses.py#L446" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 as_related_resource(self, role: str = 'deployment') -> 'RelatedResource'
 ```
 
-### `MinimalConcurrencyLimitResponse` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/responses.py#L472" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `MinimalConcurrencyLimitResponse` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/schemas/responses.py#L472" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
-### `GlobalConcurrencyLimitResponse` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/responses.py#L480" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `ConcurrencyLimitWithLeaseResponse` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/schemas/responses.py#L480" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+### `GlobalConcurrencyLimitResponse` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/schemas/responses.py#L487" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 A response object for global concurrency limits.

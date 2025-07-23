@@ -13,8 +13,16 @@ Observability
 
 ## Classes
 
-### `InstrumentFlowRunStateTransitions` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/instrumentation_policies.py#L25" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `InstrumentFlowRunStateTransitions` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/orchestration/instrumentation_policies.py#L25" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 When a Flow Run changes states, fire a Prefect Event for the state change
 
+
+**Methods:**
+
+#### `after_transition` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/orchestration/instrumentation_policies.py#L28" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+after_transition(self, context: OrchestrationContext[orm_models.FlowRun, core.FlowRunPolicy]) -> None
+```

@@ -12,7 +12,7 @@ Utilities for working with file systems
 
 ## Functions
 
-### `create_default_ignore_file` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/filesystem.py#L22" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `create_default_ignore_file` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/filesystem.py#L22" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 create_default_ignore_file(path: str) -> bool
@@ -23,7 +23,7 @@ Creates default ignore file in the provided path if one does not already exist; 
 whether a file was created.
 
 
-### `filter_files` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/filesystem.py#L37" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `filter_files` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/filesystem.py#L37" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 filter_files(root: str = '.', ignore_patterns: Optional[Iterable[AnyStr]] = None, include_dirs: bool = True) -> set[str]
@@ -36,7 +36,7 @@ a list of files that excludes those that should be ignored.
 The specification matches that of [.gitignore files](https://git-scm.com/docs/gitignore).
 
 
-### `tmpchdir` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/filesystem.py#L82" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `tmpchdir` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/filesystem.py#L82" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 tmpchdir(path: str)
@@ -47,7 +47,7 @@ Change current-working directories for the duration of the context,
 with special handling for UNC paths on Windows.
 
 
-### `filename` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/filesystem.py#L107" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `filename` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/filesystem.py#L107" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 filename(path: str) -> str
@@ -57,7 +57,7 @@ filename(path: str) -> str
 Extract the file name from a path with remote file system support
 
 
-### `is_local_path` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/filesystem.py#L117" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `is_local_path` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/filesystem.py#L117" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 is_local_path(path: Union[str, pathlib.Path, Any]) -> bool
@@ -67,7 +67,7 @@ is_local_path(path: Union[str, pathlib.Path, Any]) -> bool
 Check if the given path points to a local or remote file system
 
 
-### `to_display_path` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/filesystem.py#L133" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `to_display_path` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/filesystem.py#L133" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 to_display_path(path: Union[pathlib.Path, str], relative_to: Optional[Union[pathlib.Path, str]] = None) -> str
@@ -78,7 +78,7 @@ Convert a path to a displayable path. The absolute path or relative path to the
 current (or given) directory will be returned, whichever is shorter.
 
 
-### `relative_path_to_current_platform` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/filesystem.py#L150" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `relative_path_to_current_platform` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/filesystem.py#L150" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 relative_path_to_current_platform(path_str: str) -> Path
@@ -89,7 +89,7 @@ Converts a relative path generated on any platform to a relative path for the
 current platform.
 
 
-### `get_open_file_limit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/filesystem.py#L159" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `get_open_file_limit` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/filesystem.py#L159" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_open_file_limit() -> int

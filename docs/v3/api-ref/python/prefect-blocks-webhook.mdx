@@ -7,7 +7,7 @@ sidebarTitle: webhook
 
 ## Classes
 
-### `Webhook` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/webhook.py#L19" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `Webhook` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/blocks/webhook.py#L19" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Block that enables calling webhooks.
@@ -15,8 +15,20 @@ Block that enables calling webhooks.
 
 **Methods:**
 
-#### `block_initialization` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/webhook.py#L55" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `block_initialization` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/blocks/webhook.py#L55" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 block_initialization(self) -> None
 ```
+
+#### `call` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/blocks/webhook.py#L61" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+call(self, payload: dict[str, Any] | str | None = None) -> Response
+```
+
+Call the webhook.
+
+**Args:**
+- `payload`: an optional payload to send when calling the webhook.
+

@@ -5,4 +5,37 @@ sidebarTitle: asyncio
 
 # `prefect.concurrency.v1.asyncio`
 
-*This module is empty or contains only private/internal implementations.*
+## Functions
+
+### `concurrency` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/concurrency/v1/asyncio.py#L26" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+concurrency(names: Union[str, list[str]], task_run_id: UUID, timeout_seconds: Optional[float] = None) -> AsyncGenerator[None, None]
+```
+
+
+A context manager that acquires and releases concurrency slots from the
+given concurrency limits.
+
+**Args:**
+- `names`: The names of the concurrency limits to acquire slots from.
+- `task_run_id`: The name of the task_run_id that is incrementing the slots.
+- `timeout_seconds`: The number of seconds to wait for the slots to be acquired before
+raising a `TimeoutError`. A timeout of `None` will wait indefinitely.
+
+**Raises:**
+- `TimeoutError`: If the slots are not acquired within the given timeout.
+
+Example:
+A simple example of using the async `concurrency` context manager:
+```python
+from prefect.concurrency.v1.asyncio import concurrency
+
+async def resource_heavy():
+    async with concurrency("test", task_run_id):
+        print("Resource heavy task")
+
+async def main():
+    await resource_heavy()
+```
+

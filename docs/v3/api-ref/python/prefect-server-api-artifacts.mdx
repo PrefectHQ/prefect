@@ -9,3 +9,97 @@ sidebarTitle: artifacts
 
 Routes for interacting with artifact objects.
 
+
+## Functions
+
+### `create_artifact` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/api/artifacts.py#L24" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+create_artifact(artifact: actions.ArtifactCreate, response: Response, db: PrefectDBInterface = Depends(provide_database_interface)) -> core.Artifact
+```
+
+
+Create an artifact.
+
+For more information, see https://docs.prefect.io/v3/develop/artifacts.
+
+
+### `read_artifact` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/api/artifacts.py#L50" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+read_artifact(artifact_id: UUID = Path(..., description='The ID of the artifact to retrieve.', alias='id'), db: PrefectDBInterface = Depends(provide_database_interface)) -> core.Artifact
+```
+
+
+Retrieve an artifact from the database.
+
+
+### `read_latest_artifact` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/api/artifacts.py#L70" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+read_latest_artifact(key: str = Path(..., description='The key of the artifact to retrieve.'), db: PrefectDBInterface = Depends(provide_database_interface)) -> core.Artifact
+```
+
+
+Retrieve the latest artifact from the artifact table.
+
+
+### `read_artifacts` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/api/artifacts.py#L89" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+read_artifacts(sort: sorting.ArtifactSort = Body(sorting.ArtifactSort.ID_DESC), limit: int = dependencies.LimitBody(), offset: int = Body(0, ge=0), artifacts: filters.ArtifactFilter = None, flow_runs: filters.FlowRunFilter = None, task_runs: filters.TaskRunFilter = None, flows: filters.FlowFilter = None, deployments: filters.DeploymentFilter = None, db: PrefectDBInterface = Depends(provide_database_interface)) -> List[core.Artifact]
+```
+
+
+Retrieve artifacts from the database.
+
+
+### `read_latest_artifacts` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/api/artifacts.py#L118" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+read_latest_artifacts(sort: sorting.ArtifactCollectionSort = Body(sorting.ArtifactCollectionSort.ID_DESC), limit: int = dependencies.LimitBody(), offset: int = Body(0, ge=0), artifacts: filters.ArtifactCollectionFilter = None, flow_runs: filters.FlowRunFilter = None, task_runs: filters.TaskRunFilter = None, flows: filters.FlowFilter = None, deployments: filters.DeploymentFilter = None, db: PrefectDBInterface = Depends(provide_database_interface)) -> List[core.ArtifactCollection]
+```
+
+
+Retrieve artifacts from the database.
+
+
+### `count_artifacts` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/api/artifacts.py#L147" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+count_artifacts(artifacts: filters.ArtifactFilter = None, flow_runs: filters.FlowRunFilter = None, task_runs: filters.TaskRunFilter = None, flows: filters.FlowFilter = None, deployments: filters.DeploymentFilter = None, db: PrefectDBInterface = Depends(provide_database_interface)) -> int
+```
+
+
+Count artifacts from the database.
+
+
+### `count_latest_artifacts` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/api/artifacts.py#L170" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+count_latest_artifacts(artifacts: filters.ArtifactCollectionFilter = None, flow_runs: filters.FlowRunFilter = None, task_runs: filters.TaskRunFilter = None, flows: filters.FlowFilter = None, deployments: filters.DeploymentFilter = None, db: PrefectDBInterface = Depends(provide_database_interface)) -> int
+```
+
+
+Count artifacts from the database.
+
+
+### `update_artifact` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/api/artifacts.py#L193" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+update_artifact(artifact: actions.ArtifactUpdate, artifact_id: UUID = Path(..., description='The ID of the artifact to update.', alias='id'), db: PrefectDBInterface = Depends(provide_database_interface)) -> None
+```
+
+
+Update an artifact in the database.
+
+
+### `delete_artifact` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/api/artifacts.py#L214" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+delete_artifact(artifact_id: UUID = Path(..., description='The ID of the artifact to delete.', alias='id'), db: PrefectDBInterface = Depends(provide_database_interface)) -> None
+```
+
+
+Delete an artifact from the database.
+

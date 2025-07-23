@@ -12,7 +12,7 @@ Schedule schemas
 
 ## Functions
 
-### `is_valid_timezone` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/schedules.py#L29" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `is_valid_timezone` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/schemas/schedules.py#L29" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 is_valid_timezone(v: str) -> bool
@@ -25,13 +25,13 @@ Unfortunately this list is slightly different from the list of valid
 timezones we use for cron and interval timezone validation.
 
 
-### `is_schedule_type` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/schedules.py#L333" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `is_schedule_type` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/schemas/schedules.py#L333" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 is_schedule_type(obj: Any) -> TypeGuard[SCHEDULE_TYPES]
 ```
 
-### `construct_schedule` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/schedules.py#L337" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `construct_schedule` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/schemas/schedules.py#L337" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 construct_schedule(interval: Optional[Union[int, float, datetime.timedelta]] = None, anchor_date: Optional[Union[datetime.datetime, str]] = None, cron: Optional[str] = None, rrule: Optional[str] = None, timezone: Optional[str] = None) -> SCHEDULE_TYPES
@@ -51,7 +51,7 @@ or a timedelta object. If a number is given, it will be interpreted as seconds.
 
 ## Classes
 
-### `IntervalSchedule` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/schedules.py#L46" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `IntervalSchedule` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/schemas/schedules.py#L46" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 A schedule formed by adding `interval` increments to an `anchor_date`. If no
@@ -83,13 +83,13 @@ if not provided, the current timestamp will be used
 
 **Methods:**
 
-#### `validate_timezone` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/schedules.py#L85" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `validate_timezone` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/schemas/schedules.py#L85" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 validate_timezone(self)
 ```
 
-### `CronSchedule` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/schedules.py#L100" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `CronSchedule` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/schemas/schedules.py#L100" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Cron schedule
@@ -116,19 +116,19 @@ behaves like fcron and enables you to e.g. define a job that executes each
 
 **Methods:**
 
-#### `valid_timezone` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/schedules.py#L138" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `valid_timezone` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/schemas/schedules.py#L138" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 valid_timezone(cls, v: Optional[str]) -> Optional[str]
 ```
 
-#### `valid_cron_string` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/schedules.py#L143" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `valid_cron_string` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/schemas/schedules.py#L143" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 valid_cron_string(cls, v: str) -> str
 ```
 
-### `RRuleSchedule` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/schedules.py#L168" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `RRuleSchedule` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/schemas/schedules.py#L168" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 RRule schedule, based on the iCalendar standard
@@ -151,19 +151,19 @@ a 9am daily schedule with a UTC start date will maintain a 9am UTC time.
 
 **Methods:**
 
-#### `validate_rrule_str` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/schedules.py#L197" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `validate_rrule_str` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/schemas/schedules.py#L197" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 validate_rrule_str(cls, v: str) -> str
 ```
 
-#### `from_rrule` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/schedules.py#L201" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `from_rrule` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/schemas/schedules.py#L201" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 from_rrule(cls, rrule: Union[dateutil.rrule.rrule, dateutil.rrule.rruleset]) -> 'RRuleSchedule'
 ```
 
-#### `to_rrule` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/schedules.py#L250" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `to_rrule` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/schemas/schedules.py#L250" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 to_rrule(self) -> Union[dateutil.rrule.rrule, dateutil.rrule.rruleset]
@@ -173,7 +173,7 @@ Since rrule doesn't properly serialize/deserialize timezones, we localize dates
 here
 
 
-#### `valid_timezone` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/schedules.py#L308" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `valid_timezone` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/schemas/schedules.py#L308" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 valid_timezone(cls, v: Optional[str]) -> str
@@ -185,4 +185,4 @@ Unfortunately this list is slightly different from the list of valid
 timezones we use for cron and interval timezone validation.
 
 
-### `NoSchedule` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/schedules.py#L324" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `NoSchedule` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/schemas/schedules.py#L324" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>

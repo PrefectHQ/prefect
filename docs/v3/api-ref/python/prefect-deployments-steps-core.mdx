@@ -19,9 +19,34 @@ Whenever a step is run, the following actions are taken:
 - The step's output is returned and used to resolve inputs for subsequent steps
 
 
+## Functions
+
+### `run_step` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/deployments/steps/core.py#L102" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+run_step(step: dict[str, Any], upstream_outputs: Optional[dict[str, Any]] = None) -> dict[str, Any]
+```
+
+
+Runs a step, returns the step's output.
+
+Steps are assumed to be in the format `{"importable.func.name": {"kwarg1": "value1", ...}}`.
+
+The 'id and 'requires' keywords are reserved for specific purposes and will be removed from the
+inputs before passing to the step function:
+
+This keyword is used to specify packages that should be installed before running the step.
+
+
+### `run_steps` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/deployments/steps/core.py#L140" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+run_steps(steps: List[Dict[str, Any]], upstream_outputs: Optional[Dict[str, Any]] = None, print_function: Any = print) -> dict[str, Any]
+```
+
 ## Classes
 
-### `StepExecutionError` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/deployments/steps/core.py#L38" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `StepExecutionError` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/deployments/steps/core.py#L38" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Raised when a step fails to execute.
