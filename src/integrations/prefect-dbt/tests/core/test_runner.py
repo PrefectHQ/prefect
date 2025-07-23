@@ -317,7 +317,8 @@ class TestPrefectDbtRunnerCompiledCode:
         # Should return the truncated message instead of the full SQL
         expected_message = (
             "\n ### Compiled code\n"
-            f"Compiled code code was omitted because it exceeded the maximum asset description length of {MAX_ASSET_DESCRIPTION_LENGTH} characters."
+            f"Compiled code for {mock_manifest_node.name} was omitted because it exceeded the "
+            f"maximum asset description length of {MAX_ASSET_DESCRIPTION_LENGTH} characters."
         )
         assert result == expected_message
         assert len(result) <= MAX_ASSET_DESCRIPTION_LENGTH
