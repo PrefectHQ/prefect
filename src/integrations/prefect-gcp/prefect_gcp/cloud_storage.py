@@ -728,7 +728,8 @@ class GcsBucket(WritableDeploymentStorage, WritableFileSystem, ObjectStorageBloc
                 ignore_patterns = f.readlines()
             included_files = filter_files(local_path, ignore_patterns)
 
-        uploaded_file_count = 0
+        # Collect all files to upload first
+        files_to_upload = []
         for local_file_path in Path(local_path).rglob("*"):
             if (
                 included_files is not None
@@ -739,17 +740,40 @@ class GcsBucket(WritableDeploymentStorage, WritableFileSystem, ObjectStorageBloc
                 remote_file_path = str(
                     PurePosixPath(to_path, local_file_path.relative_to(local_path))
                 )
-                local_file_content = local_file_path.read_bytes()
-                with disable_run_logger():
-                    await cloud_storage_upload_blob_from_string.fn(
-                        data=local_file_content,
-                        bucket=self.bucket,
-                        blob=remote_file_path,
-                        gcp_credentials=self.gcp_credentials,
-                    )
-                uploaded_file_count += 1
+                files_to_upload.append((local_file_path, remote_file_path))
 
-        return uploaded_file_count
+        # Upload files concurrently, reusing a single client
+        if files_to_upload:
+            # Get a single client and bucket object to reuse
+            client = self.gcp_credentials.get_cloud_storage_client()
+            bucket_obj = await run_sync_in_worker_thread(client.get_bucket, self.bucket)
+
+            # Create upload tasks
+            upload_tasks = []
+            for local_file_path, remote_file_path in files_to_upload:
+                local_file_content = local_file_path.read_bytes()
+                blob_obj = bucket_obj.blob(remote_file_path)
+
+                # Create upload task
+                upload_task = run_sync_in_worker_thread(
+                    blob_obj.upload_from_string, local_file_content
+                )
+                upload_tasks.append(upload_task)
+
+            # Execute uploads concurrently with a semaphore to limit parallelism
+            # Use 8 workers by default to balance speed and resource usage
+            semaphore = asyncio.Semaphore(8)
+
+            async def upload_with_semaphore(task):
+                async with semaphore:
+                    with disable_run_logger():
+                        await task
+
+            await asyncio.gather(
+                *[upload_with_semaphore(task) for task in upload_tasks]
+            )
+
+        return len(files_to_upload)
 
     @sync_compatible
     async def read_path(self, path: str) -> bytes:
