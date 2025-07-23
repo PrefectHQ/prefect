@@ -1,5 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import type { Meta, StoryObj } from "@storybook/react";
+import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -42,7 +43,10 @@ const StoryWrapper = ({
 	return (
 		<Card className="w-[500px] p-6">
 			<Form {...form}>
-				<form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+				<form
+					onSubmit={(e) => void form.handleSubmit(onSubmit)(e)}
+					className="space-y-6"
+				>
 					<div className="space-y-2">
 						<h2 className="text-lg font-semibold">Work Pool Information</h2>
 						<p className="text-sm text-muted-foreground">
@@ -66,87 +70,95 @@ export const Default: Story = {
 	render: () => <StoryWrapper />,
 };
 
-export const WithValidationErrors: Story = {
-	render: () => {
-		const form = useForm<WorkPoolInformationFormValues>({
-			resolver: zodResolver(workPoolInformationSchema),
-			defaultValues: {
-				name: "",
-				description: null,
-				concurrencyLimit: null,
-			},
-		});
+const WithValidationErrorsComponent = () => {
+	const form = useForm<WorkPoolInformationFormValues>({
+		resolver: zodResolver(workPoolInformationSchema),
+		defaultValues: {
+			name: "",
+			description: null,
+			concurrencyLimit: null,
+		},
+	});
 
+	useEffect(() => {
 		// Trigger validation errors
 		form.setError("name", {
 			type: "manual",
 			message: "Name is required",
 		});
+	}, [form]);
 
-		return (
-			<Card className="w-[500px] p-6">
-				<Form {...form}>
-					<form className="space-y-6">
-						<div className="space-y-2">
-							<h2 className="text-lg font-semibold">Work Pool Information</h2>
-							<p className="text-sm text-muted-foreground">
-								Provide basic information about your work pool.
-							</p>
-						</div>
-						<WorkPoolInformationStep />
-						<div className="flex justify-end space-x-2">
-							<Button variant="outline" type="button">
-								Cancel
-							</Button>
-							<Button type="submit">Continue</Button>
-						</div>
-					</form>
-				</Form>
-			</Card>
-		);
-	},
+	return (
+		<Card className="w-[500px] p-6">
+			<Form {...form}>
+				<form className="space-y-6">
+					<div className="space-y-2">
+						<h2 className="text-lg font-semibold">Work Pool Information</h2>
+						<p className="text-sm text-muted-foreground">
+							Provide basic information about your work pool.
+						</p>
+					</div>
+					<WorkPoolInformationStep />
+					<div className="flex justify-end space-x-2">
+						<Button variant="outline" type="button">
+							Cancel
+						</Button>
+						<Button type="submit">Continue</Button>
+					</div>
+				</form>
+			</Form>
+		</Card>
+	);
 };
 
-export const WithPrefectNameError: Story = {
-	render: () => {
-		const form = useForm<WorkPoolInformationFormValues>({
-			resolver: zodResolver(workPoolInformationSchema),
-			defaultValues: {
-				name: "prefect-test-pool",
-				description: null,
-				concurrencyLimit: null,
-			},
-		});
+export const WithValidationErrors: Story = {
+	render: () => <WithValidationErrorsComponent />,
+};
 
+const WithPrefectNameErrorComponent = () => {
+	const form = useForm<WorkPoolInformationFormValues>({
+		resolver: zodResolver(workPoolInformationSchema),
+		defaultValues: {
+			name: "prefect-test-pool",
+			description: null,
+			concurrencyLimit: null,
+		},
+	});
+
+	useEffect(() => {
 		// Trigger prefect validation error
 		form.setError("name", {
 			type: "manual",
 			message:
 				"Work pools starting with 'prefect' are reserved for internal use.",
 		});
+	}, [form]);
 
-		return (
-			<Card className="w-[500px] p-6">
-				<Form {...form}>
-					<form className="space-y-6">
-						<div className="space-y-2">
-							<h2 className="text-lg font-semibold">Work Pool Information</h2>
-							<p className="text-sm text-muted-foreground">
-								Provide basic information about your work pool.
-							</p>
-						</div>
-						<WorkPoolInformationStep />
-						<div className="flex justify-end space-x-2">
-							<Button variant="outline" type="button">
-								Cancel
-							</Button>
-							<Button type="submit">Continue</Button>
-						</div>
-					</form>
-				</Form>
-			</Card>
-		);
-	},
+	return (
+		<Card className="w-[500px] p-6">
+			<Form {...form}>
+				<form className="space-y-6">
+					<div className="space-y-2">
+						<h2 className="text-lg font-semibold">Work Pool Information</h2>
+						<p className="text-sm text-muted-foreground">
+							Provide basic information about your work pool.
+						</p>
+					</div>
+					<WorkPoolInformationStep />
+					<div className="flex justify-end space-x-2">
+						<Button variant="outline" type="button">
+							Cancel
+						</Button>
+						<Button type="submit">Continue</Button>
+					</div>
+				</form>
+			</Form>
+		</Card>
+	);
+};
+
+export const WithPrefectNameError: Story = {
+	render: () => <WithPrefectNameErrorComponent />,
 };
 
 export const WithPrefilledValues: Story = {

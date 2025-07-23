@@ -8,12 +8,13 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import type { WorkPoolInformationFormValues } from "./schema";
 
 export function WorkPoolInformationStep() {
-	const form = useFormContext();
+	const form = useFormContext<WorkPoolInformationFormValues>();
 
 	return (
-		<div className="space-y-6">
+		<>
 			<FormField
 				control={form.control}
 				name="name"
@@ -37,7 +38,7 @@ export function WorkPoolInformationStep() {
 						<FormControl>
 							<Textarea
 								{...field}
-								value={field.value || ""}
+								value={field.value ?? ""}
 								rows={7}
 								placeholder="Enter a description for your work pool"
 							/>
@@ -70,6 +71,6 @@ export function WorkPoolInformationStep() {
 					</FormItem>
 				)}
 			/>
-		</div>
+		</>
 	);
 }

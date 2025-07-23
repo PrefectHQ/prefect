@@ -29,7 +29,12 @@ const TestWrapper = ({
 
 	return (
 		<Form {...form}>
-			<form onSubmit={form.handleSubmit((data) => onSubmit(data))}>
+			<form
+				onSubmit={(e) => {
+					e.preventDefault();
+					void form.handleSubmit((data) => onSubmit(data))(e);
+				}}
+			>
 				<WorkPoolInformationStep />
 				<button type="submit">Submit</button>
 			</form>
