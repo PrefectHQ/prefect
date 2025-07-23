@@ -763,8 +763,7 @@ class GcsBucket(WritableDeploymentStorage, WritableFileSystem, ObjectStorageBloc
 
             async def upload_with_semaphore(task):
                 async with semaphore:
-                    with disable_run_logger():
-                        await task
+                    await task
 
             await asyncio.gather(
                 *[upload_with_semaphore(task) for task in upload_tasks]
