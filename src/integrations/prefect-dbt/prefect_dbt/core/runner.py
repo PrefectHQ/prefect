@@ -277,14 +277,12 @@ class PrefectDbtRunner:
                     )
                     try:
                         logger = get_run_logger()
-                    except MissingContextError:
-                        logger = None
-
-                    if logger is not None:
                         logger.warning(
                             f"Compiled code for {manifest_node.name} was omitted because it exceeded the "
                             f"maximum asset description length of {MAX_ASSET_DESCRIPTION_LENGTH} characters."
                         )
+                    except MissingContextError:
+                        pass
 
     def _create_asset_from_node(
         self, manifest_node: Union[ManifestNode, SourceDefinition], adapter_type: str
