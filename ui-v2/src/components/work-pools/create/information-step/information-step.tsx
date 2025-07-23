@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import type { WorkPoolInformationFormValues } from "./schema";
 
-export function WorkPoolInformationStep() {
+export function InformationStep() {
 	const form = useFormContext<WorkPoolInformationFormValues>();
 
 	return (

@@ -5,15 +5,15 @@ import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Form } from "@/components/ui/form";
-import { WorkPoolInformationStep } from "./information-step";
 import {
+	InformationStep,
 	type WorkPoolInformationFormValues,
 	workPoolInformationSchema,
-} from "./schema";
+} from ".";
 
-const meta: Meta<typeof WorkPoolInformationStep> = {
+const meta: Meta<typeof InformationStep> = {
 	title: "Components/WorkPools/Create/InformationStep",
-	component: WorkPoolInformationStep,
+	component: InformationStep,
 	parameters: {
 		layout: "centered",
 	},
@@ -53,7 +53,7 @@ const StoryWrapper = ({
 							Provide basic information about your work pool.
 						</p>
 					</div>
-					<WorkPoolInformationStep />
+					<InformationStep />
 					<div className="flex justify-end space-x-2">
 						<Button variant="outline" type="button">
 							Cancel
@@ -98,7 +98,7 @@ const WithValidationErrorsComponent = () => {
 							Provide basic information about your work pool.
 						</p>
 					</div>
-					<WorkPoolInformationStep />
+					<InformationStep />
 					<div className="flex justify-end space-x-2">
 						<Button variant="outline" type="button">
 							Cancel
@@ -144,7 +144,7 @@ const WithPrefectNameErrorComponent = () => {
 							Provide basic information about your work pool.
 						</p>
 					</div>
-					<WorkPoolInformationStep />
+					<InformationStep />
 					<div className="flex justify-end space-x-2">
 						<Button variant="outline" type="button">
 							Cancel

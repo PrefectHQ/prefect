@@ -4,11 +4,11 @@ import userEvent from "@testing-library/user-event";
 import { useForm } from "react-hook-form";
 import { describe, expect, it, vi } from "vitest";
 import { Form } from "@/components/ui/form";
-import { WorkPoolInformationStep } from "./information-step";
 import {
+	InformationStep,
 	type WorkPoolInformationFormValues,
 	workPoolInformationSchema,
-} from "./schema";
+} from ".";
 
 const TestWrapper = ({
 	defaultValues = {},
@@ -35,14 +35,14 @@ const TestWrapper = ({
 					void form.handleSubmit((data) => onSubmit(data))(e);
 				}}
 			>
-				<WorkPoolInformationStep />
+				<InformationStep />
 				<button type="submit">Submit</button>
 			</form>
 		</Form>
 	);
 };
 
-describe("WorkPoolInformationStep", () => {
+describe("InformationStep", () => {
 	it("renders all form fields", () => {
 		render(<TestWrapper />);
 
