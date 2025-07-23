@@ -5,110 +5,365 @@ icon: graduation-cap
 mode: wide
 ---
 
-Welcome to the Slow Start - a curated learning path for those who want to go deeper than the quick start and are willing to take the time to learn Prefect thoroughly.
-
-Unlike the quickstart which gets you running immediately, this guide provides a narrative, concrete use-case driven approach to understanding Prefect's architecture and capabilities.
+Unlike the [quickstart](/v3/get-started/quickstart) which gets you running immediately, this guide provides a narrative, concrete use-case driven approach to understanding Prefect's architecture and capabilities.
 
 ## Why Slow Start?
 
 The quickstart is great for getting up and running quickly, but sometimes you want to understand the **why** behind the **what**. This guide walks you through Prefect step-by-step, building understanding layer by layer.
 
-## The Journey
+## 1. Look! It's Just Normal Python
 
-<Steps>
-  <Step title="Look! It's Just Normal Python">
-    **Goal**: Understand that Prefect flows are just Python functions with observability.
-    
-    ### Core Concepts
-    - Your Python function remains your Python function
-    - `@flow` decorator adds monitoring, tracing, and logging
-    - No magic - you can still call your function normally
-    
-    ### What You'll Learn
-    - How to convert existing Python code to Prefect flows
-    - Understanding state handling and lifecycle hooks
-    - Observability features out of the box
-  </Step>
-  
-  <Step title="Prefect Architecture">
-    **Goal**: Understand the relationship between client-side code and server-side orchestration.
-    
-    ### Core Concepts
-    - **Work Pools**: Define possible infrastructure configurations
-    - **Deployments**: Tell the server where and how to run your flows
-    - **Workers**: Execute deployments by pulling work from pools
-    
-    ### Key Understanding
-    > Work pools define possible infra config, server knows where and how to run deployments
-    
-    ### What You'll Learn
-    - Creating work pools
-    - Making deployments
-    - Spinning up workers
-    - How the server coordinates execution
-  </Step>
-  
-  <Step title="Deploy the Normal Python">
-    **Goal**: Take your Python code from local to production.
-    
-    ### Core Concepts
-    - Dependency management (requirements.txt, pyproject.toml)
-    - Caching for performance and memoization
-    - Resiliency patterns (retries, exception handling)
-    
-    ### Understanding the Layers
-    Your Python function sits at the center of multiple layers that Prefect provides:
-    
-    1. **Resiliency**: Handles function retry on exceptions
-    2. **Caching**: Manages result persistence and retrieval
-    3. **Dependency Management**: Ensures upstream work completes before starting
-    4. **State Handling**: Manages workflow execution and lifecycle hooks
-    5. **Observability**: Provides monitoring, tracing, and logging
-    
-    Each layer enhances your code without modifying its core logic. Execution flows inward through each layer, while results and exceptions flow outward.
-  </Step>
-  
-  <Step title="Storage / CI/CD">
-    **Goal**: Integrate Prefect with your existing development workflow.
-    
-    ### Core Concepts
-    - GitHub Actions (GHA) integration
-    - Job variables and work pool modifications
-    - Storage backends for code and results
-    
-    ### What You'll Learn
-    - Setting up CI/CD pipelines for deployments
-    - Managing configuration across environments
-    - Best practices for production deployments
-  </Step>
-  
-  <Step title="Scaling: N Developers, 1 Docker Worker on VM">
-    **Goal**: Understand how to scale from single developer to team.
-    
-    ### Core Concepts
-    - Single worker serving multiple developers
-    - systemd (or any daemon manager) for process management
-    - Resource allocation and scheduling
-    
-    ### What You'll Learn
-    - Setting up shared infrastructure
-    - Managing concurrent executions
-    - Monitoring and debugging in multi-user environments
-  </Step>
-</Steps>
+Let's start with a fundamental principle: **Prefect flows are Python functions with added observability**. While Prefect introduces some patterns and concepts, your existing Python code can become a Prefect [flow](/v3/concepts/flows) with minimal changes - often just adding a decorator.
 
-## Next Steps
+### Your First Flow
 
-After completing the Slow Start, you'll have:
-- Deep understanding of Prefect's architecture
-- Production-ready deployment patterns
-- Scalable infrastructure setup
-- Integration with existing tools and workflows
+Here's a normal Python function that processes some data:
 
-This foundation prepares you to explore advanced features like:
-- Event-driven automation
-- Complex dependency graphs
-- Custom infrastructure blocks
-- Advanced scheduling patterns
+```python
+def process_data(items: list[str]) -> dict:
+    """Process a list of items and return results."""
+    results = {}
+    for item in items:
+        # Some processing logic
+        processed = item.upper()
+        results[item] = processed
+    return results
 
-Ready to begin? Let's start with [understanding how Prefect enhances your Python code](#look-its-just-normal-python).
+# Call it normally
+output = process_data(["hello", "world"])
+print(output)  # {'hello': 'HELLO', 'world': 'WORLD'}
+```
+
+Now let's make it a Prefect flow:
+
+```python
+from prefect import flow
+
+@flow
+def process_data(items: list[str]) -> dict:
+    """Process a list of items and return results."""
+    results = {}
+    for item in items:
+        # Some processing logic
+        processed = item.upper()
+        results[item] = processed
+    return results
+
+# Call it exactly the same way!
+output = process_data(["hello", "world"])
+print(output)  # {'hello': 'HELLO', 'world': 'WORLD'}
+```
+
+**What changed?** Just added `@flow`. That's it.
+
+**What didn't change?** Everything else:
+- Same function signature
+- Same implementation
+- Same way to call it
+- Same `return` value
+
+### What Does @flow Actually Do?
+
+The `@flow` decorator enhances your function with:
+
+1. **[Automatic logging](/v3/how-to-guides/workflows/add-logging)** - Every run is tracked
+2. **[State management](/v3/concepts/states)** - Know if it succeeded, failed, or is running
+3. **[Retries](/v3/how-to-guides/workflows/retries)** - Handle transient failures gracefully
+4. **[Observability](/v3/concepts/artifacts)** - See inputs, outputs, and timing
+
+[Diagram: Client-side execution engine layers - to be added]
+
+Let's see this in action:
+
+```python
+from prefect import flow
+import httpx
+
+@flow(name="fetch-weather", log_prints=True)
+def get_weather(city: str) -> dict:
+    """Fetch current weather for a city."""
+    print(f"Fetching weather for {city}...")
+    
+    # This could fail due to network issues
+    response = httpx.get(
+        f"https://api.openweathermap.org/data/2.5/weather",
+        params={"q": city, "appid": "YOUR_API_KEY"}
+    )
+    response.raise_for_status()
+    
+    return response.json()
+
+# Still just a Python function!
+weather = get_weather("London")
+```
+
+When this runs, Prefect automatically:
+- Creates a [flow run](/v3/concepts/flows#the-life-of-a-flow-run) with a unique ID
+- Logs the start time, parameters, and completion
+- Captures any errors with full traceback
+- Shows the output in the UI
+
+### You Can Still Use It Like Normal Python
+
+Flows work everywhere Python works:
+
+```python
+@flow
+def calculate_stats(numbers: list[float]) -> dict:
+    """Calculate basic statistics."""
+    return {
+        "mean": sum(numbers) / len(numbers),
+        "min": min(numbers),
+        "max": max(numbers),
+        "count": len(numbers)
+    }
+
+# In a script
+stats = calculate_stats([1, 2, 3, 4, 5])
+
+# In a class
+class DataProcessor:
+    @flow
+    def process(self, data):
+        return data.upper()
+
+processor = DataProcessor()
+result = processor.process("hello")
+
+# In tests
+def test_calculate_stats():
+    result = calculate_stats([1, 2, 3])
+    assert result["mean"] == 2.0
+
+# Even with async
+@flow
+async def fetch_data_async(url: str):
+    async with httpx.AsyncClient() as client:
+        response = await client.get(url)
+        return response.json()
+```
+
+### Tasks: Smaller Units of Work
+
+While flows represent your overall workflow, [tasks](/v3/concepts/tasks) are the individual steps:
+
+```python
+from prefect import flow, task
+
+@task
+def extract_data(source: str) -> list[dict]:
+    """Extract data from source."""
+    print(f"Extracting from {source}")
+    # Simulate extraction
+    return [{"id": 1, "value": 100}, {"id": 2, "value": 200}]
+
+@task
+def transform_data(records: list[dict]) -> list[dict]:
+    """Transform the data."""
+    print(f"Transforming {len(records)} records")
+    # Add a calculated field
+    for record in records:
+        record["doubled"] = record["value"] * 2
+    return records
+
+@task
+def load_data(records: list[dict], destination: str) -> None:
+    """Load data to destination."""
+    print(f"Loading {len(records)} records to {destination}")
+    # Simulate loading
+    for record in records:
+        print(f"  Loaded: {record}")
+
+@flow(name="etl-pipeline")
+def etl_pipeline(source: str, destination: str):
+    """A simple ETL pipeline."""
+    raw_data = extract_data(source)
+    transformed_data = transform_data(raw_data)
+    load_data(transformed_data, destination)
+    return transformed_data
+
+# Run it like any Python function
+result = etl_pipeline("database", "warehouse")
+```
+
+### The Power of "Just Python"
+
+Because flows are just Python functions, you can:
+
+1. **Test them normally**
+   ```python
+   def test_etl_pipeline():
+       result = etl_pipeline("test_source", "test_dest")
+       assert len(result) == 2
+       assert all("doubled" in record for record in result)
+   ```
+
+2. **Compose them**
+   ```python
+   @flow
+   def daily_processing():
+       for region in ["us-east", "us-west", "eu"]:
+           etl_pipeline(f"{region}-db", "central-warehouse")
+   ```
+
+3. **Use any Python libraries**
+   ```python
+   @flow
+   def analyze_dataframe(df: pd.DataFrame) -> dict:
+       return {
+           "shape": df.shape,
+           "columns": df.columns.tolist(),
+           "summary": df.describe().to_dict()
+       }
+   ```
+
+### Key Takeaways
+
+1. **Prefect flows are Python functions** - the core programming model remains familiar
+2. **The @flow decorator is additive** - it adds capabilities without changing the fundamental behavior
+3. **Flows can be called directly** - no special runner or execution context is required for basic usage
+4. **Python patterns are preserved** - classes, async functions, generators, and other Python features work as expected
+
+## 2. Prefect Architecture
+
+Now that you understand flows are just Python, let's explore how Prefect orchestrates them at scale.
+
+### The Three Key Components
+
+Understanding Prefect architecture comes down to three concepts:
+
+1. **Work Pools** - Define where work CAN run
+2. **Deployments** - Define what SHOULD run
+3. **Workers** - Actually RUN the work
+
+Think of it like a restaurant:
+- **Work Pool** = The kitchen (has ovens, grills, fryers)
+- **Deployment** = A recipe card (says what to cook, when, with what settings)
+- **Worker** = The chef (reads recipes, uses kitchen equipment)
+
+### Work Pools: Infrastructure Templates
+
+[Content to be added]
+
+### Deployments: Flow + Metadata
+
+[Content to be added]
+
+### Workers: The Execution Layer
+
+[Content to be added]
+
+### How It All Connects
+
+[Diagram showing the relationship between code, server, and worker]
+
+### Local Development vs Production
+
+[Content to be added]
+
+## 3. Deploy the Normal Python
+
+You've written your flow, understood the architecture - now let's deploy it properly.
+
+### Deployment Overview
+
+[Content to be added]
+
+### Managing Dependencies
+
+[Content to be added]
+
+### Deployment Strategies
+
+[Content to be added]
+
+### Managing Dependencies
+
+[Content to be added]
+
+### Real-World Deployment Example
+
+[Content to be added]
+
+## 4. Storage / CI/CD
+
+Now let's integrate Prefect into your existing development workflow.
+
+### Code Storage Strategies
+
+[Content to be added]
+
+### GitHub Actions Integration
+
+[Content to be added]
+
+### Environment Configuration
+
+[Content to be added]
+
+### Deployment Patterns
+
+[Content to be added]
+
+### Storage Best Practices
+
+[Content to be added]
+
+### CI/CD Checklist
+
+[Content to be added]
+
+## 5. Scaling: N Developers, 1 Docker Worker on VM
+
+The final step: scaling from a single developer to a team sharing infrastructure.
+
+### The Shared Worker Pattern
+
+[Content to be added]
+
+### Setting Up the Worker VM
+
+[Link to existing systemd setup documentation]
+
+### Work Pool Configuration for Teams
+
+[Content to be added]
+
+### Developer Workflow
+
+[Content to be added]
+
+### Managing Concurrent Executions
+
+[Content to be added]
+
+### Monitoring and Debugging
+
+[Content to be added]
+
+### Scaling Considerations
+
+[Content to be added]
+
+### Best Practices for Teams
+
+[Content to be added]
+
+## Conclusion
+
+Congratulations! You've completed the Slow Start guide. You now understand:
+
+1. **Flows are just Python** - No magic, just enhanced functions
+2. **Architecture is simple** - Work pools + deployments + workers
+3. **Deployment is configuration** - Your code stays pure
+4. **CI/CD is standard** - Integrates with existing tools
+5. **Scaling is gradual** - Start simple, grow as needed
+
+### What's Next?
+
+- Explore [event-driven workflows](/v3/concepts/events)
+- Learn about [custom infrastructure blocks](/v3/how-to-guides/infrastructure)
+- Dive into [advanced scheduling patterns](/v3/concepts/schedules)
+- Join the [Prefect Community](https://prefect.io/slack)
+
+Remember: Start simple, iterate, and let Prefect grow with your needs.
