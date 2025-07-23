@@ -19,6 +19,7 @@ from prefect_dbt.core.settings import PrefectDbtSettings
 
 from prefect import flow
 from prefect.assets import Asset
+from prefect.assets.core import MAX_ASSET_DESCRIPTION_LENGTH
 from prefect.client.orchestration import PrefectClient
 from prefect.tasks import MaterializingTask, Task
 
@@ -279,6 +280,31 @@ class TestPrefectDbtRunnerCompiledCode:
         result = runner._get_compiled_code(mock_manifest_node)
 
         assert result == ""
+
+    def test_get_compiled_code_truncates_when_exceeding_max_length(
+        self, tmp_path: Path, mock_manifest, mock_manifest_node
+    ):
+        """Test that compiled code is truncated when it exceeds MAX_ASSET_DESCRIPTION_LENGTH."""
+        runner = PrefectDbtRunner(manifest=mock_manifest, include_compiled_code=True)
+        runner._project_dir = tmp_path
+        runner._target_path = Path("target")
+
+        compiled_path = tmp_path / "target" / "compiled" / "test_project" / "models"
+        compiled_path.mkdir(parents=True)
+        sql_file = compiled_path / "test_model.sql"
+
+        long_sql_content = "SELECT " + "column_name, " * 200
+        sql_file.write_text(long_sql_content)
+
+        result = runner._get_compiled_code(mock_manifest_node)
+
+        # Should return the truncated message instead of the full SQL
+        expected_message = (
+            "\n ### Compiled code\n"
+            "Compiled code code was omitted because it exceeded the maximum asset description length of 2500 characters."
+        )
+        assert result == expected_message
+        assert len(result) <= MAX_ASSET_DESCRIPTION_LENGTH
 
     def test_get_compiled_code_returns_formatted_sql_when_enabled(
         self, tmp_path: Path, mock_manifest, mock_manifest_node

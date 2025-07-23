@@ -30,6 +30,7 @@ from google.protobuf.json_format import MessageToDict
 from prefect import get_client, get_run_logger
 from prefect._internal.uuid7 import uuid7
 from prefect.assets import Asset, AssetProperties
+from prefect.assets.core import MAX_ASSET_DESCRIPTION_LENGTH
 from prefect.cache_policies import NO_CACHE
 from prefect.client.orchestration import PrefectClient
 from prefect.context import AssetContext, hydrated_context, serialize_context
@@ -254,7 +255,16 @@ class PrefectDbtRunner:
         if os.path.exists(compiled_code_path):
             with open(compiled_code_path, "r") as f:
                 code_content = f.read()
-                return f"\n ### Compiled code\n```sql\n{code_content.strip()}\n```"
+                description = (
+                    f"\n ### Compiled code\n```sql\n{code_content.strip()}\n```"
+                )
+                if len(description) > MAX_ASSET_DESCRIPTION_LENGTH:
+                    description = (
+                        "\n ### Compiled code\n"
+                        "Compiled code code was omitted because it exceeded the "
+                        f"maximum asset description length of {MAX_ASSET_DESCRIPTION_LENGTH} characters."
+                    )
+                return description
         return ""
 
     def _create_asset_from_node(
