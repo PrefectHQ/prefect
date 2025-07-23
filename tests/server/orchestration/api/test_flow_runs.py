@@ -1984,31 +1984,33 @@ class TestSetFlowRunState:
         should_use_orchestration,
         client,
         flow_run_with_concurrency_limit,
+        deployment_with_concurrency_limit,
     ):
         # Ensure that setting the flow run state uses new concurrency rules
         # for older (2.x) clients and 3.x clients other than the ones with
         # worker handling for deployment concurrency.
-        with mock.patch(
-            "prefect.server.orchestration.core_policy.SecureFlowConcurrencySlots.before_transition"
-        ) as mock_before_transition:
-            post_kwargs = {
-                "json": dict(state=dict(type="PENDING", name="Pending")),
-                "headers": {},
-            }
-            if client_version:
-                post_kwargs["headers"]["User-Agent"] = (
-                    f"prefect/{client_version} (API 2.19.3)"
-                )
-            response = await client.post(
-                f"/flow_runs/{flow_run_with_concurrency_limit.id}/set_state",
-                **post_kwargs,
+        post_kwargs = {
+            "json": dict(state=dict(type="PENDING", name="Pending")),
+            "headers": {},
+        }
+        if client_version:
+            post_kwargs["headers"]["User-Agent"] = (
+                f"prefect/{client_version} (API 2.19.3)"
             )
-            assert response.status_code == 201
+        response = await client.post(
+            f"/flow_runs/{flow_run_with_concurrency_limit.id}/set_state",
+            **post_kwargs,
+        )
+        assert response.status_code == 201
 
-            if should_use_orchestration:
-                mock_before_transition.assert_awaited_once()
-            else:
-                mock_before_transition.assert_not_awaited()
+        cl_response = await client.get(
+            f"/v2/concurrency_limits/{deployment_with_concurrency_limit.concurrency_limit_id}"
+        )
+        assert cl_response.status_code == 200, response.text
+        if should_use_orchestration:
+            assert cl_response.json()["active_slots"] == 1
+        else:
+            assert cl_response.json()["active_slots"] == 0
 
 
 class TestManuallyRetryingFlowRuns:
