@@ -28,6 +28,7 @@ def mock_manifest():
     """Create a mock dbt manifest."""
     manifest = Mock(spec=Manifest)
     manifest.nodes = {}
+    manifest.sources = {}
     manifest.metadata = Mock()
     manifest.metadata.adapter_type = "snowflake"
     manifest.metadata.project_name = "test_project"
