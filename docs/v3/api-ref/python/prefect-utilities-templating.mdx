@@ -7,7 +7,7 @@ sidebarTitle: templating
 
 ## Functions
 
-### `determine_placeholder_type` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/templating.py#L52" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `determine_placeholder_type` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/templating.py#L52" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 determine_placeholder_type(name: str) -> PlaceholderType
@@ -23,7 +23,7 @@ Determines the type of a placeholder based on its name.
 - The type of the placeholder
 
 
-### `find_placeholders` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/templating.py#L72" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `find_placeholders` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/templating.py#L72" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 find_placeholders(template: T) -> set[Placeholder]
@@ -39,7 +39,7 @@ Finds all placeholders in a template.
 - A set of all placeholders in the template
 
 
-### `apply_values` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/templating.py#L126" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `apply_values` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/templating.py#L126" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 apply_values(template: T, values: dict[str, Any], remove_notset: bool = True, warn_on_notset: bool = False) -> Union[T, type[NotSet]]
@@ -74,8 +74,100 @@ the key will be removed in the return value unless `remove_notset` is set to Fal
 - The template with the values applied
 
 
+### `resolve_block_document_references` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/templating.py#L236" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+resolve_block_document_references(template: T, client: Optional['PrefectClient'] = None, value_transformer: Optional[Callable[[str, Any], Any]] = None) -> Union[T, dict[str, Any]]
+```
+
+
+Resolve block document references in a template by replacing each reference with
+its value or the return value of the transformer function if provided.
+
+Recursively searches for block document references in dictionaries and lists.
+
+Identifies block document references by the as dictionary with the following
+structure:
+```
+{
+    "$ref": {
+        "block_document_id": <block_document_id>
+    }
+}
+```
+where `<block_document_id>` is the ID of the block document to resolve.
+
+Once the block document is retrieved from the API, the data of the block document
+is used to replace the reference.
+
+Accessing Values:
+-----------------
+To access different values in a block document, use dot notation combined with the block document's prefix, slug, and block name.
+
+For a block document with the structure:
+```json
+{
+    "value": {
+        "key": {
+            "nested-key": "nested-value"
+        },
+        "list": [
+            {"list-key": "list-value"},
+            1,
+            2
+        ]
+    }
+}
+```
+examples of value resolution are as follows:
+
+1. Accessing a nested dictionary:
+   Format: prefect.blocks.&lt;block_type_slug&gt;.&lt;block_document_name&gt;.value.key
+   Example: Returns {"nested-key": "nested-value"}
+
+2. Accessing a specific nested value:
+   Format: prefect.blocks.&lt;block_type_slug&gt;.&lt;block_document_name&gt;.value.key.nested-key
+   Example: Returns "nested-value"
+
+3. Accessing a list element's key-value:
+   Format: prefect.blocks.&lt;block_type_slug&gt;.&lt;block_document_name&gt;.value.list\[0].list-key
+   Example: Returns "list-value"
+
+Default Resolution for System Blocks:
+-------------------------------------
+For system blocks, which only contain a `value` attribute, this attribute is resolved by default.
+
+**Args:**
+- `template`: The template to resolve block documents in
+- `value_transformer`: A function that takes the block placeholder and the block value and returns replacement text for the template
+
+**Returns:**
+- The template with block documents resolved
+
+
+### `resolve_variables` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/templating.py#L385" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+resolve_variables(template: T, client: Optional['PrefectClient'] = None) -> T
+```
+
+
+Resolve variables in a template by replacing each variable placeholder with the
+value of the variable.
+
+Recursively searches for variable placeholders in dictionaries and lists.
+
+Strips variable placeholders if the variable is not found.
+
+**Args:**
+- `template`: The template to resolve variables in
+
+**Returns:**
+- The template with variables resolved
+
+
 ## Classes
 
-### `PlaceholderType` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/templating.py#L39" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `PlaceholderType` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/templating.py#L39" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
-### `Placeholder` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/templating.py#L46" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `Placeholder` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/templating.py#L46" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>

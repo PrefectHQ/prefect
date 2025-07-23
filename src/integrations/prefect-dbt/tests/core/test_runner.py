@@ -11,7 +11,7 @@ from dbt.artifacts.resources.types import NodeType
 from dbt.artifacts.schemas.results import RunStatus
 from dbt.artifacts.schemas.run import RunExecutionResult
 from dbt.contracts.graph.manifest import Manifest
-from dbt.contracts.graph.nodes import ManifestNode
+from dbt.contracts.graph.nodes import ManifestNode, SourceDefinition
 from dbt_common.events.base_types import EventLevel, EventMsg
 from prefect_dbt.core._tracker import NodeTaskTracker
 from prefect_dbt.core.runner import PrefectDbtRunner, execute_dbt_node
@@ -29,6 +29,7 @@ def mock_manifest():
     """Create a mock dbt manifest."""
     manifest = Mock(spec=Manifest)
     manifest.nodes = {}
+    manifest.sources = {}
     manifest.metadata = Mock()
     manifest.metadata.adapter_type = "snowflake"
     manifest.metadata.project_name = "test_project"
@@ -52,6 +53,21 @@ def mock_manifest_node():
     node.depends_on_nodes = []
     node.description = "Test model description"
     return node
+
+
+@pytest.fixture
+def mock_source_definition():
+    """Create a mock dbt source definition."""
+    source = Mock(spec=SourceDefinition)
+    source.unique_id = "source.test_project.test_source"
+    source.name = "test_source"
+    source.resource_type = NodeType.Source
+    source.original_file_path = "models/sources.yml"
+    source.relation_name = "test_source"
+    source.meta = {"prefect": {}}
+    source.depends_on_nodes = []
+    source.description = "Test source description"
+    return source
 
 
 @pytest.fixture
@@ -742,6 +758,100 @@ class TestPrefectDbtRunnerManifestNodeOperations:
         with pytest.raises(ValueError, match="Relation name not found in manifest"):
             runner._get_upstream_manifest_nodes_and_configs(mock_manifest_node)
 
+    def test_get_upstream_manifest_nodes_and_configs_with_source_definition(
+        self, mock_manifest, mock_manifest_node, mock_source_definition
+    ):
+        """Test that upstream source definitions are handled correctly."""
+        runner = PrefectDbtRunner(manifest=mock_manifest)
+
+        # Set up the manifest with a source definition
+        mock_manifest.sources = {
+            "source.test_project.test_source": mock_source_definition
+        }
+        mock_manifest_node.depends_on_nodes = ["source.test_project.test_source"]
+
+        result = runner._get_upstream_manifest_nodes_and_configs(mock_manifest_node)
+
+        assert len(result) == 1
+        assert result[0][0] == mock_source_definition
+        assert result[0][1] == {}
+
+    def test_get_upstream_manifest_nodes_and_configs_with_source_definition_and_prefect_config(
+        self, mock_manifest, mock_manifest_node, mock_source_definition
+    ):
+        """Test that upstream source definitions with prefect config are handled correctly."""
+        runner = PrefectDbtRunner(manifest=mock_manifest)
+
+        # Set up the source definition with prefect config
+        mock_source_definition.meta = {"prefect": {"enable_assets": True}}
+        mock_manifest.sources = {
+            "source.test_project.test_source": mock_source_definition
+        }
+        mock_manifest_node.depends_on_nodes = ["source.test_project.test_source"]
+
+        result = runner._get_upstream_manifest_nodes_and_configs(mock_manifest_node)
+
+        assert len(result) == 1
+        assert result[0][0] == mock_source_definition
+        assert result[0][1] == {"enable_assets": True}
+
+    def test_get_upstream_manifest_nodes_and_configs_with_mixed_upstream_nodes(
+        self, mock_manifest, mock_manifest_node, mock_source_definition
+    ):
+        """Test that mixed upstream nodes (models and sources) are handled correctly."""
+        runner = PrefectDbtRunner(manifest=mock_manifest)
+
+        # Create an upstream model node
+        upstream_node = Mock(spec=ManifestNode)
+        upstream_node.unique_id = "model.test_project.upstream_model"
+        upstream_node.config = Mock()
+        upstream_node.config.meta = {"prefect": {"enable_assets": False}}
+        upstream_node.relation_name = "upstream_model"
+        upstream_node.resource_type = NodeType.Model
+        upstream_node.depends_on_nodes = []
+
+        # Set up the manifest with both a model and a source
+        mock_manifest.nodes = {"model.test_project.upstream_model": upstream_node}
+        mock_manifest.sources = {
+            "source.test_project.test_source": mock_source_definition
+        }
+        mock_manifest_node.depends_on_nodes = [
+            "model.test_project.upstream_model",
+            "source.test_project.test_source",
+        ]
+
+        result = runner._get_upstream_manifest_nodes_and_configs(mock_manifest_node)
+
+        assert len(result) == 2
+
+        # Check that both upstream nodes are included
+        upstream_unique_ids = [node[0].unique_id for node in result]
+        assert "model.test_project.upstream_model" in upstream_unique_ids
+        assert "source.test_project.test_source" in upstream_unique_ids
+
+        # Check configs
+        for node, config in result:
+            if node.unique_id == "model.test_project.upstream_model":
+                assert config == {"enable_assets": False}
+            elif node.unique_id == "source.test_project.test_source":
+                assert config == {}
+
+    def test_get_upstream_manifest_nodes_and_configs_source_definition_missing_relation_name(
+        self, mock_manifest, mock_manifest_node, mock_source_definition
+    ):
+        """Test that source definitions without relation_name raise an error."""
+        runner = PrefectDbtRunner(manifest=mock_manifest)
+
+        # Remove relation_name from source definition
+        mock_source_definition.relation_name = None
+        mock_manifest.sources = {
+            "source.test_project.test_source": mock_source_definition
+        }
+        mock_manifest_node.depends_on_nodes = ["source.test_project.test_source"]
+
+        with pytest.raises(ValueError, match="Relation name not found in manifest"):
+            runner._get_upstream_manifest_nodes_and_configs(mock_manifest_node)
+
 
 class TestPrefectDbtRunnerTaskCreation:
     """Test task creation functionality."""
@@ -819,6 +929,71 @@ class TestPrefectDbtRunnerTaskCreation:
                 runner._call_task(
                     mock_task_state, mock_manifest_node, context, enable_assets=True
                 )
+
+    def test_call_task_with_source_definition_upstream_nodes(
+        self, mock_task_state, mock_manifest_node, mock_manifest, mock_source_definition
+    ):
+        """Test that tasks are created correctly with source definition upstream nodes."""
+        runner = PrefectDbtRunner(manifest=mock_manifest)
+        context = {"test": "context"}
+
+        # Set up the manifest with a source definition as upstream
+        mock_manifest.sources = {
+            "source.test_project.test_source": mock_source_definition
+        }
+        mock_manifest_node.depends_on_nodes = ["source.test_project.test_source"]
+
+        with patch(
+            "prefect_dbt.core.runner.MaterializingTask"
+        ) as mock_materializing_task:
+            mock_task = Mock(spec=MaterializingTask)
+            mock_materializing_task.return_value = mock_task
+
+            runner._call_task(
+                mock_task_state, mock_manifest_node, context, enable_assets=True
+            )
+
+            mock_materializing_task.assert_called_once()
+
+    def test_call_task_with_mixed_upstream_nodes_including_sources(
+        self, mock_task_state, mock_manifest_node, mock_manifest, mock_source_definition
+    ):
+        """Test that tasks are created correctly with mixed upstream nodes including sources."""
+        runner = PrefectDbtRunner(manifest=mock_manifest)
+        context = {"test": "context"}
+
+        # Create an upstream model node
+        upstream_node = Mock(spec=ManifestNode)
+        upstream_node.unique_id = "model.test_project.upstream_model"
+        upstream_node.config = Mock()
+        upstream_node.config.meta = {"prefect": {"enable_assets": True}}
+        upstream_node.relation_name = "upstream_model"
+        upstream_node.resource_type = NodeType.Model
+        upstream_node.depends_on_nodes = []
+        upstream_node.name = "upstream_model"
+        upstream_node.description = "Upstream model description"
+
+        # Set up the manifest with both a model and a source as upstream
+        mock_manifest.nodes = {"model.test_project.upstream_model": upstream_node}
+        mock_manifest.sources = {
+            "source.test_project.test_source": mock_source_definition
+        }
+        mock_manifest_node.depends_on_nodes = [
+            "model.test_project.upstream_model",
+            "source.test_project.test_source",
+        ]
+
+        with patch(
+            "prefect_dbt.core.runner.MaterializingTask"
+        ) as mock_materializing_task:
+            mock_task = Mock(spec=MaterializingTask)
+            mock_materializing_task.return_value = mock_task
+
+            runner._call_task(
+                mock_task_state, mock_manifest_node, context, enable_assets=True
+            )
+
+            mock_materializing_task.assert_called_once()
 
 
 class TestPrefectDbtRunnerBuildCommands:
@@ -966,6 +1141,103 @@ class TestPrefectDbtRunnerAssetCreation:
 
             assert result == mock_asset
             mock_asset_class.assert_called_once()
+
+    def test_create_asset_from_source_definition_creates_asset(
+        self, mock_source_definition
+    ):
+        """Test that assets are created correctly from source definitions."""
+        runner = PrefectDbtRunner()
+        adapter_type = "snowflake"
+
+        with patch("prefect_dbt.core.runner.Asset") as mock_asset_class:
+            mock_asset = Mock(spec=Asset)
+            mock_asset_class.return_value = mock_asset
+
+            result = runner._create_asset_from_node(
+                mock_source_definition, adapter_type
+            )
+
+            assert result == mock_asset
+            mock_asset_class.assert_called_once()
+
+    def test_create_asset_from_source_definition_with_owner(
+        self, mock_source_definition
+    ):
+        """Test that assets are created correctly from source definitions with owner."""
+        runner = PrefectDbtRunner()
+        adapter_type = "snowflake"
+        mock_source_definition.meta = {"owner": "test_owner"}
+
+        with patch("prefect_dbt.core.runner.Asset") as mock_asset_class:
+            mock_asset = Mock(spec=Asset)
+            mock_asset_class.return_value = mock_asset
+
+            result = runner._create_asset_from_node(
+                mock_source_definition, adapter_type
+            )
+
+            assert result == mock_asset
+            mock_asset_class.assert_called_once()
+
+    def test_create_asset_from_source_definition_without_owner(
+        self, mock_source_definition
+    ):
+        """Test that assets are created correctly from source definitions without owner."""
+        runner = PrefectDbtRunner()
+        adapter_type = "snowflake"
+        mock_source_definition.meta = {}
+
+        with patch("prefect_dbt.core.runner.Asset") as mock_asset_class:
+            mock_asset = Mock(spec=Asset)
+            mock_asset_class.return_value = mock_asset
+
+            result = runner._create_asset_from_node(
+                mock_source_definition, adapter_type
+            )
+
+            assert result == mock_asset
+            mock_asset_class.assert_called_once()
+
+    def test_create_asset_from_source_definition_with_non_string_owner(
+        self, mock_source_definition
+    ):
+        """Test that assets are created correctly from source definitions with non-string owner."""
+        runner = PrefectDbtRunner()
+        adapter_type = "snowflake"
+        mock_source_definition.meta = {"owner": 123}  # Non-string owner
+
+        with patch("prefect_dbt.core.runner.Asset") as mock_asset_class:
+            mock_asset = Mock(spec=Asset)
+            mock_asset_class.return_value = mock_asset
+
+            result = runner._create_asset_from_node(
+                mock_source_definition, adapter_type
+            )
+
+            assert result == mock_asset
+            mock_asset_class.assert_called_once()
+
+    def test_create_asset_from_node_with_missing_relation_name_raises_error(
+        self, mock_manifest_node
+    ):
+        """Test that missing relation_name raises an error when creating assets."""
+        runner = PrefectDbtRunner()
+        adapter_type = "snowflake"
+        mock_manifest_node.relation_name = None
+
+        with pytest.raises(ValueError, match="Relation name not found in manifest"):
+            runner._create_asset_from_node(mock_manifest_node, adapter_type)
+
+    def test_create_asset_from_source_definition_with_missing_relation_name_raises_error(
+        self, mock_source_definition
+    ):
+        """Test that missing relation_name raises an error when creating assets from source definitions."""
+        runner = PrefectDbtRunner()
+        adapter_type = "snowflake"
+        mock_source_definition.relation_name = None
+
+        with pytest.raises(ValueError, match="Relation name not found in manifest"):
+            runner._create_asset_from_node(mock_source_definition, adapter_type)
 
     def test_create_task_options_creates_options(self, mock_manifest_node):
         """Test that task options are created correctly."""

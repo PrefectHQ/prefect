@@ -7,11 +7,11 @@ sidebarTitle: protocol
 
 ## Classes
 
-### `LockManager` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/locking/protocol.py#L5" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `LockManager` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/locking/protocol.py#L5" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 **Methods:**
 
-#### `acquire_lock` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/locking/protocol.py#L6" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `acquire_lock` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/locking/protocol.py#L6" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 acquire_lock(self, key: str, holder: str, acquire_timeout: Optional[float] = None, hold_timeout: Optional[float] = None) -> bool
@@ -35,7 +35,31 @@ indefinitely by default.
 - True if the lock was successfully acquired; False otherwise.
 
 
-#### `release_lock` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/locking/protocol.py#L60" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `aacquire_lock` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/locking/protocol.py#L33" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+aacquire_lock(self, key: str, holder: str, acquire_timeout: Optional[float] = None, hold_timeout: Optional[float] = None) -> bool
+```
+
+Acquire a lock for a transaction record with the given key. Will block other
+actors from updating this transaction record until the lock is
+released.
+
+**Args:**
+- `key`: Unique identifier for the transaction record.
+- `holder`: Unique identifier for the holder of the lock.
+- `acquire_timeout`: Max number of seconds to wait for the record to become
+available if it is locked while attempting to acquire a lock. Pass 0
+to attempt to acquire a lock without waiting. Blocks indefinitely by
+default.
+- `hold_timeout`: Max number of seconds to hold the lock for. Holds the lock
+indefinitely by default.
+
+**Returns:**
+- True if the lock was successfully acquired; False otherwise.
+
+
+#### `release_lock` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/locking/protocol.py#L60" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 release_lock(self, key: str, holder: str) -> None
@@ -49,7 +73,7 @@ Releases the lock on the corresponding transaction record.
 holder provided when acquiring the lock.
 
 
-#### `is_locked` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/locking/protocol.py#L71" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `is_locked` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/locking/protocol.py#L71" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 is_locked(self, key: str) -> bool
@@ -64,7 +88,7 @@ Simple check to see if the corresponding record is currently locked.
 - True is the record is locked; False otherwise.
 
 
-#### `is_lock_holder` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/locking/protocol.py#L83" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `is_lock_holder` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/locking/protocol.py#L83" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 is_lock_holder(self, key: str, holder: str) -> bool
@@ -80,10 +104,27 @@ Check if the current holder is the lock holder for the transaction record.
 - True if the current holder is the lock holder; False otherwise.
 
 
-#### `wait_for_lock` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/locking/protocol.py#L96" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `wait_for_lock` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/locking/protocol.py#L96" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 wait_for_lock(self, key: str, timeout: Optional[float] = None) -> bool
+```
+
+Wait for the corresponding transaction record to become free.
+
+**Args:**
+- `key`: Unique identifier for the transaction record.
+- `timeout`: Maximum time to wait. None means to wait indefinitely.
+
+**Returns:**
+- True if the lock becomes free within the timeout; False
+otherwise.
+
+
+#### `await_for_lock` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/locking/protocol.py#L110" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+await_for_lock(self, key: str, timeout: Optional[float] = None) -> bool
 ```
 
 Wait for the corresponding transaction record to become free.

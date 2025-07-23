@@ -7,7 +7,7 @@ sidebarTitle: labelling
 
 ## Classes
 
-### `LabelDiver` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/schemas/labelling.py#L6" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `LabelDiver` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/events/schemas/labelling.py#L6" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 The LabelDiver supports templating use cases for any Labelled object, by
@@ -25,41 +25,41 @@ example:
     ```
 
 
-### `Labelled` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/schemas/labelling.py#L76" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `Labelled` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/events/schemas/labelling.py#L76" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 **Methods:**
 
-#### `keys` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/schemas/labelling.py#L77" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `keys` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/events/schemas/labelling.py#L77" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 keys(self) -> Iterable[str]
 ```
 
-#### `items` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/schemas/labelling.py#L80" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `items` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/events/schemas/labelling.py#L80" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 items(self) -> Iterable[Tuple[str, str]]
 ```
 
-#### `get` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/schemas/labelling.py#L93" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `get` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/events/schemas/labelling.py#L93" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get(self, label: str, default: Optional[str] = None) -> Optional[str]
 ```
 
-#### `as_label_value_array` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/schemas/labelling.py#L96" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `as_label_value_array` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/events/schemas/labelling.py#L96" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 as_label_value_array(self) -> List[Dict[str, str]]
 ```
 
-#### `labels` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/schemas/labelling.py#L100" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `labels` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/events/schemas/labelling.py#L100" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 labels(self) -> LabelDiver
 ```
 
-#### `has_all_labels` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/schemas/labelling.py#L103" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `has_all_labels` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/events/schemas/labelling.py#L103" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 has_all_labels(self, labels: Dict[str, str]) -> bool
