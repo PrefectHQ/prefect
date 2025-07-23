@@ -19,7 +19,7 @@ from dbt.cli.main import dbtRunner
 from dbt.compilation import Linker
 from dbt.config.runtime import RuntimeConfig
 from dbt.contracts.graph.manifest import Manifest
-from dbt.contracts.graph.nodes import ManifestNode, ResultNode, SourceDefinition
+from dbt.contracts.graph.nodes import ManifestNode, SourceDefinition
 from dbt.contracts.state import (
     load_result_state,  # type: ignore[reportUnknownMemberType]
 )
@@ -206,7 +206,7 @@ class PrefectDbtRunner:
             )
 
     def _get_node_prefect_config(
-        self, manifest_node: ResultNode
+        self, manifest_node: Union[ManifestNode, SourceDefinition]
     ) -> dict[str, dict[str, Any]]:
         if isinstance(manifest_node, SourceDefinition):
             return manifest_node.meta.get("prefect", {})
@@ -216,13 +216,15 @@ class PrefectDbtRunner:
     def _get_upstream_manifest_nodes_and_configs(
         self,
         manifest_node: ManifestNode,
-    ) -> list[tuple[ManifestNode, dict[str, Any]]]:
+    ) -> list[tuple[Union[ManifestNode, SourceDefinition], dict[str, Any]]]:
         """Get upstream nodes for a given node"""
-        upstream_manifest_nodes: list[tuple[ManifestNode, dict[str, Any]]] = []
+        upstream_manifest_nodes: list[
+            tuple[Union[ManifestNode, SourceDefinition], dict[str, Any]]
+        ] = []
 
         for depends_on_node in manifest_node.depends_on_nodes:  # type: ignore[reportUnknownMemberType]
             depends_manifest_node = self.manifest.nodes.get(
-                depends_on_node
+                depends_on_node  # type: ignore[reportUnknownMemberType]
             ) or self.manifest.sources.get(depends_on_node)  # type: ignore[reportUnknownMemberType]
 
             if not depends_manifest_node:
@@ -250,7 +252,9 @@ class PrefectDbtRunner:
             / manifest_node.original_file_path
         )
 
-    def _get_compiled_code(self, manifest_node: ResultNode) -> str:
+    def _get_compiled_code(
+        self, manifest_node: Union[ManifestNode, SourceDefinition]
+    ) -> str:
         """Get compiled code for a manifest node if it exists and is enabled."""
         if not self.include_compiled_code or isinstance(
             manifest_node, SourceDefinition
@@ -265,7 +269,7 @@ class PrefectDbtRunner:
         return ""
 
     def _create_asset_from_node(
-        self, manifest_node: ResultNode, adapter_type: str
+        self, manifest_node: Union[ManifestNode, SourceDefinition], adapter_type: str
     ) -> Asset:
         """Create an Asset from a manifest node."""
         if not manifest_node.relation_name:
