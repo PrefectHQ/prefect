@@ -7,7 +7,7 @@ sidebarTitle: artifact
 
 ## Functions
 
-### `list_artifacts` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/cli/artifact.py#L27" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `list_artifacts` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/artifact.py#L27" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 list_artifacts(limit: int = typer.Option(100, '--limit', help='The maximum number of artifacts to return.'), all: bool = typer.Option(False, '--all', '-a', help='Whether or not to only return the latest version of each artifact.'))
@@ -17,7 +17,7 @@ list_artifacts(limit: int = typer.Option(100, '--limit', help='The maximum numbe
 List artifacts.
 
 
-### `inspect` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/cli/artifact.py#L93" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `inspect` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/artifact.py#L93" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 inspect(key: str, limit: int = typer.Option(10, '--limit', help='The maximum number of artifacts to return.'), output: Optional[str] = typer.Option(None, '--output', '-o', help='Specify an output format. Currently supports: json'))
@@ -59,7 +59,7 @@ View details about an artifact.
 ]
 
 
-### `delete` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/cli/artifact.py#L166" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `delete` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/artifact.py#L166" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 delete(key: Optional[str] = typer.Argument(None, help='The key of the artifact to delete.'), artifact_id: Optional[UUID] = typer.Option(None, '--id', help='The ID of the artifact to delete.'))
