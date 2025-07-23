@@ -7,7 +7,7 @@ sidebarTitle: modal
 
 ## Classes
 
-### `ModalPushProvisioner` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/infrastructure/provisioners/modal.py#L26" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `ModalPushProvisioner` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/infrastructure/provisioners/modal.py#L26" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 A infrastructure provisioner for Modal push work pools.
@@ -15,14 +15,30 @@ A infrastructure provisioner for Modal push work pools.
 
 **Methods:**
 
-#### `console` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/infrastructure/provisioners/modal.py#L35" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `console` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/infrastructure/provisioners/modal.py#L35" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 console(self) -> Console
 ```
 
-#### `console` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/infrastructure/provisioners/modal.py#L39" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `console` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/infrastructure/provisioners/modal.py#L39" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 console(self, value: Console) -> None
 ```
+
+#### `provision` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/infrastructure/provisioners/modal.py#L145" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+provision(self, work_pool_name: str, base_job_template: Dict[str, Any], client: Optional['PrefectClient'] = None) -> Dict[str, Any]
+```
+
+Provisions resources necessary for a Modal push work pool.
+
+**Args:**
+- `work_pool_name`: The name of the work pool to provision resources for
+- `base_job_template`: The base job template to update
+
+**Returns:**
+- A copy of the provided base job template with the provisioned resources
+

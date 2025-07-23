@@ -7,11 +7,40 @@ sidebarTitle: automations
 
 ## Classes
 
-### `Automation` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/automations.py#L78" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `Automation` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/automations.py#L78" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 **Methods:**
 
-#### `create` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/automations.py#L111" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `acreate` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/automations.py#L81" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+acreate(self: Self) -> Self
+```
+
+Asynchronously create a new automation.
+
+Examples:
+
+```python
+auto_to_create = Automation(
+    name="woodchonk",
+    trigger=EventTrigger(
+        expect={"animal.walked"},
+        match={
+            "genus": "Marmota",
+            "species": "monax",
+        },
+        posture="Reactive",
+        threshold=3,
+        within=timedelta(seconds=10),
+    ),
+    actions=[CancelFlowRun()]
+)
+created_automation = await auto_to_create.acreate()
+```
+
+
+#### `create` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/automations.py#L111" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 create(self: Self) -> Self
@@ -40,7 +69,24 @@ created_automation = auto_to_create.create()
 ```
 
 
-#### `update` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/automations.py#L160" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `aupdate` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/automations.py#L140" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+aupdate(self: Self) -> None
+```
+
+Updates an existing automation.
+
+Examples:
+
+```python
+auto = Automation.read(id=123)
+auto.name = "new name"
+auto.update()
+```
+
+
+#### `update` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/automations.py#L160" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 update(self: Self)
@@ -58,7 +104,50 @@ auto.update()
 ```
 
 
-#### `read` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/automations.py#L236" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `aread` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/automations.py#L182" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+aread(cls, id: UUID, name: Optional[str] = ...) -> Self
+```
+
+#### `aread` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/automations.py#L186" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+aread(cls, id: None = None, name: str = ...) -> Self
+```
+
+#### `aread` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/automations.py#L189" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+aread(cls, id: Optional[UUID] = None, name: Optional[str] = None) -> Self
+```
+
+Asynchronously read an automation by ID or name.
+
+Examples:
+
+```python
+automation = await Automation.aread(name="woodchonk")
+```
+
+```python
+automation = await Automation.aread(id=UUID("b3514963-02b1-47a5-93d1-6eeb131041cb"))
+```
+
+
+#### `read` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/automations.py#L228" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+read(cls, id: UUID, name: Optional[str] = ...) -> Self
+```
+
+#### `read` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/automations.py#L232" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+read(cls, id: None = None, name: str = ...) -> Self
+```
+
+#### `read` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/automations.py#L236" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read(cls, id: Optional[UUID] = None, name: Optional[str] = None) -> Self
@@ -77,7 +166,23 @@ automation = Automation.read(id=UUID("b3514963-02b1-47a5-93d1-6eeb131041cb"))
 ```
 
 
-#### `delete` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/automations.py#L297" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `adelete` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/automations.py#L273" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+adelete(self: Self) -> bool
+```
+
+Asynchronously delete an automation.
+
+Examples:
+
+```python
+auto = Automation.read(id = 123)
+await auto.adelete()
+```
+
+
+#### `delete` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/automations.py#L297" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 delete(self: Self) -> bool
@@ -93,7 +198,26 @@ auto.delete()
 ```
 
 
-#### `disable` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/automations.py#L347" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `adisable` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/automations.py#L320" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+adisable(self: Self) -> bool
+```
+
+Asynchronously disable an automation.
+
+**Raises:**
+- `ValueError`: If the automation does not have an id
+- `PrefectHTTPStatusError`: If the automation cannot be disabled
+
+Example:
+```python
+auto = await Automation.aread(id = 123)
+await auto.adisable()
+```
+
+
+#### `disable` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/automations.py#L347" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 disable(self: Self) -> bool
@@ -112,7 +236,26 @@ auto.disable()
 ```
 
 
-#### `enable` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/automations.py#L401" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `aenable` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/automations.py#L374" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+aenable(self: Self) -> bool
+```
+
+Asynchronously enable an automation.
+
+**Raises:**
+- `ValueError`: If the automation does not have an id
+- `PrefectHTTPStatusError`: If the automation cannot be enabled
+
+Example:
+```python
+auto = await Automation.aread(id = 123)
+await auto.aenable()
+```
+
+
+#### `enable` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/automations.py#L401" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 enable(self: Self) -> bool

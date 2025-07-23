@@ -7,7 +7,7 @@ sidebarTitle: actions
 
 ## Classes
 
-### `Actions` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/services/actions.py#L22" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `Actions` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/events/services/actions.py#L22" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Runs the actions triggered by automations
@@ -15,8 +15,20 @@ Runs the actions triggered by automations
 
 **Methods:**
 
-#### `service_settings` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/services/actions.py#L28" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `service_settings` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/events/services/actions.py#L28" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 service_settings(cls) -> ServicesBaseSetting
+```
+
+#### `start` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/events/services/actions.py#L31" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+start(self) -> NoReturn
+```
+
+#### `stop` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/events/services/actions.py#L46" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+stop(self) -> None
 ```

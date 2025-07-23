@@ -28,9 +28,122 @@ Example:
     ```
 
 
+## Functions
+
+### `run_shell_script` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/deployments/steps/utility.py#L76" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+run_shell_script(script: str, directory: Optional[str] = None, env: Optional[Dict[str, str]] = None, stream_output: bool = True, expand_env_vars: bool = False) -> RunShellScriptResult
+```
+
+
+Runs one or more shell commands in a subprocess. Returns the standard
+output and standard error of the script.
+
+**Args:**
+- `script`: The script to run
+- `directory`: The directory to run the script in. Defaults to the current
+working directory.
+- `env`: A dictionary of environment variables to set for the script
+- `stream_output`: Whether to stream the output of the script to
+stdout/stderr
+- `expand_env_vars`: Whether to expand environment variables in the script
+before running it
+
+**Returns:**
+- A dictionary with the keys `stdout` and `stderr` containing the output
+of the script
+
+**Examples:**
+
+Retrieve the short Git commit hash of the current repository to use as
+    a Docker image tag:
+```yaml
+build:
+    - prefect.deployments.steps.run_shell_script:
+        id: get-commit-hash
+        script: git rev-parse --short HEAD
+        stream_output: false
+    - prefect_docker.deployments.steps.build_docker_image:
+        requires: prefect-docker
+        image_name: my-image
+        image_tag: "{{ get-commit-hash.stdout }}"
+        dockerfile: auto
+```
+
+Run a multi-line shell script:
+```yaml
+build:
+    - prefect.deployments.steps.run_shell_script:
+        script: |
+            echo "Hello"
+            echo "World"
+```
+
+Run a shell script with environment variables:
+```yaml
+build:
+    - prefect.deployments.steps.run_shell_script:
+        script: echo "Hello $NAME"
+        env:
+            NAME: World
+```
+
+Run a shell script with environment variables expanded
+    from the current environment:
+```yaml
+pull:
+    - prefect.deployments.steps.run_shell_script:
+        script: |
+            echo "User: $USER"
+            echo "Home Directory: $HOME"
+        stream_output: true
+        expand_env_vars: true
+```
+
+Run a shell script in a specific directory:
+```yaml
+build:
+    - prefect.deployments.steps.run_shell_script:
+        script: echo "Hello"
+        directory: /path/to/directory
+```
+
+Run a script stored in a file:
+```yaml
+build:
+    - prefect.deployments.steps.run_shell_script:
+        script: "bash path/to/script.sh"
+```
+
+
+### `pip_install_requirements` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/deployments/steps/utility.py#L204" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+pip_install_requirements(directory: Optional[str] = None, requirements_file: str = 'requirements.txt', stream_output: bool = True) -> dict[str, Any]
+```
+
+
+Installs dependencies from a requirements.txt file.
+
+**Args:**
+- `requirements_file`: The requirements.txt to use for installation.
+- `directory`: The directory the requirements.txt file is in. Defaults to
+the current working directory.
+- `stream_output`: Whether to stream the output from pip install should be
+streamed to the console
+
+**Returns:**
+- A dictionary with the keys `stdout` and `stderr` containing the output
+the `pip install` command
+
+**Raises:**
+- `subprocess.CalledProcessError`: if the pip install command fails for any reason
+
+
 ## Classes
 
-### `RunShellScriptResult` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/deployments/steps/utility.py#L63" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `RunShellScriptResult` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/deployments/steps/utility.py#L63" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 The result of a `run_shell_script` step.

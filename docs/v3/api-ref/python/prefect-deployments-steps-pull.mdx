@@ -12,7 +12,7 @@ Core set of steps for specifying a Prefect project pull step.
 
 ## Functions
 
-### `set_working_directory` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/deployments/steps/pull.py#L24" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `set_working_directory` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/deployments/steps/pull.py#L24" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 set_working_directory(directory: str) -> dict[str, str]
@@ -29,7 +29,33 @@ Sets the working directory; works with both absolute and relative paths.
 directory that was set
 
 
-### `git_clone` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/deployments/steps/pull.py#L100" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `agit_clone` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/deployments/steps/pull.py#L50" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+agit_clone(repository: str, branch: Optional[str] = None, commit_sha: Optional[str] = None, include_submodules: bool = False, access_token: Optional[str] = None, credentials: Optional['Block'] = None, directories: Optional[list[str]] = None) -> dict[str, str]
+```
+
+
+Asynchronously clones a git repository into the current working directory.
+
+**Args:**
+- `repository`: the URL of the repository to clone
+- `branch`: the branch to clone; if not provided, the default branch will be used
+- `commit_sha`: the commit SHA to clone; if not provided, the default branch will be used
+- `include_submodules`: whether to include git submodules when cloning the repository
+- `access_token`: an access token to use for cloning the repository; if not provided
+the repository will be cloned using the default git credentials
+- `credentials`: a GitHubCredentials, GitLabCredentials, or BitBucketCredentials block can be used to specify the
+credentials to use for cloning the repository.
+
+**Returns:**
+- a dictionary containing a `directory` key of the new directory that was created
+
+**Raises:**
+- `subprocess.CalledProcessError`: if the git clone command fails for any reason
+
+
+### `git_clone` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/deployments/steps/pull.py#L100" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 git_clone(repository: str, branch: Optional[str] = None, commit_sha: Optional[str] = None, include_submodules: bool = False, access_token: Optional[str] = None, credentials: Optional['Block'] = None, directories: Optional[list[str]] = None) -> dict[str, str]
@@ -114,4 +140,58 @@ pull:
         repository: https://github.com/org/repo.git
         directories: ["dir_1", "dir_2", "prefect"]
 ```
+
+
+### `pull_from_remote_storage` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/deployments/steps/pull.py#L209" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+pull_from_remote_storage(url: str, **settings: Any) -> dict[str, Any]
+```
+
+
+Pulls code from a remote storage location into the current working directory.
+
+Works with protocols supported by `fsspec`.
+
+**Args:**
+- `url`: the URL of the remote storage location. Should be a valid `fsspec` URL.
+Some protocols may require an additional `fsspec` dependency to be installed.
+Refer to the [`fsspec` docs](https\://filesystem-spec.readthedocs.io/en/latest/api.html#other-known-implementations)
+for more details.
+- `**settings`: any additional settings to pass the `fsspec` filesystem class.
+
+**Returns:**
+- a dictionary containing a `directory` key of the new directory that was created
+
+**Examples:**
+
+Pull code from a remote storage location:
+```yaml
+pull:
+    - prefect.deployments.steps.pull_from_remote_storage:
+        url: s3://my-bucket/my-folder
+```
+
+Pull code from a remote storage location with additional settings:
+```yaml
+pull:
+    - prefect.deployments.steps.pull_from_remote_storage:
+        url: s3://my-bucket/my-folder
+        key: {{ prefect.blocks.secret.my-aws-access-key }}}
+        secret: {{ prefect.blocks.secret.my-aws-secret-key }}}
+```
+
+
+### `pull_with_block` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/deployments/steps/pull.py#L251" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+pull_with_block(block_document_name: str, block_type_slug: str) -> dict[str, Any]
+```
+
+
+Pulls code using a block.
+
+**Args:**
+- `block_document_name`: The name of the block document to use
+- `block_type_slug`: The slug of the type of block to use
 

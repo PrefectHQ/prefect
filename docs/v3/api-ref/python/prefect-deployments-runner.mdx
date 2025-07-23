@@ -37,15 +37,76 @@ Example:
 
 
 
+## Functions
+
+### `deploy` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/deployments/runner.py#L1118" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+deploy(*deployments: RunnerDeployment) -> List[UUID]
+```
+
+
+Deploy the provided list of deployments to dynamic infrastructure via a
+work pool.
+
+By default, calling this function will build a Docker image for the deployments, push it to a
+registry, and create each deployment via the Prefect API that will run the corresponding
+flow on the given schedule.
+
+If you want to use an existing image, you can pass `build=False` to skip building and pushing
+an image.
+
+**Args:**
+- `*deployments`: A list of deployments to deploy.
+- `work_pool_name`: The name of the work pool to use for these deployments. Defaults to
+the value of `PREFECT_DEFAULT_WORK_POOL_NAME`.
+- `image`: The name of the Docker image to build, including the registry and
+repository. Pass a DockerImage instance to customize the Dockerfile used
+and build arguments.
+- `build`: Whether or not to build a new image for the flow. If False, the provided
+image will be used as-is and pulled at runtime.
+- `push`: Whether or not to skip pushing the built image to a registry.
+- `print_next_steps_message`: Whether or not to print a message with next steps
+after deploying the deployments.
+
+**Returns:**
+- A list of deployment IDs for the created/updated deployments.
+
+**Examples:**
+
+Deploy a group of flows to a work pool:
+
+```python
+from prefect import deploy, flow
+
+@flow(log_prints=True)
+def local_flow():
+    print("I'm a locally defined flow!")
+
+if __name__ == "__main__":
+    deploy(
+        local_flow.to_deployment(name="example-deploy-local-flow"),
+        flow.from_source(
+            source="https://github.com/org/repo.git",
+            entrypoint="flows.py:my_flow",
+        ).to_deployment(
+            name="example-deploy-remote-flow",
+        ),
+        work_pool_name="my-work-pool",
+        image="my-registry/my-image:dev",
+    )
+```
+
+
 ## Classes
 
-### `DeploymentApplyError` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/deployments/runner.py#L115" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `DeploymentApplyError` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/deployments/runner.py#L115" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Raised when an error occurs while applying a deployment.
 
 
-### `RunnerDeployment` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/deployments/runner.py#L121" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `RunnerDeployment` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/deployments/runner.py#L121" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 A Prefect RunnerDeployment definition, used for specifying and building deployments.
@@ -53,25 +114,25 @@ A Prefect RunnerDeployment definition, used for specifying and building deployme
 
 **Methods:**
 
-#### `entrypoint_type` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/deployments/runner.py#L257" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `entrypoint_type` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/deployments/runner.py#L257" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 entrypoint_type(self) -> EntrypointType
 ```
 
-#### `full_name` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/deployments/runner.py#L261" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `full_name` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/deployments/runner.py#L261" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 full_name(self) -> str
 ```
 
-#### `validate_name` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/deployments/runner.py#L280" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `validate_name` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/deployments/runner.py#L280" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 validate_name(cls, value: str) -> str
 ```
 
-#### `validate_automation_names` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/deployments/runner.py#L286" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `validate_automation_names` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/deployments/runner.py#L286" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 validate_automation_names(self)
@@ -80,7 +141,7 @@ validate_automation_names(self)
 Ensure that each trigger has a name for its automation if none is provided.
 
 
-#### `validate_deployment_parameters` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/deployments/runner.py#L295" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `validate_deployment_parameters` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/deployments/runner.py#L295" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 validate_deployment_parameters(self) -> Self
@@ -89,19 +150,39 @@ validate_deployment_parameters(self) -> Self
 Update the parameter schema to mark frozen parameters as readonly.
 
 
-#### `reconcile_paused` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/deployments/runner.py#L312" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `reconcile_paused` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/deployments/runner.py#L312" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 reconcile_paused(cls, values: dict[str, Any]) -> dict[str, Any]
 ```
 
-#### `reconcile_schedules` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/deployments/runner.py#L317" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `reconcile_schedules` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/deployments/runner.py#L317" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 reconcile_schedules(cls, values: dict[str, Any]) -> dict[str, Any]
 ```
 
-#### `from_flow` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/deployments/runner.py#L616" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `apply` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/deployments/runner.py#L481" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+apply(self, work_pool_name: Optional[str] = None, image: Optional[str] = None, version_info: Optional[VersionInfo] = None) -> UUID
+```
+
+Registers this deployment with the API and returns the deployment's ID.
+
+**Args:**
+- `work_pool_name`: The name of the work pool to use for this
+deployment.
+- `image`: The registry, name, and tag of the Docker image to
+use for this deployment. Only used when the deployment is
+deployed to a work pool.
+- `version_info`: The version information to use for the deployment.
+
+Returns:
+    The ID of the created deployment.
+
+
+#### `from_flow` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/deployments/runner.py#L620" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 from_flow(cls, flow: 'Flow[..., Any]', name: str, interval: Optional[Union[Iterable[Union[int, float, timedelta]], int, float, timedelta]] = None, cron: Optional[Union[Iterable[str], str]] = None, rrule: Optional[Union[Iterable[str], str]] = None, paused: Optional[bool] = None, schedule: Optional[Schedule] = None, schedules: Optional['FlexibleScheduleList'] = None, concurrency_limit: Optional[Union[int, ConcurrencyLimitConfig, None]] = None, parameters: Optional[dict[str, Any]] = None, triggers: Optional[List[Union[DeploymentTriggerTypes, TriggerTypes]]] = None, description: Optional[str] = None, tags: Optional[List[str]] = None, version: Optional[str] = None, version_type: Optional[VersionType] = None, enforce_parameter_schema: bool = True, work_pool_name: Optional[str] = None, work_queue_name: Optional[str] = None, job_variables: Optional[dict[str, Any]] = None, entrypoint_type: EntrypointType = EntrypointType.FILE_PATH, _sla: Optional[Union[SlaTypes, list[SlaTypes]]] = None) -> 'RunnerDeployment'
@@ -141,7 +222,7 @@ available settings.
 - `_sla`: (Experimental) SLA configuration for the deployment. May be removed or modified at any time. Currently only supported on Prefect Cloud.
 
 
-#### `from_entrypoint` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/deployments/runner.py#L760" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `from_entrypoint` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/deployments/runner.py#L764" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 from_entrypoint(cls, entrypoint: str, name: str, flow_name: Optional[str] = None, interval: Optional[Union[Iterable[Union[int, float, timedelta]], int, float, timedelta]] = None, cron: Optional[Union[Iterable[str], str]] = None, rrule: Optional[Union[Iterable[str], str]] = None, paused: Optional[bool] = None, schedule: Optional[Schedule] = None, schedules: Optional['FlexibleScheduleList'] = None, concurrency_limit: Optional[Union[int, ConcurrencyLimitConfig, None]] = None, parameters: Optional[dict[str, Any]] = None, triggers: Optional[List[Union[DeploymentTriggerTypes, TriggerTypes]]] = None, description: Optional[str] = None, tags: Optional[List[str]] = None, version: Optional[str] = None, enforce_parameter_schema: bool = True, work_pool_name: Optional[str] = None, work_queue_name: Optional[str] = None, job_variables: Optional[dict[str, Any]] = None, _sla: Optional[Union[SlaTypes, list[SlaTypes]]] = None) -> 'RunnerDeployment'
@@ -179,7 +260,52 @@ available settings.
 - `_sla`: (Experimental) SLA configuration for the deployment. May be removed or modified at any time. Currently only supported on Prefect Cloud.
 
 
-#### `from_storage` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/deployments/runner.py#L990" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `afrom_storage` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/deployments/runner.py#L868" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+afrom_storage(cls, storage: RunnerStorage, entrypoint: str, name: str, flow_name: Optional[str] = None, interval: Optional[Union[Iterable[Union[int, float, timedelta]], int, float, timedelta]] = None, cron: Optional[Union[Iterable[str], str]] = None, rrule: Optional[Union[Iterable[str], str]] = None, paused: Optional[bool] = None, schedule: Optional[Schedule] = None, schedules: Optional['FlexibleScheduleList'] = None, concurrency_limit: Optional[Union[int, ConcurrencyLimitConfig, None]] = None, parameters: Optional[dict[str, Any]] = None, triggers: Optional[List[Union[DeploymentTriggerTypes, TriggerTypes]]] = None, description: Optional[str] = None, tags: Optional[List[str]] = None, version: Optional[str] = None, version_type: Optional[VersionType] = None, enforce_parameter_schema: bool = True, work_pool_name: Optional[str] = None, work_queue_name: Optional[str] = None, job_variables: Optional[dict[str, Any]] = None, _sla: Optional[Union[SlaTypes, list[SlaTypes]]] = None) -> 'RunnerDeployment'
+```
+
+Create a RunnerDeployment from a flow located at a given entrypoint and stored in a
+local storage location.
+
+**Args:**
+- `entrypoint`: The path to a file containing a flow and the name of the flow function in
+the format `./path/to/file.py\:flow_func_name`.
+- `name`: A name for the deployment
+- `flow_name`: The name of the flow to deploy
+- `storage`: A storage object to use for retrieving flow code. If not provided, a
+URL must be provided.
+- `interval`: An interval on which to execute the current flow. Accepts either a number
+or a timedelta object. If a number is given, it will be interpreted as seconds.
+- `cron`: A cron schedule of when to execute runs of this flow.
+- `rrule`: An rrule schedule of when to execute runs of this flow.
+- `paused`: Whether or not the deployment is paused.
+- `schedule`: A schedule object defining when to execute runs of this deployment.
+Used to provide additional scheduling options like `timezone` or `parameters`.
+- `schedules`: A list of schedule objects defining when to execute runs of this deployment.
+Used to provide additional scheduling options like `timezone` or `parameters`.
+- `triggers`: A list of triggers that should kick of a run of this flow.
+- `parameters`: A dictionary of default parameter values to pass to runs of this flow.
+- `description`: A description for the created deployment. Defaults to the flow's
+description if not provided.
+- `tags`: A list of tags to associate with the created deployment for organizational
+purposes.
+- `version`: A version for the created deployment. Defaults to the flow's version.
+- `version_type`: The type of version information to use for the deployment. The version type
+will be inferred if not provided.
+- `enforce_parameter_schema`: Whether or not the Prefect API should enforce the
+parameter schema for this deployment.
+- `work_pool_name`: The name of the work pool to use for this deployment.
+- `work_queue_name`: The name of the work queue to use for this deployment's scheduled runs.
+If not provided the default work queue for the work pool will be used.
+- `job_variables`: Settings used to override the values specified default base job template
+of the chosen work pool. Refer to the base job template of the chosen work pool for
+available settings.
+- `_sla`: (Experimental) SLA configuration for the deployment. May be removed or modified at any time. Currently only supported on Prefect Cloud.
+
+
+#### `from_storage` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/deployments/runner.py#L994" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 from_storage(cls, storage: RunnerStorage, entrypoint: str, name: str, flow_name: Optional[str] = None, interval: Optional[Union[Iterable[Union[int, float, timedelta]], int, float, timedelta]] = None, cron: Optional[Union[Iterable[str], str]] = None, rrule: Optional[Union[Iterable[str], str]] = None, paused: Optional[bool] = None, schedule: Optional[Schedule] = None, schedules: Optional['FlexibleScheduleList'] = None, concurrency_limit: Optional[Union[int, ConcurrencyLimitConfig, None]] = None, parameters: Optional[dict[str, Any]] = None, triggers: Optional[List[Union[DeploymentTriggerTypes, TriggerTypes]]] = None, description: Optional[str] = None, tags: Optional[List[str]] = None, version: Optional[str] = None, version_type: Optional[VersionType] = None, enforce_parameter_schema: bool = True, work_pool_name: Optional[str] = None, work_queue_name: Optional[str] = None, job_variables: Optional[dict[str, Any]] = None, _sla: Optional[Union[SlaTypes, list[SlaTypes]]] = None) -> 'RunnerDeployment'
