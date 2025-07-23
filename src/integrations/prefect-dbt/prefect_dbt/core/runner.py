@@ -271,17 +271,14 @@ class PrefectDbtRunner:
                 )
 
             if len(description) > MAX_ASSET_DESCRIPTION_LENGTH:
-                description = (
-                    "\n ### Compiled code\n"
-                    "Compiled code code was omitted because it exceeded the "
+                warning_msg = (
+                    f"Compiled code for {manifest_node.name} was omitted because it exceeded the "
                     f"maximum asset description length of {MAX_ASSET_DESCRIPTION_LENGTH} characters."
                 )
+                description = "\n ### Compiled code\n" + warning_msg
                 try:
                     logger = get_run_logger()
-                    logger.warning(
-                        f"Compiled code for {manifest_node.name} was omitted because it exceeded the "
-                        f"maximum asset description length of {MAX_ASSET_DESCRIPTION_LENGTH} characters."
-                    )
+                    logger.warning(warning_msg)
                 except MissingContextError:
                     pass
 
