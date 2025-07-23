@@ -88,7 +88,9 @@ class CoreFlowPolicy(FlowRunOrchestrationPolicy):
                 EnforceCancellingToCancelledTransition,
                 BypassCancellingFlowRunsWithNoInfra,
                 PreventPendingTransitions,
+                CopyDeploymentConcurrencyLeaseID,
                 SecureFlowConcurrencySlots,
+                RemoveDeploymentConcurrencyLeaseForOldClientVersions,
                 EnsureOnlyScheduledFlowsMarkedLate,
                 HandlePausingFlows,
                 HandleResumingPausedFlows,
@@ -499,7 +501,30 @@ class SecureFlowConcurrencySlots(FlowRunOrchestrationRule):
             logger.error(f"Error releasing concurrency slots on cleanup: {e}")
 
 
-class RemoveDeploymentConcurrencyLease(FlowRunOrchestrationRule):
+class CopyDeploymentConcurrencyLeaseID(FlowRunOrchestrationRule):
+    """
+    Copies the deployment concurrency lease ID to the validated state.
+    """
+
+    FROM_STATES = {states.StateType.PENDING}
+    TO_STATES = {states.StateType.RUNNING}
+
+    async def before_transition(
+        self,
+        initial_state: states.State[Any] | None,
+        proposed_state: states.State[Any] | None,
+        context: OrchestrationContext[orm_models.FlowRun, core.FlowRunPolicy],
+    ) -> None:
+        if initial_state is None or proposed_state is None:
+            return
+
+        if not proposed_state.state_details.deployment_concurrency_lease_id:
+            proposed_state.state_details.deployment_concurrency_lease_id = (
+                initial_state.state_details.deployment_concurrency_lease_id
+            )
+
+
+class RemoveDeploymentConcurrencyLeaseForOldClientVersions(FlowRunOrchestrationRule):
     """
     Removes a deployment concurrency lease if the client version is less than the minimum version for leasing.
     """
@@ -514,14 +539,14 @@ class RemoveDeploymentConcurrencyLease(FlowRunOrchestrationRule):
         context: OrchestrationContext[orm_models.FlowRun, core.FlowRunPolicy],
     ) -> None:
         if (
-            not validated_state
+            not initial_state
             or not context.client_version
             or Version(context.client_version)
-            < MIN_CLIENT_VERSION_FOR_CONCURRENCY_LIMIT_LEASING
+            > MIN_CLIENT_VERSION_FOR_CONCURRENCY_LIMIT_LEASING
         ):
             return
 
-        if lease_id := validated_state.state_details.deployment_concurrency_lease_id:
+        if lease_id := initial_state.state_details.deployment_concurrency_lease_id:
             lease_storage = get_concurrency_lease_storage()
             await lease_storage.revoke_lease(
                 lease_id=lease_id,
