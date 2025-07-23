@@ -32,7 +32,6 @@ from typing import (
     Union,
 )
 
-import sqlalchemy as sa
 from pydantic import ConfigDict, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing_extensions import Self
@@ -110,7 +109,7 @@ class OrchestrationContext(PrefectBaseModel, Generic[T, RP]):
 
     model_config: ClassVar[ConfigDict] = ConfigDict(arbitrary_types_allowed=True)
 
-    session: Union[sa.orm.Session, AsyncSession]
+    session: AsyncSession
     initial_state: Optional[states.State] = None
     proposed_state: Optional[states.State] = None
     validated_state: Optional[states.State] = Field(default=None)
@@ -120,6 +119,7 @@ class OrchestrationContext(PrefectBaseModel, Generic[T, RP]):
     response_details: StateResponseDetails = Field(default_factory=StateAcceptDetails)
     orchestration_error: Optional[Exception] = Field(default=None)
     parameters: dict[Any, Any] = Field(default_factory=dict)
+    client_version: Optional[str] = None
     run: T
 
     @property
