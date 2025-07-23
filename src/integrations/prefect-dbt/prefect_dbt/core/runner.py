@@ -269,20 +269,25 @@ class PrefectDbtRunner:
                 description = (
                     f"\n ### Compiled code\n```sql\n{code_content.strip()}\n```"
                 )
-                if len(description) > MAX_ASSET_DESCRIPTION_LENGTH:
-                    description = (
-                        "\n ### Compiled code\n"
-                        "Compiled code code was omitted because it exceeded the "
+
+            if len(description) > MAX_ASSET_DESCRIPTION_LENGTH:
+                description = (
+                    "\n ### Compiled code\n"
+                    "Compiled code code was omitted because it exceeded the "
+                    f"maximum asset description length of {MAX_ASSET_DESCRIPTION_LENGTH} characters."
+                )
+                try:
+                    logger = get_run_logger()
+                    logger.warning(
+                        f"Compiled code for {manifest_node.name} was omitted because it exceeded the "
                         f"maximum asset description length of {MAX_ASSET_DESCRIPTION_LENGTH} characters."
                     )
-                    try:
-                        logger = get_run_logger()
-                        logger.warning(
-                            f"Compiled code for {manifest_node.name} was omitted because it exceeded the "
-                            f"maximum asset description length of {MAX_ASSET_DESCRIPTION_LENGTH} characters."
-                        )
-                    except MissingContextError:
-                        pass
+                except MissingContextError:
+                    pass
+
+            return description
+
+        return ""
 
     def _create_asset_from_node(
         self, manifest_node: Union[ManifestNode, SourceDefinition], adapter_type: str
