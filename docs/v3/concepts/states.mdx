@@ -52,8 +52,8 @@ The full list of states and state types includes:
 | `Cached` | `COMPLETED` | Yes | The run result was loaded from a previously cached value. |
 | `RolledBack` | `COMPLETED` | Yes | The run completed successfully but the transaction rolled back and executed rollback hooks. |
 | `Failed` | `FAILED` | Yes | The run did not complete because of a code issue and had no remaining retry attempts. |
-| `Crashed` | `CRASHED` | Yes | The run did not complete because of an infrastructure issue. |
 | `TimedOut` | `FAILED` | Yes | The run did not complete because it exceeded its time out. |
+| `Crashed` | `CRASHED` | Yes | The run did not complete because of an infrastructure issue. |
 
 ## State transitions
 
