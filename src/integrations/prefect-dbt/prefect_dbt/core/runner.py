@@ -19,7 +19,7 @@ from dbt.cli.main import dbtRunner
 from dbt.compilation import Linker
 from dbt.config.runtime import RuntimeConfig
 from dbt.contracts.graph.manifest import Manifest
-from dbt.contracts.graph.nodes import ManifestNode
+from dbt.contracts.graph.nodes import ManifestNode, ResultNode, SourceDefinition
 from dbt.contracts.state import (
     load_result_state,  # type: ignore[reportUnknownMemberType]
 )
@@ -206,8 +206,11 @@ class PrefectDbtRunner:
             )
 
     def _get_node_prefect_config(
-        self, manifest_node: ManifestNode
+        self, manifest_node: ResultNode
     ) -> dict[str, dict[str, Any]]:
+        if isinstance(manifest_node, SourceDefinition):
+            return manifest_node.meta.get("prefect", {})
+
         return manifest_node.config.meta.get("prefect", {})
 
     def _get_upstream_manifest_nodes_and_configs(
@@ -218,7 +221,9 @@ class PrefectDbtRunner:
         upstream_manifest_nodes: list[tuple[ManifestNode, dict[str, Any]]] = []
 
         for depends_on_node in manifest_node.depends_on_nodes:  # type: ignore[reportUnknownMemberType]
-            depends_manifest_node = self.manifest.nodes.get(depends_on_node)  # type: ignore[reportUnknownMemberType]
+            depends_manifest_node = self.manifest.nodes.get(
+                depends_on_node
+            ) or self.manifest.sources.get(depends_on_node)  # type: ignore[reportUnknownMemberType]
 
             if not depends_manifest_node:
                 continue
@@ -245,9 +250,11 @@ class PrefectDbtRunner:
             / manifest_node.original_file_path
         )
 
-    def _get_compiled_code(self, manifest_node: ManifestNode) -> str:
+    def _get_compiled_code(self, manifest_node: ResultNode) -> str:
         """Get compiled code for a manifest node if it exists and is enabled."""
-        if not self.include_compiled_code:
+        if not self.include_compiled_code or isinstance(
+            manifest_node, SourceDefinition
+        ):
             return ""
 
         compiled_code_path = self._get_compiled_code_path(manifest_node)
@@ -258,7 +265,7 @@ class PrefectDbtRunner:
         return ""
 
     def _create_asset_from_node(
-        self, manifest_node: ManifestNode, adapter_type: str
+        self, manifest_node: ResultNode, adapter_type: str
     ) -> Asset:
         """Create an Asset from a manifest node."""
         if not manifest_node.relation_name:
@@ -267,15 +274,22 @@ class PrefectDbtRunner:
         asset_id = format_resource_id(adapter_type, manifest_node.relation_name)
         compiled_code = self._get_compiled_code(manifest_node)
 
+        if isinstance(manifest_node, SourceDefinition):
+            owner = manifest_node.meta.get("owner")
+        else:
+            owner = manifest_node.config.meta.get("owner")
+
+        if owner and isinstance(owner, str):
+            owners = [owner]
+        else:
+            owners = None
+
         return Asset(
             key=asset_id,
             properties=AssetProperties(
                 name=manifest_node.name,
                 description=manifest_node.description + compiled_code,
-                owners=[owner]
-                if (owner := manifest_node.config.meta.get("owner"))
-                and isinstance(owner, str)
-                else None,
+                owners=owners,
             ),
         )
 
