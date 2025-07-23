@@ -12,7 +12,7 @@ The FailExpiredPauses service. Responsible for putting Paused flow runs in a Fai
 
 ## Classes
 
-### `FailExpiredPauses` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/pause_expirations.py#L23" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `FailExpiredPauses` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/services/pause_expirations.py#L23" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Fails flow runs that have been paused and never resumed
@@ -20,8 +20,21 @@ Fails flow runs that have been paused and never resumed
 
 **Methods:**
 
-#### `service_settings` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/pause_expirations.py#L29" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `service_settings` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/services/pause_expirations.py#L29" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 service_settings(cls) -> ServicesBaseSetting
 ```
+
+#### `run_once` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/services/pause_expirations.py#L43" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+run_once(self, db: PrefectDBInterface) -> None
+```
+
+Mark flow runs as failed by:
+
+- Querying for flow runs in a Paused state that have timed out
+- For any runs past the "expiration" threshold, setting the flow run state to a
+  new `Failed` state
+

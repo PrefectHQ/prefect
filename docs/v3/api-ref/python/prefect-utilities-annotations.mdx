@@ -7,7 +7,7 @@ sidebarTitle: annotations
 
 ## Classes
 
-### `BaseAnnotation` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/annotations.py#L12" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `BaseAnnotation` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/annotations.py#L12" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Base class for Prefect annotation types.
@@ -17,19 +17,19 @@ Inherits from `tuple` for unpacking support in other tools.
 
 **Methods:**
 
-#### `unwrap` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/annotations.py#L27" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `unwrap` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/annotations.py#L27" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 unwrap(self) -> T
 ```
 
-#### `rewrap` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/annotations.py#L30" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `rewrap` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/annotations.py#L30" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 rewrap(self, value: T) -> Self
 ```
 
-### `unmapped` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/annotations.py#L42" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `unmapped` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/annotations.py#L42" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Wrapper for iterables.
@@ -38,7 +38,7 @@ Indicates that this input should be sent as-is to all runs created during a mapp
 operation instead of being split.
 
 
-### `allow_failure` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/annotations.py#L55" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `allow_failure` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/annotations.py#L55" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Wrapper for states or futures.
@@ -53,7 +53,7 @@ If the input is from a failed run, the attached exception will be passed to your
 function.
 
 
-### `quote` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/annotations.py#L70" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `quote` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/annotations.py#L70" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Simple wrapper to mark an expression as a different type so it will not be coerced
@@ -80,21 +80,21 @@ def my_flow():
 
 **Methods:**
 
-#### `unquote` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/annotations.py#L94" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `unquote` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/annotations.py#L94" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 unquote(self) -> T
 ```
 
-### `Quote` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/annotations.py#L99" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `Quote` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/annotations.py#L99" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
-### `NotSet` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/annotations.py#L109" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `NotSet` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/annotations.py#L109" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Singleton to distinguish `None` from a value that is not provided by the user.
 
 
-### `freeze` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/annotations.py#L115" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `freeze` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/annotations.py#L115" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Wrapper for parameters in deployments.
@@ -114,7 +114,7 @@ deployment = my_flow.deploy(parameters={"customer_id": freeze("customer123")})
 
 **Methods:**
 
-#### `unfreeze` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/annotations.py#L139" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `unfreeze` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/annotations.py#L139" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 unfreeze(self) -> T

@@ -7,10 +7,18 @@ sidebarTitle: services
 
 ## Classes
 
-### `ConcurrencySlotAcquisitionServiceError` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/concurrency/v1/services.py#L21" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `ConcurrencySlotAcquisitionServiceError` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/concurrency/v1/services.py#L21" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Raised when an error occurs while acquiring concurrency slots.
 
 
-### `ConcurrencySlotAcquisitionService` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/concurrency/v1/services.py#L25" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `ConcurrencySlotAcquisitionService` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/concurrency/v1/services.py#L25" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+**Methods:**
+
+#### `acquire` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/concurrency/v1/services.py#L39" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+acquire(self, task_run_id: UUID, timeout_seconds: Optional[float] = None) -> httpx.Response
+```

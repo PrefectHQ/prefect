@@ -5,13 +5,35 @@ sidebarTitle: flows
 
 # `prefect.server.api.ui.flows`
 
+## Functions
+
+### `count_deployments_by_flow` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/api/ui/flows.py#L48" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+count_deployments_by_flow(flow_ids: List[UUID] = Body(default=..., embed=True, max_items=200), db: PrefectDBInterface = Depends(provide_database_interface)) -> Dict[UUID, int]
+```
+
+
+Get deployment counts by flow id.
+
+
+### `next_runs_by_flow` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/api/ui/flows.py#L143" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+next_runs_by_flow(flow_ids: List[UUID] = Body(default=..., embed=True, max_items=200), db: PrefectDBInterface = Depends(provide_database_interface)) -> Dict[UUID, Optional[SimpleNextFlowRun]]
+```
+
+
+Get the next flow run by flow id.
+
+
 ## Classes
 
-### `SimpleNextFlowRun` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/ui/flows.py#L29" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `SimpleNextFlowRun` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/api/ui/flows.py#L29" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 **Methods:**
 
-#### `validate_next_scheduled_start_time` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/ui/flows.py#L41" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `validate_next_scheduled_start_time` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/api/ui/flows.py#L41" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 validate_next_scheduled_start_time(cls, v: DateTime | datetime) -> DateTime
