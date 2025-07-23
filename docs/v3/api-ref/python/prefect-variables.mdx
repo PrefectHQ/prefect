@@ -7,7 +7,7 @@ sidebarTitle: variables
 
 ## Classes
 
-### `Variable` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/variables.py#L14" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `Variable` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/variables.py#L14" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Variables are named, mutable JSON values that can be shared across tasks and flows.
@@ -20,7 +20,22 @@ Variables are named, mutable JSON values that can be shared across tasks and flo
 
 **Methods:**
 
-#### `aset` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/variables.py#L38" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `aget` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/variables.py#L139" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+aget(cls, name: str, default: StrictVariableValue = None) -> StrictVariableValue
+```
+
+Asynchronously get a variable's value by name.
+
+If the variable does not exist, return the default value.
+
+**Args:**
+- `-`: The name of the variable value to get.
+- `-`: The default value to return if the variable does not exist.
+
+
+#### `aset` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/variables.py#L38" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 aset(cls, name: str, value: StrictVariableValue, tags: Optional[list[str]] = None, overwrite: bool = False) -> 'Variable'
@@ -37,7 +52,36 @@ Returns the newly set variable object.
 - `-`: Whether to overwrite the variable if it already exists.
 
 
-#### `set` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/variables.py#L91" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `aunset` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/variables.py#L202" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+aunset(cls, name: str) -> bool
+```
+
+Asynchronously unset a variable by name.
+
+**Args:**
+- `-`: The name of the variable to unset.
+
+Returns `True` if the variable was deleted, `False` if the variable did not exist.
+
+
+#### `get` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/variables.py#L171" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+get(cls, name: str, default: StrictVariableValue = None) -> StrictVariableValue
+```
+
+Get a variable's value by name.
+
+If the variable does not exist, return the default value.
+
+**Args:**
+- `-`: The name of the variable value to get.
+- `-`: The default value to return if the variable does not exist.
+
+
+#### `set` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/variables.py#L91" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 set(cls, name: str, value: StrictVariableValue, tags: Optional[list[str]] = None, overwrite: bool = False) -> 'Variable'
@@ -54,51 +98,7 @@ Returns the newly set variable object.
 - `-`: Whether to overwrite the variable if it already exists.
 
 
-#### `aget` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/variables.py#L139" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
-
-```python
-aget(cls, name: str, default: StrictVariableValue = None) -> StrictVariableValue
-```
-
-Asynchronously get a variable's value by name.
-
-If the variable does not exist, return the default value.
-
-**Args:**
-- `-`: The name of the variable value to get.
-- `-`: The default value to return if the variable does not exist.
-
-
-#### `get` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/variables.py#L171" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
-
-```python
-get(cls, name: str, default: StrictVariableValue = None) -> StrictVariableValue
-```
-
-Get a variable's value by name.
-
-If the variable does not exist, return the default value.
-
-**Args:**
-- `-`: The name of the variable value to get.
-- `-`: The default value to return if the variable does not exist.
-
-
-#### `aunset` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/variables.py#L202" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
-
-```python
-aunset(cls, name: str) -> bool
-```
-
-Asynchronously unset a variable by name.
-
-**Args:**
-- `-`: The name of the variable to unset.
-
-Returns `True` if the variable was deleted, `False` if the variable did not exist.
-
-
-#### `unset` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/variables.py#L231" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `unset` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/variables.py#L231" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 unset(cls, name: str) -> bool

@@ -7,29 +7,23 @@ sidebarTitle: pipeline
 
 ## Classes
 
-### `EventsPipeline` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/events/pipeline.py#L7" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `EventsPipeline` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/pipeline.py#L7" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 **Methods:**
 
-#### `events_to_messages` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/events/pipeline.py#L9" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `events_to_messages` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/pipeline.py#L9" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 events_to_messages(events: list[Event]) -> list[MemoryMessage]
 ```
 
-#### `process_events` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/events/pipeline.py#L20" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `process_events` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/pipeline.py#L20" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 process_events(self, events: list[Event]) -> None
 ```
 
-#### `process_messages` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/events/pipeline.py#L24" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
-
-```python
-process_messages(self, messages: list[MemoryMessage]) -> None
-```
-
-#### `process_message` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/events/pipeline.py#L28" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `process_message` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/pipeline.py#L28" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 process_message(self, message: MemoryMessage) -> None
@@ -37,3 +31,9 @@ process_message(self, message: MemoryMessage) -> None
 
 Process a single event message
 
+
+#### `process_messages` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/pipeline.py#L24" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+process_messages(self, messages: list[MemoryMessage]) -> None
+```

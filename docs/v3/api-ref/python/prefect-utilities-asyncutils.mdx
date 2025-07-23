@@ -12,13 +12,13 @@ Utilities for interoperability with async functions and workers from various con
 
 ## Functions
 
-### `get_thread_limiter` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/asyncutils.py#L69" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `get_thread_limiter` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/asyncutils.py#L69" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_thread_limiter() -> anyio.CapacityLimiter
 ```
 
-### `is_async_fn` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/asyncutils.py#L78" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `is_async_fn` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/asyncutils.py#L78" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 is_async_fn(func: _SyncOrAsyncCallable[P, R]) -> TypeGuard[Callable[P, Coroutine[Any, Any, Any]]]
@@ -30,7 +30,7 @@ Returns `True` if a function returns a coroutine.
 See https://github.com/microsoft/pyright/issues/2142 for an example use
 
 
-### `is_async_gen_fn` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/asyncutils.py#L90" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `is_async_gen_fn` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/asyncutils.py#L90" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 is_async_gen_fn(func: Callable[P, Any]) -> TypeGuard[Callable[P, AsyncGenerator[Any, Any]]]
@@ -40,7 +40,7 @@ is_async_gen_fn(func: Callable[P, Any]) -> TypeGuard[Callable[P, AsyncGenerator[
 Returns `True` if a function is an async generator.
 
 
-### `create_task` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/asyncutils.py#L100" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `create_task` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/asyncutils.py#L100" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 create_task(coroutine: Coroutine[Any, Any, R]) -> asyncio.Task[R]
@@ -56,7 +56,7 @@ See https://docs.python.org/3/library/asyncio-task.html#asyncio.create_task
 for details (and essentially this implementation)
 
 
-### `run_coro_as_sync` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/asyncutils.py#L144" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `run_coro_as_sync` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/asyncutils.py#L144" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 run_coro_as_sync(coroutine: Coroutine[Any, Any, R]) -> Optional[R]
@@ -88,7 +88,7 @@ event loop and return immediately, where it will eventually be run. Defaults to 
 - The result of the coroutine if wait_for_result is True, otherwise None.
 
 
-### `run_sync_in_worker_thread` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/asyncutils.py#L215" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `run_sync_in_worker_thread` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/asyncutils.py#L215" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 run_sync_in_worker_thread(__fn: Callable[P, R], *args: P.args, **kwargs: P.kwargs) -> R
@@ -105,13 +105,13 @@ Note that cancellation of threads will not result in interrupted computation, th
 thread may continue running — the outcome will just be ignored.
 
 
-### `call_with_mark` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/asyncutils.py#L241" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `call_with_mark` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/asyncutils.py#L241" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 call_with_mark(call: Callable[..., R]) -> R
 ```
 
-### `run_async_from_worker_thread` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/asyncutils.py#L246" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `run_async_from_worker_thread` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/asyncutils.py#L246" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 run_async_from_worker_thread(__fn: Callable[P, Awaitable[R]], *args: P.args, **kwargs: P.kwargs) -> R
@@ -122,31 +122,31 @@ Runs an async function in the main thread's event loop, blocking the worker
 thread until completion
 
 
-### `run_async_in_new_loop` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/asyncutils.py#L257" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `run_async_in_new_loop` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/asyncutils.py#L257" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 run_async_in_new_loop(__fn: Callable[P, Awaitable[R]], *args: P.args, **kwargs: P.kwargs) -> R
 ```
 
-### `mark_as_worker_thread` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/asyncutils.py#L263" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `mark_as_worker_thread` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/asyncutils.py#L263" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 mark_as_worker_thread() -> None
 ```
 
-### `in_async_worker_thread` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/asyncutils.py#L267" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `in_async_worker_thread` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/asyncutils.py#L267" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 in_async_worker_thread() -> bool
 ```
 
-### `in_async_main_thread` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/asyncutils.py#L271" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `in_async_main_thread` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/asyncutils.py#L271" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 in_async_main_thread() -> bool
 ```
 
-### `sync_compatible` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/asyncutils.py#L281" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `sync_compatible` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/asyncutils.py#L281" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 sync_compatible(async_fn: Callable[P, Coroutine[Any, Any, R]]) -> Callable[P, Union[R, Coroutine[Any, Any, R]]]
@@ -173,13 +173,13 @@ python result: Coroutine = sync_compatible(my_async_function)(arg1, arg2) # type
 ```
 
 
-### `asyncnullcontext` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/asyncutils.py#L377" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `asyncnullcontext` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/asyncutils.py#L377" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 asyncnullcontext(value: Optional[R] = None, *args: Any, **kwargs: Any) -> AsyncGenerator[Any, Optional[R]]
 ```
 
-### `sync` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/asyncutils.py#L383" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `sync` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/asyncutils.py#L383" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 sync(__async_fn: Callable[P, Awaitable[T]], *args: P.args, **kwargs: P.kwargs) -> T
@@ -192,7 +192,7 @@ If in an asynchronous context, we will run the code in a separate loop instead o
 failing but a warning will be displayed since this is not recommended.
 
 
-### `add_event_loop_shutdown_callback` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/asyncutils.py#L407" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `add_event_loop_shutdown_callback` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/asyncutils.py#L407" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 add_event_loop_shutdown_callback(coroutine_fn: Callable[[], Awaitable[Any]]) -> None
@@ -213,7 +213,7 @@ asyncio does not provided _any_ other way to clean up a resource when the event
 loop is about to close.
 
 
-### `create_gather_task_group` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/asyncutils.py#L525" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `create_gather_task_group` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/asyncutils.py#L525" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 create_gather_task_group() -> GatherTaskGroup
@@ -223,7 +223,7 @@ create_gather_task_group() -> GatherTaskGroup
 Create a new task group that gathers results
 
 
-### `gather` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/asyncutils.py#L533" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `gather` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/asyncutils.py#L533" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 gather(*calls: Callable[[], Coroutine[Any, Any, T]]) -> list[T]
@@ -238,13 +238,13 @@ This matches `anyio` semantics.
 
 ## Classes
 
-### `GatherIncomplete` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/asyncutils.py#L456" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `GatherIncomplete` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/asyncutils.py#L456" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Used to indicate retrieving gather results before completion
 
 
-### `GatherTaskGroup` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/asyncutils.py#L460" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `GatherTaskGroup` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/asyncutils.py#L460" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 A task group that gathers results.
@@ -259,13 +259,13 @@ This class should be instantiated with `create_gather_task_group`.
 
 **Methods:**
 
-#### `start_soon` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/asyncutils.py#L485" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get_result` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/asyncutils.py#L504" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-start_soon(self, func: Callable[[Unpack[PosArgsT]], Awaitable[Any]], *args: Unpack[PosArgsT]) -> UUID
+get_result(self, key: UUID) -> Any
 ```
 
-#### `start` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/asyncutils.py#L497" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `start` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/asyncutils.py#L497" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 start(self, func: object, *args: object) -> NoReturn
@@ -275,10 +275,10 @@ Since `start` returns the result of `task_status.started()` but here we must
 return the key instead, we just won't support this method for now.
 
 
-#### `get_result` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/asyncutils.py#L504" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `start_soon` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/asyncutils.py#L485" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-get_result(self, key: UUID) -> Any
+start_soon(self, func: Callable[[Unpack[PosArgsT]], Awaitable[Any]], *args: Unpack[PosArgsT]) -> UUID
 ```
 
-### `LazySemaphore` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/asyncutils.py#L547" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `LazySemaphore` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/asyncutils.py#L547" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>

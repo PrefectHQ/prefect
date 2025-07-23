@@ -7,47 +7,47 @@ sidebarTitle: services
 
 ## Classes
 
-### `OTLPExporter` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/telemetry/services.py#L17" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `OTLPExporter` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/telemetry/services.py#L17" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 **Methods:**
 
-#### `export` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/telemetry/services.py#L18" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `export` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/telemetry/services.py#L18" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 export(self, __items: Sequence[T_contra]) -> Any
 ```
 
-#### `shutdown` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/telemetry/services.py#L20" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `shutdown` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/telemetry/services.py#L20" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 shutdown(self) -> Any
 ```
 
-### `BaseQueueingExporter` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/telemetry/services.py#L23" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `BaseQueueingExporter` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/telemetry/services.py#L23" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 **Methods:**
 
-#### `shutdown` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/telemetry/services.py#L38" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `shutdown` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/telemetry/services.py#L38" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 shutdown(self) -> None
 ```
 
-### `QueueingSpanExporter` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/telemetry/services.py#L46" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `QueueingSpanExporter` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/telemetry/services.py#L46" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 **Methods:**
 
-#### `export` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/telemetry/services.py#L52" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `export` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/telemetry/services.py#L52" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 export(self, spans: Sequence[ReadableSpan]) -> SpanExportResult
 ```
 
-### `QueueingLogExporter` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/telemetry/services.py#L60" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `QueueingLogExporter` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/telemetry/services.py#L60" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 **Methods:**
 
-#### `export` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/telemetry/services.py#L66" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `export` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/telemetry/services.py#L66" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 export(self, batch: Sequence[LogData]) -> None

@@ -7,59 +7,1555 @@ sidebarTitle: filesystems
 
 ## Classes
 
-### `ReadableFileSystem` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/filesystems.py#L25" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `ReadableFileSystem` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L25" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 **Methods:**
 
-#### `read_path` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/filesystems.py#L29" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `aload` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L992" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+aload(cls, name: str, validate: bool = True, client: Optional['PrefectClient'] = None) -> 'Self'
+```
+
+Retrieves data from the block document with the given name for the block type
+that corresponds with the current class and returns an instantiated version of
+the current class with the data stored in the block document.
+
+If a block document for a given block type is saved with a different schema
+than the current class calling `aload`, a warning will be raised.
+
+If the current class schema is a subset of the block document schema, the block
+can be loaded as normal using the default `validate = True`.
+
+If the current class schema is a superset of the block document schema, `aload`
+must be called with `validate` set to False to prevent a validation error. In
+this case, the block attributes will default to `None` and must be set manually
+and saved to a new block document before the block can be used as expected.
+
+**Args:**
+- `name`: The name or slug of the block document. A block document slug is a
+string with the format &lt;block_type_slug&gt;/&lt;block_document_name&gt;
+- `validate`: If False, the block document will be loaded without Pydantic
+validating the block schema. This is useful if the block schema has
+changed client-side since the block document referred to by `name` was saved.
+- `client`: The client to use to load the block document. If not provided, the
+default client will be injected.
+
+**Raises:**
+- `ValueError`: If the requested block document is not found.
+
+**Returns:**
+- An instance of the current class hydrated with the data stored in the
+- block document with the specified name.
+
+**Examples:**
+
+Load from a Block subclass with a block document name:
+```python
+class Custom(Block):
+    message: str
+
+Custom(message="Hello!").save("my-custom-message")
+
+loaded_block = await Custom.aload("my-custom-message")
+```
+
+Load from Block with a block document slug:
+```python
+class Custom(Block):
+    message: str
+
+Custom(message="Hello!").save("my-custom-message")
+
+loaded_block = await Block.aload("custom/my-custom-message")
+```
+
+Migrate a block document to a new schema:
+```python
+# original class
+class Custom(Block):
+    message: str
+
+Custom(message="Hello!").save("my-custom-message")
+
+# Updated class with new required field
+class Custom(Block):
+    message: str
+    number_of_ducks: int
+
+loaded_block = await Custom.aload("my-custom-message", validate=False)
+
+# Prints UserWarning about schema mismatch
+
+loaded_block.number_of_ducks = 42
+
+loaded_block.save("my-custom-message", overwrite=True)
+```
+
+
+#### `annotation_refers_to_block_class` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1307" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+annotation_refers_to_block_class(annotation: Any) -> bool
+```
+
+#### `block_initialization` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L348" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+block_initialization(self) -> None
+```
+
+#### `delete` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1537" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+delete(cls, name: str, client: Optional['PrefectClient'] = None)
+```
+
+#### `get_block_capabilities` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L437" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+get_block_capabilities(cls) -> FrozenSet[str]
+```
+
+Returns the block capabilities for this Block. Recursively collects all block
+capabilities of all parent classes into a single frozenset.
+
+
+#### `get_block_class_from_key` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L862" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+get_block_class_from_key(cls: type[Self], key: str) -> type[Self]
+```
+
+Retrieve the block class implementation given a key.
+
+
+#### `get_block_class_from_schema` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L855" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+get_block_class_from_schema(cls: type[Self], schema: BlockSchema) -> type[Self]
+```
+
+Retrieve the block class implementation given a schema.
+
+
+#### `get_block_placeholder` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1560" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+get_block_placeholder(self) -> str
+```
+
+Returns the block placeholder for the current block which can be used for
+templating.
+
+**Returns:**
+- The block placeholder for the current block in the format
+`prefect.blocks.{block_type_name}.{block_document_name}`
+
+**Raises:**
+- `BlockNotSavedError`: Raised if the block has not been saved.
+
+If a block has not been saved, the return value will be `None`.
+
+
+#### `get_block_schema_version` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L467" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+get_block_schema_version(cls) -> str
+```
+
+#### `get_block_type_name` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L429" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+get_block_type_name(cls) -> str
+```
+
+#### `get_block_type_slug` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L433" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+get_block_type_slug(cls) -> str
+```
+
+#### `get_code_example` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L710" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+get_code_example(cls) -> Optional[str]
+```
+
+Returns the code example for the given block. Attempts to parse
+code example from the class docstring if an override is not provided.
+
+
+#### `get_description` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L687" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+get_description(cls) -> Optional[str]
+```
+
+Returns the description for the current block. Attempts to parse
+description from class docstring if an override is not defined.
+
+
+#### `is_block_class` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1303" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+is_block_class(block: Any) -> TypeGuard[type['Block']]
+```
+
+#### `load` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1081" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+load(cls, name: str, validate: bool = True, client: Optional['PrefectClient'] = None) -> 'Self'
+```
+
+Retrieves data from the block document with the given name for the block type
+that corresponds with the current class and returns an instantiated version of
+the current class with the data stored in the block document.
+
+If a block document for a given block type is saved with a different schema
+than the current class calling `load`, a warning will be raised.
+
+If the current class schema is a subset of the block document schema, the block
+can be loaded as normal using the default `validate = True`.
+
+If the current class schema is a superset of the block document schema, `load`
+must be called with `validate` set to False to prevent a validation error. In
+this case, the block attributes will default to `None` and must be set manually
+and saved to a new block document before the block can be used as expected.
+
+**Args:**
+- `name`: The name or slug of the block document. A block document slug is a
+string with the format &lt;block_type_slug&gt;/&lt;block_document_name&gt;
+- `validate`: If False, the block document will be loaded without Pydantic
+validating the block schema. This is useful if the block schema has
+changed client-side since the block document referred to by `name` was saved.
+- `client`: The client to use to load the block document. If not provided, the
+default client will be injected.
+
+**Raises:**
+- `ValueError`: If the requested block document is not found.
+
+**Returns:**
+- An instance of the current class hydrated with the data stored in the
+- block document with the specified name.
+
+**Examples:**
+
+Load from a Block subclass with a block document name:
+```python
+class Custom(Block):
+    message: str
+
+Custom(message="Hello!").save("my-custom-message")
+
+loaded_block = Custom.load("my-custom-message")
+```
+
+Load from Block with a block document slug:
+```python
+class Custom(Block):
+    message: str
+
+Custom(message="Hello!").save("my-custom-message")
+
+loaded_block = Block.load("custom/my-custom-message")
+```
+
+Migrate a block document to a new schema:
+```python
+# original class
+class Custom(Block):
+    message: str
+
+Custom(message="Hello!").save("my-custom-message")
+
+# Updated class with new required field
+class Custom(Block):
+    message: str
+    number_of_ducks: int
+
+loaded_block = Custom.load("my-custom-message", validate=False)
+
+# Prints UserWarning about schema mismatch
+
+loaded_block.number_of_ducks = 42
+
+loaded_block.save("my-custom-message", overwrite=True)
+```
+
+
+#### `load_from_ref` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1180" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+load_from_ref(cls, ref: Union[str, UUID, dict[str, Any]], validate: bool = True, client: 'PrefectClient | None' = None) -> Self
+```
+
+Retrieves data from the block document by given reference for the block type
+that corresponds with the current class and returns an instantiated version of
+the current class with the data stored in the block document.
+
+Provided reference can be a block document ID, or a reference data in dictionary format.
+Supported dictionary reference formats are:
+- {"block_document_id": &lt;block_document_id&gt;}
+- {"block_document_slug": &lt;block_document_slug&gt;}
+
+If a block document for a given block type is saved with a different schema
+than the current class calling `load`, a warning will be raised.
+
+If the current class schema is a subset of the block document schema, the block
+can be loaded as normal using the default `validate = True`.
+
+If the current class schema is a superset of the block document schema, `load`
+must be called with `validate` set to False to prevent a validation error. In
+this case, the block attributes will default to `None` and must be set manually
+and saved to a new block document before the block can be used as expected.
+
+**Args:**
+- `ref`: The reference to the block document. This can be a block document ID,
+or one of supported dictionary reference formats.
+- `validate`: If False, the block document will be loaded without Pydantic
+validating the block schema. This is useful if the block schema has
+changed client-side since the block document referred to by `name` was saved.
+- `client`: The client to use to load the block document. If not provided, the
+default client will be injected.
+
+**Raises:**
+- `ValueError`: If invalid reference format is provided.
+- `ValueError`: If the requested block document is not found.
+
+**Returns:**
+- An instance of the current class hydrated with the data stored in the
+- block document with the specified name.
+
+
+#### `model_dump` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1628" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+model_dump(self) -> dict[str, Any]
+```
+
+#### `model_json_schema` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1583" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+model_json_schema(cls, by_alias: bool = True, ref_template: str = '#/definitions/{model}', schema_generator: type[GenerateJsonSchema] = GenerateJsonSchema, mode: Literal['validation', 'serialization'] = 'validation') -> dict[str, Any]
+```
+
+TODO\: stop overriding this method - use GenerateSchema in ConfigDict instead?
+
+
+#### `model_validate` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1603" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+model_validate(cls: type[Self], obj: dict[str, Any] | Any) -> Self
+```
+
+#### `read_path` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L29" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_path(self, path: str) -> bytes
 ```
 
-### `WritableFileSystem` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/filesystems.py#L33" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `register_type_and_schema` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1321" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+register_type_and_schema(cls, client: Optional['PrefectClient'] = None)
+```
+
+Makes block available for configuration with current Prefect API.
+Recursively registers all nested blocks. Registration is idempotent.
+
+**Args:**
+- `client`: Optional client to use for registering type and schema with the
+Prefect API. A new client will be created and used if one is not
+provided.
+
+
+#### `save` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1514" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+save(self, name: Optional[str] = None, overwrite: bool = False, client: Optional['PrefectClient'] = None)
+```
+
+Saves the values of a block as a block document.
+
+**Args:**
+- `name`: User specified name to give saved block document which can later be used to load the
+block document.
+- `overwrite`: Boolean value specifying if values should be overwritten if a block document with
+the specified name already exists.
+
+
+#### `ser_model` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L391" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+ser_model(self, handler: SerializerFunctionWrapHandler, info: SerializationInfo) -> Any
+```
+
+### `WritableFileSystem` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L33" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 **Methods:**
 
-#### `read_path` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/filesystems.py#L37" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `aload` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L992" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+aload(cls, name: str, validate: bool = True, client: Optional['PrefectClient'] = None) -> 'Self'
+```
+
+Retrieves data from the block document with the given name for the block type
+that corresponds with the current class and returns an instantiated version of
+the current class with the data stored in the block document.
+
+If a block document for a given block type is saved with a different schema
+than the current class calling `aload`, a warning will be raised.
+
+If the current class schema is a subset of the block document schema, the block
+can be loaded as normal using the default `validate = True`.
+
+If the current class schema is a superset of the block document schema, `aload`
+must be called with `validate` set to False to prevent a validation error. In
+this case, the block attributes will default to `None` and must be set manually
+and saved to a new block document before the block can be used as expected.
+
+**Args:**
+- `name`: The name or slug of the block document. A block document slug is a
+string with the format &lt;block_type_slug&gt;/&lt;block_document_name&gt;
+- `validate`: If False, the block document will be loaded without Pydantic
+validating the block schema. This is useful if the block schema has
+changed client-side since the block document referred to by `name` was saved.
+- `client`: The client to use to load the block document. If not provided, the
+default client will be injected.
+
+**Raises:**
+- `ValueError`: If the requested block document is not found.
+
+**Returns:**
+- An instance of the current class hydrated with the data stored in the
+- block document with the specified name.
+
+**Examples:**
+
+Load from a Block subclass with a block document name:
+```python
+class Custom(Block):
+    message: str
+
+Custom(message="Hello!").save("my-custom-message")
+
+loaded_block = await Custom.aload("my-custom-message")
+```
+
+Load from Block with a block document slug:
+```python
+class Custom(Block):
+    message: str
+
+Custom(message="Hello!").save("my-custom-message")
+
+loaded_block = await Block.aload("custom/my-custom-message")
+```
+
+Migrate a block document to a new schema:
+```python
+# original class
+class Custom(Block):
+    message: str
+
+Custom(message="Hello!").save("my-custom-message")
+
+# Updated class with new required field
+class Custom(Block):
+    message: str
+    number_of_ducks: int
+
+loaded_block = await Custom.aload("my-custom-message", validate=False)
+
+# Prints UserWarning about schema mismatch
+
+loaded_block.number_of_ducks = 42
+
+loaded_block.save("my-custom-message", overwrite=True)
+```
+
+
+#### `annotation_refers_to_block_class` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1307" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+annotation_refers_to_block_class(annotation: Any) -> bool
+```
+
+#### `block_initialization` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L348" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+block_initialization(self) -> None
+```
+
+#### `delete` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1537" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+delete(cls, name: str, client: Optional['PrefectClient'] = None)
+```
+
+#### `get_block_capabilities` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L437" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+get_block_capabilities(cls) -> FrozenSet[str]
+```
+
+Returns the block capabilities for this Block. Recursively collects all block
+capabilities of all parent classes into a single frozenset.
+
+
+#### `get_block_class_from_key` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L862" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+get_block_class_from_key(cls: type[Self], key: str) -> type[Self]
+```
+
+Retrieve the block class implementation given a key.
+
+
+#### `get_block_class_from_schema` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L855" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+get_block_class_from_schema(cls: type[Self], schema: BlockSchema) -> type[Self]
+```
+
+Retrieve the block class implementation given a schema.
+
+
+#### `get_block_placeholder` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1560" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+get_block_placeholder(self) -> str
+```
+
+Returns the block placeholder for the current block which can be used for
+templating.
+
+**Returns:**
+- The block placeholder for the current block in the format
+`prefect.blocks.{block_type_name}.{block_document_name}`
+
+**Raises:**
+- `BlockNotSavedError`: Raised if the block has not been saved.
+
+If a block has not been saved, the return value will be `None`.
+
+
+#### `get_block_schema_version` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L467" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+get_block_schema_version(cls) -> str
+```
+
+#### `get_block_type_name` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L429" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+get_block_type_name(cls) -> str
+```
+
+#### `get_block_type_slug` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L433" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+get_block_type_slug(cls) -> str
+```
+
+#### `get_code_example` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L710" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+get_code_example(cls) -> Optional[str]
+```
+
+Returns the code example for the given block. Attempts to parse
+code example from the class docstring if an override is not provided.
+
+
+#### `get_description` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L687" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+get_description(cls) -> Optional[str]
+```
+
+Returns the description for the current block. Attempts to parse
+description from class docstring if an override is not defined.
+
+
+#### `is_block_class` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1303" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+is_block_class(block: Any) -> TypeGuard[type['Block']]
+```
+
+#### `load` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1081" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+load(cls, name: str, validate: bool = True, client: Optional['PrefectClient'] = None) -> 'Self'
+```
+
+Retrieves data from the block document with the given name for the block type
+that corresponds with the current class and returns an instantiated version of
+the current class with the data stored in the block document.
+
+If a block document for a given block type is saved with a different schema
+than the current class calling `load`, a warning will be raised.
+
+If the current class schema is a subset of the block document schema, the block
+can be loaded as normal using the default `validate = True`.
+
+If the current class schema is a superset of the block document schema, `load`
+must be called with `validate` set to False to prevent a validation error. In
+this case, the block attributes will default to `None` and must be set manually
+and saved to a new block document before the block can be used as expected.
+
+**Args:**
+- `name`: The name or slug of the block document. A block document slug is a
+string with the format &lt;block_type_slug&gt;/&lt;block_document_name&gt;
+- `validate`: If False, the block document will be loaded without Pydantic
+validating the block schema. This is useful if the block schema has
+changed client-side since the block document referred to by `name` was saved.
+- `client`: The client to use to load the block document. If not provided, the
+default client will be injected.
+
+**Raises:**
+- `ValueError`: If the requested block document is not found.
+
+**Returns:**
+- An instance of the current class hydrated with the data stored in the
+- block document with the specified name.
+
+**Examples:**
+
+Load from a Block subclass with a block document name:
+```python
+class Custom(Block):
+    message: str
+
+Custom(message="Hello!").save("my-custom-message")
+
+loaded_block = Custom.load("my-custom-message")
+```
+
+Load from Block with a block document slug:
+```python
+class Custom(Block):
+    message: str
+
+Custom(message="Hello!").save("my-custom-message")
+
+loaded_block = Block.load("custom/my-custom-message")
+```
+
+Migrate a block document to a new schema:
+```python
+# original class
+class Custom(Block):
+    message: str
+
+Custom(message="Hello!").save("my-custom-message")
+
+# Updated class with new required field
+class Custom(Block):
+    message: str
+    number_of_ducks: int
+
+loaded_block = Custom.load("my-custom-message", validate=False)
+
+# Prints UserWarning about schema mismatch
+
+loaded_block.number_of_ducks = 42
+
+loaded_block.save("my-custom-message", overwrite=True)
+```
+
+
+#### `load_from_ref` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1180" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+load_from_ref(cls, ref: Union[str, UUID, dict[str, Any]], validate: bool = True, client: 'PrefectClient | None' = None) -> Self
+```
+
+Retrieves data from the block document by given reference for the block type
+that corresponds with the current class and returns an instantiated version of
+the current class with the data stored in the block document.
+
+Provided reference can be a block document ID, or a reference data in dictionary format.
+Supported dictionary reference formats are:
+- {"block_document_id": &lt;block_document_id&gt;}
+- {"block_document_slug": &lt;block_document_slug&gt;}
+
+If a block document for a given block type is saved with a different schema
+than the current class calling `load`, a warning will be raised.
+
+If the current class schema is a subset of the block document schema, the block
+can be loaded as normal using the default `validate = True`.
+
+If the current class schema is a superset of the block document schema, `load`
+must be called with `validate` set to False to prevent a validation error. In
+this case, the block attributes will default to `None` and must be set manually
+and saved to a new block document before the block can be used as expected.
+
+**Args:**
+- `ref`: The reference to the block document. This can be a block document ID,
+or one of supported dictionary reference formats.
+- `validate`: If False, the block document will be loaded without Pydantic
+validating the block schema. This is useful if the block schema has
+changed client-side since the block document referred to by `name` was saved.
+- `client`: The client to use to load the block document. If not provided, the
+default client will be injected.
+
+**Raises:**
+- `ValueError`: If invalid reference format is provided.
+- `ValueError`: If the requested block document is not found.
+
+**Returns:**
+- An instance of the current class hydrated with the data stored in the
+- block document with the specified name.
+
+
+#### `model_dump` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1628" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+model_dump(self) -> dict[str, Any]
+```
+
+#### `model_json_schema` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1583" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+model_json_schema(cls, by_alias: bool = True, ref_template: str = '#/definitions/{model}', schema_generator: type[GenerateJsonSchema] = GenerateJsonSchema, mode: Literal['validation', 'serialization'] = 'validation') -> dict[str, Any]
+```
+
+TODO\: stop overriding this method - use GenerateSchema in ConfigDict instead?
+
+
+#### `model_validate` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1603" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+model_validate(cls: type[Self], obj: dict[str, Any] | Any) -> Self
+```
+
+#### `read_path` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L37" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_path(self, path: str) -> bytes
 ```
 
-#### `write_path` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/filesystems.py#L41" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `register_type_and_schema` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1321" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+register_type_and_schema(cls, client: Optional['PrefectClient'] = None)
+```
+
+Makes block available for configuration with current Prefect API.
+Recursively registers all nested blocks. Registration is idempotent.
+
+**Args:**
+- `client`: Optional client to use for registering type and schema with the
+Prefect API. A new client will be created and used if one is not
+provided.
+
+
+#### `save` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1514" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+save(self, name: Optional[str] = None, overwrite: bool = False, client: Optional['PrefectClient'] = None)
+```
+
+Saves the values of a block as a block document.
+
+**Args:**
+- `name`: User specified name to give saved block document which can later be used to load the
+block document.
+- `overwrite`: Boolean value specifying if values should be overwritten if a block document with
+the specified name already exists.
+
+
+#### `ser_model` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L391" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+ser_model(self, handler: SerializerFunctionWrapHandler, info: SerializationInfo) -> Any
+```
+
+#### `write_path` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L41" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 write_path(self, path: str, content: bytes) -> None
 ```
 
-### `ReadableDeploymentStorage` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/filesystems.py#L45" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `ReadableDeploymentStorage` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L45" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 **Methods:**
 
-#### `get_directory` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/filesystems.py#L49" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `aload` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L992" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+aload(cls, name: str, validate: bool = True, client: Optional['PrefectClient'] = None) -> 'Self'
+```
+
+Retrieves data from the block document with the given name for the block type
+that corresponds with the current class and returns an instantiated version of
+the current class with the data stored in the block document.
+
+If a block document for a given block type is saved with a different schema
+than the current class calling `aload`, a warning will be raised.
+
+If the current class schema is a subset of the block document schema, the block
+can be loaded as normal using the default `validate = True`.
+
+If the current class schema is a superset of the block document schema, `aload`
+must be called with `validate` set to False to prevent a validation error. In
+this case, the block attributes will default to `None` and must be set manually
+and saved to a new block document before the block can be used as expected.
+
+**Args:**
+- `name`: The name or slug of the block document. A block document slug is a
+string with the format &lt;block_type_slug&gt;/&lt;block_document_name&gt;
+- `validate`: If False, the block document will be loaded without Pydantic
+validating the block schema. This is useful if the block schema has
+changed client-side since the block document referred to by `name` was saved.
+- `client`: The client to use to load the block document. If not provided, the
+default client will be injected.
+
+**Raises:**
+- `ValueError`: If the requested block document is not found.
+
+**Returns:**
+- An instance of the current class hydrated with the data stored in the
+- block document with the specified name.
+
+**Examples:**
+
+Load from a Block subclass with a block document name:
+```python
+class Custom(Block):
+    message: str
+
+Custom(message="Hello!").save("my-custom-message")
+
+loaded_block = await Custom.aload("my-custom-message")
+```
+
+Load from Block with a block document slug:
+```python
+class Custom(Block):
+    message: str
+
+Custom(message="Hello!").save("my-custom-message")
+
+loaded_block = await Block.aload("custom/my-custom-message")
+```
+
+Migrate a block document to a new schema:
+```python
+# original class
+class Custom(Block):
+    message: str
+
+Custom(message="Hello!").save("my-custom-message")
+
+# Updated class with new required field
+class Custom(Block):
+    message: str
+    number_of_ducks: int
+
+loaded_block = await Custom.aload("my-custom-message", validate=False)
+
+# Prints UserWarning about schema mismatch
+
+loaded_block.number_of_ducks = 42
+
+loaded_block.save("my-custom-message", overwrite=True)
+```
+
+
+#### `annotation_refers_to_block_class` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1307" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+annotation_refers_to_block_class(annotation: Any) -> bool
+```
+
+#### `block_initialization` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L348" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+block_initialization(self) -> None
+```
+
+#### `delete` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1537" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+delete(cls, name: str, client: Optional['PrefectClient'] = None)
+```
+
+#### `get_block_capabilities` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L437" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+get_block_capabilities(cls) -> FrozenSet[str]
+```
+
+Returns the block capabilities for this Block. Recursively collects all block
+capabilities of all parent classes into a single frozenset.
+
+
+#### `get_block_class_from_key` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L862" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+get_block_class_from_key(cls: type[Self], key: str) -> type[Self]
+```
+
+Retrieve the block class implementation given a key.
+
+
+#### `get_block_class_from_schema` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L855" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+get_block_class_from_schema(cls: type[Self], schema: BlockSchema) -> type[Self]
+```
+
+Retrieve the block class implementation given a schema.
+
+
+#### `get_block_placeholder` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1560" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+get_block_placeholder(self) -> str
+```
+
+Returns the block placeholder for the current block which can be used for
+templating.
+
+**Returns:**
+- The block placeholder for the current block in the format
+`prefect.blocks.{block_type_name}.{block_document_name}`
+
+**Raises:**
+- `BlockNotSavedError`: Raised if the block has not been saved.
+
+If a block has not been saved, the return value will be `None`.
+
+
+#### `get_block_schema_version` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L467" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+get_block_schema_version(cls) -> str
+```
+
+#### `get_block_type_name` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L429" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+get_block_type_name(cls) -> str
+```
+
+#### `get_block_type_slug` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L433" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+get_block_type_slug(cls) -> str
+```
+
+#### `get_code_example` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L710" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+get_code_example(cls) -> Optional[str]
+```
+
+Returns the code example for the given block. Attempts to parse
+code example from the class docstring if an override is not provided.
+
+
+#### `get_description` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L687" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+get_description(cls) -> Optional[str]
+```
+
+Returns the description for the current block. Attempts to parse
+description from class docstring if an override is not defined.
+
+
+#### `get_directory` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L49" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_directory(self, from_path: Optional[str] = None, local_path: Optional[str] = None) -> None
 ```
 
-### `WritableDeploymentStorage` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/filesystems.py#L55" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `is_block_class` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1303" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+is_block_class(block: Any) -> TypeGuard[type['Block']]
+```
+
+#### `load` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1081" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+load(cls, name: str, validate: bool = True, client: Optional['PrefectClient'] = None) -> 'Self'
+```
+
+Retrieves data from the block document with the given name for the block type
+that corresponds with the current class and returns an instantiated version of
+the current class with the data stored in the block document.
+
+If a block document for a given block type is saved with a different schema
+than the current class calling `load`, a warning will be raised.
+
+If the current class schema is a subset of the block document schema, the block
+can be loaded as normal using the default `validate = True`.
+
+If the current class schema is a superset of the block document schema, `load`
+must be called with `validate` set to False to prevent a validation error. In
+this case, the block attributes will default to `None` and must be set manually
+and saved to a new block document before the block can be used as expected.
+
+**Args:**
+- `name`: The name or slug of the block document. A block document slug is a
+string with the format &lt;block_type_slug&gt;/&lt;block_document_name&gt;
+- `validate`: If False, the block document will be loaded without Pydantic
+validating the block schema. This is useful if the block schema has
+changed client-side since the block document referred to by `name` was saved.
+- `client`: The client to use to load the block document. If not provided, the
+default client will be injected.
+
+**Raises:**
+- `ValueError`: If the requested block document is not found.
+
+**Returns:**
+- An instance of the current class hydrated with the data stored in the
+- block document with the specified name.
+
+**Examples:**
+
+Load from a Block subclass with a block document name:
+```python
+class Custom(Block):
+    message: str
+
+Custom(message="Hello!").save("my-custom-message")
+
+loaded_block = Custom.load("my-custom-message")
+```
+
+Load from Block with a block document slug:
+```python
+class Custom(Block):
+    message: str
+
+Custom(message="Hello!").save("my-custom-message")
+
+loaded_block = Block.load("custom/my-custom-message")
+```
+
+Migrate a block document to a new schema:
+```python
+# original class
+class Custom(Block):
+    message: str
+
+Custom(message="Hello!").save("my-custom-message")
+
+# Updated class with new required field
+class Custom(Block):
+    message: str
+    number_of_ducks: int
+
+loaded_block = Custom.load("my-custom-message", validate=False)
+
+# Prints UserWarning about schema mismatch
+
+loaded_block.number_of_ducks = 42
+
+loaded_block.save("my-custom-message", overwrite=True)
+```
+
+
+#### `load_from_ref` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1180" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+load_from_ref(cls, ref: Union[str, UUID, dict[str, Any]], validate: bool = True, client: 'PrefectClient | None' = None) -> Self
+```
+
+Retrieves data from the block document by given reference for the block type
+that corresponds with the current class and returns an instantiated version of
+the current class with the data stored in the block document.
+
+Provided reference can be a block document ID, or a reference data in dictionary format.
+Supported dictionary reference formats are:
+- {"block_document_id": &lt;block_document_id&gt;}
+- {"block_document_slug": &lt;block_document_slug&gt;}
+
+If a block document for a given block type is saved with a different schema
+than the current class calling `load`, a warning will be raised.
+
+If the current class schema is a subset of the block document schema, the block
+can be loaded as normal using the default `validate = True`.
+
+If the current class schema is a superset of the block document schema, `load`
+must be called with `validate` set to False to prevent a validation error. In
+this case, the block attributes will default to `None` and must be set manually
+and saved to a new block document before the block can be used as expected.
+
+**Args:**
+- `ref`: The reference to the block document. This can be a block document ID,
+or one of supported dictionary reference formats.
+- `validate`: If False, the block document will be loaded without Pydantic
+validating the block schema. This is useful if the block schema has
+changed client-side since the block document referred to by `name` was saved.
+- `client`: The client to use to load the block document. If not provided, the
+default client will be injected.
+
+**Raises:**
+- `ValueError`: If invalid reference format is provided.
+- `ValueError`: If the requested block document is not found.
+
+**Returns:**
+- An instance of the current class hydrated with the data stored in the
+- block document with the specified name.
+
+
+#### `model_dump` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1628" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+model_dump(self) -> dict[str, Any]
+```
+
+#### `model_json_schema` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1583" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+model_json_schema(cls, by_alias: bool = True, ref_template: str = '#/definitions/{model}', schema_generator: type[GenerateJsonSchema] = GenerateJsonSchema, mode: Literal['validation', 'serialization'] = 'validation') -> dict[str, Any]
+```
+
+TODO\: stop overriding this method - use GenerateSchema in ConfigDict instead?
+
+
+#### `model_validate` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1603" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+model_validate(cls: type[Self], obj: dict[str, Any] | Any) -> Self
+```
+
+#### `register_type_and_schema` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1321" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+register_type_and_schema(cls, client: Optional['PrefectClient'] = None)
+```
+
+Makes block available for configuration with current Prefect API.
+Recursively registers all nested blocks. Registration is idempotent.
+
+**Args:**
+- `client`: Optional client to use for registering type and schema with the
+Prefect API. A new client will be created and used if one is not
+provided.
+
+
+#### `save` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1514" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+save(self, name: Optional[str] = None, overwrite: bool = False, client: Optional['PrefectClient'] = None)
+```
+
+Saves the values of a block as a block document.
+
+**Args:**
+- `name`: User specified name to give saved block document which can later be used to load the
+block document.
+- `overwrite`: Boolean value specifying if values should be overwritten if a block document with
+the specified name already exists.
+
+
+#### `ser_model` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L391" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+ser_model(self, handler: SerializerFunctionWrapHandler, info: SerializationInfo) -> Any
+```
+
+### `WritableDeploymentStorage` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L55" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 **Methods:**
 
-#### `get_directory` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/filesystems.py#L59" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `aload` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L992" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+aload(cls, name: str, validate: bool = True, client: Optional['PrefectClient'] = None) -> 'Self'
+```
+
+Retrieves data from the block document with the given name for the block type
+that corresponds with the current class and returns an instantiated version of
+the current class with the data stored in the block document.
+
+If a block document for a given block type is saved with a different schema
+than the current class calling `aload`, a warning will be raised.
+
+If the current class schema is a subset of the block document schema, the block
+can be loaded as normal using the default `validate = True`.
+
+If the current class schema is a superset of the block document schema, `aload`
+must be called with `validate` set to False to prevent a validation error. In
+this case, the block attributes will default to `None` and must be set manually
+and saved to a new block document before the block can be used as expected.
+
+**Args:**
+- `name`: The name or slug of the block document. A block document slug is a
+string with the format &lt;block_type_slug&gt;/&lt;block_document_name&gt;
+- `validate`: If False, the block document will be loaded without Pydantic
+validating the block schema. This is useful if the block schema has
+changed client-side since the block document referred to by `name` was saved.
+- `client`: The client to use to load the block document. If not provided, the
+default client will be injected.
+
+**Raises:**
+- `ValueError`: If the requested block document is not found.
+
+**Returns:**
+- An instance of the current class hydrated with the data stored in the
+- block document with the specified name.
+
+**Examples:**
+
+Load from a Block subclass with a block document name:
+```python
+class Custom(Block):
+    message: str
+
+Custom(message="Hello!").save("my-custom-message")
+
+loaded_block = await Custom.aload("my-custom-message")
+```
+
+Load from Block with a block document slug:
+```python
+class Custom(Block):
+    message: str
+
+Custom(message="Hello!").save("my-custom-message")
+
+loaded_block = await Block.aload("custom/my-custom-message")
+```
+
+Migrate a block document to a new schema:
+```python
+# original class
+class Custom(Block):
+    message: str
+
+Custom(message="Hello!").save("my-custom-message")
+
+# Updated class with new required field
+class Custom(Block):
+    message: str
+    number_of_ducks: int
+
+loaded_block = await Custom.aload("my-custom-message", validate=False)
+
+# Prints UserWarning about schema mismatch
+
+loaded_block.number_of_ducks = 42
+
+loaded_block.save("my-custom-message", overwrite=True)
+```
+
+
+#### `annotation_refers_to_block_class` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1307" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+annotation_refers_to_block_class(annotation: Any) -> bool
+```
+
+#### `block_initialization` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L348" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+block_initialization(self) -> None
+```
+
+#### `delete` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1537" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+delete(cls, name: str, client: Optional['PrefectClient'] = None)
+```
+
+#### `get_block_capabilities` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L437" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+get_block_capabilities(cls) -> FrozenSet[str]
+```
+
+Returns the block capabilities for this Block. Recursively collects all block
+capabilities of all parent classes into a single frozenset.
+
+
+#### `get_block_class_from_key` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L862" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+get_block_class_from_key(cls: type[Self], key: str) -> type[Self]
+```
+
+Retrieve the block class implementation given a key.
+
+
+#### `get_block_class_from_schema` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L855" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+get_block_class_from_schema(cls: type[Self], schema: BlockSchema) -> type[Self]
+```
+
+Retrieve the block class implementation given a schema.
+
+
+#### `get_block_placeholder` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1560" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+get_block_placeholder(self) -> str
+```
+
+Returns the block placeholder for the current block which can be used for
+templating.
+
+**Returns:**
+- The block placeholder for the current block in the format
+`prefect.blocks.{block_type_name}.{block_document_name}`
+
+**Raises:**
+- `BlockNotSavedError`: Raised if the block has not been saved.
+
+If a block has not been saved, the return value will be `None`.
+
+
+#### `get_block_schema_version` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L467" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+get_block_schema_version(cls) -> str
+```
+
+#### `get_block_type_name` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L429" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+get_block_type_name(cls) -> str
+```
+
+#### `get_block_type_slug` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L433" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+get_block_type_slug(cls) -> str
+```
+
+#### `get_code_example` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L710" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+get_code_example(cls) -> Optional[str]
+```
+
+Returns the code example for the given block. Attempts to parse
+code example from the class docstring if an override is not provided.
+
+
+#### `get_description` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L687" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+get_description(cls) -> Optional[str]
+```
+
+Returns the description for the current block. Attempts to parse
+description from class docstring if an override is not defined.
+
+
+#### `get_directory` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L59" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_directory(self, from_path: Optional[str] = None, local_path: Optional[str] = None) -> None
 ```
 
-#### `put_directory` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/filesystems.py#L65" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `is_block_class` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1303" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+is_block_class(block: Any) -> TypeGuard[type['Block']]
+```
+
+#### `load` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1081" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+load(cls, name: str, validate: bool = True, client: Optional['PrefectClient'] = None) -> 'Self'
+```
+
+Retrieves data from the block document with the given name for the block type
+that corresponds with the current class and returns an instantiated version of
+the current class with the data stored in the block document.
+
+If a block document for a given block type is saved with a different schema
+than the current class calling `load`, a warning will be raised.
+
+If the current class schema is a subset of the block document schema, the block
+can be loaded as normal using the default `validate = True`.
+
+If the current class schema is a superset of the block document schema, `load`
+must be called with `validate` set to False to prevent a validation error. In
+this case, the block attributes will default to `None` and must be set manually
+and saved to a new block document before the block can be used as expected.
+
+**Args:**
+- `name`: The name or slug of the block document. A block document slug is a
+string with the format &lt;block_type_slug&gt;/&lt;block_document_name&gt;
+- `validate`: If False, the block document will be loaded without Pydantic
+validating the block schema. This is useful if the block schema has
+changed client-side since the block document referred to by `name` was saved.
+- `client`: The client to use to load the block document. If not provided, the
+default client will be injected.
+
+**Raises:**
+- `ValueError`: If the requested block document is not found.
+
+**Returns:**
+- An instance of the current class hydrated with the data stored in the
+- block document with the specified name.
+
+**Examples:**
+
+Load from a Block subclass with a block document name:
+```python
+class Custom(Block):
+    message: str
+
+Custom(message="Hello!").save("my-custom-message")
+
+loaded_block = Custom.load("my-custom-message")
+```
+
+Load from Block with a block document slug:
+```python
+class Custom(Block):
+    message: str
+
+Custom(message="Hello!").save("my-custom-message")
+
+loaded_block = Block.load("custom/my-custom-message")
+```
+
+Migrate a block document to a new schema:
+```python
+# original class
+class Custom(Block):
+    message: str
+
+Custom(message="Hello!").save("my-custom-message")
+
+# Updated class with new required field
+class Custom(Block):
+    message: str
+    number_of_ducks: int
+
+loaded_block = Custom.load("my-custom-message", validate=False)
+
+# Prints UserWarning about schema mismatch
+
+loaded_block.number_of_ducks = 42
+
+loaded_block.save("my-custom-message", overwrite=True)
+```
+
+
+#### `load_from_ref` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1180" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+load_from_ref(cls, ref: Union[str, UUID, dict[str, Any]], validate: bool = True, client: 'PrefectClient | None' = None) -> Self
+```
+
+Retrieves data from the block document by given reference for the block type
+that corresponds with the current class and returns an instantiated version of
+the current class with the data stored in the block document.
+
+Provided reference can be a block document ID, or a reference data in dictionary format.
+Supported dictionary reference formats are:
+- {"block_document_id": &lt;block_document_id&gt;}
+- {"block_document_slug": &lt;block_document_slug&gt;}
+
+If a block document for a given block type is saved with a different schema
+than the current class calling `load`, a warning will be raised.
+
+If the current class schema is a subset of the block document schema, the block
+can be loaded as normal using the default `validate = True`.
+
+If the current class schema is a superset of the block document schema, `load`
+must be called with `validate` set to False to prevent a validation error. In
+this case, the block attributes will default to `None` and must be set manually
+and saved to a new block document before the block can be used as expected.
+
+**Args:**
+- `ref`: The reference to the block document. This can be a block document ID,
+or one of supported dictionary reference formats.
+- `validate`: If False, the block document will be loaded without Pydantic
+validating the block schema. This is useful if the block schema has
+changed client-side since the block document referred to by `name` was saved.
+- `client`: The client to use to load the block document. If not provided, the
+default client will be injected.
+
+**Raises:**
+- `ValueError`: If invalid reference format is provided.
+- `ValueError`: If the requested block document is not found.
+
+**Returns:**
+- An instance of the current class hydrated with the data stored in the
+- block document with the specified name.
+
+
+#### `model_dump` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1628" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+model_dump(self) -> dict[str, Any]
+```
+
+#### `model_json_schema` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1583" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+model_json_schema(cls, by_alias: bool = True, ref_template: str = '#/definitions/{model}', schema_generator: type[GenerateJsonSchema] = GenerateJsonSchema, mode: Literal['validation', 'serialization'] = 'validation') -> dict[str, Any]
+```
+
+TODO\: stop overriding this method - use GenerateSchema in ConfigDict instead?
+
+
+#### `model_validate` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1603" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+model_validate(cls: type[Self], obj: dict[str, Any] | Any) -> Self
+```
+
+#### `put_directory` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L65" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 put_directory(self, local_path: Optional[str] = None, to_path: Optional[str] = None, ignore_file: Optional[str] = None) -> None
 ```
 
-### `LocalFileSystem` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/filesystems.py#L74" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `register_type_and_schema` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1321" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+register_type_and_schema(cls, client: Optional['PrefectClient'] = None)
+```
+
+Makes block available for configuration with current Prefect API.
+Recursively registers all nested blocks. Registration is idempotent.
+
+**Args:**
+- `client`: Optional client to use for registering type and schema with the
+Prefect API. A new client will be created and used if one is not
+provided.
+
+
+#### `save` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1514" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+save(self, name: Optional[str] = None, overwrite: bool = False, client: Optional['PrefectClient'] = None)
+```
+
+Saves the values of a block as a block document.
+
+**Args:**
+- `name`: User specified name to give saved block document which can later be used to load the
+block document.
+- `overwrite`: Boolean value specifying if values should be overwritten if a block document with
+the specified name already exists.
+
+
+#### `ser_model` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L391" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+ser_model(self, handler: SerializerFunctionWrapHandler, info: SerializationInfo) -> Any
+```
+
+### `LocalFileSystem` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L74" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Store data as a file on a local file system.
@@ -67,13 +1563,7 @@ Store data as a file on a local file system.
 
 **Methods:**
 
-#### `cast_pathlib` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/filesystems.py#L98" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
-
-```python
-cast_pathlib(cls, value: str | Path | None) -> str | None
-```
-
-#### `aget_directory` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/filesystems.py#L130" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `aget_directory` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L130" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 aget_directory(self, from_path: Optional[str] = None, local_path: Optional[str] = None) -> None
@@ -84,18 +1574,7 @@ Copies a directory from one place to another on the local filesystem.
 Defaults to copying the entire contents of the block's basepath to the current working directory.
 
 
-#### `get_directory` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/filesystems.py#L165" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
-
-```python
-get_directory(self, from_path: Optional[str] = None, local_path: Optional[str] = None) -> None
-```
-
-Copies a directory from one place to another on the local filesystem.
-
-Defaults to copying the entire contents of the block's basepath to the current working directory.
-
-
-#### `aput_directory` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/filesystems.py#L223" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `aput_directory` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L223" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 aput_directory(self, local_path: Optional[str] = None, to_path: Optional[str] = None, ignore_file: Optional[str] = None) -> None
@@ -107,7 +1586,42 @@ Defaults to copying the entire contents of the current working directory to the 
 An `ignore_file` path may be provided that can include gitignore style expressions for filepaths to ignore.
 
 
-#### `put_directory` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/filesystems.py#L258" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `aread_path` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L301" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+aread_path(self, path: str) -> bytes
+```
+
+#### `awrite_path` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L334" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+awrite_path(self, path: str, content: bytes) -> str
+```
+
+#### `cast_pathlib` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L98" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+cast_pathlib(cls, value: str | Path | None) -> str | None
+```
+
+#### `get_directory` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L165" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+get_directory(self, from_path: Optional[str] = None, local_path: Optional[str] = None) -> None
+```
+
+Copies a directory from one place to another on the local filesystem.
+
+Defaults to copying the entire contents of the block's basepath to the current working directory.
+
+
+#### `get_directory` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L59" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+get_directory(self, from_path: Optional[str] = None, local_path: Optional[str] = None) -> None
+```
+
+#### `put_directory` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L258" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 put_directory(self, local_path: Optional[str] = None, to_path: Optional[str] = None, ignore_file: Optional[str] = None) -> None
@@ -119,31 +1633,37 @@ Defaults to copying the entire contents of the current working directory to the 
 An `ignore_file` path may be provided that can include gitignore style expressions for filepaths to ignore.
 
 
-#### `aread_path` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/filesystems.py#L301" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `put_directory` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L65" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-aread_path(self, path: str) -> bytes
+put_directory(self, local_path: Optional[str] = None, to_path: Optional[str] = None, ignore_file: Optional[str] = None) -> None
 ```
 
-#### `read_path` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/filesystems.py#L318" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `read_path` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L318" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_path(self, path: str) -> bytes
 ```
 
-#### `awrite_path` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/filesystems.py#L334" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `read_path` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L37" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-awrite_path(self, path: str, content: bytes) -> str
+read_path(self, path: str) -> bytes
 ```
 
-#### `write_path` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/filesystems.py#L350" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `write_path` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L350" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 write_path(self, path: str, content: bytes) -> str
 ```
 
-### `RemoteFileSystem` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/filesystems.py#L366" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `write_path` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L41" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+write_path(self, path: str, content: bytes) -> None
+```
+
+### `RemoteFileSystem` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L366" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Store data as a file on a remote file system.
@@ -154,13 +1674,19 @@ using a protocol. For example, "s3://my-bucket/my-folder/" will use S3.
 
 **Methods:**
 
-#### `check_basepath` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/filesystems.py#L402" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `check_basepath` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L402" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 check_basepath(cls, value: str) -> str
 ```
 
-#### `get_directory` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/filesystems.py#L428" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `filesystem` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L525" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+filesystem(self) -> fsspec.AbstractFileSystem
+```
+
+#### `get_directory` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L428" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_directory(self, from_path: Optional[str] = None, local_path: Optional[str] = None) -> None
@@ -171,7 +1697,13 @@ Downloads a directory from a given remote path to a local directory.
 Defaults to downloading the entire contents of the block's basepath to the current working directory.
 
 
-#### `put_directory` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/filesystems.py#L451" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get_directory` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L59" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+get_directory(self, from_path: Optional[str] = None, local_path: Optional[str] = None) -> None
+```
+
+#### `put_directory` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L451" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 put_directory(self, local_path: Optional[str] = None, to_path: Optional[str] = None, ignore_file: Optional[str] = None, overwrite: bool = True) -> int
@@ -182,25 +1714,37 @@ Uploads a directory from a given local path to a remote directory.
 Defaults to uploading the entire contents of the current working directory to the block's basepath.
 
 
-#### `read_path` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/filesystems.py#L505" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `put_directory` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L65" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+put_directory(self, local_path: Optional[str] = None, to_path: Optional[str] = None, ignore_file: Optional[str] = None) -> None
+```
+
+#### `read_path` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L505" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_path(self, path: str) -> bytes
 ```
 
-#### `write_path` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/filesystems.py#L514" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `read_path` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L37" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+read_path(self, path: str) -> bytes
+```
+
+#### `write_path` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L514" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 write_path(self, path: str, content: bytes) -> str
 ```
 
-#### `filesystem` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/filesystems.py#L525" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `write_path` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L41" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-filesystem(self) -> fsspec.AbstractFileSystem
+write_path(self, path: str, content: bytes) -> None
 ```
 
-### `SMB` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/filesystems.py#L543" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `SMB` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L543" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Store data as a file on a SMB share.
@@ -208,19 +1752,19 @@ Store data as a file on a SMB share.
 
 **Methods:**
 
-#### `basepath` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/filesystems.py#L585" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `basepath` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L585" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 basepath(self) -> str
 ```
 
-#### `filesystem` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/filesystems.py#L589" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `filesystem` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L589" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 filesystem(self) -> RemoteFileSystem
 ```
 
-#### `get_directory` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/filesystems.py#L606" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get_directory` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L606" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_directory(self, from_path: Optional[str] = None, local_path: Optional[str] = None) -> bytes
@@ -230,7 +1774,13 @@ Downloads a directory from a given remote path to a local directory.
 Defaults to downloading the entire contents of the block's basepath to the current working directory.
 
 
-#### `put_directory` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/filesystems.py#L618" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get_directory` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L59" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+get_directory(self, from_path: Optional[str] = None, local_path: Optional[str] = None) -> None
+```
+
+#### `put_directory` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L618" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 put_directory(self, local_path: Optional[str] = None, to_path: Optional[str] = None, ignore_file: Optional[str] = None) -> int
@@ -240,19 +1790,37 @@ Uploads a directory from a given local path to a remote directory.
 Defaults to uploading the entire contents of the current working directory to the block's basepath.
 
 
-#### `read_path` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/filesystems.py#L636" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `put_directory` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L65" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+put_directory(self, local_path: Optional[str] = None, to_path: Optional[str] = None, ignore_file: Optional[str] = None) -> None
+```
+
+#### `read_path` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L636" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_path(self, path: str) -> bytes
 ```
 
-#### `write_path` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/filesystems.py#L640" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `read_path` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L37" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+read_path(self, path: str) -> bytes
+```
+
+#### `write_path` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L640" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 write_path(self, path: str, content: bytes) -> str
 ```
 
-### `NullFileSystem` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/filesystems.py#L644" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `write_path` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L41" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+write_path(self, path: str, content: bytes) -> None
+```
+
+### `NullFileSystem` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L644" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 A file system that does not store any data.
@@ -260,26 +1828,26 @@ A file system that does not store any data.
 
 **Methods:**
 
-#### `read_path` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/filesystems.py#L649" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
-
-```python
-read_path(self, path: str) -> None
-```
-
-#### `write_path` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/filesystems.py#L652" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
-
-```python
-write_path(self, path: str, content: bytes) -> None
-```
-
-#### `get_directory` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/filesystems.py#L655" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get_directory` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L655" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_directory(self, from_path: Optional[str] = None, local_path: Optional[str] = None) -> None
 ```
 
-#### `put_directory` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/filesystems.py#L660" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `put_directory` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L660" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 put_directory(self, local_path: Optional[str] = None, to_path: Optional[str] = None, ignore_file: Optional[str] = None) -> None
+```
+
+#### `read_path` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L649" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+read_path(self, path: str) -> None
+```
+
+#### `write_path` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L652" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+write_path(self, path: str, content: bytes) -> None
 ```

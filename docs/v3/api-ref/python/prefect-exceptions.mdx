@@ -12,7 +12,7 @@ Prefect-specific exceptions.
 
 ## Functions
 
-### `exception_traceback` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/exceptions.py#L48" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `exception_traceback` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/exceptions.py#L48" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 exception_traceback(exc: Exception) -> str
@@ -24,13 +24,13 @@ Convert an exception to a printable string with a traceback
 
 ## Classes
 
-### `PrefectException` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/exceptions.py#L56" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `PrefectException` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/exceptions.py#L56" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Base exception type for Prefect errors.
 
 
-### `CrashedRun` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/exceptions.py#L62" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `CrashedRun` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/exceptions.py#L62" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Raised when the result from a crashed run is retrieved.
@@ -39,7 +39,7 @@ This occurs when a string is attached to the state instead of an exception or if
 the state's data is null.
 
 
-### `FailedRun` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/exceptions.py#L71" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `FailedRun` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/exceptions.py#L71" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Raised when the result from a failed run is retrieved and an exception is not
@@ -49,7 +49,7 @@ This occurs when a string is attached to the state instead of an exception or if
 the state's data is null.
 
 
-### `CancelledRun` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/exceptions.py#L81" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `CancelledRun` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/exceptions.py#L81" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Raised when the result from a cancelled run is retrieved and an exception
@@ -59,13 +59,13 @@ This occurs when a string is attached to the state instead of an exception
 or if the state's data is null.
 
 
-### `PausedRun` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/exceptions.py#L91" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `PausedRun` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/exceptions.py#L91" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Raised when the result from a paused run is retrieved.
 
 
-### `UnfinishedRun` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/exceptions.py#L103" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `UnfinishedRun` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/exceptions.py#L103" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Raised when the result from a run that is not finished is retrieved.
@@ -73,32 +73,32 @@ Raised when the result from a run that is not finished is retrieved.
 For example, if a run is in a SCHEDULED, PENDING, CANCELLING, or RUNNING state.
 
 
-### `MissingFlowError` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/exceptions.py#L111" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `MissingFlowError` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/exceptions.py#L111" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Raised when a given flow name is not found in the expected script.
 
 
-### `UnspecifiedFlowError` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/exceptions.py#L117" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `UnspecifiedFlowError` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/exceptions.py#L117" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Raised when multiple flows are found in the expected script and no name is given.
 
 
-### `MissingResult` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/exceptions.py#L123" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `MissingResult` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/exceptions.py#L123" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Raised when a result is missing from a state; often when result persistence is
 disabled and the state is retrieved from the API.
 
 
-### `ScriptError` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/exceptions.py#L130" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `ScriptError` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/exceptions.py#L130" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Raised when a script errors during evaluation while attempting to load data
 
 
-### `ParameterTypeError` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/exceptions.py#L153" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `ParameterTypeError` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/exceptions.py#L153" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Raised when a parameter does not pass Pydantic type validation.
@@ -106,13 +106,13 @@ Raised when a parameter does not pass Pydantic type validation.
 
 **Methods:**
 
-#### `from_validation_error` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/exceptions.py#L162" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `from_validation_error` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/exceptions.py#L162" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 from_validation_error(cls, exc: ValidationError) -> Self
 ```
 
-### `ParameterBindError` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/exceptions.py#L171" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `ParameterBindError` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/exceptions.py#L171" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Raised when args and kwargs cannot be converted to parameters.
@@ -120,13 +120,13 @@ Raised when args and kwargs cannot be converted to parameters.
 
 **Methods:**
 
-#### `from_bind_failure` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/exceptions.py#L180" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `from_bind_failure` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/exceptions.py#L180" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 from_bind_failure(cls, fn: Callable[..., Any], exc: TypeError, call_args: tuple[Any, ...], call_kwargs: dict[str, Any]) -> Self
 ```
 
-### `SignatureMismatchError` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/exceptions.py#L196" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `SignatureMismatchError` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/exceptions.py#L196" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Raised when parameters passed to a function do not match its signature.
@@ -134,64 +134,64 @@ Raised when parameters passed to a function do not match its signature.
 
 **Methods:**
 
-#### `from_bad_params` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/exceptions.py#L203" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `from_bad_params` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/exceptions.py#L203" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 from_bad_params(cls, expected_params: list[str], provided_params: list[str]) -> Self
 ```
 
-### `ObjectNotFound` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/exceptions.py#L213" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `ObjectNotFound` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/exceptions.py#L213" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Raised when the client receives a 404 (not found) from the API.
 
 
-### `ObjectAlreadyExists` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/exceptions.py#L233" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `ObjectAlreadyExists` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/exceptions.py#L233" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Raised when the client receives a 409 (conflict) from the API.
 
 
-### `UpstreamTaskError` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/exceptions.py#L243" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `UpstreamTaskError` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/exceptions.py#L243" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Raised when a task relies on the result of another task but that task is not
 'COMPLETE'
 
 
-### `MissingContextError` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/exceptions.py#L250" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `MissingContextError` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/exceptions.py#L250" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Raised when a method is called that requires a task or flow run context to be
 active but one cannot be found.
 
 
-### `MissingProfileError` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/exceptions.py#L257" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `MissingProfileError` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/exceptions.py#L257" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Raised when a profile name does not exist.
 
 
-### `ReservedArgumentError` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/exceptions.py#L263" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `ReservedArgumentError` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/exceptions.py#L263" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Raised when a function used with Prefect has an argument with a name that is
 reserved for a Prefect feature
 
 
-### `InvalidNameError` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/exceptions.py#L270" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `InvalidNameError` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/exceptions.py#L270" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Raised when a name contains characters that are not permitted.
 
 
-### `PrefectSignal` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/exceptions.py#L276" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `PrefectSignal` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/exceptions.py#L276" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Base type for signal-like exceptions that should never be caught by users.
 
 
-### `Abort` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/exceptions.py#L282" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `Abort` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/exceptions.py#L282" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Raised when the API sends an 'ABORT' instruction during state proposal.
@@ -199,25 +199,25 @@ Raised when the API sends an 'ABORT' instruction during state proposal.
 Indicates that the run should exit immediately.
 
 
-### `Pause` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/exceptions.py#L290" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `Pause` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/exceptions.py#L290" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Raised when a flow run is PAUSED and needs to exit for resubmission.
 
 
-### `ExternalSignal` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/exceptions.py#L302" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `ExternalSignal` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/exceptions.py#L302" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Base type for external signal-like exceptions that should never be caught by users.
 
 
-### `TerminationSignal` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/exceptions.py#L308" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `TerminationSignal` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/exceptions.py#L308" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Raised when a flow run receives a termination signal.
 
 
-### `PrefectHTTPStatusError` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/exceptions.py#L317" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `PrefectHTTPStatusError` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/exceptions.py#L317" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Raised when client receives a `Response` that contains an HTTPStatusError.
@@ -227,7 +227,7 @@ Used to include API error details in the error messages that the client provides
 
 **Methods:**
 
-#### `from_httpx_error` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/exceptions.py#L325" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `from_httpx_error` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/exceptions.py#L325" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 from_httpx_error(cls: type[Self], httpx_error: HTTPStatusError) -> Self
@@ -236,99 +236,99 @@ from_httpx_error(cls: type[Self], httpx_error: HTTPStatusError) -> Self
 Generate a `PrefectHTTPStatusError` from an `httpx.HTTPStatusError`.
 
 
-### `MappingLengthMismatch` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/exceptions.py#L348" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `MappingLengthMismatch` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/exceptions.py#L348" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Raised when attempting to call Task.map with arguments of different lengths.
 
 
-### `MappingMissingIterable` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/exceptions.py#L354" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `MappingMissingIterable` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/exceptions.py#L354" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Raised when attempting to call Task.map with all static arguments
 
 
-### `BlockMissingCapabilities` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/exceptions.py#L360" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `BlockMissingCapabilities` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/exceptions.py#L360" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Raised when a block does not have required capabilities for a given operation.
 
 
-### `ProtectedBlockError` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/exceptions.py#L366" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `ProtectedBlockError` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/exceptions.py#L366" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Raised when an operation is prevented due to block protection.
 
 
-### `InvalidRepositoryURLError` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/exceptions.py#L372" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `InvalidRepositoryURLError` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/exceptions.py#L372" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Raised when an incorrect URL is provided to a GitHub filesystem block.
 
 
-### `InfrastructureError` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/exceptions.py#L376" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `InfrastructureError` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/exceptions.py#L376" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 A base class for exceptions related to infrastructure blocks
 
 
-### `InfrastructureNotFound` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/exceptions.py#L382" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `InfrastructureNotFound` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/exceptions.py#L382" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Raised when infrastructure is missing, likely because it has exited or been
 deleted.
 
 
-### `InfrastructureNotAvailable` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/exceptions.py#L389" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `InfrastructureNotAvailable` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/exceptions.py#L389" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Raised when infrastructure is not accessible from the current machine. For example,
 if a process was spawned on another machine it cannot be managed.
 
 
-### `NotPausedError` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/exceptions.py#L396" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `NotPausedError` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/exceptions.py#L396" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Raised when attempting to unpause a run that isn't paused.
 
 
-### `FlowPauseTimeout` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/exceptions.py#L400" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `FlowPauseTimeout` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/exceptions.py#L400" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Raised when a flow pause times out
 
 
-### `FlowRunWaitTimeout` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/exceptions.py#L404" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `FlowRunWaitTimeout` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/exceptions.py#L404" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Raised when a flow run takes longer than a given timeout
 
 
-### `PrefectImportError` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/exceptions.py#L408" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `PrefectImportError` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/exceptions.py#L408" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 An error raised when a Prefect object cannot be imported due to a move or removal.
 
 
-### `SerializationError` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/exceptions.py#L417" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `SerializationError` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/exceptions.py#L417" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Raised when an object cannot be serialized.
 
 
-### `ConfigurationError` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/exceptions.py#L423" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `ConfigurationError` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/exceptions.py#L423" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Raised when a configuration is invalid.
 
 
-### `ProfileSettingsValidationError` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/exceptions.py#L429" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `ProfileSettingsValidationError` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/exceptions.py#L429" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Raised when a profile settings are invalid.
 
 
-### `HashError` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/exceptions.py#L438" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `HashError` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/exceptions.py#L438" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Raised when hashing objects fails

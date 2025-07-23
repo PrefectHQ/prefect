@@ -14,7 +14,7 @@ with options for logging output, scheduling, and deployment customization.
 
 ## Functions
 
-### `output_stream` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/cli/shell.py#L34" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `output_stream` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/shell.py#L34" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 output_stream(pipe: IO[str], logger_function: Callable[[str], None]) -> None
@@ -28,7 +28,7 @@ Read from a pipe line by line and log using the provided logging function.
 - `logger_function`: A logging function from the logger.
 
 
-### `output_collect` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/cli/shell.py#L47" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `output_collect` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/shell.py#L47" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 output_collect(pipe: IO[str], container: list[str]) -> None
@@ -42,7 +42,7 @@ Collects output from a subprocess pipe and stores it in a container list.
 - `container`: A list to store the collected output lines.
 
 
-### `run_shell_process` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/cli/shell.py#L60" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `run_shell_process` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/shell.py#L60" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 run_shell_process(command: str, log_output: bool = True, stream_stdout: bool = False, log_stderr: bool = False, popen_kwargs: Optional[Dict[str, Any]] = None)
@@ -62,7 +62,7 @@ It handles both the execution of the command and the collection of its output fo
 - `popen_kwargs`: Additional keyword arguments to pass to the `subprocess.Popen` call.
 
 
-### `watch` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/cli/shell.py#L136" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `watch` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/shell.py#L136" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 watch(command: str, log_output: bool = typer.Option(True, help='Log the output of the command to Prefect logs.'), flow_run_name: str = typer.Option(None, help='Name of the flow run.'), flow_name: str = typer.Option('Shell Command', help='Name of the flow.'), stream_stdout: bool = typer.Option(True, help='Stream the output of the command.'), tag: Annotated[Optional[List[str]], typer.Option(help='Optional tags for the flow run.')] = None)
@@ -79,7 +79,7 @@ Executes a shell command and observes it as Prefect flow.
 - `tag`: An optional list of tags for categorizing and filtering flows in the Prefect UI.
 
 
-### `serve` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/cli/shell.py#L171" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `serve` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/shell.py#L171" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 serve(command: str, flow_name: str = typer.Option(..., help='Name of the flow'), deployment_name: str = typer.Option('CLI Runner Deployment', help='Name of the deployment'), deployment_tags: List[str] = typer.Option(None, '--tag', help='Tag for the deployment (can be provided multiple times)'), log_output: bool = typer.Option(True, help='Stream the output of the command', hidden=True), stream_stdout: bool = typer.Option(True, help='Stream the output of the command'), cron_schedule: str = typer.Option(None, help='Cron schedule for the flow'), timezone: str = typer.Option(None, help='Timezone for the schedule'), concurrency_limit: int = typer.Option(None, min=1, help='The maximum number of flow runs that can execute at the same time'), run_once: bool = typer.Option(False, help='Run the agent loop once, instead of forever.'))
