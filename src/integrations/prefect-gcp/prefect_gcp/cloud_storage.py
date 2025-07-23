@@ -728,7 +728,6 @@ class GcsBucket(WritableDeploymentStorage, WritableFileSystem, ObjectStorageBloc
                 ignore_patterns = f.readlines()
             included_files = filter_files(local_path, ignore_patterns)
 
-        # Collect all files to upload first
         files_to_upload = []
         for local_file_path in Path(local_path).rglob("*"):
             if (
@@ -748,13 +747,11 @@ class GcsBucket(WritableDeploymentStorage, WritableFileSystem, ObjectStorageBloc
             client = self.gcp_credentials.get_cloud_storage_client()
             bucket_obj = await run_sync_in_worker_thread(client.get_bucket, self.bucket)
 
-            # Create upload tasks
             upload_tasks = []
             for local_file_path, remote_file_path in files_to_upload:
                 local_file_content = local_file_path.read_bytes()
                 blob_obj = bucket_obj.blob(remote_file_path)
 
-                # Create upload task
                 upload_task = run_sync_in_worker_thread(
                     blob_obj.upload_from_string, local_file_content
                 )
