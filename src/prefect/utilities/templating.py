@@ -445,12 +445,25 @@ async def resolve_variables(template: T, client: Optional["PrefectClient"] = Non
         return template
 
 
+# Regex to match block template strings like "{{ prefect.blocks.<block_type>.<block_name> }}"
 BLOCK_TEMPLATE_PATTERN = re.compile(
     r"{{\s*prefect\.blocks\.([a-zA-Z_][\w]*)\.([\w\-]+)\s*}}"
 )
 
 
 async def resolve_block_template_string(value: str):
+    """
+    Resolve a single block template string to its corresponding Block instance.
+
+    If the input string matches the pattern "{{ prefect.blocks.<block_type>.<block_name> }}",
+    this function loads and returns the corresponding Block. Otherwise, it returns the input unchanged.
+
+    Args:
+        value (str): The string to resolve.
+
+    Returns:
+        Any: The resolved Block instance if matched, or the original value.
+    """
     if not isinstance(value, str):
         return value
 
@@ -463,6 +476,18 @@ async def resolve_block_template_string(value: str):
 
 
 async def resolve_block_templates_recursively(data: Any) -> Any:
+    """
+    Recursively resolve block template strings within a nested data structure.
+
+    This function walks through dictionaries, lists, and strings in the input data.
+    If any string matches the block template pattern, it is resolved to its corresponding Block.
+
+    Args:
+        data (Any): The input data structure containing block template strings.
+
+    Returns:
+        Any: A new data structure with all matching template strings resolved to Block instances.
+    """
     if isinstance(data, dict):
         return {
             key: await resolve_block_templates_recursively(value)
