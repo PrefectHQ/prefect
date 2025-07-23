@@ -45,7 +45,7 @@ Note some important details:
 
 ## Functions
 
-### `validate_job_variables_for_deployment_flow_run` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/api/validation.py#L222" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `validate_job_variables_for_deployment_flow_run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/validation.py#L222" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 validate_job_variables_for_deployment_flow_run(session: AsyncSession, deployment: BaseDeployment, flow_run: FlowRunAction) -> None
@@ -58,7 +58,7 @@ Flow runs are the terminal point for job variable overlays, so we validate requi
 job variables because all variables should now be present.
 
 
-### `validate_job_variables_for_deployment` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/api/validation.py#L264" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `validate_job_variables_for_deployment` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/validation.py#L264" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 validate_job_variables_for_deployment(session: AsyncSession, work_pool: WorkPool, deployment: DeploymentAction) -> None
@@ -78,7 +78,7 @@ the deployment's and flow run's overrides, fails to specify a value for the requ
 key, that's an error.
 
 
-### `validate_job_variable_defaults_for_work_pool` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/api/validation.py#L301" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `validate_job_variable_defaults_for_work_pool` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/validation.py#L301" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 validate_job_variable_defaults_for_work_pool(session: AsyncSession, work_pool_name: str, base_job_template: Dict[str, Any]) -> None
@@ -100,7 +100,7 @@ for the required key, that's an error.
 NOTE: This will raise an HTTP 404 error if a referenced block document does not exist.
 
 
-### `validate_job_variables_for_run_deployment_action` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/api/validation.py#L334" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `validate_job_variables_for_run_deployment_action` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/validation.py#L334" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 validate_job_variables_for_run_deployment_action(session: AsyncSession, run_action: RunDeployment) -> None

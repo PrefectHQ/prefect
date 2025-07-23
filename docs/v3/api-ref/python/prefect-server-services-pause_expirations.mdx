@@ -12,7 +12,7 @@ The FailExpiredPauses service. Responsible for putting Paused flow runs in a Fai
 
 ## Classes
 
-### `FailExpiredPauses` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/services/pause_expirations.py#L23" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `FailExpiredPauses` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/pause_expirations.py#L23" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Fails flow runs that have been paused and never resumed
@@ -20,13 +20,7 @@ Fails flow runs that have been paused and never resumed
 
 **Methods:**
 
-#### `service_settings` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/services/pause_expirations.py#L29" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
-
-```python
-service_settings(cls) -> ServicesBaseSetting
-```
-
-#### `run_once` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/services/pause_expirations.py#L43" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `run_once` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/pause_expirations.py#L43" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 run_once(self, db: PrefectDBInterface) -> None
@@ -37,4 +31,49 @@ Mark flow runs as failed by:
 - Querying for flow runs in a Paused state that have timed out
 - For any runs past the "expiration" threshold, setting the flow run state to a
   new `Failed` state
+
+
+#### `run_once` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/base.py#L329" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+run_once(self) -> None
+```
+
+Represents one loop of the service.
+
+Subclasses must override this method.
+
+To actually run the service once, call `LoopService().start(loops=1)`
+instead of `LoopService().run_once()`, because this method will not invoke setup
+and teardown methods properly.
+
+
+#### `service_settings` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/pause_expirations.py#L29" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+service_settings(cls) -> ServicesBaseSetting
+```
+
+#### `start` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/base.py#L211" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+start(self, loops: None = None) -> NoReturn
+```
+
+Run the service indefinitely.
+
+
+#### `stop` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/base.py#L291" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+stop(self, block: bool = True) -> None
+```
+
+Gracefully stops a running LoopService and optionally blocks until the
+service stops.
+
+**Args:**
+- `block`: if True, blocks until the service is
+finished running. Otherwise it requests a stop and returns but
+the service may still be running a final loop.
 
