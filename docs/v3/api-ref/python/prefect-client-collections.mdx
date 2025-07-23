@@ -7,7 +7,7 @@ sidebarTitle: collections
 
 ## Functions
 
-### `get_collections_metadata_client` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/collections.py#L17" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `get_collections_metadata_client` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/collections.py#L17" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_collections_metadata_client(httpx_settings: Optional[Dict[str, Any]] = None) -> 'CollectionsMetadataClient'
@@ -23,4 +23,12 @@ to Prefect Cloud, otherwise will return an `OrchestrationClient`.
 
 ## Classes
 
-### `CollectionsMetadataClient` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/collections.py#L9" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `CollectionsMetadataClient` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/collections.py#L9" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+**Methods:**
+
+#### `read_worker_metadata` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/collections.py#L10" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+read_worker_metadata(self) -> Dict[str, Any]
+```

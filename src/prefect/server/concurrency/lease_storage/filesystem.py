@@ -19,9 +19,11 @@ from prefect.settings.context import get_current_settings
 
 
 class _LeaseFile(TypedDict):
+    id: str
     resource_ids: list[str]
     metadata: dict[str, Any] | None
     expiration: str
+    created_at: str
 
 
 class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
@@ -79,17 +81,20 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
         self._save_expiration_index(index)
 
     def _serialize_lease(
-        self, lease: ResourceLease[ConcurrencyLimitLeaseMetadata], expiration: datetime
+        self, lease: ResourceLease[ConcurrencyLimitLeaseMetadata]
     ) -> _LeaseFile:
         return {
+            "id": str(lease.id),
             "resource_ids": [str(rid) for rid in lease.resource_ids],
             "metadata": {"slots": lease.metadata.slots} if lease.metadata else None,
-            "expiration": expiration.isoformat(),
+            "expiration": lease.expiration.isoformat(),
+            "created_at": lease.created_at.isoformat(),
         }
 
     def _deserialize_lease(
         self, data: _LeaseFile
     ) -> ResourceLease[ConcurrencyLimitLeaseMetadata]:
+        lease_id = UUID(data["id"])
         resource_ids = [UUID(rid) for rid in data["resource_ids"]]
         metadata = (
             ConcurrencyLimitLeaseMetadata(slots=data["metadata"]["slots"])
@@ -97,8 +102,13 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
             else None
         )
         expiration = datetime.fromisoformat(data["expiration"])
+        created_at = datetime.fromisoformat(data["created_at"])
         lease = ResourceLease(
-            resource_ids=resource_ids, metadata=metadata, expiration=expiration
+            id=lease_id,
+            resource_ids=resource_ids,
+            metadata=metadata,
+            expiration=expiration,
+            created_at=created_at,
         )
         return lease
 
@@ -115,7 +125,7 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
 
         self._ensure_storage_path()
         lease_file = self._lease_file_path(lease.id)
-        lease_data = self._serialize_lease(lease, expiration)
+        lease_data = self._serialize_lease(lease)
 
         with open(lease_file, "w") as f:
             json.dump(lease_data, f)
@@ -138,13 +148,6 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
                 lease_data = json.load(f)
 
             lease = self._deserialize_lease(lease_data)
-
-            # Check if lease is expired
-            if lease.expiration < datetime.now(timezone.utc):
-                # Clean up expired lease
-                lease_file.unlink(missing_ok=True)
-                await self._remove_from_expiration_index(lease_id)
-                return None
 
             return lease
         except (json.JSONDecodeError, KeyError, ValueError):
@@ -185,11 +188,31 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
         # Remove from expiration index
         await self._remove_from_expiration_index(lease_id)
 
+    async def read_active_lease_ids(self, limit: int = 100) -> list[UUID]:
+        active_leases: list[UUID] = []
+        now = datetime.now(timezone.utc)
+
+        expiration_index = await self._load_expiration_index()
+
+        for lease_id_str, expiration_str in expiration_index.items():
+            if len(active_leases) >= limit:
+                break
+
+            try:
+                lease_id = UUID(lease_id_str)
+                expiration = datetime.fromisoformat(expiration_str)
+
+                if expiration > now:
+                    active_leases.append(lease_id)
+            except (ValueError, TypeError):
+                continue
+
+        return active_leases
+
     async def read_expired_lease_ids(self, limit: int = 100) -> list[UUID]:
         expired_leases: list[UUID] = []
         now = datetime.now(timezone.utc)
 
-        # Load expiration index
         expiration_index = await self._load_expiration_index()
 
         for lease_id_str, expiration_str in expiration_index.items():
@@ -203,7 +226,6 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
                 if expiration < now:
                     expired_leases.append(lease_id)
             except (ValueError, TypeError):
-                # Clean up corrupted index entry
                 continue
 
         return expired_leases

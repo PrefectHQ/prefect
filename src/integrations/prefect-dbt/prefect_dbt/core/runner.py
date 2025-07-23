@@ -19,7 +19,7 @@ from dbt.cli.main import dbtRunner
 from dbt.compilation import Linker
 from dbt.config.runtime import RuntimeConfig
 from dbt.contracts.graph.manifest import Manifest
-from dbt.contracts.graph.nodes import ManifestNode
+from dbt.contracts.graph.nodes import ManifestNode, SourceDefinition
 from dbt.contracts.state import (
     load_result_state,  # type: ignore[reportUnknownMemberType]
 )
@@ -30,6 +30,7 @@ from google.protobuf.json_format import MessageToDict
 from prefect import get_client, get_run_logger
 from prefect._internal.uuid7 import uuid7
 from prefect.assets import Asset, AssetProperties
+from prefect.assets.core import MAX_ASSET_DESCRIPTION_LENGTH
 from prefect.cache_policies import NO_CACHE
 from prefect.client.orchestration import PrefectClient
 from prefect.context import AssetContext, hydrated_context, serialize_context
@@ -206,19 +207,26 @@ class PrefectDbtRunner:
             )
 
     def _get_node_prefect_config(
-        self, manifest_node: ManifestNode
+        self, manifest_node: Union[ManifestNode, SourceDefinition]
     ) -> dict[str, dict[str, Any]]:
+        if isinstance(manifest_node, SourceDefinition):
+            return manifest_node.meta.get("prefect", {})
+
         return manifest_node.config.meta.get("prefect", {})
 
     def _get_upstream_manifest_nodes_and_configs(
         self,
         manifest_node: ManifestNode,
-    ) -> list[tuple[ManifestNode, dict[str, Any]]]:
+    ) -> list[tuple[Union[ManifestNode, SourceDefinition], dict[str, Any]]]:
         """Get upstream nodes for a given node"""
-        upstream_manifest_nodes: list[tuple[ManifestNode, dict[str, Any]]] = []
+        upstream_manifest_nodes: list[
+            tuple[Union[ManifestNode, SourceDefinition], dict[str, Any]]
+        ] = []
 
         for depends_on_node in manifest_node.depends_on_nodes:  # type: ignore[reportUnknownMemberType]
-            depends_manifest_node = self.manifest.nodes.get(depends_on_node)  # type: ignore[reportUnknownMemberType]
+            depends_manifest_node = self.manifest.nodes.get(
+                depends_on_node  # type: ignore[reportUnknownMemberType]
+            ) or self.manifest.sources.get(depends_on_node)  # type: ignore[reportUnknownMemberType]
 
             if not depends_manifest_node:
                 continue
@@ -245,20 +253,41 @@ class PrefectDbtRunner:
             / manifest_node.original_file_path
         )
 
-    def _get_compiled_code(self, manifest_node: ManifestNode) -> str:
+    def _get_compiled_code(
+        self, manifest_node: Union[ManifestNode, SourceDefinition]
+    ) -> str:
         """Get compiled code for a manifest node if it exists and is enabled."""
-        if not self.include_compiled_code:
+        if not self.include_compiled_code or isinstance(
+            manifest_node, SourceDefinition
+        ):
             return ""
 
         compiled_code_path = self._get_compiled_code_path(manifest_node)
         if os.path.exists(compiled_code_path):
             with open(compiled_code_path, "r") as f:
                 code_content = f.read()
-                return f"\n ### Compiled code\n```sql\n{code_content.strip()}\n```"
+                description = (
+                    f"\n ### Compiled code\n```sql\n{code_content.strip()}\n```"
+                )
+
+            if len(description) > MAX_ASSET_DESCRIPTION_LENGTH:
+                warning_msg = (
+                    f"Compiled code for {manifest_node.name} was omitted because it exceeded the "
+                    f"maximum asset description length of {MAX_ASSET_DESCRIPTION_LENGTH} characters."
+                )
+                description = "\n ### Compiled code\n" + warning_msg
+                try:
+                    logger = get_run_logger()
+                    logger.warning(warning_msg)
+                except MissingContextError:
+                    pass
+
+            return description
+
         return ""
 
     def _create_asset_from_node(
-        self, manifest_node: ManifestNode, adapter_type: str
+        self, manifest_node: Union[ManifestNode, SourceDefinition], adapter_type: str
     ) -> Asset:
         """Create an Asset from a manifest node."""
         if not manifest_node.relation_name:
@@ -267,15 +296,22 @@ class PrefectDbtRunner:
         asset_id = format_resource_id(adapter_type, manifest_node.relation_name)
         compiled_code = self._get_compiled_code(manifest_node)
 
+        if isinstance(manifest_node, SourceDefinition):
+            owner = manifest_node.meta.get("owner")
+        else:
+            owner = manifest_node.config.meta.get("owner")
+
+        if owner and isinstance(owner, str):
+            owners = [owner]
+        else:
+            owners = None
+
         return Asset(
             key=asset_id,
             properties=AssetProperties(
                 name=manifest_node.name,
                 description=manifest_node.description + compiled_code,
-                owners=[owner]
-                if (owner := manifest_node.config.meta.get("owner"))
-                and isinstance(owner, str)
-                else None,
+                owners=owners,
             ),
         )
 

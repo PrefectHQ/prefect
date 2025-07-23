@@ -12,7 +12,7 @@ The CancellationCleanup service. Responsible for cancelling tasks and subflows t
 
 ## Classes
 
-### `CancellationCleanup` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/cancellation_cleanup.py#L26" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `CancellationCleanup` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/services/cancellation_cleanup.py#L26" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Cancels tasks and subflows of flow runs that have been cancelled
@@ -20,8 +20,30 @@ Cancels tasks and subflows of flow runs that have been cancelled
 
 **Methods:**
 
-#### `service_settings` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/cancellation_cleanup.py#L32" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `service_settings` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/services/cancellation_cleanup.py#L32" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 service_settings(cls) -> ServicesBaseSetting
+```
+
+#### `run_once` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/services/cancellation_cleanup.py#L46" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+run_once(self, db: PrefectDBInterface) -> None
+```
+
+- cancels active tasks belonging to recently cancelled flow runs
+- cancels any active subflow that belongs to a cancelled flow
+
+
+#### `clean_up_cancelled_flow_run_task_runs` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/services/cancellation_cleanup.py#L59" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+clean_up_cancelled_flow_run_task_runs(self, db: PrefectDBInterface) -> None
+```
+
+#### `clean_up_cancelled_subflow_runs` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/services/cancellation_cleanup.py#L88" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+clean_up_cancelled_subflow_runs(self, db: PrefectDBInterface) -> None
 ```

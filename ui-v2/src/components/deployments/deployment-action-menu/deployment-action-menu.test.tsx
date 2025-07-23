@@ -34,11 +34,13 @@ describe("DeploymentActionMenu", () => {
 	it("copies the id", async () => {
 		// ------------ Setup
 		const user = userEvent.setup();
-		render(
-			<>
-				<Toaster />
-				<DeploymentActionMenuRouter id="my-id" onDelete={vi.fn()} />
-			</>,
+		await waitFor(() =>
+			render(
+				<>
+					<Toaster />
+					<DeploymentActionMenuRouter id="my-id" onDelete={vi.fn()} />
+				</>,
+			),
 		);
 
 		// ------------ Act
@@ -58,7 +60,11 @@ describe("DeploymentActionMenu", () => {
 		const user = userEvent.setup();
 		const mockOnDeleteFn = vi.fn();
 
-		render(<DeploymentActionMenuRouter id="my-id" onDelete={mockOnDeleteFn} />);
+		await waitFor(() =>
+			render(
+				<DeploymentActionMenuRouter id="my-id" onDelete={mockOnDeleteFn} />,
+			),
+		);
 
 		// ------------ Act
 
@@ -75,7 +81,9 @@ describe("DeploymentActionMenu", () => {
 		const user = userEvent.setup();
 
 		// ------------ Setup
-		render(<DeploymentActionMenuRouter id="my-id" onDelete={vi.fn()} />);
+		await waitFor(() =>
+			render(<DeploymentActionMenuRouter id="my-id" onDelete={vi.fn()} />),
+		);
 
 		// ------------ Act
 
@@ -91,7 +99,9 @@ describe("DeploymentActionMenu", () => {
 		const user = userEvent.setup();
 
 		// ------------ Setup
-		render(<DeploymentActionMenuRouter id="my-id" onDelete={vi.fn()} />);
+		await waitFor(() =>
+			render(<DeploymentActionMenuRouter id="my-id" onDelete={vi.fn()} />),
+		);
 
 		// ------------ Act
 

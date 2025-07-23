@@ -224,6 +224,7 @@
             "group": "Platform",
             "pages": [
               "v3/advanced/self-hosted",
+              "v3/advanced/database-maintenance",
               "v3/advanced/deploy-ci-cd",
               "v3/advanced/infrastructure-as-code",
               "v3/advanced/server-helm",
@@ -1200,6 +1201,7 @@
                           "v3/api-ref/python/prefect-server-services-foreman",
                           "v3/api-ref/python/prefect-server-services-late_runs",
                           "v3/api-ref/python/prefect-server-services-pause_expirations",
+                          "v3/api-ref/python/prefect-server-services-repossessor",
                           "v3/api-ref/python/prefect-server-services-scheduler",
                           "v3/api-ref/python/prefect-server-services-task_run_recorder",
                           "v3/api-ref/python/prefect-server-services-telemetry"
@@ -1213,6 +1215,7 @@
                           "v3/api-ref/python/prefect-server-utilities-database",
                           "v3/api-ref/python/prefect-server-utilities-encryption",
                           "v3/api-ref/python/prefect-server-utilities-http",
+                          "v3/api-ref/python/prefect-server-utilities-leasing",
                           {
                             "group": "messaging",
                             "pages": [
@@ -1266,6 +1269,7 @@
                             "pages": [
                               "v3/api-ref/python/prefect-settings-models-server-__init__",
                               "v3/api-ref/python/prefect-settings-models-server-api",
+                              "v3/api-ref/python/prefect-settings-models-server-concurrency",
                               "v3/api-ref/python/prefect-settings-models-server-database",
                               "v3/api-ref/python/prefect-settings-models-server-deployments",
                               "v3/api-ref/python/prefect-settings-models-server-ephemeral",

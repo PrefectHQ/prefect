@@ -356,6 +356,55 @@ def my_flow():
     d = task_d(wait_for=[c])
 ```
 
+## Handling failures in concurrent work
+
+Instead of failing your entire workflow when a single concurrent task fails, you may want to run concurrent work to completion, even if some tasks fail. To run tasks concurrently and handle failures afterwards, use the `wait()` utility along with the `.state` attribute on futures:
+
+```python
+from typing import Any
+
+from prefect import flow, task
+from prefect.futures import wait
+from prefect.states import State
+
+@task
+def process_data(item: int) -> str:
+    if item < 0:
+        raise ValueError(f"Cannot process negative value: {item}")
+    return f"Processed {item}"
+
+@flow
+def batch_processing():
+    items = [1, -2, 3, -4, 5]
+    
+    # Submit all tasks and return the futures
+    futures = process_data.map(items)
+    
+    # Wait for all futures to complete concurrently
+    done, not_done = wait(futures)
+    
+    # Check each future's state
+    successful: list[Any] = []
+    failed: list[State] = []
+    
+    for future in done:
+        if future.state.is_completed():
+            successful.append(future.result())
+        else:
+            failed.append(future.state)
+    
+    print(f"Processed {len(successful)} items successfully")
+    print(f"Failed to process {len(failed)} items")
+    
+    return successful
+```
+
+The `wait()` function returns two sets of futures: `done` and `not_done`. Each future has a `.state` attribute you can inspect to determine how the associated task run's result (or exception) should be treated downstream.
+
+<Note>
+The "right way" to handle failures will depend on your use case. Review the [final state determination](/v3/concepts/states#final-state-determination) documentation for more information.
+</Note>
+
 
 ## Using `asyncio`
 

@@ -5,7 +5,7 @@ import {
 	createRouter,
 	RouterProvider,
 } from "@tanstack/react-router";
-import { render } from "@testing-library/react";
+import { render, waitFor } from "@testing-library/react";
 import { createWrapper } from "@tests/utils";
 import { describe, expect, it } from "vitest";
 import type { Artifact, ArtifactWithFlowRunAndTaskRun } from "@/api/artifacts";
@@ -36,19 +36,21 @@ const TimelineCardRouter = (props: ArtifactTimelineCardProps) => {
 };
 
 describe("Artifacts Card", () => {
-	it("renders timeline card with link", () => {
+	it("renders timeline card with link", async () => {
 		const artifact: Artifact = createFakeArtifact({
 			id: "test-id",
 		});
 
-		const { getByText } = render(<TimelineCardRouter artifact={artifact} />, {
-			wrapper: createWrapper(),
-		});
+		const { getByText } = await waitFor(() =>
+			render(<TimelineCardRouter artifact={artifact} />, {
+				wrapper: createWrapper(),
+			}),
+		);
 
 		expect(getByText("test")).toBeTruthy();
 	});
 
-	it("renders timeline card with link to flow run", () => {
+	it("renders timeline card with link to flow run", async () => {
 		const artifact: ArtifactWithFlowRunAndTaskRun = createFakeArtifact({
 			id: "test-id",
 		});
@@ -60,14 +62,16 @@ describe("Artifacts Card", () => {
 
 		artifact.flow_run = flowRun;
 
-		const { getByText } = render(<TimelineCardRouter artifact={artifact} />, {
-			wrapper: createWrapper(),
-		});
+		const { getByText } = await waitFor(() =>
+			render(<TimelineCardRouter artifact={artifact} />, {
+				wrapper: createWrapper(),
+			}),
+		);
 
 		expect(getByText("Test Flow Run")).toBeTruthy();
 	});
 
-	it("renders timeline card with link to task run", () => {
+	it("renders timeline card with link to task run", async () => {
 		const artifact: ArtifactWithFlowRunAndTaskRun = createFakeArtifact({
 			id: "test-id",
 		});
@@ -79,9 +83,11 @@ describe("Artifacts Card", () => {
 
 		artifact.task_run = taskRun;
 
-		const { getByText } = render(<TimelineCardRouter artifact={artifact} />, {
-			wrapper: createWrapper(),
-		});
+		const { getByText } = await waitFor(() =>
+			render(<TimelineCardRouter artifact={artifact} />, {
+				wrapper: createWrapper(),
+			}),
+		);
 
 		expect(getByText("Test Task Run")).toBeTruthy();
 	});

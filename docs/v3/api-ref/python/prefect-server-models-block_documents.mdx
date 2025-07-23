@@ -10,3 +10,77 @@ sidebarTitle: block_documents
 Functions for interacting with block document ORM objects.
 Intended for internal use by the Prefect REST API.
 
+
+## Functions
+
+### `create_block_document` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/models/block_documents.py#L28" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+create_block_document(db: PrefectDBInterface, session: AsyncSession, block_document: schemas.actions.BlockDocumentCreate) -> BlockDocument
+```
+
+### `block_document_with_unique_values_exists` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/models/block_documents.py#L89" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+block_document_with_unique_values_exists(db: PrefectDBInterface, session: AsyncSession, block_type_id: UUID, name: str) -> bool
+```
+
+### `read_block_document_by_id` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/models/block_documents.py#L137" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+read_block_document_by_id(session: AsyncSession, block_document_id: UUID, include_secrets: bool = False) -> Union[BlockDocument, None]
+```
+
+### `read_block_document_by_name` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/models/block_documents.py#L244" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+read_block_document_by_name(session: AsyncSession, name: str, block_type_slug: str, include_secrets: bool = False) -> Union[BlockDocument, None]
+```
+
+
+Read a block document with the given name and block type slug.
+
+
+### `read_block_documents` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/models/block_documents.py#L303" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+read_block_documents(db: PrefectDBInterface, session: AsyncSession, block_document_filter: Optional[schemas.filters.BlockDocumentFilter] = None, block_type_filter: Optional[schemas.filters.BlockTypeFilter] = None, block_schema_filter: Optional[schemas.filters.BlockSchemaFilter] = None, include_secrets: bool = False, sort: schemas.sorting.BlockDocumentSort = schemas.sorting.BlockDocumentSort.NAME_ASC, offset: Optional[int] = None, limit: Optional[int] = None) -> List[BlockDocument]
+```
+
+
+Read block documents with an optional limit and offset
+
+
+### `count_block_documents` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/models/block_documents.py#L441" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+count_block_documents(db: PrefectDBInterface, session: AsyncSession, block_document_filter: Optional[schemas.filters.BlockDocumentFilter] = None, block_type_filter: Optional[schemas.filters.BlockTypeFilter] = None, block_schema_filter: Optional[schemas.filters.BlockSchemaFilter] = None) -> int
+```
+
+
+Count block documents that match the filters.
+
+
+### `delete_block_document` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/models/block_documents.py#L466" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+delete_block_document(db: PrefectDBInterface, session: AsyncSession, block_document_id: UUID) -> bool
+```
+
+### `update_block_document` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/models/block_documents.py#L477" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+update_block_document(db: PrefectDBInterface, session: AsyncSession, block_document_id: UUID, block_document: schemas.actions.BlockDocumentUpdate) -> bool
+```
+
+### `create_block_document_reference` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/models/block_documents.py#L633" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+create_block_document_reference(db: PrefectDBInterface, session: AsyncSession, block_document_reference: schemas.actions.BlockDocumentReferenceCreate) -> Union[orm_models.BlockDocumentReference, None]
+```
+
+### `delete_block_document_reference` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/models/block_documents.py#L655" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+delete_block_document_reference(db: PrefectDBInterface, session: AsyncSession, block_document_reference_id: UUID) -> bool
+```
