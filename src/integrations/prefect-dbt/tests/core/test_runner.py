@@ -306,6 +306,26 @@ class TestPrefectDbtRunnerCompiledCode:
         assert result == expected_message
         assert len(result) <= MAX_ASSET_DESCRIPTION_LENGTH
 
+    def test_get_compiled_code_returns_empty_for_source_definition_when_enabled(
+        self, mock_source_definition
+    ):
+        """Test that compiled code returns empty for SourceDefinition even when enabled."""
+        runner = PrefectDbtRunner(include_compiled_code=True)
+
+        result = runner._get_compiled_code(mock_source_definition)
+
+        assert result == ""
+
+    def test_get_compiled_code_returns_empty_for_source_definition_when_disabled(
+        self, mock_source_definition
+    ):
+        """Test that compiled code returns empty for SourceDefinition when disabled."""
+        runner = PrefectDbtRunner(include_compiled_code=False)
+
+        result = runner._get_compiled_code(mock_source_definition)
+
+        assert result == ""
+
     def test_get_compiled_code_returns_formatted_sql_when_enabled(
         self, tmp_path: Path, mock_manifest, mock_manifest_node
     ):
