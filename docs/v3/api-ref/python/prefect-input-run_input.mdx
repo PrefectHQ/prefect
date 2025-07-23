@@ -70,7 +70,7 @@ async def receiver_flow():
 
 ## Functions
 
-### `keyset_from_paused_state` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/input/run_input.py#L113" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `keyset_from_paused_state` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/input/run_input.py#L113" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 keyset_from_paused_state(state: 'State') -> Keyset
@@ -83,7 +83,7 @@ Get the keyset for the given Paused state.
 - `-`: the state to get the keyset for
 
 
-### `keyset_from_base_key` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/input/run_input.py#L129" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `keyset_from_base_key` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/input/run_input.py#L129" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 keyset_from_base_key(base_key: str) -> Keyset
@@ -99,7 +99,7 @@ Get the keyset for the given base key.
 - - Dict[str, str]: the keyset
 
 
-### `run_input_subclass_from_type` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/input/run_input.py#L419" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `run_input_subclass_from_type` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/input/run_input.py#L419" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 run_input_subclass_from_type(_type: Union[Type[R], Type[T], pydantic.BaseModel]) -> Union[Type[AutomaticRunInput[T]], Type[R]]
@@ -109,13 +109,13 @@ run_input_subclass_from_type(_type: Union[Type[R], Type[T], pydantic.BaseModel])
 Create a new `RunInput` subclass from the given type.
 
 
-### `send_input` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/input/run_input.py#L643" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `send_input` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/input/run_input.py#L643" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 send_input(run_input: Any, flow_run_id: UUID, sender: Optional[str] = None, key_prefix: Optional[str] = None)
 ```
 
-### `receive_input` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/input/run_input.py#L683" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `receive_input` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/input/run_input.py#L683" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 receive_input(input_type: Union[Type[R], Type[T], pydantic.BaseModel], timeout: Optional[float] = 3600, poll_interval: float = 10, raise_timeout_error: bool = False, exclude_keys: Optional[Set[str]] = None, key_prefix: Optional[str] = None, flow_run_id: Optional[UUID] = None, with_metadata: bool = False) -> Union[GetAutomaticInputHandler[T], GetInputHandler[R]]
@@ -123,38 +123,19 @@ receive_input(input_type: Union[Type[R], Type[T], pydantic.BaseModel], timeout: 
 
 ## Classes
 
-### `RunInputMetadata` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/input/run_input.py#L146" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `RunInputMetadata` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/input/run_input.py#L146" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
-### `BaseRunInput` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/input/run_input.py#L152" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `BaseRunInput` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/input/run_input.py#L152" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 **Methods:**
 
-#### `metadata` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/input/run_input.py#L159" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
-
-```python
-metadata(self) -> RunInputMetadata
-```
-
-#### `keyset_from_type` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/input/run_input.py#L163" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `keyset_from_type` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/input/run_input.py#L163" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 keyset_from_type(cls) -> Keyset
 ```
 
-#### `save` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/input/run_input.py#L168" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
-
-```python
-save(cls, keyset: Keyset, flow_run_id: Optional[UUID] = None)
-```
-
-Save the run input response to the given key.
-
-**Args:**
-- `-`: the keyset to save the input for
-- `-`: the flow run ID to save the input for
-
-
-#### `load` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/input/run_input.py#L202" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `load` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/input/run_input.py#L202" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 load(cls, keyset: Keyset, flow_run_id: Optional[UUID] = None) -> Self
@@ -167,7 +148,7 @@ Load the run input response from the given key.
 - `-`: the flow run ID to load the input for
 
 
-#### `load_from_flow_run_input` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/input/run_input.py#L222" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `load_from_flow_run_input` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/input/run_input.py#L222" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 load_from_flow_run_input(cls, flow_run_input: 'FlowRunInput') -> Self
@@ -179,7 +160,38 @@ Load the run input from a FlowRunInput object.
 - `-`: the flow run input to load the input for
 
 
-#### `with_initial_data` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/input/run_input.py#L238" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `metadata` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/input/run_input.py#L159" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+metadata(self) -> RunInputMetadata
+```
+
+#### `respond` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/input/run_input.py#L261" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+respond(self, run_input: 'RunInput', sender: Optional[str] = None, key_prefix: Optional[str] = None)
+```
+
+#### `save` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/input/run_input.py#L168" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+save(cls, keyset: Keyset, flow_run_id: Optional[UUID] = None)
+```
+
+Save the run input response to the given key.
+
+**Args:**
+- `-`: the keyset to save the input for
+- `-`: the flow run ID to save the input for
+
+
+#### `send_to` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/input/run_input.py#L285" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+send_to(self, flow_run_id: UUID, sender: Optional[str] = None, key_prefix: Optional[str] = None)
+```
+
+#### `with_initial_data` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/input/run_input.py#L238" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 with_initial_data(cls: Type[R], description: Optional[str] = None, **kwargs: Any) -> Type[R]
@@ -194,29 +206,79 @@ a flow run that requires input
 - `-`: the initial data to populate the subclass
 
 
-#### `respond` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/input/run_input.py#L261" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
-
-```python
-respond(self, run_input: 'RunInput', sender: Optional[str] = None, key_prefix: Optional[str] = None)
-```
-
-#### `send_to` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/input/run_input.py#L285" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
-
-```python
-send_to(self, flow_run_id: UUID, sender: Optional[str] = None, key_prefix: Optional[str] = None)
-```
-
-### `RunInput` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/input/run_input.py#L299" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `RunInput` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/input/run_input.py#L299" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 **Methods:**
 
-#### `receive` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/input/run_input.py#L301" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `keyset_from_type` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/input/run_input.py#L163" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+keyset_from_type(cls) -> Keyset
+```
+
+#### `load` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/input/run_input.py#L202" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+load(cls, keyset: Keyset, flow_run_id: Optional[UUID] = None) -> Self
+```
+
+Load the run input response from the given key.
+
+**Args:**
+- `-`: the keyset to load the input for
+- `-`: the flow run ID to load the input for
+
+
+#### `load_from_flow_run_input` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/input/run_input.py#L222" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+load_from_flow_run_input(cls, flow_run_input: 'FlowRunInput') -> Self
+```
+
+Load the run input from a FlowRunInput object.
+
+**Args:**
+- `-`: the flow run input to load the input for
+
+
+#### `metadata` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/input/run_input.py#L159" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+metadata(self) -> RunInputMetadata
+```
+
+#### `receive` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/input/run_input.py#L301" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 receive(cls, timeout: Optional[float] = 3600, poll_interval: float = 10, raise_timeout_error: bool = False, exclude_keys: Optional[Set[str]] = None, key_prefix: Optional[str] = None, flow_run_id: Optional[UUID] = None) -> GetInputHandler[Self]
 ```
 
-#### `subclass_from_base_model_type` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/input/run_input.py#L324" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `respond` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/input/run_input.py#L261" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+respond(self, run_input: 'RunInput', sender: Optional[str] = None, key_prefix: Optional[str] = None)
+```
+
+#### `save` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/input/run_input.py#L168" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+save(cls, keyset: Keyset, flow_run_id: Optional[UUID] = None)
+```
+
+Save the run input response to the given key.
+
+**Args:**
+- `-`: the keyset to save the input for
+- `-`: the flow run ID to save the input for
+
+
+#### `send_to` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/input/run_input.py#L285" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+send_to(self, flow_run_id: UUID, sender: Optional[str] = None, key_prefix: Optional[str] = None)
+```
+
+#### `subclass_from_base_model_type` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/input/run_input.py#L324" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 subclass_from_base_model_type(cls, model_cls: Type[pydantic.BaseModel]) -> Type['RunInput']
@@ -230,11 +292,32 @@ subclass.
 to create the new `RunInput` subclass
 
 
-### `AutomaticRunInput` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/input/run_input.py#L338" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `with_initial_data` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/input/run_input.py#L238" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+with_initial_data(cls: Type[R], description: Optional[str] = None, **kwargs: Any) -> Type[R]
+```
+
+Create a new `RunInput` subclass with the given initial data as field
+defaults.
+
+**Args:**
+- `-`: a description to show when resuming
+a flow run that requires input
+- `-`: the initial data to populate the subclass
+
+
+### `AutomaticRunInput` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/input/run_input.py#L338" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 **Methods:**
 
-#### `load` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/input/run_input.py#L343" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `keyset_from_type` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/input/run_input.py#L163" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+keyset_from_type(cls) -> Keyset
+```
+
+#### `load` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/input/run_input.py#L343" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 load(cls, keyset: Keyset, flow_run_id: Optional[UUID] = None) -> Self
@@ -247,7 +330,69 @@ Load the run input response from the given key.
 - `-`: the flow run ID to load the input for
 
 
-#### `subclass_from_type` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/input/run_input.py#L358" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `load` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/input/run_input.py#L202" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+load(cls, keyset: Keyset, flow_run_id: Optional[UUID] = None) -> Self
+```
+
+Load the run input response from the given key.
+
+**Args:**
+- `-`: the keyset to load the input for
+- `-`: the flow run ID to load the input for
+
+
+#### `load_from_flow_run_input` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/input/run_input.py#L222" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+load_from_flow_run_input(cls, flow_run_input: 'FlowRunInput') -> Self
+```
+
+Load the run input from a FlowRunInput object.
+
+**Args:**
+- `-`: the flow run input to load the input for
+
+
+#### `metadata` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/input/run_input.py#L159" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+metadata(self) -> RunInputMetadata
+```
+
+#### `receive` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/input/run_input.py#L395" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+receive(cls, timeout: Optional[float] = 3600, poll_interval: float = 10, raise_timeout_error: bool = False, exclude_keys: Optional[Set[str]] = None, key_prefix: Optional[str] = None, flow_run_id: Optional[UUID] = None, with_metadata: bool = False) -> GetAutomaticInputHandler[T]
+```
+
+#### `respond` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/input/run_input.py#L261" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+respond(self, run_input: 'RunInput', sender: Optional[str] = None, key_prefix: Optional[str] = None)
+```
+
+#### `save` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/input/run_input.py#L168" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+save(cls, keyset: Keyset, flow_run_id: Optional[UUID] = None)
+```
+
+Save the run input response to the given key.
+
+**Args:**
+- `-`: the keyset to save the input for
+- `-`: the flow run ID to save the input for
+
+
+#### `send_to` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/input/run_input.py#L285" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+send_to(self, flow_run_id: UUID, sender: Optional[str] = None, key_prefix: Optional[str] = None)
+```
+
+#### `subclass_from_type` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/input/run_input.py#L358" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 subclass_from_type(cls, _type: Type[T]) -> Type['AutomaticRunInput[T]']
@@ -260,51 +405,60 @@ flow run inputs. This helps in ensuring that values saved under a type
 (like List[int]) are retrievable under the generic type name (like "list").
 
 
-#### `receive` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/input/run_input.py#L395" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `with_initial_data` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/input/run_input.py#L238" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-receive(cls, timeout: Optional[float] = 3600, poll_interval: float = 10, raise_timeout_error: bool = False, exclude_keys: Optional[Set[str]] = None, key_prefix: Optional[str] = None, flow_run_id: Optional[UUID] = None, with_metadata: bool = False) -> GetAutomaticInputHandler[T]
+with_initial_data(cls: Type[R], description: Optional[str] = None, **kwargs: Any) -> Type[R]
 ```
 
-### `GetInputHandler` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/input/run_input.py#L440" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+Create a new `RunInput` subclass with the given initial data as field
+defaults.
+
+**Args:**
+- `-`: a description to show when resuming
+a flow run that requires input
+- `-`: the initial data to populate the subclass
+
+
+### `GetInputHandler` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/input/run_input.py#L440" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 **Methods:**
 
-#### `filter_for_inputs` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/input/run_input.py#L487" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `filter_for_inputs` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/input/run_input.py#L487" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 filter_for_inputs(self) -> list['FlowRunInput']
 ```
 
-#### `to_instance` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/input/run_input.py#L504" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
-
-```python
-to_instance(self, flow_run_input: 'FlowRunInput') -> R
-```
-
-#### `next` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/input/run_input.py#L508" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `next` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/input/run_input.py#L508" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 next(self) -> R
 ```
 
-### `GetAutomaticInputHandler` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/input/run_input.py#L521" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `to_instance` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/input/run_input.py#L504" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+to_instance(self, flow_run_input: 'FlowRunInput') -> R
+```
+
+### `GetAutomaticInputHandler` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/input/run_input.py#L521" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 **Methods:**
 
-#### `filter_for_inputs` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/input/run_input.py#L573" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `filter_for_inputs` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/input/run_input.py#L573" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 filter_for_inputs(self) -> list['FlowRunInput']
 ```
 
-#### `next` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/input/run_input.py#L591" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `next` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/input/run_input.py#L591" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 next(self) -> Union[T, AutomaticRunInput[T]]
 ```
 
-#### `to_instance` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/input/run_input.py#L603" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `to_instance` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/input/run_input.py#L603" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 to_instance(self, flow_run_input: 'FlowRunInput') -> Union[T, AutomaticRunInput[T]]

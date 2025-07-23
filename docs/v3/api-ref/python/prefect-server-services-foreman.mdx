@@ -12,7 +12,7 @@ Foreman is a loop service designed to monitor workers.
 
 ## Classes
 
-### `Foreman` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/services/foreman.py#L34" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `Foreman` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/foreman.py#L34" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Monitors the status of workers and their associated work pools
@@ -20,13 +20,7 @@ Monitors the status of workers and their associated work pools
 
 **Methods:**
 
-#### `service_settings` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/services/foreman.py#L40" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
-
-```python
-service_settings(cls) -> ServicesBaseSetting
-```
-
-#### `run_once` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/services/foreman.py#L79" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `run_once` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/foreman.py#L79" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 run_once(self, db: PrefectDBInterface) -> None
@@ -37,4 +31,49 @@ if they have an old last_heartbeat_time. Marks work pools as not ready
 if they do not have any online workers and are currently marked as ready.
 Mark deployments as not ready if they have a last_polled time that is
 older than the configured deployment last polled timeout.
+
+
+#### `run_once` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/base.py#L329" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+run_once(self) -> None
+```
+
+Represents one loop of the service.
+
+Subclasses must override this method.
+
+To actually run the service once, call `LoopService().start(loops=1)`
+instead of `LoopService().run_once()`, because this method will not invoke setup
+and teardown methods properly.
+
+
+#### `service_settings` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/foreman.py#L40" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+service_settings(cls) -> ServicesBaseSetting
+```
+
+#### `start` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/base.py#L211" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+start(self, loops: None = None) -> NoReturn
+```
+
+Run the service indefinitely.
+
+
+#### `stop` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/base.py#L291" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+stop(self, block: bool = True) -> None
+```
+
+Gracefully stops a running LoopService and optionally blocks until the
+service stops.
+
+**Args:**
+- `block`: if True, blocks until the service is
+finished running. Otherwise it requests a stop and returns but
+the service may still be running a final loop.
 
