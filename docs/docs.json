@@ -18,7 +18,8 @@
             "pages": [
               "v3/get-started/index",
               "v3/get-started/install",
-              "v3/get-started/quickstart"
+              "v3/get-started/quickstart",
+              "v3/get-started/slow-start"
             ]
           }
         ]

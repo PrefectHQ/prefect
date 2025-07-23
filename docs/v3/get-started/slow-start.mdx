@@ -1,0 +1,114 @@
+---
+title: Slow Start
+description: A curated learning path for those who want to go deeper than the quick start
+icon: graduation-cap
+mode: wide
+---
+
+Welcome to the Slow Start - a curated learning path for those who want to go deeper than the quick start and are willing to take the time to learn Prefect thoroughly.
+
+Unlike the quickstart which gets you running immediately, this guide provides a narrative, concrete use-case driven approach to understanding Prefect's architecture and capabilities.
+
+## Why Slow Start?
+
+The quickstart is great for getting up and running quickly, but sometimes you want to understand the **why** behind the **what**. This guide walks you through Prefect step-by-step, building understanding layer by layer.
+
+## The Journey
+
+<Steps>
+  <Step title="Look! It's Just Normal Python">
+    **Goal**: Understand that Prefect flows are just Python functions with observability.
+    
+    ### Core Concepts
+    - Your Python function remains your Python function
+    - `@flow` decorator adds monitoring, tracing, and logging
+    - No magic - you can still call your function normally
+    
+    ### What You'll Learn
+    - How to convert existing Python code to Prefect flows
+    - Understanding state handling and lifecycle hooks
+    - Observability features out of the box
+  </Step>
+  
+  <Step title="Prefect Architecture">
+    **Goal**: Understand the relationship between client-side code and server-side orchestration.
+    
+    ### Core Concepts
+    - **Work Pools**: Define possible infrastructure configurations
+    - **Deployments**: Tell the server where and how to run your flows
+    - **Workers**: Execute deployments by pulling work from pools
+    
+    ### Key Understanding
+    > Work pools define possible infra config, server knows where and how to run deployments
+    
+    ### What You'll Learn
+    - Creating work pools
+    - Making deployments
+    - Spinning up workers
+    - How the server coordinates execution
+  </Step>
+  
+  <Step title="Deploy the Normal Python">
+    **Goal**: Take your Python code from local to production.
+    
+    ### Core Concepts
+    - Dependency management (requirements.txt, pyproject.toml)
+    - Caching for performance and memoization
+    - Resiliency patterns (retries, exception handling)
+    
+    ### Understanding the Layers
+    Your Python function sits at the center of multiple layers that Prefect provides:
+    
+    1. **Resiliency**: Handles function retry on exceptions
+    2. **Caching**: Manages result persistence and retrieval
+    3. **Dependency Management**: Ensures upstream work completes before starting
+    4. **State Handling**: Manages workflow execution and lifecycle hooks
+    5. **Observability**: Provides monitoring, tracing, and logging
+    
+    Each layer enhances your code without modifying its core logic. Execution flows inward through each layer, while results and exceptions flow outward.
+  </Step>
+  
+  <Step title="Storage / CI/CD">
+    **Goal**: Integrate Prefect with your existing development workflow.
+    
+    ### Core Concepts
+    - GitHub Actions (GHA) integration
+    - Job variables and work pool modifications
+    - Storage backends for code and results
+    
+    ### What You'll Learn
+    - Setting up CI/CD pipelines for deployments
+    - Managing configuration across environments
+    - Best practices for production deployments
+  </Step>
+  
+  <Step title="Scaling: N Developers, 1 Docker Worker on VM">
+    **Goal**: Understand how to scale from single developer to team.
+    
+    ### Core Concepts
+    - Single worker serving multiple developers
+    - systemd (or any daemon manager) for process management
+    - Resource allocation and scheduling
+    
+    ### What You'll Learn
+    - Setting up shared infrastructure
+    - Managing concurrent executions
+    - Monitoring and debugging in multi-user environments
+  </Step>
+</Steps>
+
+## Next Steps
+
+After completing the Slow Start, you'll have:
+- Deep understanding of Prefect's architecture
+- Production-ready deployment patterns
+- Scalable infrastructure setup
+- Integration with existing tools and workflows
+
+This foundation prepares you to explore advanced features like:
+- Event-driven automation
+- Complex dependency graphs
+- Custom infrastructure blocks
+- Advanced scheduling patterns
+
+Ready to begin? Let's start with [understanding how Prefect enhances your Python code](#look-its-just-normal-python).
