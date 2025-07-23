@@ -538,11 +538,10 @@ class RemoveDeploymentConcurrencyLeaseForOldClientVersions(FlowRunOrchestrationR
         validated_state: states.State[Any] | None,
         context: OrchestrationContext[orm_models.FlowRun, core.FlowRunPolicy],
     ) -> None:
-        if (
-            not initial_state
-            or not context.client_version
-            or Version(context.client_version)
-            > MIN_CLIENT_VERSION_FOR_CONCURRENCY_LIMIT_LEASING
+        if not initial_state or (
+            context.client_version
+            and Version(context.client_version)
+            >= MIN_CLIENT_VERSION_FOR_CONCURRENCY_LIMIT_LEASING
         ):
             return
 

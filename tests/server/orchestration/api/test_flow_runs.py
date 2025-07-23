@@ -1,25 +1,33 @@
 import asyncio
 import datetime
-from typing import List, Optional
+import shutil
+from typing import Any, AsyncGenerator, Generator, List, Optional
 from unittest import mock
 from uuid import UUID, uuid4
 
+import httpx
 import orjson
 import pytest
 import sqlalchemy as sa
-from httpx import AsyncClient
+from fastapi import FastAPI
+from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
 
 from prefect.client.schemas import actions as client_actions
 from prefect.input import RunInput, keyset_from_paused_state
 from prefect.server import models, schemas
+from prefect.server.api.server import create_app
+from prefect.server.concurrency.lease_storage import get_concurrency_lease_storage
+from prefect.server.concurrency.lease_storage.filesystem import ConcurrencyLeaseStorage
 from prefect.server.database.orm_models import Flow, WorkPool, WorkQueue
 from prefect.server.schemas import core, responses
 from prefect.server.schemas.actions import LogCreate
 from prefect.server.schemas.core import TaskRunResult
 from prefect.server.schemas.responses import FlowRunResponse, OrchestrationResult
 from prefect.server.schemas.states import StateType
+from prefect.settings import PREFECT_SERVER_CONCURRENCY_LEASE_STORAGE
+from prefect.settings.context import temporary_settings
 from prefect.states import (
     Completed,
     Paused,
@@ -2011,6 +2019,85 @@ class TestSetFlowRunState:
             assert cl_response.json()["active_slots"] == 1
         else:
             assert cl_response.json()["active_slots"] == 0
+
+    class TestConcurrencyLeaseInteraction:
+        @pytest.fixture
+        def use_filesystem_lease_storage(self):
+            with temporary_settings(
+                {
+                    PREFECT_SERVER_CONCURRENCY_LEASE_STORAGE: "prefect.server.concurrency.lease_storage.filesystem"
+                }
+            ):
+                shutil.rmtree(
+                    ConcurrencyLeaseStorage().storage_path, ignore_errors=True
+                )
+                yield
+
+        @pytest.fixture()
+        def app(
+            self, use_filesystem_lease_storage: None
+        ) -> Generator[FastAPI, Any, None]:
+            yield create_app(ephemeral=True)
+
+        @pytest.fixture
+        async def client(self, app: FastAPI) -> AsyncGenerator[AsyncClient, Any]:
+            async with httpx.AsyncClient(
+                transport=ASGITransport(app=app), base_url="https://test/api"
+            ) as async_client:
+                yield async_client
+
+        @pytest.mark.parametrize(
+            "client_version,should_clear_lease_id",
+            [
+                (None, True),
+                ("3.4.10", True),
+                ("3.4.11", False),
+            ],
+        )
+        async def test_set_flow_run_state_clears_deployment_concurrency_lease_id_for_old_client_versions(
+            self,
+            client_version,
+            should_clear_lease_id,
+            client,
+            flow_run_with_concurrency_limit,
+            deployment_with_concurrency_limit,
+        ):
+            lease_storage = get_concurrency_lease_storage()
+            pending_kwargs = {
+                "json": dict(state=dict(type="PENDING", name="Pending")),
+                "headers": {},
+            }
+            if client_version:
+                pending_kwargs["headers"]["User-Agent"] = (
+                    f"prefect/{client_version} (API 0.8.4)"
+                )
+            response = await client.post(
+                f"/flow_runs/{flow_run_with_concurrency_limit.id}/set_state",
+                **pending_kwargs,
+            )
+            assert response.status_code == 201
+            lease_ids = await lease_storage.read_active_lease_ids()
+            assert len(lease_ids) == 1
+
+            running_kwargs = {
+                "json": dict(state=dict(type="RUNNING", name="Running")),
+                "headers": {},
+            }
+            if client_version:
+                running_kwargs["headers"]["User-Agent"] = (
+                    f"prefect/{client_version} (API 0.8.4)"
+                )
+            response = await client.post(
+                f"/flow_runs/{flow_run_with_concurrency_limit.id}/set_state",
+                **running_kwargs,
+            )
+            assert response.status_code == 201
+
+            lease_ids = await lease_storage.read_active_lease_ids()
+            if should_clear_lease_id:
+                assert len(lease_ids) == 0
+            else:
+                assert len(lease_ids) == 1
 
 
 class TestManuallyRetryingFlowRuns:

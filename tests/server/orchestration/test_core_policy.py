@@ -4450,7 +4450,7 @@ class TestFlowConcurrencyLimits:
         lease_ids = await lease_storage.read_active_lease_ids()
         assert len(lease_ids) == 0
 
-    async def test_clear_lease_id_on_for_new_client_versions(
+    async def test_dont_clear_lease_id_on_for_new_client_versions(
         self,
         session,
         initialize_orchestration,
