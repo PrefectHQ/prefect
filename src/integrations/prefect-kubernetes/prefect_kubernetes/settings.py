@@ -60,6 +60,16 @@ class KubernetesWorkerSettings(PrefectBaseSettings):
         description="The key of the secret the worker's API key is stored in.",
     )
 
+    api_auth_string_secret_name: Optional[str] = Field(
+        default=None,
+        description="The name of the secret the worker's API auth string is stored in.",
+    )
+
+    api_auth_string_secret_key: Optional[str] = Field(
+        default=None,
+        description="The key of the secret the worker's API auth string is stored in.",
+    )
+
     create_secret_for_api_key: bool = Field(
         default=False,
         description="If `True`, the worker will create a secret in the same namespace as created Kubernetes jobs to store the Prefect API key.",
@@ -67,6 +77,16 @@ class KubernetesWorkerSettings(PrefectBaseSettings):
             AliasPath("create_secret_for_api_key"),
             "prefect_integrations_kubernetes_worker_create_secret_for_api_key",
             "prefect_kubernetes_worker_store_prefect_api_in_secret",
+        ),
+    )
+
+    create_secret_for_api_auth_string: bool = Field(
+        default=False,
+        description="If `True`, the worker will create a secret in the same namespace as created Kubernetes jobs to store the Prefect API auth string.",
+        validation_alias=AliasChoices(
+            AliasPath("create_secret_for_api_auth_string"),
+            "prefect_integrations_kubernetes_worker_create_secret_for_api_auth_string",
+            "prefect_kubernetes_worker_store_prefect_api_auth_string_in_secret",
         ),
     )
 
