@@ -503,7 +503,7 @@ class SecureFlowConcurrencySlots(FlowRunOrchestrationRule):
 
 class CopyDeploymentConcurrencyLeaseID(FlowRunOrchestrationRule):
     """
-    Copies the deployment concurrency lease ID to the validated state.
+    Copies the deployment concurrency lease ID to the proposed state.
     """
 
     FROM_STATES = {states.StateType.PENDING}
@@ -530,7 +530,7 @@ class RemoveDeploymentConcurrencyLeaseForOldClientVersions(FlowRunOrchestrationR
     """
 
     FROM_STATES = {states.StateType.PENDING}
-    TO_STATES = {states.StateType.RUNNING}
+    TO_STATES = {states.StateType.RUNNING, states.StateType.CANCELLING}
 
     async def after_transition(
         self,
