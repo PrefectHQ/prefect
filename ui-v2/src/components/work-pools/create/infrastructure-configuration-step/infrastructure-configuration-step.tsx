@@ -1,6 +1,7 @@
 import { useFormContext } from "react-hook-form";
 import { Card, CardContent, CardDescription } from "@/components/ui/card";
 import { BaseJobTemplateFormSection } from "./base-job-template-form-section";
+import type { WorkerBaseJobTemplate } from "./schema";
 
 const PREFECT_AGENT_TYPE = "prefect-agent";
 
@@ -16,8 +17,10 @@ Prefect Agent work pools don't require infrastructure configuration. The agent w
 
 export function InfrastructureConfigurationStep() {
 	const form = useFormContext();
-	const workPoolType = form.watch("type");
-	const baseJobTemplate = form.watch("baseJobTemplate");
+	const workPoolType = form.watch("type") as string;
+	const baseJobTemplate = form.watch(
+		"baseJobTemplate",
+	) as WorkerBaseJobTemplate;
 
 	const isPrefectAgent = workPoolType === PREFECT_AGENT_TYPE;
 
@@ -42,7 +45,7 @@ export function InfrastructureConfigurationStep() {
 			<BaseJobTemplateFormSection
 				baseJobTemplate={baseJobTemplate}
 				onBaseJobTemplateChange={(value) => {
-					form.setValue("baseJobTemplate", value);
+					form.setValue("baseJobTemplate", value as unknown);
 				}}
 			/>
 		</div>

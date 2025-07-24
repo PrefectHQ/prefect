@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from "react";
 import { Card, CardContent, CardDescription } from "@/components/ui/card";
-import { JsonInput } from "@/components/ui/json-input";
+import { JsonInput, type JsonInputOnChange } from "@/components/ui/json-input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Typography } from "@/components/ui/typography";
@@ -33,7 +33,7 @@ export function BaseJobTemplateFormSection({
 			setJsonError(null);
 
 			try {
-				const parsed = JSON.parse(value);
+				const parsed = JSON.parse(value) as WorkerBaseJobTemplate;
 				onBaseJobTemplateChange(parsed);
 			} catch (error) {
 				setJsonError(error instanceof Error ? error.message : "Invalid JSON");
@@ -106,7 +106,7 @@ export function BaseJobTemplateFormSection({
 						<Label>Base Job Template JSON</Label>
 						<JsonInput
 							value={jsonValue}
-							onChange={(value: string) => handleJsonChange(value)}
+							onChange={handleJsonChange as JsonInputOnChange}
 							className={jsonError ? "border-destructive" : ""}
 						/>
 						{jsonError && (
