@@ -36,10 +36,33 @@ function DefaultStory() {
 	);
 }
 
-function PrefectAgentStory() {
+function EmptySchemaStory() {
 	const form = useForm({
 		defaultValues: {
-			type: "prefect-agent",
+			type: "process",
+			baseJobTemplate: {
+				job_configuration: {},
+				variables: {
+					type: "object",
+					properties: {},
+				},
+			},
+		},
+	});
+
+	return (
+		<div className="max-w-4xl mx-auto p-6">
+			<FormProvider {...form}>
+				<InfrastructureConfigurationStep />
+			</FormProvider>
+		</div>
+	);
+}
+
+function NoBaseJobTemplateStory() {
+	const form = useForm({
+		defaultValues: {
+			type: "docker",
 		},
 	});
 
@@ -53,7 +76,7 @@ function PrefectAgentStory() {
 }
 
 const meta = {
-	title: "Components/Work Pools/Create/Infrastructure Configuration Step",
+	title: "Components/WorkPools/Create/Infrastructure Configuration Step",
 	component: InfrastructureConfigurationStep,
 	parameters: {
 		layout: "fullscreen",
@@ -67,6 +90,10 @@ export const Default: Story = {
 	render: () => <DefaultStory />,
 };
 
-export const PrefectAgent: Story = {
-	render: () => <PrefectAgentStory />,
+export const EmptySchema: Story = {
+	render: () => <EmptySchemaStory />,
+};
+
+export const NoBaseJobTemplate: Story = {
+	render: () => <NoBaseJobTemplateStory />,
 };

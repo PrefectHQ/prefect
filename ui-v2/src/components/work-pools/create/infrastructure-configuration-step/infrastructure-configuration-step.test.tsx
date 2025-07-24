@@ -19,22 +19,7 @@ function TestWrapper({
 }
 
 describe("InfrastructureConfigurationStep", () => {
-	it("renders prefect agent message when work pool type is prefect-agent", () => {
-		render(
-			<TestWrapper defaultValues={{ type: "prefect-agent" }}>
-				<InfrastructureConfigurationStep />
-			</TestWrapper>,
-		);
-
-		expect(
-			screen.getByText(
-				/Prefect Agent work pools don't require infrastructure configuration/,
-			),
-		).toBeInTheDocument();
-		expect(screen.queryByText("Base Job Template")).not.toBeInTheDocument();
-	});
-
-	it("renders base job template form for non-prefect-agent types", () => {
+	it("renders infrastructure configuration with informational text", () => {
 		render(
 			<TestWrapper defaultValues={{ type: "kubernetes" }}>
 				<InfrastructureConfigurationStep />
@@ -67,6 +52,19 @@ describe("InfrastructureConfigurationStep", () => {
 			</TestWrapper>,
 		);
 
+		expect(screen.getByText("Base Job Template")).toBeInTheDocument();
+	});
+
+	it("renders correctly with different work pool types", () => {
+		render(
+			<TestWrapper defaultValues={{ type: "docker" }}>
+				<InfrastructureConfigurationStep />
+			</TestWrapper>,
+		);
+
+		expect(
+			screen.getByText(/The fields below control the default values/),
+		).toBeInTheDocument();
 		expect(screen.getByText("Base Job Template")).toBeInTheDocument();
 	});
 });

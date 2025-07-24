@@ -3,7 +3,7 @@ import { BaseJobTemplateFormSection } from "./base-job-template-form-section";
 import type { WorkerBaseJobTemplate } from "./schema";
 
 const meta = {
-	title: "Components/Work Pools/Create/Base Job Template Form Section",
+	title: "Components/WorkPools/Create/Base Job Template Form Section",
 	component: BaseJobTemplateFormSection,
 	parameters: {
 		layout: "padded",
