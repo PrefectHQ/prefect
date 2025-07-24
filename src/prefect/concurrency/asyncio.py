@@ -80,7 +80,7 @@ async def concurrency(
 
     try:
         async with amaintain_concurrency_lease(
-            response.lease_id, lease_duration, raise_on_lease_renewal_failure=False
+            response.lease_id, lease_duration, raise_on_lease_renewal_failure=strict
         ):
             yield
     finally:

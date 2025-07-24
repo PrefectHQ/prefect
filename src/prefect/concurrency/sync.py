@@ -120,7 +120,11 @@ def concurrency(
     )
 
     try:
-        with maintain_concurrency_lease(acquisition_response.lease_id, lease_duration):
+        with maintain_concurrency_lease(
+            acquisition_response.lease_id,
+            lease_duration,
+            raise_on_lease_renewal_failure=strict,
+        ):
             yield
     finally:
         _release_concurrency_slots_with_lease(acquisition_response.lease_id)
