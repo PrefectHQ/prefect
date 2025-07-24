@@ -53,9 +53,8 @@ describe("BaseJobTemplateFormSection", () => {
 		expect(
 			screen.getByText(/The fields below control the default values/),
 		).toBeInTheDocument();
-		expect(
-			screen.getByText(/Schema-based form will be implemented here/),
-		).toBeInTheDocument();
+		// Schema form is now properly integrated - it should render the form fields
+		expect(screen.getByText("Defaults")).toBeInTheDocument();
 	});
 
 	it("shows warning when no schema properties exist", () => {

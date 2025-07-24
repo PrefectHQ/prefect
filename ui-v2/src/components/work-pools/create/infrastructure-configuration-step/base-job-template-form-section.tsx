@@ -1,4 +1,9 @@
 import { useCallback, useMemo, useState } from "react";
+import { useSchemaFormErrors } from "@/components/schemas/hooks/useSchemaFormErrors";
+import { useSchemaFormValues } from "@/components/schemas/hooks/useSchemaValues";
+import { SchemaForm } from "@/components/schemas/schema-form";
+import type { PrefectSchemaObject } from "@/components/schemas/types/schemas";
+import type { SchemaFormValues } from "@/components/schemas/types/values";
 import { Card, CardContent, CardDescription } from "@/components/ui/card";
 import { JsonInput, type JsonInputOnChange } from "@/components/ui/json-input";
 import { Label } from "@/components/ui/label";
@@ -20,12 +25,68 @@ export function BaseJobTemplateFormSection({
 	);
 	const [jsonError, setJsonError] = useState<string | null>(null);
 
+	const variablesSchema = useMemo<PrefectSchemaObject | undefined>(() => {
+		return baseJobTemplate?.variables as PrefectSchemaObject;
+	}, [baseJobTemplate?.variables]);
+
 	const hasSchemaProperties = useMemo(() => {
 		return (
-			baseJobTemplate?.variables?.properties &&
-			Object.keys(baseJobTemplate.variables.properties).length > 0
+			variablesSchema?.properties &&
+			Object.keys(variablesSchema.properties).length > 0
 		);
-	}, [baseJobTemplate?.variables?.properties]);
+	}, [variablesSchema?.properties]);
+
+	// Get default values from schema properties
+	const defaultValues = useMemo<SchemaFormValues>(() => {
+		if (!variablesSchema?.properties) return {};
+
+		const defaults: SchemaFormValues = {};
+		Object.entries(variablesSchema.properties).forEach(([key, property]) => {
+			if (property && typeof property === "object" && "default" in property) {
+				defaults[key] = property.default;
+			}
+		});
+		return defaults;
+	}, [variablesSchema?.properties]);
+
+	const [schemaValues, setSchemaValues] = useSchemaFormValues(defaultValues);
+	const [schemaErrors] = useSchemaFormErrors([]);
+
+	const handleSchemaValuesChange = useCallback(
+		(values: SchemaFormValues) => {
+			setSchemaValues(values);
+
+			if (!variablesSchema?.properties) return;
+
+			// Update the base job template with new default values
+			const newTemplate: WorkerBaseJobTemplate = {
+				...baseJobTemplate,
+				variables: {
+					...variablesSchema,
+					properties: Object.fromEntries(
+						Object.entries(variablesSchema.properties).map(
+							([key, property]) => [
+								key,
+								{
+									...property,
+									default: values[key],
+								},
+							],
+						),
+					),
+				},
+			};
+
+			onBaseJobTemplateChange(newTemplate);
+			setJsonValue(JSON.stringify(newTemplate, null, 2));
+		},
+		[
+			baseJobTemplate,
+			variablesSchema,
+			onBaseJobTemplateChange,
+			setSchemaValues,
+		],
+	);
 
 	const handleJsonChange = useCallback(
 		(value: string) => {
@@ -64,14 +125,15 @@ export function BaseJobTemplateFormSection({
 								</CardContent>
 							</Card>
 
-							<Card>
-								<CardContent>
-									<CardDescription>
-										Schema-based form will be implemented here. For now, use the
-										Advanced tab to edit the JSON directly.
-									</CardDescription>
-								</CardContent>
-							</Card>
+							{variablesSchema && (
+								<SchemaForm
+									schema={variablesSchema}
+									kinds={["json"]}
+									values={schemaValues}
+									onValuesChange={handleSchemaValuesChange}
+									errors={schemaErrors}
+								/>
+							)}
 						</>
 					) : (
 						<Card>
