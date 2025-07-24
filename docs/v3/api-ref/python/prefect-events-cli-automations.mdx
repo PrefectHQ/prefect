@@ -49,14 +49,14 @@ Arguments:
 
 Examples:
 
-    $ prefect automation inspect "my-automation"
+    `$ prefect automation inspect "my-automation"`
 
-    $ prefect automation inspect --id "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
+    `$ prefect automation inspect --id "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"`
 
-    $ prefect automation inspect "my-automation" --yaml
+    `$ prefect automation inspect "my-automation" --yaml`
 
-    $ prefect automation inspect "my-automation" --output json
-    $ prefect automation inspect "my-automation" --output yaml
+    `$ prefect automation inspect "my-automation" --output json`
+    `$ prefect automation inspect "my-automation" --output yaml`
 
 
 ### `resume` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/cli/automations.py#L191" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
@@ -76,9 +76,9 @@ Arguments:
 
 Examples:
 
-        $ prefect automation resume "my-automation"
+        `$ prefect automation resume "my-automation"`
 
-        $ prefect automation resume --id "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
+        `$ prefect automation resume --id "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"`
 
 
 ### `pause` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/cli/automations.py#L246" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
@@ -98,9 +98,9 @@ Arguments:
 
 Examples:
 
-    $ prefect automation pause "my-automation"
+    `$ prefect automation pause "my-automation"`
 
-    $ prefect automation pause --id "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
+    `$ prefect automation pause --id "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"`
 
 
 ### `delete` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/cli/automations.py#L301" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
@@ -118,8 +118,8 @@ Delete an automation.
 
 **Examples:**
 
-$ prefect automation delete "my-automation"
-$ prefect automation delete --id "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
+`$ prefect automation delete "my-automation"`
+`$ prefect automation delete --id "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"`
 
 
 ### `create` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/cli/automations.py#L353" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
@@ -133,8 +133,8 @@ Create one or more automations from a file or JSON string.
 
 **Examples:**
 
-$ prefect automation create --from-file automation.yaml
-$ prefect automation create -f automation.json
-$ prefect automation create --from-json '{"name": "my-automation", "trigger": {...}, "actions": [...]}'
-$ prefect automation create -j '[{"name": "auto1", ...}, {"name": "auto2", ...}]'
+`$ prefect automation create --from-file automation.yaml`
+`$ prefect automation create -f automation.json`
+`$ prefect automation create --from-json '{"name": "my-automation", "trigger": {...}, "actions": [...]}'`
+`$ prefect automation create -j '[{"name": "auto1", ...}, {"name": "auto2", ...}]'`
 

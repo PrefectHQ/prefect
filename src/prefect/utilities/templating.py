@@ -280,16 +280,16 @@ async def resolve_block_document_references(
     examples of value resolution are as follows:
 
     1. Accessing a nested dictionary:
-       Format: prefect.blocks.<block_type_slug>.<block_document_name>.value.key
-       Example: Returns {"nested-key": "nested-value"}
+       Format: `prefect.blocks.<block_type_slug>.<block_document_name>.value.key`
+       Example: Returns `{"nested-key": "nested-value"}`
 
     2. Accessing a specific nested value:
-       Format: prefect.blocks.<block_type_slug>.<block_document_name>.value.key.nested-key
-       Example: Returns "nested-value"
+       Format: `prefect.blocks.<block_type_slug>.<block_document_name>.value.key.nested-key`
+       Example: Returns `"nested-value"`
 
     3. Accessing a list element's key-value:
-       Format: prefect.blocks.<block_type_slug>.<block_document_name>.value.list[0].list-key
-       Example: Returns "list-value"
+       Format: `prefect.blocks.<block_type_slug>.<block_document_name>.value.list[0].list-key`
+       Example: Returns `"list-value"`
 
     Default Resolution for System Blocks:
     -------------------------------------
