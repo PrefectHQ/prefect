@@ -21,7 +21,32 @@ export const createFakeWorkPool = (
 		id: randUuid(),
 		name: `${randProductAdjective()} work pool`,
 		updated: randPastDate().toISOString(),
-		base_job_template: {},
+		base_job_template: {
+			job_configuration: {
+				command: "{{ command }}",
+				env: "{{ env }}",
+			},
+			variables: {
+				type: "object",
+				properties: {
+					command: {
+						type: "string",
+						default: "prefect flow run",
+						title: "Command",
+						description: "Command to execute the flow",
+					},
+					env: {
+						type: "object",
+						default: {},
+						title: "Environment Variables",
+						description: "Environment variables for the job",
+						additionalProperties: {
+							type: "string",
+						},
+					},
+				},
+			},
+		},
 		concurrency_limit: randNumber({ min: 0, max: 1_000 }),
 		default_queue_id: randUuid(),
 		is_paused: randBoolean(),

@@ -6,7 +6,14 @@ import type { WorkerBaseJobTemplate } from "./schema";
 const mockOnBaseJobTemplateChange = vi.fn();
 
 const mockBaseJobTemplate: WorkerBaseJobTemplate = {
-	job_configuration: {},
+	job_configuration: {
+		resources: {
+			requests: {
+				cpu: "{{ cpu }}",
+				memory: "{{ memory }}",
+			},
+		},
+	},
 	variables: {
 		type: "object",
 		properties: {

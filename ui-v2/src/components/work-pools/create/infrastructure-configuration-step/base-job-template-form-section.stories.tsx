@@ -17,6 +17,23 @@ const mockBaseJobTemplate: WorkerBaseJobTemplate = {
 	job_configuration: {
 		apiVersion: "batch/v1",
 		kind: "Job",
+		spec: {
+			template: {
+				spec: {
+					containers: [
+						{
+							image: "{{ image }}",
+							resources: {
+								requests: {
+									cpu: "{{ cpu }}",
+									memory: "{{ memory }}",
+								},
+							},
+						},
+					],
+				},
+			},
+		},
 	},
 	variables: {
 		type: "object",
@@ -69,7 +86,18 @@ export const NoVariables: Story = {
 	args: {
 		baseJobTemplate: {
 			job_configuration: {
-				command: "echo 'Hello World'",
+				command: "{{ command }}",
+			},
+			variables: {
+				type: "object",
+				properties: {
+					command: {
+						type: "string",
+						default: "echo 'Hello World'",
+						title: "Command",
+						description: "Command to execute",
+					},
+				},
 			},
 		},
 		onBaseJobTemplateChange: () => {},
@@ -83,8 +111,26 @@ export const ComplexSchema: Story = {
 				apiVersion: "batch/v1",
 				kind: "Job",
 				metadata: {
-					labels: {
-						app: "prefect-flow",
+					namespace: "{{ namespace }}",
+					labels: "{{ labels }}",
+				},
+				spec: {
+					template: {
+						spec: {
+							containers: [
+								{
+									image: "{{ image }}",
+									env: "{{ env }}",
+									resources: {
+										requests: {
+											cpu: "{{ cpu }}",
+											memory: "{{ memory }}",
+										},
+									},
+								},
+							],
+							tolerations: "{{ tolerations }}",
+						},
 					},
 				},
 			},
