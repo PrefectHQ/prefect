@@ -1013,7 +1013,7 @@ class Block(BaseModel, ABC):
 
         Args:
             name: The name or slug of the block document. A block document slug is a
-                string with the format <block_type_slug>/<block_document_name>
+                string with the format `<block_type_slug>/<block_document_name>`
             validate: If False, the block document will be loaded without Pydantic
                 validating the block schema. This is useful if the block schema has
                 changed client-side since the block document referred to by `name` was saved.
@@ -1102,7 +1102,7 @@ class Block(BaseModel, ABC):
 
         Args:
             name: The name or slug of the block document. A block document slug is a
-                string with the format <block_type_slug>/<block_document_name>
+                string with the format `<block_type_slug>/<block_document_name>`
             validate: If False, the block document will be loaded without Pydantic
                 validating the block schema. This is useful if the block schema has
                 changed client-side since the block document referred to by `name` was saved.
@@ -1190,8 +1190,8 @@ class Block(BaseModel, ABC):
 
         Provided reference can be a block document ID, or a reference data in dictionary format.
         Supported dictionary reference formats are:
-        - {"block_document_id": <block_document_id>}
-        - {"block_document_slug": <block_document_slug>}
+        - `{"block_document_id": <block_document_id>}`
+        - `{"block_document_slug": <block_document_slug>}`
 
         If a block document for a given block type is saved with a different schema
         than the current class calling `load`, a warning will be raised.
