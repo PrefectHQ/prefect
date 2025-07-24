@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react";
+import { fn } from "storybook/test";
 import { BaseJobTemplateFormSection } from "./base-job-template-form-section";
 import type { WorkerBaseJobTemplate } from "./schema";
 
@@ -65,7 +66,7 @@ const mockBaseJobTemplate: WorkerBaseJobTemplate = {
 export const Default: Story = {
 	args: {
 		baseJobTemplate: mockBaseJobTemplate,
-		onBaseJobTemplateChange: () => {},
+		onBaseJobTemplateChange: fn(),
 	},
 };
 
@@ -78,7 +79,7 @@ export const EmptySchema: Story = {
 				properties: {},
 			},
 		},
-		onBaseJobTemplateChange: () => {},
+		onBaseJobTemplateChange: fn(),
 	},
 };
 
@@ -86,21 +87,14 @@ export const NoVariables: Story = {
 	args: {
 		baseJobTemplate: {
 			job_configuration: {
-				command: "{{ command }}",
+				command: "echo 'Hello World'",
 			},
 			variables: {
 				type: "object",
-				properties: {
-					command: {
-						type: "string",
-						default: "echo 'Hello World'",
-						title: "Command",
-						description: "Command to execute",
-					},
-				},
+				properties: {},
 			},
 		},
-		onBaseJobTemplateChange: () => {},
+		onBaseJobTemplateChange: fn(),
 	},
 };
 
@@ -199,6 +193,6 @@ export const ComplexSchema: Story = {
 				},
 			},
 		},
-		onBaseJobTemplateChange: () => {},
+		onBaseJobTemplateChange: fn(),
 	},
 };
