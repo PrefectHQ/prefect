@@ -10,7 +10,7 @@ from typing import Any
 
 import anyio
 import kopf
-from cachetools import LRUCache
+from cachetools import TTLCache
 from kubernetes_asyncio import config
 from kubernetes_asyncio.client import ApiClient, BatchV1Api, V1Job
 
@@ -32,7 +32,12 @@ from prefect.utilities.engine import propose_state
 from prefect.utilities.slugify import slugify
 from prefect_kubernetes.settings import KubernetesSettings
 
-_last_event_cache: LRUCache[uuid.UUID, Event] = LRUCache(maxsize=1000)
+# Cache used to keep track of the last event for a pod. This is used populate the `follows` field
+# on events to get correct event ordering. We only hold each pod's last event for 5 minutes to avoid
+# holding onto too much memory and 5 minutes is the same as the `TIGHT_TIMING` in `prefect.events.utilities`.
+_last_event_cache: TTLCache[str, Event] = TTLCache(
+    maxsize=1000, ttl=60 * 5
+)  # 5 minutes
 
 logging.getLogger("kopf.objects").setLevel(logging.INFO)
 
@@ -96,13 +101,13 @@ async def _replicate_pod_event(  # pyright: ignore[reportUnusedFunction]
     logger.debug(f"Pod event received - type: {event_type}, phase: {phase}, uid: {uid}")
 
     # Extract the creation timestamp from the Kubernetes event
-    k8s_event_time = None
+    k8s_created_time = None
     if isinstance(event, dict) and "object" in event:
         obj = event["object"]
         if isinstance(obj, dict) and "metadata" in obj:
             metadata = obj["metadata"]
             if "creationTimestamp" in metadata:
-                k8s_event_time = DateTime.fromisoformat(
+                k8s_created_time = DateTime.fromisoformat(
                     metadata["creationTimestamp"].replace("Z", "+00:00")
                 )
 
@@ -136,8 +141,8 @@ async def _replicate_pod_event(  # pyright: ignore[reportUnusedFunction]
             ),
             occurred=EventOccurredFilter(
                 since=(
-                    k8s_event_time
-                    if k8s_event_time
+                    k8s_created_time
+                    if k8s_created_time
                     else (datetime.now(timezone.utc) - timedelta(hours=1))
                 )
             ),
@@ -173,10 +178,10 @@ async def _replicate_pod_event(  # pyright: ignore[reportUnusedFunction]
         resource=Resource.model_validate(resource),
         id=event_id,
         related=_related_resources_from_labels(labels),
-        **({"occurred": k8s_event_time} if k8s_event_time else {}),
     )
 
-    if (prev_event := _last_event_cache.get(event_id)) is not None:
+    if (prev_event := _last_event_cache.get(uid)) is not None:
+        # This check replicates a similar check in `emit_event` in `prefect.events.utilities`
         if (
             -timedelta(minutes=5)
             < (prefect_event.occurred - prev_event.occurred)
@@ -186,7 +191,7 @@ async def _replicate_pod_event(  # pyright: ignore[reportUnusedFunction]
     if events_client is None:
         raise RuntimeError("Events client not initialized")
     await events_client.emit(event=prefect_event)
-    _last_event_cache[event_id] = prefect_event
+    _last_event_cache[uid] = prefect_event
 
 
 async def _get_kubernetes_client() -> ApiClient:
