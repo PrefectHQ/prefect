@@ -22337,6 +22337,18 @@
                             }
                         ],
                         "title": "Traceparent"
+                    },
+                    "deployment_concurrency_lease_id": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "format": "uuid"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Deployment Concurrency Lease Id"
                     }
                 },
                 "type": "object",

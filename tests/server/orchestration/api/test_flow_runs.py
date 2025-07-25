@@ -1,25 +1,35 @@
+from __future__ import annotations
+
 import asyncio
 import datetime
-from typing import List, Optional
+import shutil
+from typing import Any, AsyncGenerator, Generator, List, Optional
 from unittest import mock
 from uuid import UUID, uuid4
 
+import httpx
 import orjson
 import pytest
 import sqlalchemy as sa
-from httpx import AsyncClient
+from fastapi import FastAPI
+from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
 
 from prefect.client.schemas import actions as client_actions
 from prefect.input import RunInput, keyset_from_paused_state
 from prefect.server import models, schemas
+from prefect.server.api.server import create_app
+from prefect.server.concurrency.lease_storage import get_concurrency_lease_storage
+from prefect.server.concurrency.lease_storage.filesystem import ConcurrencyLeaseStorage
 from prefect.server.database.orm_models import Flow, WorkPool, WorkQueue
 from prefect.server.schemas import core, responses
 from prefect.server.schemas.actions import LogCreate
 from prefect.server.schemas.core import TaskRunResult
 from prefect.server.schemas.responses import FlowRunResponse, OrchestrationResult
 from prefect.server.schemas.states import StateType
+from prefect.settings import PREFECT_SERVER_CONCURRENCY_LEASE_STORAGE
+from prefect.settings.context import temporary_settings
 from prefect.states import (
     Completed,
     Paused,
@@ -1984,31 +1994,231 @@ class TestSetFlowRunState:
         should_use_orchestration,
         client,
         flow_run_with_concurrency_limit,
+        deployment_with_concurrency_limit,
     ):
         # Ensure that setting the flow run state uses new concurrency rules
         # for older (2.x) clients and 3.x clients other than the ones with
         # worker handling for deployment concurrency.
-        with mock.patch(
-            "prefect.server.orchestration.core_policy.SecureFlowConcurrencySlots.before_transition"
-        ) as mock_before_transition:
-            post_kwargs = {
+        post_kwargs = {
+            "json": dict(state=dict(type="PENDING", name="Pending")),
+            "headers": {},
+        }
+        if client_version:
+            post_kwargs["headers"]["User-Agent"] = (
+                f"prefect/{client_version} (API 2.19.3)"
+            )
+        response = await client.post(
+            f"/flow_runs/{flow_run_with_concurrency_limit.id}/set_state",
+            **post_kwargs,
+        )
+        assert response.status_code == 201
+
+        cl_response = await client.get(
+            f"/v2/concurrency_limits/{deployment_with_concurrency_limit.concurrency_limit_id}"
+        )
+        assert cl_response.status_code == 200, response.text
+        if should_use_orchestration:
+            assert cl_response.json()["active_slots"] == 1
+        else:
+            assert cl_response.json()["active_slots"] == 0
+
+    class TestConcurrencyLeaseInteraction:
+        @pytest.fixture
+        def use_filesystem_lease_storage(self):
+            with temporary_settings(
+                {
+                    PREFECT_SERVER_CONCURRENCY_LEASE_STORAGE: "prefect.server.concurrency.lease_storage.filesystem"
+                }
+            ):
+                shutil.rmtree(
+                    ConcurrencyLeaseStorage().storage_path, ignore_errors=True
+                )
+                yield
+
+        @pytest.fixture()
+        def app(
+            self, use_filesystem_lease_storage: None
+        ) -> Generator[FastAPI, Any, None]:
+            yield create_app(ephemeral=True)
+
+        @pytest.fixture
+        async def client(self, app: FastAPI) -> AsyncGenerator[AsyncClient, Any]:
+            async with httpx.AsyncClient(
+                transport=ASGITransport(app=app), base_url="https://test/api"
+            ) as async_client:
+                yield async_client
+
+        @pytest.mark.parametrize(
+            "client_version,should_clear_lease_id",
+            [
+                (None, True),
+                ("3.4.10", True),
+                ("3.4.11", False),
+            ],
+        )
+        async def test_set_flow_run_state_clears_deployment_concurrency_lease_id_for_old_client_versions(
+            self,
+            client_version: str | None,
+            should_clear_lease_id: bool,
+            client: AsyncClient,
+            flow_run_with_concurrency_limit: schemas.core.FlowRun,
+            deployment_with_concurrency_limit: schemas.core.Deployment,
+        ):
+            lease_storage = get_concurrency_lease_storage()
+            pending_kwargs = {
                 "json": dict(state=dict(type="PENDING", name="Pending")),
                 "headers": {},
             }
             if client_version:
-                post_kwargs["headers"]["User-Agent"] = (
-                    f"prefect/{client_version} (API 2.19.3)"
+                pending_kwargs["headers"]["User-Agent"] = (
+                    f"prefect/{client_version} (API 0.8.4)"
                 )
             response = await client.post(
                 f"/flow_runs/{flow_run_with_concurrency_limit.id}/set_state",
-                **post_kwargs,
+                **pending_kwargs,
+            )
+            assert response.status_code == 201
+            lease_ids = await lease_storage.read_active_lease_ids()
+            assert len(lease_ids) == 1
+
+            running_kwargs = {
+                "json": dict(state=dict(type="RUNNING", name="Running")),
+                "headers": {},
+            }
+            if client_version:
+                running_kwargs["headers"]["User-Agent"] = (
+                    f"prefect/{client_version} (API 0.8.4)"
+                )
+            response = await client.post(
+                f"/flow_runs/{flow_run_with_concurrency_limit.id}/set_state",
+                **running_kwargs,
             )
             assert response.status_code == 201
 
-            if should_use_orchestration:
-                mock_before_transition.assert_awaited_once()
+            lease_ids = await lease_storage.read_active_lease_ids()
+            if should_clear_lease_id:
+                assert len(lease_ids) == 0
             else:
-                mock_before_transition.assert_not_awaited()
+                assert len(lease_ids) == 1
+
+        async def test_lease_handling_completed(
+            self,
+            client: AsyncClient,
+            flow_run_with_concurrency_limit: schemas.core.FlowRun,
+            deployment_with_concurrency_limit: schemas.core.Deployment,
+        ):
+            """
+            Test that concurrency limits are released and the lease is removed when going from scheduled to pending to running to completed.
+            """
+            lease_storage = get_concurrency_lease_storage()
+            response = await client.post(
+                f"/flow_runs/{flow_run_with_concurrency_limit.id}/set_state",
+                json=dict(state=dict(type=StateType.SCHEDULED, name="Scheduled")),
+            )
+            assert response.status_code == 201
+
+            response = await client.post(
+                f"/flow_runs/{flow_run_with_concurrency_limit.id}/set_state",
+                json=dict(state=dict(type=StateType.PENDING, name="Pending")),
+            )
+            assert response.status_code == 201
+
+            # Check that the lease is created
+            lease_ids = await lease_storage.read_active_lease_ids()
+            assert len(lease_ids) == 1
+
+            # Check that the concurrency limit is occupied
+            concurrency_limit = await client.get(
+                f"/v2/concurrency_limits/{deployment_with_concurrency_limit.concurrency_limit_id}"
+            )
+            assert concurrency_limit.status_code == 200
+            assert concurrency_limit.json()["active_slots"] == 1
+
+            response = await client.post(
+                f"/flow_runs/{flow_run_with_concurrency_limit.id}/set_state",
+                json=dict(state=dict(type=StateType.RUNNING, name="Running")),
+                headers={"User-Agent": "prefect/3.4.11 (API 0.8.4)"},
+            )
+            assert response.status_code == 201
+
+            response = await client.post(
+                f"/flow_runs/{flow_run_with_concurrency_limit.id}/set_state",
+                json=dict(state=dict(type=StateType.COMPLETED, name="Completed")),
+            )
+            assert response.status_code == 201
+
+            # Check that the lease is removed
+            lease_ids = await lease_storage.read_active_lease_ids()
+            assert len(lease_ids) == 0
+
+            # Check that the concurrency limit slot is released
+            concurrency_limit = await client.get(
+                f"/v2/concurrency_limits/{deployment_with_concurrency_limit.concurrency_limit_id}"
+            )
+            assert concurrency_limit.status_code == 200
+            assert concurrency_limit.json()["active_slots"] == 0
+
+        async def test_lease_handling_cancelled(
+            self,
+            client: AsyncClient,
+            flow_run_with_concurrency_limit: schemas.core.FlowRun,
+            deployment_with_concurrency_limit: schemas.core.Deployment,
+        ):
+            """
+            Test that concurrency limits are released and the lease is removed when going from scheduled to pending to running to cancelling to cancelled.
+            """
+            lease_storage = get_concurrency_lease_storage()
+            response = await client.post(
+                f"/flow_runs/{flow_run_with_concurrency_limit.id}/set_state",
+                json=dict(state=dict(type=StateType.SCHEDULED, name="Scheduled")),
+            )
+            assert response.status_code == 201
+
+            response = await client.post(
+                f"/flow_runs/{flow_run_with_concurrency_limit.id}/set_state",
+                json=dict(state=dict(type=StateType.PENDING, name="Pending")),
+            )
+            assert response.status_code == 201
+
+            # Check that the lease is created
+            lease_ids = await lease_storage.read_active_lease_ids()
+            assert len(lease_ids) == 1
+
+            # Check that the concurrency limit is occupied
+            concurrency_limit = await client.get(
+                f"/v2/concurrency_limits/{deployment_with_concurrency_limit.concurrency_limit_id}"
+            )
+            assert concurrency_limit.status_code == 200
+            assert concurrency_limit.json()["active_slots"] == 1
+
+            response = await client.post(
+                f"/flow_runs/{flow_run_with_concurrency_limit.id}/set_state",
+                json=dict(state=dict(type=StateType.RUNNING, name="Running")),
+            )
+            assert response.status_code == 201
+
+            response = await client.post(
+                f"/flow_runs/{flow_run_with_concurrency_limit.id}/set_state",
+                json=dict(state=dict(type=StateType.CANCELLING, name="Cancelling")),
+            )
+            assert response.status_code == 201
+
+            response = await client.post(
+                f"/flow_runs/{flow_run_with_concurrency_limit.id}/set_state",
+                json=dict(state=dict(type=StateType.CANCELLED, name="Cancelled")),
+            )
+            assert response.status_code == 201
+
+            # Check that the lease is removed
+            lease_ids = await lease_storage.read_active_lease_ids()
+            assert len(lease_ids) == 0
+
+            # Check that the concurrency limit slot is released
+            concurrency_limit = await client.get(
+                f"/v2/concurrency_limits/{deployment_with_concurrency_limit.concurrency_limit_id}"
+            )
+            assert concurrency_limit.status_code == 200
+            assert concurrency_limit.json()["active_slots"] == 0
 
 
 class TestManuallyRetryingFlowRuns:

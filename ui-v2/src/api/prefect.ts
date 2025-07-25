@@ -8590,6 +8590,8 @@ export interface components {
             task_parameters_id?: string | null;
             /** Traceparent */
             traceparent?: string | null;
+            /** Deployment Concurrency Lease Id */
+            deployment_concurrency_lease_id?: string | null;
         };
         /**
          * StateRejectDetails

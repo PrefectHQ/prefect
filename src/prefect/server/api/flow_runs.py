@@ -378,10 +378,10 @@ async def read_flow_run_graph_v2(
 
 @router.post("/{id:uuid}/resume")
 async def resume_flow_run(
+    response: Response,
     flow_run_id: UUID = Path(..., description="The flow run id", alias="id"),
     db: PrefectDBInterface = Depends(provide_database_interface),
     run_input: Optional[dict[str, Any]] = Body(default=None, embed=True),
-    response: Response = None,
     flow_policy: type[FlowRunOrchestrationPolicy] = Depends(
         orchestration_dependencies.provide_flow_policy
     ),
@@ -392,6 +392,7 @@ async def resume_flow_run(
         orchestration_dependencies.provide_flow_orchestration_parameters
     ),
     api_version: str = Depends(dependencies.provide_request_api_version),
+    client_version: Optional[str] = Depends(dependencies.get_prefect_client_version),
 ) -> OrchestrationResult:
     """
     Resume a paused flow run.
@@ -488,6 +489,7 @@ async def resume_flow_run(
                 ),
                 flow_policy=flow_policy,
                 orchestration_parameters=orchestration_parameters,
+                client_version=client_version,
             )
         else:
             orchestration_result = await models.flow_runs.set_flow_run_state(
@@ -496,6 +498,7 @@ async def resume_flow_run(
                 state=schemas.states.Running(),
                 flow_policy=flow_policy,
                 orchestration_parameters=orchestration_parameters,
+                client_version=client_version,
             )
 
         if (
@@ -601,6 +604,7 @@ async def delete_flow_run_logs(db: PrefectDBInterface, flow_run_id: UUID) -> Non
 
 @router.post("/{id:uuid}/set_state")
 async def set_flow_run_state(
+    response: Response,
     flow_run_id: UUID = Path(..., description="The flow run id", alias="id"),
     state: schemas.actions.StateCreate = Body(..., description="The intended state."),
     force: bool = Body(
@@ -617,8 +621,8 @@ async def set_flow_run_state(
     orchestration_parameters: Dict[str, Any] = Depends(
         orchestration_dependencies.provide_flow_orchestration_parameters
     ),
-    response: Response = None,
     api_version: str = Depends(dependencies.provide_request_api_version),
+    client_version: Optional[str] = Depends(dependencies.get_prefect_client_version),
 ) -> OrchestrationResult:
     """Set a flow run state, invoking any orchestration rules."""
 
@@ -639,6 +643,7 @@ async def set_flow_run_state(
             force=force,
             flow_policy=flow_policy,
             orchestration_parameters=orchestration_parameters,
+            client_version=client_version,
         )
 
     # set the 201 if a new state was created

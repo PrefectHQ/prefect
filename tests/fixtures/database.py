@@ -1026,6 +1026,7 @@ def initialize_orchestration(flow):
         initial_state_name: Optional[str] = None,
         proposed_state_name: Optional[str] = None,
         deployment_id: Optional[str] = None,
+        client_version: Optional[str] = None,
     ):
         flow_create_kwargs = {}
         empirical_policy = {}
@@ -1109,6 +1110,7 @@ def initialize_orchestration(flow):
             run=run,
             initial_state=initial_state,
             proposed_state=proposed_state,
+            client_version=client_version,
         )
 
         return ctx

@@ -1,12 +1,10 @@
-import asyncio
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from typing import Optional, Union
 
 import anyio
 
-from prefect._internal.concurrency.cancellation import AsyncCancelScope
-from prefect.logging.loggers import get_logger, get_run_logger
+from prefect.concurrency._leases import amaintain_concurrency_lease
 
 from ._asyncio import (
     AcquireConcurrencySlotTimeoutError as AcquireConcurrencySlotTimeoutError,
@@ -15,7 +13,6 @@ from ._asyncio import ConcurrencySlotAcquisitionError as ConcurrencySlotAcquisit
 from ._asyncio import (
     aacquire_concurrency_slots,
     aacquire_concurrency_slots_with_lease,
-    amaintain_concurrency_lease,
     arelease_concurrency_slots_with_lease,
 )
 from ._events import (
@@ -81,43 +78,12 @@ async def concurrency(
     )
     emitted_events = emit_concurrency_acquisition_events(response.limits, occupy)
 
-    lease_renewal_task = asyncio.create_task(
-        amaintain_concurrency_lease(response.lease_id, lease_duration)
-    )
-
     try:
-        with AsyncCancelScope() as cancel_scope:
-
-            def handle_lease_renewal_failure(task: asyncio.Task[None]):
-                exc = task.exception()
-                if exc:
-                    try:
-                        # Use a run logger if available
-                        logger = get_run_logger()
-                    except Exception:
-                        logger = get_logger("concurrency")
-                    if strict:
-                        logger.error(
-                            "Concurrency lease renewal failed - slots are no longer reserved. Terminating execution to prevent over-allocation."
-                        )
-                        cancel_scope.cancel()
-                    else:
-                        logger.warning(
-                            "Concurrency lease renewal failed - slots are no longer reserved. Execution will continue, but concurrency limits may be exceeded."
-                        )
-
-            # Add a callback to stop execution if the lease renewal fails and strict is True
-            lease_renewal_task.add_done_callback(handle_lease_renewal_failure)
-
+        async with amaintain_concurrency_lease(
+            response.lease_id, lease_duration, raise_on_lease_renewal_failure=strict
+        ):
             yield
     finally:
-        lease_renewal_task.cancel()
-        try:
-            await lease_renewal_task
-        except (asyncio.CancelledError, Exception):
-            # Handling for errors will be done in the callback
-            pass
-
         try:
             await arelease_concurrency_slots_with_lease(
                 lease_id=response.lease_id,
