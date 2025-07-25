@@ -250,6 +250,18 @@ Update a global concurrency limit.
 </AccordionGroup>
 
 
+<Note>
+**Example:**
+
+$ prefect global-concurrency-limit update my-gcl --limit 10
+$ prefect gcl update my-gcl --active-slots 5
+$ prefect gcl update my-gcl --slot-decay-per-second 0.5
+$ prefect gcl update my-gcl --enable
+$ prefect gcl update my-gcl --disable --limit 5
+</Note>
+
+
+
 
 ## `prefect gcl create`
 

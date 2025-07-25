@@ -205,7 +205,7 @@ Upgrade the Prefect database
 </ResponseField>
 
 <ResponseField name="-r">
-    The revision to pass to \`alembic upgrade\`. If not provided, runs all migrations.
+    The revision to pass to `alembic upgrade`. If not provided, runs all migrations.
 </ResponseField>
 
 <ResponseField name="--dry-run">
@@ -249,7 +249,7 @@ Downgrade the Prefect database
 </ResponseField>
 
 <ResponseField name="-r">
-    The revision to pass to \`alembic downgrade\`. If not provided, downgrades to the most recent revision. Use 'base' to run all migrations.
+    The revision to pass to `alembic downgrade`. If not provided, downgrades to the most recent revision. Use 'base' to run all migrations.
 </ResponseField>
 
 <ResponseField name="--dry-run">
@@ -368,7 +368,7 @@ prefect server services manager [OPTIONS]
 
 
 <Info>
-This is an internal entrypoint used by \`prefect server services start --background\`.
+This is an internal entrypoint used by `prefect server services start --background`.
 Users do not call this directly.
 
 We do everything in sync so that the child won't exit until the user kills it.
