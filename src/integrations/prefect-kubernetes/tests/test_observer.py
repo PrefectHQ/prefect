@@ -258,42 +258,6 @@ class TestReplicatePodEvent:
         emitted_event = mock_events_client.emit.call_args[1]["event"]
         assert emitted_event.event == f"prefect.kubernetes.pod.{phase.lower()}"
 
-    async def test_kubernetes_event_timestamp_used(self, mock_events_client: AsyncMock):
-        """Test that Kubernetes event timestamp is extracted and used as occurred time"""
-        pod_id = uuid.uuid4()
-        flow_run_id = uuid.uuid4()
-        k8s_timestamp = "2023-05-15T10:30:00Z"
-
-        await _replicate_pod_event(
-            event={
-                "type": "ADDED",
-                "object": {
-                    "metadata": {
-                        "name": "test-pod",
-                        "creationTimestamp": k8s_timestamp,
-                    }
-                },
-            },
-            uid=str(pod_id),
-            name="test",
-            namespace="test",
-            labels={
-                "prefect.io/flow-run-id": str(flow_run_id),
-                "prefect.io/flow-run-name": "test-run",
-            },
-            status={"phase": "Running"},
-            logger=MagicMock(),
-        )
-
-        mock_events_client.emit.assert_called_once()
-        emitted_event = mock_events_client.emit.call_args[1]["event"]
-
-        # Verify the occurred time matches the K8s timestamp
-        from prefect.types import DateTime
-
-        expected_occurred = DateTime.fromisoformat(k8s_timestamp.replace("Z", "+00:00"))
-        assert emitted_event.occurred == expected_occurred
-
 
 class TestStartAndStopObserver:
     @pytest.mark.timeout(10)

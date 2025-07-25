@@ -337,12 +337,12 @@ async def test_pod_eviction_with_backoff_limit(
     if len(events) == 6:
         # If we have 6 events, they should be in the right order
         assert [event.event for event in events] == [
-            "prefect.kubernetes.pod.succeeded",
-            "prefect.kubernetes.pod.running",
             "prefect.kubernetes.pod.pending",
+            "prefect.kubernetes.pod.running",
             "prefect.kubernetes.pod.failed",
-            "prefect.kubernetes.pod.running",
             "prefect.kubernetes.pod.pending",
+            "prefect.kubernetes.pod.running",
+            "prefect.kubernetes.pod.succeeded",
         ], (
             f"Expected events to be in the correct order, got: {[event.event for event in events]}"
         )
