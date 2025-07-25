@@ -814,18 +814,7 @@ class KubernetesWorker(
         secret_key: str | None = None,
     ):
         """Replaces the PREFECT_API_KEY environment variable with a Kubernetes secret"""
-        manifest_env = configuration.job_manifest["spec"]["template"]["spec"][
-            "containers"
-        ][0].get("env")
-        manifest_api_key_env = next(
-            (
-                env_entry
-                for env_entry in manifest_env
-                if env_entry.get("name") == "PREFECT_API_KEY"
-            ),
-            {},
-        )
-        api_key = manifest_api_key_env.get("value")
+        api_key = configuration.get_environment_variable_value("PREFECT_API_KEY")
         if api_key and not secret_name:
             secret_name = f"prefect-{_slugify_name(self.name)}-api-key"
             secret = await self._upsert_secret(
@@ -839,6 +828,7 @@ class KubernetesWorker(
             self._created_secrets[(secret.metadata.name, secret.metadata.namespace)] = (
                 configuration
             )
+            secret_key = "value"
         if secret_name and secret_key:
             await self._replace_env_variable_with_secret(
                 env_variable_name="PREFECT_API_KEY",
