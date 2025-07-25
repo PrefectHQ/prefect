@@ -201,13 +201,34 @@ def escape_mdx(text: str) -> str:
     if not text:
         return ""
 
+    # First, let's preserve code blocks by temporarily replacing them
+    # This regex matches triple backtick code blocks
+    code_blocks = []
+    code_block_pattern = r"```[\s\S]*?```"
+
+    def store_code_block(match):
+        code_blocks.append(match.group(0))
+        return f"__CODE_BLOCK_{len(code_blocks) - 1}__"
+
+    text = re.sub(code_block_pattern, store_code_block, text)
+
+    # Also preserve inline code (single backticks)
+    inline_code = []
+    inline_code_pattern = r"`[^`]+`"
+
+    def store_inline_code(match):
+        inline_code.append(match.group(0))
+        return f"__INLINE_CODE_{len(inline_code) - 1}__"
+
+    text = re.sub(inline_code_pattern, store_inline_code, text)
+
     # Escape < and >
     text = text.replace("<", "&lt;").replace(">", "&gt;")
 
     # Escape { and }
     text = text.replace("{", "&#123;").replace("}", "&#125;")
 
-    # Escape backticks
+    # Escape backticks (only those not in code blocks)
     text = text.replace("`", "\\`")
 
     # Escape pipes (especially in tables)
@@ -220,9 +241,17 @@ def escape_mdx(text: str) -> str:
     text = text.replace("$", "\\$")
 
     # Escape ! at start of lines
-    return re.sub(r"(?m)^!", "\\!", text)
+    text = re.sub(r"(?m)^!", "\\!", text)
 
-    # Example: you can expand with more custom rules here, if needed
+    # Restore code blocks
+    for i, block in enumerate(code_blocks):
+        text = text.replace(f"__CODE_BLOCK_{i}__", block)
+
+    # Restore inline code
+    for i, code in enumerate(inline_code):
+        text = text.replace(f"__INLINE_CODE_{i}__", code)
+
+    return text
 
 
 def write_command_docs(

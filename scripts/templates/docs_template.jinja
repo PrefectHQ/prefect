@@ -54,6 +54,16 @@ prefect {{ cmd.usage_pieces | join(' ') | escape_mdx }}
 </AccordionGroup>
 {% endif %}
 
+{%- if cmd.examples %}
+{% for example in cmd.examples %}
+<Note>
+**Example:**
+
+{{ example }}
+</Note>
+{% endfor %}
+{% endif %}
+
 {%- endmacro -%}
 
 {{ render_command(command) }}
