@@ -238,8 +238,8 @@ class APILogHandler(logging.Handler):
             worker_id=worker_id,
             name=record.name,
             level=record.levelno,
-            timestamp=from_timestamp(getattr(record, "created", None) or time.time()),  # pyright: ignore[reportArgumentType] DateTime is split into two types depending on Python version
-            message=self.format(record),
+            timestamp=from_timestamp(getattr(record, "created", None) or time.time()),  # pyright: ignore[reportArgumentType]
+            message=formatted_message,
         ).model_dump(mode="json")
 
         log_size = log["__payload_size__"] = self._get_payload_size(log)
@@ -257,7 +257,7 @@ class APILogHandler(logging.Handler):
                 name=record.name,
                 level=record.levelno,
                 timestamp=from_timestamp(
-                    getattr(record, "created", None) or time.time()
+                    getattr(record, "created", None) or time.time()  # pyright: ignore[reportArgumentType] DateTime is split into two types depending on Python version
                 ),
                 message=truncated_message,
             ).model_dump(mode="json")
