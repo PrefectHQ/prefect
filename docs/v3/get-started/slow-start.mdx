@@ -1,8 +1,7 @@
 ---
 title: Slow Start
 description: A curated learning path for those who want to go deeper than the quick start
-icon: graduation-cap
-mode: wide
+icon: turtle
 ---
 
 Unlike the [quickstart](/v3/get-started/quickstart) which gets you running immediately, this guide provides a guided tour of Prefect's philosophy, architecture, and capabilities.
@@ -17,7 +16,7 @@ The quickstart is great for getting up and running quickly, but sometimes you wa
 
 ## 1. Look! It's Just Normal Python
 
-Prefect [flows](/v3/concepts/flows) and [tasks](/v3/concepts/tasks) are just 
+Prefect [flows](/v3/concepts/flows) and [tasks](/v3/concepts/tasks) are just
 
 ### Minimum Viable Adoption
 
@@ -274,13 +273,65 @@ This approach gives you:
 
 Choose based on your needs. Learn more about [deployment patterns](/v3/deploy).
 
-## 3. Deploy the Normal Python
+## 3. Schedule your workflow
 
-You've written your flow, understood the architecture - now let's deploy it properly.
+Now you have a workflow that you can run locally, but what if you want to run it on a schedule or trigger a run via an API call?
 
-### Deployment Overview
+In Prefect, you can take a workflow and make it remotely invocable by creating a deployment.
 
-[Content to be added]
+First, we'll need to create a work pool:
+
+```bash
+prefect work-pool create my-local-pool --type process
+```
+
+<Accordion title="What is a work pool?">
+A work pool is where scheduled flow runs hang out until a worker picks them up for execution. A work pool's type corresponds to the type of infrastructure the runs will execute on.
+
+In this case, we created a <b>process work pool</b>, which means that workers in this work pool spin up a separate subprocess for each flow run. We chose a process work pool to start because process workers are simple to run locally and don't require any additional infrastructure.
+
+To learn more about work pools, see the [work pools concepts](/v3/concepts/work-pools) page.
+</Accordion>
+
+Second, we'll bootstrap out project with a configuration file for our deployment:
+
+```bash
+prefect init --recipe local
+```
+
+This will create a `prefect.yaml` file in your project root. Before you can deploy, you'll need to make some updates to the `deployments` section.
+
+Update the the following fields in your `prefect.yaml` file:
+
+- `name`: The name of the deployment. This is the name will be combined with the flow name to create a unique identifier for the deployment.
+- `entrypoint`: The path to the flow you want to deploy in the format `path/to/file.py:flow_name`.
+- `work_pool`: The name of the work pool to use for the deployment.
+
+After updating your `prefect.yaml` file, it should looks like this:
+
+```yaml {2,8,11}
+deployments:
+- name: my-deployment
+  version: null
+  tags: []
+  description: null
+  schedule: {}
+  flow_name: null
+  entrypoint: main.py:my_flow
+  parameters: {}
+  work_pool:
+    name: my-local-pool
+    work_queue_name: null
+    job_variables: {}
+```
+
+<Accordion title="What are those other fields for?">
+
+Each deployment can be customized with schedules, default parameters, infrastructure overrides, and more.
+
+If you want to see a full list of fields and their behavior, see the [deployment declaration reference](/v3/how-to-guides/deployments/prefect-yaml#deployment-declaration-reference) page.
+</Accordion>
+
 
 ### Managing Dependencies
 
