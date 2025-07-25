@@ -1902,22 +1902,22 @@ class TestKubernetesWorker:
         self,
         flow_run,
         mock_core_client,
-        mock_watch,
-        mock_pods_stream_that_returns_running_pod,
         caplog,
     ):
-        mock_watch.return_value.stream = mock_pods_stream_that_returns_running_pod
-        configuration = await KubernetesWorkerJobConfiguration.from_template_and_values(
-            KubernetesWorker.get_default_base_job_template(), {"image": "foo"}
-        )
         with temporary_settings(updates={PREFECT_API_AUTH_STRING: "fake"}):
+            configuration = (
+                await KubernetesWorkerJobConfiguration.from_template_and_values(
+                    KubernetesWorker.get_default_base_job_template(), {"image": "foo"}
+                )
+            )
+            configuration.prepare_for_flow_run(flow_run=flow_run)
             async with KubernetesWorker(work_pool_name="test") as k8s_worker:
                 await k8s_worker.run(flow_run, configuration)
 
-        assert (
-            "PREFECT_API_AUTH_STRING is set, but no secret name or key is provided"
-            in caplog.text
-        )
+            assert (
+                "PREFECT_API_AUTH_STRING is set, but no secret name or key is provided"
+                in caplog.text
+            )
 
     async def test_create_job_failure(
         self,

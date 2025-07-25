@@ -116,7 +116,6 @@ from typing import (
     Optional,
     TypeVar,
     Union,
-    cast,
 )
 
 import anyio
@@ -345,6 +344,22 @@ class KubernetesWorkerJobConfiguration(BaseJobConfiguration):
                 prefect.__version__.split("+")[0]
             ),
         }
+
+    def get_environment_variable_value(self, name: str) -> str | None:
+        """
+        Returns the value of an environment variable from the job manifest.
+        """
+        manifest_env: list[dict[str, Any]] = self.job_manifest["spec"]["template"][
+            "spec"
+        ]["containers"][0].get("env", [])
+        return next(
+            (
+                env_entry.get("value")
+                for env_entry in manifest_env
+                if env_entry.get("name") == name
+            ),
+            None,
+        )
 
     def prepare_for_flow_run(
         self,
@@ -824,65 +839,39 @@ class KubernetesWorker(
             self._created_secrets[(secret.metadata.name, secret.metadata.namespace)] = (
                 configuration
             )
-        if secret_name:
-            if not secret_key:
-                secret_key = "value"
-            new_api_env_entry = {
-                "name": "PREFECT_API_KEY",
-                "valueFrom": {"secretKeyRef": {"name": secret_name, "key": secret_key}},
-            }
-            manifest_env = [
-                entry if entry.get("name") != "PREFECT_API_KEY" else new_api_env_entry
-                for entry in manifest_env
-            ]
-            configuration.job_manifest["spec"]["template"]["spec"]["containers"][0][
-                "env"
-            ] = manifest_env
+        if secret_name and secret_key:
+            await self._replace_env_variable_with_secret(
+                env_variable_name="PREFECT_API_KEY",
+                configuration=configuration,
+                secret_name=secret_name,
+                secret_key=secret_key,
+            )
 
-    async def _replace_api_auth_string_with_secret(
+    async def _replace_env_variable_with_secret(
         self,
+        env_variable_name: str,
         configuration: KubernetesWorkerJobConfiguration,
-        secret_name: str | None = None,
-        secret_key: str | None = None,
+        secret_name: str,
+        secret_key: str,
     ):
-        """Replaces the PREFECT_API_AUTH_STRING environment variable with a Kubernetes secret"""
+        """Replaces the an environment variable with a Kubernetes secret"""
         manifest_env: list[dict[str, Any]] = configuration.job_manifest["spec"][
             "template"
         ]["spec"]["containers"][0].get("env")
-        manifest_api_auth_string_env = next(
-            (
-                env_entry
-                for env_entry in manifest_env
-                if env_entry.get("name") == "PREFECT_API_AUTH_STRING"
-            ),
-            cast(dict[str, Any], {}),
-        )
-        api_auth_string = manifest_api_auth_string_env.get("value")
         if secret_name and secret_key:
             if not secret_key:
                 secret_key = "value"
             new_api_env_entry = {
-                "name": "PREFECT_API_AUTH_STRING",
+                "name": env_variable_name,
                 "valueFrom": {"secretKeyRef": {"name": secret_name, "key": secret_key}},
             }
             manifest_env = [
-                entry
-                if entry.get("name") != "PREFECT_API_AUTH_STRING"
-                else new_api_env_entry
+                entry if entry.get("name") != env_variable_name else new_api_env_entry
                 for entry in manifest_env
             ]
             configuration.job_manifest["spec"]["template"]["spec"]["containers"][0][
                 "env"
             ] = manifest_env
-        elif api_auth_string:
-            self._logger.warning(
-                "PREFECT_API_AUTH_STRING is set, but no secret name or key is provided. "
-                "The API auth string will be stored in the Kubernetes job manifest. "
-                "This is not recommended and may be removed in a future version. "
-                "Please store the API auth string in a Kubernetes secret and "
-                "provide the secret name and key with the `PREFECT_INTEGRATIONS_KUBERNETES_WORKER_API_AUTH_STRING_SECRET_NAME` "
-                "and `PREFECT_INTEGRATIONS_KUBERNETES_WORKER_API_AUTH_STRING_SECRET_KEY` environment variables."
-            )
 
     @retry(
         stop=stop_after_attempt(MAX_ATTEMPTS),
@@ -912,12 +901,26 @@ class KubernetesWorker(
                 configuration=configuration, client=client
             )
 
-        if settings.worker.api_auth_string_secret_name:
-            await self._replace_api_auth_string_with_secret(
+        if (
+            settings.worker.api_auth_string_secret_name
+            and settings.worker.api_auth_string_secret_key
+        ):
+            await self._replace_env_variable_with_secret(
+                env_variable_name="PREFECT_API_AUTH_STRING",
                 configuration=configuration,
                 secret_name=settings.worker.api_auth_string_secret_name,
                 secret_key=settings.worker.api_auth_string_secret_key,
             )
+        else:
+            if configuration.get_environment_variable_value("PREFECT_API_AUTH_STRING"):
+                self._logger.warning(
+                    "PREFECT_API_AUTH_STRING is set, but no secret name or key is provided. "
+                    "The API auth string will be stored in the Kubernetes job manifest."
+                    "This is not recommended and may be removed in a future version. "
+                    "Please store the API auth string in a Kubernetes secret and "
+                    "provide the secret name and key with the `PREFECT_INTEGRATIONS_KUBERNETES_WORKER_API_AUTH_STRING_SECRET_NAME` "
+                    "and `PREFECT_INTEGRATIONS_KUBERNETES_WORKER_API_AUTH_STRING_SECRET_KEY` environment variables."
+                )
 
         try:
             batch_client = BatchV1Api(client)
