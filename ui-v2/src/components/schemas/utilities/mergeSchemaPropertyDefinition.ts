@@ -12,27 +12,36 @@ type SchemaWithDefinitions = SchemaObject &
 	};
 
 function isSchemaWithDefinitions(
-	schema: SchemaObject | ReferenceObject,
+	schema: SchemaObject | ReferenceObject | ObjectSubtype,
 ): schema is SchemaWithDefinitions {
 	return "definitions" in schema && isRecord(schema.definitions);
 }
 
 export function getSchemaDefinition(
-	schema: SchemaObject | ReferenceObject,
+	schema: SchemaObject | ReferenceObject | ObjectSubtype,
 	definition: string,
 ): SchemaObject {
-	if (!isSchemaWithDefinitions(schema)) {
-		throw new Error("Schema does not contain definitions");
+	if (isSchemaWithDefinitions(schema)) {
+		const definitionKey = definition.replace("#/definitions/", "");
+		const definitionSchema = schema.definitions?.[definitionKey];
+
+		if (!definitionSchema) {
+			throw new Error(`Definition not found for ${definition}`);
+		}
+
+		return definitionSchema;
+	}
+	if ("$defs" in schema && isRecord(schema.$defs)) {
+		const definitionKey = definition.replace("#/$defs/", "");
+		const definitionSchema = schema.$defs?.[definitionKey];
+		if (!definitionSchema) {
+			throw new Error(`Definition not found for ${definition}`);
+		}
+
+		return definitionSchema;
 	}
 
-	const definitionKey = definition.replace("#/definitions/", "");
-	const definitionSchema = schema.definitions?.[definitionKey];
-
-	if (!definitionSchema) {
-		throw new Error(`Definition not found for ${definition}`);
-	}
-
-	return definitionSchema;
+	throw new Error("Schema does not contain definitions");
 }
 
 export function mergeSchemaPropertyDefinition(

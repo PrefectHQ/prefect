@@ -24,7 +24,7 @@ const Stepper = ({
 	visitedSteps,
 }: StepperProps) => {
 	return (
-		<Card className="p-4 flex items-center justify-around">
+		<Card className="p-4 flex flex-row items-center justify-around gap-4 overflow-x-auto">
 			{steps.map((step, i) => {
 				const isCurrentStep = currentStepNum === i;
 				const isStepVisited = visitedSteps.has(i);
@@ -75,7 +75,7 @@ const Step = ({
 		<button
 			type="button"
 			className={cn(
-				"flex items-center gap-3",
+				"flex items-center gap-3 text-nowrap",
 				disabled && "cursor-not-allowed",
 			)}
 			disabled={disabled}
@@ -93,7 +93,7 @@ const Step = ({
 			<Typography
 				variant="bodyLarge"
 				className={cn(
-					"text-gray-500 border-gray-500",
+					"text-gray-500 border-gray-500 whitespace-nowrap",
 					isActive && "text-teal-700 border-teal-700",
 				)}
 			>
