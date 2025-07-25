@@ -18,11 +18,7 @@ import { InfrastructureConfigurationStep } from "./infrastructure-configuration-
 import { infrastructureConfigurationSchema } from "./infrastructure-configuration-step/schema";
 import { InfrastructureTypeStep } from "./infrastructure-type-step";
 
-const STEPS = [
-	"Infrastructure Type",
-	"Work Pool Information",
-	"Infrastructure Configuration",
-] as const;
+const STEPS = ["Infrastructure Type", "Details", "Configuration"] as const;
 
 // Combined schema for all steps
 const workPoolCreateSchema = z.object({
