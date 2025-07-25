@@ -80,16 +80,6 @@ class KubernetesWorkerSettings(PrefectBaseSettings):
         ),
     )
 
-    create_secret_for_api_auth_string: bool = Field(
-        default=False,
-        description="If `True`, the worker will create a secret in the same namespace as created Kubernetes jobs to store the Prefect API auth string.",
-        validation_alias=AliasChoices(
-            AliasPath("create_secret_for_api_auth_string"),
-            "prefect_integrations_kubernetes_worker_create_secret_for_api_auth_string",
-            "prefect_kubernetes_worker_store_prefect_api_auth_string_in_secret",
-        ),
-    )
-
     add_tcp_keepalive: bool = Field(
         default=True,
         description="If `True`, the worker will add TCP keepalive to the Kubernetes client.",

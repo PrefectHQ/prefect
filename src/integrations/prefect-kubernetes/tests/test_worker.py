@@ -210,14 +210,6 @@ def enable_store_api_key_in_secret(monkeypatch):
 
 
 @pytest.fixture
-def enable_store_api_auth_string_in_secret(monkeypatch):
-    monkeypatch.setenv(
-        "PREFECT_INTEGRATIONS_KUBERNETES_WORKER_CREATE_SECRET_FOR_API_AUTH_STRING",
-        "true",
-    )
-
-
-@pytest.fixture
 def mock_api_key_secret_name_and_key(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setenv(
         "PREFECT_INTEGRATIONS_KUBERNETES_WORKER_API_KEY_SECRET_NAME", "test-secret"
@@ -1857,128 +1849,6 @@ class TestKubernetesWorker:
                 } in env
                 mock_core_client.return_value.replace_namespaced_secret.assert_not_called()
 
-    async def test_can_store_api_auth_string_in_secret(
-        self,
-        flow_run,
-        mock_core_client,
-        mock_watch,
-        mock_pods_stream_that_returns_completed_pod,
-        mock_batch_client,
-        enable_store_api_auth_string_in_secret,
-    ):
-        mock_watch.return_value.stream = mock.Mock(
-            side_effect=mock_pods_stream_that_returns_completed_pod
-        )
-        mock_core_client.return_value.read_namespaced_secret.side_effect = ApiException(
-            status=404
-        )
-
-        configuration = await KubernetesWorkerJobConfiguration.from_template_and_values(
-            KubernetesWorker.get_default_base_job_template(), {"image": "foo"}
-        )
-        with temporary_settings(updates={PREFECT_API_AUTH_STRING: "fake"}):
-            async with KubernetesWorker(work_pool_name="test") as k8s_worker:
-                configuration.prepare_for_flow_run(flow_run=flow_run)
-                await k8s_worker.run(flow_run, configuration)
-                mock_batch_client.return_value.create_namespaced_job.assert_called_once()
-                env = mock_batch_client.return_value.create_namespaced_job.call_args[0][
-                    1
-                ]["spec"]["template"]["spec"]["containers"][0]["env"]
-                assert {
-                    "name": "PREFECT_API_AUTH_STRING",
-                    "valueFrom": {
-                        "secretKeyRef": {
-                            "name": f"prefect-{_slugify_name(k8s_worker.name)}-api-auth-string",
-                            "key": "value",
-                        }
-                    },
-                } in env
-                mock_core_client.return_value.create_namespaced_secret.assert_called_with(
-                    namespace=configuration.namespace,
-                    body=V1Secret(
-                        api_version="v1",
-                        kind="Secret",
-                        metadata=V1ObjectMeta(
-                            name=f"prefect-{_slugify_name(k8s_worker.name)}-api-auth-string",
-                            namespace=configuration.namespace,
-                        ),
-                        data={
-                            "value": base64.b64encode("fake".encode("utf-8")).decode(
-                                "utf-8"
-                            )
-                        },
-                    ),
-                )
-
-        # Make sure secret gets deleted
-        assert await mock_core_client.return_value.delete_namespaced_secret(
-            name=f"prefect-{_slugify_name(k8s_worker.name)}-api-auth-string",
-            namespace=configuration.namespace,
-        )
-
-    async def test_store_api_auth_string_in_existing_secret(
-        self,
-        flow_run,
-        mock_core_client,
-        mock_watch,
-        mock_pods_stream_that_returns_running_pod,
-        mock_batch_client,
-        enable_store_api_auth_string_in_secret,
-    ):
-        mock_watch.return_value.stream = mock_pods_stream_that_returns_running_pod
-
-        configuration = await KubernetesWorkerJobConfiguration.from_template_and_values(
-            KubernetesWorker.get_default_base_job_template(), {"image": "foo"}
-        )
-        with temporary_settings(updates={PREFECT_API_AUTH_STRING: "fake"}):
-            async with KubernetesWorker(work_pool_name="test") as k8s_worker:
-                mock_core_client.return_value.read_namespaced_secret.return_value = V1Secret(
-                    api_version="v1",
-                    kind="Secret",
-                    metadata=V1ObjectMeta(
-                        name=f"prefect-{_slugify_name(k8s_worker.name)}-api-auth-string",
-                        namespace=configuration.namespace,
-                    ),
-                    data={
-                        "value": base64.b64encode("fake".encode("utf-8")).decode(
-                            "utf-8"
-                        )
-                    },
-                )
-
-                configuration.prepare_for_flow_run(flow_run=flow_run)
-                await k8s_worker.run(flow_run, configuration)
-                mock_batch_client.return_value.create_namespaced_job.assert_called_once()
-                env = mock_batch_client.return_value.create_namespaced_job.call_args[0][
-                    1
-                ]["spec"]["template"]["spec"]["containers"][0]["env"]
-                assert {
-                    "name": "PREFECT_API_AUTH_STRING",
-                    "valueFrom": {
-                        "secretKeyRef": {
-                            "name": f"prefect-{_slugify_name(k8s_worker.name)}-api-auth-string",
-                            "key": "value",
-                        }
-                    },
-                } in env
-                mock_core_client.return_value.replace_namespaced_secret.assert_called_with(
-                    name=f"prefect-{_slugify_name(k8s_worker.name)}-api-auth-string",
-                    namespace=configuration.namespace,
-                    body=V1Secret(
-                        api_version="v1",
-                        kind="Secret",
-                        metadata=V1ObjectMeta(
-                            name=f"prefect-{_slugify_name(k8s_worker.name)}-api-auth-string",
-                            namespace=configuration.namespace,
-                        ),
-                        data={
-                            "value": base64.b64encode("fake".encode("utf-8")).decode(
-                                "utf-8"
-                            )
-                        },
-                    ),
-                )
-
     async def test_use_existing_auth_string_secret_name(
         self,
         flow_run,
@@ -2028,56 +1898,26 @@ class TestKubernetesWorker:
                     },
                 } in env
 
-    async def test_existing_auth_string_secret_name_takes_precedence(
+    async def test_logs_a_warning_if_api_auth_string_is_set_but_no_secret_name_or_key_is_provided(
         self,
         flow_run,
         mock_core_client,
         mock_watch,
         mock_pods_stream_that_returns_running_pod,
-        mock_batch_client,
-        mock_api_auth_string_secret_name_and_key: tuple[str, str],
-        enable_store_api_auth_string_in_secret,
+        caplog,
     ):
-        mock_api_auth_string_secret_name, mock_api_auth_string_secret_key = (
-            mock_api_auth_string_secret_name_and_key
-        )
         mock_watch.return_value.stream = mock_pods_stream_that_returns_running_pod
-
         configuration = await KubernetesWorkerJobConfiguration.from_template_and_values(
             KubernetesWorker.get_default_base_job_template(), {"image": "foo"}
         )
         with temporary_settings(updates={PREFECT_API_AUTH_STRING: "fake"}):
             async with KubernetesWorker(work_pool_name="test") as k8s_worker:
-                mock_core_client.return_value.read_namespaced_secret.return_value = V1Secret(
-                    api_version="v1",
-                    kind="Secret",
-                    metadata=V1ObjectMeta(
-                        name=f"prefect-{_slugify_name(k8s_worker.name)}-api-auth-string",
-                        namespace=configuration.namespace,
-                    ),
-                    data={
-                        "value": base64.b64encode("fake".encode("utf-8")).decode(
-                            "utf-8"
-                        )
-                    },
-                )
-
-                configuration.prepare_for_flow_run(flow_run=flow_run)
                 await k8s_worker.run(flow_run, configuration)
-                mock_batch_client.return_value.create_namespaced_job.assert_called_once()
-                env = mock_batch_client.return_value.create_namespaced_job.call_args[0][
-                    1
-                ]["spec"]["template"]["spec"]["containers"][0]["env"]
-                assert {
-                    "name": "PREFECT_API_AUTH_STRING",
-                    "valueFrom": {
-                        "secretKeyRef": {
-                            "name": mock_api_auth_string_secret_name,
-                            "key": mock_api_auth_string_secret_key,
-                        }
-                    },
-                } in env
-                mock_core_client.return_value.replace_namespaced_secret.assert_not_called()
+
+        assert (
+            "PREFECT_API_AUTH_STRING is set, but no secret name or key is provided"
+            in caplog.text
+        )
 
     async def test_create_job_failure(
         self,
