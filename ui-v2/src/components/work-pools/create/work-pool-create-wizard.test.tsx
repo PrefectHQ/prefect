@@ -5,11 +5,11 @@ import { WorkPoolCreateWizard } from "./work-pool-create-wizard";
 
 // Mock data for work pool types
 const mockWorkPoolTypes = {
-	"prefect-agent": {
-		"prefect-agent": {
-			type: "prefect-agent",
-			display_name: "Prefect Agent",
-			description: "Execute flow runs with a Prefect agent.",
+	prefect: {
+		process: {
+			type: "process",
+			display_name: "Process",
+			description: "Execute flow runs within subprocesses.",
 			logo_url: "https://example.com/logo.svg",
 			documentation_url: "https://docs.prefect.io/",
 			is_beta: false,
@@ -88,10 +88,8 @@ describe("WorkPoolCreateWizard", () => {
 
 		expect(screen.getByText("Create Work Pool")).toBeInTheDocument();
 		expect(screen.getByText("Infrastructure Type")).toBeInTheDocument();
-		expect(screen.getByText("Work Pool Information")).toBeInTheDocument();
-		expect(
-			screen.getByText("Infrastructure Configuration"),
-		).toBeInTheDocument();
+		expect(screen.getByText("Details")).toBeInTheDocument();
+		expect(screen.getByText("Configuration")).toBeInTheDocument();
 	});
 
 	it("shows navigation buttons correctly", () => {
@@ -106,10 +104,10 @@ describe("WorkPoolCreateWizard", () => {
 	it("renders infrastructure type options", () => {
 		renderWorkPoolCreateWizard();
 
-		expect(screen.getByText("Prefect Agent")).toBeInTheDocument();
+		expect(screen.getByText("Process")).toBeInTheDocument();
 		expect(screen.getByText("Docker Container")).toBeInTheDocument();
 		expect(
-			screen.getByText("Execute flow runs with a Prefect agent."),
+			screen.getByText("Execute flow runs in Docker containers."),
 		).toBeInTheDocument();
 	});
 
