@@ -103,6 +103,7 @@ async def read_pod_events_for_flow_run(flow_run_id: UUID) -> list[Event]:
                     "related": {
                         "id": [f"prefect.flow-run.{flow_run_id}"],
                     },
+                    "order": "ASC",
                 },
             },
         )
