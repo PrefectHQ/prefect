@@ -18,7 +18,6 @@ from prefect.server.events.schemas.automations import (
     AutomationUpdate,
 )
 from prefect.server.utilities.database import get_dialect
-from prefect.settings import PREFECT_API_SERVICES_TRIGGERS_ENABLED
 from prefect.types._datetime import now
 from prefect.utilities.asyncutils import run_coro_as_sync
 
@@ -108,9 +107,6 @@ async def read_automation_by_id(
 
 
 async def _notify(session: AsyncSession, automation: Automation, event: str):
-    if not PREFECT_API_SERVICES_TRIGGERS_ENABLED:
-        return
-
     from prefect.server.events.triggers import automation_changed
 
     event_key: AutomationChangeEvent
