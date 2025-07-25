@@ -7,7 +7,42 @@ sidebarTitle: base
 
 ## Functions
 
-### `determine_server_type` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/base.py#L637" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `app_lifespan_context` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/base.py#L63" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+app_lifespan_context(app: ASGIApp) -> AsyncGenerator[None, None]
+```
+
+
+A context manager that calls startup/shutdown hooks for the given application.
+
+Lifespan contexts are cached per application to avoid calling the lifespan hooks
+more than once if the context is entered in nested code. A no-op context will be
+returned if the context for the given application is already being managed.
+
+This manager is robust to concurrent access within the event loop. For example,
+if you have concurrent contexts for the same application, it is guaranteed that
+startup hooks will be called before their context starts and shutdown hooks will
+only be called after their context exits.
+
+A reference count is used to support nested use of clients without running
+lifespan hooks excessively. The first client context entered will create and enter
+a lifespan context. Each subsequent client will increment a reference count but will
+not create a new lifespan context. When each client context exits, the reference
+count is decremented. When the last client context exits, the lifespan will be
+closed.
+
+In simple nested cases, the first client context will be the one to exit the
+lifespan. However, if client contexts are entered concurrently they may not exit
+in a consistent order. If the first client context was responsible for closing
+the lifespan, it would have to wait until all other client contexts to exit to
+avoid firing shutdown hooks while the application is in use. Waiting for the other
+clients to exit can introduce deadlocks, so, instead, the first client will exit
+without closing the lifespan context and reference counts will be used to ensure
+the lifespan is closed once all of the clients are done.
+
+
+### `determine_server_type` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/base.py#L672" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 determine_server_type() -> ServerType
@@ -26,9 +61,9 @@ not enabled
 
 ## Classes
 
-### `ASGIApp` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/base.py#L57" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `ASGIApp` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/base.py#L58" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
-### `PrefectResponse` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/base.py#L145" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `PrefectResponse` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/base.py#L146" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 A Prefect wrapper for the `httpx.Response` class.
@@ -38,19 +73,7 @@ Provides more informative error messages.
 
 **Methods:**
 
-#### `raise_for_status` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/base.py#L152" target="_blank"><Icon icon="github" size="14" /></a></sup>
-
-```python
-raise_for_status(self) -> Response
-```
-
-Raise an exception if the response contains an HTTPStatusError.
-
-The `PrefectHTTPStatusError` contains useful additional information that
-is not contained in the `HTTPStatusError`.
-
-
-#### `from_httpx_response` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/base.py#L165" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `from_httpx_response` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/base.py#L166" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 from_httpx_response(cls: type[Self], response: httpx.Response) -> Response
@@ -63,19 +86,19 @@ resolution order to look for methods defined in PrefectResponse, while leaving
 everything else about the original Response instance intact.
 
 
-### `PrefectHttpxAsyncClient` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/base.py#L178" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `raise_for_status` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/base.py#L153" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+raise_for_status(self) -> Response
+```
+
+Raise an exception if the response contains an HTTPStatusError.
+
+The `PrefectHTTPStatusError` contains useful additional information that
+is not contained in the `HTTPStatusError`.
 
 
-A Prefect wrapper for the async httpx client with support for retry-after headers
-for the provided status codes (typically 429, 502 and 503).
-
-Additionally, this client will always call `raise_for_status` on responses.
-
-For more details on rate limit headers, see:
-[Configuring Cloudflare Rate Limiting](https://support.cloudflare.com/hc/en-us/articles/115001635128-Configuring-Rate-Limiting-from-UI)
-
-
-### `PrefectHttpxSyncClient` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/base.py#L404" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `PrefectHttpxAsyncClient` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/base.py#L179" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 A Prefect wrapper for the async httpx client with support for retry-after headers
@@ -89,7 +112,7 @@ For more details on rate limit headers, see:
 
 **Methods:**
 
-#### `send` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/base.py#L543" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `send` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/base.py#L335" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 send(self, request: Request, *args: Any, **kwargs: Any) -> Response
@@ -105,4 +128,45 @@ Send a request with automatic retry behavior for the following status codes:
 - Any additional status codes provided in `PREFECT_CLIENT_RETRY_EXTRA_CODES`
 
 
-### `ServerType` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/base.py#L630" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `PrefectHttpxSyncClient` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/base.py#L422" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+A Prefect wrapper for the async httpx client with support for retry-after headers
+for the provided status codes (typically 429, 502 and 503).
+
+Additionally, this client will always call `raise_for_status` on responses.
+
+For more details on rate limit headers, see:
+[Configuring Cloudflare Rate Limiting](https://support.cloudflare.com/hc/en-us/articles/115001635128-Configuring-Rate-Limiting-from-UI)
+
+
+**Methods:**
+
+#### `send` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/base.py#L578" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+send(self, request: Request, *args: Any, **kwargs: Any) -> Response
+```
+
+Send a request with automatic retry behavior for the following status codes:
+
+- 403 Forbidden, if the request failed due to CSRF protection
+- 408 Request Timeout
+- 429 CloudFlare-style rate limiting
+- 502 Bad Gateway
+- 503 Service unavailable
+- Any additional status codes provided in `PREFECT_CLIENT_RETRY_EXTRA_CODES`
+
+
+### `ServerType` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/base.py#L665" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+**Methods:**
+
+#### `auto` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/collections.py#L69" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+auto() -> str
+```
+
+Exposes `enum.auto()` to avoid requiring a second import to use `AutoEnum`
+

@@ -12,37 +12,49 @@ Command line interface for interacting with Prefect Cloud
 
 ## Functions
 
-### `set_login_api_ready_event` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/cloud/__init__.py#L71" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `set_login_api_ready_event` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/cloud/__init__.py#L71" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 set_login_api_ready_event() -> None
 ```
 
-### `receive_login` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/cloud/__init__.py#L115" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `lifespan` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/cloud/__init__.py#L76" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+lifespan(app: FastAPI)
+```
+
+### `receive_login` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/cloud/__init__.py#L115" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 receive_login(payload: LoginSuccess) -> None
 ```
 
-### `receive_failure` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/cloud/__init__.py#L121" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `receive_failure` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/cloud/__init__.py#L121" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 receive_failure(payload: LoginFailed) -> None
 ```
 
-### `confirm_logged_in` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/cloud/__init__.py#L163" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `serve_login_api` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/cloud/__init__.py#L126" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+serve_login_api(cancel_scope: anyio.CancelScope, task_status: anyio.abc.TaskStatus[uvicorn.Server]) -> None
+```
+
+### `confirm_logged_in` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/cloud/__init__.py#L163" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 confirm_logged_in() -> None
 ```
 
-### `get_current_workspace` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/cloud/__init__.py#L172" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `get_current_workspace` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/cloud/__init__.py#L172" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_current_workspace(workspaces: Iterable[Workspace]) -> Workspace | None
 ```
 
-### `prompt_select_from_list` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/cloud/__init__.py#L197" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `prompt_select_from_list` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/cloud/__init__.py#L197" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 prompt_select_from_list(console: Console, prompt: str, options: list[str] | list[tuple[T, str]]) -> str | T
@@ -61,12 +73,88 @@ key will be returned.
 - the selected option
 
 
+### `login_with_browser` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/cloud/__init__.py#L269" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+login_with_browser() -> str
+```
+
+
+Perform login using the browser.
+
+On failure, this function will exit the process.
+On success, it will return an API key.
+
+
+### `check_key_is_valid_for_login` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/cloud/__init__.py#L328" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+check_key_is_valid_for_login(key: str) -> bool
+```
+
+
+Attempt to use a key to see if it is valid
+
+
+### `login` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/cloud/__init__.py#L396" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+login(key: Optional[str] = typer.Option(None, '--key', '-k', help='API Key to authenticate with Prefect'), workspace_handle: Optional[str] = typer.Option(None, '--workspace', '-w', help="Full handle of workspace, in format '<account_handle>/<workspace_handle>'"))
+```
+
+
+Log in to Prefect Cloud.
+Creates a new profile configured to use the specified PREFECT_API_KEY.
+Uses a previously configured profile if it exists.
+
+
+### `logout` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/cloud/__init__.py#L598" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+logout()
+```
+
+
+Logout the current workspace.
+Reset PREFECT_API_KEY and PREFECT_API_URL to default.
+
+
+### `open` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/cloud/__init__.py#L624" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+open()
+```
+
+
+Open the Prefect Cloud UI in the browser.
+
+
+### `ls` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/cloud/__init__.py#L647" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+ls()
+```
+
+
+List available workspaces.
+
+
+### `set` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/cloud/__init__.py#L677" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+set(workspace_handle: str = typer.Option(None, '--workspace', '-w', help="Full handle of workspace, in format '<account_handle>/<workspace_handle>'"))
+```
+
+
+Set current workspace. Shows a workspace picker if no workspace is specified.
+
+
 ## Classes
 
-### `LoginSuccess` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/cloud/__init__.py#L97" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `LoginSuccess` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/cloud/__init__.py#L97" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
-### `LoginFailed` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/cloud/__init__.py#L101" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `LoginFailed` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/cloud/__init__.py#L101" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
-### `LoginResult` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/cloud/__init__.py#L105" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `LoginResult` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/cloud/__init__.py#L105" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
-### `ServerExit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/cloud/__init__.py#L110" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `ServerExit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/cloud/__init__.py#L110" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>

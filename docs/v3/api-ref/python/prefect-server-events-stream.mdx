@@ -5,26 +5,167 @@ sidebarTitle: stream
 
 # `prefect.server.events.stream`
 
+## Functions
+
+### `subscribed` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/stream.py#L38" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+subscribed(filter: EventFilter) -> AsyncGenerator['Queue[ReceivedEvent]', None]
+```
+
+### `events` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/stream.py#L54" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+events(filter: EventFilter) -> AsyncGenerator[AsyncIterable[Optional[ReceivedEvent]], None]
+```
+
+### `distributor` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/stream.py#L81" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+distributor() -> AsyncGenerator[messaging.MessageHandler, None]
+```
+
+### `start_distributor` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/stream.py#L109" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+start_distributor() -> None
+```
+
+
+Starts the distributor consumer as a global background task
+
+
+### `stop_distributor` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/stream.py#L121" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+stop_distributor() -> None
+```
+
+
+Stops the distributor consumer global background task
+
+
+### `run_distributor` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/stream.py#L168" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+run_distributor(started: asyncio.Event) -> NoReturn
+```
+
+
+Runs the distributor consumer forever until it is cancelled
+
+
 ## Classes
 
-### `Distributor` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/stream.py#L139" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `Distributor` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/stream.py#L139" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 **Methods:**
 
-#### `service_settings` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/stream.py#L143" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `all_services` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/base.py#L92" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-service_settings(cls) -> ServicesBaseSetting
+all_services(cls) -> Sequence[type[Self]]
 ```
 
-#### `environment_variable_name` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/stream.py#L147" target="_blank"><Icon icon="github" size="14" /></a></sup>
+Get list of all service classes
+
+
+#### `enabled` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/stream.py#L151" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+enabled(cls) -> bool
+```
+
+#### `enabled` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/base.py#L87" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+enabled(cls) -> bool
+```
+
+Whether the service is enabled
+
+
+#### `enabled_services` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/base.py#L106" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+enabled_services(cls) -> list[type[Self]]
+```
+
+Get list of enabled service classes
+
+
+#### `environment_variable_name` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/stream.py#L147" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 environment_variable_name(cls) -> dict[str, str]
 ```
 
-#### `enabled` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/stream.py#L151" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `environment_variable_name` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/base.py#L83" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-enabled(cls) -> bool
+environment_variable_name(cls) -> str
 ```
+
+#### `run_services` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/base.py#L127" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+run_services(cls) -> NoReturn
+```
+
+Run enabled services until cancelled.
+
+
+#### `running` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/base.py#L112" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+running(cls) -> AsyncGenerator[None, None]
+```
+
+A context manager that runs enabled services on entry and stops them on
+exit.
+
+
+#### `service_settings` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/stream.py#L143" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+service_settings(cls) -> ServicesBaseSetting
+```
+
+#### `service_settings` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/base.py#L78" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+service_settings(cls) -> ServicesBaseSetting
+```
+
+The Prefect setting that controls whether the service is enabled
+
+
+#### `start` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/stream.py#L154" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+start(self) -> None
+```
+
+#### `start` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/base.py#L137" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+start(self) -> NoReturn
+```
+
+Start running the service, which may run indefinitely
+
+
+#### `stop` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/stream.py#L164" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+stop(self) -> None
+```
+
+#### `stop` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/base.py#L142" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+stop(self) -> None
+```
+
+Stop the service
+

@@ -18,6 +18,7 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
     """
 
     _instance: "ConcurrencyLeaseStorage | None" = None
+    _initialized: bool = False
 
     def __new__(cls) -> "ConcurrencyLeaseStorage":
         if cls._instance is None:
@@ -25,8 +26,12 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
         return cls._instance
 
     def __init__(self):
+        if self.__class__._initialized:
+            return
+
         self.leases: dict[UUID, ResourceLease[ConcurrencyLimitLeaseMetadata]] = {}
         self.expirations: dict[UUID, datetime] = {}
+        self.__class__._initialized = True
 
     async def create_lease(
         self,
@@ -53,6 +58,15 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
     async def revoke_lease(self, lease_id: UUID) -> None:
         self.leases.pop(lease_id, None)
         self.expirations.pop(lease_id, None)
+
+    async def read_active_lease_ids(self, limit: int = 100) -> list[UUID]:
+        now = datetime.now(timezone.utc)
+        active_leases = [
+            lease_id
+            for lease_id, expiration in self.expirations.items()
+            if expiration > now
+        ]
+        return active_leases[:limit]
 
     async def read_expired_lease_ids(self, limit: int = 100) -> list[UUID]:
         now = datetime.now(timezone.utc)

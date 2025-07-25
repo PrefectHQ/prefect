@@ -7,13 +7,23 @@ sidebarTitle: messaging
 
 ## Functions
 
-### `create_event_publisher` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/messaging.py#L78" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `publish` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/messaging.py#L19" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+publish(events: Iterable[ReceivedEvent]) -> None
+```
+
+
+Send the given events as a batch via the default publisher
+
+
+### `create_event_publisher` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/messaging.py#L78" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 create_event_publisher() -> EventPublisher
 ```
 
-### `create_actions_publisher` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/messaging.py#L83" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `create_actions_publisher` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/messaging.py#L83" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 create_actions_publisher() -> Publisher
@@ -21,4 +31,30 @@ create_actions_publisher() -> Publisher
 
 ## Classes
 
-### `EventPublisher` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/messaging.py#L26" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `EventPublisher` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/messaging.py#L26" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+**Methods:**
+
+#### `publish_data` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/messaging.py#L41" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+publish_data(self, data: bytes, attributes: Mapping[str, str]) -> None
+```
+
+#### `publish_data` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/messaging/__init__.py#L68" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+publish_data(self, data: bytes, attributes: Mapping[str, str]) -> None
+```
+
+#### `publish_event` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/messaging.py#L44" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+publish_event(self, event: ReceivedEvent) -> None
+```
+
+Publishes the given events
+
+**Args:**
+- `event`: the event to publish
+

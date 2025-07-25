@@ -228,11 +228,10 @@ async def inspect(
     """
     View details about a deployment.
 
-    \b
-    Example:
-        \b
-        $ prefect deployment inspect "hello-world/my-deployment"
-        $ prefect deployment inspect "hello-world/my-deployment" --output json
+    Examples:
+        `$ prefect deployment inspect "hello-world/my-deployment"`
+
+        ```python
         {
             'id': '610df9c3-0fb4-4856-b330-67f588d20201',
             'created': '2022-08-01T18:36:25.192102+00:00',
@@ -265,7 +264,7 @@ async def inspect(
                 'stream_output': True
             }
         }
-
+        ```
     """
     if output and output.lower() != "json":
         exit_with_error("Only 'json' output format is supported.")
@@ -958,11 +957,11 @@ async def delete(
     """
     Delete a deployment.
 
-    \b
     Examples:
-        \b
+        ```bash
         $ prefect deployment delete test_flow/test_deployment
         $ prefect deployment delete --id dfd3e220-a130-4149-9af6-8d487e02fea6
+        ```
     """
     async with get_client() as client:
         if _all:

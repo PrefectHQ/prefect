@@ -1,0 +1,67 @@
+---
+title: repossessor
+sidebarTitle: repossessor
+---
+
+# `prefect.server.services.repossessor`
+
+## Classes
+
+### `Repossessor` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/repossessor.py#L14" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+Handles the reconciliation of expired leases; no tow truck dependency.
+
+
+**Methods:**
+
+#### `run_once` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/repossessor.py#L31" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+run_once(self) -> None
+```
+
+#### `run_once` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/base.py#L329" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+run_once(self) -> None
+```
+
+Represents one loop of the service.
+
+Subclasses must override this method.
+
+To actually run the service once, call `LoopService().start(loops=1)`
+instead of `LoopService().run_once()`, because this method will not invoke setup
+and teardown methods properly.
+
+
+#### `service_settings` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/repossessor.py#L28" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+service_settings(cls) -> ServicesBaseSetting
+```
+
+#### `start` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/base.py#L211" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+start(self, loops: None = None) -> NoReturn
+```
+
+Run the service indefinitely.
+
+
+#### `stop` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/base.py#L291" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+stop(self, block: bool = True) -> None
+```
+
+Gracefully stops a running LoopService and optionally blocks until the
+service stops.
+
+**Args:**
+- `block`: if True, blocks until the service is
+finished running. Otherwise it requests a stop and returns but
+the service may still be running a final loop.
+

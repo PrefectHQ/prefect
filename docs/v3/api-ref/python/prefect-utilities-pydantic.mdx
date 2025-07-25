@@ -7,7 +7,7 @@ sidebarTitle: pydantic
 
 ## Functions
 
-### `add_cloudpickle_reduction` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/pydantic.py#L66" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `add_cloudpickle_reduction` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/pydantic.py#L66" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 add_cloudpickle_reduction(__model_cls: Optional[type[M]] = None, **kwargs: Any) -> Union[type[M], Callable[[type[M]], type[M]]]
@@ -29,7 +29,7 @@ compiled Pydantic installation may encounter pickling issues.
 See related issue at https://github.com/cloudpipe/cloudpickle/issues/408
 
 
-### `get_class_fields_only` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/pydantic.py#L95" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `get_class_fields_only` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/pydantic.py#L95" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_class_fields_only(model: type[BaseModel]) -> set[str]
@@ -40,7 +40,7 @@ Gets all the field names defined on the model class but not any parent classes.
 Any fields that are on the parent but redefined on the subclass are included.
 
 
-### `add_type_dispatch` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/pydantic.py#L112" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `add_type_dispatch` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/pydantic.py#L112" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 add_type_dispatch(model_cls: type[M]) -> type[M]
@@ -67,13 +67,13 @@ to the model and the dispatch key can be tracked separately, the lower level
 utilities in `prefect.utilities.dispatch` should be used directly.
 
 
-### `custom_pydantic_encoder` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/pydantic.py#L263" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `custom_pydantic_encoder` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/pydantic.py#L263" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 custom_pydantic_encoder(type_encoders: dict[Any, Callable[[type[Any]], Any]], obj: Any) -> Any
 ```
 
-### `parse_obj_as` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/pydantic.py#L281" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `parse_obj_as` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/pydantic.py#L281" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 parse_obj_as(type_: type[T], data: Any, mode: Literal['python', 'json', 'strings'] = 'python') -> T
@@ -94,7 +94,7 @@ Defaults to `python`, where `data` should be a Python object (e.g. `dict`).
 - The parsed `data` as the given `type_`.
 
 
-### `handle_secret_render` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/pydantic.py#L343" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `handle_secret_render` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/pydantic.py#L343" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 handle_secret_render(value: object, context: dict[str, Any]) -> object
@@ -102,7 +102,7 @@ handle_secret_render(value: object, context: dict[str, Any]) -> object
 
 ## Classes
 
-### `PartialModel` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/pydantic.py#L200" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `PartialModel` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/pydantic.py#L200" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 A utility for creating a Pydantic model in several steps.
@@ -118,19 +118,19 @@ a field already has a value.
 
 **Methods:**
 
-#### `finalize` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/pydantic.py#L234" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `finalize` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/pydantic.py#L234" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 finalize(self, **kwargs: Any) -> M
 ```
 
-#### `raise_if_already_set` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/pydantic.py#L240" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `raise_if_already_set` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/pydantic.py#L240" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 raise_if_already_set(self, name: str) -> None
 ```
 
-#### `raise_if_not_in_model` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/pydantic.py#L244" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `raise_if_not_in_model` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/pydantic.py#L244" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 raise_if_not_in_model(self, name: str) -> None

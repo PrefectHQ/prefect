@@ -21,7 +21,7 @@ Classes:
 
 ## Classes
 
-### `AzureCLI` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/infrastructure/provisioners/container_instance.py#L47" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `AzureCLI` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/infrastructure/provisioners/container_instance.py#L47" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 A class for executing Azure CLI commands and handling their output.
@@ -30,7 +30,34 @@ A class for executing Azure CLI commands and handling their output.
 - `console`: A Rich console object for displaying messages.
 
 
-### `ContainerInstancePushProvisioner` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/infrastructure/provisioners/container_instance.py#L130" target="_blank"><Icon icon="github" size="14" /></a></sup>
+**Methods:**
+
+#### `run_command` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/infrastructure/provisioners/container_instance.py#L62" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+run_command(self, command: str, success_message: Optional[str] = None, failure_message: Optional[str] = None, ignore_if_exists: bool = False, return_json: bool = False) -> str | dict[str, Any] | None
+```
+
+Runs an Azure CLI command and processes the output.
+
+**Args:**
+- `command`: The Azure CLI command to execute.
+- `success_message`: Message to print on success.
+- `failure_message`: Message to print on failure.
+- `ignore_if_exists`: Whether to ignore errors if a resource already exists.
+- `return_json`: Whether to return the output as JSON.
+
+**Returns:**
+- A tuple with two elements:
+- str: Status, either 'created', 'exists', or 'error'.
+- str or dict or None: The command output or None if an error occurs (depends on return_json).
+
+**Raises:**
+- `subprocess.CalledProcessError`: If the command execution fails.
+- `json.JSONDecodeError`: If output cannot be decoded as JSON when return_json is True.
+
+
+### `ContainerInstancePushProvisioner` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/infrastructure/provisioners/container_instance.py#L130" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 A class responsible for provisioning Azure resources and setting up a push work pool.
@@ -38,14 +65,46 @@ A class responsible for provisioning Azure resources and setting up a push work 
 
 **Methods:**
 
-#### `console` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/infrastructure/provisioners/container_instance.py#L168" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `console` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/infrastructure/provisioners/container_instance.py#L168" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 console(self) -> Console
 ```
 
-#### `console` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/infrastructure/provisioners/container_instance.py#L172" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `console` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/infrastructure/provisioners/container_instance.py#L172" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 console(self, value: Console) -> None
 ```
+
+#### `provision` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/infrastructure/provisioners/container_instance.py#L857" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+provision(self, work_pool_name: str, base_job_template: Dict[str, Any], client: Optional['PrefectClient'] = None) -> Dict[str, Any]
+```
+
+Orchestrates the provisioning of Azure resources and setup for the push work pool.
+
+**Args:**
+- `work_pool_name`: The name of the work pool.
+- `base_job_template`: The base template for job creation.
+- `client`: An instance of PrefectClient. If None, it will be injected.
+
+**Returns:**
+- Dict[str, Any]: The updated job template with necessary references and configurations.
+
+**Raises:**
+- `RuntimeError`: If client injection fails or the Azure CLI command execution fails.
+
+
+#### `set_location` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/infrastructure/provisioners/container_instance.py#L175" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+set_location(self) -> None
+```
+
+Set the Azure resource deployment location to the default or 'eastus' on failure.
+
+**Raises:**
+- `RuntimeError`: If unable to execute the Azure CLI command.
+

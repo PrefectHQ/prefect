@@ -12,7 +12,7 @@ Command line interface for working with profiles.
 
 ## Functions
 
-### `ls` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/profile.py#L40" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `ls` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/profile.py#L40" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 ls()
@@ -22,7 +22,7 @@ ls()
 List profile names.
 
 
-### `create` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/profile.py#L62" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `create` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/profile.py#L62" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 create(name: str, from_name: str = typer.Option(None, '--from', help='Copy an existing profile.'))
@@ -32,7 +32,17 @@ create(name: str, from_name: str = typer.Option(None, '--from', help='Copy an ex
 Create a new profile.
 
 
-### `delete` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/profile.py#L184" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `use` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/profile.py#L113" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+use(name: str)
+```
+
+
+Set the given profile to active.
+
+
+### `delete` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/profile.py#L184" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 delete(name: str)
@@ -42,7 +52,7 @@ delete(name: str)
 Delete the given profile.
 
 
-### `rename` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/profile.py#L210" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `rename` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/profile.py#L210" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 rename(name: str, new_name: str)
@@ -52,7 +62,7 @@ rename(name: str, new_name: str)
 Change the name of a profile.
 
 
-### `inspect` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/profile.py#L240" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `inspect` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/profile.py#L240" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 inspect(name: Optional[str] = typer.Argument(None, help='Name of profile to inspect; defaults to active profile.'), output: Optional[str] = typer.Option(None, '--output', '-o', help='Specify an output format. Currently supports: json'))
@@ -62,13 +72,13 @@ inspect(name: Optional[str] = typer.Argument(None, help='Name of profile to insp
 Display settings from a given profile; defaults to active.
 
 
-### `show_profile_changes` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/profile.py#L286" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `show_profile_changes` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/profile.py#L286" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 show_profile_changes(user_profiles: ProfilesCollection, default_profiles: ProfilesCollection) -> bool
 ```
 
-### `populate_defaults` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/profile.py#L314" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `populate_defaults` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/profile.py#L314" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 populate_defaults()
@@ -78,6 +88,23 @@ populate_defaults()
 Populate the profiles configuration with default base profiles, preserving existing user profiles.
 
 
+### `check_server_connection` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/profile.py#L371" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+check_server_connection() -> ConnectionStatus
+```
+
 ## Classes
 
-### `ConnectionStatus` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/profile.py#L360" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `ConnectionStatus` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/profile.py#L360" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+**Methods:**
+
+#### `auto` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/collections.py#L69" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+auto() -> str
+```
+
+Exposes `enum.auto()` to avoid requiring a second import to use `AutoEnum`
+

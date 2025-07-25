@@ -10,3 +10,56 @@ sidebarTitle: flow_run_states
 Functions for interacting with flow run state ORM objects.
 Intended for internal use by the Prefect REST API.
 
+
+## Functions
+
+### `read_flow_run_state` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/flow_run_states.py#L18" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+read_flow_run_state(db: PrefectDBInterface, session: AsyncSession, flow_run_state_id: UUID) -> Union[orm_models.FlowRunState, None]
+```
+
+
+Reads a flow run state by id.
+
+**Args:**
+- `session`: A database session
+- `flow_run_state_id`: a flow run state id
+
+**Returns:**
+- orm_models.FlowRunState: the flow state
+
+
+### `read_flow_run_states` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/flow_run_states.py#L36" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+read_flow_run_states(db: PrefectDBInterface, session: AsyncSession, flow_run_id: UUID) -> Sequence[orm_models.FlowRunState]
+```
+
+
+Reads flow runs states for a flow run.
+
+**Args:**
+- `session`: A database session
+- `flow_run_id`: the flow run id
+
+**Returns:**
+- List[orm_models.FlowRunState]: the flow run states
+
+
+### `delete_flow_run_state` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/flow_run_states.py#L60" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+delete_flow_run_state(db: PrefectDBInterface, session: AsyncSession, flow_run_state_id: UUID) -> bool
+```
+
+
+Delete a flow run state by id.
+
+**Args:**
+- `session`: A database session
+- `flow_run_state_id`: a flow run state id
+
+**Returns:**
+- whether or not the flow run state was deleted
+

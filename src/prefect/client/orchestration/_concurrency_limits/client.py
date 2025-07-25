@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
 
 from httpx import HTTPStatusError, RequestError
 
@@ -245,6 +245,14 @@ class ConcurrencyLimitClient(BaseClient):
         slots: int,
         mode: str,
     ) -> "Response":
+        """
+        Increment concurrency slots for the specified limits.
+
+        Args:
+            names: A list of limit names for which to occupy slots.
+            slots: The number of concurrency slots to occupy.
+            mode: The mode of the concurrency limits.
+        """
         return self.request(
             "POST",
             "/v2/concurrency_limits/increment",
@@ -253,6 +261,52 @@ class ConcurrencyLimitClient(BaseClient):
                 "slots": slots,
                 "mode": mode,
             },
+        )
+
+    def increment_concurrency_slots_with_lease(
+        self,
+        names: list[str],
+        slots: int,
+        mode: Literal["concurrency", "rate_limit"],
+        lease_duration: float,
+    ) -> "Response":
+        """
+        Increment concurrency slots for the specified limits with a lease.
+
+        Args:
+            names: A list of limit names for which to occupy slots.
+            slots: The number of concurrency slots to occupy.
+            mode: The mode of the concurrency limits.
+            lease_duration: The duration of the lease in seconds.
+        """
+        return self.request(
+            "POST",
+            "/v2/concurrency_limits/increment-with-lease",
+            json={
+                "names": names,
+                "slots": slots,
+                "mode": mode,
+                "lease_duration": lease_duration,
+            },
+        )
+
+    def renew_concurrency_lease(
+        self,
+        lease_id: "UUID",
+        lease_duration: float,
+    ) -> "Response":
+        """
+        Renew a concurrency lease.
+
+        Args:
+            lease_id: The ID of the lease to renew.
+            lease_duration: The new lease duration in seconds.
+        """
+        return self.request(
+            "POST",
+            "/v2/concurrency_limits/leases/{lease_id}/renew",
+            path_params={"lease_id": lease_id},
+            json={"lease_duration": lease_duration},
         )
 
     def release_concurrency_slots(
@@ -278,6 +332,24 @@ class ConcurrencyLimitClient(BaseClient):
                 "names": names,
                 "slots": slots,
                 "occupancy_seconds": occupancy_seconds,
+            },
+        )
+
+    def release_concurrency_slots_with_lease(
+        self,
+        lease_id: "UUID",
+    ) -> "Response":
+        """
+        Release concurrency slots for the specified lease.
+
+        Args:
+            lease_id: The ID of the lease corresponding to the concurrency limits to release.
+        """
+        return self.request(
+            "POST",
+            "/v2/concurrency_limits/decrement-with-lease",
+            json={
+                "lease_id": str(lease_id),
             },
         )
 
@@ -611,8 +683,16 @@ class ConcurrencyLimitAsyncClient(BaseAsyncClient):
         self,
         names: list[str],
         slots: int,
-        mode: str,
+        mode: Literal["concurrency", "rate_limit"],
     ) -> "Response":
+        """
+        Increment concurrency slots for the specified limits.
+
+        Args:
+            names: A list of limit names for which to occupy slots.
+            slots: The number of concurrency slots to occupy.
+            mode: The mode of the concurrency limits.
+        """
         return await self.request(
             "POST",
             "/v2/concurrency_limits/increment",
@@ -621,6 +701,52 @@ class ConcurrencyLimitAsyncClient(BaseAsyncClient):
                 "slots": slots,
                 "mode": mode,
             },
+        )
+
+    async def increment_concurrency_slots_with_lease(
+        self,
+        names: list[str],
+        slots: int,
+        mode: Literal["concurrency", "rate_limit"],
+        lease_duration: float,
+    ) -> "Response":
+        """
+        Increment concurrency slots for the specified limits with a lease.
+
+        Args:
+            names: A list of limit names for which to occupy slots.
+            slots: The number of concurrency slots to occupy.
+            mode: The mode of the concurrency limits.
+            lease_duration: The duration of the lease in seconds.
+        """
+        return await self.request(
+            "POST",
+            "/v2/concurrency_limits/increment-with-lease",
+            json={
+                "names": names,
+                "slots": slots,
+                "mode": mode,
+                "lease_duration": lease_duration,
+            },
+        )
+
+    async def renew_concurrency_lease(
+        self,
+        lease_id: "UUID",
+        lease_duration: float,
+    ) -> "Response":
+        """
+        Renew a concurrency lease.
+
+        Args:
+            lease_id: The ID of the lease to renew.
+            lease_duration: The new lease duration in seconds.
+        """
+        return await self.request(
+            "POST",
+            "/v2/concurrency_limits/leases/{lease_id}/renew",
+            path_params={"lease_id": lease_id},
+            json={"lease_duration": lease_duration},
         )
 
     async def release_concurrency_slots(
@@ -646,6 +772,24 @@ class ConcurrencyLimitAsyncClient(BaseAsyncClient):
                 "names": names,
                 "slots": slots,
                 "occupancy_seconds": occupancy_seconds,
+            },
+        )
+
+    async def release_concurrency_slots_with_lease(
+        self,
+        lease_id: "UUID",
+    ) -> "Response":
+        """
+        Release concurrency slots for the specified lease.
+
+        Args:
+            lease_id: The ID of the lease corresponding to the concurrency limits to release.
+        """
+        return await self.request(
+            "POST",
+            "/v2/concurrency_limits/decrement-with-lease",
+            json={
+                "lease_id": str(lease_id),
             },
         )
 

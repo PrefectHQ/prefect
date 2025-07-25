@@ -7,29 +7,29 @@ sidebarTitle: handlers
 
 ## Classes
 
-### `APILogWorker` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/logging/handlers.py#L52" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `APILogWorker` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/logging/handlers.py#L52" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 **Methods:**
 
-#### `max_batch_size` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/logging/handlers.py#L54" target="_blank"><Icon icon="github" size="14" /></a></sup>
-
-```python
-max_batch_size(self) -> int
-```
-
-#### `min_interval` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/logging/handlers.py#L62" target="_blank"><Icon icon="github" size="14" /></a></sup>
-
-```python
-min_interval(self) -> float | None
-```
-
-#### `instance` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/logging/handlers.py#L84" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `instance` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/logging/handlers.py#L84" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 instance(cls: Type[Self], *args: Any) -> Self
 ```
 
-### `APILogHandler` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/logging/handlers.py#L98" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `max_batch_size` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/logging/handlers.py#L54" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+max_batch_size(self) -> int
+```
+
+#### `min_interval` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/logging/handlers.py#L62" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+min_interval(self) -> float | None
+```
+
+### `APILogHandler` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/logging/handlers.py#L98" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 A logging handler that sends logs to the Prefect API.
@@ -40,7 +40,26 @@ the background.
 
 **Methods:**
 
-#### `flush` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/logging/handlers.py#L106" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `aflush` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/logging/handlers.py#L133" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+aflush(cls) -> None
+```
+
+Tell the `APILogWorker` to send any currently enqueued logs and block until
+completion.
+
+
+#### `emit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/logging/handlers.py#L143" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+emit(self, record: logging.LogRecord) -> None
+```
+
+Send a log to the `APILogWorker`
+
+
+#### `flush` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/logging/handlers.py#L106" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 flush(self) -> None
@@ -52,22 +71,13 @@ completion.
 Use `aflush` from async contexts instead.
 
 
-#### `emit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/logging/handlers.py#L143" target="_blank"><Icon icon="github" size="14" /></a></sup>
-
-```python
-emit(self, record: logging.LogRecord) -> None
-```
-
-Send a log to the `APILogWorker`
-
-
-#### `handleError` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/logging/handlers.py#L161" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `handleError` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/logging/handlers.py#L161" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 handleError(self, record: logging.LogRecord) -> None
 ```
 
-#### `prepare` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/logging/handlers.py#L184" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `prepare` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/logging/handlers.py#L184" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 prepare(self, record: logging.LogRecord) -> Dict[str, Any]
@@ -83,17 +93,54 @@ If a flow run id cannot be found, the log will be dropped.
 Logs exceeding the maximum size will be dropped.
 
 
-### `WorkerAPILogHandler` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/logging/handlers.py#L256" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `WorkerAPILogHandler` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/logging/handlers.py#L256" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 **Methods:**
 
-#### `emit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/logging/handlers.py#L257" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `aflush` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/logging/handlers.py#L133" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+aflush(cls) -> None
+```
+
+Tell the `APILogWorker` to send any currently enqueued logs and block until
+completion.
+
+
+#### `emit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/logging/handlers.py#L257" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 emit(self, record: logging.LogRecord) -> None
 ```
 
-#### `prepare` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/logging/handlers.py#L265" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `emit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/logging/handlers.py#L143" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+emit(self, record: logging.LogRecord) -> None
+```
+
+Send a log to the `APILogWorker`
+
+
+#### `flush` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/logging/handlers.py#L106" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+flush(self) -> None
+```
+
+Tell the `APILogWorker` to send any currently enqueued logs and block until
+completion.
+
+Use `aflush` from async contexts instead.
+
+
+#### `handleError` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/logging/handlers.py#L161" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+handleError(self, record: logging.LogRecord) -> None
+```
+
+#### `prepare` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/logging/handlers.py#L265" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 prepare(self, record: logging.LogRecord) -> Dict[str, Any]
@@ -106,11 +153,27 @@ This will add in the worker id to the log.
 Logs exceeding the maximum size will be dropped.
 
 
-### `PrefectConsoleHandler` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/logging/handlers.py#L294" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `prepare` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/logging/handlers.py#L184" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+prepare(self, record: logging.LogRecord) -> Dict[str, Any]
+```
+
+Convert a `logging.LogRecord` to the API `LogCreate` schema and serialize.
+
+This infers the linked flow or task run from the log record or the current
+run context.
+
+If a flow run id cannot be found, the log will be dropped.
+
+Logs exceeding the maximum size will be dropped.
+
+
+### `PrefectConsoleHandler` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/logging/handlers.py#L294" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 **Methods:**
 
-#### `emit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/logging/handlers.py#L334" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `emit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/logging/handlers.py#L334" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 emit(self, record: logging.LogRecord) -> None

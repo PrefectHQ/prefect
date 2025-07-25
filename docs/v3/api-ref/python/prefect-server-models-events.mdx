@@ -7,7 +7,13 @@ sidebarTitle: events
 
 ## Functions
 
-### `state_payload` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/events.py#L261" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `flow_run_state_change_event` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/events.py#L42" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+flow_run_state_change_event(session: AsyncSession, occurred: datetime, flow_run: ORMFlowRun, initial_state_id: Optional[UUID], initial_state: Optional[schemas.states.State], validated_state_id: Optional[UUID], validated_state: schemas.states.State) -> Event
+```
+
+### `state_payload` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/events.py#L262" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 state_payload(state: Optional[schemas.states.State]) -> Optional[Dict[str, str]]
@@ -17,3 +23,21 @@ state_payload(state: Optional[schemas.states.State]) -> Optional[Dict[str, str]]
 Given a State, return the essential string parts of it for use in an
 event payload
 
+
+### `deployment_status_event` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/events.py#L294" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+deployment_status_event(session: AsyncSession, deployment_id: UUID, status: DeploymentStatus, occurred: DateTime) -> Event
+```
+
+### `work_queue_status_event` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/events.py#L365" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+work_queue_status_event(session: AsyncSession, work_queue: 'ORMWorkQueue', occurred: DateTime) -> Event
+```
+
+### `work_pool_status_event` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/events.py#L401" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+work_pool_status_event(event_id: UUID, occurred: DateTime, pre_update_work_pool: Optional['ORMWorkPool'], work_pool: 'ORMWorkPool') -> Event
+```

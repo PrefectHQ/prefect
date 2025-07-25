@@ -9,3 +9,17 @@ sidebarTitle: block_capabilities
 
 Routes for interacting with block capabilities.
 
+
+## Functions
+
+### `read_available_block_capabilities` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/block_capabilities.py#L19" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+read_available_block_capabilities(db: PrefectDBInterface = Depends(provide_database_interface)) -> List[str]
+```
+
+
+Get available block capabilities.
+
+For more information, see https://docs.prefect.io/v3/develop/blocks.
+

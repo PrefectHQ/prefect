@@ -5,4 +5,64 @@ sidebarTitle: automations
 
 # `prefect.server.api.automations`
 
-*This module is empty or contains only private/internal implementations.*
+## Functions
+
+### `create_automation` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/automations.py#L38" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+create_automation(automation: AutomationCreate, db: PrefectDBInterface = Depends(provide_database_interface)) -> Automation
+```
+
+
+Create an automation.
+
+For more information, see https://docs.prefect.io/v3/automate.
+
+
+### `update_automation` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/automations.py#L95" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+update_automation(automation: AutomationUpdate, automation_id: UUID = Path(..., alias='id'), db: PrefectDBInterface = Depends(provide_database_interface)) -> None
+```
+
+### `patch_automation` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/automations.py#L138" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+patch_automation(automation: AutomationPartialUpdate, automation_id: UUID = Path(..., alias='id'), db: PrefectDBInterface = Depends(provide_database_interface)) -> None
+```
+
+### `delete_automation` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/automations.py#L164" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+delete_automation(automation_id: UUID = Path(..., alias='id'), db: PrefectDBInterface = Depends(provide_database_interface)) -> None
+```
+
+### `read_automations` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/automations.py#L179" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+read_automations(sort: AutomationSort = Body(AutomationSort.NAME_ASC), limit: int = LimitBody(), offset: int = Body(0, ge=0), automations: Optional[AutomationFilter] = None, db: PrefectDBInterface = Depends(provide_database_interface)) -> Sequence[Automation]
+```
+
+### `count_automations` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/automations.py#L197" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+count_automations(db: PrefectDBInterface = Depends(provide_database_interface)) -> int
+```
+
+### `read_automation` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/automations.py#L205" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+read_automation(automation_id: UUID = Path(..., alias='id'), db: PrefectDBInterface = Depends(provide_database_interface)) -> Automation
+```
+
+### `read_automations_related_to_resource` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/automations.py#L221" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+read_automations_related_to_resource(resource_id: str = Path(..., alias='resource_id'), db: PrefectDBInterface = Depends(provide_database_interface)) -> Sequence[Automation]
+```
+
+### `delete_automations_owned_by_resource` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/automations.py#L233" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+delete_automations_owned_by_resource(resource_id: str = Path(..., alias='resource_id'), db: PrefectDBInterface = Depends(provide_database_interface)) -> None
+```

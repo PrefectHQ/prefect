@@ -7,4 +7,36 @@ sidebarTitle: context
 
 ## Classes
 
-### `ConcurrencyContext` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/concurrency/v1/context.py#L11" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `ConcurrencyContext` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/concurrency/v1/context.py#L11" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+**Methods:**
+
+#### `get` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/context.py#L179" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+get(cls: type[Self]) -> Optional[Self]
+```
+
+Get the current context instance
+
+
+#### `model_copy` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/context.py#L183" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+model_copy(self: Self) -> Self
+```
+
+Duplicate the context model, optionally choosing which fields to include, exclude, or change.
+
+**Returns:**
+- A new model instance.
+
+
+#### `serialize` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/context.py#L204" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+serialize(self, include_secrets: bool = True) -> dict[str, Any]
+```
+
+Serialize the context model to a dictionary that can be pickled with cloudpickle.
+

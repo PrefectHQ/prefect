@@ -5,6 +5,20 @@ sidebarTitle: task_workers
 
 # `prefect.server.api.task_workers`
 
+## Functions
+
+### `read_task_workers` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/task_workers.py#L18" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+read_task_workers(task_worker_filter: Optional[TaskWorkerFilter] = Body(default=None, description='The task worker filter', embed=True)) -> List[TaskWorkerResponse]
+```
+
+
+Read active task workers. Optionally filter by task keys.
+
+For more information, see https://docs.prefect.io/v3/concepts/flows-and-tasks#background-tasks.
+
+
 ## Classes
 
-### `TaskWorkerFilter` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/task_workers.py#L13" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `TaskWorkerFilter` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/task_workers.py#L13" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>

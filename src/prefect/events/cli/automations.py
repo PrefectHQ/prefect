@@ -130,14 +130,14 @@ async def inspect(
 
     Examples:
 
-        $ prefect automation inspect "my-automation"
+        `$ prefect automation inspect "my-automation"`
 
-        $ prefect automation inspect --id "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
+        `$ prefect automation inspect --id "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"`
 
-        $ prefect automation inspect "my-automation" --yaml
+        `$ prefect automation inspect "my-automation" --yaml`
 
-        $ prefect automation inspect "my-automation" --output json
-        $ prefect automation inspect "my-automation" --output yaml
+        `$ prefect automation inspect "my-automation" --output json`
+        `$ prefect automation inspect "my-automation" --output yaml`
     """
     if output and output.lower() not in ["json", "yaml"]:
         exit_with_error("Only 'json' and 'yaml' output formats are supported.")
@@ -203,9 +203,9 @@ async def resume(
 
     Examples:
 
-            $ prefect automation resume "my-automation"
+            `$ prefect automation resume "my-automation"`
 
-            $ prefect automation resume --id "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
+            `$ prefect automation resume --id "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"`
     """
     if not id and not name:
         exit_with_error("Please provide either a name or an id.")
@@ -258,9 +258,9 @@ async def pause(
 
     Examples:
 
-        $ prefect automation pause "my-automation"
+        `$ prefect automation pause "my-automation"`
 
-        $ prefect automation pause --id "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
+        `$ prefect automation pause --id "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"`
     """
     if not id and not name:
         exit_with_error("Please provide either a name or an id.")
@@ -309,8 +309,8 @@ async def delete(
         id: the id of the automation to delete
 
     Examples:
-        $ prefect automation delete "my-automation"
-        $ prefect automation delete --id "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
+        `$ prefect automation delete "my-automation"`
+        `$ prefect automation delete --id "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"`
     """
 
     async with get_client() as client:
@@ -367,10 +367,10 @@ async def create(
     """Create one or more automations from a file or JSON string.
 
     Examples:
-        $ prefect automation create --from-file automation.yaml
-        $ prefect automation create -f automation.json
-        $ prefect automation create --from-json '{"name": "my-automation", "trigger": {...}, "actions": [...]}'
-        $ prefect automation create -j '[{"name": "auto1", ...}, {"name": "auto2", ...}]'
+        `$ prefect automation create --from-file automation.yaml`
+        `$ prefect automation create -f automation.json`
+        `$ prefect automation create --from-json '{"name": "my-automation", "trigger": {...}, "actions": [...]}'`
+        `$ prefect automation create -j '[{"name": "auto1", ...}, {"name": "auto2", ...}]'`
     """
     if from_file and from_json:
         exit_with_error("Please provide either --from-file or --from-json, not both.")

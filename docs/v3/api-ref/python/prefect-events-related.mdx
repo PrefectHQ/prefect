@@ -7,14 +7,20 @@ sidebarTitle: related
 
 ## Functions
 
-### `tags_as_related_resources` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/related.py#L34" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `tags_as_related_resources` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/related.py#L34" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 tags_as_related_resources(tags: Iterable[str]) -> List[RelatedResource]
 ```
 
-### `object_as_related_resource` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/related.py#L46" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `object_as_related_resource` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/related.py#L46" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 object_as_related_resource(kind: str, role: str, object: Any) -> RelatedResource
+```
+
+### `related_resources_from_run_context` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/related.py#L60" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+related_resources_from_run_context(client: 'PrefectClient', exclude: Optional[Set[str]] = None) -> List[RelatedResource]
 ```

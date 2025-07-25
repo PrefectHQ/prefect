@@ -1,4 +1,6 @@
+from typing import Any
 from unittest import mock
+from uuid import UUID
 
 import pytest
 from httpx import HTTPStatusError, Request, Response
@@ -7,7 +9,8 @@ from starlette import status
 from prefect import flow, task
 from prefect.concurrency._asyncio import (
     aacquire_concurrency_slots,
-    arelease_concurrency_slots,
+    aacquire_concurrency_slots_with_lease,
+    arelease_concurrency_slots_with_lease,
 )
 from prefect.concurrency.asyncio import (
     ConcurrencySlotAcquisitionError,
@@ -30,31 +33,27 @@ async def test_concurrency_orchestrates_api(concurrency_limit: ConcurrencyLimitV
     assert not executed
 
     with mock.patch(
-        "prefect.concurrency.asyncio.aacquire_concurrency_slots",
-        wraps=aacquire_concurrency_slots,
+        "prefect.concurrency.asyncio.aacquire_concurrency_slots_with_lease",
+        wraps=aacquire_concurrency_slots_with_lease,
     ) as acquire_spy:
         with mock.patch(
-            "prefect.concurrency.asyncio.arelease_concurrency_slots",
-            wraps=arelease_concurrency_slots,
+            "prefect.concurrency.asyncio.arelease_concurrency_slots_with_lease",
+            wraps=arelease_concurrency_slots_with_lease,
         ) as release_spy:
             await resource_heavy()
 
             acquire_spy.assert_called_once_with(
-                ["test"],
-                1,
+                names=["test"],
+                slots=1,
                 timeout_seconds=None,
                 max_retries=None,
+                lease_duration=300,
                 strict=False,
             )
 
-            # On release we calculate how many seconds the slots were occupied
-            # for, so here we really just want to make sure that the value
-            # passed as `occupy_seconds` is > 0.
+            lease_id = release_spy.call_args[1]["lease_id"]
 
-            names, occupy, occupy_seconds = release_spy.call_args[0]
-            assert names == ["test"]
-            assert occupy == 1
-            assert occupy_seconds > 0
+            assert isinstance(lease_id, UUID)
 
     assert executed
 
@@ -177,8 +176,8 @@ async def test_concurrency_emits_events(
 
 
 @pytest.fixture
-def mock_increment_concurrency_slots(monkeypatch):
-    async def mocked_increment_concurrency_slots(*args, **kwargs):
+def mock_increment_concurrency_slots(monkeypatch: pytest.MonkeyPatch):
+    async def mocked_increment_concurrency_slots(*args: Any, **kwargs: Any):
         response = Response(
             status_code=status.HTTP_423_LOCKED,
             headers={"Retry-After": "0.01"},
@@ -190,7 +189,7 @@ def mock_increment_concurrency_slots(monkeypatch):
         )
 
     monkeypatch.setattr(
-        "prefect.client.orchestration.PrefectClient.increment_concurrency_slots",
+        "prefect.client.orchestration.PrefectClient.increment_concurrency_slots_with_lease",
         mocked_increment_concurrency_slots,
     )
 
@@ -225,23 +224,15 @@ async def test_rate_limit_orchestrates_api(
         "prefect.concurrency.asyncio.aacquire_concurrency_slots",
         wraps=aacquire_concurrency_slots,
     ) as acquire_spy:
-        with mock.patch(
-            "prefect.concurrency.asyncio.arelease_concurrency_slots",
-            wraps=arelease_concurrency_slots,
-        ) as release_spy:
-            await resource_heavy()
+        await resource_heavy()
 
-            acquire_spy.assert_called_once_with(
-                ["test"],
-                1,
-                mode="rate_limit",
-                timeout_seconds=None,
-                strict=False,
-            )
-
-            # When used as a rate limit concurrency slots are not explicitly
-            # released.
-            release_spy.assert_not_called()
+        acquire_spy.assert_called_once_with(
+            names=["test"],
+            slots=1,
+            mode="rate_limit",
+            timeout_seconds=None,
+            strict=False,
+        )
 
     assert executed
 
@@ -373,17 +364,12 @@ async def test_rate_limit_without_limit_names(names):
     assert not executed
 
     with mock.patch(
-        "prefect.concurrency.sync._acquire_concurrency_slots",
+        "prefect.concurrency.asyncio.aacquire_concurrency_slots",
         wraps=lambda *args, **kwargs: None,
     ) as acquire_spy:
-        with mock.patch(
-            "prefect.concurrency.sync.arelease_concurrency_slots",
-            wraps=lambda *args, **kwargs: None,
-        ) as release_spy:
-            await resource_heavy()
+        await resource_heavy()
 
-            acquire_spy.assert_not_called()
-            release_spy.assert_not_called()
+        acquire_spy.assert_not_called()
 
     assert executed
 
@@ -400,11 +386,11 @@ async def test_concurrency_without_limit_names(names):
     assert not executed
 
     with mock.patch(
-        "prefect.concurrency.sync._acquire_concurrency_slots",
+        "prefect.concurrency.asyncio.aacquire_concurrency_slots_with_lease",
         wraps=lambda *args, **kwargs: None,
     ) as acquire_spy:
         with mock.patch(
-            "prefect.concurrency.sync.arelease_concurrency_slots",
+            "prefect.concurrency.asyncio.arelease_concurrency_slots_with_lease",
             wraps=lambda *args, **kwargs: None,
         ) as release_spy:
             await resource_heavy()
