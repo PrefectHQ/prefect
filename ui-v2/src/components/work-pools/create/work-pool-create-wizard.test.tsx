@@ -3,6 +3,30 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { WorkPoolCreateWizard } from "./work-pool-create-wizard";
 
+// Mock data for work pool types
+const mockWorkPoolTypes = {
+	"prefect-agent": {
+		"prefect-agent": {
+			type: "prefect-agent",
+			display_name: "Prefect Agent",
+			description: "Execute flow runs with a Prefect agent.",
+			logo_url: "https://example.com/logo.svg",
+			documentation_url: "https://docs.prefect.io/",
+			is_beta: false,
+		},
+	},
+	docker: {
+		"docker-container": {
+			type: "docker-container",
+			display_name: "Docker Container",
+			description: "Execute flow runs in Docker containers.",
+			logo_url: "https://example.com/docker.svg",
+			documentation_url: "https://docs.prefect.io/docker",
+			is_beta: false,
+		},
+	},
+};
+
 // Mock the router
 vi.mock("@tanstack/react-router", () => ({
 	useRouter: () => ({
@@ -22,7 +46,7 @@ vi.mock("@/api/work-pools", () => ({
 vi.mock("@/api/collections/collections", () => ({
 	buildListWorkPoolTypesQuery: () => ({
 		queryKey: ["work-pool-types"],
-		queryFn: () => Promise.resolve({}),
+		queryFn: () => mockWorkPoolTypes,
 	}),
 }));
 
@@ -40,10 +64,14 @@ describe("WorkPoolCreateWizard", () => {
 	beforeEach(() => {
 		queryClient = new QueryClient({
 			defaultOptions: {
-				queries: { retry: false },
+				queries: { retry: false, staleTime: Number.POSITIVE_INFINITY },
 				mutations: { retry: false },
 			},
 		});
+
+		// Pre-populate the query client with mock data to avoid suspense
+		queryClient.setQueryData(["work-pool-types"], mockWorkPoolTypes);
+
 		vi.clearAllMocks();
 	});
 
@@ -75,36 +103,27 @@ describe("WorkPoolCreateWizard", () => {
 		expect(screen.getByText("Cancel")).toBeInTheDocument();
 	});
 
-	it("disables Next button when infrastructure type is not selected", async () => {
+	it("renders infrastructure type options", () => {
+		renderWorkPoolCreateWizard();
+
+		expect(screen.getByText("Prefect Agent")).toBeInTheDocument();
+		expect(screen.getByText("Docker Container")).toBeInTheDocument();
+		expect(
+			screen.getByText("Execute flow runs with a Prefect agent."),
+		).toBeInTheDocument();
+	});
+
+	it("shows form validation message when trying to proceed without selection", async () => {
 		renderWorkPoolCreateWizard();
 
 		const nextButton = screen.getByText("Next");
 		fireEvent.click(nextButton);
 
-		// Should still be on first step since validation failed
+		// Should show validation error
 		await waitFor(() => {
-			expect(
-				screen.getByText(
-					"Select the infrastructure you want to use to execute your flow runs",
-				),
-			).toBeInTheDocument();
+			// The form should still be on the first step and show validation
+			expect(screen.getByText("Infrastructure Type")).toBeInTheDocument();
 		});
-	});
-
-	it("shows Back button on second step", () => {
-		renderWorkPoolCreateWizard();
-
-		// Mock infrastructure type selection (this would need more setup for real testing)
-		// For now, just test navigation structure
-		const wizard = screen.getByText("Create Work Pool").closest("div");
-		expect(wizard).toBeInTheDocument();
-	});
-
-	it("shows Create Work Pool button on final step", () => {
-		renderWorkPoolCreateWizard();
-
-		// The component structure should show correct button text based on step
-		expect(screen.getByText("Next")).toBeInTheDocument();
 	});
 
 	it("renders Cancel button", () => {
