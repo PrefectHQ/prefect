@@ -241,10 +241,10 @@ export const useCreateWorkPool = () => {
 				body: workPool,
 			}),
 		onSuccess: () => {
-			queryClient.invalidateQueries({
+			void queryClient.invalidateQueries({
 				queryKey: queryKeyFactory.lists(),
 			});
-			queryClient.invalidateQueries({
+			void queryClient.invalidateQueries({
 				queryKey: queryKeyFactory.counts(),
 			});
 		},

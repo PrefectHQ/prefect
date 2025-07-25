@@ -69,7 +69,7 @@ export function WorkPoolCreateWizard() {
 	};
 
 	const handleCancel = () => {
-		router.navigate({ to: "/work-pools" });
+		void router.navigate({ to: "/work-pools" });
 	};
 
 	const handleSubmit = async () => {
@@ -97,7 +97,7 @@ export function WorkPoolCreateWizard() {
 		createWorkPool(workPoolData, {
 			onSuccess: (data) => {
 				toast.success(`Work pool "${formData.name}" created successfully`);
-				router.navigate({
+				void router.navigate({
 					to: "/work-pools/work-pool/$workPoolName",
 					params: { workPoolName: data.data?.name || formData.name },
 				});
@@ -182,7 +182,7 @@ export function WorkPoolCreateWizard() {
 						Cancel
 					</Button>
 				</div>
-				<Button onClick={handleNext} disabled={isPending}>
+				<Button onClick={() => void handleNext()} disabled={isPending}>
 					{isPending
 						? "Creating..."
 						: stepper.isFinalStep

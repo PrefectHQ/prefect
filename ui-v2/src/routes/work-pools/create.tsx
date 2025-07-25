@@ -4,7 +4,7 @@ import { WorkPoolCreateWizard } from "@/components/work-pools/create";
 
 export const Route = createFileRoute("/work-pools/create")({
 	component: WorkPoolCreateWizard,
-	loader: async ({ context: { queryClient } }) => {
+	loader: ({ context: { queryClient } }) => {
 		// Prefetch worker types for infrastructure selection
 		void queryClient.prefetchQuery(buildListWorkPoolTypesQuery());
 	},
