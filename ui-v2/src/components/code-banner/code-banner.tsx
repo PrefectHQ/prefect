@@ -28,7 +28,7 @@ export const CodeBanner = ({
 		try {
 			await navigator.clipboard.writeText(command);
 			toast.success("Command copied to clipboard");
-		} catch (_error) {
+		} catch {
 			toast.error("Failed to copy command");
 		} finally {
 			setCopying(false);
@@ -54,6 +54,7 @@ export const CodeBanner = ({
 					<Button
 						variant="ghost"
 						size="sm"
+						// eslint-disable-next-line @typescript-eslint/no-misused-promises
 						onClick={handleCopy}
 						disabled={copying}
 						className="ml-2 text-slate-300 hover:text-slate-100 hover:bg-slate-700"
