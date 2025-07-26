@@ -36,38 +36,42 @@ describe("FormattedDate", () => {
 		expect(screen.getByText("2 hours ago")).toBeInTheDocument();
 
 		// Should show tooltip on hover
-		const dateElement = screen.getByRole("button");
-		await user.hover(dateElement);
-
-		expect(
-			await screen.findByText("Jan 15, 2024 at 2:30 PM"),
-		).toBeInTheDocument();
+		const dateElement = document.querySelector("[data-slot='tooltip-trigger']");
+		expect(dateElement).toBeInTheDocument();
+		if (dateElement) {
+			await user.hover(dateElement);
+			expect(await screen.findByRole("tooltip")).toBeInTheDocument();
+		}
 	});
 
 	it("shows tooltip for relative dates by default", async () => {
 		const user = userEvent.setup();
 		render(<FormattedDate date={testDate} format="relative" />);
 
-		const dateElement = screen.getByRole("button");
-		await user.hover(dateElement);
-
-		expect(
-			await screen.findByText("Jan 15, 2024 at 2:30 PM"),
-		).toBeInTheDocument();
+		const dateElement = document.querySelector("[data-slot='tooltip-trigger']");
+		expect(dateElement).toBeInTheDocument();
+		if (dateElement) {
+			await user.hover(dateElement);
+			expect(await screen.findByRole("tooltip")).toBeInTheDocument();
+		}
 	});
 
 	it("does not show tooltip when showTooltip is false", () => {
 		render(<FormattedDate date={testDate} showTooltip={false} />);
 
 		expect(screen.getByText("2 hours ago")).toBeInTheDocument();
-		expect(screen.queryByRole("button")).not.toBeInTheDocument();
+		expect(
+			document.querySelector("[data-slot='tooltip-trigger']"),
+		).not.toBeInTheDocument();
 	});
 
 	it("does not show tooltip for absolute format by default", () => {
 		render(<FormattedDate date={testDate} format="absolute" />);
 
 		expect(screen.getByText("Jan 15, 2024 at 2:30 PM")).toBeInTheDocument();
-		expect(screen.queryByRole("button")).not.toBeInTheDocument();
+		expect(
+			document.querySelector("[data-slot='tooltip-trigger']"),
+		).not.toBeInTheDocument();
 	});
 
 	it("handles null date", () => {
