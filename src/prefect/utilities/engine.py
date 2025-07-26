@@ -93,16 +93,19 @@ async def collect_task_run_inputs(
                         id=obj.state_details.task_run_id,
                     )
                 )
-        # Expressions inside quotes should not be traversed
-        elif isinstance(obj, quote):
-            raise StopVisiting
         else:
+            is_quote = isinstance(obj, quote)
+            obj = obj.unwrap() if is_quote else obj
             res = get_state_for_result(obj)
             if res:
                 state, run_type = res
                 run_result = state.state_details.to_run_result(run_type)
                 if run_result:
                     inputs.add(run_result)
+
+            # Expressions inside quotes should not be traversed
+            if is_quote:
+                raise StopVisiting
 
     visit_collection(
         expr,
