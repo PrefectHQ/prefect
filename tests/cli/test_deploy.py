@@ -6163,3 +6163,359 @@ class TestDeployingUsingCustomPrefectFile:
         )
 
         assert await invalid_update_deployment.apply()
+
+
+class TestDeployDryRun:
+    @pytest.fixture
+    def project_dir_with_single_deployment(self, project_dir: str):
+        prefect_yaml = {
+            "name": "test-project",
+            "deployments": [
+                {
+                    "name": "test-deployment",
+                    "entrypoint": "flows.py:hello_world",
+                    "work_pool": {"name": "test-pool"},
+                }
+            ],
+        }
+        with open(Path(project_dir) / "prefect.yaml", "w") as f:
+            yaml.dump(prefect_yaml, f)
+
+        flows_file = Path(project_dir) / "flows.py"
+        flows_file.write_text("""
+from prefect import flow
+
+@flow
+def hello_world():
+    print("Hello, world!")
+""")
+        return project_dir
+
+    @pytest.mark.usefixtures("project_dir_with_single_deployment")
+    async def test_dry_run_validates_resources_without_creating_deployments(self):
+        """Test that dry run validates work pools exist but doesn't create deployments."""
+        with mock.patch("prefect.cli.deploy.get_client") as mock_get_client:
+            mock_client = mock.AsyncMock()
+            mock_get_client.return_value = mock_client
+
+            # Mock the work pool to exist for validation
+            mock_work_pool = mock.Mock()
+            mock_work_pool.type = "process"
+            mock_work_pool.is_push_pool = False
+            mock_work_pool.is_managed_pool = False
+            mock_work_pool.base_job_template = {"variables": {"properties": {}}}
+            mock_client.read_work_pool.return_value = mock_work_pool
+
+            await run_sync_in_worker_thread(
+                invoke_and_assert,
+                command="deploy --all --dry-run",
+                expected_code=0,
+                expected_output_contains=["DRY RUN: Would create/update deployment"],
+            )
+
+            # Verify no deployment creation/update API calls were made
+            mock_client.create_deployment.assert_not_called()
+            mock_client.update_deployment.assert_not_called()
+            mock_client.create_automation.assert_not_called()
+            mock_client.apply_slas_for_deployment.assert_not_called()
+
+            # But validation calls (like checking work pool existence) should be made
+            mock_client.read_work_pool.assert_called_with("test-pool")
+
+    @pytest.fixture
+    def project_dir_with_multi_deployments(self, project_dir: str):
+        prefect_yaml = {
+            "name": "test-project",
+            "build": [
+                {
+                    "prefect_docker.deployments.steps.build_docker_image": {
+                        "image_name": "test",
+                        "tag": "latest",
+                    }
+                }
+            ],
+            "deployments": [
+                {
+                    "name": "test-deployment-1",
+                    "entrypoint": "flows.py:hello_world",
+                    "work_pool": {"name": "test-pool"},
+                },
+                {
+                    "name": "test-deployment-2",
+                    "entrypoint": "flows.py:hello_world",
+                    "work_pool": {"name": "test-pool"},
+                },
+            ],
+        }
+        with open(Path(project_dir) / "prefect.yaml", "w") as f:
+            yaml.dump(prefect_yaml, f)
+
+        flows_file = Path(project_dir) / "flows.py"
+        flows_file.write_text("""
+from prefect import flow
+
+@flow
+def hello_world():
+    print("Hello, world!")
+""")
+        return project_dir
+
+    @pytest.mark.usefixtures("project_dir_with_multi_deployments")
+    async def test_dry_run_skips_build_step_execution(self):
+        """Test that dry run reports build steps but doesn't execute them."""
+        with mock.patch("prefect.cli.deploy.get_client") as mock_get_client:
+            mock_client = mock.AsyncMock()
+            mock_get_client.return_value = mock_client
+
+            mock_work_pool = mock.Mock()
+            mock_work_pool.type = "process"
+            mock_work_pool.is_push_pool = False
+            mock_work_pool.is_managed_pool = False
+            mock_work_pool.base_job_template = {"variables": {"properties": {}}}
+            mock_client.read_work_pool.return_value = mock_work_pool
+
+            with mock.patch(
+                "prefect.deployments.steps.core.run_steps"
+            ) as mock_run_steps:
+                await run_sync_in_worker_thread(
+                    invoke_and_assert,
+                    command="deploy --all --dry-run",
+                    expected_code=0,
+                    expected_output_contains=[
+                        "dry run mode",
+                        "Would run 1 build step(s)",
+                    ],
+                )
+
+                # Verify build steps were not executed
+                mock_run_steps.assert_not_called()
+
+    @pytest.mark.usefixtures("project_dir_with_single_deployment")
+    async def test_dry_run_validates_required_deployment_fields(self):
+        """Test that dry run still validates required fields like entrypoint."""
+        prefect_yaml = {
+            "name": "test-project",
+            "deployments": [
+                {
+                    "name": "test-deployment",
+                    # Missing entrypoint should fail validation
+                    "work_pool": {"name": "test-pool"},
+                }
+            ],
+        }
+
+        with open("prefect.yaml", "w") as f:
+            yaml.dump(prefect_yaml, f)
+
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command="deploy --all --dry-run",
+            expected_code=1,
+            expected_output_contains=[
+                "An entrypoint must be provided",
+            ],
+        )
+
+    @pytest.mark.usefixtures("project_dir_with_single_deployment")
+    async def test_dry_run_validates_parameters(self):
+        """Test that dry run validates deployment parameters against flow schema."""
+        # Create a flow with typed parameters
+        flows_file = Path("flows.py")
+        flows_file.write_text("""
+from prefect import flow
+from enum import Enum
+from typing import List
+
+class DatasetType(str, Enum):
+    TRAIN = "train"
+    TEST = "test"
+
+@flow
+def typed_flow(dataset: DatasetType, count: int, items: List[str]):
+    pass
+""")
+
+        # Test with invalid parameters
+        prefect_yaml = {
+            "name": "test-project",
+            "deployments": [
+                {
+                    "name": "test-deployment",
+                    "entrypoint": "flows.py:typed_flow",
+                    "work_pool": {"name": "test-pool"},
+                    "parameters": {
+                        "dataset": "invalid_enum",  # Invalid enum value
+                        "count": "not_a_number",  # Invalid type
+                        "items": "not_a_list",  # Invalid type
+                    },
+                }
+            ],
+        }
+
+        with open("prefect.yaml", "w") as f:
+            yaml.dump(prefect_yaml, f)
+
+        with mock.patch("prefect.cli.deploy.get_client") as mock_get_client:
+            mock_client = mock.AsyncMock()
+            mock_get_client.return_value = mock_client
+
+            mock_work_pool = mock.Mock()
+            mock_work_pool.type = "process"
+            mock_work_pool.is_push_pool = False
+            mock_work_pool.is_managed_pool = False
+            mock_work_pool.base_job_template = {"variables": {"properties": {}}}
+            mock_client.read_work_pool.return_value = mock_work_pool
+
+            await run_sync_in_worker_thread(
+                invoke_and_assert,
+                command="deploy --all --dry-run",
+                expected_code=1,
+                expected_output_contains=[
+                    "Deployment parameters failed validation",
+                ],
+            )
+
+    @pytest.mark.usefixtures("project_dir_with_single_deployment")
+    async def test_dry_run_respects_enforce_parameter_schema_flag(self):
+        """Test that dry run skips parameter validation when enforce_parameter_schema is False."""
+        flows_file = Path("flows.py")
+        flows_file.write_text("""
+from prefect import flow
+from typing import List
+
+@flow
+def typed_flow(count: int, items: List[str]):
+    pass
+""")
+
+        prefect_yaml = {
+            "name": "test-project",
+            "deployments": [
+                {
+                    "name": "test-deployment",
+                    "entrypoint": "flows.py:typed_flow",
+                    "work_pool": {"name": "test-pool"},
+                    "enforce_parameter_schema": False,
+                    "parameters": {
+                        "count": "not_a_number",  # Invalid but should not validate
+                        "items": "not_a_list",  # Invalid but should not validate
+                    },
+                }
+            ],
+        }
+
+        with open("prefect.yaml", "w") as f:
+            yaml.dump(prefect_yaml, f)
+
+        with mock.patch("prefect.cli.deploy.get_client") as mock_get_client:
+            mock_client = mock.AsyncMock()
+            mock_get_client.return_value = mock_client
+
+            mock_work_pool = mock.Mock()
+            mock_work_pool.type = "process"
+            mock_work_pool.is_push_pool = False
+            mock_work_pool.is_managed_pool = False
+            mock_work_pool.base_job_template = {"variables": {"properties": {}}}
+            mock_client.read_work_pool.return_value = mock_work_pool
+
+            await run_sync_in_worker_thread(
+                invoke_and_assert,
+                command="deploy --all --dry-run",
+                expected_code=0,
+                expected_output_contains=["DRY RUN: Would create/update deployment"],
+            )
+
+    @pytest.mark.usefixtures("project_dir_with_single_deployment")
+    async def test_dry_run_validates_schedule_parameters(self):
+        """Test that dry run validates parameters in schedules against flow schema."""
+        flows_file = Path("flows.py")
+        flows_file.write_text("""
+from prefect import flow
+from enum import Enum
+
+class TaskType(str, Enum):
+    BUILD = "build"
+    TEST = "test"
+    DEPLOY = "deploy"
+
+@flow
+def scheduled_task(task_type: TaskType, priority: int = 1):
+    pass
+""")
+
+        prefect_yaml = {
+            "name": "test-project",
+            "deployments": [
+                {
+                    "name": "test-deployment",
+                    "entrypoint": "flows.py:scheduled_task",
+                    "work_pool": {"name": "test-pool"},
+                    "schedules": [
+                        {
+                            "cron": "0 0 * * *",
+                            "slug": "valid-schedule",
+                            "parameters": {"task_type": "build", "priority": 5},
+                        },
+                        {
+                            "cron": "0 12 * * *",
+                            "slug": "invalid-schedule",
+                            "parameters": {
+                                "task_type": "invalid_task",  # Invalid enum
+                                "priority": "high",  # Invalid type
+                            },
+                        },
+                    ],
+                }
+            ],
+        }
+
+        with open("prefect.yaml", "w") as f:
+            yaml.dump(prefect_yaml, f)
+
+        with mock.patch("prefect.cli.deploy.get_client") as mock_get_client:
+            mock_client = mock.AsyncMock()
+            mock_get_client.return_value = mock_client
+
+            mock_work_pool = mock.Mock()
+            mock_work_pool.type = "process"
+            mock_work_pool.is_push_pool = False
+            mock_work_pool.is_managed_pool = False
+            mock_work_pool.base_job_template = {"variables": {"properties": {}}}
+            mock_client.read_work_pool.return_value = mock_work_pool
+
+            await run_sync_in_worker_thread(
+                invoke_and_assert,
+                command="deploy --all --dry-run",
+                expected_code=1,
+                expected_output_contains=[
+                    "Schedule 'invalid-schedule' has invalid parameters",
+                ],
+            )
+
+    @pytest.mark.usefixtures("project_dir_with_single_deployment")
+    async def test_dry_run_is_non_interactive(self):
+        """Test that dry run mode disables interactive prompts."""
+        # Create a deployment without a work pool, which normally prompts interactively
+        prefect_yaml = {
+            "name": "test-project",
+            "deployments": [
+                {
+                    "name": "test-deployment",
+                    "entrypoint": "flows.py:hello_world",
+                    # No work_pool specified - normally would prompt
+                }
+            ],
+        }
+
+        with open("prefect.yaml", "w") as f:
+            yaml.dump(prefect_yaml, f)
+
+        # In dry run mode, it should fail immediately without prompting
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command="deploy --all --dry-run",
+            expected_code=1,
+            expected_output_contains=[
+                "A work pool is required to deploy this flow",
+            ],
+        )
