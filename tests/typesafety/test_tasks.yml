@@ -84,3 +84,50 @@
   out: "main:6: note: Revealed type is \"\
       builtins.int\
     \""
+
+- case: prefect_task_depends_on_single
+  main: |
+    from prefect import task
+    from prefect.futures import PrefectFuture
+    @task
+    def foo(x: int) -> str:
+        return str(x)
+    future: PrefectFuture[int] = task.submit(lambda: 42)  # type: ignore
+    result = foo.depends_on([future])
+    reveal_type(result)
+  out: "main:8: note: Revealed type is \"\
+      prefect.tasks.Task[[x: builtins.int], builtins.str]\
+    \""
+
+- case: prefect_task_depends_on_with_submit
+  main: |
+    from prefect import task
+    @task
+    def foo(x: int) -> str:
+        return str(x)
+    @task
+    def bar() -> int:
+        return 42
+    future1 = bar.submit()
+    future2 = foo.depends_on([future1]).submit(10)
+    reveal_type(future2)
+  out: "main:10: note: Revealed type is \"\
+      prefect.futures.PrefectFuture[builtins.str]\
+    \""
+
+- case: prefect_task_depends_on_chained
+  main: |
+    from prefect import task
+    @task
+    def foo(x: int) -> str:
+        return str(x)
+    @task
+    def bar() -> int:
+        return 42
+    future1 = bar.submit()
+    future2 = bar.submit()
+    result = foo.depends_on([future1]).depends_on([future2])
+    reveal_type(result)
+  out: "main:11: note: Revealed type is \"\
+      prefect.tasks.Task[[x: builtins.int], builtins.str]\
+    \""
