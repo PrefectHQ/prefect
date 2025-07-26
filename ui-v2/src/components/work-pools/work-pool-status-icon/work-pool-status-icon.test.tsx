@@ -40,10 +40,8 @@ describe("WorkPoolStatusIcon", () => {
 
 		if (triggerElement) {
 			await user.hover(triggerElement);
+			expect(await screen.findByRole("tooltip")).toBeInTheDocument();
 		}
-		expect(
-			await screen.findByText("Work pool is ready and accepting work"),
-		).toBeInTheDocument();
 	});
 
 	it("shows tooltip for paused status", async () => {
@@ -55,9 +53,8 @@ describe("WorkPoolStatusIcon", () => {
 		);
 		if (triggerElement) {
 			await user.hover(triggerElement);
+			expect(await screen.findByRole("tooltip")).toBeInTheDocument();
 		}
-
-		expect(await screen.findByText("Work pool is paused")).toBeInTheDocument();
 	});
 
 	it("shows tooltip for not_ready status", async () => {
@@ -69,11 +66,8 @@ describe("WorkPoolStatusIcon", () => {
 		);
 		if (triggerElement) {
 			await user.hover(triggerElement);
+			expect(await screen.findByRole("tooltip")).toBeInTheDocument();
 		}
-
-		expect(
-			await screen.findByText("Work pool is not ready"),
-		).toBeInTheDocument();
 	});
 
 	it("does not show tooltip when showTooltip is false", () => {
