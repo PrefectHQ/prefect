@@ -27,8 +27,11 @@ from prefect.logging.loggers import get_logger
 from prefect.settings import PREFECT_DEBUG_MODE
 from prefect.utilities.importtools import import_object
 from prefect.utilities.templating import (
+    BLOCK_TEMPLATE_PATTERN,
     apply_values,
     resolve_block_document_references,
+    resolve_block_template_string,
+    resolve_block_templates_recursively,
     resolve_variables,
 )
 
@@ -127,9 +130,14 @@ async def run_step(
     }
 
     inputs = apply_values(inputs, upstream_outputs)
+    inputs = await resolve_block_templates_recursively(inputs)
     inputs = await resolve_block_document_references(inputs)
     inputs = await resolve_variables(inputs)
     inputs = apply_values(inputs, os.environ)
+
+    for key, value in inputs.items():
+        if isinstance(value, str) and BLOCK_TEMPLATE_PATTERN.fullmatch(value.strip()):
+            inputs[key] = await resolve_block_template_string(value)
     step_func = _get_function_for_step(fqn, requires=keywords.get("requires"))
     result = await from_async.call_soon_in_new_thread(
         Call.new(step_func, **inputs)
