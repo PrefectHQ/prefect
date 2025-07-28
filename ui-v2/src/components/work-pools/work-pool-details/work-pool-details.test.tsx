@@ -22,6 +22,21 @@ vi.mock("@/components/work-pools/work-pool-status-badge", () => ({
 	),
 }));
 
+vi.mock("@/components/work-pools/poll-status", () => ({
+	PollStatus: ({ workPoolName }: { workPoolName: string }) => (
+		<div data-testid="poll-status">Poll Status for {workPoolName}</div>
+	),
+}));
+
+vi.mock("@/components/schemas/schema-display", () => ({
+	SchemaDisplay: ({
+		data,
+	}: {
+		schema: unknown;
+		data: Record<string, unknown>;
+	}) => <div data-testid="schema-display">{JSON.stringify(data)}</div>,
+}));
+
 const mockWorkPool: WorkPool = {
 	id: "test-id",
 	name: "test-work-pool",
@@ -73,7 +88,7 @@ describe("WorkPoolDetails", () => {
 		});
 
 		expect(screen.getByText("Basic Information")).toBeInTheDocument();
-		expect(screen.getByText("Status: READY")).toBeInTheDocument();
+		expect(screen.getByText("Status: ready")).toBeInTheDocument();
 		expect(screen.getByText("A test work pool")).toBeInTheDocument();
 		expect(screen.getByText("Docker")).toBeInTheDocument();
 		expect(screen.getByText("10")).toBeInTheDocument(); // concurrency limit
