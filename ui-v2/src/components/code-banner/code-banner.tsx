@@ -35,40 +35,39 @@ export const CodeBanner = ({
 	};
 
 	return (
-		<div
-			className={cn(
-				"bg-gray-100 border border-gray-300 rounded-lg shadow-sm overflow-hidden",
-				className,
-			)}
-		>
-			{/* macOS-style window header */}
-			<div className="bg-gray-200 border-b border-gray-300 px-3 py-2 flex items-center space-x-2">
-				<div className="flex space-x-1">
-					<div className="w-3 h-3 bg-red-500 rounded-full" />
-					<div className="w-3 h-3 bg-yellow-500 rounded-full" />
-					<div className="w-3 h-3 bg-green-500 rounded-full" />
-				</div>
-				<Button
-					variant="ghost"
-					size="sm"
-					// eslint-disable-next-line @typescript-eslint/no-misused-promises
-					onClick={handleCopy}
-					disabled={copying}
-					className="ml-auto text-gray-600 hover:text-gray-800 hover:bg-gray-300 h-6 w-6 p-0"
-				>
-					<Copy className="h-4 w-4" />
-				</Button>
+		<div className={cn("space-y-4", className)}>
+			{/* Title and subtitle above terminal */}
+			<div className="text-center">
+				<h3 className="text-lg font-semibold text-gray-900 mb-1">{title}</h3>
+				<p className="text-gray-600 text-sm">{subtitle}</p>
 			</div>
 
-			{/* Content area */}
-			<div className="p-4 text-center">
-				<h3 className="text-lg font-semibold text-gray-900 mb-1">{title}</h3>
-				<p className="text-gray-600 text-sm mb-4">{subtitle}</p>
+			{/* Terminal window */}
+			<div className="bg-gray-100 border border-gray-300 rounded-lg shadow-sm overflow-hidden">
+				{/* macOS-style window header */}
+				<div className="bg-gray-200 border-b border-gray-300 px-3 py-2 flex items-center space-x-2">
+					<div className="flex space-x-1">
+						<div className="w-3 h-3 bg-red-500 rounded-full" />
+						<div className="w-3 h-3 bg-yellow-500 rounded-full" />
+						<div className="w-3 h-3 bg-green-500 rounded-full" />
+					</div>
+					<Button
+						variant="ghost"
+						size="sm"
+						// eslint-disable-next-line @typescript-eslint/no-misused-promises
+						onClick={handleCopy}
+						disabled={copying}
+						className="ml-auto text-gray-600 hover:text-gray-800 hover:bg-gray-300 h-6 w-6 p-0"
+					>
+						<Copy className="h-4 w-4" />
+					</Button>
+				</div>
 
-				{/* Code section */}
-				<div className="bg-gray-800 rounded-md px-4 py-3">
+				{/* Terminal content */}
+				<div className="bg-gray-800 px-4 py-3">
 					<code className="font-mono text-sm text-gray-300 select-all">
 						{command}
+						<span className="animate-pulse text-gray-300">|</span>
 					</code>
 				</div>
 			</div>
