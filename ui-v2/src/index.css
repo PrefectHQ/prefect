@@ -165,7 +165,6 @@
 	}
 }
 
-/* Terminal cursor animation matching PTerminal.vue */
 @keyframes blink {
 	0% {
 		opacity: 0;

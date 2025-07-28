@@ -31,7 +31,7 @@ export type WorkPoolWorker = components["schemas"]["WorkerResponse"];
  * count		=>   ['work-pools', 'counts', { ...filter }]
  * details		=>   ['work-pools', 'details']
  * detail		=>   ['work-pools', 'details', workPoolName]
- * workers		=>   ['work-pools', 'workers']
+ * workersLists	=>   ['work-pools', 'workers']
  * workersList	=>   ['work-pools', 'workers', workPoolName]
  * ```
  */
@@ -45,9 +45,9 @@ export const queryKeyFactory = {
 		[...queryKeyFactory.counts(), filter] as const,
 	details: () => [...queryKeyFactory.all(), "details"] as const,
 	detail: (name: string) => [...queryKeyFactory.counts(), name] as const,
-	workers: () => [...queryKeyFactory.all(), "workers"] as const,
+	workersLists: () => [...queryKeyFactory.all(), "workers"] as const,
 	workersList: (workPoolName: string) =>
-		[...queryKeyFactory.workers(), workPoolName] as const,
+		[...queryKeyFactory.workersLists(), workPoolName] as const,
 };
 
 // ----------------------------
