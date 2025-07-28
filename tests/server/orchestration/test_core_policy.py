@@ -4392,8 +4392,8 @@ class TestFlowConcurrencyLimits:
         pending_transition = (states.StateType.SCHEDULED, states.StateType.PENDING)
 
         policy = [
-            StateMutatingRule,
             SecureFlowConcurrencySlots,
+            StateMutatingRule,
             ReleaseFlowConcurrencySlots,
         ]
 
@@ -4411,6 +4411,74 @@ class TestFlowConcurrencyLimits:
         # The fizzled rule should have caused cleanup to revert the concurrency slot
 
         await assert_deployment_concurrency_limit(session, deployment, 1, 0)
+
+    async def test_lease_cleanup_on_fizzle(
+        self,
+        session,
+        initialize_orchestration,
+        flow,
+    ):
+        class StateMutatingRule(BaseOrchestrationRule):
+            FROM_STATES = ALL_ORCHESTRATION_STATES
+            TO_STATES = ALL_ORCHESTRATION_STATES
+
+            async def before_transition(self, initial_state, proposed_state, context):
+                mutated_state = proposed_state.model_copy()
+                mutated_state.type = random.choice(
+                    list(
+                        set(states.StateType)
+                        - {
+                            states.StateType.PENDING,
+                            states.StateType.RUNNING,
+                            states.StateType.CANCELLING,
+                        }
+                    )
+                )
+                await self.reject_transition(
+                    mutated_state, reason="gotta fizzle some rules, for fun"
+                )
+
+            async def after_transition(self, initial_state, validated_state, context):
+                pass
+
+            async def cleanup(self, initial_state, validated_state, context):
+                pass
+
+        deployment = await self.create_deployment_with_concurrency_limit(
+            session, 1, flow
+        )
+        pending_transition = (states.StateType.SCHEDULED, states.StateType.PENDING)
+
+        policy = [
+            SecureFlowConcurrencySlots,
+            StateMutatingRule,
+            ReleaseFlowConcurrencySlots,
+        ]
+
+        ctx = await initialize_orchestration(
+            session,
+            "flow",
+            *pending_transition,
+            deployment_id=deployment.id,
+            client_version="3.4.11",
+        )
+
+        async with contextlib.AsyncExitStack() as stack:
+            for rule in policy:
+                ctx = await stack.enter_async_context(rule(ctx, *pending_transition))
+            await ctx.validate_proposed_state()
+
+        assert ctx.response_status == SetStateStatus.REJECT
+
+        # The fizzled rule should have caused cleanup to revert the concurrency slot
+
+        await assert_deployment_concurrency_limit(session, deployment, 1, 0)
+
+        # There should be no active leases
+
+        lease_storage = get_concurrency_lease_storage()
+        lease_ids = await lease_storage.read_active_lease_ids()
+        assert len(lease_ids) == 0
 
     async def test_clear_lease_id_on_for_old_client_versions(
         self,

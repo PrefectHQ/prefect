@@ -497,6 +497,16 @@ class SecureFlowConcurrencySlots(FlowRunOrchestrationRule):
                 concurrency_limit_ids=[deployment.concurrency_limit_id],
                 slots=1,
             )
+            if (
+                validated_state
+                and validated_state.state_details.deployment_concurrency_lease_id
+            ):
+                lease_storage = get_concurrency_lease_storage()
+                await lease_storage.revoke_lease(
+                    lease_id=validated_state.state_details.deployment_concurrency_lease_id,
+                )
+                validated_state.state_details.deployment_concurrency_lease_id = None
+
         except Exception as e:
             logger.error(f"Error releasing concurrency slots on cleanup: {e}")
 
