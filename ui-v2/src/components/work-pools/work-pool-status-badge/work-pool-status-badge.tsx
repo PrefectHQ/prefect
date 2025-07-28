@@ -1,18 +1,31 @@
 import { Badge } from "@/components/ui/badge";
 import { WorkPoolStatusIcon } from "@/components/work-pools/work-pool-status-icon";
 import { cn } from "@/lib/utils";
-import { getWorkPoolStatusInfo, type WorkPoolStatus } from "@/lib/work-pools";
+import type { WorkPoolStatus } from "../types";
+
+export type { WorkPoolStatus };
 
 interface WorkPoolStatusBadgeProps {
 	status: WorkPoolStatus;
 	className?: string;
 }
 
+const getStatusLabel = (status: WorkPoolStatus): string => {
+	switch (status) {
+		case "ready":
+			return "Ready";
+		case "paused":
+			return "Paused";
+		case "not_ready":
+			return "Not Ready";
+	}
+};
+
 export const WorkPoolStatusBadge = ({
 	status,
 	className,
 }: WorkPoolStatusBadgeProps) => {
-	const statusInfo = getWorkPoolStatusInfo(status);
+	const label = getStatusLabel(status);
 
 	return (
 		<Badge
@@ -24,7 +37,7 @@ export const WorkPoolStatusBadge = ({
 				showTooltip={false}
 				className="h-3 w-3"
 			/>
-			<span>{statusInfo.label}</span>
+			<span>{label}</span>
 		</Badge>
 	);
 };

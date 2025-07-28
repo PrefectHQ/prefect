@@ -12,28 +12,7 @@ export type WorkPoolsFilter =
 	components["schemas"]["Body_read_work_pools_work_pools_filter_post"];
 export type WorkPoolsCountFilter =
 	components["schemas"]["Body_count_work_pools_work_pools_count_post"];
-
-// Define WorkPoolWorker interface since it's not in the generated types yet
-export interface WorkPoolWorker {
-	id: string;
-	created: string;
-	updated: string;
-	name: string;
-	work_pool_id: string;
-	last_heartbeat_time: string | null;
-	status: "online" | "offline";
-}
-
-// API response interface
-interface ApiWorkerResponse {
-	id: string;
-	created: string | null;
-	updated: string | null;
-	name: string;
-	work_pool_id: string;
-	last_heartbeat_time?: string | null;
-	status: "ONLINE" | "OFFLINE";
-}
+export type WorkPoolWorker = components["schemas"]["WorkerResponse"];
 
 /**
  * Query key factory for work pools-related queries
@@ -307,19 +286,7 @@ export const buildListWorkPoolWorkersQuery = (workPoolName: string) =>
 			if (!res.data) {
 				throw new Error("'data' expected");
 			}
-			// Transform API response to match our interface
-			return res.data.map(
-				(worker: ApiWorkerResponse): WorkPoolWorker => ({
-					id: worker.id,
-					created: worker.created || new Date().toISOString(),
-					updated: worker.updated || new Date().toISOString(),
-					name: worker.name,
-					work_pool_id: worker.work_pool_id,
-					last_heartbeat_time: worker.last_heartbeat_time || null,
-					status:
-						worker.status?.toLowerCase() === "online" ? "online" : "offline",
-				}),
-			);
+			return res.data;
 		},
 		refetchInterval: 30000, // 30 seconds for real-time updates
 	});
