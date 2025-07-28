@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import * as workPoolsApi from "@/api/work-pools";
 
-import { WorkerMonitoring } from "./worker-monitoring";
+import { PollStatus } from "./poll-status";
 
 // Mock the API
 vi.mock("@/api/work-pools", () => ({
@@ -29,7 +29,7 @@ const createWrapper = () => {
 	);
 };
 
-describe("WorkerMonitoring", () => {
+describe("PollStatus", () => {
 	it("shows worker monitoring with last polled time when workers exist", async () => {
 		const mockWorkers = [
 			{
@@ -50,11 +50,11 @@ describe("WorkerMonitoring", () => {
 			refetchInterval: 30000,
 		});
 
-		render(<WorkerMonitoring workPoolName="test-pool" />, {
+		render(<PollStatus workPoolName="test-pool" />, {
 			wrapper: createWrapper(),
 		});
 
-		expect(screen.getByText("Worker Monitoring")).toBeInTheDocument();
+		expect(screen.getByText("Poll Status")).toBeInTheDocument();
 		expect(screen.getByText("Last Polled:")).toBeInTheDocument();
 		// Shows the most recent heartbeat
 		expect(screen.getByText("2024-01-15T10:30:00Z")).toBeInTheDocument();
@@ -67,12 +67,9 @@ describe("WorkerMonitoring", () => {
 			refetchInterval: 30000,
 		});
 
-		const { container } = render(
-			<WorkerMonitoring workPoolName="test-pool" />,
-			{
-				wrapper: createWrapper(),
-			},
-		);
+		const { container } = render(<PollStatus workPoolName="test-pool" />, {
+			wrapper: createWrapper(),
+		});
 
 		expect(container.firstChild).toBeNull();
 	});
@@ -92,11 +89,11 @@ describe("WorkerMonitoring", () => {
 			refetchInterval: 30000,
 		});
 
-		render(<WorkerMonitoring workPoolName="test-pool" />, {
+		render(<PollStatus workPoolName="test-pool" />, {
 			wrapper: createWrapper(),
 		});
 
-		expect(screen.getByText("Worker Monitoring")).toBeInTheDocument();
+		expect(screen.getByText("Poll Status")).toBeInTheDocument();
 		expect(screen.getByText("No recent worker activity")).toBeInTheDocument();
 	});
 
@@ -116,7 +113,7 @@ describe("WorkerMonitoring", () => {
 		});
 
 		const { container } = render(
-			<WorkerMonitoring workPoolName="test-pool" className="custom-class" />,
+			<PollStatus workPoolName="test-pool" className="custom-class" />,
 			{ wrapper: createWrapper() },
 		);
 

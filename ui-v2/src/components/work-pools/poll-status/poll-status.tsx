@@ -5,15 +5,12 @@ import { buildListWorkPoolWorkersQuery } from "@/api/work-pools";
 import { FormattedDate } from "@/components/ui/formatted-date";
 import { cn } from "@/lib/utils";
 
-export interface WorkerMonitoringProps {
+export interface PollStatusProps {
 	workPoolName: string;
 	className?: string;
 }
 
-export function WorkerMonitoring({
-	workPoolName,
-	className,
-}: WorkerMonitoringProps) {
+export function PollStatus({ workPoolName, className }: PollStatusProps) {
 	const { data: workers = [] } = useSuspenseQuery(
 		buildListWorkPoolWorkersQuery(workPoolName),
 	);
@@ -36,7 +33,7 @@ export function WorkerMonitoring({
 
 	return (
 		<div className={cn("space-y-2", className)}>
-			<h3 className="text-sm font-medium">Worker Monitoring</h3>
+			<h3 className="text-sm font-medium">Poll Status</h3>
 			<div className="text-sm text-muted-foreground">
 				{lastPolled ? (
 					<div className="flex items-center gap-2">

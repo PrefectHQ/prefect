@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 
 import { BasicInfoSection } from "./components/basic-info-section";
 import { JobTemplateSection } from "./components/job-template-section";
-import { WorkerMonitoringSection } from "./components/worker-monitoring-section";
+import { PollStatusSection } from "./components/poll-status-section";
 import type { WorkPoolDetailsProps } from "./types";
 
 export function WorkPoolDetails({
@@ -20,12 +20,10 @@ export function WorkPoolDetails({
 
 			<Suspense
 				fallback={
-					<div className="text-muted-foreground">
-						Loading worker monitoring...
-					</div>
+					<div className="text-muted-foreground">Loading poll status...</div>
 				}
 			>
-				<WorkerMonitoringSection workPoolName={workPool.name} />
+				<PollStatusSection workPoolName={workPool.name} />
 			</Suspense>
 
 			{workPool.base_job_template?.job_configuration && (
