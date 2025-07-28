@@ -1,15 +1,15 @@
 import type { Meta, StoryObj } from "@storybook/react";
 
-import { SchemaPropertyRenderer } from "./schema-property-renderer";
+import { SchemaDisplay } from "./schema-display";
 
 const meta = {
-	title: "UI/SchemaPropertyRenderer",
-	component: SchemaPropertyRenderer,
+	title: "Components/Schemas/SchemaDisplay",
+	component: SchemaDisplay,
 	parameters: {
 		layout: "centered",
 	},
 	tags: ["autodocs"],
-} satisfies Meta<typeof SchemaPropertyRenderer>;
+} satisfies Meta<typeof SchemaDisplay>;
 
 export default meta;
 type Story = StoryObj<typeof meta>;

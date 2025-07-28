@@ -1,9 +1,9 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
-import { SchemaPropertyRenderer } from "./schema-property-renderer";
+import { SchemaDisplay } from "./schema-display";
 
-describe("SchemaPropertyRenderer", () => {
+describe("SchemaDisplay", () => {
 	it("renders different property types correctly", () => {
 		const schema = {
 			properties: {
@@ -29,7 +29,7 @@ describe("SchemaPropertyRenderer", () => {
 			enabled: true,
 		};
 
-		render(<SchemaPropertyRenderer schema={schema} data={data} />);
+		render(<SchemaDisplay schema={schema} data={data} />);
 
 		expect(screen.getByText("Name")).toBeInTheDocument();
 		expect(screen.getByText("The name of the item")).toBeInTheDocument();
@@ -63,7 +63,7 @@ describe("SchemaPropertyRenderer", () => {
 			},
 		};
 
-		render(<SchemaPropertyRenderer schema={schema} data={data} />);
+		render(<SchemaDisplay schema={schema} data={data} />);
 
 		expect(screen.getByText("Configuration")).toBeInTheDocument();
 		expect(screen.getByText("{...} (2 properties)")).toBeInTheDocument();
@@ -87,7 +87,7 @@ describe("SchemaPropertyRenderer", () => {
 
 		const data = {};
 
-		render(<SchemaPropertyRenderer schema={schema} data={data} />);
+		render(<SchemaDisplay schema={schema} data={data} />);
 
 		expect(screen.getByText("Default Name")).toBeInTheDocument();
 		expect(screen.getByText("0")).toBeInTheDocument();
@@ -108,7 +108,7 @@ describe("SchemaPropertyRenderer", () => {
 			tags: ["tag1", "tag2", "tag3"],
 		};
 
-		render(<SchemaPropertyRenderer schema={schema} data={data} />);
+		render(<SchemaDisplay schema={schema} data={data} />);
 
 		expect(screen.getByText("Tags")).toBeInTheDocument();
 		expect(screen.getByText("[...] (3 items)")).toBeInTheDocument();
@@ -121,7 +121,7 @@ describe("SchemaPropertyRenderer", () => {
 
 		const data = {};
 
-		render(<SchemaPropertyRenderer schema={schema} data={data} />);
+		render(<SchemaDisplay schema={schema} data={data} />);
 
 		expect(screen.getByText("No properties to display")).toBeInTheDocument();
 	});
@@ -131,7 +131,7 @@ describe("SchemaPropertyRenderer", () => {
 
 		const data = {};
 
-		render(<SchemaPropertyRenderer schema={schema} data={data} />);
+		render(<SchemaDisplay schema={schema} data={data} />);
 
 		expect(screen.getByText("No properties defined")).toBeInTheDocument();
 	});
@@ -146,11 +146,7 @@ describe("SchemaPropertyRenderer", () => {
 		const data = { name: "Test" };
 
 		const { container } = render(
-			<SchemaPropertyRenderer
-				schema={schema}
-				data={data}
-				className="custom-class"
-			/>,
+			<SchemaDisplay schema={schema} data={data} className="custom-class" />,
 		);
 
 		expect(container.firstChild).toHaveClass("custom-class");

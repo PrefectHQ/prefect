@@ -7,7 +7,7 @@ import { ObjectProperty } from "./property-types/object-property";
 import { StringProperty } from "./property-types/string-property";
 import type { JSONSchema, PropertyType, SchemaProperty } from "./types";
 
-export interface SchemaPropertyRendererProps {
+export interface SchemaDisplayProps {
 	schema: JSONSchema;
 	data: Record<string, unknown>;
 	className?: string;
@@ -81,11 +81,7 @@ function PropertyRenderer({
 	}
 }
 
-export function SchemaPropertyRenderer({
-	schema,
-	data,
-	className,
-}: SchemaPropertyRendererProps) {
+export function SchemaDisplay({ schema, data, className }: SchemaDisplayProps) {
 	if (!schema.properties) {
 		return (
 			<div className={cn("text-sm text-muted-foreground", className)}>

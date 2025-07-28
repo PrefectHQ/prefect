@@ -1,8 +1,8 @@
 import { Suspense } from "react";
 
 import type { WorkPool } from "@/api/work-pools";
+import { SchemaDisplay } from "@/components/schemas/schema-display";
 import { FormattedDate } from "@/components/ui/formatted-date";
-import { SchemaPropertyRenderer } from "@/components/ui/schema-property-renderer";
 import { PollStatus } from "@/components/work-pools/poll-status";
 import { WorkPoolStatusBadge } from "@/components/work-pools/work-pool-status-badge";
 import { toTitleCase } from "@/lib/schema-utils";
@@ -116,7 +116,7 @@ function JobTemplateSection({ workPool }: { workPool: WorkPool }) {
 	return (
 		<div>
 			<h3 className="mb-4 text-lg font-semibold">Base Job Template</h3>
-			<SchemaPropertyRenderer schema={schema} data={data} />
+			<SchemaDisplay schema={schema} data={data} />
 		</div>
 	);
 }
