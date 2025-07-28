@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { HttpResponse, http } from "msw";
 
 import type { WorkPool } from "@/api/work-pools";
 
@@ -82,22 +83,30 @@ export const Default: Story = {
 	parameters: {
 		msw: {
 			handlers: [
-				{
-					method: "POST",
-					url: "/work_pools/production-docker-pool/workers/filter",
-					response: [
+				http.post("/work_pools/production-docker-pool/workers/filter", () => {
+					return HttpResponse.json([
 						{
 							id: "worker1",
 							name: "Worker 1",
+							created: "2024-01-20T15:00:00Z",
+							updated: "2024-01-20T16:00:00Z",
+							work_pool_id: "production-docker-pool",
 							last_heartbeat_time: "2024-01-20T16:00:00Z",
+							heartbeat_interval_seconds: 30,
+							status: "ONLINE",
 						},
 						{
 							id: "worker2",
 							name: "Worker 2",
+							created: "2024-01-20T15:00:00Z",
+							updated: "2024-01-20T15:55:00Z",
+							work_pool_id: "production-docker-pool",
 							last_heartbeat_time: "2024-01-20T15:55:00Z",
+							heartbeat_interval_seconds: 30,
+							status: "ONLINE",
 						},
-					],
-				},
+					]);
+				}),
 			],
 		},
 	},
@@ -110,11 +119,9 @@ export const WithoutWorkers: Story = {
 	parameters: {
 		msw: {
 			handlers: [
-				{
-					method: "POST",
-					url: "/work_pools/production-docker-pool/workers/filter",
-					response: [],
-				},
+				http.post("/work_pools/production-docker-pool/workers/filter", () => {
+					return HttpResponse.json([]);
+				}),
 			],
 		},
 	},
@@ -130,11 +137,9 @@ export const WithoutJobTemplate: Story = {
 	parameters: {
 		msw: {
 			handlers: [
-				{
-					method: "POST",
-					url: "/work_pools/production-docker-pool/workers/filter",
-					response: [],
-				},
+				http.post("/work_pools/production-docker-pool/workers/filter", () => {
+					return HttpResponse.json([]);
+				}),
 			],
 		},
 	},
@@ -151,11 +156,9 @@ export const PausedWorkPool: Story = {
 	parameters: {
 		msw: {
 			handlers: [
-				{
-					method: "POST",
-					url: "/work_pools/production-docker-pool/workers/filter",
-					response: [],
-				},
+				http.post("/work_pools/production-docker-pool/workers/filter", () => {
+					return HttpResponse.json([]);
+				}),
 			],
 		},
 	},
@@ -173,11 +176,9 @@ export const NotReadyWorkPool: Story = {
 	parameters: {
 		msw: {
 			handlers: [
-				{
-					method: "POST",
-					url: "/work_pools/production-docker-pool/workers/filter",
-					response: [],
-				},
+				http.post("/work_pools/production-docker-pool/workers/filter", () => {
+					return HttpResponse.json([]);
+				}),
 			],
 		},
 	},
@@ -191,17 +192,20 @@ export const AlternateLayout: Story = {
 	parameters: {
 		msw: {
 			handlers: [
-				{
-					method: "POST",
-					url: "/work_pools/production-docker-pool/workers/filter",
-					response: [
+				http.post("/work_pools/production-docker-pool/workers/filter", () => {
+					return HttpResponse.json([
 						{
 							id: "worker1",
 							name: "Worker 1",
+							created: "2024-01-20T15:00:00Z",
+							updated: "2024-01-20T16:00:00Z",
+							work_pool_id: "production-docker-pool",
 							last_heartbeat_time: "2024-01-20T16:00:00Z",
+							heartbeat_interval_seconds: 30,
+							status: "ONLINE",
 						},
-					],
-				},
+					]);
+				}),
 			],
 		},
 	},
@@ -220,11 +224,9 @@ export const MinimalWorkPool: Story = {
 	parameters: {
 		msw: {
 			handlers: [
-				{
-					method: "POST",
-					url: "/work_pools/minimal-pool/workers/filter",
-					response: [],
-				},
+				http.post("/work_pools/minimal-pool/workers/filter", () => {
+					return HttpResponse.json([]);
+				}),
 			],
 		},
 	},

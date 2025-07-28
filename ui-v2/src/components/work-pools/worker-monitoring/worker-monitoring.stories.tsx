@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { HttpResponse, http } from "msw";
 
 import { WorkerMonitoring } from "./worker-monitoring";
 
@@ -31,23 +32,30 @@ export const WithWorkers: Story = {
 	parameters: {
 		msw: {
 			handlers: [
-				// Mock workers API with active workers
-				{
-					method: "POST",
-					url: "/work_pools/my-work-pool/workers/filter",
-					response: [
+				http.post("/work_pools/my-work-pool/workers/filter", () => {
+					return HttpResponse.json([
 						{
 							id: "worker1",
 							name: "Worker 1",
+							created: "2024-01-15T10:00:00Z",
+							updated: "2024-01-15T10:30:00Z",
+							work_pool_id: "my-work-pool",
 							last_heartbeat_time: "2024-01-15T10:30:00Z",
+							heartbeat_interval_seconds: 30,
+							status: "ONLINE",
 						},
 						{
 							id: "worker2",
 							name: "Worker 2",
+							created: "2024-01-15T10:00:00Z",
+							updated: "2024-01-15T10:25:00Z",
+							work_pool_id: "my-work-pool",
 							last_heartbeat_time: "2024-01-15T10:25:00Z",
+							heartbeat_interval_seconds: 30,
+							status: "ONLINE",
 						},
-					],
-				},
+					]);
+				}),
 			],
 		},
 	},
@@ -60,12 +68,9 @@ export const WithoutWorkers: Story = {
 	parameters: {
 		msw: {
 			handlers: [
-				// Mock workers API with no workers
-				{
-					method: "POST",
-					url: "/work_pools/empty-work-pool/workers/filter",
-					response: [],
-				},
+				http.post("/work_pools/empty-work-pool/workers/filter", () => {
+					return HttpResponse.json([]);
+				}),
 			],
 		},
 	},
@@ -78,18 +83,20 @@ export const NoRecentActivity: Story = {
 	parameters: {
 		msw: {
 			handlers: [
-				// Mock workers API with workers but no heartbeat times
-				{
-					method: "POST",
-					url: "/work_pools/inactive-work-pool/workers/filter",
-					response: [
+				http.post("/work_pools/inactive-work-pool/workers/filter", () => {
+					return HttpResponse.json([
 						{
 							id: "worker1",
 							name: "Worker 1",
+							created: "2024-01-15T10:00:00Z",
+							updated: "2024-01-15T10:25:00Z",
+							work_pool_id: "inactive-work-pool",
 							last_heartbeat_time: null,
+							heartbeat_interval_seconds: 30,
+							status: "OFFLINE",
 						},
-					],
-				},
+					]);
+				}),
 			],
 		},
 	},
