@@ -15,7 +15,7 @@ export const createFakeWorkPoolWorker = (
 	last_heartbeat_time: new Date(
 		Date.now() - Math.random() * 24 * 60 * 60 * 1000,
 	).toISOString(),
-	status: Math.random() > 0.5 ? "online" : "offline",
+	status: Math.random() > 0.5 ? "ONLINE" : "OFFLINE",
 	...overrides,
 });
 
