@@ -12,6 +12,7 @@ export type WorkPoolsFilter =
 	components["schemas"]["Body_read_work_pools_work_pools_filter_post"];
 export type WorkPoolsCountFilter =
 	components["schemas"]["Body_count_work_pools_work_pools_count_post"];
+export type WorkPoolWorker = components["schemas"]["WorkerResponse"];
 
 /**
  * Query key factory for work pools-related queries
@@ -23,13 +24,15 @@ export type WorkPoolsCountFilter =
  * @property {function} count - Generates key for specific filtered count queries
  *
  * ```
- * all		=>   ['work-pools']
- * lists	=>   ['work-pools', 'list']
- * list		=>   ['work-pools', 'list', { ...filter }]
- * counts	=>   ['work-pools', 'counts']
- * count	=>   ['work-pools', 'counts', { ...filter }]
- * details	=>   ['work-pools', 'details']
- * detail	=>   ['work-pools', 'details', workPoolName]
+ * all			=>   ['work-pools']
+ * lists		=>   ['work-pools', 'list']
+ * list			=>   ['work-pools', 'list', { ...filter }]
+ * counts		=>   ['work-pools', 'counts']
+ * count		=>   ['work-pools', 'counts', { ...filter }]
+ * details		=>   ['work-pools', 'details']
+ * detail		=>   ['work-pools', 'details', workPoolName]
+ * workersLists	=>   ['work-pools', 'workers']
+ * workersList	=>   ['work-pools', 'workers', workPoolName]
  * ```
  */
 export const queryKeyFactory = {
@@ -42,6 +45,9 @@ export const queryKeyFactory = {
 		[...queryKeyFactory.counts(), filter] as const,
 	details: () => [...queryKeyFactory.all(), "details"] as const,
 	detail: (name: string) => [...queryKeyFactory.counts(), name] as const,
+	workersLists: () => [...queryKeyFactory.all(), "workers"] as const,
+	workersList: (workPoolName: string) =>
+		[...queryKeyFactory.workersLists(), workPoolName] as const,
 };
 
 // ----------------------------
@@ -252,3 +258,35 @@ export const useCreateWorkPool = () => {
 
 	return { createWorkPool, ...rest };
 };
+
+/**
+ * Builds a query configuration for fetching work pool workers
+ *
+ * @param workPoolName - Name of the work pool to fetch workers for
+ * @returns Query configuration object for use with TanStack Query
+ *
+ * @example
+ * ```ts
+ * const query = useQuery(buildListWorkPoolWorkersQuery('my-work-pool'));
+ * ```
+ */
+export const buildListWorkPoolWorkersQuery = (workPoolName: string) =>
+	queryOptions({
+		queryKey: queryKeyFactory.workersList(workPoolName),
+		queryFn: async (): Promise<WorkPoolWorker[]> => {
+			const res = await getQueryService().POST(
+				"/work_pools/{work_pool_name}/workers/filter",
+				{
+					params: { path: { work_pool_name: workPoolName } },
+					body: {
+						offset: 0,
+					},
+				},
+			);
+			if (!res.data) {
+				throw new Error("'data' expected");
+			}
+			return res.data;
+		},
+		refetchInterval: 30000, // 30 seconds for real-time updates
+	});

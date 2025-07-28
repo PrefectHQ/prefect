@@ -25,4 +25,8 @@ export { createFakeTaskRunConcurrencyLimit } from "./create-fake-take-run-concur
 export { createFakeTaskRun } from "./create-fake-task-run";
 export { createFakeVersion } from "./create-fake-version";
 export { createFakeWorkPool } from "./create-fake-work-pool";
+export {
+	createFakeWorkPoolWorker,
+	createFakeWorkPoolWorkers,
+} from "./create-fake-work-pool-worker";
 export { createFakeWorkQueue } from "./create-fake-work-queue";

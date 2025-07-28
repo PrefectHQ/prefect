@@ -1,6 +1,7 @@
 export {
 	buildCountWorkPoolsQuery,
 	buildFilterWorkPoolsQuery,
+	buildListWorkPoolWorkersQuery,
 	buildWorkPoolDetailsQuery,
 	useCreateWorkPool,
 	useDeleteWorkPool,
@@ -10,4 +11,5 @@ export {
 	type WorkPoolCreate,
 	type WorkPoolsCountFilter,
 	type WorkPoolsFilter,
+	type WorkPoolWorker,
 } from "./work-pools";
