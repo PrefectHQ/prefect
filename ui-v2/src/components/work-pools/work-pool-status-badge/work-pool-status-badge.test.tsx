@@ -9,7 +9,7 @@ describe("WorkPoolStatusBadge", () => {
 
 		expect(screen.getByText("Ready")).toBeInTheDocument();
 		// Badge should have default variant (primary) classes
-		const badge = screen.getByText("Ready").closest("span");
+		const badge = document.querySelector("[data-slot='badge']");
 		expect(badge).toHaveClass("bg-primary", "text-primary-foreground");
 	});
 
@@ -18,7 +18,7 @@ describe("WorkPoolStatusBadge", () => {
 
 		expect(screen.getByText("Paused")).toBeInTheDocument();
 		// Badge should have secondary variant classes
-		const badge = screen.getByText("Paused").closest("span");
+		const badge = document.querySelector("[data-slot='badge']");
 		expect(badge).toHaveClass("bg-secondary", "text-secondary-foreground");
 	});
 
@@ -27,7 +27,7 @@ describe("WorkPoolStatusBadge", () => {
 
 		expect(screen.getByText("Not Ready")).toBeInTheDocument();
 		// Badge should have destructive variant classes
-		const badge = screen.getByText("Not Ready").closest("span");
+		const badge = document.querySelector("[data-slot='badge']");
 		expect(badge).toHaveClass("bg-destructive", "text-white");
 	});
 
@@ -43,7 +43,7 @@ describe("WorkPoolStatusBadge", () => {
 	it("applies custom className", () => {
 		render(<WorkPoolStatusBadge status="ready" className="custom-class" />);
 
-		const badge = screen.getByText("Ready").closest("span");
+		const badge = document.querySelector("[data-slot='badge']");
 		expect(badge).toHaveClass("custom-class");
 	});
 
