@@ -105,6 +105,16 @@ class CloudRunWorkerJobV2Configuration(BaseJobConfiguration):
         title="Environment Variables from Secrets",
         description="Environment variables to set from GCP secrets when starting a flow run.",
     )
+    prefect_api_key_secret: Optional[SecretKeySelector] = Field(
+        default=None,
+        title="Prefect API Key Secret",
+        description="The GCP secret to use for the Prefect API key. When provided, the secret will be used instead of the PREFECT_API_KEY environment variable.",
+    )
+    prefect_api_auth_string_secret: Optional[SecretKeySelector] = Field(
+        default=None,
+        title="Prefect API Auth String Secret",
+        description="The GCP secret to use for the Prefect API auth string. When provided, the secret will be used instead of the PREFECT_API_AUTH_STRING environment variable.",
+    )
     cloudsql_instances: Optional[List[str]] = Field(
         default_factory=list,
         title="Cloud SQL Instances",
@@ -215,6 +225,28 @@ class CloudRunWorkerJobV2Configuration(BaseJobConfiguration):
             for k, v in self.env_from_secrets.items()
         ]
         envs.extend(envs_from_secrets)
+
+        # Add Prefect API key from secret if configured
+        if self.prefect_api_key_secret:
+            envs.append(
+                {
+                    "name": "PREFECT_API_KEY",
+                    "valueSource": {
+                        "secretKeyRef": self.prefect_api_key_secret.model_dump()
+                    },
+                }
+            )
+
+        # Add Prefect API auth string from secret if configured
+        if self.prefect_api_auth_string_secret:
+            envs.append(
+                {
+                    "name": "PREFECT_API_AUTH_STRING",
+                    "valueSource": {
+                        "secretKeyRef": self.prefect_api_auth_string_secret.model_dump()
+                    },
+                }
+            )
 
         self.job_body["template"]["template"]["containers"][0]["env"].extend(envs)
 
@@ -385,6 +417,28 @@ class CloudRunWorkerV2Variables(BaseVariables):
                     "secret": "SECRET_NAME",
                     "version": "latest",
                 }
+            }
+        ],
+    )
+    prefect_api_key_secret: Optional[SecretKeySelector] = Field(
+        default=None,
+        title="Prefect API Key Secret",
+        description="The GCP secret to use for the Prefect API key. When provided, the secret will be used instead of the PREFECT_API_KEY environment variable.",
+        examples=[
+            {
+                "secret": "prefect-api-key",
+                "version": "latest",
+            }
+        ],
+    )
+    prefect_api_auth_string_secret: Optional[SecretKeySelector] = Field(
+        default=None,
+        title="Prefect API Auth String Secret",
+        description="The GCP secret to use for the Prefect API auth string. When provided, the secret will be used instead of the PREFECT_API_AUTH_STRING environment variable.",
+        examples=[
+            {
+                "secret": "prefect-api-auth-string",
+                "version": "latest",
             }
         ],
     )
