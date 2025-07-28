@@ -1,3 +1,4 @@
+import logging
 import re
 import shlex
 import time
@@ -14,7 +15,7 @@ from googleapiclient.errors import HttpError
 from jsonpatch import JsonPatch
 from pydantic import Field, PrivateAttr, field_validator
 
-from prefect.logging.loggers import PrefectLogAdapter
+from prefect.logging.loggers import PrefectLogAdapter, flow_run_logger
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.dockerutils import get_prefect_image_name
 from prefect.workers.base import (
@@ -30,6 +31,8 @@ from prefect_gcp.utilities import slugify_name
 if TYPE_CHECKING:
     from prefect.client.schemas.objects import Flow, FlowRun, WorkPool
     from prefect.client.schemas.responses import DeploymentResponse
+
+logger = logging.getLogger(__name__)
 
 
 def _get_default_job_body_template() -> Dict[str, Any]:
@@ -168,6 +171,23 @@ class CloudRunWorkerJobV2Configuration(BaseJobConfiguration):
 
         return self._job_name
 
+    def _get_flow_run_logger(
+        self,
+        flow_run: "FlowRun",
+        work_pool: "WorkPool | None" = None,
+        worker_name: str | None = None,
+    ) -> PrefectLogAdapter:
+        extra = {
+            "work_pool_name": (work_pool.name if work_pool else "<unknown>"),
+            "worker_name": worker_name if worker_name else "<unknown>",
+            "work_pool_id": str(work_pool.id if work_pool else "unknown"),
+        }
+
+        return flow_run_logger(flow_run=flow_run).getChild(
+            "worker",
+            extra=extra,
+        )
+
     def prepare_for_flow_run(
         self,
         flow_run: "FlowRun",
@@ -199,6 +219,11 @@ class CloudRunWorkerJobV2Configuration(BaseJobConfiguration):
         )
 
         self._populate_env()
+        self._warn_about_plaintext_credentials(
+            flow_run=flow_run,
+            worker_name=worker_name,
+            work_pool=work_pool,
+        )
         self._configure_cloudsql_volumes()
         self._populate_or_format_command()
         self._format_args_if_present()
@@ -211,6 +236,45 @@ class CloudRunWorkerJobV2Configuration(BaseJobConfiguration):
         Populates the job body with the timeout.
         """
         self.job_body["template"]["template"]["timeout"] = f"{self.timeout}s"
+
+    def _warn_about_plaintext_credentials(
+        self,
+        flow_run: "FlowRun",
+        worker_name: str | None = None,
+        work_pool: "WorkPool | None" = None,
+    ):
+        """
+        Warns about plaintext credentials when no secrets are configured.
+        """
+        if (
+            "PREFECT_API_KEY" in self.env
+            and not self.prefect_api_key_secret
+            and "PREFECT_API_KEY" not in self.env_from_secrets
+        ):
+            self._get_flow_run_logger(
+                flow_run=flow_run,
+                worker_name=worker_name,
+                work_pool=work_pool,
+            ).warning(
+                "PREFECT_API_KEY is provided as a plaintext environment variable. "
+                "For better security, consider providing it as a secret using "
+                "'prefect_api_key_secret' or 'env_from_secrets' in your base job template."
+            )
+
+        if (
+            "PREFECT_API_AUTH_STRING" in self.env
+            and not self.prefect_api_auth_string_secret
+            and "PREFECT_API_AUTH_STRING" not in self.env_from_secrets
+        ):
+            self._get_flow_run_logger(
+                flow_run=flow_run,
+                worker_name=worker_name,
+                work_pool=work_pool,
+            ).warning(
+                "PREFECT_API_AUTH_STRING is provided as a plaintext environment variable. "
+                "For better security, consider providing it as a secret using "
+                "'prefect_api_auth_string_secret' or 'env_from_secrets' in your base job template."
+            )
 
     def _populate_env(self):
         """
