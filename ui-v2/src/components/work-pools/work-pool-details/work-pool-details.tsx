@@ -1,10 +1,9 @@
 import { Suspense } from "react";
-
+import { PollStatus } from "@/components/work-pools/poll-status";
 import { cn } from "@/lib/utils";
 
 import { BasicInfoSection } from "./components/basic-info-section";
 import { JobTemplateSection } from "./components/job-template-section";
-import { PollStatusSection } from "./components/poll-status-section";
 import type { WorkPoolDetailsProps } from "./types";
 
 export function WorkPoolDetails({
@@ -23,7 +22,7 @@ export function WorkPoolDetails({
 					<div className="text-muted-foreground">Loading poll status...</div>
 				}
 			>
-				<PollStatusSection workPoolName={workPool.name} />
+				<PollStatus workPoolName={workPool.name} />
 			</Suspense>
 
 			{workPool.base_job_template?.job_configuration && (
