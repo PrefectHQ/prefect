@@ -172,3 +172,188 @@ class TestCloudRunWorkerJobV2ConfigurationFiltering:
         # Other env vars should still be present
         assert {"name": "ENV1", "value": "VALUE1"} in env_vars
         assert {"name": "ENV2", "value": "VALUE2"} in env_vars
+
+    def test_populate_env_filters_api_key_when_configured_via_env_from_secrets(
+        self, cloud_run_worker_v2_job_config
+    ):
+        # Add plaintext API key to env
+        cloud_run_worker_v2_job_config.env["PREFECT_API_KEY"] = "plaintext-api-key"
+        # Configure API key via env_from_secrets instead of dedicated field
+        cloud_run_worker_v2_job_config.env_from_secrets = {
+            "PREFECT_API_KEY": SecretKeySelector(
+                secret="prefect-api-key", version="latest"
+            )
+        }
+        cloud_run_worker_v2_job_config._populate_env()
+
+        env_vars = cloud_run_worker_v2_job_config.job_body["template"]["template"][
+            "containers"
+        ][0]["env"]
+
+        # Should not contain plaintext version
+        assert {"name": "PREFECT_API_KEY", "value": "plaintext-api-key"} not in env_vars
+        # Should contain secret version from env_from_secrets
+        assert {
+            "name": "PREFECT_API_KEY",
+            "valueSource": {
+                "secretKeyRef": {"secret": "prefect-api-key", "version": "latest"}
+            },
+        } in env_vars
+        # Other env vars should still be present
+        assert {"name": "ENV1", "value": "VALUE1"} in env_vars
+        assert {"name": "ENV2", "value": "VALUE2"} in env_vars
+
+    def test_populate_env_filters_auth_string_when_configured_via_env_from_secrets(
+        self, cloud_run_worker_v2_job_config
+    ):
+        # Add plaintext auth string to env
+        cloud_run_worker_v2_job_config.env["PREFECT_API_AUTH_STRING"] = (
+            "plaintext-auth-string"
+        )
+        # Configure auth string via env_from_secrets instead of dedicated field
+        cloud_run_worker_v2_job_config.env_from_secrets = {
+            "PREFECT_API_AUTH_STRING": SecretKeySelector(
+                secret="prefect-auth-string", version="latest"
+            )
+        }
+        cloud_run_worker_v2_job_config._populate_env()
+
+        env_vars = cloud_run_worker_v2_job_config.job_body["template"]["template"][
+            "containers"
+        ][0]["env"]
+
+        # Should not contain plaintext version
+        assert {
+            "name": "PREFECT_API_AUTH_STRING",
+            "value": "plaintext-auth-string",
+        } not in env_vars
+        # Should contain secret version from env_from_secrets
+        assert {
+            "name": "PREFECT_API_AUTH_STRING",
+            "valueSource": {
+                "secretKeyRef": {"secret": "prefect-auth-string", "version": "latest"}
+            },
+        } in env_vars
+        # Other env vars should still be present
+        assert {"name": "ENV1", "value": "VALUE1"} in env_vars
+        assert {"name": "ENV2", "value": "VALUE2"} in env_vars
+
+    def test_populate_env_filters_both_when_configured_via_env_from_secrets(
+        self, cloud_run_worker_v2_job_config
+    ):
+        # Add plaintext versions to env
+        cloud_run_worker_v2_job_config.env["PREFECT_API_KEY"] = "plaintext-api-key"
+        cloud_run_worker_v2_job_config.env["PREFECT_API_AUTH_STRING"] = (
+            "plaintext-auth-string"
+        )
+        # Configure both via env_from_secrets
+        cloud_run_worker_v2_job_config.env_from_secrets = {
+            "PREFECT_API_KEY": SecretKeySelector(
+                secret="prefect-api-key", version="latest"
+            ),
+            "PREFECT_API_AUTH_STRING": SecretKeySelector(
+                secret="prefect-auth-string", version="latest"
+            ),
+        }
+        cloud_run_worker_v2_job_config._populate_env()
+
+        env_vars = cloud_run_worker_v2_job_config.job_body["template"]["template"][
+            "containers"
+        ][0]["env"]
+
+        # Should not contain plaintext versions
+        assert {"name": "PREFECT_API_KEY", "value": "plaintext-api-key"} not in env_vars
+        assert {
+            "name": "PREFECT_API_AUTH_STRING",
+            "value": "plaintext-auth-string",
+        } not in env_vars
+        # Should contain secret versions from env_from_secrets
+        assert {
+            "name": "PREFECT_API_KEY",
+            "valueSource": {
+                "secretKeyRef": {"secret": "prefect-api-key", "version": "latest"}
+            },
+        } in env_vars
+        assert {
+            "name": "PREFECT_API_AUTH_STRING",
+            "valueSource": {
+                "secretKeyRef": {"secret": "prefect-auth-string", "version": "latest"}
+            },
+        } in env_vars
+        # Other env vars should still be present
+        assert {"name": "ENV1", "value": "VALUE1"} in env_vars
+        assert {"name": "ENV2", "value": "VALUE2"} in env_vars
+
+    def test_populate_env_prioritizes_dedicated_secret_fields_over_env_from_secrets(
+        self, cloud_run_worker_v2_job_config
+    ):
+        # Add plaintext versions to env
+        cloud_run_worker_v2_job_config.env["PREFECT_API_KEY"] = "plaintext-api-key"
+        cloud_run_worker_v2_job_config.env["PREFECT_API_AUTH_STRING"] = (
+            "plaintext-auth-string"
+        )
+        # Configure via both dedicated fields and env_from_secrets
+        cloud_run_worker_v2_job_config.prefect_api_key_secret = SecretKeySelector(
+            secret="dedicated-api-key", version="latest"
+        )
+        cloud_run_worker_v2_job_config.prefect_api_auth_string_secret = (
+            SecretKeySelector(secret="dedicated-auth-string", version="latest")
+        )
+        cloud_run_worker_v2_job_config.env_from_secrets = {
+            "PREFECT_API_KEY": SecretKeySelector(
+                secret="env-from-secrets-api-key", version="latest"
+            ),
+            "PREFECT_API_AUTH_STRING": SecretKeySelector(
+                secret="env-from-secrets-auth-string", version="latest"
+            ),
+        }
+        cloud_run_worker_v2_job_config._populate_env()
+
+        env_vars = cloud_run_worker_v2_job_config.job_body["template"]["template"][
+            "containers"
+        ][0]["env"]
+
+        # Should not contain plaintext versions
+        assert {"name": "PREFECT_API_KEY", "value": "plaintext-api-key"} not in env_vars
+        assert {
+            "name": "PREFECT_API_AUTH_STRING",
+            "value": "plaintext-auth-string",
+        } not in env_vars
+
+        # Should contain dedicated field secrets (should be added after env_from_secrets)
+        assert {
+            "name": "PREFECT_API_KEY",
+            "valueSource": {
+                "secretKeyRef": {"secret": "dedicated-api-key", "version": "latest"}
+            },
+        } in env_vars
+        assert {
+            "name": "PREFECT_API_AUTH_STRING",
+            "valueSource": {
+                "secretKeyRef": {"secret": "dedicated-auth-string", "version": "latest"}
+            },
+        } in env_vars
+
+        # Should also contain env_from_secrets versions
+        assert {
+            "name": "PREFECT_API_KEY",
+            "valueSource": {
+                "secretKeyRef": {
+                    "secret": "env-from-secrets-api-key",
+                    "version": "latest",
+                }
+            },
+        } in env_vars
+        assert {
+            "name": "PREFECT_API_AUTH_STRING",
+            "valueSource": {
+                "secretKeyRef": {
+                    "secret": "env-from-secrets-auth-string",
+                    "version": "latest",
+                }
+            },
+        } in env_vars
+
+        # Other env vars should still be present
+        assert {"name": "ENV1", "value": "VALUE1"} in env_vars
+        assert {"name": "ENV2", "value": "VALUE2"} in env_vars

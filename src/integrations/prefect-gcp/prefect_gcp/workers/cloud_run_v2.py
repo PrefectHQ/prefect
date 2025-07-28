@@ -219,9 +219,15 @@ class CloudRunWorkerJobV2Configuration(BaseJobConfiguration):
         # Filter out plaintext Prefect API key/auth string if secrets are configured
         filtered_env = {}
         for k, v in self.env.items():
-            if k == "PREFECT_API_KEY" and self.prefect_api_key_secret:
+            if k == "PREFECT_API_KEY" and (
+                self.prefect_api_key_secret
+                or "PREFECT_API_KEY" in self.env_from_secrets
+            ):
                 continue  # Skip plaintext API key if secret is configured
-            if k == "PREFECT_API_AUTH_STRING" and self.prefect_api_auth_string_secret:
+            if k == "PREFECT_API_AUTH_STRING" and (
+                self.prefect_api_auth_string_secret
+                or "PREFECT_API_AUTH_STRING" in self.env_from_secrets
+            ):
                 continue  # Skip plaintext auth string if secret is configured
             filtered_env[k] = v
 
