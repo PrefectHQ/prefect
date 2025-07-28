@@ -71,7 +71,7 @@ describe("WorkPoolDetails", () => {
 		});
 
 		expect(screen.getByText("Basic Information")).toBeInTheDocument();
-		expect(screen.getByText("Status: ready")).toBeInTheDocument();
+		expect(screen.getByText("Status: READY")).toBeInTheDocument();
 		expect(screen.getByText("A test work pool")).toBeInTheDocument();
 		expect(screen.getByText("Docker")).toBeInTheDocument();
 		expect(screen.getByText("10")).toBeInTheDocument(); // concurrency limit
