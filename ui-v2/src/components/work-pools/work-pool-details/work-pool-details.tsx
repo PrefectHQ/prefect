@@ -1,7 +1,10 @@
 import { Suspense } from "react";
 
 import type { WorkPool } from "@/api/work-pools";
-import { SchemaDisplay } from "@/components/schemas/schema-display";
+import {
+	SchemaDisplay,
+	type SchemaProperty,
+} from "@/components/schemas/schema-display";
 import { FormattedDate } from "@/components/ui/formatted-date";
 import { PollStatus } from "@/components/work-pools/poll-status";
 import { WorkPoolStatusBadge } from "@/components/work-pools/work-pool-status-badge";
@@ -26,7 +29,14 @@ function BasicInfoSection({ workPool }: { workPool: WorkPool }) {
 			field: "Status",
 			ComponentValue: () => (
 				<dd>
-					<WorkPoolStatusBadge status={workPool.status || "NOT_READY"} />
+					<WorkPoolStatusBadge
+						status={
+							(workPool.status?.toLowerCase() as
+								| "ready"
+								| "paused"
+								| "not_ready") || "not_ready"
+						}
+					/>
 				</dd>
 			),
 		},
@@ -108,7 +118,9 @@ function JobTemplateSection({ workPool }: { workPool: WorkPool }) {
 
 	// Convert job template to schema format
 	const schema = {
-		properties: baseJobTemplate.variables || {},
+		properties:
+			(baseJobTemplate.variables as Record<string, SchemaProperty>) ||
+			({} as Record<string, SchemaProperty>),
 	};
 
 	const data = baseJobTemplate.job_configuration as Record<string, unknown>;
@@ -140,7 +152,7 @@ export function WorkPoolDetails({
 				<PollStatus workPoolName={workPool.name} />
 			</Suspense>
 
-			{workPool.base_job_template?.job_configuration && (
+			{Boolean(workPool.base_job_template?.job_configuration) && (
 				<JobTemplateSection workPool={workPool} />
 			)}
 		</div>
