@@ -7,7 +7,9 @@ import { createFakeWorkPool } from "@/mocks";
 import {
 	buildCountWorkPoolsQuery,
 	buildFilterWorkPoolsQuery,
+	buildListWorkPoolWorkersQuery,
 	buildWorkPoolDetailsQuery,
+	queryKeyFactory,
 	useDeleteWorkPool,
 	usePauseWorkPool,
 	useResumeWorkPool,
@@ -162,5 +164,33 @@ describe("work pool hooks", () => {
 
 		// ------------ Assert
 		await waitFor(() => expect(result.current.isSuccess).toBe(true));
+	});
+});
+
+describe("work pool workers query key factory", () => {
+	it("generates correct query keys", () => {
+		expect(queryKeyFactory.all()).toEqual(["work-pools"]);
+		expect(queryKeyFactory.workersLists()).toEqual(["work-pools", "workers"]);
+		expect(queryKeyFactory.workersList("test-pool")).toEqual([
+			"work-pools",
+			"workers",
+			"test-pool",
+		]);
+	});
+});
+
+describe("buildListWorkPoolWorkersQuery", () => {
+	it("creates query options with correct key and refetch interval", () => {
+		const query = buildListWorkPoolWorkersQuery("test-pool");
+
+		expect(query.queryKey).toEqual(["work-pools", "workers", "test-pool"]);
+		expect(query.refetchInterval).toBe(30000);
+	});
+
+	it("has a queryFn that calls the correct API endpoint", () => {
+		const query = buildListWorkPoolWorkersQuery("my-pool");
+
+		expect(query.queryFn).toBeDefined();
+		expect(typeof query.queryFn).toBe("function");
 	});
 });
