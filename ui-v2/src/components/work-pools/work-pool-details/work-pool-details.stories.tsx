@@ -218,6 +218,8 @@ export const MinimalWorkPool: Story = {
 			name: "minimal-pool",
 			type: "process",
 			status: "READY",
+			created: "2024-01-15T10:00:00Z",
+			updated: "2024-01-15T10:00:00Z",
 			is_paused: false,
 		},
 	},
