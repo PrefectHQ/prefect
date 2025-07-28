@@ -1,9 +1,11 @@
-from unittest.mock import patch
+import uuid
 
 import pytest
 from prefect_gcp.credentials import GcpCredentials
 from prefect_gcp.models.cloud_run_v2 import SecretKeySelector
 from prefect_gcp.workers.cloud_run_v2 import CloudRunWorkerJobV2Configuration
+
+from prefect.client.schemas.objects import FlowRun
 
 
 @pytest.fixture
@@ -34,6 +36,11 @@ def job_body():
             }
         },
     }
+
+
+@pytest.fixture
+def flow_run():
+    return FlowRun(flow_id=uuid.uuid4(), name="my-flow-run-name")
 
 
 @pytest.fixture
@@ -362,54 +369,44 @@ class TestCloudRunWorkerJobV2ConfigurationFiltering:
 
 
 class TestCloudRunWorkerJobV2ConfigurationWarnings:
-    def test_warn_about_plaintext_api_key(self, cloud_run_worker_v2_job_config):
+    def test_warn_about_plaintext_api_key(
+        self, cloud_run_worker_v2_job_config, flow_run, caplog
+    ):
         # Add plaintext API key to env
         cloud_run_worker_v2_job_config.env["PREFECT_API_KEY"] = "plaintext-api-key"
 
-        class MockFlowRun:
-            id = "test-id"
-            name = "test-run"
+        cloud_run_worker_v2_job_config.prepare_for_flow_run(
+            flow_run=flow_run, deployment=None, flow=None
+        )
 
-        with patch.object(
-            cloud_run_worker_v2_job_config, "_get_flow_run_logger"
-        ) as mock_logger_getter:
-            mock_logger = mock_logger_getter.return_value
-            cloud_run_worker_v2_job_config.prepare_for_flow_run(
-                flow_run=MockFlowRun(), deployment=None, flow=None
-            )
+        assert (
+            "PREFECT_API_KEY is provided as a plaintext environment variable"
+            in caplog.text
+        )
+        assert "consider providing it as a secret using" in caplog.text
+        assert "'prefect_api_key_secret' or 'env_from_secrets'" in caplog.text
 
-            mock_logger.warning.assert_called_once_with(
-                "PREFECT_API_KEY is provided as a plaintext environment variable. "
-                "For better security, consider providing it as a secret using "
-                "'prefect_api_key_secret' or 'env_from_secrets' in your base job template."
-            )
-
-    def test_warn_about_plaintext_auth_string(self, cloud_run_worker_v2_job_config):
+    def test_warn_about_plaintext_auth_string(
+        self, cloud_run_worker_v2_job_config, flow_run, caplog
+    ):
         # Add plaintext auth string to env
         cloud_run_worker_v2_job_config.env["PREFECT_API_AUTH_STRING"] = (
             "plaintext-auth-string"
         )
 
-        class MockFlowRun:
-            id = "test-id"
-            name = "test-run"
+        cloud_run_worker_v2_job_config.prepare_for_flow_run(
+            flow_run=flow_run, deployment=None, flow=None
+        )
 
-        with patch.object(
-            cloud_run_worker_v2_job_config, "_get_flow_run_logger"
-        ) as mock_logger_getter:
-            mock_logger = mock_logger_getter.return_value
-            cloud_run_worker_v2_job_config.prepare_for_flow_run(
-                flow_run=MockFlowRun(), deployment=None, flow=None
-            )
-
-            mock_logger.warning.assert_called_once_with(
-                "PREFECT_API_AUTH_STRING is provided as a plaintext environment variable. "
-                "For better security, consider providing it as a secret using "
-                "'prefect_api_auth_string_secret' or 'env_from_secrets' in your base job template."
-            )
+        assert (
+            "PREFECT_API_AUTH_STRING is provided as a plaintext environment variable"
+            in caplog.text
+        )
+        assert "consider providing it as a secret using" in caplog.text
+        assert "'prefect_api_auth_string_secret' or 'env_from_secrets'" in caplog.text
 
     def test_warn_about_both_plaintext_credentials(
-        self, cloud_run_worker_v2_job_config
+        self, cloud_run_worker_v2_job_config, flow_run, caplog
     ):
         # Add both plaintext credentials to env
         cloud_run_worker_v2_job_config.env["PREFECT_API_KEY"] = "plaintext-api-key"
@@ -417,34 +414,16 @@ class TestCloudRunWorkerJobV2ConfigurationWarnings:
             "plaintext-auth-string"
         )
 
-        class MockFlowRun:
-            id = "test-id"
-            name = "test-run"
+        cloud_run_worker_v2_job_config.prepare_for_flow_run(
+            flow_run=flow_run, deployment=None, flow=None
+        )
 
-        with patch.object(
-            cloud_run_worker_v2_job_config, "_get_flow_run_logger"
-        ) as mock_logger_getter:
-            mock_logger = mock_logger_getter.return_value
-            cloud_run_worker_v2_job_config.prepare_for_flow_run(
-                flow_run=MockFlowRun(), deployment=None, flow=None
-            )
-
-            # Should warn about both
-            assert mock_logger.warning.call_count == 2
-            warning_messages = [
-                call[0][0] for call in mock_logger.warning.call_args_list
-            ]
-            assert any(
-                "PREFECT_API_KEY is provided as a plaintext" in msg
-                for msg in warning_messages
-            )
-            assert any(
-                "PREFECT_API_AUTH_STRING is provided as a plaintext" in msg
-                for msg in warning_messages
-            )
+        # Should warn about both
+        assert "PREFECT_API_KEY is provided as a plaintext" in caplog.text
+        assert "PREFECT_API_AUTH_STRING is provided as a plaintext" in caplog.text
 
     def test_no_warning_when_api_key_secret_configured(
-        self, cloud_run_worker_v2_job_config
+        self, cloud_run_worker_v2_job_config, flow_run, caplog
     ):
         # Add plaintext API key but configure secret
         cloud_run_worker_v2_job_config.env["PREFECT_API_KEY"] = "plaintext-api-key"
@@ -452,23 +431,15 @@ class TestCloudRunWorkerJobV2ConfigurationWarnings:
             secret="prefect-api-key", version="latest"
         )
 
-        class MockFlowRun:
-            id = "test-id"
-            name = "test-run"
+        cloud_run_worker_v2_job_config.prepare_for_flow_run(
+            flow_run=flow_run, deployment=None, flow=None
+        )
 
-        with patch.object(
-            cloud_run_worker_v2_job_config, "_get_flow_run_logger"
-        ) as mock_logger_getter:
-            mock_logger = mock_logger_getter.return_value
-            cloud_run_worker_v2_job_config.prepare_for_flow_run(
-                flow_run=MockFlowRun(), deployment=None, flow=None
-            )
-
-            # Should not warn since secret is configured
-            mock_logger.warning.assert_not_called()
+        # Should not warn since secret is configured
+        assert "PREFECT_API_KEY is provided as a plaintext" not in caplog.text
 
     def test_no_warning_when_auth_string_in_env_from_secrets(
-        self, cloud_run_worker_v2_job_config
+        self, cloud_run_worker_v2_job_config, flow_run, caplog
     ):
         # Add plaintext auth string but configure it in env_from_secrets
         cloud_run_worker_v2_job_config.env["PREFECT_API_AUTH_STRING"] = (
@@ -480,36 +451,20 @@ class TestCloudRunWorkerJobV2ConfigurationWarnings:
             )
         }
 
-        class MockFlowRun:
-            id = "test-id"
-            name = "test-run"
+        cloud_run_worker_v2_job_config.prepare_for_flow_run(
+            flow_run=flow_run, deployment=None, flow=None
+        )
 
-        with patch.object(
-            cloud_run_worker_v2_job_config, "_get_flow_run_logger"
-        ) as mock_logger_getter:
-            mock_logger = mock_logger_getter.return_value
-            cloud_run_worker_v2_job_config.prepare_for_flow_run(
-                flow_run=MockFlowRun(), deployment=None, flow=None
-            )
-
-            # Should not warn since secret is configured via env_from_secrets
-            mock_logger.warning.assert_not_called()
+        # Should not warn since secret is configured via env_from_secrets
+        assert "PREFECT_API_AUTH_STRING is provided as a plaintext" not in caplog.text
 
     def test_no_warning_when_no_plaintext_credentials(
-        self, cloud_run_worker_v2_job_config
+        self, cloud_run_worker_v2_job_config, flow_run, caplog
     ):
         # Don't add any plaintext credentials
-        class MockFlowRun:
-            id = "test-id"
-            name = "test-run"
+        cloud_run_worker_v2_job_config.prepare_for_flow_run(
+            flow_run=flow_run, deployment=None, flow=None
+        )
 
-        with patch.object(
-            cloud_run_worker_v2_job_config, "_get_flow_run_logger"
-        ) as mock_logger_getter:
-            mock_logger = mock_logger_getter.return_value
-            cloud_run_worker_v2_job_config.prepare_for_flow_run(
-                flow_run=MockFlowRun(), deployment=None, flow=None
-            )
-
-            # Should not warn since no plaintext credentials are present
-            mock_logger.warning.assert_not_called()
+        # Should not warn since no plaintext credentials are present
+        assert "is provided as a plaintext environment variable" not in caplog.text
