@@ -13,6 +13,28 @@ export type WorkPoolsFilter =
 export type WorkPoolsCountFilter =
 	components["schemas"]["Body_count_work_pools_work_pools_count_post"];
 
+// Define WorkPoolWorker interface since it's not in the generated types yet
+export interface WorkPoolWorker {
+	id: string;
+	created: string;
+	updated: string;
+	name: string;
+	work_pool_id: string;
+	last_heartbeat_time: string | null;
+	status: "online" | "offline";
+}
+
+// API response interface
+interface ApiWorkerResponse {
+	id: string;
+	created: string | null;
+	updated: string | null;
+	name: string;
+	work_pool_id: string;
+	last_heartbeat_time?: string | null;
+	status: "ONLINE" | "OFFLINE";
+}
+
 /**
  * Query key factory for work pools-related queries
  *
@@ -23,13 +45,15 @@ export type WorkPoolsCountFilter =
  * @property {function} count - Generates key for specific filtered count queries
  *
  * ```
- * all		=>   ['work-pools']
- * lists	=>   ['work-pools', 'list']
- * list		=>   ['work-pools', 'list', { ...filter }]
- * counts	=>   ['work-pools', 'counts']
- * count	=>   ['work-pools', 'counts', { ...filter }]
- * details	=>   ['work-pools', 'details']
- * detail	=>   ['work-pools', 'details', workPoolName]
+ * all			=>   ['work-pools']
+ * lists		=>   ['work-pools', 'list']
+ * list			=>   ['work-pools', 'list', { ...filter }]
+ * counts		=>   ['work-pools', 'counts']
+ * count		=>   ['work-pools', 'counts', { ...filter }]
+ * details		=>   ['work-pools', 'details']
+ * detail		=>   ['work-pools', 'details', workPoolName]
+ * workers		=>   ['work-pools', 'workers']
+ * workersList	=>   ['work-pools', 'workers', workPoolName]
  * ```
  */
 export const queryKeyFactory = {
@@ -42,6 +66,9 @@ export const queryKeyFactory = {
 		[...queryKeyFactory.counts(), filter] as const,
 	details: () => [...queryKeyFactory.all(), "details"] as const,
 	detail: (name: string) => [...queryKeyFactory.counts(), name] as const,
+	workers: () => [...queryKeyFactory.all(), "workers"] as const,
+	workersList: (workPoolName: string) =>
+		[...queryKeyFactory.workers(), workPoolName] as const,
 };
 
 // ----------------------------
@@ -252,3 +279,47 @@ export const useCreateWorkPool = () => {
 
 	return { createWorkPool, ...rest };
 };
+
+/**
+ * Builds a query configuration for fetching work pool workers
+ *
+ * @param workPoolName - Name of the work pool to fetch workers for
+ * @returns Query configuration object for use with TanStack Query
+ *
+ * @example
+ * ```ts
+ * const query = useQuery(buildListWorkPoolWorkersQuery('my-work-pool'));
+ * ```
+ */
+export const buildListWorkPoolWorkersQuery = (workPoolName: string) =>
+	queryOptions({
+		queryKey: queryKeyFactory.workersList(workPoolName),
+		queryFn: async (): Promise<WorkPoolWorker[]> => {
+			const res = await getQueryService().POST(
+				"/work_pools/{work_pool_name}/workers/filter",
+				{
+					params: { path: { work_pool_name: workPoolName } },
+					body: {
+						offset: 0,
+					},
+				},
+			);
+			if (!res.data) {
+				throw new Error("'data' expected");
+			}
+			// Transform API response to match our interface
+			return res.data.map(
+				(worker: ApiWorkerResponse): WorkPoolWorker => ({
+					id: worker.id,
+					created: worker.created || new Date().toISOString(),
+					updated: worker.updated || new Date().toISOString(),
+					name: worker.name,
+					work_pool_id: worker.work_pool_id,
+					last_heartbeat_time: worker.last_heartbeat_time || null,
+					status:
+						worker.status?.toLowerCase() === "online" ? "online" : "offline",
+				}),
+			);
+		},
+		refetchInterval: 30000, // 30 seconds for real-time updates
+	});

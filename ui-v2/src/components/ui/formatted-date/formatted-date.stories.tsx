@@ -3,7 +3,7 @@ import type { Meta, StoryObj } from "@storybook/react";
 import { FormattedDate } from "./formatted-date";
 
 const meta: Meta<typeof FormattedDate> = {
-	title: "Components/UI/FormattedDate",
+	title: "UI/FormattedDate",
 	component: FormattedDate,
 	parameters: {
 		layout: "centered",

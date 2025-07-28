@@ -1,4 +1,4 @@
-import type { WorkPoolWorker } from "@/api/work-pool-workers";
+import type { WorkPoolWorker } from "@/api/work-pools";
 
 export const createFakeWorkPoolWorker = (
 	overrides?: Partial<WorkPoolWorker>,
