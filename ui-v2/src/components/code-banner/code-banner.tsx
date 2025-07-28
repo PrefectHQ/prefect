@@ -64,11 +64,13 @@ export const CodeBanner = ({
 				</div>
 
 				{/* Terminal content */}
-				<div className="bg-gray-800 px-4 py-3">
-					<code className="font-mono text-sm text-gray-300 select-all">
-						{command}
-						<span className="animate-pulse text-gray-300">|</span>
-					</code>
+				<div className="bg-gray-800 px-4 py-2">
+					<p className="py-1">
+						<code className="font-mono text-sm text-gray-300 select-all">
+							{command}
+						</code>
+						<span className="ml-1 -mb-1 inline-block w-[7px] h-[18px] bg-gray-400 terminal-cursor" />
+					</p>
 				</div>
 			</div>
 		</div>

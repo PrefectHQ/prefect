@@ -164,3 +164,14 @@
 		@apply bg-background text-foreground;
 	}
 }
+
+/* Terminal cursor animation matching PTerminal.vue */
+@keyframes blink {
+	0% {
+		opacity: 0;
+	}
+}
+
+.terminal-cursor {
+	animation: blink 1.2s steps(2) infinite;
+}
