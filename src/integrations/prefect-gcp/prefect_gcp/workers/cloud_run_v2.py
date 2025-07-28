@@ -216,7 +216,16 @@ class CloudRunWorkerJobV2Configuration(BaseJobConfiguration):
         """
         Populates the job body with environment variables.
         """
-        envs = [{"name": k, "value": v} for k, v in self.env.items()]
+        # Filter out plaintext Prefect API key/auth string if secrets are configured
+        filtered_env = {}
+        for k, v in self.env.items():
+            if k == "PREFECT_API_KEY" and self.prefect_api_key_secret:
+                continue  # Skip plaintext API key if secret is configured
+            if k == "PREFECT_API_AUTH_STRING" and self.prefect_api_auth_string_secret:
+                continue  # Skip plaintext auth string if secret is configured
+            filtered_env[k] = v
+
+        envs = [{"name": k, "value": v} for k, v in filtered_env.items()]
         envs_from_secrets = [
             {
                 "name": k,
