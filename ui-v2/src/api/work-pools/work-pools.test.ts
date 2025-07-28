@@ -170,7 +170,7 @@ describe("work pool hooks", () => {
 describe("work pool workers query key factory", () => {
 	it("generates correct query keys", () => {
 		expect(queryKeyFactory.all()).toEqual(["work-pools"]);
-		expect(queryKeyFactory.workers()).toEqual(["work-pools", "workers"]);
+		expect(queryKeyFactory.workersLists()).toEqual(["work-pools", "workers"]);
 		expect(queryKeyFactory.workersList("test-pool")).toEqual([
 			"work-pools",
 			"workers",
