@@ -16,7 +16,7 @@ export const WorkPoolStatusBadge = ({
 
 	return (
 		<Badge
-			variant={statusInfo.variant}
+			variant="secondary"
 			className={cn("flex items-center space-x-1", className)}
 		>
 			<WorkPoolStatusIcon

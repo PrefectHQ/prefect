@@ -8,9 +8,9 @@ describe("WorkPoolStatusBadge", () => {
 		render(<WorkPoolStatusBadge status="ready" />);
 
 		expect(screen.getByText("Ready")).toBeInTheDocument();
-		// Badge should have default variant (primary) classes
+		// Badge should have secondary variant (grey) classes
 		const badge = document.querySelector("[data-slot='badge']");
-		expect(badge).toHaveClass("bg-primary", "text-primary-foreground");
+		expect(badge).toHaveClass("bg-secondary", "text-secondary-foreground");
 	});
 
 	it("renders paused status with correct label and styling", () => {
@@ -26,9 +26,9 @@ describe("WorkPoolStatusBadge", () => {
 		render(<WorkPoolStatusBadge status="not_ready" />);
 
 		expect(screen.getByText("Not Ready")).toBeInTheDocument();
-		// Badge should have destructive variant classes
+		// Badge should have secondary variant (grey) classes
 		const badge = document.querySelector("[data-slot='badge']");
-		expect(badge).toHaveClass("bg-destructive", "text-white");
+		expect(badge).toHaveClass("bg-secondary", "text-secondary-foreground");
 	});
 
 	it("includes status icon without tooltip", () => {
