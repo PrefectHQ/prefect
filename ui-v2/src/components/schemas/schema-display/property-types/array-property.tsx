@@ -18,7 +18,7 @@ export function ArrayProperty({
 	if (!isArray) {
 		return (
 			<span className="font-mono text-sm text-muted-foreground">
-				{String(displayValue)}
+				{JSON.stringify(displayValue)}
 			</span>
 		);
 	}

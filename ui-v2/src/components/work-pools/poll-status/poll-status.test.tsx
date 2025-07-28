@@ -28,13 +28,15 @@ const createWrapper = () => {
 			},
 		},
 	});
-	return ({ children }: { children: React.ReactNode }) => (
+	const Wrapper = ({ children }: { children: React.ReactNode }) => (
 		<QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
 	);
+	Wrapper.displayName = "TestWrapper";
+	return Wrapper;
 };
 
 describe("PollStatus", () => {
-	it("shows poll status with last polled time when workers exist", async () => {
+	it("shows poll status with last polled time when workers exist", () => {
 		const mockWorkers = [
 			{
 				id: "worker1",
@@ -74,7 +76,7 @@ describe("PollStatus", () => {
 		expect(screen.getByText("2024-01-15T10:30:00Z")).toBeInTheDocument();
 	});
 
-	it("does not render when no workers exist", async () => {
+	it("does not render when no workers exist", () => {
 		vi.mocked(workPoolsApi.buildListWorkPoolWorkersQuery).mockReturnValue({
 			queryKey: ["work-pools", "workers", "test-pool"],
 			queryFn: () => Promise.resolve([]),
@@ -88,7 +90,7 @@ describe("PollStatus", () => {
 		expect(container.firstChild).toBeNull();
 	});
 
-	it("shows no recent activity when workers have no heartbeat times", async () => {
+	it("shows no recent activity when workers have no heartbeat times", () => {
 		const mockWorkers = [
 			{
 				id: "worker1",
@@ -116,7 +118,7 @@ describe("PollStatus", () => {
 		expect(screen.getByText("No recent worker activity")).toBeInTheDocument();
 	});
 
-	it("applies custom className", async () => {
+	it("applies custom className", () => {
 		const mockWorkers = [
 			{
 				id: "worker1",

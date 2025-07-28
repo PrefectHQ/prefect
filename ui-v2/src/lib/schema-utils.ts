@@ -1,7 +1,7 @@
 import type {
 	JSONSchema,
 	SchemaProperty,
-} from "@/components/ui/schema-property-renderer";
+} from "@/components/schemas/schema-display";
 
 /**
  * Extract default values from schema properties
@@ -37,20 +37,26 @@ export function formatPropertyValue(
 
 	switch (property.type) {
 		case "boolean":
-			return String(value);
+			return typeof value === "boolean"
+				? value.toString()
+				: JSON.stringify(value);
 		case "number":
 		case "integer":
-			return String(value);
+			return typeof value === "number"
+				? value.toString()
+				: JSON.stringify(value);
 		case "string":
-			return String(value);
+			return typeof value === "string" ? value : JSON.stringify(value);
 		case "array":
-			return Array.isArray(value) ? `[${value.length} items]` : String(value);
+			return Array.isArray(value)
+				? `[${value.length} items]`
+				: JSON.stringify(value);
 		case "object":
 			return typeof value === "object" && value !== null
 				? `{${Object.keys(value).length} properties}`
-				: String(value);
+				: JSON.stringify(value);
 		default:
-			return String(value);
+			return JSON.stringify(value);
 	}
 }
 
