@@ -69,7 +69,7 @@ async def create_block_schema(
         return model
 
 
-@router.delete("/{id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{id:uuid}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_block_schema(
     block_schema_id: UUID = Path(..., description="The block schema id", alias="id"),
     db: PrefectDBInterface = Depends(provide_database_interface),
@@ -118,7 +118,7 @@ async def read_block_schemas(
     return result
 
 
-@router.get("/{id}")
+@router.get("/{id:uuid}")
 async def read_block_schema_by_id(
     block_schema_id: UUID = Path(..., description="The block schema id", alias="id"),
     db: PrefectDBInterface = Depends(provide_database_interface),

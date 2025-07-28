@@ -1,14 +1,14 @@
-import { createFakeArtifact } from "@/mocks";
 import { QueryClient } from "@tanstack/react-query";
 import {
-	RouterProvider,
 	createMemoryHistory,
 	createRootRoute,
 	createRouter,
+	RouterProvider,
 } from "@tanstack/react-router";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import { createWrapper } from "@tests/utils";
 import { describe, expect, it } from "vitest";
+import { createFakeArtifact } from "@/mocks";
 import {
 	ArtifactDetailPage,
 	type ArtifactDetailPageProps,
@@ -31,47 +31,53 @@ const ArtifactDetailPageRouter = (props: ArtifactDetailPageProps) => {
 };
 
 describe("ArtifactDetailPage", () => {
-	it("renders artifact detail for markdown", () => {
+	it("renders artifact detail for markdown", async () => {
 		const artifact = createFakeArtifact({
 			type: "markdown",
 			data: "# Title\n\nThis is a test markdown",
 		});
 
-		render(<ArtifactDetailPageRouter artifact={artifact} />, {
-			wrapper: createWrapper(),
-		});
+		await waitFor(() =>
+			render(<ArtifactDetailPageRouter artifact={artifact} />, {
+				wrapper: createWrapper(),
+			}),
+		);
 
 		expect(screen.getByTestId("markdown-display")).toBeTruthy();
 	});
 
-	it("renders artifact detail for image", () => {
+	it("renders artifact detail for image", async () => {
 		const url = "https://example.com/image.png";
 		const artifact = createFakeArtifact({
 			type: "image",
 			data: url,
 		});
 
-		render(<ArtifactDetailPageRouter artifact={artifact} />, {
-			wrapper: createWrapper(),
-		});
+		await waitFor(() =>
+			render(<ArtifactDetailPageRouter artifact={artifact} />, {
+				wrapper: createWrapper(),
+			}),
+		);
 
 		expect(screen.getByTestId(url)).toBeTruthy();
 	});
 
-	it("renders artifact detail for progress", () => {
+	it("renders artifact detail for progress", async () => {
 		const artifact = createFakeArtifact({
 			type: "progress",
 			data: 50,
 		});
 
-		render(<ArtifactDetailPageRouter artifact={artifact} />, {
-			wrapper: createWrapper(),
-		});
+		await waitFor(() =>
+			render(<ArtifactDetailPageRouter artifact={artifact} />, {
+				wrapper: createWrapper(),
+			}),
+		);
 
 		expect(screen.getByTestId("progress-display")).toBeTruthy();
 	});
 
-	it("renders artifact detail for table with data", () => {
+	it("renders artifact detail for table with data", async () => {
 		const artifact = createFakeArtifact({
 			type: "table",
 			data: JSON.stringify([
@@ -80,22 +86,26 @@ describe("ArtifactDetailPage", () => {
 			]),
 		});
 
-		render(<ArtifactDetailPageRouter artifact={artifact} />, {
-			wrapper: createWrapper(),
-		});
+		await waitFor(() =>
+			render(<ArtifactDetailPageRouter artifact={artifact} />, {
+				wrapper: createWrapper(),
+			}),
+		);
 
 		expect(screen.getByTestId("table-display")).toBeTruthy();
 	});
 
-	it("renders artifact detail for link as markdown", () => {
+	it("renders artifact detail for link as markdown", async () => {
 		const artifact = createFakeArtifact({
 			type: "link",
 			data: "[test](https://example.com)",
 		});
 
-		render(<ArtifactDetailPageRouter artifact={artifact} />, {
-			wrapper: createWrapper(),
-		});
+		await waitFor(() =>
+			render(<ArtifactDetailPageRouter artifact={artifact} />, {
+				wrapper: createWrapper(),
+			}),
+		);
 
 		expect(screen.getByTestId("markdown-display")).toBeTruthy();
 	});

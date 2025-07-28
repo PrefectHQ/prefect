@@ -1,11 +1,17 @@
+from datetime import datetime, timedelta, timezone
 from typing import List, Literal, Optional, Union
 from uuid import UUID
 
 from fastapi import Body, Depends, HTTPException, Path, status
+from sqlalchemy.ext.asyncio import AsyncSession
 
 import prefect.server.models as models
 import prefect.server.schemas as schemas
 from prefect.server.api.dependencies import LimitBody
+from prefect.server.concurrency.lease_storage import (
+    ConcurrencyLimitLeaseMetadata,
+    get_concurrency_lease_storage,
+)
 from prefect.server.database import PrefectDBInterface, provide_database_interface
 from prefect.server.schemas import actions
 from prefect.server.utilities.schemas import PrefectBaseModel
@@ -151,6 +157,97 @@ class MinimalConcurrencyLimitResponse(PrefectBaseModel):
     limit: int
 
 
+class ConcurrencyLimitWithLeaseResponse(PrefectBaseModel):
+    lease_id: UUID
+    limits: list[MinimalConcurrencyLimitResponse]
+
+
+async def _acquire_concurrency_slots(
+    session: AsyncSession,
+    names: List[str],
+    slots: int,
+    mode: Literal["concurrency", "rate_limit"],
+) -> tuple[list[schemas.core.ConcurrencyLimitV2], bool]:
+    limits = [
+        schemas.core.ConcurrencyLimitV2.model_validate(limit)
+        for limit in (
+            await models.concurrency_limits_v2.bulk_read_concurrency_limits(
+                session=session, names=names
+            )
+        )
+    ]
+
+    active_limits = [limit for limit in limits if bool(limit.active)]
+
+    if any(limit.limit < slots for limit in active_limits):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Slots requested is greater than the limit",
+        )
+
+    non_decaying = [
+        str(limit.name) for limit in active_limits if limit.slot_decay_per_second == 0.0
+    ]
+
+    if mode == "rate_limit" and non_decaying:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=(
+                "Only concurrency limits with slot decay can be used for "
+                "rate limiting. The following limits do not have a decay "
+                f"configured: {','.join(non_decaying)!r}"
+            ),
+        )
+    acquired = await models.concurrency_limits_v2.bulk_increment_active_slots(
+        session=session,
+        concurrency_limit_ids=[limit.id for limit in active_limits],
+        slots=slots,
+    )
+
+    if not acquired:
+        await session.rollback()
+
+    return limits, acquired
+
+
+async def _generate_concurrency_locked_response(
+    session: AsyncSession,
+    limits: list[schemas.core.ConcurrencyLimitV2],
+    slots: int,
+) -> HTTPException:
+    active_limits = [limit for limit in limits if bool(limit.active)]
+
+    await models.concurrency_limits_v2.bulk_update_denied_slots(
+        session=session,
+        concurrency_limit_ids=[limit.id for limit in active_limits],
+        slots=slots,
+    )
+
+    def num_blocking_slots(limit: schemas.core.ConcurrencyLimitV2) -> float:
+        if limit.slot_decay_per_second > 0:
+            return slots + limit.denied_slots
+        else:
+            return (slots + limit.denied_slots) / limit.limit
+
+    blocking_limit = max((limit for limit in active_limits), key=num_blocking_slots)
+    blocking_slots = num_blocking_slots(blocking_limit)
+
+    wait_time_per_slot = (
+        blocking_limit.avg_slot_occupancy_seconds
+        if blocking_limit.slot_decay_per_second == 0.0
+        else (1.0 / blocking_limit.slot_decay_per_second)
+    )
+
+    retry_after = wait_time_per_slot * blocking_slots
+
+    return HTTPException(
+        status_code=status.HTTP_423_LOCKED,
+        headers={
+            "Retry-After": str(retry_after),
+        },
+    )
+
+
 @router.post("/increment", status_code=status.HTTP_200_OK)
 async def bulk_increment_active_slots(
     slots: int = Body(..., gt=0),
@@ -163,85 +260,74 @@ async def bulk_increment_active_slots(
     db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> List[MinimalConcurrencyLimitResponse]:
     async with db.session_context(begin_transaction=True) as session:
-        limits = [
-            schemas.core.ConcurrencyLimitV2.model_validate(limit)
-            for limit in (
-                await models.concurrency_limits_v2.bulk_read_concurrency_limits(
-                    session=session, names=names
-                )
-            )
-        ]
-
-        active_limits = [limit for limit in limits if bool(limit.active)]
-
-        if any(limit.limit < slots for limit in active_limits):
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail="Slots requested is greater than the limit",
-            )
-
-        non_decaying = [
-            str(limit.name)
-            for limit in active_limits
-            if limit.slot_decay_per_second == 0.0
-        ]
-
-        if mode == "rate_limit" and non_decaying:
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail=(
-                    "Only concurrency limits with slot decay can be used for "
-                    "rate limiting. The following limits do not have a decay "
-                    f"configured: {','.join(non_decaying)!r}"
-                ),
-            )
-        acquired = await models.concurrency_limits_v2.bulk_increment_active_slots(
+        acquired_limits, acquired = await _acquire_concurrency_slots(
             session=session,
-            concurrency_limit_ids=[limit.id for limit in active_limits],
+            names=names,
             slots=slots,
+            mode=mode,
         )
-
-        if not acquired:
-            await session.rollback()
 
     if acquired:
         return [
             MinimalConcurrencyLimitResponse(
                 id=limit.id, name=str(limit.name), limit=limit.limit
             )
-            for limit in limits
+            for limit in acquired_limits
         ]
     else:
         async with db.session_context(begin_transaction=True) as session:
-            await models.concurrency_limits_v2.bulk_update_denied_slots(
+            raise await _generate_concurrency_locked_response(
                 session=session,
-                concurrency_limit_ids=[limit.id for limit in active_limits],
+                limits=acquired_limits,
                 slots=slots,
             )
 
-        def num_blocking_slots(limit: schemas.core.ConcurrencyLimitV2) -> float:
-            if limit.slot_decay_per_second > 0.0:
-                return slots + limit.denied_slots
-            else:
-                return (slots + limit.denied_slots) / limit.limit
 
-        blocking_limit = max((limit for limit in active_limits), key=num_blocking_slots)
-        blocking_slots = num_blocking_slots(blocking_limit)
-
-        wait_time_per_slot = (
-            blocking_limit.avg_slot_occupancy_seconds
-            if blocking_limit.slot_decay_per_second == 0.0
-            else (1.0 / blocking_limit.slot_decay_per_second)
+@router.post("/increment-with-lease", status_code=status.HTTP_200_OK)
+async def bulk_increment_active_slots_with_lease(
+    slots: int = Body(..., gt=0),
+    names: List[str] = Body(..., min_items=1),
+    mode: Literal["concurrency", "rate_limit"] = Body("concurrency"),
+    lease_duration: float = Body(
+        300,  # 5 minutes
+        ge=60,  # 1 minute
+        le=60 * 60 * 24,  # 1 day
+        description="The duration of the lease in seconds.",
+    ),
+    db: PrefectDBInterface = Depends(provide_database_interface),
+) -> ConcurrencyLimitWithLeaseResponse:
+    async with db.session_context(begin_transaction=True) as session:
+        acquired_limits, acquired = await _acquire_concurrency_slots(
+            session=session,
+            names=names,
+            slots=slots,
+            mode=mode,
         )
 
-        retry_after = wait_time_per_slot * blocking_slots
-
-        raise HTTPException(
-            status_code=status.HTTP_423_LOCKED,
-            headers={
-                "Retry-After": str(retry_after),
-            },
+    if acquired:
+        lease_storage = get_concurrency_lease_storage()
+        lease = await lease_storage.create_lease(
+            resource_ids=[limit.id for limit in acquired_limits],
+            ttl=timedelta(seconds=lease_duration),
+            metadata=ConcurrencyLimitLeaseMetadata(slots=slots),
         )
+        return ConcurrencyLimitWithLeaseResponse(
+            lease_id=lease.id,
+            limits=[
+                MinimalConcurrencyLimitResponse(
+                    id=limit.id, name=str(limit.name), limit=limit.limit
+                )
+                for limit in acquired_limits
+            ],
+        )
+
+    else:
+        async with db.session_context(begin_transaction=True) as session:
+            raise await _generate_concurrency_locked_response(
+                session=session,
+                limits=acquired_limits,
+                slots=slots,
+            )
 
 
 @router.post("/decrement", status_code=status.HTTP_200_OK)
@@ -276,3 +362,53 @@ async def bulk_decrement_active_slots(
         )
         for limit in limits
     ]
+
+
+@router.post("/decrement-with-lease", status_code=status.HTTP_204_NO_CONTENT)
+async def bulk_decrement_active_slots_with_lease(
+    lease_id: UUID = Body(
+        ...,
+        description="The ID of the lease corresponding to the concurrency limits to decrement.",
+        embed=True,
+    ),
+    db: PrefectDBInterface = Depends(provide_database_interface),
+) -> None:
+    lease_storage = get_concurrency_lease_storage()
+    lease = await lease_storage.read_lease(lease_id)
+    if not lease:
+        return
+
+    occupancy_seconds = (datetime.now(timezone.utc) - lease.created_at).total_seconds()
+
+    async with db.session_context(begin_transaction=True) as session:
+        await models.concurrency_limits_v2.bulk_decrement_active_slots(
+            session=session,
+            concurrency_limit_ids=lease.resource_ids,
+            slots=lease.metadata.slots if lease.metadata else 0,
+            occupancy_seconds=occupancy_seconds,
+        )
+    await lease_storage.revoke_lease(lease_id)
+
+
+@router.post("/leases/{lease_id}/renew", status_code=status.HTTP_204_NO_CONTENT)
+async def renew_concurrency_lease(
+    lease_id: UUID = Path(..., description="The ID of the lease to renew"),
+    lease_duration: float = Body(
+        300,  # 5 minutes
+        ge=60,  # 1 minute
+        le=60 * 60 * 24,  # 1 day
+        description="The duration of the lease in seconds.",
+        embed=True,
+    ),
+) -> None:
+    lease_storage = get_concurrency_lease_storage()
+    lease = await lease_storage.read_lease(lease_id)
+    if not lease:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Lease not found"
+        )
+
+    await lease_storage.renew_lease(
+        lease_id=lease_id,
+        ttl=timedelta(seconds=lease_duration),
+    )

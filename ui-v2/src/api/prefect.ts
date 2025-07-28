@@ -1382,6 +1382,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v2/concurrency_limits/increment-with-lease": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Bulk Increment Active Slots With Lease */
+        post: operations["bulk_increment_active_slots_with_lease_v2_concurrency_limits_increment_with_lease_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v2/concurrency_limits/decrement": {
         parameters: {
             query?: never;
@@ -1393,6 +1410,40 @@ export interface paths {
         put?: never;
         /** Bulk Decrement Active Slots */
         post: operations["bulk_decrement_active_slots_v2_concurrency_limits_decrement_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v2/concurrency_limits/decrement-with-lease": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Bulk Decrement Active Slots With Lease */
+        post: operations["bulk_decrement_active_slots_with_lease_v2_concurrency_limits_decrement_with_lease_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v2/concurrency_limits/leases/{lease_id}/renew": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Renew Concurrency Lease */
+        post: operations["renew_concurrency_lease_v2_concurrency_limits_leases__lease_id__renew_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -4007,6 +4058,15 @@ export interface components {
              */
             create_if_missing?: boolean;
         };
+        /** Body_bulk_decrement_active_slots_with_lease_v2_concurrency_limits_decrement_with_lease_post */
+        Body_bulk_decrement_active_slots_with_lease_v2_concurrency_limits_decrement_with_lease_post: {
+            /**
+             * Lease Id
+             * Format: uuid
+             * @description The ID of the lease corresponding to the concurrency limits to decrement.
+             */
+            lease_id: string;
+        };
         /** Body_bulk_increment_active_slots_v2_concurrency_limits_increment_post */
         Body_bulk_increment_active_slots_v2_concurrency_limits_increment_post: {
             /** Slots */
@@ -4024,6 +4084,25 @@ export interface components {
              * @deprecated
              */
             create_if_missing?: boolean | null;
+        };
+        /** Body_bulk_increment_active_slots_with_lease_v2_concurrency_limits_increment_with_lease_post */
+        Body_bulk_increment_active_slots_with_lease_v2_concurrency_limits_increment_with_lease_post: {
+            /** Slots */
+            slots: number;
+            /** Names */
+            names: string[];
+            /**
+             * Mode
+             * @default concurrency
+             * @enum {string}
+             */
+            mode: "concurrency" | "rate_limit";
+            /**
+             * Lease Duration
+             * @description The duration of the lease in seconds.
+             * @default 300
+             */
+            lease_duration: number;
         };
         /** Body_clear_database_admin_database_clear_post */
         Body_clear_database_admin_database_clear_post: {
@@ -4743,6 +4822,15 @@ export interface components {
              */
             limit?: number;
         };
+        /** Body_renew_concurrency_lease_v2_concurrency_limits_leases__lease_id__renew_post */
+        Body_renew_concurrency_lease_v2_concurrency_limits_leases__lease_id__renew_post: {
+            /**
+             * Lease Duration
+             * @description The duration of the lease in seconds.
+             * @default 300
+             */
+            lease_duration: number;
+        };
         /** Body_reset_concurrency_limit_by_tag_concurrency_limits_tag__tag__reset_post */
         Body_reset_concurrency_limit_by_tag_concurrency_limits_tag__tag__reset_post: {
             /**
@@ -5134,6 +5222,16 @@ export interface components {
             denied_slots?: number | null;
             /** Slot Decay Per Second */
             slot_decay_per_second?: number | null;
+        };
+        /** ConcurrencyLimitWithLeaseResponse */
+        ConcurrencyLimitWithLeaseResponse: {
+            /**
+             * Lease Id
+             * Format: uuid
+             */
+            lease_id: string;
+            /** Limits */
+            limits: components["schemas"]["MinimalConcurrencyLimitResponse"][];
         };
         /**
          * ConcurrencyOptions
@@ -12805,6 +12903,41 @@ export interface operations {
             };
         };
     };
+    bulk_increment_active_slots_with_lease_v2_concurrency_limits_increment_with_lease_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-prefect-api-version"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Body_bulk_increment_active_slots_with_lease_v2_concurrency_limits_increment_with_lease_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConcurrencyLimitWithLeaseResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     bulk_decrement_active_slots_v2_concurrency_limits_decrement_post: {
         parameters: {
             query?: never;
@@ -12828,6 +12961,75 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["MinimalConcurrencyLimitResponse"][];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    bulk_decrement_active_slots_with_lease_v2_concurrency_limits_decrement_with_lease_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-prefect-api-version"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Body_bulk_decrement_active_slots_with_lease_v2_concurrency_limits_decrement_with_lease_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    renew_concurrency_lease_v2_concurrency_limits_leases__lease_id__renew_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-prefect-api-version"?: string;
+            };
+            path: {
+                /** @description The ID of the lease to renew */
+                lease_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["Body_renew_concurrency_lease_v2_concurrency_limits_leases__lease_id__renew_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {

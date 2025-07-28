@@ -12,7 +12,7 @@ Utilities for extensions of and operations on Python collections.
 
 ## Functions
 
-### `dict_to_flatdict` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/collections.py#L88" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `dict_to_flatdict` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/collections.py#L88" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 dict_to_flatdict(dct: NestedDict[KT, VT]) -> dict[tuple[KT, ...], VT]
@@ -31,7 +31,7 @@ for the corresponding value.
 - A flattened dict of the same type as dct
 
 
-### `flatdict_to_dict` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/collections.py#L117" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `flatdict_to_dict` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/collections.py#L117" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 flatdict_to_dict(dct: dict[tuple[KT, ...], VT]) -> NestedDict[KT, VT]
@@ -48,7 +48,7 @@ Returns
     A nested dict of the same type as dct
 
 
-### `isiterable` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/collections.py#L154" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `isiterable` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/collections.py#L154" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 isiterable(obj: Any) -> bool
@@ -63,19 +63,19 @@ Excludes types that are iterable but typically used as singletons:
 - IO objects
 
 
-### `ensure_iterable` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/collections.py#L171" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `ensure_iterable` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/collections.py#L171" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 ensure_iterable(obj: Union[T, Iterable[T]]) -> Collection[T]
 ```
 
-### `listrepr` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/collections.py#L178" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `listrepr` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/collections.py#L178" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 listrepr(objs: Iterable[Any], sep: str = ' ') -> str
 ```
 
-### `extract_instances` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/collections.py#L182" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `extract_instances` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/collections.py#L182" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 extract_instances(objects: Iterable[Any], types: Union[type[T], tuple[type[T], ...]] = object) -> Union[list[T], dict[type[T], list[T]]]
@@ -93,7 +93,7 @@ Extract objects from a file and returns a dict of type -> instances
 - If a tuple of types is given: a mapping of type to a list of instances
 
 
-### `batched_iterable` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/collections.py#L215" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `batched_iterable` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/collections.py#L215" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 batched_iterable(iterable: Iterable[T], size: int) -> Generator[tuple[T, ...], None, None]
@@ -107,7 +107,7 @@ Yield batches of a certain size from an iterable
 - `size`: The batch size to return
 
 
-### `visit_collection` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/collections.py#L310" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `visit_collection` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/collections.py#L310" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 visit_collection(expr: Any, visit_fn: Union[Callable[[Any, dict[str, VT]], Any], Callable[[Any], Any]]) -> Optional[Any]
@@ -169,7 +169,7 @@ prevents infinite recursion when visiting recursive data structures.
 - The modified collection if `return_data` is `True`, otherwise `None`.
 
 
-### `remove_nested_keys` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/collections.py#L544" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `remove_nested_keys` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/collections.py#L554" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 remove_nested_keys(keys_to_remove: list[HashableT], obj: Union[NestedDict[HashableT, VT], Any]) -> Union[NestedDict[HashableT, VT], Any]
@@ -188,13 +188,13 @@ from.
 dictionary. `obj` if `obj` is not a dictionary.
 
 
-### `distinct` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/collections.py#L578" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `distinct` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/collections.py#L588" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 distinct(iterable: Iterable[Union[T, HashableT]], key: Optional[Callable[[T], Hashable]] = None) -> Iterator[Union[T, HashableT]]
 ```
 
-### `get_from_dict` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/collections.py#L608" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `get_from_dict` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/collections.py#L618" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_from_dict(dct: NestedDict[str, VT], keys: Union[str, list[str]], default: Optional[R] = None) -> Union[VT, R, None]
@@ -229,7 +229,7 @@ get_from_dict({'a': {'b': [0, {'c': [1, 2]}]}}, 'a.b.1.c.2', 'default') # 'defau
 ```
 
 
-### `set_in_dict` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/collections.py#L657" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `set_in_dict` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/collections.py#L667" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 set_in_dict(dct: NestedDict[str, VT], keys: Union[str, list[str]], value: VT) -> None
@@ -256,7 +256,7 @@ dot-separated string or a list of keys.
 - `KeyError`: If the key path exists and is not a dictionary.
 
 
-### `deep_merge` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/collections.py#L691" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `deep_merge` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/collections.py#L701" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 deep_merge(dct: NestedDict[str, VT1], merge: NestedDict[str, VT2]) -> NestedDict[str, Union[VT1, VT2]]
@@ -273,7 +273,7 @@ Recursively merges `merge` into `dct`.
 - A new dictionary with the merged contents.
 
 
-### `deep_merge_dicts` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/collections.py#L718" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `deep_merge_dicts` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/collections.py#L728" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 deep_merge_dicts(*dicts: NestedDict[str, Any]) -> NestedDict[str, Any]
@@ -291,7 +291,7 @@ Recursively merges multiple dictionaries.
 
 ## Classes
 
-### `AutoEnum` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/collections.py#L44" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `AutoEnum` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/collections.py#L44" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 An enum class that automatically generates value from variable names.
@@ -307,7 +307,7 @@ See https://docs.python.org/3/library/enum.html#using-automatic-values
 
 **Methods:**
 
-#### `auto` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/collections.py#L69" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `auto` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/collections.py#L69" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 auto() -> str
@@ -316,7 +316,7 @@ auto() -> str
 Exposes `enum.auto()` to avoid requiring a second import to use `AutoEnum`
 
 
-### `StopVisiting` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/collections.py#L236" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `StopVisiting` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/collections.py#L236" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 A special exception used to stop recursive visits in `visit_collection`.

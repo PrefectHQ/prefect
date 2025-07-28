@@ -1,6 +1,6 @@
+import { useSuspenseQuery } from "@tanstack/react-query";
 import { buildDeploymentDetailsQuery } from "@/api/deployments";
 import { CreateFlowRunForm } from "@/components/deployments/create-flow-run-form";
-import { useSuspenseQuery } from "@tanstack/react-query";
 import { DeploymentActionHeader } from "./deployment-action-header";
 import { DeploymentLinks } from "./deployment-links";
 

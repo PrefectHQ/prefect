@@ -1,0 +1,139 @@
+---
+title: How to run the Prefect Server via Docker Compose
+sidebarTitle: Run the Prefect Server via Docker Compose
+description: Deploy a self-hosted Prefect server environment using Docker Compose, including PostgreSQL, Redis, server, background services, and worker.
+---
+
+This guide shows how to run a complete self-hosted Prefect server environment using Docker Compose. This setup includes the following services:
+
+- `postgres`: PostgreSQL database
+- `redis`: Redis message broker
+- `prefect-server`: Prefect server  
+- `prefect-services`: Prefect background services  
+- `prefect-worker`: Prefect worker  
+
+## Docker Compose file
+
+Create a `compose.yml` file with the following contents:
+
+```yaml
+services:
+  postgres:
+    image: postgres:14
+    environment:
+      POSTGRES_USER: prefect
+      POSTGRES_PASSWORD: prefect
+      POSTGRES_DB: prefect
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U prefect"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  prefect-server:
+    image: prefecthq/prefect:3-latest
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      PREFECT_API_DATABASE_CONNECTION_URL: postgresql+asyncpg://prefect:prefect@postgres:5432/prefect
+      PREFECT_SERVER_API_HOST: 0.0.0.0
+      PREFECT_MESSAGING_BROKER: prefect_redis.messaging
+      PREFECT_MESSAGING_CACHE: prefect_redis.messaging
+      PREFECT_REDIS_MESSAGING_HOST: redis
+      PREFECT_REDIS_MESSAGING_PORT: 6379
+      PREFECT_REDIS_MESSAGING_DB: 0
+    command: prefect server start --no-services
+    ports:
+      - "4200:4200"
+
+  prefect-services:
+    image: prefecthq/prefect:3-latest
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      PREFECT_API_DATABASE_CONNECTION_URL: postgresql+asyncpg://prefect:prefect@postgres:5432/prefect
+      PREFECT_MESSAGING_BROKER: prefect_redis.messaging
+      PREFECT_MESSAGING_CACHE: prefect_redis.messaging
+      PREFECT_REDIS_MESSAGING_HOST: redis
+      PREFECT_REDIS_MESSAGING_PORT: 6379
+      PREFECT_REDIS_MESSAGING_DB: 0
+    command: prefect server services start
+
+  prefect-worker:
+    image: prefecthq/prefect:3-latest
+    depends_on:
+      prefect-server:
+        condition: service_started
+    environment:
+      PREFECT_API_URL: http://prefect-server:4200/api
+    command: prefect worker start --pool local-pool
+
+volumes:
+  postgres_data:
+  redis_data:
+```
+
+## Running the stack
+
+1. Save the `compose.yml` file to your local machine.
+
+2. From the directory containing the file, start the stack by running:
+
+```bash
+docker compose up -d
+```
+
+3. Wait for all services to start (it may take a few moments).
+
+4. Open your browser and navigate to [http://localhost:4200](http://localhost:4200) to access the Prefect UI.
+
+5. To stop the stack, run:
+
+```bash
+docker compose down
+```
+
+## Notes
+
+* The PostgreSQL database is preconfigured with user and database `prefect`.
+* Redis is not strictly required but is recommended as the messaging broker when [scaling a Prefect server installation](/v3/advanced/self-hosted).
+* The Prefect worker automatically registers a pool named `local-pool`.
+* The Prefect server exposes the API on port 4200; ensure this port is free.
+* Use `docker compose logs -f` to view live logs for all services.
+* This `compose.yml` does not configure authentication. See the [authentication guide](/v3/advanced/security-settings#basic-authentication) for more information.
+
+## Troubleshooting
+
+* If the UI does not load, verify that port 4200 is not occupied by another process.
+* Check container logs for errors with:
+
+```bash
+docker compose logs -f
+```
+
+* Make sure Docker and Docker Compose are installed and up to date.
+
+---
+
+For more information, see the official [Prefect documentation](https://docs.prefect.io).
+
+---
+

@@ -750,6 +750,13 @@ async def _generate_scheduled_flow_runs(
             **deployment.parameters,
             **deployment_schedule.parameters,
         }
+
+        # Generate system labels for flow runs from this deployment
+        labels = await with_system_labels_for_deployment_flow_run(
+            session=session,
+            deployment=deployment,
+        )
+
         for date in dates:
             runs.append(
                 {
@@ -763,6 +770,7 @@ async def _generate_scheduled_flow_runs(
                     "infrastructure_document_id": deployment.infrastructure_document_id,
                     "idempotency_key": f"scheduled {deployment.id} {deployment_schedule.id} {date}",
                     "tags": tags,
+                    "labels": labels,
                     "auto_scheduled": auto_scheduled,
                     "state": schemas.states.Scheduled(
                         scheduled_time=date,
@@ -1209,3 +1217,33 @@ async def with_system_labels_for_deployment(
     ) or {}
 
     return parent_labels | default_labels | user_supplied_labels
+
+
+async def with_system_labels_for_deployment_flow_run(
+    session: AsyncSession,
+    deployment: orm_models.Deployment,
+    user_supplied_labels: Optional[schemas.core.KeyValueLabels] = None,
+) -> schemas.core.KeyValueLabels:
+    """Generate system labels for a flow run created from a deployment.
+
+    Args:
+        session: Database session
+        deployment: The deployment the flow run is created from
+        user_supplied_labels: Optional user-supplied labels to include
+
+    Returns:
+        Complete set of labels for the flow run
+    """
+    system_labels = cast(
+        schemas.core.KeyValueLabels,
+        {
+            "prefect.flow.id": str(deployment.flow_id),
+            "prefect.deployment.id": str(deployment.id),
+        },
+    )
+
+    # Use deployment labels as parent labels for flow runs
+    parent_labels = deployment.labels or {}
+    user_labels = user_supplied_labels or {}
+
+    return parent_labels | system_labels | user_labels

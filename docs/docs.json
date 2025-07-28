@@ -30,9 +30,9 @@
           {
             "group": "Workflows",
             "pages": [
-              "v3/concepts/assets",
               "v3/concepts/flows",
               "v3/concepts/tasks",
+              "v3/concepts/assets",
               "v3/concepts/caching",
               "v3/concepts/states",
               "v3/concepts/runtime-context",
@@ -104,6 +104,7 @@
             "group": "Deployments",
             "pages": [
               "v3/how-to-guides/deployments/create-deployments",
+              "v3/how-to-guides/deployments/run-deployments",
               "v3/how-to-guides/deployments/create-schedules",
               "v3/how-to-guides/deployments/deploy-via-python",
               "v3/how-to-guides/deployments/prefect-yaml",
@@ -172,7 +173,8 @@
             "pages": [
               "v3/how-to-guides/self-hosted/server-cli",
               "v3/how-to-guides/self-hosted/server-docker",
-              "v3/how-to-guides/self-hosted/server-windows"
+              "v3/how-to-guides/self-hosted/server-windows",
+              "v3/how-to-guides/self-hosted/docker-compose"
             ]
           },
           {
@@ -222,6 +224,7 @@
             "group": "Platform",
             "pages": [
               "v3/advanced/self-hosted",
+              "v3/advanced/database-maintenance",
               "v3/advanced/deploy-ci-cd",
               "v3/advanced/infrastructure-as-code",
               "v3/advanced/server-helm",
@@ -232,7 +235,8 @@
             "group": "Extensibility",
             "pages": [
               "v3/advanced/api-client",
-              "v3/advanced/custom-blocks"
+              "v3/advanced/custom-blocks",
+              "v3/advanced/developing-a-custom-worker"
             ]
           }
         ]
@@ -551,7 +555,10 @@
                           "v3/api-ref/rest-api/server/concurrency-limits-v2/update-concurrency-limit-v2",
                           "v3/api-ref/rest-api/server/concurrency-limits-v2/read-all-concurrency-limits-v2",
                           "v3/api-ref/rest-api/server/concurrency-limits-v2/bulk-increment-active-slots",
-                          "v3/api-ref/rest-api/server/concurrency-limits-v2/bulk-decrement-active-slots"
+                          "v3/api-ref/rest-api/server/concurrency-limits-v2/bulk-increment-active-slots-with-lease",
+                          "v3/api-ref/rest-api/server/concurrency-limits-v2/bulk-decrement-active-slots",
+                          "v3/api-ref/rest-api/server/concurrency-limits-v2/bulk-decrement-active-slots-with-lease",
+                          "v3/api-ref/rest-api/server/concurrency-limits-v2/renew-concurrency-lease"
                         ]
                       },
                       {
@@ -1194,6 +1201,7 @@
                           "v3/api-ref/python/prefect-server-services-foreman",
                           "v3/api-ref/python/prefect-server-services-late_runs",
                           "v3/api-ref/python/prefect-server-services-pause_expirations",
+                          "v3/api-ref/python/prefect-server-services-repossessor",
                           "v3/api-ref/python/prefect-server-services-scheduler",
                           "v3/api-ref/python/prefect-server-services-task_run_recorder",
                           "v3/api-ref/python/prefect-server-services-telemetry"
@@ -1207,6 +1215,7 @@
                           "v3/api-ref/python/prefect-server-utilities-database",
                           "v3/api-ref/python/prefect-server-utilities-encryption",
                           "v3/api-ref/python/prefect-server-utilities-http",
+                          "v3/api-ref/python/prefect-server-utilities-leasing",
                           {
                             "group": "messaging",
                             "pages": [
@@ -1260,6 +1269,7 @@
                             "pages": [
                               "v3/api-ref/python/prefect-settings-models-server-__init__",
                               "v3/api-ref/python/prefect-settings-models-server-api",
+                              "v3/api-ref/python/prefect-settings-models-server-concurrency",
                               "v3/api-ref/python/prefect-settings-models-server-database",
                               "v3/api-ref/python/prefect-settings-models-server-deployments",
                               "v3/api-ref/python/prefect-settings-models-server-ephemeral",
@@ -1390,7 +1400,7 @@
   "logo": {
     "light": "/logos/logo-word-black.svg",
     "dark": "/logos/logo-word-white.svg",
-    "href": "https://prefect.io"
+    "href": "https://docs.prefect.io"
   },
   "api": {
     "playground": {
@@ -1411,7 +1421,7 @@
     "socials": {
       "github": "https://github.com/PrefectHQ/prefect",
       "linkedin": "https://www.linkedin.com/company/prefect/mycompany/",
-      "slack": "https://communityinviter.com/apps/prefect-community/prefect-community",
+      "slack": "https://prefect.io/slack",
       "twitter": "https://x.com/prefectio",
       "youtube": "https://www.youtube.com/c/PrefectIO"
     }
@@ -2349,6 +2359,22 @@
     {
       "source": "v3/resources/upgrade-agents-to-workers",
       "destination": "/v3/how-to-guides/migrate/upgrade-agents-to-workers"
+    },
+    {
+      "source": "/v3/deploy",
+      "destination": "/v3/concepts/deployments"
+    },
+    {
+      "source": "/v3/develop/deferred-tasks",
+      "destination": "/v3/advanced/background-tasks"
+    },
+    {
+      "source": "/v3/automate/index",
+      "destination": "/v3/concepts/automations"
+    },
+    {
+      "source": "/v3/manage/server/examples/helm",
+      "destination": "/v3/advanced/server-helm"
     }
   ]
 }

@@ -1,11 +1,13 @@
 export {
-	type WorkPool,
-	type WorkPoolsFilter,
-	type WorkPoolsCountFilter,
-	buildFilterWorkPoolsQuery,
 	buildCountWorkPoolsQuery,
+	buildFilterWorkPoolsQuery,
 	buildWorkPoolDetailsQuery,
+	useCreateWorkPool,
 	useDeleteWorkPool,
 	usePauseWorkPool,
 	useResumeWorkPool,
+	type WorkPool,
+	type WorkPoolCreate,
+	type WorkPoolsCountFilter,
+	type WorkPoolsFilter,
 } from "./work-pools";

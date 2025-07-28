@@ -5,4 +5,10 @@ sidebarTitle: schemas
 
 # `prefect.server.api.ui.schemas`
 
-*This module is empty or contains only private/internal implementations.*
+## Functions
+
+### `validate_obj` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/ui/schemas.py#L27" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+validate_obj(json_schema: dict[str, Any] = Body(..., embed=True, alias='schema', validation_alias='schema', json_schema_extra={'additionalProperties': True}), values: dict[str, Any] = Body(..., embed=True, json_schema_extra={'additionalProperties': True}), db: PrefectDBInterface = Depends(provide_database_interface)) -> SchemaValuesValidationResponse
+```

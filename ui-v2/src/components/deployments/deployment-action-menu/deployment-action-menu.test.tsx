@@ -1,16 +1,14 @@
-import { Toaster } from "@/components/ui/sonner";
-
-import { render, screen, waitFor } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
-
 import { QueryClient } from "@tanstack/react-query";
 import {
-	RouterProvider,
 	createMemoryHistory,
 	createRootRoute,
 	createRouter,
+	RouterProvider,
 } from "@tanstack/react-router";
+import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { describe, expect, it, vi } from "vitest";
+import { Toaster } from "@/components/ui/sonner";
 import {
 	DeploymentActionMenu,
 	type DeploymentActionMenuProps,
@@ -36,11 +34,13 @@ describe("DeploymentActionMenu", () => {
 	it("copies the id", async () => {
 		// ------------ Setup
 		const user = userEvent.setup();
-		render(
-			<>
-				<Toaster />
-				<DeploymentActionMenuRouter id="my-id" onDelete={vi.fn()} />
-			</>,
+		await waitFor(() =>
+			render(
+				<>
+					<Toaster />
+					<DeploymentActionMenuRouter id="my-id" onDelete={vi.fn()} />
+				</>,
+			),
 		);
 
 		// ------------ Act
@@ -60,7 +60,11 @@ describe("DeploymentActionMenu", () => {
 		const user = userEvent.setup();
 		const mockOnDeleteFn = vi.fn();
 
-		render(<DeploymentActionMenuRouter id="my-id" onDelete={mockOnDeleteFn} />);
+		await waitFor(() =>
+			render(
+				<DeploymentActionMenuRouter id="my-id" onDelete={mockOnDeleteFn} />,
+			),
+		);
 
 		// ------------ Act
 
@@ -77,7 +81,9 @@ describe("DeploymentActionMenu", () => {
 		const user = userEvent.setup();
 
 		// ------------ Setup
-		render(<DeploymentActionMenuRouter id="my-id" onDelete={vi.fn()} />);
+		await waitFor(() =>
+			render(<DeploymentActionMenuRouter id="my-id" onDelete={vi.fn()} />),
+		);
 
 		// ------------ Act
 
@@ -93,7 +99,9 @@ describe("DeploymentActionMenu", () => {
 		const user = userEvent.setup();
 
 		// ------------ Setup
-		render(<DeploymentActionMenuRouter id="my-id" onDelete={vi.fn()} />);
+		await waitFor(() =>
+			render(<DeploymentActionMenuRouter id="my-id" onDelete={vi.fn()} />),
+		);
 
 		// ------------ Act
 

@@ -1,3 +1,6 @@
+import type { Meta, StoryObj } from "@storybook/react";
+import { buildApiUrl } from "@tests/utils/handlers";
+import { HttpResponse, http } from "msw";
 import {
 	createFakeAutomation,
 	createFakeDeployment,
@@ -6,9 +9,6 @@ import {
 	createFakeWorkQueue,
 } from "@/mocks";
 import { reactQueryDecorator, routerDecorator } from "@/storybook/utils";
-import type { Meta, StoryObj } from "@storybook/react";
-import { buildApiUrl } from "@tests/utils/handlers";
-import { http, HttpResponse } from "msw";
 import { AutomationWizard } from "./automation-wizard";
 
 const MOCK_AUTOMATIONS_DATA = Array.from({ length: 5 }, createFakeAutomation);

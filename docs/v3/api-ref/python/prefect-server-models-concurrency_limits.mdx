@@ -10,3 +10,86 @@ sidebarTitle: concurrency_limits
 Functions for interacting with concurrency limit ORM objects.
 Intended for internal use by the Prefect REST API.
 
+
+## Functions
+
+### `create_concurrency_limit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/concurrency_limits.py#L18" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+create_concurrency_limit(db: PrefectDBInterface, session: AsyncSession, concurrency_limit: schemas.core.ConcurrencyLimit) -> orm_models.ConcurrencyLimit
+```
+
+### `read_concurrency_limit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/concurrency_limits.py#L57" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+read_concurrency_limit(db: PrefectDBInterface, session: AsyncSession, concurrency_limit_id: UUID) -> Union[orm_models.ConcurrencyLimit, None]
+```
+
+
+Reads a concurrency limit by id. If used for orchestration, simultaneous read race
+conditions might allow the concurrency limit to be temporarily exceeded.
+
+
+### `read_concurrency_limit_by_tag` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/concurrency_limits.py#L76" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+read_concurrency_limit_by_tag(db: PrefectDBInterface, session: AsyncSession, tag: str) -> Union[orm_models.ConcurrencyLimit, None]
+```
+
+
+Reads a concurrency limit by tag. If used for orchestration, simultaneous read race
+conditions might allow the concurrency limit to be temporarily exceeded.
+
+
+### `reset_concurrency_limit_by_tag` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/concurrency_limits.py#L93" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+reset_concurrency_limit_by_tag(db: PrefectDBInterface, session: AsyncSession, tag: str, slot_override: Optional[List[UUID]] = None) -> Union[orm_models.ConcurrencyLimit, None]
+```
+
+
+Resets a concurrency limit by tag.
+
+
+### `filter_concurrency_limits_for_orchestration` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/concurrency_limits.py#L114" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+filter_concurrency_limits_for_orchestration(db: PrefectDBInterface, session: AsyncSession, tags: List[str]) -> Sequence[orm_models.ConcurrencyLimit]
+```
+
+
+Filters concurrency limits by tag. This will apply a "select for update" lock on
+these rows to prevent simultaneous read race conditions from enabling the
+the concurrency limit on these tags from being temporarily exceeded.
+
+
+### `delete_concurrency_limit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/concurrency_limits.py#L139" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+delete_concurrency_limit(db: PrefectDBInterface, session: AsyncSession, concurrency_limit_id: UUID) -> bool
+```
+
+### `delete_concurrency_limit_by_tag` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/concurrency_limits.py#L153" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+delete_concurrency_limit_by_tag(db: PrefectDBInterface, session: AsyncSession, tag: str) -> bool
+```
+
+### `read_concurrency_limits` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/concurrency_limits.py#L165" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+read_concurrency_limits(db: PrefectDBInterface, session: AsyncSession, limit: Optional[int] = None, offset: Optional[int] = None) -> Sequence[orm_models.ConcurrencyLimit]
+```
+
+
+Reads a concurrency limits. If used for orchestration, simultaneous read race
+conditions might allow the concurrency limit to be temporarily exceeded.
+
+**Args:**
+- `session`: A database session
+- `offset`: Query offset
+- `limit`: Query limit
+
+**Returns:**
+- List[orm_models.ConcurrencyLimit]: concurrency limits
+

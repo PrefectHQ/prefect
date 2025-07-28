@@ -1,19 +1,19 @@
+import { QueryClient } from "@tanstack/react-query";
+import {
+	createMemoryHistory,
+	createRootRoute,
+	createRouter,
+	RouterProvider,
+} from "@tanstack/react-router";
+import { render, waitFor } from "@testing-library/react";
+import { createWrapper } from "@tests/utils";
+import { describe, expect, it } from "vitest";
 import type { ArtifactWithFlowRunAndTaskRun } from "@/api/artifacts";
 import {
 	createFakeArtifact,
 	createFakeFlowRun,
 	createFakeTaskRun,
 } from "@/mocks";
-import { QueryClient } from "@tanstack/react-query";
-import {
-	RouterProvider,
-	createMemoryHistory,
-	createRootRoute,
-	createRouter,
-} from "@tanstack/react-router";
-import { render } from "@testing-library/react";
-import { createWrapper } from "@tests/utils";
-import { describe, expect, it } from "vitest";
 import {
 	TimelineContainer,
 	type TimelineContainerProps,
@@ -36,7 +36,7 @@ const TimelineCardRouter = (props: TimelineContainerProps) => {
 };
 
 describe("Timeline Container", () => {
-	it("renders timeline rows", () => {
+	it("renders timeline rows", async () => {
 		const artifact: ArtifactWithFlowRunAndTaskRun = createFakeArtifact({
 			id: "test-id",
 		});
@@ -54,11 +54,10 @@ describe("Timeline Container", () => {
 		artifact.flow_run = flowRun;
 		artifact.task_run = taskRun;
 
-		const { getByTestId } = render(
-			<TimelineCardRouter artifacts={[artifact]} />,
-			{
+		const { getByTestId } = await waitFor(() =>
+			render(<TimelineCardRouter artifacts={[artifact]} />, {
 				wrapper: createWrapper(),
-			},
+			}),
 		);
 
 		expect(getByTestId("timeline-row-test-id")).toBeTruthy();

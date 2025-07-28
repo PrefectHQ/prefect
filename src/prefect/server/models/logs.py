@@ -5,7 +5,7 @@ Intended for internal use by the Prefect REST API.
 
 from typing import TYPE_CHECKING, Generator, Optional, Sequence, Tuple
 
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 import prefect.server.schemas as schemas
@@ -100,3 +100,14 @@ async def read_logs(
 
     result = await session.execute(query)
     return result.scalars().unique().all()
+
+
+@db_injector
+async def delete_logs(
+    db: PrefectDBInterface,
+    session: AsyncSession,
+    log_filter: schemas.filters.LogFilter,
+) -> int:
+    query = delete(db.Log).where(log_filter.as_sql_filter())
+    result = await session.execute(query)
+    return result.rowcount

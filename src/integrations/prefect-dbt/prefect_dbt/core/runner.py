@@ -16,14 +16,21 @@ from dbt.artifacts.schemas.results import (
 )
 from dbt.artifacts.schemas.run import RunExecutionResult
 from dbt.cli.main import dbtRunner
+from dbt.compilation import Linker
 from dbt.config.runtime import RuntimeConfig
 from dbt.contracts.graph.manifest import Manifest
-from dbt.contracts.graph.nodes import ManifestNode
+from dbt.contracts.graph.nodes import ManifestNode, SourceDefinition
+from dbt.contracts.state import (
+    load_result_state,  # type: ignore[reportUnknownMemberType]
+)
+from dbt.graph.graph import Graph, UniqueId
 from dbt_common.events.base_types import EventLevel, EventMsg
 from google.protobuf.json_format import MessageToDict
 
 from prefect import get_client, get_run_logger
+from prefect._internal.uuid7 import uuid7
 from prefect.assets import Asset, AssetProperties
+from prefect.assets.core import MAX_ASSET_DESCRIPTION_LENGTH
 from prefect.cache_policies import NO_CACHE
 from prefect.client.orchestration import PrefectClient
 from prefect.context import AssetContext, hydrated_context, serialize_context
@@ -42,6 +49,11 @@ FAILURE_STATUSES = [
     NodeStatus.Error,
     NodeStatus.Fail,
     NodeStatus.RuntimeErr,
+]
+SKIPPED_STATUSES = [
+    RunStatus.Skipped,
+    TestStatus.Skipped,
+    NodeStatus.Skipped,
 ]
 MATERIALIZATION_NODE_TYPES = [
     NodeType.Model,
@@ -72,8 +84,6 @@ def execute_dbt_node(
     2. Wait for the node to finish using efficient threading.Event
     3. Check the node's status and fail if it's in a failure state
     """
-    task_state.set_task_logger(node_id, get_run_logger())
-
     # Wait for the node to finish using efficient threading.Event
     task_state.wait_for_node_completion(node_id)
 
@@ -103,6 +113,9 @@ class PrefectDbtRunner:
             non-exception failure
         client: Optional Prefect client instance
         include_compiled_code: Whether to include compiled code in the asset description
+        disable_assets: Global override for disabling asset generation for dbt nodes. If
+            True, assets will not be created for any dbt nodes, even if the node's prefect
+            config has enable_assets set to True.
         _force_nodes_as_tasks: Whether to force each dbt node execution to have a Prefect task
             representation when `.invoke()` is called outside of a flow or task run
     """
@@ -114,6 +127,7 @@ class PrefectDbtRunner:
         raise_on_failure: bool = True,
         client: Optional[PrefectClient] = None,
         include_compiled_code: bool = False,
+        disable_assets: bool = False,
         _force_nodes_as_tasks: bool = False,
     ):
         self._manifest: Optional[Manifest] = manifest
@@ -121,13 +135,17 @@ class PrefectDbtRunner:
         self.raise_on_failure = raise_on_failure
         self.client = client or get_client()
         self.include_compiled_code = include_compiled_code
+        self.disable_assets = disable_assets
         self._force_nodes_as_tasks = _force_nodes_as_tasks
 
-        self._project: Optional[RuntimeConfig] = None
+        self._project_name: Optional[str] = None
         self._target_path: Optional[Path] = None
         self._profiles_dir: Optional[Path] = None
         self._project_dir: Optional[Path] = None
         self._log_level: Optional[EventLevel] = None
+        self._config: Optional[RuntimeConfig] = None
+        self._graph: Optional[Graph] = None
+        self._skipped_nodes: set[str] = set()
 
     @property
     def target_path(self) -> Path:
@@ -153,11 +171,29 @@ class PrefectDbtRunner:
         return self._manifest
 
     @property
-    def project(self) -> RuntimeConfig:
-        if self._project is None:
-            self._set_project_from_project_dir()
-            assert self._project is not None  # for type checking
-        return self._project
+    def graph(self) -> Graph:
+        if self._graph is None:
+            self._set_graph_from_manifest()
+            assert self._graph is not None
+        return self._graph
+
+    @property
+    def project_name(self) -> str:
+        if self._project_name is None:
+            self._set_project_name_from_manifest()
+            assert self._project_name is not None
+        return self._project_name
+
+    def _set_project_name_from_manifest(self) -> Optional[str]:
+        self._project_name = self.manifest.metadata.project_name
+
+    def _set_graph_from_manifest(self, add_test_edges: bool = False):
+        linker = Linker()
+        linker.link_graph(self.manifest)
+        if add_test_edges:
+            self.manifest.build_parent_and_child_maps()
+            linker.add_test_edges(self.manifest)
+        self._graph = Graph(linker.graph)
 
     def _set_manifest_from_project_dir(self):
         try:
@@ -170,23 +206,27 @@ class PrefectDbtRunner:
                 f"Manifest file not found in {os.path.join(self.project_dir, self.target_path, 'manifest.json')}"
             )
 
-    def _set_project_from_project_dir(self):
-        self._project = RuntimeConfig.from_args(self.project_dir)
-
     def _get_node_prefect_config(
-        self, manifest_node: ManifestNode
+        self, manifest_node: Union[ManifestNode, SourceDefinition]
     ) -> dict[str, dict[str, Any]]:
+        if isinstance(manifest_node, SourceDefinition):
+            return manifest_node.meta.get("prefect", {})
+
         return manifest_node.config.meta.get("prefect", {})
 
     def _get_upstream_manifest_nodes_and_configs(
         self,
         manifest_node: ManifestNode,
-    ) -> list[tuple[ManifestNode, dict[str, Any]]]:
+    ) -> list[tuple[Union[ManifestNode, SourceDefinition], dict[str, Any]]]:
         """Get upstream nodes for a given node"""
-        upstream_manifest_nodes: list[tuple[ManifestNode, dict[str, Any]]] = []
+        upstream_manifest_nodes: list[
+            tuple[Union[ManifestNode, SourceDefinition], dict[str, Any]]
+        ] = []
 
         for depends_on_node in manifest_node.depends_on_nodes:  # type: ignore[reportUnknownMemberType]
-            depends_manifest_node = self.manifest.nodes.get(depends_on_node)  # type: ignore[reportUnknownMemberType]
+            depends_manifest_node = self.manifest.nodes.get(
+                depends_on_node  # type: ignore[reportUnknownMemberType]
+            ) or self.manifest.sources.get(depends_on_node)  # type: ignore[reportUnknownMemberType]
 
             if not depends_manifest_node:
                 continue
@@ -209,24 +249,45 @@ class PrefectDbtRunner:
             Path(self.project_dir)
             / self.target_path
             / "compiled"
-            / str(Path(self.project.project_name)).split("/")[-1]
+            / self.project_name
             / manifest_node.original_file_path
         )
 
-    def _get_compiled_code(self, manifest_node: ManifestNode) -> str:
+    def _get_compiled_code(
+        self, manifest_node: Union[ManifestNode, SourceDefinition]
+    ) -> str:
         """Get compiled code for a manifest node if it exists and is enabled."""
-        if not self.include_compiled_code:
+        if not self.include_compiled_code or isinstance(
+            manifest_node, SourceDefinition
+        ):
             return ""
 
         compiled_code_path = self._get_compiled_code_path(manifest_node)
         if os.path.exists(compiled_code_path):
             with open(compiled_code_path, "r") as f:
                 code_content = f.read()
-                return f"\n ### Compiled code\n```sql\n{code_content.strip()}\n```"
+                description = (
+                    f"\n ### Compiled code\n```sql\n{code_content.strip()}\n```"
+                )
+
+            if len(description) > MAX_ASSET_DESCRIPTION_LENGTH:
+                warning_msg = (
+                    f"Compiled code for {manifest_node.name} was omitted because it exceeded the "
+                    f"maximum asset description length of {MAX_ASSET_DESCRIPTION_LENGTH} characters."
+                )
+                description = "\n ### Compiled code\n" + warning_msg
+                try:
+                    logger = get_run_logger()
+                    logger.warning(warning_msg)
+                except MissingContextError:
+                    pass
+
+            return description
+
         return ""
 
     def _create_asset_from_node(
-        self, manifest_node: ManifestNode, adapter_type: str
+        self, manifest_node: Union[ManifestNode, SourceDefinition], adapter_type: str
     ) -> Asset:
         """Create an Asset from a manifest node."""
         if not manifest_node.relation_name:
@@ -235,15 +296,22 @@ class PrefectDbtRunner:
         asset_id = format_resource_id(adapter_type, manifest_node.relation_name)
         compiled_code = self._get_compiled_code(manifest_node)
 
+        if isinstance(manifest_node, SourceDefinition):
+            owner = manifest_node.meta.get("owner")
+        else:
+            owner = manifest_node.config.meta.get("owner")
+
+        if owner and isinstance(owner, str):
+            owners = [owner]
+        else:
+            owners = None
+
         return Asset(
             key=asset_id,
             properties=AssetProperties(
                 name=manifest_node.name,
                 description=manifest_node.description + compiled_code,
-                owners=[owner]
-                if (owner := manifest_node.config.meta.get("owner"))
-                and isinstance(owner, str)
-                else None,
+                owners=owners,
             ),
         )
 
@@ -330,9 +398,14 @@ class PrefectDbtRunner:
             [node[0].unique_id for node in upstream_manifest_nodes],
         )
 
+        task_run_id = uuid7()
+
+        task_state.set_task_run_id(manifest_node.unique_id, task_run_id)
+
         task_state.run_task_in_thread(
             manifest_node.unique_id,
             task,
+            task_run_id=task_run_id,
             parameters={
                 "task_state": task_state,
                 "node_id": manifest_node.unique_id,
@@ -355,9 +428,19 @@ class PrefectDbtRunner:
 
         def logging_callback(event: EventMsg):
             event_data = MessageToDict(event.data, preserving_proto_field_name=True)
-            if event_data.get("node_info"):
-                node_id = self._get_dbt_event_node_id(event)
-                logger = task_state.get_task_logger(node_id)
+            if (
+                event_data.get("node_info")
+                and (node_id := self._get_dbt_event_node_id(event))
+                not in self._skipped_nodes
+            ):
+                flow_run_context: Optional[dict[str, Any]] = context.get(
+                    "flow_run_context"
+                )
+                logger = task_state.get_task_logger(
+                    node_id,
+                    flow_run_context.get("flow_run") if flow_run_context else None,
+                    flow_run_context.get("flow") if flow_run_context else None,
+                )
             else:
                 try:
                     with hydrated_context(context) as run_context:
@@ -392,12 +475,18 @@ class PrefectDbtRunner:
         def node_started_callback(event: EventMsg):
             if event.info.name == "NodeStart":
                 node_id = self._get_dbt_event_node_id(event)
+                if node_id in self._skipped_nodes:
+                    return
+
                 manifest_node, prefect_config = self._get_manifest_node_and_config(
                     node_id
                 )
 
                 if manifest_node:
-                    enable_assets = prefect_config.get("enable_assets", True)
+                    enable_assets = (
+                        prefect_config.get("enable_assets", True)
+                        and not self.disable_assets
+                    )
                     try:
                         self._call_task(
                             task_state, manifest_node, context, enable_assets
@@ -410,12 +499,16 @@ class PrefectDbtRunner:
     def _create_node_finished_callback(
         self,
         task_state: NodeTaskTracker,
+        add_test_edges: bool = False,
     ) -> Callable[[EventMsg], None]:
         """Creates a callback function for ending tasks when nodes finish."""
 
         def node_finished_callback(event: EventMsg):
             if event.info.name == "NodeFinished":
                 node_id = self._get_dbt_event_node_id(event)
+                if node_id in self._skipped_nodes:
+                    return
+
                 manifest_node, _ = self._get_manifest_node_and_config(node_id)
 
                 if manifest_node:
@@ -426,6 +519,23 @@ class PrefectDbtRunner:
                         )
                         event_message = self.get_dbt_event_msg(event)
                         task_state.set_node_status(node_id, event_data, event_message)
+
+                        node_info: Optional[dict[str, Any]] = event_data.get(
+                            "node_info"
+                        )
+                        node_status: Optional[str] = (
+                            node_info.get("node_status") if node_info else None
+                        )
+
+                        if (
+                            node_status in SKIPPED_STATUSES
+                            or node_status in FAILURE_STATUSES
+                        ):
+                            self._set_graph_from_manifest(add_test_edges=add_test_edges)
+                            for dep_node_id in self.graph.get_dependent_nodes(  # type: ignore[reportUnknownMemberType]
+                                UniqueId(node_id)
+                            ):  # type: ignore[reportUnknownMemberType]
+                                self._skipped_nodes.add(dep_node_id)  # type: ignore[reportUnknownMemberType]
                     except Exception as e:
                         print(e)
 
@@ -509,11 +619,28 @@ class PrefectDbtRunner:
         )
         task_state = NodeTaskTracker()
 
+        add_test_edges = True if "build" in args_copy else False
+
+        if "retry" in args_copy:
+            previous_results = load_result_state(
+                Path(self.project_dir) / self.target_path / "run_results.json"
+            )
+            if not previous_results:
+                raise ValueError(
+                    f"Cannot retry. No previous results found at target path {self.target_path}"
+                )
+            previous_args = previous_results.args
+            self.previous_command_name = previous_args.get("which")
+            if self.previous_command_name == "build":
+                add_test_edges = True
+
         callbacks = (
             [
                 self._create_logging_callback(task_state, self.log_level, context),
                 self._create_node_started_callback(task_state, context),
-                self._create_node_finished_callback(task_state),
+                self._create_node_finished_callback(
+                    task_state, add_test_edges=add_test_edges
+                ),
             ]
             if in_flow_or_task_run or self._force_nodes_as_tasks
             else []
@@ -529,10 +656,13 @@ class PrefectDbtRunner:
             **kwargs,
         }
 
-        res = dbtRunner(callbacks=callbacks).invoke(  # type: ignore[reportUnknownMemberType]
-            args_copy,
-            **invoke_kwargs,
-        )
+        with self.settings.resolve_profiles_yml() as profiles_dir:
+            invoke_kwargs["profiles_dir"] = profiles_dir
+
+            res = dbtRunner(callbacks=callbacks).invoke(  # type: ignore[reportUnknownMemberType]
+                args_copy,
+                **invoke_kwargs,
+            )
 
         if not res.success and res.exception:
             raise ValueError(

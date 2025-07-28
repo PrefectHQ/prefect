@@ -1,8 +1,7 @@
-import { cn } from "@/lib/utils";
-
 import { Card } from "@/components/ui/card";
 import { Icon } from "@/components/ui/icons";
 import { Typography } from "@/components/ui/typography";
+import { cn } from "@/lib/utils";
 
 type StepperProps = {
 	currentStepNum: number;
@@ -10,7 +9,10 @@ type StepperProps = {
 	onClick: ({
 		stepName,
 		stepNum,
-	}: { stepName: string; stepNum: number }) => void;
+	}: {
+		stepName: string;
+		stepNum: number;
+	}) => void;
 	completedSteps: Set<number>;
 	visitedSteps: Set<number>;
 };
@@ -22,7 +24,7 @@ const Stepper = ({
 	visitedSteps,
 }: StepperProps) => {
 	return (
-		<Card className="p-4 flex items-center justify-around">
+		<Card className="p-4 flex flex-row items-center justify-around gap-4 overflow-x-auto">
 			{steps.map((step, i) => {
 				const isCurrentStep = currentStepNum === i;
 				const isStepVisited = visitedSteps.has(i);
@@ -73,7 +75,7 @@ const Step = ({
 		<button
 			type="button"
 			className={cn(
-				"flex items-center gap-3",
+				"flex items-center gap-3 text-nowrap",
 				disabled && "cursor-not-allowed",
 			)}
 			disabled={disabled}
@@ -91,7 +93,7 @@ const Step = ({
 			<Typography
 				variant="bodyLarge"
 				className={cn(
-					"text-gray-500 border-gray-500",
+					"text-gray-500 border-gray-500 whitespace-nowrap",
 					isActive && "text-teal-700 border-teal-700",
 				)}
 			>

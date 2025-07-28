@@ -1,7 +1,7 @@
-import { type FlowRunsFilter, buildFilterFlowRunsQuery } from "@/api/flow-runs";
-import { type Flow, buildListFlowsQuery } from "@/api/flows";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
+import { buildFilterFlowRunsQuery, type FlowRunsFilter } from "@/api/flow-runs";
+import { buildListFlowsQuery, type Flow } from "@/api/flows";
 
 /**
  *

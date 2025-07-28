@@ -5,4 +5,68 @@ sidebarTitle: asyncio
 
 # `prefect.concurrency.asyncio`
 
-*This module is empty or contains only private/internal implementations.*
+## Functions
+
+### `concurrency` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/concurrency/asyncio.py#L29" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+concurrency(names: Union[str, list[str]], occupy: int = 1, timeout_seconds: Optional[float] = None, max_retries: Optional[int] = None, lease_duration: float = 300, strict: bool = False) -> AsyncGenerator[None, None]
+```
+
+
+A
+context manager that acquires and releases concurrency slots from the
+given concurrency limits.
+
+**Args:**
+- `names`: The names of the concurrency limits to acquire slots from.
+- `occupy`: The number of slots to acquire and hold from each limit.
+- `timeout_seconds`: The number of seconds to wait for the slots to be acquired before
+raising a `TimeoutError`. A timeout of `None` will wait indefinitely.
+- `max_retries`: The maximum number of retries to acquire the concurrency slots.
+- `lease_duration`: The duration of the lease for the acquired slots in seconds.
+- `strict`: A boolean specifying whether to raise an error if the concurrency limit does not exist.
+Defaults to `False`.
+
+**Raises:**
+- `TimeoutError`: If the slots are not acquired within the given timeout.
+- `ConcurrencySlotAcquisitionError`: If the concurrency limit does not exist and `strict` is `True`.
+
+Example:
+A simple example of using the async `concurrency` context manager:
+```python
+from prefect.concurrency.asyncio import concurrency
+
+async def resource_heavy():
+    async with concurrency("test", occupy=1):
+        print("Resource heavy task")
+
+async def main():
+    await resource_heavy()
+```
+
+
+### `rate_limit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/concurrency/asyncio.py#L135" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+rate_limit(names: Union[str, list[str]], occupy: int = 1, timeout_seconds: Optional[float] = None, strict: bool = False) -> None
+```
+
+
+Block execution until an `occupy` number of slots of the concurrency
+limits given in `names` are acquired.
+
+Requires that all given concurrency limits have a slot decay.
+
+**Args:**
+- `names`: The names of the concurrency limits to acquire slots from.
+- `occupy`: The number of slots to acquire and hold from each limit.
+- `timeout_seconds`: The number of seconds to wait for the slots to be acquired before
+raising a `TimeoutError`. A timeout of `None` will wait indefinitely.
+- `strict`: A boolean specifying whether to raise an error if the concurrency limit does not exist.
+Defaults to `False`.
+
+**Raises:**
+- `TimeoutError`: If the slots are not acquired within the given timeout.
+- `ConcurrencySlotAcquisitionError`: If the concurrency limit does not exist and `strict` is `True`.
+

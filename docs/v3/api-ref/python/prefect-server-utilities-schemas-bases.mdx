@@ -7,7 +7,7 @@ sidebarTitle: bases
 
 ## Functions
 
-### `get_class_fields_only` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/schemas/bases.py#L22" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `get_class_fields_only` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/schemas/bases.py#L22" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_class_fields_only(model: type[BaseModel]) -> set[str]
@@ -20,7 +20,7 @@ Any fields that are on the parent but redefined on the subclass are included.
 
 ## Classes
 
-### `PrefectDescriptorBase` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/schemas/bases.py#L31" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `PrefectDescriptorBase` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/schemas/bases.py#L31" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 A base class for descriptor objects used with PrefectBaseModel
@@ -35,7 +35,7 @@ such descriptors to be used as properties, methods or other bound
 descriptor use cases.
 
 
-### `PrefectBaseModel` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/schemas/bases.py#L60" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `PrefectBaseModel` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/schemas/bases.py#L60" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 A base pydantic.BaseModel for all Prefect schemas and pydantic models.
@@ -49,19 +49,7 @@ of Prefect will be able to process those new fields gracefully.
 
 **Methods:**
 
-#### `reset_fields` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/schemas/bases.py#L109" target="_blank"><Icon icon="github" size="14" /></a></sup>
-
-```python
-reset_fields(self: Self) -> Self
-```
-
-Reset the fields of the model that are in the `_reset_fields` set.
-
-**Returns:**
-- A new instance of the model with the reset fields.
-
-
-#### `model_dump_for_orm` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/schemas/bases.py#L125" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `model_dump_for_orm` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/schemas/bases.py#L125" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 model_dump_for_orm(self) -> dict[str, Any]
@@ -92,7 +80,19 @@ value.
 - to SQLAlchemy model constructors, INSERT statements, etc.
 
 
-### `IDBaseModel` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/schemas/bases.py#L192" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `reset_fields` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/schemas/bases.py#L109" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+reset_fields(self: Self) -> Self
+```
+
+Reset the fields of the model that are in the `_reset_fields` set.
+
+**Returns:**
+- A new instance of the model with the reset fields.
+
+
+### `IDBaseModel` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/schemas/bases.py#L192" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 A PrefectBaseModel with an auto-generated UUID ID value.
@@ -100,14 +100,34 @@ A PrefectBaseModel with an auto-generated UUID ID value.
 The ID is reset on copy() and not included in equality comparisons.
 
 
-### `TimeSeriesBaseModel` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/schemas/bases.py#L207" target="_blank"><Icon icon="github" size="14" /></a></sup>
+**Methods:**
+
+#### `model_validate_list` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/_internal/schemas/bases.py#L56" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+model_validate_list(cls, obj: Any) -> list[Self]
+```
+
+#### `reset_fields` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/_internal/schemas/bases.py#L85" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+reset_fields(self: Self) -> Self
+```
+
+Reset the fields of the model that are in the `_reset_fields` set.
+
+**Returns:**
+- A new instance of the model with the reset fields.
+
+
+### `TimeSeriesBaseModel` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/schemas/bases.py#L207" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 A PrefectBaseModel with a time-oriented UUIDv7 ID value.  Used for models that
 operate like timeseries, such as runs, states, and logs.
 
 
-### `ORMBaseModel` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/schemas/bases.py#L216" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `ORMBaseModel` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/schemas/bases.py#L216" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 A PrefectBaseModel with an auto-generated UUID ID value and created /
@@ -117,4 +137,24 @@ The ID, created, and updated fields are reset on copy() and not included in
 equality comparisons.
 
 
-### `ActionBaseModel` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/schemas/bases.py#L238" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `ActionBaseModel` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/schemas/bases.py#L238" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+**Methods:**
+
+#### `model_validate_list` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/_internal/schemas/bases.py#L56" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+model_validate_list(cls, obj: Any) -> list[Self]
+```
+
+#### `reset_fields` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/_internal/schemas/bases.py#L85" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+reset_fields(self: Self) -> Self
+```
+
+Reset the fields of the model that are in the `_reset_fields` set.
+
+**Returns:**
+- A new instance of the model with the reset fields.
+

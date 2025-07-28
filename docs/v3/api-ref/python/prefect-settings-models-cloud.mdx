@@ -7,7 +7,7 @@ sidebarTitle: cloud
 
 ## Functions
 
-### `default_cloud_ui_url` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/settings/models/cloud.py#L14" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `default_cloud_ui_url` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/settings/models/cloud.py#L14" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 default_cloud_ui_url(settings: 'CloudSettings') -> Optional[str]
@@ -15,7 +15,7 @@ default_cloud_ui_url(settings: 'CloudSettings') -> Optional[str]
 
 ## Classes
 
-### `CloudSettings` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/settings/models/cloud.py#L31" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `CloudSettings` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/settings/models/cloud.py#L31" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Settings for interacting with Prefect Cloud
@@ -23,7 +23,7 @@ Settings for interacting with Prefect Cloud
 
 **Methods:**
 
-#### `post_hoc_settings` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/settings/models/cloud.py#L54" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `post_hoc_settings` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/settings/models/cloud.py#L54" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 post_hoc_settings(self) -> Self
@@ -34,4 +34,32 @@ refactor on resolution of https://github.com/pydantic/pydantic/issues/9789
 we should not be modifying __pydantic_fields_set__ directly, but until we can
 define dependencies between defaults in a first-class way, we need clean up
 post-hoc default assignments to keep set/unset fields correct after instantiation.
+
+
+#### `ser_model` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/settings/base.py#L134" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+ser_model(self, handler: SerializerFunctionWrapHandler, info: SerializationInfo) -> Any
+```
+
+#### `settings_customise_sources` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/settings/base.py#L33" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+settings_customise_sources(cls, settings_cls: type[BaseSettings], init_settings: PydanticBaseSettingsSource, env_settings: PydanticBaseSettingsSource, dotenv_settings: PydanticBaseSettingsSource, file_secret_settings: PydanticBaseSettingsSource) -> tuple[PydanticBaseSettingsSource, ...]
+```
+
+Define an order for Prefect settings sources.
+
+The order of the returned callables decides the priority of inputs; first item is the highest priority.
+
+See https://docs.pydantic.dev/latest/concepts/pydantic_settings/#customise-settings-sources
+
+
+#### `to_environment_variables` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/settings/base.py#L91" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+to_environment_variables(self, exclude_unset: bool = False, include_secrets: bool = True, include_aliases: bool = False) -> dict[str, str]
+```
+
+Convert the settings object to a dictionary of environment variables.
 

@@ -1,17 +1,17 @@
-import { Toaster } from "@/components/ui/sonner";
-import { createFakeDeployment, createFakeFlowRun } from "@/mocks";
 import { QueryClient } from "@tanstack/react-query";
 import {
-	RouterProvider,
 	createMemoryHistory,
 	createRootRoute,
 	createRouter,
+	RouterProvider,
 } from "@tanstack/react-router";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { buildApiUrl, createWrapper, server } from "@tests/utils";
-import { http, HttpResponse } from "msw";
+import { HttpResponse, http } from "msw";
 import { describe, expect, it } from "vitest";
+import { Toaster } from "@/components/ui/sonner";
+import { createFakeDeployment, createFakeFlowRun } from "@/mocks";
 import { RunFlowButton, type RunFlowButtonProps } from "./run-flow-button";
 
 describe("RunFlowButton", () => {
@@ -46,9 +46,11 @@ describe("RunFlowButton", () => {
 			}),
 		);
 		const user = userEvent.setup();
-		render(<RunFlowButtonRouter deployment={MOCK_DEPLOYMENT} />, {
-			wrapper: createWrapper(),
-		});
+		await waitFor(() =>
+			render(<RunFlowButtonRouter deployment={MOCK_DEPLOYMENT} />, {
+				wrapper: createWrapper(),
+			}),
+		);
 
 		// ------------ Act
 		await user.click(screen.getByRole("button", { name: "Run", hidden: true }));
@@ -69,9 +71,11 @@ describe("RunFlowButton", () => {
 			},
 		});
 		const user = userEvent.setup();
-		render(<RunFlowButtonRouter deployment={MOCK_DEPLOYMENT} />, {
-			wrapper: createWrapper(),
-		});
+		await waitFor(() =>
+			render(<RunFlowButtonRouter deployment={MOCK_DEPLOYMENT} />, {
+				wrapper: createWrapper(),
+			}),
+		);
 
 		// ------------ Act
 

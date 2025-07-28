@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional
 from uuid import UUID
 
 from fastapi import (
+    BackgroundTasks,
     Body,
     Depends,
     HTTPException,
@@ -90,7 +91,7 @@ async def create_task_run(
     return new_task_run
 
 
-@router.patch("/{id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.patch("/{id:uuid}", status_code=status.HTTP_204_NO_CONTENT)
 async def update_task_run(
     task_run: schemas.actions.TaskRunUpdate,
     task_run_id: UUID = Path(..., description="The task run id", alias="id"),
@@ -174,7 +175,7 @@ async def task_run_history(
         )
 
 
-@router.get("/{id}")
+@router.get("/{id:uuid}")
 async def read_task_run(
     task_run_id: UUID = Path(..., description="The task run id", alias="id"),
     db: PrefectDBInterface = Depends(provide_database_interface),
@@ -265,8 +266,9 @@ async def paginate_task_runs(
         )
 
 
-@router.delete("/{id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{id:uuid}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_task_run(
+    background_tasks: BackgroundTasks,
     task_run_id: UUID = Path(..., description="The task run id", alias="id"),
     db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> None:
@@ -279,9 +281,20 @@ async def delete_task_run(
         )
     if not result:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Task not found")
+    background_tasks.add_task(delete_task_run_logs, db, task_run_id)
 
 
-@router.post("/{id}/set_state")
+async def delete_task_run_logs(db: PrefectDBInterface, task_run_id: UUID) -> None:
+    async with db.session_context(begin_transaction=True) as session:
+        await models.logs.delete_logs(
+            session=session,
+            log_filter=schemas.filters.LogFilter(
+                task_run_id=schemas.filters.LogFilterTaskRunId(any_=[task_run_id])
+            ),
+        )
+
+
+@router.post("/{id:uuid}/set_state")
 async def set_task_run_state(
     task_run_id: UUID = Path(..., description="The task run id", alias="id"),
     state: schemas.actions.StateCreate = Body(..., description="The intended state."),

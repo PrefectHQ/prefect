@@ -1,8 +1,8 @@
+import { useState } from "react";
 import {
 	type GlobalConcurrencyLimit,
 	useListGlobalConcurrencyLimits,
 } from "@/api/global-concurrency-limits";
-import { useState } from "react";
 
 import { GlobalConcurrencyLimitsDataTable } from "@/components/concurrency/global-concurrency-limits/global-concurrency-limits-data-table";
 import { GlobalConcurrencyLimitsEmptyState } from "@/components/concurrency/global-concurrency-limits/global-concurrency-limits-empty-state";

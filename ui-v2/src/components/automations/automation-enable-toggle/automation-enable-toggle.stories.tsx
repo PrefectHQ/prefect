@@ -1,6 +1,6 @@
+import type { Meta, StoryObj } from "@storybook/react";
 import { createFakeAutomation } from "@/mocks";
 import { reactQueryDecorator, toastDecorator } from "@/storybook/utils";
-import type { Meta, StoryObj } from "@storybook/react";
 import { AutomationEnableToggle } from "./automation-enable-toggle";
 
 const MOCK_DATA = createFakeAutomation();

@@ -13,7 +13,7 @@ The threshold for a late run can be configured by changing `PREFECT_API_SERVICES
 
 ## Classes
 
-### `MarkLateRuns` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/late_runs.py#L34" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `MarkLateRuns` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/late_runs.py#L34" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Finds flow runs that are later than their scheduled start time
@@ -25,8 +25,59 @@ Prefect REST API Settings.
 
 **Methods:**
 
-#### `service_settings` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/late_runs.py#L44" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `run_once` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/late_runs.py#L63" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+run_once(self, db: PrefectDBInterface) -> None
+```
+
+Mark flow runs as late by:
+
+- Querying for flow runs in a scheduled state that are Scheduled to start in the past
+- For any runs past the "late" threshold, setting the flow run state to a new `Late` state
+
+
+#### `run_once` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/base.py#L329" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+run_once(self) -> None
+```
+
+Represents one loop of the service.
+
+Subclasses must override this method.
+
+To actually run the service once, call `LoopService().start(loops=1)`
+instead of `LoopService().run_once()`, because this method will not invoke setup
+and teardown methods properly.
+
+
+#### `service_settings` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/late_runs.py#L44" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 service_settings(cls) -> ServicesBaseSetting
 ```
+
+#### `start` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/base.py#L211" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+start(self, loops: None = None) -> NoReturn
+```
+
+Run the service indefinitely.
+
+
+#### `stop` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/base.py#L291" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+stop(self, block: bool = True) -> None
+```
+
+Gracefully stops a running LoopService and optionally blocks until the
+service stops.
+
+**Args:**
+- `block`: if True, blocks until the service is
+finished running. Otherwise it requests a stop and returns but
+the service may still be running a final loop.
+

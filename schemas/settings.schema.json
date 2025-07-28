@@ -239,6 +239,25 @@
                     "title": "Csrf Support Enabled",
                     "type": "boolean"
                 },
+                "custom_headers": {
+                    "additionalProperties": {
+                        "type": "string"
+                    },
+                    "description": "\n        Custom HTTP headers to include with every API request to the Prefect server.\n        Headers are specified as key-value pairs. Note that headers like 'User-Agent'\n        and CSRF-related headers are managed by Prefect and cannot be overridden.\n        ",
+                    "examples": [
+                        {
+                            "X-Custom-Header": "value"
+                        },
+                        {
+                            "Authorization": "Bearer token"
+                        }
+                    ],
+                    "supported_environment_variables": [
+                        "PREFECT_CLIENT_CUSTOM_HEADERS"
+                    ],
+                    "title": "Custom Headers",
+                    "type": "object"
+                },
                 "metrics": {
                     "$ref": "#/$defs/ClientMetricsSettings",
                     "supported_environment_variables": []
@@ -1045,6 +1064,21 @@
             "title": "ServerAPISettings",
             "type": "object"
         },
+        "ServerConcurrencySettings": {
+            "properties": {
+                "lease_storage": {
+                    "default": "prefect.server.concurrency.lease_storage.memory",
+                    "description": "The module to use for storing concurrency limit leases.",
+                    "supported_environment_variables": [
+                        "PREFECT_SERVER_CONCURRENCY_LEASE_STORAGE"
+                    ],
+                    "title": "Lease Storage",
+                    "type": "string"
+                }
+            },
+            "title": "ServerConcurrencySettings",
+            "type": "object"
+        },
         "ServerDatabaseSettings": {
             "description": "Settings for controlling server database behavior",
             "properties": {
@@ -1701,6 +1735,31 @@
             "title": "ServerServicesPauseExpirationsSettings",
             "type": "object"
         },
+        "ServerServicesRepossessorSettings": {
+            "description": "Settings for controlling the repossessor service",
+            "properties": {
+                "enabled": {
+                    "default": true,
+                    "description": "Whether or not to start the repossessor service in the server application.",
+                    "supported_environment_variables": [
+                        "PREFECT_SERVER_SERVICES_REPOSSESSOR_ENABLED"
+                    ],
+                    "title": "Enabled",
+                    "type": "boolean"
+                },
+                "loop_seconds": {
+                    "default": 15,
+                    "description": "The repossessor service will look for expired leases this often. Defaults to `15`.",
+                    "supported_environment_variables": [
+                        "PREFECT_SERVER_SERVICES_REPOSSESSOR_LOOP_SECONDS"
+                    ],
+                    "title": "Loop Seconds",
+                    "type": "number"
+                }
+            },
+            "title": "ServerServicesRepossessorSettings",
+            "type": "object"
+        },
         "ServerServicesSchedulerSettings": {
             "description": "Settings for controlling the scheduler service",
             "properties": {
@@ -1828,6 +1887,10 @@
                 },
                 "pause_expirations": {
                     "$ref": "#/$defs/ServerServicesPauseExpirationsSettings",
+                    "supported_environment_variables": []
+                },
+                "repossessor": {
+                    "$ref": "#/$defs/ServerServicesRepossessorSettings",
                     "supported_environment_variables": []
                 },
                 "task_run_recorder": {
@@ -1985,6 +2048,11 @@
                 },
                 "api": {
                     "$ref": "#/$defs/ServerAPISettings",
+                    "supported_environment_variables": []
+                },
+                "concurrency": {
+                    "$ref": "#/$defs/ServerConcurrencySettings",
+                    "description": "Settings for controlling server-side concurrency limit handling",
                     "supported_environment_variables": []
                 },
                 "database": {

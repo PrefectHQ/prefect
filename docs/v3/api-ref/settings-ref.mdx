@@ -367,6 +367,11 @@ Settings for controlling API client behavior
 
 **Type**: `string | integer | array | None`
 
+**Examples**:
+- `"404,429,503"`
+- `"429"`
+- `[404, 429, 503]`
+
 **TOML dotted key path**: `client.retry_extra_codes`
 
 **Supported environment variables**:
@@ -389,6 +394,24 @@ Settings for controlling API client behavior
 
 **Supported environment variables**:
 `PREFECT_CLIENT_CSRF_SUPPORT_ENABLED`
+
+### `custom_headers`
+
+        Custom HTTP headers to include with every API request to the Prefect server.
+        Headers are specified as key-value pairs. Note that headers like 'User-Agent'
+        and CSRF-related headers are managed by Prefect and cannot be overridden.
+        
+
+**Type**: `object`
+
+**Examples**:
+- `{'X-Custom-Header': 'value'}`
+- `{'Authorization': 'Bearer token'}`
+
+**TOML dotted key path**: `client.custom_headers`
+
+**Supported environment variables**:
+`PREFECT_CLIENT_CUSTOM_HEADERS`
 
 ### `metrics`
 
@@ -456,6 +479,10 @@ The default Docker namespace to use when building images.
 **Type**: `string | None`
 
 **Default**: `None`
+
+**Examples**:
+- `"my-dockerhub-registry"`
+- `"4999999999999.dkr.ecr.us-east-2.amazonaws.com/my-ecr-repo"`
 
 **TOML dotted key path**: `deployments.default_docker_build_namespace`
 
@@ -1081,6 +1108,9 @@ The base URL path to serve the API under.
 
 **Default**: `None`
 
+**Examples**:
+- `"/v2/api"`
+
 **TOML dotted key path**: `server.api.base_path`
 
 **Supported environment variables**:
@@ -1211,6 +1241,20 @@ The default limit applied to queries that can return multiple objects, such as `
 
 **Supported environment variables**:
 `PREFECT_SERVER_API_CORS_ALLOWED_HEADERS`, `PREFECT_SERVER_CORS_ALLOWED_HEADERS`
+
+---
+## ServerConcurrencySettings
+### `lease_storage`
+The module to use for storing concurrency limit leases.
+
+**Type**: `string`
+
+**Default**: `prefect.server.concurrency.lease_storage.memory`
+
+**TOML dotted key path**: `server.concurrency.lease_storage`
+
+**Supported environment variables**:
+`PREFECT_SERVER_CONCURRENCY_LEASE_STORAGE`
 
 ---
 ## ServerDatabaseSettings
@@ -1883,6 +1927,33 @@ Settings for controlling the pause expiration service
 `PREFECT_SERVER_SERVICES_PAUSE_EXPIRATIONS_LOOP_SECONDS`, `PREFECT_API_SERVICES_PAUSE_EXPIRATIONS_LOOP_SECONDS`
 
 ---
+## ServerServicesRepossessorSettings
+Settings for controlling the repossessor service
+### `enabled`
+Whether or not to start the repossessor service in the server application.
+
+**Type**: `boolean`
+
+**Default**: `True`
+
+**TOML dotted key path**: `server.services.repossessor.enabled`
+
+**Supported environment variables**:
+`PREFECT_SERVER_SERVICES_REPOSSESSOR_ENABLED`
+
+### `loop_seconds`
+The repossessor service will look for expired leases this often. Defaults to `15`.
+
+**Type**: `number`
+
+**Default**: `15`
+
+**TOML dotted key path**: `server.services.repossessor.loop_seconds`
+
+**Supported environment variables**:
+`PREFECT_SERVER_SERVICES_REPOSSESSOR_LOOP_SECONDS`
+
+---
 ## ServerServicesSchedulerSettings
 Settings for controlling the scheduler service
 ### `enabled`
@@ -2075,6 +2146,12 @@ Settings for controlling server services
 
 **TOML dotted key path**: `server.services.pause_expirations`
 
+### `repossessor`
+
+**Type**: [ServerServicesRepossessorSettings](#serverservicesrepossessorsettings)
+
+**TOML dotted key path**: `server.services.repossessor`
+
 ### `task_run_recorder`
 
 **Type**: [ServerServicesTaskRunRecorderSettings](#serverservicestaskrunrecordersettings)
@@ -2257,6 +2334,13 @@ The maximum number of scheduled runs to create for a deployment.
 **Type**: [ServerAPISettings](#serverapisettings)
 
 **TOML dotted key path**: `server.api`
+
+### `concurrency`
+Settings for controlling server-side concurrency limit handling
+
+**Type**: [ServerConcurrencySettings](#serverconcurrencysettings)
+
+**TOML dotted key path**: `server.concurrency`
 
 ### `database`
 

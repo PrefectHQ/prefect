@@ -7,25 +7,25 @@ sidebarTitle: worker
 
 ## Functions
 
-### `should_emit_events` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/worker.py#L29" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `should_emit_events` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/worker.py#L29" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 should_emit_events() -> bool
 ```
 
-### `emit_events_to_cloud` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/worker.py#L37" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `emit_events_to_cloud` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/worker.py#L37" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 emit_events_to_cloud() -> bool
 ```
 
-### `should_emit_events_to_running_server` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/worker.py#L44" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `should_emit_events_to_running_server` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/worker.py#L44" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 should_emit_events_to_running_server() -> bool
 ```
 
-### `should_emit_events_to_ephemeral_server` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/worker.py#L49" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `should_emit_events_to_ephemeral_server` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/worker.py#L49" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 should_emit_events_to_ephemeral_server() -> bool
@@ -33,11 +33,17 @@ should_emit_events_to_ephemeral_server() -> bool
 
 ## Classes
 
-### `EventsWorker` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/worker.py#L53" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `EventsWorker` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/worker.py#L53" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 **Methods:**
 
-#### `instance` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/worker.py#L100" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `attach_related_resources_from_context` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/worker.py#L85" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+attach_related_resources_from_context(self, event: Event) -> None
+```
+
+#### `instance` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/worker.py#L100" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 instance(cls: Type[Self], client_type: Optional[Type[EventsClient]] = None) -> Self

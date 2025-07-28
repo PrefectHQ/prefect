@@ -1,3 +1,6 @@
+import { Link } from "@tanstack/react-router";
+import Markdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import type { ArtifactWithFlowRunAndTaskRun } from "@/api/artifacts";
 import {
 	Breadcrumb,
@@ -7,9 +10,6 @@ import {
 } from "@/components/ui/breadcrumb";
 import { DocsLink } from "@/components/ui/docs-link";
 import { Typography } from "@/components/ui/typography";
-import { Link } from "@tanstack/react-router";
-import Markdown from "react-markdown";
-import remarkGfm from "remark-gfm";
 
 export type ArtifactDetailHeaderProps = {
 	artifact: ArtifactWithFlowRunAndTaskRun;

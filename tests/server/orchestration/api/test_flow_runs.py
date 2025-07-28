@@ -1,3 +1,4 @@
+import asyncio
 import datetime
 from typing import List, Optional
 from unittest import mock
@@ -540,9 +541,7 @@ class TestReadFlowRun:
         we're not attempting query with any old string as a flow run ID."""
         with mock.patch("prefect.server.models.flow_runs.read_flow_run") as mock_read:
             response = await client.get("/flow_runs/THISAINTIT")
-            # Ideally this would be a 404, but we're letting FastAPI take care of this
-            # at the parameter parsing level, so it's a 422
-            assert response.status_code == 422, response.text
+            assert response.status_code == 404, response.text
 
         mock_read.assert_not_called()
 
@@ -1343,6 +1342,32 @@ class TestDeleteFlowRuns:
 
         await session.refresh(concurrency_limit)
         assert concurrency_limit.active_slots == expected_slots
+
+    async def test_delete_flow_run_deletes_logs(self, flow_run, logs, client, session):
+        # make sure we have flow run logs
+        flow_run_logs = [log for log in logs if log.flow_run_id is not None]
+        assert len(flow_run_logs) > 0
+
+        # delete the flow run
+        response = await client.delete(f"/flow_runs/{flow_run.id}")
+        assert response.status_code == status.HTTP_204_NO_CONTENT, response.text
+
+        async def read_logs():
+            # because deletion happens in the background,
+            # loop until we get what we expect or we time out
+            while True:
+                # make sure we no longer have flow run logs
+                post_delete_logs = await models.logs.read_logs(
+                    session=session,
+                    log_filter=None,
+                )
+                # we should get back our non flow run logs
+                if len(post_delete_logs) == len(logs) - len(flow_run_logs):
+                    return post_delete_logs
+                asyncio.sleep(1)
+
+        logs = await asyncio.wait_for(read_logs(), 10)
+        assert all([log.flow_run_id is None for log in logs])
 
 
 class TestResumeFlowrun:

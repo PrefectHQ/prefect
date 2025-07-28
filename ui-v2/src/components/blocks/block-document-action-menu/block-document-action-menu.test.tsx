@@ -1,17 +1,15 @@
-import { Toaster } from "@/components/ui/sonner";
-
-import { render, screen, waitFor } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
-
-import { createFakeBlockDocument } from "@/mocks";
 import { QueryClient } from "@tanstack/react-query";
 import {
-	RouterProvider,
 	createMemoryHistory,
 	createRootRoute,
 	createRouter,
+	RouterProvider,
 } from "@tanstack/react-router";
+import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { describe, expect, it, vi } from "vitest";
+import { Toaster } from "@/components/ui/sonner";
+import { createFakeBlockDocument } from "@/mocks";
 import {
 	BlockDocumentActionMenu,
 	type BlockDocumentActionMenuProps,
@@ -42,14 +40,16 @@ describe("BlockDocumentActionMenu", () => {
 		const mockBlockDocument = createFakeBlockDocument({
 			name: "my-block-document",
 		});
-		render(
-			<>
-				<Toaster />
-				<BlockDocumentActionMenuRouter
-					blockDocument={mockBlockDocument}
-					onDelete={vi.fn()}
-				/>
-			</>,
+		await waitFor(() =>
+			render(
+				<>
+					<Toaster />
+					<BlockDocumentActionMenuRouter
+						blockDocument={mockBlockDocument}
+						onDelete={vi.fn()}
+					/>
+				</>,
+			),
 		);
 		// ------------ Act
 		await user.click(
@@ -68,11 +68,13 @@ describe("BlockDocumentActionMenu", () => {
 		const user = userEvent.setup();
 		const mockOnDeleteFn = vi.fn();
 
-		render(
-			<BlockDocumentActionMenuRouter
-				blockDocument={createFakeBlockDocument()}
-				onDelete={mockOnDeleteFn}
-			/>,
+		await waitFor(() =>
+			render(
+				<BlockDocumentActionMenuRouter
+					blockDocument={createFakeBlockDocument()}
+					onDelete={mockOnDeleteFn}
+				/>,
+			),
 		);
 
 		// ------------ Act
@@ -89,11 +91,13 @@ describe("BlockDocumentActionMenu", () => {
 		const user = userEvent.setup();
 
 		// ------------ Setup
-		render(
-			<BlockDocumentActionMenuRouter
-				blockDocument={createFakeBlockDocument()}
-				onDelete={vi.fn()}
-			/>,
+		await waitFor(() =>
+			render(
+				<BlockDocumentActionMenuRouter
+					blockDocument={createFakeBlockDocument()}
+					onDelete={vi.fn()}
+				/>,
+			),
 		);
 
 		// ------------ Act

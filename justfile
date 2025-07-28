@@ -21,8 +21,8 @@ check-uv:
     fi
 
 # Build and serve documentation
-docs: check-uv
-    cd docs && npx mintlify dev
+docs:
+    cd docs && npx mint@latest dev
 
 # Install development dependencies
 install: check-uv
@@ -35,11 +35,11 @@ clean: check-uv
 
 # Generate API reference documentation for all modules
 api-ref-all:
-    uvx --with-editable . --refresh-package mdxify mdxify@latest --all --root-module prefect --output-dir docs/v3/api-ref/python --anchor-name "Python SDK Reference" --exclude prefect.agent
+    uvx --with-editable . --refresh-package mdxify mdxify@latest --all --root-module prefect --output-dir docs/v3/api-ref/python --anchor-name "Python SDK Reference" --exclude prefect.agent --include-inheritance
 
 # Generate API reference for specific modules (e.g., just api-ref prefect.flows prefect.tasks)
 api-ref *MODULES:
-    uvx --with-editable . --refresh-package mdxify mdxify@latest {{MODULES}} --root-module prefect --output-dir docs/v3/api-ref/python --anchor-name "Python SDK Reference"
+    uvx --with-editable . --refresh-package mdxify mdxify@latest {{MODULES}} --root-module prefect --output-dir docs/v3/api-ref/python --anchor-name "Python SDK Reference" --include-inheritance
 
 # Clean up API reference documentation
 api-ref-clean:

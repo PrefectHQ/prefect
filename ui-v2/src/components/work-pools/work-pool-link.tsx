@@ -1,5 +1,5 @@
-import { Icon } from "@/components/ui/icons";
 import { Link } from "@tanstack/react-router";
+import { Icon } from "@/components/ui/icons";
 
 type WorkPoolLinkProps = {
 	workPoolName: string;

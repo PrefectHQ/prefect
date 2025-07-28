@@ -1,8 +1,7 @@
 import { fireEvent, render } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { RunLogs } from ".";
-
 import { createFakeLog, createFakeTaskRun } from "@/mocks";
+import { RunLogs } from ".";
 
 describe("RunLogs", () => {
 	it("should display a log level badge", () => {
@@ -16,7 +15,11 @@ describe("RunLogs", () => {
 		];
 		const mockBottomReached = vi.fn();
 		const screen = render(
-			<RunLogs logs={logs} onBottomReached={mockBottomReached} />,
+			<RunLogs
+				logs={logs}
+				onBottomReached={mockBottomReached}
+				virtualize={false}
+			/>,
 		);
 
 		expect(screen.getByText("CRITICAL")).toBeVisible();
@@ -35,14 +38,18 @@ describe("RunLogs", () => {
 
 	it("should display a log message", () => {
 		const log = createFakeLog({ message: "Hello, world!" });
-		const screen = render(<RunLogs logs={[log]} onBottomReached={vi.fn()} />);
+		const screen = render(
+			<RunLogs logs={[log]} onBottomReached={vi.fn()} virtualize={false} />,
+		);
 
 		expect(screen.getByText("Hello, world!")).toBeVisible();
 	});
 
 	it("should display a log day and time", () => {
 		const log = createFakeLog({ timestamp: "2021-01-01T00:00:00.000Z" });
-		const screen = render(<RunLogs logs={[log]} onBottomReached={vi.fn()} />);
+		const screen = render(
+			<RunLogs logs={[log]} onBottomReached={vi.fn()} virtualize={false} />,
+		);
 
 		expect(screen.getByText("Jan 1, 2021")).toBeVisible();
 		expect(screen.getByText("12:00:00 AM")).toBeVisible();
@@ -56,7 +63,12 @@ describe("RunLogs", () => {
 			name: "test_task",
 		});
 		const screen = render(
-			<RunLogs logs={[log]} taskRun={taskRun} onBottomReached={vi.fn()} />,
+			<RunLogs
+				logs={[log]}
+				taskRun={taskRun}
+				onBottomReached={vi.fn()}
+				virtualize={false}
+			/>,
 		);
 
 		expect(screen.getByText("test_task")).toBeVisible();
@@ -67,7 +79,11 @@ describe("RunLogs", () => {
 		const log1 = createFakeLog({ timestamp: "2021-01-01T00:00:00.000Z" });
 		const log2 = createFakeLog({ timestamp: "2021-01-02T00:00:00.000Z" });
 		const screen = render(
-			<RunLogs logs={[log1, log2]} onBottomReached={vi.fn()} />,
+			<RunLogs
+				logs={[log1, log2]}
+				onBottomReached={vi.fn()}
+				virtualize={false}
+			/>,
 		);
 
 		expect(screen.getByText("Jan 1, 2021")).toBeVisible();

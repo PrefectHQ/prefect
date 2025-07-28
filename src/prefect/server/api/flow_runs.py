@@ -11,6 +11,7 @@ from uuid import UUID
 import orjson
 import sqlalchemy as sa
 from fastapi import (
+    BackgroundTasks,
     Body,
     Depends,
     HTTPException,
@@ -125,7 +126,7 @@ async def create_flow_run(
         )
 
 
-@router.patch("/{id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.patch("/{id:uuid}", status_code=status.HTTP_204_NO_CONTENT)
 async def update_flow_run(
     flow_run: schemas.actions.FlowRunUpdate,
     flow_run_id: UUID = Path(..., description="The flow run id", alias="id"),
@@ -316,7 +317,7 @@ async def flow_run_history(
         )
 
 
-@router.get("/{id}")
+@router.get("/{id:uuid}")
 async def read_flow_run(
     flow_run_id: UUID = Path(..., description="The flow run id", alias="id"),
     db: PrefectDBInterface = Depends(provide_database_interface),
@@ -335,7 +336,7 @@ async def read_flow_run(
         )
 
 
-@router.get("/{id}/graph", tags=["Flow Run Graph"])
+@router.get("/{id:uuid}/graph", tags=["Flow Run Graph"])
 async def read_flow_run_graph_v1(
     flow_run_id: UUID = Path(..., description="The flow run id", alias="id"),
     db: PrefectDBInterface = Depends(provide_database_interface),
@@ -375,7 +376,7 @@ async def read_flow_run_graph_v2(
             )
 
 
-@router.post("/{id}/resume")
+@router.post("/{id:uuid}/resume")
 async def resume_flow_run(
     flow_run_id: UUID = Path(..., description="The flow run id", alias="id"),
     db: PrefectDBInterface = Depends(provide_database_interface),
@@ -568,8 +569,9 @@ async def read_flow_runs(
         return ORJSONResponse(content=encoded)
 
 
-@router.delete("/{id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{id:uuid}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_flow_run(
+    background_tasks: BackgroundTasks,
     flow_run_id: UUID = Path(..., description="The flow run id", alias="id"),
     db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> None:
@@ -584,9 +586,20 @@ async def delete_flow_run(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Flow run not found"
         )
+    background_tasks.add_task(delete_flow_run_logs, db, flow_run_id)
 
 
-@router.post("/{id}/set_state")
+async def delete_flow_run_logs(db: PrefectDBInterface, flow_run_id: UUID) -> None:
+    async with db.session_context(begin_transaction=True) as session:
+        await models.logs.delete_logs(
+            session=session,
+            log_filter=schemas.filters.LogFilter(
+                flow_run_id=schemas.filters.LogFilterFlowRunId(any_=[flow_run_id])
+            ),
+        )
+
+
+@router.post("/{id:uuid}/set_state")
 async def set_flow_run_state(
     flow_run_id: UUID = Path(..., description="The flow run id", alias="id"),
     state: schemas.actions.StateCreate = Body(..., description="The intended state."),
@@ -637,7 +650,7 @@ async def set_flow_run_state(
     return orchestration_result
 
 
-@router.post("/{id}/input", status_code=status.HTTP_201_CREATED)
+@router.post("/{id:uuid}/input", status_code=status.HTTP_201_CREATED)
 async def create_flow_run_input(
     flow_run_id: UUID = Path(..., description="The flow run id", alias="id"),
     key: str = Body(..., description="The input key"),
@@ -673,7 +686,7 @@ async def create_flow_run_input(
                 )
 
 
-@router.post("/{id}/input/filter")
+@router.post("/{id:uuid}/input/filter")
 async def filter_flow_run_input(
     flow_run_id: UUID = Path(..., description="The flow run id", alias="id"),
     prefix: str = Body(..., description="The input key prefix", embed=True),
@@ -698,7 +711,7 @@ async def filter_flow_run_input(
         )
 
 
-@router.get("/{id}/input/{key}")
+@router.get("/{id:uuid}/input/{key}")
 async def read_flow_run_input(
     flow_run_id: UUID = Path(..., description="The flow run id", alias="id"),
     key: str = Path(..., description="The input key", alias="key"),
@@ -721,7 +734,7 @@ async def read_flow_run_input(
         )
 
 
-@router.delete("/{id}/input/{key}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{id:uuid}/input/{key}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_flow_run_input(
     flow_run_id: UUID = Path(..., description="The flow run id", alias="id"),
     key: str = Path(..., description="The input key", alias="key"),
@@ -810,7 +823,7 @@ async def paginate_flow_runs(
 FLOW_RUN_LOGS_DOWNLOAD_PAGE_LIMIT = 1000
 
 
-@router.get("/{id}/logs/download")
+@router.get("/{id:uuid}/logs/download")
 async def download_logs(
     flow_run_id: UUID = Path(..., description="The flow run id", alias="id"),
     db: PrefectDBInterface = Depends(provide_database_interface),
@@ -876,7 +889,7 @@ async def download_logs(
         )
 
 
-@router.patch("/{id}/labels", status_code=status.HTTP_204_NO_CONTENT)
+@router.patch("/{id:uuid}/labels", status_code=status.HTTP_204_NO_CONTENT)
 async def update_flow_run_labels(
     flow_run_id: UUID = Path(..., description="The flow run id", alias="id"),
     labels: Dict[str, Any] = Body(..., description="The labels to update"),

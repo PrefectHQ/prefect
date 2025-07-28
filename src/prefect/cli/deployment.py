@@ -228,11 +228,10 @@ async def inspect(
     """
     View details about a deployment.
 
-    \b
-    Example:
-        \b
-        $ prefect deployment inspect "hello-world/my-deployment"
-        $ prefect deployment inspect "hello-world/my-deployment" --output json
+    Examples:
+        `$ prefect deployment inspect "hello-world/my-deployment"`
+
+        ```python
         {
             'id': '610df9c3-0fb4-4856-b330-67f588d20201',
             'created': '2022-08-01T18:36:25.192102+00:00',
@@ -265,7 +264,7 @@ async def inspect(
                 'stream_output': True
             }
         }
-
+        ```
     """
     if output and output.lower() != "json":
         exit_with_error("Only 'json' output format is supported.")
@@ -765,6 +764,9 @@ async def run(
         "--watch-timeout",
         help=("Timeout for --watch."),
     ),
+    flow_run_name: Optional[str] = typer.Option(
+        None, "--flow-run-name", help="Custom name to give the flow run."
+    ),
 ):
     """
     Create a flow run for the given flow and deployment.
@@ -870,6 +872,16 @@ async def run(
                 f"deployment: {listrepr(unknown_keys, sep=', ')}"
                 f"\n{available_parameters}"
             )
+        templating_parameters = {**(deployment.parameters or {}), **(parameters or {})}
+        if flow_run_name:
+            try:
+                flow_run_name = flow_run_name.format(**templating_parameters)
+            except KeyError as e:
+                exit_with_error(
+                    f"Missing parameter for flow run name: '{e.args[0]}' is undefined"
+                )
+            except Exception as e:
+                exit_with_error(f"Failed to format flow run name: {e}")
 
         app.console.print(
             f"Creating flow run for deployment '{flow.name}/{deployment.name}'...",
@@ -882,6 +894,7 @@ async def run(
                 state=Scheduled(scheduled_time=scheduled_start_time),
                 tags=tags,
                 job_variables=job_vars,
+                name=flow_run_name,
             )
         except PrefectHTTPStatusError as exc:
             detail = exc.response.json().get("detail")
@@ -944,11 +957,11 @@ async def delete(
     """
     Delete a deployment.
 
-    \b
     Examples:
-        \b
+        ```bash
         $ prefect deployment delete test_flow/test_deployment
         $ prefect deployment delete --id dfd3e220-a130-4149-9af6-8d487e02fea6
+        ```
     """
     async with get_client() as client:
         if _all:

@@ -1164,6 +1164,48 @@ class TestDeploymentRun:
         flow_run = flow_runs[0]
         assert flow_run.parameters == {"name": "foo"}
 
+    async def test_sets_templated_flow_run_name(
+        self,
+        deployment: DeploymentResponse,
+        deployment_name: str,
+        prefect_client: PrefectClient,
+    ):
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            [
+                "deployment",
+                "run",
+                deployment_name,
+                "--flow-run-name",
+                "hello-{name}",
+                "--param",
+                "name=tester",
+            ],
+            expected_code=0,
+        )
+
+        flow_runs = await prefect_client.read_flow_runs(
+            deployment_filter=DeploymentFilter(
+                id=DeploymentFilterId(any_=[deployment.id])
+            )
+        )
+        assert len(flow_runs) == 1
+        assert flow_runs[0].name == "hello-tester"
+
+    def test_raises_error_on_missing_template_param(self, deployment_name: str):
+        run_sync_in_worker_thread(
+            invoke_and_assert,
+            [
+                "deployment",
+                "run",
+                deployment_name,
+                "--flow-run-name",
+                "hello-{missing}",
+            ],
+            expected_code=1,
+            expected_output_contains="Missing parameter for flow run name: 'missing' is undefined",
+        )
+
 
 class TestDeploymentDelete:
     def test_delete_single_deployment(self, flojo_deployment: DeploymentResponse):

@@ -1,8 +1,8 @@
+import humanizeDuration from "humanize-duration";
 import type { TaskRun } from "@/api/task-runs";
 import { Icon } from "@/components/ui/icons";
 import { TagBadge } from "@/components/ui/tag-badge";
 import { formatDate } from "@/utils/date";
-import humanizeDuration from "humanize-duration";
 
 function formatTaskDate(dateString: string | null | undefined): string {
 	if (!dateString) return "N/A";

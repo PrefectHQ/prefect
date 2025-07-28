@@ -1,8 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeAll, describe, expect, it, vi } from "vitest";
-
 import { mockPointerEvents } from "@tests/utils/browser";
+import { beforeAll, describe, expect, it, vi } from "vitest";
 import { SortFilter } from "./sort-filter";
 
 describe("FlowRunsDataTable -- SortFilter", () => {

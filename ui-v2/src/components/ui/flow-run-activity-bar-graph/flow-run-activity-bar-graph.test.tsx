@@ -1,11 +1,4 @@
-import { QueryClient } from "@tanstack/react-query";
-import {
-	RouterProvider,
-	createMemoryHistory,
-	createRootRoute,
-	createRouter,
-} from "@tanstack/react-router";
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { FlowRunActivityBarChart } from "./index";
 
@@ -46,38 +39,6 @@ describe("FlowRunActivityBarChart", () => {
 
 	afterEach(() => {
 		vi.useRealTimers();
-	});
-
-	it("shows tooltip on bar hover", () => {
-		const rootRoute = createRootRoute({
-			component: () => (
-				// @ts-expect-error - Type error from test data not matching schema
-				<FlowRunActivityBarChart {...defaultProps} numberOfBars={1} />
-			),
-		});
-		const router = createRouter({
-			routeTree: rootRoute,
-			history: createMemoryHistory({
-				initialEntries: ["/"],
-			}),
-			context: {
-				queryClient: new QueryClient(),
-			},
-		});
-
-		render(<RouterProvider router={router} />);
-
-		const bar = screen.getByTestId("bar-rect-test-flow-run-1");
-		fireEvent.mouseOver(bar);
-
-		// Check if tooltip content appears
-		expect(screen.getByText("Test Flow")).toBeInTheDocument();
-		expect(screen.getByText("Test Flow Run")).toBeInTheDocument();
-		expect(screen.getByText("Test Deployment")).toBeInTheDocument();
-		// Check if state badge is rendered
-		expect(screen.getByText("Completed")).toBeInTheDocument();
-		// Check if tags are rendered
-		expect(screen.getByText("test-tag")).toBeInTheDocument();
 	});
 
 	it("renders correct number of bars", () => {

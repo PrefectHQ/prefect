@@ -3,6 +3,7 @@ Command line interface for working with automations.
 """
 
 import functools
+from pathlib import Path
 from typing import Any, Callable, Optional, Type
 from uuid import UUID
 
@@ -18,7 +19,7 @@ from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import exit_with_error, exit_with_success
 from prefect.cli.root import app, is_interactive
 from prefect.client.orchestration import get_client
-from prefect.events.schemas.automations import Automation
+from prefect.events.schemas.automations import Automation, AutomationCore
 from prefect.exceptions import PrefectHTTPStatusError
 
 automations_app: PrefectTyper = PrefectTyper(
@@ -129,14 +130,14 @@ async def inspect(
 
     Examples:
 
-        $ prefect automation inspect "my-automation"
+        `$ prefect automation inspect "my-automation"`
 
-        $ prefect automation inspect --id "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
+        `$ prefect automation inspect --id "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"`
 
-        $ prefect automation inspect "my-automation" --yaml
+        `$ prefect automation inspect "my-automation" --yaml`
 
-        $ prefect automation inspect "my-automation" --output json
-        $ prefect automation inspect "my-automation" --output yaml
+        `$ prefect automation inspect "my-automation" --output json`
+        `$ prefect automation inspect "my-automation" --output yaml`
     """
     if output and output.lower() not in ["json", "yaml"]:
         exit_with_error("Only 'json' and 'yaml' output formats are supported.")
@@ -202,9 +203,9 @@ async def resume(
 
     Examples:
 
-            $ prefect automation resume "my-automation"
+            `$ prefect automation resume "my-automation"`
 
-            $ prefect automation resume --id "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
+            `$ prefect automation resume --id "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"`
     """
     if not id and not name:
         exit_with_error("Please provide either a name or an id.")
@@ -257,9 +258,9 @@ async def pause(
 
     Examples:
 
-        $ prefect automation pause "my-automation"
+        `$ prefect automation pause "my-automation"`
 
-        $ prefect automation pause --id "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
+        `$ prefect automation pause --id "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"`
     """
     if not id and not name:
         exit_with_error("Please provide either a name or an id.")
@@ -308,8 +309,8 @@ async def delete(
         id: the id of the automation to delete
 
     Examples:
-        $ prefect automation delete "my-automation"
-        $ prefect automation delete --id "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
+        `$ prefect automation delete "my-automation"`
+        `$ prefect automation delete --id "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"`
     """
 
     async with get_client() as client:
@@ -345,3 +346,95 @@ async def delete(
                 exit_with_error("Deletion aborted.")
             await client.delete_automation(automation[0].id)
             exit_with_success(f"Deleted automation with name {name!r}")
+
+
+@automations_app.command()
+@requires_automations
+async def create(
+    from_file: Optional[str] = typer.Option(
+        None,
+        "--from-file",
+        "-f",
+        help="Path to YAML or JSON file containing automation(s)",
+    ),
+    from_json: Optional[str] = typer.Option(
+        None,
+        "--from-json",
+        "-j",
+        help="JSON string containing automation(s)",
+    ),
+):
+    """Create one or more automations from a file or JSON string.
+
+    Examples:
+        `$ prefect automation create --from-file automation.yaml`
+        `$ prefect automation create -f automation.json`
+        `$ prefect automation create --from-json '{"name": "my-automation", "trigger": {...}, "actions": [...]}'`
+        `$ prefect automation create -j '[{"name": "auto1", ...}, {"name": "auto2", ...}]'`
+    """
+    if from_file and from_json:
+        exit_with_error("Please provide either --from-file or --from-json, not both.")
+
+    if not from_file and not from_json:
+        exit_with_error("Please provide either --from-file or --from-json.")
+
+    if from_file:
+        file_path = Path(from_file)
+        if not file_path.exists():
+            exit_with_error(f"File not found: {from_file}")
+
+        with open(file_path, "r") as f:
+            content = f.read()
+
+        if file_path.suffix.lower() in [".yaml", ".yml"]:
+            data = pyyaml.safe_load(content)
+        elif file_path.suffix.lower() == ".json":
+            data = orjson.loads(content)
+        else:
+            exit_with_error(
+                "File extension not recognized. Please use .yaml, .yml, or .json"
+            )
+    else:  # from_json
+        try:
+            data = orjson.loads(from_json)
+        except orjson.JSONDecodeError as e:
+            exit_with_error(f"Invalid JSON: {e}")
+
+    automations_data = []
+    if isinstance(data, dict) and "automations" in data:
+        automations_data = data["automations"]
+    elif isinstance(data, list):
+        automations_data = data
+    else:
+        automations_data = [data]
+
+    created = []
+    failed = []
+    async with get_client() as client:
+        for i, automation_data in enumerate(automations_data):
+            try:
+                automation = AutomationCore.model_validate(automation_data)
+                automation_id = await client.create_automation(automation)
+                created.append((automation.name, automation_id))
+            except Exception as e:
+                name = automation_data.get("name", f"automation at index {i}")
+                failed.append((name, str(e)))
+
+    if failed:
+        app.console.print(f"[red]Failed to create {len(failed)} automation(s):[/red]")
+        for name, error in failed:
+            app.console.print(f"  - {name}: {error}")
+
+    if created:
+        if len(created) == 1 and not failed:
+            name, automation_id = created[0]
+            exit_with_success(f"Created automation '{name}' with id {automation_id}")
+        else:
+            app.console.print(f"[green]Created {len(created)} automation(s):[/green]")
+            for name, automation_id in created:
+                app.console.print(f"  - '{name}' with id {automation_id}")
+
+    if failed:
+        raise typer.Exit(1)
+    else:
+        raise typer.Exit(0)

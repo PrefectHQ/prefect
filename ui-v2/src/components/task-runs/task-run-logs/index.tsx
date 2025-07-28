@@ -1,3 +1,5 @@
+import { useSuspenseInfiniteQuery } from "@tanstack/react-query";
+import { useMemo, useState } from "react";
 import { buildInfiniteFilterLogsQuery } from "@/api/logs";
 import type { components } from "@/api/prefect";
 import { RunLogs } from "@/components/ui/run-logs";
@@ -8,14 +10,16 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
-import { useSuspenseInfiniteQuery } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
 
 type TaskRunLogsProps = {
 	taskRun: components["schemas"]["TaskRun"];
+	virtualize?: boolean;
 };
 
-export const TaskRunLogs = ({ taskRun }: TaskRunLogsProps) => {
+export const TaskRunLogs = ({
+	taskRun,
+	virtualize = true,
+}: TaskRunLogsProps) => {
 	const [levelFilter, setLevelFilter] = useState<number>(0);
 	const [sortOrder, setSortOrder] = useState<
 		"TIMESTAMP_ASC" | "TIMESTAMP_DESC"
@@ -86,6 +90,7 @@ export const TaskRunLogs = ({ taskRun }: TaskRunLogsProps) => {
 							}
 						}}
 						className="max-h-[85vh]"
+						virtualize={virtualize}
 					/>
 				</div>
 			)}
@@ -105,7 +110,10 @@ const LEVEL_FILTER_OPTIONS = [
 const LogLevelFilter = ({
 	levelFilter,
 	setLevelFilter,
-}: { levelFilter: number; setLevelFilter: (level: number) => void }) => {
+}: {
+	levelFilter: number;
+	setLevelFilter: (level: number) => void;
+}) => {
 	return (
 		<Select
 			value={levelFilter.toString()}

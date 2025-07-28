@@ -1,0 +1,145 @@
+---
+title: Trigger ad-hoc deployment runs
+description: Learn how to trigger deployment runs using the Prefect CLI and Python SDK.
+---
+
+[Deployments](/v3/concepts/deployments) are server-side representations of flows that can be executed:
+- on a [schedule](/v3/how-to-guides/deployments/create-schedules)
+- when [triggered by events](/v3/how-to-guides/automations/creating-deployment-triggers)
+- programmatically, on demand
+
+This guide covers how to trigger deployments on demand.
+
+## Prerequisites
+
+In order to run a deployment, you need to have:
+- [created a deployment](/v3/how-to-guides/deployments/create-deployments)
+- started a process ([`serve`](/v3/how-to-guides/deployment_infra/run-flows-in-local-processes) or a [worker](/v3/concepts/workers)) listening for scheduled runs of that deployment
+
+## Run a deployment from the CLI
+
+The simplest way to trigger a deployment run is using the Prefect CLI:
+
+```bash
+prefect deployment run my-flow/my-deployment
+```
+
+### CLI options
+
+Add parameters and customize the run, including setting a custom flow run name using the new --flow-run-name option:
+
+```bash
+# Pass parameters
+prefect deployment run my-flow/my-deployment \
+  --param my_param=42 \
+  --param another_param="hello"
+
+# Schedule for later
+prefect deployment run my-flow/my-deployment --start-in "2 hours"
+
+# Watch the run until completion
+prefect deployment run my-flow/my-deployment --watch
+
+# Set custom run name
+Use `--flow-run-name` to set a static or templated name for the flow run.
+
+prefect deployment run my-flow/my-deployment --flow-run-name "custom-run-name"
+
+# Set a custom flow run name using templating
+prefect deployment run my-flow/my-deployment \
+  --param customer_id=1234 \
+  --param run_date="2025-07-14" \
+  --flow-run-name "customer-{customer_id}-run-{run_date}"
+
+> Note: You can use `{parameter}` syntax to template the flow run name.
+> The values will be substituted from the `--param` values.
+
+# Add tags to the run
+prefect deployment run my-flow/my-deployment --tag production --tag critical
+```
+
+## Run a deployment from Python
+
+Use the `run_deployment` function for programmatic control:
+
+{/* pmd-metadata: notest */}
+```python
+from prefect.deployments import run_deployment
+
+# Basic usage
+flow_run = run_deployment(
+    name="my-flow/my-deployment"
+)
+
+# With parameters
+flow_run = run_deployment(
+    name="my-flow/my-deployment",
+    parameters={
+        "my_param": 42,
+        "another_param": "hello"
+    }
+)
+
+# With job variables (environment variables, etc.)
+flow_run = run_deployment(
+    name="my-flow/my-deployment",
+    parameters={"my_param": 42},
+    job_variables={"env": {"MY_ENV_VAR": "production"}}
+)
+
+# Don't wait for completion
+flow_run = run_deployment(
+    name="my-flow/my-deployment",
+    timeout=0  # returns immediately
+)
+
+# Wait with custom timeout (seconds)
+flow_run = run_deployment(
+    name="my-flow/my-deployment",
+    timeout=300  # wait up to 5 minutes
+)
+
+# Schedule for later
+from datetime import datetime, timedelta
+
+flow_run = run_deployment(
+    name="my-flow/my-deployment",
+    scheduled_time=datetime.now() + timedelta(hours=2)
+)
+
+# With custom tags
+flow_run = run_deployment(
+    name="my-flow/my-deployment",
+    tags=["production", "critical"]
+)
+```
+
+<Note>
+By default, deployments triggered via `run_deployment` _from within another flow_ will be treated as a subflow of the parent flow in the UI. To disable this, set `as_subflow=False`.
+</Note>
+
+### Async usage
+
+In an async context, you can use the `run_deployment` function as a coroutine:
+
+{/* pmd-metadata: notest */}
+```python
+import asyncio
+from prefect.deployments import run_deployment
+
+async def trigger_deployment():
+    flow_run = await run_deployment(
+        name="my-flow/my-deployment",
+        parameters={"my_param": 42}
+    )
+    return flow_run
+
+# Run it
+flow_run = asyncio.run(trigger_deployment())
+```
+
+## Further reading
+
+- Learn about [deployment schedules](/v3/how-to-guides/deployments/create-schedules)
+- Explore [deployment triggers and automations](/v3/how-to-guides/automations/creating-deployment-triggers)
+- Understand [work pools and workers](/v3/concepts/work-pools)

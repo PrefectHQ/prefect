@@ -157,6 +157,7 @@ Inspect a work pool.
 
 Examples:
     \$ prefect work-pool inspect "my-pool"
+    \$ prefect work-pool inspect "my-pool" --output json
 </Info>
 
 
@@ -174,6 +175,14 @@ Examples:
 </Accordion>
 
 
+
+<Accordion title="Options" defaultOpen>
+
+<ResponseField name="--output">
+    Specify an output format. Currently supports: json
+</ResponseField>
+
+</Accordion>
 
 </AccordionGroup>
 
@@ -588,6 +597,249 @@ Examples:
 
 <ResponseField name="-h">
     The number of hours to look ahead; defaults to 1 hour
+</ResponseField>
+
+</Accordion>
+
+</AccordionGroup>
+
+
+
+## `prefect work-pool storage`
+
+
+
+```command
+prefect work-pool storage [OPTIONS] COMMAND [ARGS]...
+```
+
+
+
+<Info>
+EXPERIMENTAL: Manage work pool storage.
+</Info>
+
+
+
+
+
+
+
+
+### `prefect work-pool storage inspect`
+
+
+
+```command
+prefect work-pool storage inspect [OPTIONS] WORK_POOL_NAME
+```
+
+
+
+<Info>
+EXPERIMENTAL: Inspect the storage configuration for a work pool.
+</Info>
+
+
+
+
+
+
+<AccordionGroup>
+
+
+<Accordion title="Arguments" defaultOpen>
+<ResponseField name="WORK_POOL_NAME" type="string" required>
+    The name of the work pool to display storage configuration for.  \[required]
+</ResponseField>
+</Accordion>
+
+
+
+<Accordion title="Options" defaultOpen>
+
+<ResponseField name="--output">
+    Specify an output format. Currently supports: json
+</ResponseField>
+
+</Accordion>
+
+</AccordionGroup>
+
+
+<Note>
+**Example:**
+
+$ prefect work-pool storage inspect "my-pool"
+$ prefect work-pool storage inspect "my-pool" --output json
+</Note>
+
+
+
+
+### `prefect work-pool storage configure`
+
+
+
+```command
+prefect work-pool storage configure [OPTIONS] COMMAND [ARGS]...
+```
+
+
+
+<Info>
+EXPERIMENTAL: Configure work pool storage.
+</Info>
+
+
+
+
+
+
+
+
+#### `prefect work-pool storage configure s3`
+
+
+
+```command
+prefect work-pool storage configure s3 [OPTIONS] WORK_POOL_NAME
+```
+
+
+
+<Info>
+EXPERIMENTAL: Configure AWS S3 storage for a work pool.
+
+
+Examples:
+    \$ prefect work-pool storage configure s3 "my-pool" --bucket my-bucket --aws-credentials-block-name my-credentials
+</Info>
+
+
+
+
+
+
+<AccordionGroup>
+
+
+<Accordion title="Arguments" defaultOpen>
+<ResponseField name="WORK_POOL_NAME" type="string" required>
+    The name of the work pool to configure storage for.  \[required]
+</ResponseField>
+</Accordion>
+
+
+
+<Accordion title="Options" defaultOpen>
+
+<ResponseField name="--bucket">
+    The name of the S3 bucket to use.
+</ResponseField>
+
+<ResponseField name="--aws-credentials-block-name">
+    The name of the AWS credentials block to use.
+</ResponseField>
+
+</Accordion>
+
+</AccordionGroup>
+
+
+
+#### `prefect work-pool storage configure gcs`
+
+
+
+```command
+prefect work-pool storage configure gcs [OPTIONS] WORK_POOL_NAME
+```
+
+
+
+<Info>
+EXPERIMENTAL: Configure Google Cloud storage for a work pool.
+
+
+Examples:
+    \$ prefect work-pool storage configure gcs "my-pool" --bucket my-bucket --gcp-credentials-block-name my-credentials
+</Info>
+
+
+
+
+
+
+<AccordionGroup>
+
+
+<Accordion title="Arguments" defaultOpen>
+<ResponseField name="WORK_POOL_NAME" type="string" required>
+    The name of the work pool to configure storage for.  \[required]
+</ResponseField>
+</Accordion>
+
+
+
+<Accordion title="Options" defaultOpen>
+
+<ResponseField name="--bucket">
+    The name of the Google Cloud Storage bucket to use.
+</ResponseField>
+
+<ResponseField name="--gcp-credentials-block-name">
+    The name of the Google Cloud credentials block to use.
+</ResponseField>
+
+</Accordion>
+
+</AccordionGroup>
+
+
+
+#### `prefect work-pool storage configure azure-blob-storage`
+
+
+
+```command
+prefect work-pool storage configure azure-blob-storage [OPTIONS] WORK_POOL_NAME
+```
+
+
+
+<Info>
+EXPERIMENTAL: Configure Azure Blob Storage for a work pool.
+
+
+Examples:
+    \$ prefect work-pool storage configure azure-blob-storage "my-pool" --container my-container --azure-blob-storage-credentials-block-name my-credentials
+</Info>
+
+
+
+
+
+
+<AccordionGroup>
+
+
+<Accordion title="Arguments" defaultOpen>
+<ResponseField name="WORK_POOL_NAME" type="string" required>
+    The name of the work pool to configure storage for.  \[required]
+</ResponseField>
+</Accordion>
+
+
+
+<Accordion title="Options" defaultOpen>
+
+<ResponseField name="--container">
+    The name of the Azure Blob Storage container to use.
+</ResponseField>
+
+<ResponseField name="--azure-blob-storage-credentials-block-name">
+    The name of the Azure Blob Storage credentials block to use.
 </ResponseField>
 
 </Accordion>

@@ -5,4 +5,14 @@ sidebarTitle: csrf_token
 
 # `prefect.server.api.csrf_token`
 
-*This module is empty or contains only private/internal implementations.*
+## Functions
+
+### `create_csrf_token` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/csrf_token.py#L21" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+create_csrf_token(db: PrefectDBInterface = Depends(provide_database_interface), client: str = Query(..., description='The client to create a CSRF token for')) -> schemas.core.CsrfToken
+```
+
+
+Create or update a CSRF token for a client
+

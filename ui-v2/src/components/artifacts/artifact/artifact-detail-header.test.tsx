@@ -1,19 +1,19 @@
+import { QueryClient } from "@tanstack/react-query";
+import {
+	createMemoryHistory,
+	createRootRoute,
+	createRouter,
+	RouterProvider,
+} from "@tanstack/react-router";
+import { render, waitFor } from "@testing-library/react";
+import { createWrapper } from "@tests/utils";
+import { describe, expect, it } from "vitest";
 import type { ArtifactWithFlowRunAndTaskRun } from "@/api/artifacts";
 import {
 	createFakeArtifact,
 	createFakeFlowRun,
 	createFakeTaskRun,
 } from "@/mocks";
-import { QueryClient } from "@tanstack/react-query";
-import {
-	RouterProvider,
-	createMemoryHistory,
-	createRootRoute,
-	createRouter,
-} from "@tanstack/react-router";
-import { render } from "@testing-library/react";
-import { createWrapper } from "@tests/utils";
-import { describe, expect, it } from "vitest";
 import {
 	ArtifactDetailHeader,
 	type ArtifactDetailHeaderProps,
@@ -36,17 +36,16 @@ const ArtifactDetailHeaderRouter = (props: ArtifactDetailHeaderProps) => {
 };
 
 describe("ArtifactDetailHeader", () => {
-	it("renders artifact detail header with key", () => {
+	it("renders artifact detail header with key", async () => {
 		const artifact = createFakeArtifact({
 			key: "test-key",
 			id: "test-id",
 		});
 
-		const { getByText } = render(
-			<ArtifactDetailHeaderRouter artifact={artifact} />,
-			{
+		const { getByText } = await waitFor(() =>
+			render(<ArtifactDetailHeaderRouter artifact={artifact} />, {
 				wrapper: createWrapper(),
-			},
+			}),
 		);
 
 		expect(getByText("test-key")).toBeTruthy();
@@ -57,7 +56,7 @@ describe("ArtifactDetailHeader", () => {
 		expect(getByText("test-id")).toBeTruthy();
 	});
 
-	it("renders artifact detail header with flow run and task run", () => {
+	it("renders artifact detail header with flow run and task run", async () => {
 		const artifact = createFakeArtifact({
 			id: "test-id",
 			key: "",
@@ -78,11 +77,10 @@ describe("ArtifactDetailHeader", () => {
 		artifact.flow_run = flowRun;
 		artifact.task_run = taskRun;
 
-		const { getByText } = render(
-			<ArtifactDetailHeaderRouter artifact={artifact} />,
-			{
+		const { getByText } = await waitFor(() =>
+			render(<ArtifactDetailHeaderRouter artifact={artifact} />, {
 				wrapper: createWrapper(),
-			},
+			}),
 		);
 
 		expect(getByText("flow-run-name")).toBeTruthy();

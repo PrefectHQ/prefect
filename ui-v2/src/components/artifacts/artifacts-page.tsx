@@ -1,6 +1,6 @@
+import { useMemo } from "react";
 import type { Artifact } from "@/api/artifacts";
 import { useLocalStorage } from "@/hooks/use-local-storage";
-import { useMemo } from "react";
 import { ArtifactCard } from "./artifact-card";
 import { ArtifactsFilterComponent } from "./artifacts-filter";
 import { ArtifactsHeader } from "./artifacts-header";

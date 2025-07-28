@@ -70,13 +70,14 @@ Arguments:
 
 Examples:
 
-    \$ prefect automation inspect "my-automation"
+    `$ prefect automation inspect "my-automation"`
 
-    \$ prefect automation inspect --id "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
+    `$ prefect automation inspect --id "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"`
 
-    \$ prefect automation inspect "my-automation" --yaml
+    `$ prefect automation inspect "my-automation" --yaml`
 
-    \$ prefect automation inspect "my-automation" --json
+    `$ prefect automation inspect "my-automation" --output json`
+    `$ prefect automation inspect "my-automation" --output yaml`
 </Info>
 
 
@@ -109,6 +110,10 @@ Examples:
     Output as JSON
 </ResponseField>
 
+<ResponseField name="--output">
+    Specify an output format. Currently supports: json, yaml
+</ResponseField>
+
 </Accordion>
 
 </AccordionGroup>
@@ -136,9 +141,9 @@ Arguments:
 
 Examples:
 
-        \$ prefect automation resume "my-automation"
+        `$ prefect automation resume "my-automation"`
 
-        \$ prefect automation resume --id "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
+        `$ prefect automation resume --id "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"`
 </Info>
 
 
@@ -190,9 +195,9 @@ Arguments:
 
 Examples:
 
-        \$ prefect automation resume "my-automation"
+        `$ prefect automation resume "my-automation"`
 
-        \$ prefect automation resume --id "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
+        `$ prefect automation resume --id "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"`
 </Info>
 
 
@@ -244,9 +249,9 @@ Arguments:
 
 Examples:
 
-    \$ prefect automation pause "my-automation"
+    `$ prefect automation pause "my-automation"`
 
-    \$ prefect automation pause --id "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
+    `$ prefect automation pause --id "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"`
 </Info>
 
 
@@ -298,9 +303,9 @@ Arguments:
 
 Examples:
 
-    \$ prefect automation pause "my-automation"
+    `$ prefect automation pause "my-automation"`
 
-    \$ prefect automation pause --id "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
+    `$ prefect automation pause --id "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"`
 </Info>
 
 
@@ -370,3 +375,63 @@ Delete an automation.
 </Accordion>
 
 </AccordionGroup>
+
+
+<Note>
+**Example:**
+
+`$ prefect automation delete "my-automation"`
+`$ prefect automation delete --id "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"`
+</Note>
+
+
+
+
+## `prefect automations create`
+
+
+
+```command
+prefect automations create [OPTIONS]
+```
+
+
+
+<Info>
+Create one or more automations from a file or JSON string.
+</Info>
+
+
+
+
+
+
+<AccordionGroup>
+
+
+
+
+<Accordion title="Options" defaultOpen>
+
+<ResponseField name="--from-file">
+    Path to YAML or JSON file containing automation(s)
+</ResponseField>
+
+<ResponseField name="--from-json">
+    JSON string containing automation(s)
+</ResponseField>
+
+</Accordion>
+
+</AccordionGroup>
+
+
+<Note>
+**Example:**
+
+`$ prefect automation create --from-file automation.yaml`
+`$ prefect automation create -f automation.json`
+`$ prefect automation create --from-json '{"name": "my-automation", "trigger": {...}, "actions": [...]}'`
+`$ prefect automation create -j '[{"name": "auto1", ...}, {"name": "auto2", ...}]'`
+</Note>
+

@@ -5,11 +5,37 @@ sidebarTitle: memory
 
 # `prefect.server.utilities.messaging.memory`
 
+## Functions
+
+### `log_metrics_periodically` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/messaging/memory.py#L45" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+log_metrics_periodically(interval: float = 2.0) -> None
+```
+
+### `update_metric` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/messaging/memory.py#L65" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+update_metric(topic: str, key: str, amount: int = 1) -> None
+```
+
+### `break_topic` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/messaging/memory.py#L233" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+break_topic()
+```
+
+### `ephemeral_subscription` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/messaging/memory.py#L369" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+ephemeral_subscription(topic: str) -> AsyncGenerator[Mapping[str, Any], None]
+```
+
 ## Classes
 
-### `MemoryMessage` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/messaging/memory.py#L74" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `MemoryMessage` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/messaging/memory.py#L74" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
-### `Subscription` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/messaging/memory.py#L80" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `Subscription` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/messaging/memory.py#L80" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 A subscription to a topic.
@@ -24,42 +50,137 @@ message.
 Messages remain in the dead letter queue until they are removed manually.
 
 
-### `Topic` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/messaging/memory.py#L188" target="_blank"><Icon icon="github" size="14" /></a></sup>
+**Methods:**
+
+#### `deliver` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/messaging/memory.py#L116" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+deliver(self, message: MemoryMessage) -> None
+```
+
+Deliver a message to the subscription's queue.
+
+**Args:**
+- `message`: The message to deliver.
+
+
+#### `get` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/messaging/memory.py#L161" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+get(self) -> MemoryMessage
+```
+
+Get a message from the subscription's queue.
+
+
+#### `retry` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/messaging/memory.py#L132" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+retry(self, message: MemoryMessage) -> None
+```
+
+Place a message back on the retry queue.
+
+If the message has retried more than the maximum number of times it is
+moved to the dead letter queue.
+
+**Args:**
+- `message`: The message to retry.
+
+
+#### `send_to_dead_letter_queue` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/messaging/memory.py#L169" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+send_to_dead_letter_queue(self, message: MemoryMessage) -> None
+```
+
+Send a message to the dead letter queue.
+
+The dead letter queue is a directory of JSON files containing the
+serialized messages.
+
+**Args:**
+- `message`: The message to send to the dead letter queue.
+
+
+### `Topic` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/messaging/memory.py#L188" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 **Methods:**
 
-#### `by_name` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/messaging/memory.py#L199" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `by_name` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/messaging/memory.py#L199" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 by_name(cls, name: str) -> 'Topic'
 ```
 
-#### `clear_all` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/messaging/memory.py#L208" target="_blank"><Icon icon="github" size="14" /></a></sup>
-
-```python
-clear_all(cls) -> None
-```
-
-#### `subscribe` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/messaging/memory.py#L213" target="_blank"><Icon icon="github" size="14" /></a></sup>
-
-```python
-subscribe(self, **subscription_kwargs: Any) -> Subscription
-```
-
-#### `unsubscribe` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/messaging/memory.py#L218" target="_blank"><Icon icon="github" size="14" /></a></sup>
-
-```python
-unsubscribe(self, subscription: Subscription) -> None
-```
-
-#### `clear` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/messaging/memory.py#L221" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `clear` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/messaging/memory.py#L221" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 clear(self) -> None
 ```
 
-### `Cache` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/messaging/memory.py#L248" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `clear_all` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/messaging/memory.py#L208" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
-### `Publisher` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/messaging/memory.py#L293" target="_blank"><Icon icon="github" size="14" /></a></sup>
+```python
+clear_all(cls) -> None
+```
 
-### `Consumer` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/messaging/memory.py#L326" target="_blank"><Icon icon="github" size="14" /></a></sup>
+#### `publish` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/messaging/memory.py#L226" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+publish(self, message: MemoryMessage) -> None
+```
+
+#### `subscribe` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/messaging/memory.py#L213" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+subscribe(self, **subscription_kwargs: Any) -> Subscription
+```
+
+#### `unsubscribe` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/messaging/memory.py#L218" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+unsubscribe(self, subscription: Subscription) -> None
+```
+
+### `Cache` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/messaging/memory.py#L248" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+**Methods:**
+
+#### `clear_recently_seen_messages` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/messaging/memory.py#L254" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+clear_recently_seen_messages(self) -> None
+```
+
+#### `forget_duplicates` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/messaging/memory.py#L281" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+forget_duplicates(self, attribute: str, messages: Iterable[M]) -> None
+```
+
+#### `without_duplicates` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/messaging/memory.py#L257" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+without_duplicates(self, attribute: str, messages: Iterable[M]) -> list[M]
+```
+
+### `Publisher` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/messaging/memory.py#L293" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+**Methods:**
+
+#### `publish_data` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/messaging/memory.py#L310" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+publish_data(self, data: bytes, attributes: Mapping[str, str]) -> None
+```
+
+### `Consumer` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/messaging/memory.py#L326" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+**Methods:**
+
+#### `run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/messaging/memory.py#L341" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+run(self, handler: MessageHandler) -> None
+```

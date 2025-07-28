@@ -5,4 +5,58 @@ sidebarTitle: block_registration
 
 # `prefect.server.models.block_registration`
 
-*This module is empty or contains only private/internal implementations.*
+## Functions
+
+### `register_block_schema` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/block_registration.py#L58" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+register_block_schema(session: AsyncSession, block_schema: Union[schemas.core.BlockSchema, 'ClientBlockSchema']) -> UUID
+```
+
+
+Stores the provided block schema in the Prefect REST API database.
+
+If a block schema with a matching checksum and version is already saved,
+then the ID of the existing block schema will be returned.
+
+**Args:**
+- `session`: A database session.
+- `block_schema`: A block schema object.
+
+**Returns:**
+- The ID of the registered block schema.
+
+
+### `register_block_type` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/block_registration.py#L94" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+register_block_type(session: AsyncSession, block_type: Union[schemas.core.BlockType, 'ClientBlockType']) -> UUID
+```
+
+
+Stores the provided block type in the Prefect REST API database.
+
+If a block type with a matching slug is already saved, then the block type
+will be updated to match the passed in block type.
+
+**Args:**
+- `session`: A database session.
+- `block_type`: A block type object.
+
+**Returns:**
+- The ID of the registered block type.
+
+
+### `run_block_auto_registration` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/block_registration.py#L213" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+run_block_auto_registration(session: AsyncSession) -> None
+```
+
+
+Registers all blocks in the client block registry and any blocks from Prefect
+Collections that are configured for auto-registration.
+
+**Args:**
+- `session`: A database session.
+

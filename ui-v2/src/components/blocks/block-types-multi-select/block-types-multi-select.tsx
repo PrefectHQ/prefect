@@ -1,10 +1,11 @@
 "use client";
 
+import { useSuspenseQuery } from "@tanstack/react-query";
+import { Suspense, useDeferredValue, useMemo, useState } from "react";
 import {
 	type BlockType,
 	buildListFilterBlockTypesQuery,
 } from "@/api/block-types";
-
 import {
 	Combobox,
 	ComboboxCommandEmtpy,
@@ -16,8 +17,6 @@ import {
 	ComboboxTrigger,
 } from "@/components/ui/combobox";
 import { TagBadge } from "@/components/ui/tag-badge";
-import { useSuspenseQuery } from "@tanstack/react-query";
-import { Suspense, useDeferredValue, useMemo, useState } from "react";
 
 type BlockTypesMultiSelectProps = {
 	selectedBlockTypesSlugs: Array<string>;

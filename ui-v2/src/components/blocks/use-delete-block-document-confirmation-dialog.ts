@@ -1,10 +1,10 @@
+import { useNavigate } from "@tanstack/react-router";
+import { toast } from "sonner";
 import {
 	type BlockDocument,
 	useDeleteBlockDocument,
 } from "@/api/block-documents";
 import { useDeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog";
-import { useNavigate } from "@tanstack/react-router";
-import { toast } from "sonner";
 
 export const useDeleteBlockDocumentConfirmationDialog = () => {
 	const navigate = useNavigate();

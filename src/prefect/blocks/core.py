@@ -4,6 +4,7 @@ import hashlib
 import html
 import inspect
 import sys
+import types
 import uuid
 import warnings
 from abc import ABC
@@ -163,7 +164,11 @@ def _collect_secret_fields(
     secrets list, supporting nested Union / Dict / Tuple / List / BaseModel fields.
     Also, note, this function mutates the input secrets list, thus does not return anything.
     """
-    if get_origin(type_) in (Union, dict, list, tuple):
+    nested_types = (Union, dict, list, tuple)
+    # Include UnionType if it's available for the current Python version
+    if union_type := getattr(types, "UnionType", None):
+        nested_types = nested_types + (union_type,)
+    if get_origin(type_) in nested_types:
         for nested_type in get_args(type_):
             _collect_secret_fields(name, nested_type, secrets)
         return
@@ -1008,7 +1013,7 @@ class Block(BaseModel, ABC):
 
         Args:
             name: The name or slug of the block document. A block document slug is a
-                string with the format <block_type_slug>/<block_document_name>
+                string with the format `<block_type_slug>/<block_document_name>`
             validate: If False, the block document will be loaded without Pydantic
                 validating the block schema. This is useful if the block schema has
                 changed client-side since the block document referred to by `name` was saved.
@@ -1097,7 +1102,7 @@ class Block(BaseModel, ABC):
 
         Args:
             name: The name or slug of the block document. A block document slug is a
-                string with the format <block_type_slug>/<block_document_name>
+                string with the format `<block_type_slug>/<block_document_name>`
             validate: If False, the block document will be loaded without Pydantic
                 validating the block schema. This is useful if the block schema has
                 changed client-side since the block document referred to by `name` was saved.
@@ -1185,8 +1190,8 @@ class Block(BaseModel, ABC):
 
         Provided reference can be a block document ID, or a reference data in dictionary format.
         Supported dictionary reference formats are:
-        - {"block_document_id": <block_document_id>}
-        - {"block_document_slug": <block_document_slug>}
+        - `{"block_document_id": <block_document_id>}`
+        - `{"block_document_slug": <block_document_slug>}`
 
         If a block document for a given block type is saved with a different schema
         than the current class calling `load`, a warning will be raised.

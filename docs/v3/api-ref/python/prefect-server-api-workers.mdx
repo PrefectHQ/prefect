@@ -10,6 +10,160 @@ sidebarTitle: workers
 Routes for interacting with work queue objects.
 
 
+## Functions
+
+### `create_work_pool` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/workers.py#L159" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+create_work_pool(work_pool: schemas.actions.WorkPoolCreate, db: PrefectDBInterface = Depends(provide_database_interface), prefect_client_version: Optional[str] = Depends(dependencies.get_prefect_client_version)) -> schemas.core.WorkPool
+```
+
+
+Creates a new work pool. If a work pool with the same
+name already exists, an error will be raised.
+
+For more information, see https://docs.prefect.io/v3/deploy/infrastructure-concepts/work-pools.
+
+
+### `read_work_pool` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/workers.py#L211" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+read_work_pool(work_pool_name: str = Path(..., description='The work pool name', alias='name'), worker_lookups: WorkerLookups = Depends(WorkerLookups), db: PrefectDBInterface = Depends(provide_database_interface), prefect_client_version: Optional[str] = Depends(dependencies.get_prefect_client_version)) -> schemas.core.WorkPool
+```
+
+
+Read a work pool by name
+
+
+### `read_work_pools` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/workers.py#L245" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+read_work_pools(work_pools: Optional[schemas.filters.WorkPoolFilter] = None, limit: int = dependencies.LimitBody(), offset: int = Body(0, ge=0), db: PrefectDBInterface = Depends(provide_database_interface), prefect_client_version: Optional[str] = Depends(dependencies.get_prefect_client_version)) -> List[schemas.core.WorkPool]
+```
+
+
+Read multiple work pools
+
+
+### `count_work_pools` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/workers.py#L279" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+count_work_pools(work_pools: Optional[schemas.filters.WorkPoolFilter] = Body(None, embed=True), db: PrefectDBInterface = Depends(provide_database_interface)) -> int
+```
+
+
+Count work pools
+
+
+### `update_work_pool` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/workers.py#L293" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+update_work_pool(work_pool: schemas.actions.WorkPoolUpdate, work_pool_name: str = Path(..., description='The work pool name', alias='name'), worker_lookups: WorkerLookups = Depends(WorkerLookups), db: PrefectDBInterface = Depends(provide_database_interface)) -> None
+```
+
+
+Update a work pool
+
+
+### `delete_work_pool` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/workers.py#L329" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+delete_work_pool(work_pool_name: str = Path(..., description='The work pool name', alias='name'), worker_lookups: WorkerLookups = Depends(WorkerLookups), db: PrefectDBInterface = Depends(provide_database_interface)) -> None
+```
+
+
+Delete a work pool
+
+
+### `get_scheduled_flow_runs` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/workers.py#L358" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+get_scheduled_flow_runs(background_tasks: BackgroundTasks, work_pool_name: str = Path(..., description='The work pool name', alias='name'), work_queue_names: List[str] = Body(None, description='The names of work pool queues'), scheduled_before: DateTime = Body(None, description='The maximum time to look for scheduled flow runs'), scheduled_after: DateTime = Body(None, description='The minimum time to look for scheduled flow runs'), limit: int = dependencies.LimitBody(), worker_lookups: WorkerLookups = Depends(WorkerLookups), db: PrefectDBInterface = Depends(provide_database_interface)) -> List[schemas.responses.WorkerFlowRunResponse]
+```
+
+
+Load scheduled runs for a worker
+
+
+### `create_work_queue` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/workers.py#L442" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+create_work_queue(work_queue: schemas.actions.WorkQueueCreate, work_pool_name: str = Path(..., description='The work pool name'), worker_lookups: WorkerLookups = Depends(WorkerLookups), db: PrefectDBInterface = Depends(provide_database_interface)) -> schemas.responses.WorkQueueResponse
+```
+
+
+Creates a new work pool queue. If a work pool queue with the same
+name already exists, an error will be raised.
+
+For more information, see https://docs.prefect.io/v3/deploy/infrastructure-concepts/work-pools#work-queues.
+
+
+### `read_work_queue` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/workers.py#L482" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+read_work_queue(work_pool_name: str = Path(..., description='The work pool name'), work_queue_name: str = Path(..., description='The work pool queue name', alias='name'), worker_lookups: WorkerLookups = Depends(WorkerLookups), db: PrefectDBInterface = Depends(provide_database_interface)) -> schemas.responses.WorkQueueResponse
+```
+
+
+Read a work pool queue
+
+
+### `read_work_queues` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/workers.py#L511" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+read_work_queues(work_pool_name: str = Path(..., description='The work pool name'), work_queues: schemas.filters.WorkQueueFilter = None, limit: int = dependencies.LimitBody(), offset: int = Body(0, ge=0), worker_lookups: WorkerLookups = Depends(WorkerLookups), db: PrefectDBInterface = Depends(provide_database_interface)) -> List[schemas.responses.WorkQueueResponse]
+```
+
+
+Read all work pool queues
+
+
+### `update_work_queue` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/workers.py#L542" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+update_work_queue(work_queue: schemas.actions.WorkQueueUpdate, work_pool_name: str = Path(..., description='The work pool name'), work_queue_name: str = Path(..., description='The work pool queue name', alias='name'), worker_lookups: WorkerLookups = Depends(WorkerLookups), db: PrefectDBInterface = Depends(provide_database_interface)) -> None
+```
+
+
+Update a work pool queue
+
+
+### `delete_work_queue` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/workers.py#L573" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+delete_work_queue(work_pool_name: str = Path(..., description='The work pool name'), work_queue_name: str = Path(..., description='The work pool queue name', alias='name'), worker_lookups: WorkerLookups = Depends(WorkerLookups), db: PrefectDBInterface = Depends(provide_database_interface)) -> None
+```
+
+
+Delete a work pool queue
+
+
+### `worker_heartbeat` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/workers.py#L610" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+worker_heartbeat(work_pool_name: str = Path(..., description='The work pool name'), name: str = Body(..., description='The worker process name', embed=True), heartbeat_interval_seconds: Optional[int] = Body(None, description="The worker's heartbeat interval in seconds", embed=True), worker_lookups: WorkerLookups = Depends(WorkerLookups), db: PrefectDBInterface = Depends(provide_database_interface)) -> None
+```
+
+### `read_workers` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/workers.py#L649" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+read_workers(work_pool_name: str = Path(..., description='The work pool name'), workers: Optional[schemas.filters.WorkerFilter] = None, limit: int = dependencies.LimitBody(), offset: int = Body(0, ge=0), worker_lookups: WorkerLookups = Depends(WorkerLookups), db: PrefectDBInterface = Depends(provide_database_interface)) -> List[schemas.responses.WorkerResponse]
+```
+
+
+Read all worker processes
+
+
+### `delete_worker` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/workers.py#L676" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+delete_worker(work_pool_name: str = Path(..., description='The work pool name'), worker_name: str = Path(..., description="The work pool's worker name", alias='name'), worker_lookups: WorkerLookups = Depends(WorkerLookups), db: PrefectDBInterface = Depends(provide_database_interface)) -> None
+```
+
+
+Delete a work pool's worker
+
+
 ## Classes
 
-### `WorkerLookups` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/workers.py#L55" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `WorkerLookups` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/workers.py#L55" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>

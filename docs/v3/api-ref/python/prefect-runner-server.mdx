@@ -7,25 +7,56 @@ sidebarTitle: server
 
 ## Functions
 
-### `perform_health_check` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/runner/server.py#L51" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `perform_health_check` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/runner/server.py#L51" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 perform_health_check(runner: 'Runner', delay_threshold: int | None = None) -> Callable[..., JSONResponse]
 ```
 
-### `run_count` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/runner/server.py#L77" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `run_count` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/runner/server.py#L77" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 run_count(runner: 'Runner') -> Callable[..., int]
 ```
 
-### `shutdown` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/runner/server.py#L85" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `shutdown` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/runner/server.py#L85" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 shutdown(runner: 'Runner') -> Callable[..., JSONResponse]
 ```
 
-### `start_webserver` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/runner/server.py#L311" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `get_deployment_router` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/runner/server.py#L128" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+get_deployment_router(runner: 'Runner') -> tuple[APIRouter, dict[Hashable, Any]]
+```
+
+### `get_subflow_schemas` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/runner/server.py#L156" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+get_subflow_schemas(runner: 'Runner') -> dict[str, dict[str, Any]]
+```
+
+
+Load available subflow schemas by filtering for only those subflows in the
+deployment entrypoint's import space.
+
+
+### `build_server` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/runner/server.py#L262" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+build_server(runner: 'Runner') -> FastAPI
+```
+
+
+Build a FastAPI server for a runner.
+
+**Args:**
+- `runner`: the runner this server interacts with and monitors
+- `log_level`: the log level to use for the server
+
+
+### `start_webserver` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/runner/server.py#L311" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 start_webserver(runner: 'Runner', log_level: str | None = None) -> None
@@ -41,4 +72,4 @@ Run a FastAPI server for a runner.
 
 ## Classes
 
-### `RunnerGenericFlowRunRequest` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/runner/server.py#L45" target="_blank"><Icon icon="github" size="14" /></a></sup>
+### `RunnerGenericFlowRunRequest` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/runner/server.py#L45" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>

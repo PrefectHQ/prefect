@@ -1,8 +1,7 @@
-import { GlobalConcurrencyLimitsHeader } from "./global-concurrency-limits-header";
-
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { expect, test, vi } from "vitest";
+import { GlobalConcurrencyLimitsHeader } from "./global-concurrency-limits-header";
 
 test("GlobalConcurrencyLimitsHeader can successfully call onAdd", async () => {
 	const user = userEvent.setup();

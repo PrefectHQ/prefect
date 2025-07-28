@@ -78,7 +78,7 @@ Inspect a global concurrency limit.
 <Accordion title="Options" defaultOpen>
 
 <ResponseField name="--output">
-    Output format for the command.
+    Specify an output format. Currently supports: json
 </ResponseField>
 
 <ResponseField name="--file">
@@ -248,6 +248,18 @@ Update a global concurrency limit.
 </Accordion>
 
 </AccordionGroup>
+
+
+<Note>
+**Example:**
+
+$ prefect global-concurrency-limit update my-gcl --limit 10
+$ prefect gcl update my-gcl --active-slots 5
+$ prefect gcl update my-gcl --slot-decay-per-second 0.5
+$ prefect gcl update my-gcl --enable
+$ prefect gcl update my-gcl --disable --limit 5
+</Note>
+
 
 
 
