@@ -2551,7 +2551,11 @@ class TestClientCustomHeadersSetting:
         """Test setting custom headers via the CLI. Ensures string->dict validation works."""
         from prefect.settings import update_current_profile
 
-        update_current_profile({"PREFECT_CLIENT_CUSTOM_HEADERS": '{"X-Test-Header": "test-value", "Authorization": "Bearer token123"}'})
+        update_current_profile(
+            {
+                "PREFECT_CLIENT_CUSTOM_HEADERS": '{"X-Test-Header": "test-value", "Authorization": "Bearer token123"}'
+            }
+        )
 
     #     settings = get_current_settings()
     def test_invalid_json_string_raises_error(self, monkeypatch: pytest.MonkeyPatch):

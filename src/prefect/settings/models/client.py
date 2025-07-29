@@ -1,8 +1,7 @@
-from typing import ClassVar, Dict
 import json
+from typing import ClassVar, Dict
 
-from pydantic import AliasChoices, AliasPath, Field
-from pydantic import field_validator
+from pydantic import AliasChoices, AliasPath, Field, field_validator
 from pydantic_settings import SettingsConfigDict
 
 from prefect.settings.base import (
