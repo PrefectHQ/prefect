@@ -18,10 +18,18 @@ from sqlalchemy import select
 
 from prefect.logging import get_logger
 from prefect.server import models
+from prefect.server.concurrency.lease_storage import (
+    ConcurrencyLimitLeaseMetadata,
+    get_concurrency_lease_storage,
+)
 from prefect.server.database import PrefectDBInterface, orm_models
 from prefect.server.database.dependencies import db_injector
 from prefect.server.exceptions import ObjectNotFoundError
 from prefect.server.models import concurrency_limits, concurrency_limits_v2, deployments
+from prefect.server.orchestration.dependencies import (
+    MIN_CLIENT_VERSION_FOR_CONCURRENCY_LIMIT_LEASING,
+    WORKER_VERSIONS_THAT_MANAGE_DEPLOYMENT_CONCURRENCY,
+)
 from prefect.server.orchestration.policies import (
     FlowRunOrchestrationPolicy,
     TaskRunOrchestrationPolicy,
@@ -53,44 +61,6 @@ from prefect.utilities.math import clamped_poisson_interval
 from .instrumentation_policies import InstrumentFlowRunStateTransitions
 
 
-class CoreFlowPolicyWithoutDeploymentConcurrency(FlowRunOrchestrationPolicy):
-    """
-    Orchestration rules that run against flow-run-state transitions in priority order.
-    """
-
-    @staticmethod
-    def priority() -> list[
-        Union[
-            type[BaseUniversalTransform[orm_models.FlowRun, core.FlowRunPolicy],],
-            type[BaseOrchestrationRule[orm_models.FlowRun, core.FlowRunPolicy]],
-        ]
-    ]:
-        return cast(
-            list[
-                Union[
-                    type[
-                        BaseUniversalTransform[orm_models.FlowRun, core.FlowRunPolicy]
-                    ],
-                    type[BaseOrchestrationRule[orm_models.FlowRun, core.FlowRunPolicy]],
-                ]
-            ],
-            [
-                PreventDuplicateTransitions,
-                HandleFlowTerminalStateTransitions,
-                EnforceCancellingToCancelledTransition,
-                BypassCancellingFlowRunsWithNoInfra,
-                PreventPendingTransitions,
-                EnsureOnlyScheduledFlowsMarkedLate,
-                HandlePausingFlows,
-                HandleResumingPausedFlows,
-                CopyScheduledTime,
-                WaitForScheduledTime,
-                RetryFailedFlows,
-                InstrumentFlowRunStateTransitions,
-            ],
-        )
-
-
 class CoreFlowPolicy(FlowRunOrchestrationPolicy):
     """
     Orchestration rules that run against flow-run-state transitions in priority order.
@@ -118,7 +88,9 @@ class CoreFlowPolicy(FlowRunOrchestrationPolicy):
                 EnforceCancellingToCancelledTransition,
                 BypassCancellingFlowRunsWithNoInfra,
                 PreventPendingTransitions,
+                CopyDeploymentConcurrencyLeaseID,
                 SecureFlowConcurrencySlots,
+                RemoveDeploymentConcurrencyLeaseForOldClientVersions,
                 EnsureOnlyScheduledFlowsMarkedLate,
                 HandlePausingFlows,
                 HandleResumingPausedFlows,
@@ -406,6 +378,8 @@ class SecureFlowConcurrencySlots(FlowRunOrchestrationRule):
     We use the PENDING state as the target transition because this allows workers to secure a slot
     before provisioning dynamic infrastructure to run a flow. If a slot isn't available, the worker
     won't provision infrastructure.
+
+    A lease is created for the concurrency limit. The client will be responsible for maintaining the lease.
     """
 
     FROM_STATES = ALL_ORCHESTRATION_STATES - {
@@ -415,13 +389,19 @@ class SecureFlowConcurrencySlots(FlowRunOrchestrationRule):
     }
     TO_STATES = {states.StateType.PENDING}
 
-    async def before_transition(  # type: ignore
+    async def before_transition(
         self,
         initial_state: states.State[Any] | None,
         proposed_state: states.State[Any] | None,
         context: FlowOrchestrationContext,
     ) -> None:
-        if not context.session or not context.run.deployment_id:
+        if (
+            not context.session
+            or not context.run.deployment_id
+            or not proposed_state
+            or context.client_version
+            in WORKER_VERSIONS_THAT_MANAGE_DEPLOYMENT_CONCURRENCY
+        ):
             return
 
         deployment = await deployments.read_deployment(
@@ -449,8 +429,18 @@ class SecureFlowConcurrencySlots(FlowRunOrchestrationRule):
             concurrency_limit_ids=[deployment.concurrency_limit_id],
             slots=1,
         )
+        if acquired:
+            lease_storage = get_concurrency_lease_storage()
+            lease = await lease_storage.create_lease(
+                resource_ids=[deployment.concurrency_limit_id],
+                metadata=ConcurrencyLimitLeaseMetadata(
+                    slots=1,
+                ),
+                ttl=datetime.timedelta(seconds=60),
+            )
+            proposed_state.state_details.deployment_concurrency_lease_id = lease.id
 
-        if not acquired:
+        else:
             concurrency_options = (
                 deployment.concurrency_options
                 or core.ConcurrencyOptions(
@@ -507,8 +497,69 @@ class SecureFlowConcurrencySlots(FlowRunOrchestrationRule):
                 concurrency_limit_ids=[deployment.concurrency_limit_id],
                 slots=1,
             )
+            if (
+                validated_state
+                and validated_state.state_details.deployment_concurrency_lease_id
+            ):
+                lease_storage = get_concurrency_lease_storage()
+                await lease_storage.revoke_lease(
+                    lease_id=validated_state.state_details.deployment_concurrency_lease_id,
+                )
+                validated_state.state_details.deployment_concurrency_lease_id = None
+
         except Exception as e:
             logger.error(f"Error releasing concurrency slots on cleanup: {e}")
+
+
+class CopyDeploymentConcurrencyLeaseID(FlowRunOrchestrationRule):
+    """
+    Copies the deployment concurrency lease ID to the proposed state.
+    """
+
+    FROM_STATES = {states.StateType.PENDING}
+    TO_STATES = {states.StateType.RUNNING}
+
+    async def before_transition(
+        self,
+        initial_state: states.State[Any] | None,
+        proposed_state: states.State[Any] | None,
+        context: OrchestrationContext[orm_models.FlowRun, core.FlowRunPolicy],
+    ) -> None:
+        if initial_state is None or proposed_state is None:
+            return
+
+        if not proposed_state.state_details.deployment_concurrency_lease_id:
+            proposed_state.state_details.deployment_concurrency_lease_id = (
+                initial_state.state_details.deployment_concurrency_lease_id
+            )
+
+
+class RemoveDeploymentConcurrencyLeaseForOldClientVersions(FlowRunOrchestrationRule):
+    """
+    Removes a deployment concurrency lease if the client version is less than the minimum version for leasing.
+    """
+
+    FROM_STATES = {states.StateType.PENDING}
+    TO_STATES = {states.StateType.RUNNING, states.StateType.CANCELLING}
+
+    async def after_transition(
+        self,
+        initial_state: states.State[Any] | None,
+        validated_state: states.State[Any] | None,
+        context: OrchestrationContext[orm_models.FlowRun, core.FlowRunPolicy],
+    ) -> None:
+        if not initial_state or (
+            context.client_version
+            and Version(context.client_version)
+            >= MIN_CLIENT_VERSION_FOR_CONCURRENCY_LIMIT_LEASING
+        ):
+            return
+
+        if lease_id := initial_state.state_details.deployment_concurrency_lease_id:
+            lease_storage = get_concurrency_lease_storage()
+            await lease_storage.revoke_lease(
+                lease_id=lease_id,
+            )
 
 
 class ReleaseFlowConcurrencySlots(FlowRunUniversalTransform):
@@ -555,18 +606,38 @@ class ReleaseFlowConcurrencySlots(FlowRunUniversalTransform):
         if not context.session or not context.run.deployment_id:
             return
 
-        deployment = await deployments.read_deployment(
-            session=context.session,
-            deployment_id=context.run.deployment_id,
-        )
-        if not deployment or not deployment.concurrency_limit_id:
-            return
+        lease_storage = get_concurrency_lease_storage()
+        if (
+            context.initial_state
+            and context.initial_state.state_details.deployment_concurrency_lease_id
+            and (
+                lease := await lease_storage.read_lease(
+                    lease_id=context.initial_state.state_details.deployment_concurrency_lease_id,
+                )
+            )
+            and lease.metadata
+        ):
+            await concurrency_limits_v2.bulk_decrement_active_slots(
+                session=context.session,
+                concurrency_limit_ids=lease.resource_ids,
+                slots=lease.metadata.slots,
+            )
+            await lease_storage.revoke_lease(
+                lease_id=lease.id,
+            )
+        else:
+            deployment = await deployments.read_deployment(
+                session=context.session,
+                deployment_id=context.run.deployment_id,
+            )
+            if not deployment or not deployment.concurrency_limit_id:
+                return
 
-        await concurrency_limits_v2.bulk_decrement_active_slots(
-            session=context.session,
-            concurrency_limit_ids=[deployment.concurrency_limit_id],
-            slots=1,
-        )
+            await concurrency_limits_v2.bulk_decrement_active_slots(
+                session=context.session,
+                concurrency_limit_ids=[deployment.concurrency_limit_id],
+                slots=1,
+            )
 
 
 class CacheInsertion(TaskRunOrchestrationRule):
