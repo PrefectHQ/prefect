@@ -1,5 +1,5 @@
 """
-Asynchronous client implementation for communicating with the [Prefect REST API](/api-ref/rest-api/).
+Asynchronous client implementation for communicating with the [Prefect REST API](https://docs.prefect.io/v3/api-ref/rest-api/).
 
 Explore the client by communicating with an in-memory webserver - no setup required:
 

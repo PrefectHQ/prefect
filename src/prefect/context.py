@@ -3,7 +3,7 @@ Async and thread safe models for passing runtime context data.
 
 These contexts should never be directly mutated by the user.
 
-For more user-accessible information about the current run, see [`prefect.runtime`](../runtime/flow_run).
+For more user-accessible information about the current run, see [`prefect.runtime`](https://docs.prefect.io/v3/api-ref/python/prefect-runtime-flow_run).
 """
 
 import asyncio
