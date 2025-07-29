@@ -23,7 +23,7 @@ When setting up an execution environment for a flow run, a worker receives confi
 
 A worker developer defines their worker's configuration to function with a class extending [`BaseJobConfiguration`](/v3/api-ref/python/prefect-workers-base#basejobconfiguration).
 
-`BaseJobConfiguration` has attributes that are common to all workers: 
+`BaseJobConfiguration` has attributes that are common to all workers:
 
 | Attribute | Description |
 | --------- | ----------- |
@@ -39,8 +39,8 @@ Here's an example `prepare_for_flow_run` method that adds a label to the executi
 ```python
 def prepare_for_flow_run(
     self, flow_run, deployment = None, flow = None, work_pool = None, worker_name = None
-):  
-    super().prepare_for_flow_run(flow_run, deployment, flow, work_pool, worker_name)  
+):
+    super().prepare_for_flow_run(flow_run, deployment, flow, work_pool, worker_name)
     self.labels.append("my-custom-label")
 ```
 
@@ -56,12 +56,12 @@ class MyWorkerConfiguration(BaseJobConfiguration):
         description="Memory allocation for the execution environment."
     )
     cpu: int = Field(
-        default=500, 
+        default=500,
         description="CPU allocation for the execution environment."
     )
 ```
 
-This configuration class will populate the `job_configuration` section of the resulting base job template. 
+This configuration class will populate the `job_configuration` section of the resulting base job template.
 
 For this example, the base job template would look like this:
 
@@ -129,7 +129,7 @@ class MyWorkerConfiguration(BaseJobConfiguration):
         json_schema_extra=dict(template="{{ memory_request }}Mi")
     )
     cpu: str = Field(
-        default="500m", 
+        default="500m",
         description="CPU allocation for the execution environment.",
         json_schema_extra=dict(template="{{ cpu_request }}m")
     )
@@ -169,17 +169,17 @@ There are two patterns that are represented in current worker implementations:
 
 #### Pass-Through
 
-In the pass-through pattern, template variables are passed through to the job configuration with little change. This pattern exposes complete control to deployment creators but also requires them to understand the details of the execution environment. 
+In the pass-through pattern, template variables are passed through to the job configuration with little change. This pattern exposes complete control to deployment creators but also requires them to understand the details of the execution environment.
 
-This pattern is useful when the execution environment is simple, and the deployment creators are expected to have high technical knowledge. 
+This pattern is useful when the execution environment is simple, and the deployment creators are expected to have high technical knowledge.
 
 The [Docker worker](https://prefecthq.github.io/prefect-docker/worker/) is an example of a worker that uses this pattern.
 
 #### Infrastructure as Code Templating
 
-Depending on the infrastructure they interact with, workers can sometimes employ a declarative infrastructure syntax (i.e., infrastructure as code) to create execution environments (e.g., a Kubernetes manifest or an ECS task definition). 
+Depending on the infrastructure they interact with, workers can sometimes employ a declarative infrastructure syntax (i.e., infrastructure as code) to create execution environments (e.g., a Kubernetes manifest or an ECS task definition).
 
-In the IaC pattern, it's often useful to use template variables to template portions of the declarative syntax which then can be used to generate the declarative syntax into a final form. 
+In the IaC pattern, it's often useful to use template variables to template portions of the declarative syntax which then can be used to generate the declarative syntax into a final form.
 
 This approach allows work pool creators to provide a simpler interface to deployment creators while also controlling which portions of infrastructure are configurable by deployment creators.
 
@@ -230,7 +230,7 @@ class MyWorkerTemplateVariables(BaseVariables):
         description="Memory allocation for the execution environment."
     )
     cpu_request: int = Field(
-        default=500, 
+        default=500,
         description="CPU allocation for the execution environment."
     )
 ```
@@ -282,7 +282,7 @@ variables:
             default: 500
 ```
 
-Note that template variable classes are never used directly. Instead, they are used to generate a schema that is used to populate the `variables` section of a base job template and validate the template variables provided by the user. 
+Note that template variable classes are never used directly. Instead, they are used to generate a schema that is used to populate the `variables` section of a base job template and validate the template variables provided by the user.
 
 We don't recommend using template variable classes within your worker implementation for validation purposes because the work pool creator ultimately defines the template variables. The configuration class should handle any necessary run-time validation.
 
@@ -358,7 +358,7 @@ class MyWorkerConfiguration(BaseJobConfiguration):
         json_schema_extra=dict(template="{{ memory_request }}Mi")
     )
     cpu: str = Field(
-        default="500m", 
+        default="500m",
         description="CPU allocation for the execution environment.",
         json_schema_extra=dict(template="{{ cpu_request }}m")
     )
@@ -369,7 +369,7 @@ class MyWorkerTemplateVariables(BaseVariables):
         description="Memory allocation for the execution environment."
     )
     cpu_request: int = Field(
-        default=500, 
+        default=500,
         description="CPU allocation for the execution environment."
     )
 
@@ -392,7 +392,7 @@ class MyWorker(BaseWorker):
 
         # Use a unique ID to mark the run as started. This ID is later used to tear down infrastructure
         # if the flow run is cancelled.
-        task_status.started(job.id) 
+        task_status.started(job.id)
 
         # Monitor the execution
         job_status = await self._watch_job(job, configuration)
@@ -414,7 +414,7 @@ To see other examples of worker implementations, see the [`ProcessWorker`](/v3/a
 
 ### Integrating with the Prefect CLI
 
-Workers can be started via the Prefect CLI by providing the `--type` option to the `prefect worker start` CLI command. To make your worker type available via the CLI, it must be available at import time. 
+Workers can be started via the Prefect CLI by providing the `--type` option to the `prefect worker start` CLI command. To make your worker type available via the CLI, it must be available at import time.
 
 If your worker is in a package, you can add an entry point to your setup file in the following format:
 

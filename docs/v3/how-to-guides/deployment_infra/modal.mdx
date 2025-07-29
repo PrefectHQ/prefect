@@ -6,7 +6,7 @@ description: Learn how to use Modal as a push work pool to schedule, run, and de
 
 Prefect is the world's best orchestrator.
 Modal is the world's best serverless compute framework.
-It only makes sense that they would fit together perfectly. 
+It only makes sense that they would fit together perfectly.
 
 In this tutorial, you'll build your first Prefect deployment that runs on Modal every hour, and create a scalable framework to grow your project.
 
@@ -16,7 +16,7 @@ Here's an architecture diagram which shows what you'll build.
 
 You'll build a full serverless infrastructure framework for scheduling and provisioning workflows.
 GitHub will act as the source of truth, Prefect will be the orchestrator, and Modal will be the serverless infrastructure.
-You'll only pay for the Modal CPU time you use. 
+You'll only pay for the Modal CPU time you use.
 
 First, here's a recap of some important terms:
 
@@ -272,7 +272,7 @@ This is much more flexible.
 
 You need to give Prefect access to your Modal account to provision a serverless instance to run your flows and tasks.
 Modal will be the _Work Pool_ in Prefect terms, remaining off when unused, and spinning up the infrastructure you need when a new flow run is scheduled.
-Prefect makes this incredibly easy. 
+Prefect makes this incredibly easy.
 
 First, authenticate with Modal:
 

@@ -53,7 +53,7 @@ flowchart TD
     C -.->|❌ Error occurred| E[Failed]
     C -.->|🛑 User intervention| F[Cancelled]
     C -.->|💥 Infrastructure failure| G[Crashed]
-    
+
     style A fill:#ff9,stroke:#333,stroke-width:2px,color:#000
     style B fill:#f9f,stroke:#333,stroke-width:2px,color:#000
     style C fill:#9ff,stroke:#333,stroke-width:2px,color:#000
@@ -61,7 +61,7 @@ flowchart TD
     style E fill:#f99,stroke:#333,stroke-width:2px,color:#000
     style F fill:#faa,stroke:#333,stroke-width:2px,color:#000
     style G fill:#f66,stroke:#333,stroke-width:2px,color:#fff
-    
+
     classDef default fill-opacity:0.9
 ```
 A flow run's lifecycle may be interrupted at any point, whether by:
@@ -249,7 +249,7 @@ task runner for each nested flow.
 
 ## Supported function types
 
-Almost any standard Python function can be turned into a Prefect flow by adding the `@flow` decorator. 
+Almost any standard Python function can be turned into a Prefect flow by adding the `@flow` decorator.
 
 In particular, Prefect supports:
 
@@ -263,8 +263,8 @@ In particular, Prefect supports:
 <Warning>
 **Generator functions are consumed when returned from flows**
 
-The result of a completed flow must be serializable, but generators cannot be serialized. 
-Therefore, if you return a generator from a flow, the generator will be fully consumed and its yielded values will be returned as a list. 
+The result of a completed flow must be serializable, but generators cannot be serialized.
+Therefore, if you return a generator from a flow, the generator will be fully consumed and its yielded values will be returned as a list.
 This can lead to unexpected behavior or blocking if the generator is infinite or very large.
 
 Here is an example of proactive generator consumption:
@@ -286,7 +286,7 @@ def f():
 f()  # prints 'Generator consumed!'
 ```
 
-If you need to return a generator without consuming it, you can `yield` it instead of using `return`. 
+If you need to return a generator without consuming it, you can `yield` it instead of using `return`.
 Values yielded from generator flows are not considered final results and do not face the same serialization constraints:
 
 ```python
@@ -441,4 +441,4 @@ def my_flow(work_to_do: bool):
 
 if __name__ == "__main__":
     my_flow(work_to_do=False)
-``` 
+```

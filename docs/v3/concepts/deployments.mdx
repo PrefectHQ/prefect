@@ -20,24 +20,24 @@ In Prefect Cloud, deployment configuration is versioned, and a new [deployment v
 
 ### Work pools
 
-[Work pools](/v3/concepts/work-pools) allow you to switch between different types of infrastructure and to create a template for deployments. 
+[Work pools](/v3/concepts/work-pools) allow you to switch between different types of infrastructure and to create a template for deployments.
 Data platform teams find work pools especially useful for managing infrastructure configuration across teams of data professionals.
 
-Common work pool types include [Docker](/v3/how-to-guides/deployment_infra/docker), [Kubernetes](/v3/how-to-guides/deployment_infra/kubernetes), and serverless options such as [AWS ECS](/integrations/prefect-aws/ecs_guide#ecs-worker-guide), [Azure ACI](/integrations/prefect-azure/aci_worker), [GCP Vertex AI](/integrations/prefect-gcp/index#run-flows-on-google-cloud-run-or-vertex-ai), or [GCP Google Cloud Run](/integrations/prefect-gcp/gcp-worker-guide). 
+Common work pool types include [Docker](/v3/how-to-guides/deployment_infra/docker), [Kubernetes](/v3/how-to-guides/deployment_infra/kubernetes), and serverless options such as [AWS ECS](/integrations/prefect-aws/ecs_guide#ecs-worker-guide), [Azure ACI](/integrations/prefect-azure/aci_worker), [GCP Vertex AI](/integrations/prefect-gcp/index#run-flows-on-google-cloud-run-or-vertex-ai), or [GCP Google Cloud Run](/integrations/prefect-gcp/gcp-worker-guide).
 
 ### Work pool-based deployment requirements
 
-Deployments created through the Python SDK that use a work pool require a `name`. 
+Deployments created through the Python SDK that use a work pool require a `name`.
 This value becomes the deployment name.
 A `work_pool_name` is also required.
 
 Your flow code location can be specified in a few ways:
 
-1. Bake it into your Docker image (for work-pools that use Docker images). 
-    As shown in the example above,Prefect facilitates this as the default method for deployments created with the Python SDK. 
+1. Bake it into your Docker image (for work-pools that use Docker images).
+    As shown in the example above,Prefect facilitates this as the default method for deployments created with the Python SDK.
     This method requires that you specify the `image` argument in the `deploy` method.
-2. Call `from_source` on a flow and specify one of the following:  
-    1. the git-based cloud provider location (for example, GitHub) 
+2. Call `from_source` on a flow and specify one of the following:
+    1. the git-based cloud provider location (for example, GitHub)
     2. the cloud provider storage location (for example, AWS S3)
     3. the local path (an option for Process work pools)
 
@@ -47,7 +47,7 @@ See the [Retrieve code from storage docs](/v3/how-to-guides/deployments/store-fl
 
 You can set a deployment to run manually, on a [schedule](/v3/how-to-guides/deployments/create-schedules), or [in response to an event](/v3/how-to-guides/automations/creating-deployment-triggers).
 
-The deployment inherits the infrastructure configuration from the work pool, and can be overridden at deployment creation time or at runtime. 
+The deployment inherits the infrastructure configuration from the work pool, and can be overridden at deployment creation time or at runtime.
 
 ### Work pools that require a worker
 
@@ -58,11 +58,11 @@ When a scheduled run is found, the worker kicks off a flow run on the specified 
 
 ### Work pools that don't require a worker
 
-Prefect Cloud offers [push work pools](/v3/how-to-guides/deployment_infra/serverless#automatically-create-a-new-push-work-pool-and-provision-infrastructure) that run flows on Cloud provider serverless infrastructure without a worker and that can be set up quickly. 
+Prefect Cloud offers [push work pools](/v3/how-to-guides/deployment_infra/serverless#automatically-create-a-new-push-work-pool-and-provision-infrastructure) that run flows on Cloud provider serverless infrastructure without a worker and that can be set up quickly.
 
 Prefect Cloud also provides the option to run work flows on Prefect's infrastructure through a [Prefect Managed work pool](/v3/how-to-guides/deployment_infra/managed).
 
-These work pool types do not require a worker to run flows. 
+These work pool types do not require a worker to run flows.
 However, they do require sharing a bit more information with Prefect, which can be a challenge depending upon the security posture of your organization.
 
 ## Static vs. dynamic infrastructure
@@ -264,7 +264,7 @@ prefect deploy ... --concurrency-limit 3 --collision-strategy ENQUEUE
 
 ```python flow.deploy()
 from prefect.client.schemas.objects import (
-    ConcurrencyLimitConfig, 
+    ConcurrencyLimitConfig,
     ConcurrencyLimitStrategy
 )
 
@@ -280,7 +280,7 @@ my_flow.deploy(
 
 ```python flow.serve()
 from prefect.client.schemas.objects import (
-    ConcurrencyLimitConfig, 
+    ConcurrencyLimitConfig,
     ConcurrencyLimitStrategy
 )
 

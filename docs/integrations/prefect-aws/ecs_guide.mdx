@@ -38,7 +38,7 @@ flowchart TB
         end
 
         prefect_worker -->|kicks off| ecs_task
-    
+
         fr_task_definition[Flow Run Task Definition]
 
         subgraph ecs_task[ECS Task Execution]
