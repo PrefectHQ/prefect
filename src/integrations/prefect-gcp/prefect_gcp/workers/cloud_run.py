@@ -273,6 +273,8 @@ class CloudRunWorkerJobConfiguration(BaseJobConfiguration):
             will actively try to mark it failed and kill associated containers
             (maximum of 3600 seconds, 1 hour).
         keep_job: Whether to delete the Cloud Run Job after it completes.
+        prefect_api_key_secret: Name of a GCP secret containing a Prefect API Key.
+        prefect_api_auth_string_secret: Name of a GCP secret containing a Prefect API authorization string.
     """
 
     region: str = Field(
@@ -284,6 +286,25 @@ class CloudRunWorkerJobConfiguration(BaseJobConfiguration):
         description="The GCP Credentials used to connect to Cloud Run. "
         "If not provided credentials will be inferred from "
         "the local environment.",
+    )
+    prefect_api_key_secret: Optional[str] = Field(
+        title="Prefect API Key Secret",
+        default=None,
+        description=(
+            "Name of a GCP secret containing a Prefect API Key. This key will be used "
+            "to authenticate Cloud Run tasks with Prefect Cloud. If not provided, the "
+            "PREFECT_API_KEY environment variable will be used if the worker has one."
+        ),
+    )
+    prefect_api_auth_string_secret: Optional[str] = Field(
+        title="Prefect API Auth String Secret",
+        default=None,
+        description=(
+            "Name of a GCP secret containing a Prefect API authorization string. This "
+            "string will be used to authenticate Cloud Run tasks with Prefect Cloud. "
+            "If not provided, the PREFECT_API_AUTH_STRING environment variable will be "
+            "used if the worker has one."
+        ),
     )
     job_body: Dict[str, Any] = Field(
         json_schema_extra=dict(template=_get_default_job_body_template())
@@ -346,7 +367,45 @@ class CloudRunWorkerJobConfiguration(BaseJobConfiguration):
         """Populate environment variables. BaseWorker.prepare_for_flow_run handles
         putting the environment variables in the `env` attribute. This method
         moves them into the jobs body"""
-        envs = [{"name": k, "value": v} for k, v in self.env.items()]
+        # Create a copy of the environment variables to avoid modifying the original
+        env_copy = self.env.copy()
+
+        # Remove Prefect API credentials from environment if secrets are provided
+        if self.prefect_api_key_secret:
+            env_copy.pop("PREFECT_API_KEY", None)
+        if self.prefect_api_auth_string_secret:
+            env_copy.pop("PREFECT_API_AUTH_STRING", None)
+
+        # Set regular environment variables
+        envs = [{"name": k, "value": v} for k, v in env_copy.items()]
+
+        # Add secret-based environment variables
+        if self.prefect_api_key_secret:
+            envs.append(
+                {
+                    "name": "PREFECT_API_KEY",
+                    "valueFrom": {
+                        "secretKeyRef": {
+                            "name": self.prefect_api_key_secret,
+                            "key": "value",
+                        }
+                    },
+                }
+            )
+
+        if self.prefect_api_auth_string_secret:
+            envs.append(
+                {
+                    "name": "PREFECT_API_AUTH_STRING",
+                    "valueFrom": {
+                        "secretKeyRef": {
+                            "name": self.prefect_api_auth_string_secret,
+                            "key": "value",
+                        }
+                    },
+                }
+            )
+
         self.job_body["spec"]["template"]["spec"]["template"]["spec"]["containers"][0][
             "env"
         ] = envs
@@ -464,6 +523,25 @@ class CloudRunWorkerVariables(BaseVariables):
         description="The GCP Credentials used to initiate the "
         "Cloud Run Job. If not provided credentials will be "
         "inferred from the local environment.",
+    )
+    prefect_api_key_secret: Optional[str] = Field(
+        title="Prefect API Key Secret",
+        default=None,
+        description=(
+            "Name of a GCP secret containing a Prefect API Key. This key will be used "
+            "to authenticate Cloud Run tasks with Prefect Cloud. If not provided, the "
+            "PREFECT_API_KEY environment variable will be used if the worker has one."
+        ),
+    )
+    prefect_api_auth_string_secret: Optional[str] = Field(
+        title="Prefect API Auth String Secret",
+        default=None,
+        description=(
+            "Name of a GCP secret containing a Prefect API authorization string. This "
+            "string will be used to authenticate Cloud Run tasks with Prefect Cloud. "
+            "If not provided, the PREFECT_API_AUTH_STRING environment variable will be "
+            "used if the worker has one."
+        ),
     )
     image: Optional[str] = Field(
         default=None,

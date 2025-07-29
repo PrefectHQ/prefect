@@ -102,6 +102,136 @@ class TestCloudRunWorkerJobConfiguration:
         assert container["env"][0]["name"] == "a"
         assert container["env"][0]["value"] == "b"
 
+    def test_populate_envs_with_prefect_api_key_secret(
+        self,
+        cloud_run_worker_job_config,
+    ):
+        container = cloud_run_worker_job_config.job_body["spec"]["template"]["spec"][
+            "template"
+        ]["spec"]["containers"][0]
+
+        # Set up environment with API key
+        cloud_run_worker_job_config.env = {
+            "PREFECT_API_KEY": "test-api-key",
+            "OTHER_VAR": "other-value",
+        }
+        cloud_run_worker_job_config.prefect_api_key_secret = "my-secret"
+
+        cloud_run_worker_job_config._populate_envs()
+
+        assert "env" in container
+        assert len(container["env"]) == 2
+
+        # Should have OTHER_VAR as regular env var
+        regular_env = [env for env in container["env"] if env["name"] == "OTHER_VAR"][0]
+        assert regular_env["value"] == "other-value"
+
+        # Should have PREFECT_API_KEY as secret
+        secret_env = [
+            env for env in container["env"] if env["name"] == "PREFECT_API_KEY"
+        ][0]
+        assert "value" not in secret_env  # Should not have plaintext value
+        assert "valueFrom" in secret_env
+        assert secret_env["valueFrom"]["secretKeyRef"]["name"] == "my-secret"
+        assert secret_env["valueFrom"]["secretKeyRef"]["key"] == "value"
+
+    def test_populate_envs_with_prefect_api_auth_string_secret(
+        self,
+        cloud_run_worker_job_config,
+    ):
+        container = cloud_run_worker_job_config.job_body["spec"]["template"]["spec"][
+            "template"
+        ]["spec"]["containers"][0]
+
+        # Set up environment with auth string
+        cloud_run_worker_job_config.env = {
+            "PREFECT_API_AUTH_STRING": "test-auth-string",
+            "OTHER_VAR": "other-value",
+        }
+        cloud_run_worker_job_config.prefect_api_auth_string_secret = "my-auth-secret"
+
+        cloud_run_worker_job_config._populate_envs()
+
+        assert "env" in container
+        assert len(container["env"]) == 2
+
+        # Should have OTHER_VAR as regular env var
+        regular_env = [env for env in container["env"] if env["name"] == "OTHER_VAR"][0]
+        assert regular_env["value"] == "other-value"
+
+        # Should have PREFECT_API_AUTH_STRING as secret
+        secret_env = [
+            env for env in container["env"] if env["name"] == "PREFECT_API_AUTH_STRING"
+        ][0]
+        assert "value" not in secret_env  # Should not have plaintext value
+        assert "valueFrom" in secret_env
+        assert secret_env["valueFrom"]["secretKeyRef"]["name"] == "my-auth-secret"
+        assert secret_env["valueFrom"]["secretKeyRef"]["key"] == "value"
+
+    def test_populate_envs_with_both_secrets(
+        self,
+        cloud_run_worker_job_config,
+    ):
+        container = cloud_run_worker_job_config.job_body["spec"]["template"]["spec"][
+            "template"
+        ]["spec"]["containers"][0]
+
+        # Set up environment with both API key and auth string
+        cloud_run_worker_job_config.env = {
+            "PREFECT_API_KEY": "test-api-key",
+            "PREFECT_API_AUTH_STRING": "test-auth-string",
+            "OTHER_VAR": "other-value",
+        }
+        cloud_run_worker_job_config.prefect_api_key_secret = "my-secret"
+        cloud_run_worker_job_config.prefect_api_auth_string_secret = "my-auth-secret"
+
+        cloud_run_worker_job_config._populate_envs()
+
+        assert "env" in container
+        assert len(container["env"]) == 3
+
+        # Should have OTHER_VAR as regular env var
+        regular_env = [env for env in container["env"] if env["name"] == "OTHER_VAR"][0]
+        assert regular_env["value"] == "other-value"
+
+        # Should have PREFECT_API_KEY as secret
+        api_key_env = [
+            env for env in container["env"] if env["name"] == "PREFECT_API_KEY"
+        ][0]
+        assert "value" not in api_key_env
+        assert api_key_env["valueFrom"]["secretKeyRef"]["name"] == "my-secret"
+
+        # Should have PREFECT_API_AUTH_STRING as secret
+        auth_string_env = [
+            env for env in container["env"] if env["name"] == "PREFECT_API_AUTH_STRING"
+        ][0]
+        assert "value" not in auth_string_env
+        assert auth_string_env["valueFrom"]["secretKeyRef"]["name"] == "my-auth-secret"
+
+    def test_populate_envs_with_secret_but_no_env_var(
+        self,
+        cloud_run_worker_job_config,
+    ):
+        """Test that secret is added even when the corresponding env var doesn't exist"""
+        container = cloud_run_worker_job_config.job_body["spec"]["template"]["spec"][
+            "template"
+        ]["spec"]["containers"][0]
+
+        # No PREFECT_API_KEY in env, but secret is configured
+        cloud_run_worker_job_config.env = {"OTHER_VAR": "other-value"}
+        cloud_run_worker_job_config.prefect_api_key_secret = "my-secret"
+
+        cloud_run_worker_job_config._populate_envs()
+
+        assert "env" in container
+        assert len(container["env"]) == 2
+
+        # Should have PREFECT_API_KEY from secret
+        secret_env = [
+            env for env in container["env"] if env["name"] == "PREFECT_API_KEY"
+        ][0]
+        assert secret_env["valueFrom"]["secretKeyRef"]["name"] == "my-secret"
+
     def test_populate_image_if_not_present(self, cloud_run_worker_job_config):
         cloud_run_worker_job_config._populate_image_if_not_present()
 
