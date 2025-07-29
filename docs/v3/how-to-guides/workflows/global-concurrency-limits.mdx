@@ -27,6 +27,20 @@ When selecting between global concurrency and rate limits, consider your primary
 The core difference between a rate limit and a concurrency limit is the way slots are released. With a rate limit, slots are released at a 
 controlled rate determined by `slot_decay_per_second`. With a concurrency limit, slots are released when the concurrency manager exits.
 
+<Note>
+**Concurrency slots have timed leases**
+
+Each time a concurrency slot is occupied, a countdown begins on the server.
+The length of this countdown is known as the concurrency slot's **lease duration**.
+While a concurrency slot is occupied, the Prefect client will periodically notify the server that the slot is still in use and restart the countdown.
+If the countdown concludes before the lease has been renewed, the concurrency slot is released.
+
+Lease expiration typically occurs when a process occupying a slot exits unexpectedly and is unable to notify the server that the slot should be released.
+This system exists to ensure that all concurrency slots are eventually released to prevent concurrency-related deadlocks.
+
+The default lease duration is 5 minutes, but custom durations with a minimum of 1 minute can be supplied to the concurrency context manager.
+</Note>
+
 ## Manage global concurrency and rate limits
 
 You can create, read, edit, and delete concurrency limits through the Prefect UI or Python SDK.
@@ -145,6 +159,7 @@ For stricter control, use `strict=True` to instead raise an error if no matching
 ```python
 from prefect import flow, task
 from prefect.concurrency.sync import concurrency
+from prefect.futures import wait
 
 
 @task
@@ -155,8 +170,11 @@ def process_data(x, y):
 
 @flow
 def my_flow():
+    futures = []
     for x, y in [(1, 2), (2, 3), (3, 4), (4, 5)]:
-        process_data.submit(x, y)
+        futures.append(process_data.submit(x, y))
+
+    wait(futures)
 
 
 if __name__ == "__main__":
@@ -169,6 +187,7 @@ if __name__ == "__main__":
 import asyncio
 from prefect import flow, task
 from prefect.concurrency.asyncio import concurrency
+from prefect.futures import wait
 
 
 @task
@@ -179,8 +198,11 @@ async def process_data(x, y):
 
 @flow
 def my_flow():
+    futures = []
     for x, y in [(1, 2), (2, 3), (3, 4), (4, 5)]:
-        process_data.submit(x, y)
+        futures.append(process_data.submit(x, y))
+
+    wait(futures)
 
 
 if __name__ == "__main__":
