@@ -5,3 +5,7 @@ docs:
 # Check for broken links
 links:
     npx mint@latest broken-links
+
+# Lint using Vale
+lint:
+    vale --glob='**/*.{md,mdx}' .
