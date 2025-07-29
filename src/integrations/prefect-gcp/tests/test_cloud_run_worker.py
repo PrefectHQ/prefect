@@ -246,10 +246,10 @@ class TestCloudRunWorkerJobConfiguration:
         assert secret_env["valueFrom"]["secretKeyRef"]["name"] == "my-secret"
         assert secret_env["valueFrom"]["secretKeyRef"]["key"] == "latest"
 
-    def test_populate_envs_logs_warning_when_plaintext_and_secret_provided(
+    def test_populate_envs_no_warning_when_secrets_configured(
         self, cloud_run_worker_job_config, caplog
     ):
-        """Test that warnings are logged when both plaintext and secret credentials are provided"""
+        """Test that no warnings are logged when secrets are properly configured"""
         # Set up environment with both plaintext and secret
         cloud_run_worker_job_config.env = {
             "PREFECT_API_KEY": "test-api-key",
@@ -266,18 +266,41 @@ class TestCloudRunWorkerJobConfiguration:
         with caplog.at_level("WARNING"):
             cloud_run_worker_job_config._populate_envs()
 
-        # Check that warnings were logged
+        # Check that no warnings were logged since secrets are configured
+        assert len(caplog.records) == 0
+
+    def test_populate_envs_logs_warning_when_plaintext_without_secret(
+        self, cloud_run_worker_job_config, caplog
+    ):
+        """Test that warnings are logged when plaintext credentials are provided without secrets"""
+        # Set up environment with plaintext credentials but no secrets
+        cloud_run_worker_job_config.env = {
+            "PREFECT_API_KEY": "test-api-key",
+            "PREFECT_API_AUTH_STRING": "test-auth-string",
+            "OTHER_VAR": "other-value",
+        }
+        # No secrets configured
+        cloud_run_worker_job_config.prefect_api_key_secret = None
+        cloud_run_worker_job_config.prefect_api_auth_string_secret = None
+
+        with caplog.at_level("WARNING"):
+            cloud_run_worker_job_config._populate_envs()
+
+        # Check that warnings were logged for plaintext credentials without secrets
         assert len(caplog.records) == 2
         assert (
-            "PREFECT_API_KEY environment variable and prefect_api_key_secret"
+            "PREFECT_API_KEY environment variable is provided in plaintext without a secret configured"
             in caplog.text
         )
         assert (
-            "PREFECT_API_AUTH_STRING environment variable and prefect_api_auth_string_secret"
+            "PREFECT_API_AUTH_STRING environment variable is provided in plaintext without a secret configured"
             in caplog.text
         )
         assert (
-            "The secret will be used and the environment variable will be ignored"
+            "Consider using prefect_api_key_secret for better security" in caplog.text
+        )
+        assert (
+            "Consider using prefect_api_auth_string_secret for better security"
             in caplog.text
         )
 

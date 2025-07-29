@@ -374,19 +374,19 @@ class CloudRunWorkerJobConfiguration(BaseJobConfiguration):
         # Create a copy of the environment variables to avoid modifying the original
         env_copy = self.env.copy()
 
-        # Log warnings when plaintext credentials are provided alongside secrets
-        if self.prefect_api_key_secret and "PREFECT_API_KEY" in env_copy:
+        # Log warnings when plaintext credentials are provided without secrets
+        if not self.prefect_api_key_secret and "PREFECT_API_KEY" in env_copy:
             logger.warning(
-                "Both PREFECT_API_KEY environment variable and prefect_api_key_secret are provided. "
-                "The secret will be used and the environment variable will be ignored."
+                "PREFECT_API_KEY environment variable is provided in plaintext without a secret configured. "
+                "Consider using prefect_api_key_secret for better security."
             )
         if (
-            self.prefect_api_auth_string_secret
+            not self.prefect_api_auth_string_secret
             and "PREFECT_API_AUTH_STRING" in env_copy
         ):
             logger.warning(
-                "Both PREFECT_API_AUTH_STRING environment variable and prefect_api_auth_string_secret are provided. "
-                "The secret will be used and the environment variable will be ignored."
+                "PREFECT_API_AUTH_STRING environment variable is provided in plaintext without a secret configured. "
+                "Consider using prefect_api_auth_string_secret for better security."
             )
 
         # Remove Prefect API credentials from environment if secrets are provided
