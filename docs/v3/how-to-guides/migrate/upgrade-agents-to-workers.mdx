@@ -14,16 +14,16 @@ If you are new to Prefect, we recommend starting with the
 </Note>
 
 ## About workers and agents
-A [worker](/v3/deploy/infrastructure-concepts/workers/) is the fusion of an 
-agent with an infrastructure block. 
-Like agents, workers poll a work pool for flow runs that are scheduled to start. 
-Like infrastructure blocks, workers are typed. They work with only one kind of infrastructure, 
+A [worker](/v3/concepts/workers) is the fusion of an
+agent with an infrastructure block.
+Like agents, workers poll a work pool for flow runs that are scheduled to start.
+Like infrastructure blocks, workers are typed. They work with only one kind of infrastructure,
 and they specify the default configuration for jobs submitted to that infrastructure.
 
-Accordingly, workers are not a drop-in replacement for agents. **Using workers requires 
-deploying flows differently.** In particular, deploying a flow with a worker does not involve 
-specifying an infrastructure block. Instead, infrastructure configuration is specified on the 
-[work pool](/v3/deploy/infrastructure-concepts/work-pools/) and passed to each worker that polls work 
+Accordingly, workers are not a drop-in replacement for agents. **Using workers requires
+deploying flows differently.** In particular, deploying a flow with a worker does not involve
+specifying an infrastructure block. Instead, infrastructure configuration is specified on the
+[work pool](/v3/concepts/work-pools) and passed to each worker that polls work
 from that pool.
 
 ## Upgrade enhancements
@@ -36,22 +36,22 @@ and when it last polled.
 
 ### Work pools
 
-- Work pools allow greater customization and governance of infrastructure parameters for deployments 
-through their [base job template](/v3/deploy/infrastructure-concepts/work-pools/#base-job-template).
-- Prefect Cloud [push work pools](/v3/deploy/infrastructure-examples/serverless/) enable flow 
+- Work pools allow greater customization and governance of infrastructure parameters for deployments
+through their [base job template](/v3/how-to-guides/deployment_infra/manage-work-pools#base-job-template).
+- Prefect Cloud [push work pools](/v3/how-to-guides/deployment_infra/serverless) enable flow
 execution in your cloud provider environment without the need to host a worker.
-- Prefect Cloud [managed work pools](/v3/deploy/infrastructure-examples/managed/) allow you to run flows on 
+- Prefect Cloud [managed work pools](/v3/how-to-guides/deployment_infra/managed) allow you to run flows on
 Prefect's infrastructure, without the need to host a worker or configure cloud provider infrastructure.
 
 ### Improved deployment interfaces
 
-- The Python deployment experience with `.deploy()` or the alternative deployment experience with 
+- The Python deployment experience with [`.deploy()`](/v3/how-to-guides/deployments/deploy-via-python) or the alternative deployment experience with
 `prefect.yaml` are more flexible and easier to use than block and agent-based deployments.
 - Both options allow you to [deploy multiple flows](/v3/deploy/infrastructure-concepts/prefect-yaml/#work-with-multiple-deployments-with-prefect-yaml) 
 with a single command.
 - Both options allow you to build Docker images for your flows to create portable execution environments.
-- The YAML-based API supports [templating](/v3/deploy/infrastructure-concepts/prefect-yaml/#templating-options) 
-to enable [dryer deployment definitions](/v3/deploy/infrastructure-examples/docker/#reusing-configuration-across-deployments).
+- The YAML-based API supports [templating](/v3/deploy/infrastructure-concepts/prefect-yaml/#templating-options)
+to enable [dryer deployment definitions](/v3/how-to-guides/deployments/prefect-yaml#reuse-configuration-across-deployments).
 
 ## Upgrade changes
 
@@ -84,9 +84,9 @@ to enable [dryer deployment definitions](/v3/deploy/infrastructure-examples/dock
 
 4. **Managing multiple deployments:**
 
-    Create and/or update many deployments at once through a 
-    [`prefect.yaml`](/v3/deploy/infrastructure-concepts/prefect-yaml/#work-with-multiple-deployments-with-prefect-yaml) 
-    file or use the [`deploy`](/v3/deploy/infrastructure-examples/docker) 
+    Create and/or update many deployments at once through a
+    [`prefect.yaml`](/v3/deploy/infrastructure-concepts/prefect-yaml/#work-with-multiple-deployments-with-prefect-yaml)
+    file or use the [`deploy`](/v3/how-to-guides/deployments/deploy-via-python)
     function.
 
 ## What's similar
@@ -240,7 +240,7 @@ prefect worker start --pool local
 ```
 
 <Note>
-If you'd like to immediately serve this flow as a deployment without running a worker or using work pools, you can [use `flow.serve`](/v3/how-to-guides/deployments/run-flows-in-local-processes/).
+If you'd like to immediately serve this flow as a deployment without running a worker or using work pools, you can [use `flow.serve`](/v3/how-to-guides/deployment_infra/run-flows-in-local-processes).
 </Note>
 
 #### Deploying using a storage block
@@ -411,4 +411,4 @@ You can add more [deployments](/v3/deploy/infrastructure-concepts/prefect-yaml/#
 to the `deployments` list in your `prefect.yaml` file and/or by continuing to use the deployment 
 creation wizard.
 
-For more information on deployments, check out our [in-depth guide for deploying flows to work pools](/v3/deploy/infrastructure-examples/docker/).
+For more information on deployments, check out our [in-depth guide for deploying flows to work pools](/v3/how-to-guides/deployment_infra/serve-flows-docker).

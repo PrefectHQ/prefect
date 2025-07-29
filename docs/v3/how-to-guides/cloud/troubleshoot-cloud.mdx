@@ -175,9 +175,9 @@ curl -s -H "Authorization: Bearer $PREFECT_API_KEY" "https://api.prefect.cloud/a
 <Note>
 **Users vs Service Accounts**
 
-[Service accounts](/v3/manage/cloud/manage-users/service-accounts/) (sometimes referred to as bots),  
-represent non-human actors that interact with Prefect such as workers and CI/CD systems. 
-Each human that interacts with Prefect should be represented as a user. 
+[Service accounts](/v3/how-to-guides/cloud/manage-users/service-accounts) (sometimes referred to as bots),
+represent non-human actors that interact with Prefect such as workers and CI/CD systems.
+Each human that interacts with Prefect should be represented as a user.
 User API keys start with `pnu_` and service account API keys start with `pnb_`.
 </Note>
 
@@ -195,15 +195,15 @@ Python comes with a helpful [tool](https://docs.python.org/3/library/json.html#m
 Append the following to the end of the command above to make the output more readable: `| python -m json.tool`
 </Note>
 
-Make sure your actor is a member of the workspace you are working in. Within a workspace, 
-an actor has a [role](/v3/manage/cloud/manage-users/manage-roles/) which grants them certain permissions. 
+Make sure your actor is a member of the workspace you are working in. Within a workspace,
+an actor has a [role](/v3/how-to-guides/cloud/manage-users/manage-roles) which grants them certain permissions.
 Insufficient permissions result in an error. For example, starting a worker with the **Viewer** role results in errors.
 
 ## Execution
 
-The user can execute flows locally, or remotely by a worker. Local execution generally means that you, the user, 
-run your flow directly with a command like `python flow.py`. Remote execution generally means that a worker runs your flow 
-through a [deployment](/v3/deploy/infrastructure-examples/docker/) (optionally on different infrastructure).
+The user can execute flows locally, or remotely by a worker. Local execution generally means that you, the user,
+run your flow directly with a command like `python flow.py`. Remote execution generally means that a worker runs your flow
+through a [deployment](/v3/how-to-guides/deployment_infra/docker) (optionally on different infrastructure).
 
 With remote execution, the creation of your flow run happens separately from its execution. 
 Flow runs are assigned to a work pool and a work queue. For flow runs to execute, a worker must be subscribed 

@@ -162,7 +162,7 @@ To use automatic infrastructure provisioning, you need:
     modal token new
     ```
 
-    See [Run flows on Modal](/v3/deploy/infrastructure-examples/modal) for more details.
+    See [Run flows on Modal](/v3/how-to-guides/deployment_infra/modal) for more details.
   </Tab>
   <Tab title="Coiled">
 
@@ -704,8 +704,8 @@ Create your pool to be ready to deploy flows to your Push work pool.
 
 ## Deployment
 
-You need to configure your [deployment](/v3/deploy/infrastructure-examples/docker/) to send flow runs to your push work pool.
-For example, if you create a deployment through the interactive command line experience, 
+You need to configure your [deployment](/v3/how-to-guides/deployment_infra/docker) to send flow runs to your push work pool.
+For example, if you create a deployment through the interactive command line experience,
 choose the work pool you just created. If you are deploying an existing `prefect.yaml` file, the deployment would contain:
 
 ```yaml
@@ -738,4 +738,4 @@ Push work pool usage is unlimited. However push work pools limit flow runs to 24
 
 Learn more about [work pools](/v3/deploy/infrastructure-concepts/work-pools/) and [workers](/v3/deploy/infrastructure-concepts/workers/).
 
-Learn about installing dependencies at runtime or baking them into your Docker image in the [Deploy to Docker](/v3/deploy/infrastructure-examples/docker#automatically-build-a-custom-docker-image-with-a-local-dockerfile) guide.
+Learn about installing dependencies at runtime or baking them into your Docker image in the [Deploy to Docker](/v3/how-to-guides/deployment_infra/docker#automatically-build-a-custom-docker-image-with-a-local-dockerfile) guide.

@@ -202,18 +202,18 @@ prefect config unset PREFECT_LOGGING_LEVEL -y
 
 ## Common client settings
 
-- [`api.url`](/v3/develop/settings-ref/#url): this setting specifies the API endpoint of your 
+- [`api.url`](/v3/develop/settings-ref/#url): this setting specifies the API endpoint of your
 Prefect Cloud workspace or a self-hosted Prefect server instance.
-- [`api.key`](/v3/develop/settings-ref/#key): this setting specifies the 
-[API key](/v3/manage/cloud/manage-users/api-keys/) used to authenticate with Prefect Cloud.
+- [`api.key`](/v3/develop/settings-ref/#key): this setting specifies the
+[API key](/v3/how-to-guides/cloud/manage-users/api-keys) used to authenticate with Prefect Cloud.
 - [`home`](/v3/develop/settings-ref/#home): the `home` value specifies the local Prefect directory for configuration files,
 profiles, and the location of the default Prefect SQLite database.
 
 <Tip>
 **Use `prefect cloud login` to set these values for Prefect Cloud**
 
-To set `PREFECT_API_URL` and `PREFECT_API_KEY` for your active profile, run `prefect cloud login`. 
-Read more about [managing API keys](/v3/manage/cloud/manage-users/api-keys/). 
+To set `PREFECT_API_URL` and `PREFECT_API_KEY` for your active profile, run `prefect cloud login`.
+Read more about [managing API keys](/v3/how-to-guides/cloud/manage-users/api-keys).
 </Tip>
 
 ## Common server settings

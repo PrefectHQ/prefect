@@ -9,7 +9,7 @@ This can be more flexible if you have to programmatically gather configuration a
 
 ## When to use `flow.deploy` instead of `flow.serve`
 
-The `flow.serve` method is one [simple way to create a deployment with the Python SDK](/v3/how-to-guides/deployments/run-flows-in-local-processes#serve-a-flow). It's ideal when you have readily available, static infrastructure for your flow runs and you don't need the dynamic dispatch of infrastructure per flow run offered by work pools.
+The `flow.serve` method is one [simple way to create a deployment with the Python SDK](/v3/how-to-guides/deployment_infra/run-flows-in-local-processes#serve-a-flow). It's ideal when you have readily available, static infrastructure for your flow runs and you don't need the dynamic dispatch of infrastructure per flow run offered by work pools.
 
 However, you might want to consider using `flow.deploy` to associate your flow with a work pool that enables dynamic dispatch of infrastructure per flow run for the following reasons:
 
@@ -251,7 +251,7 @@ To deploy a flow with a schedule, you can use one of the following options:
     ```
     </Expandable>
 
-    Learn more about schedules [here](/v3/how-to-guides/automations/create-schedules).
+    Learn more about schedules [here](/v3/how-to-guides/deployments/create-schedules).
 
 
 ## Use remote code storage
@@ -402,5 +402,5 @@ This approach offers the following benefits:
 - [Work Pools](/v3/concepts/work-pools/)
 - [Store Flow Code](/v3/deploy/infrastructure-concepts/store-flow-code/)
 - [Customize Infrastructure](/v3/how-to-guides/deployments/customize-job-variables)
-- [Schedules](/v3/how-to-guides/automations/create-schedules)
+- [Schedules](/v3/how-to-guides/deployments/create-schedules)
 - [Write Workflows](/v3/how-to-guides/workflows/write-and-run)
