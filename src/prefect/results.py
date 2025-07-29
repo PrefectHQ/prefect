@@ -776,6 +776,7 @@ class ResultStore(BaseModel):
             and self.is_locked(base_key)
             and not self.is_lock_holder(base_key, holder)
         ):
+            breakpoint()
             raise RuntimeError(
                 f"Cannot write to result record with key {base_key} because it is locked by "
                 f"another holder."
