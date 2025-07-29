@@ -6,7 +6,13 @@ import multiprocessing
 import multiprocessing.context
 import os
 import time
-from contextlib import ExitStack, asynccontextmanager, contextmanager, nullcontext
+from contextlib import (
+    AsyncExitStack,
+    ExitStack,
+    asynccontextmanager,
+    contextmanager,
+    nullcontext,
+)
 from dataclasses import dataclass, field
 from functools import wraps
 from typing import (
@@ -35,7 +41,11 @@ from prefect.client.orchestration import PrefectClient, SyncPrefectClient, get_c
 from prefect.client.schemas import FlowRun, TaskRun
 from prefect.client.schemas.filters import FlowRunFilter
 from prefect.client.schemas.sorting import FlowRunSort
+from prefect.concurrency.asyncio import (
+    amaintain_concurrency_lease,
+)
 from prefect.concurrency.context import ConcurrencyContext
+from prefect.concurrency.sync import maintain_concurrency_lease
 from prefect.concurrency.v1.context import ConcurrencyContext as ConcurrencyContextV1
 from prefect.context import (
     AsyncClientContext,
@@ -618,6 +628,13 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
             )
             stack.enter_context(ConcurrencyContextV1())
             stack.enter_context(ConcurrencyContext())
+            if lease_id := self.state.state_details.deployment_concurrency_lease_id:
+                stack.enter_context(
+                    maintain_concurrency_lease(
+                        lease_id,
+                        300,
+                    )
+                )
 
             # set the logger to the flow run logger
 
@@ -1157,7 +1174,7 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
         self.flow_run = await client.read_flow_run(self.flow_run.id)
         log_prints = should_log_prints(self.flow)
 
-        with ExitStack() as stack:
+        async with AsyncExitStack() as stack:
             # TODO: Explore closing task runner before completing the flow to
             # wait for futures to complete
             stack.enter_context(capture_sigterm())
@@ -1182,6 +1199,13 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
             )
             stack.enter_context(ConcurrencyContextV1())
             stack.enter_context(ConcurrencyContext())
+            if lease_id := self.state.state_details.deployment_concurrency_lease_id:
+                await stack.enter_async_context(
+                    amaintain_concurrency_lease(
+                        lease_id,
+                        300,
+                    )
+                )
 
             # set the logger to the flow run logger
             self.logger: "logging.Logger" = flow_run_logger(

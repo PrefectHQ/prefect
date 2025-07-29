@@ -511,6 +511,7 @@ async def set_flow_run_state(
     force: bool = False,
     flow_policy: Optional[Type[FlowRunOrchestrationPolicy]] = None,
     orchestration_parameters: Optional[Dict[str, Any]] = None,
+    client_version: Optional[str] = None,
 ) -> OrchestrationResult:
     """
     Creates a new orchestrated flow run state.
@@ -560,6 +561,7 @@ async def set_flow_run_state(
         run=run,
         initial_state=initial_state,
         proposed_state=state,
+        client_version=client_version,
     )
 
     if orchestration_parameters is not None:

@@ -13,7 +13,7 @@ import anyio
 import pydantic
 import pytest
 
-from prefect import Flow, __development_base_path__, flow, task
+from prefect import Flow, __development_base_path__, flow, states, task
 from prefect.client.orchestration import PrefectClient, SyncPrefectClient, get_client
 from prefect.client.schemas.filters import FlowFilter, FlowFilterName, FlowRunFilter
 from prefect.client.schemas.objects import StateType
@@ -50,6 +50,7 @@ from prefect.server.schemas.core import ConcurrencyLimitV2
 from prefect.server.schemas.core import FlowRun as ServerFlowRun
 from prefect.testing.utilities import AsyncMock
 from prefect.utilities.callables import get_call_parameters
+from prefect.utilities.engine import propose_state
 from prefect.utilities.filesystem import tmpchdir
 
 
@@ -2158,3 +2159,130 @@ class TestRunFlowInSubprocess:
         flow_run = await self.get_flow_run_for_flow(foo.name)
         # Stays in running state because the process died
         assert flow_run.state.is_running()
+
+
+class TestLeaseRenewal:
+    async def test_no_lease_renewal_sync(
+        self, prefect_client: PrefectClient, monkeypatch: pytest.MonkeyPatch
+    ):
+        mock_maintain_concurrency_lease = MagicMock()
+        monkeypatch.setattr(
+            "prefect.flow_engine.maintain_concurrency_lease",
+            mock_maintain_concurrency_lease,
+        )
+
+        @flow
+        def foo():
+            return 42
+
+        flow_id = await prefect_client.create_flow(foo)
+        # No limit, no lease
+        deployment_id = await prefect_client.create_deployment(
+            flow_id=flow_id,
+            name=f"test_lease_renewal_{uuid.uuid4()}",
+        )
+
+        flow_run = await prefect_client.create_flow_run_from_deployment(deployment_id)
+        assert flow_run.state.is_scheduled()
+
+        state = await propose_state(prefect_client, states.Pending(), flow_run.id)
+        assert state.is_pending()
+
+        run_flow(foo, flow_run)
+
+        mock_maintain_concurrency_lease.assert_not_called()
+
+    async def test_no_lease_renewal_async(
+        self, prefect_client: PrefectClient, monkeypatch: pytest.MonkeyPatch
+    ):
+        mock_maintain_concurrency_lease = MagicMock()
+        mock_maintain_concurrency_lease.return_value.__aenter__ = AsyncMock()
+        mock_maintain_concurrency_lease.return_value.__aenter__.return_value.__aexit__ = AsyncMock()
+        monkeypatch.setattr(
+            "prefect.flow_engine.amaintain_concurrency_lease",
+            mock_maintain_concurrency_lease,
+        )
+
+        @flow
+        async def foo():
+            return 42
+
+        flow_id = await prefect_client.create_flow(foo)
+        deployment_id = await prefect_client.create_deployment(
+            flow_id=flow_id,
+            name=f"test_lease_renewal_{uuid.uuid4()}",
+        )
+
+        flow_run = await prefect_client.create_flow_run_from_deployment(deployment_id)
+        assert flow_run.state.is_scheduled()
+
+        state = await propose_state(prefect_client, states.Pending(), flow_run.id)
+        assert state.is_pending()
+
+        await run_flow(foo, flow_run)
+
+        mock_maintain_concurrency_lease.assert_not_called()
+
+    async def test_lease_renewal_sync(
+        self, prefect_client: PrefectClient, monkeypatch: pytest.MonkeyPatch
+    ):
+        mock_maintain_concurrency_lease = MagicMock()
+        monkeypatch.setattr(
+            "prefect.flow_engine.maintain_concurrency_lease",
+            mock_maintain_concurrency_lease,
+        )
+
+        @flow
+        def foo():
+            return 42
+
+        flow_id = await prefect_client.create_flow(foo)
+        # Lease is created for the limit server-side
+        deployment_id = await prefect_client.create_deployment(
+            flow_id=flow_id,
+            name=f"test_lease_renewal_{uuid.uuid4()}",
+            concurrency_limit=1,
+        )
+
+        flow_run = await prefect_client.create_flow_run_from_deployment(deployment_id)
+        assert flow_run.state.is_scheduled()
+
+        state = await propose_state(prefect_client, states.Pending(), flow_run.id)
+        assert state.is_pending()
+
+        run_flow(foo, flow_run)
+
+        mock_maintain_concurrency_lease.assert_called_once()
+
+    async def test_lease_renewal_async(
+        self, prefect_client: PrefectClient, monkeypatch: pytest.MonkeyPatch
+    ):
+        mock_maintain_concurrency_lease = MagicMock()
+        mock_maintain_concurrency_lease.return_value.__aenter__ = AsyncMock()
+        mock_maintain_concurrency_lease.return_value.__aenter__.return_value.__aexit__ = AsyncMock()
+        monkeypatch.setattr(
+            "prefect.flow_engine.amaintain_concurrency_lease",
+            mock_maintain_concurrency_lease,
+        )
+
+        @flow
+        async def foo():
+            return 42
+
+        flow_id = await prefect_client.create_flow(foo)
+        # Lease is created for the limit server-side
+        deployment_id = await prefect_client.create_deployment(
+            flow_id=flow_id,
+            name=f"test_lease_renewal_{uuid.uuid4()}",
+            concurrency_limit=1,
+        )
+
+        flow_run = await prefect_client.create_flow_run_from_deployment(deployment_id)
+        assert flow_run.state.is_scheduled()
+
+        state = await propose_state(prefect_client, states.Pending(), flow_run.id)
+        assert state.is_pending()
+
+        await run_flow(foo, flow_run)
+
+        mock_maintain_concurrency_lease.assert_called_once()

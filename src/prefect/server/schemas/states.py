@@ -98,6 +98,9 @@ class StateDetails(PrefectBaseModel):
     task_parameters_id: Optional[UUID] = None
     # Captures the trace_id and span_id of the span where this state was created
     traceparent: Optional[str] = None
+    # The ID of the lease that is currently holding the deployment concurrency slot
+    # for this run.
+    deployment_concurrency_lease_id: Optional[UUID] = None
 
 
 class StateBaseModel(TimeSeriesBaseModel):

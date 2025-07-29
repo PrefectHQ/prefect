@@ -59,3 +59,5 @@ class Repossessor(LoopService):
                     occupancy_seconds=occupancy_seconds,
                 )
                 await self.concurrency_lease_storage.revoke_lease(expired_lease_id)
+
+                await session.commit()

@@ -5,11 +5,10 @@ Injected orchestration dependencies
 from __future__ import annotations
 
 from contextlib import contextmanager
-from typing import Annotated, Any, Awaitable, Callable, Optional, TypedDict, cast
+from typing import Any, Awaitable, Callable, TypedDict, cast
 
-from fastapi.params import Depends
+from packaging.version import Version
 
-from prefect.server.api import dependencies
 from prefect.server.orchestration.policies import (
     FlowRunOrchestrationPolicy,
     TaskRunOrchestrationPolicy,
@@ -42,6 +41,8 @@ WORKER_VERSIONS_THAT_MANAGE_DEPLOYMENT_CONCURRENCY = {
     "3.0.3",
 }
 
+MIN_CLIENT_VERSION_FOR_CONCURRENCY_LIMIT_LEASING = Version("3.4.11")
+
 
 async def provide_task_policy() -> type[TaskRunOrchestrationPolicy]:
     policy_provider = ORCHESTRATION_DEPENDENCIES.get("task_policy_provider")
@@ -54,23 +55,15 @@ async def provide_task_policy() -> type[TaskRunOrchestrationPolicy]:
     return await policy_provider()
 
 
-async def provide_flow_policy(
-    client_version: Annotated[
-        Optional[str], Depends(dependencies.get_prefect_client_version)
-    ] = None,
-) -> type[FlowRunOrchestrationPolicy]:
+async def provide_flow_policy() -> type[FlowRunOrchestrationPolicy]:
     policy_provider = ORCHESTRATION_DEPENDENCIES.get("flow_policy_provider")
 
     if policy_provider is None:
         from prefect.server.orchestration.core_policy import (
             CoreFlowPolicy,
-            CoreFlowPolicyWithoutDeploymentConcurrency,
         )
 
-        if client_version in WORKER_VERSIONS_THAT_MANAGE_DEPLOYMENT_CONCURRENCY:
-            return CoreFlowPolicyWithoutDeploymentConcurrency
-        else:
-            return CoreFlowPolicy
+        return CoreFlowPolicy
 
     return await policy_provider()
 

@@ -131,27 +131,6 @@ async def aacquire_concurrency_slots_with_lease(
         ) from exc
 
 
-async def amaintain_concurrency_lease(
-    lease_id: UUID,
-    lease_duration: float,
-) -> None:
-    """
-    Maintain a concurrency lease by renewing it after the given interval.
-
-    Args:
-        lease_id: The ID of the lease to maintain.
-        lease_duration: The duration of the lease in seconds.
-    """
-    async with get_client() as client:
-        while True:
-            await asyncio.sleep(  # Renew the lease 3/4 of the way through the lease duration
-                lease_duration * 0.75
-            )
-            await client.renew_concurrency_lease(
-                lease_id=lease_id, lease_duration=lease_duration
-            )
-
-
 async def arelease_concurrency_slots(
     names: list[str], slots: int, occupancy_seconds: float
 ) -> list[MinimalConcurrencyLimitResponse]:
