@@ -154,6 +154,7 @@ Read more about configuring work pools
     ```
 """
 
+import logging
 import re
 import shlex
 import time
@@ -179,6 +180,7 @@ from prefect.workers.base import (
     BaseWorkerResult,
 )
 from prefect_gcp.credentials import GcpCredentials
+from prefect_gcp.models.cloud_run_v2 import SecretKeySelector
 from prefect_gcp.utilities import Execution, Job, slugify_name
 
 if TYPE_CHECKING:
@@ -273,8 +275,8 @@ class CloudRunWorkerJobConfiguration(BaseJobConfiguration):
             will actively try to mark it failed and kill associated containers
             (maximum of 3600 seconds, 1 hour).
         keep_job: Whether to delete the Cloud Run Job after it completes.
-        prefect_api_key_secret: Name of a GCP secret containing a Prefect API Key.
-        prefect_api_auth_string_secret: Name of a GCP secret containing a Prefect API authorization string.
+        prefect_api_key_secret: A GCP secret containing a Prefect API Key.
+        prefect_api_auth_string_secret: A GCP secret containing a Prefect API authorization string.
     """
 
     region: str = Field(
@@ -287,20 +289,20 @@ class CloudRunWorkerJobConfiguration(BaseJobConfiguration):
         "If not provided credentials will be inferred from "
         "the local environment.",
     )
-    prefect_api_key_secret: Optional[str] = Field(
+    prefect_api_key_secret: Optional[SecretKeySelector] = Field(
         title="Prefect API Key Secret",
         default=None,
         description=(
-            "Name of a GCP secret containing a Prefect API Key. This key will be used "
+            "A GCP secret containing a Prefect API Key. This key will be used "
             "to authenticate Cloud Run tasks with Prefect Cloud. If not provided, the "
             "PREFECT_API_KEY environment variable will be used if the worker has one."
         ),
     )
-    prefect_api_auth_string_secret: Optional[str] = Field(
+    prefect_api_auth_string_secret: Optional[SecretKeySelector] = Field(
         title="Prefect API Auth String Secret",
         default=None,
         description=(
-            "Name of a GCP secret containing a Prefect API authorization string. This "
+            "A GCP secret containing a Prefect API authorization string. This "
             "string will be used to authenticate Cloud Run tasks with Prefect Cloud. "
             "If not provided, the PREFECT_API_AUTH_STRING environment variable will be "
             "used if the worker has one."
@@ -367,8 +369,25 @@ class CloudRunWorkerJobConfiguration(BaseJobConfiguration):
         """Populate environment variables. BaseWorker.prepare_for_flow_run handles
         putting the environment variables in the `env` attribute. This method
         moves them into the jobs body"""
+        logger = logging.getLogger(__name__)
+
         # Create a copy of the environment variables to avoid modifying the original
         env_copy = self.env.copy()
+
+        # Log warnings when plaintext credentials are provided alongside secrets
+        if self.prefect_api_key_secret and "PREFECT_API_KEY" in env_copy:
+            logger.warning(
+                "Both PREFECT_API_KEY environment variable and prefect_api_key_secret are provided. "
+                "The secret will be used and the environment variable will be ignored."
+            )
+        if (
+            self.prefect_api_auth_string_secret
+            and "PREFECT_API_AUTH_STRING" in env_copy
+        ):
+            logger.warning(
+                "Both PREFECT_API_AUTH_STRING environment variable and prefect_api_auth_string_secret are provided. "
+                "The secret will be used and the environment variable will be ignored."
+            )
 
         # Remove Prefect API credentials from environment if secrets are provided
         if self.prefect_api_key_secret:
@@ -386,8 +405,8 @@ class CloudRunWorkerJobConfiguration(BaseJobConfiguration):
                     "name": "PREFECT_API_KEY",
                     "valueFrom": {
                         "secretKeyRef": {
-                            "name": self.prefect_api_key_secret,
-                            "key": "value",
+                            "name": self.prefect_api_key_secret.secret,
+                            "key": self.prefect_api_key_secret.version,
                         }
                     },
                 }
@@ -399,8 +418,8 @@ class CloudRunWorkerJobConfiguration(BaseJobConfiguration):
                     "name": "PREFECT_API_AUTH_STRING",
                     "valueFrom": {
                         "secretKeyRef": {
-                            "name": self.prefect_api_auth_string_secret,
-                            "key": "value",
+                            "name": self.prefect_api_auth_string_secret.secret,
+                            "key": self.prefect_api_auth_string_secret.version,
                         }
                     },
                 }
@@ -524,20 +543,20 @@ class CloudRunWorkerVariables(BaseVariables):
         "Cloud Run Job. If not provided credentials will be "
         "inferred from the local environment.",
     )
-    prefect_api_key_secret: Optional[str] = Field(
+    prefect_api_key_secret: Optional[SecretKeySelector] = Field(
         title="Prefect API Key Secret",
         default=None,
         description=(
-            "Name of a GCP secret containing a Prefect API Key. This key will be used "
+            "A GCP secret containing a Prefect API Key. This key will be used "
             "to authenticate Cloud Run tasks with Prefect Cloud. If not provided, the "
             "PREFECT_API_KEY environment variable will be used if the worker has one."
         ),
     )
-    prefect_api_auth_string_secret: Optional[str] = Field(
+    prefect_api_auth_string_secret: Optional[SecretKeySelector] = Field(
         title="Prefect API Auth String Secret",
         default=None,
         description=(
-            "Name of a GCP secret containing a Prefect API authorization string. This "
+            "A GCP secret containing a Prefect API authorization string. This "
             "string will be used to authenticate Cloud Run tasks with Prefect Cloud. "
             "If not provided, the PREFECT_API_AUTH_STRING environment variable will be "
             "used if the worker has one."

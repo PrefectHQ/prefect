@@ -4,6 +4,7 @@ from unittest.mock import Mock
 import pydantic
 import pytest
 from prefect_gcp.credentials import GcpCredentials
+from prefect_gcp.models.cloud_run_v2 import SecretKeySelector
 from prefect_gcp.utilities import slugify_name
 from prefect_gcp.workers.cloud_run import (
     CloudRunWorker,
@@ -115,7 +116,9 @@ class TestCloudRunWorkerJobConfiguration:
             "PREFECT_API_KEY": "test-api-key",
             "OTHER_VAR": "other-value",
         }
-        cloud_run_worker_job_config.prefect_api_key_secret = "my-secret"
+        cloud_run_worker_job_config.prefect_api_key_secret = SecretKeySelector(
+            secret="my-secret", version="latest"
+        )
 
         cloud_run_worker_job_config._populate_envs()
 
@@ -133,7 +136,7 @@ class TestCloudRunWorkerJobConfiguration:
         assert "value" not in secret_env  # Should not have plaintext value
         assert "valueFrom" in secret_env
         assert secret_env["valueFrom"]["secretKeyRef"]["name"] == "my-secret"
-        assert secret_env["valueFrom"]["secretKeyRef"]["key"] == "value"
+        assert secret_env["valueFrom"]["secretKeyRef"]["key"] == "latest"
 
     def test_populate_envs_with_prefect_api_auth_string_secret(
         self,
@@ -148,7 +151,9 @@ class TestCloudRunWorkerJobConfiguration:
             "PREFECT_API_AUTH_STRING": "test-auth-string",
             "OTHER_VAR": "other-value",
         }
-        cloud_run_worker_job_config.prefect_api_auth_string_secret = "my-auth-secret"
+        cloud_run_worker_job_config.prefect_api_auth_string_secret = SecretKeySelector(
+            secret="my-auth-secret", version="latest"
+        )
 
         cloud_run_worker_job_config._populate_envs()
 
@@ -166,7 +171,7 @@ class TestCloudRunWorkerJobConfiguration:
         assert "value" not in secret_env  # Should not have plaintext value
         assert "valueFrom" in secret_env
         assert secret_env["valueFrom"]["secretKeyRef"]["name"] == "my-auth-secret"
-        assert secret_env["valueFrom"]["secretKeyRef"]["key"] == "value"
+        assert secret_env["valueFrom"]["secretKeyRef"]["key"] == "latest"
 
     def test_populate_envs_with_both_secrets(
         self,
@@ -182,8 +187,12 @@ class TestCloudRunWorkerJobConfiguration:
             "PREFECT_API_AUTH_STRING": "test-auth-string",
             "OTHER_VAR": "other-value",
         }
-        cloud_run_worker_job_config.prefect_api_key_secret = "my-secret"
-        cloud_run_worker_job_config.prefect_api_auth_string_secret = "my-auth-secret"
+        cloud_run_worker_job_config.prefect_api_key_secret = SecretKeySelector(
+            secret="my-secret", version="latest"
+        )
+        cloud_run_worker_job_config.prefect_api_auth_string_secret = SecretKeySelector(
+            secret="my-auth-secret", version="latest"
+        )
 
         cloud_run_worker_job_config._populate_envs()
 
@@ -200,6 +209,7 @@ class TestCloudRunWorkerJobConfiguration:
         ][0]
         assert "value" not in api_key_env
         assert api_key_env["valueFrom"]["secretKeyRef"]["name"] == "my-secret"
+        assert api_key_env["valueFrom"]["secretKeyRef"]["key"] == "latest"
 
         # Should have PREFECT_API_AUTH_STRING as secret
         auth_string_env = [
@@ -207,6 +217,7 @@ class TestCloudRunWorkerJobConfiguration:
         ][0]
         assert "value" not in auth_string_env
         assert auth_string_env["valueFrom"]["secretKeyRef"]["name"] == "my-auth-secret"
+        assert auth_string_env["valueFrom"]["secretKeyRef"]["key"] == "latest"
 
     def test_populate_envs_with_secret_but_no_env_var(
         self,
@@ -219,7 +230,9 @@ class TestCloudRunWorkerJobConfiguration:
 
         # No PREFECT_API_KEY in env, but secret is configured
         cloud_run_worker_job_config.env = {"OTHER_VAR": "other-value"}
-        cloud_run_worker_job_config.prefect_api_key_secret = "my-secret"
+        cloud_run_worker_job_config.prefect_api_key_secret = SecretKeySelector(
+            secret="my-secret", version="latest"
+        )
 
         cloud_run_worker_job_config._populate_envs()
 
@@ -231,6 +244,42 @@ class TestCloudRunWorkerJobConfiguration:
             env for env in container["env"] if env["name"] == "PREFECT_API_KEY"
         ][0]
         assert secret_env["valueFrom"]["secretKeyRef"]["name"] == "my-secret"
+        assert secret_env["valueFrom"]["secretKeyRef"]["key"] == "latest"
+
+    def test_populate_envs_logs_warning_when_plaintext_and_secret_provided(
+        self, cloud_run_worker_job_config, caplog
+    ):
+        """Test that warnings are logged when both plaintext and secret credentials are provided"""
+        # Set up environment with both plaintext and secret
+        cloud_run_worker_job_config.env = {
+            "PREFECT_API_KEY": "test-api-key",
+            "PREFECT_API_AUTH_STRING": "test-auth-string",
+            "OTHER_VAR": "other-value",
+        }
+        cloud_run_worker_job_config.prefect_api_key_secret = SecretKeySelector(
+            secret="my-secret", version="latest"
+        )
+        cloud_run_worker_job_config.prefect_api_auth_string_secret = SecretKeySelector(
+            secret="my-auth-secret", version="latest"
+        )
+
+        with caplog.at_level("WARNING"):
+            cloud_run_worker_job_config._populate_envs()
+
+        # Check that warnings were logged
+        assert len(caplog.records) == 2
+        assert (
+            "PREFECT_API_KEY environment variable and prefect_api_key_secret"
+            in caplog.text
+        )
+        assert (
+            "PREFECT_API_AUTH_STRING environment variable and prefect_api_auth_string_secret"
+            in caplog.text
+        )
+        assert (
+            "The secret will be used and the environment variable will be ignored"
+            in caplog.text
+        )
 
     def test_populate_image_if_not_present(self, cloud_run_worker_job_config):
         cloud_run_worker_job_config._populate_image_if_not_present()
