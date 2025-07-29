@@ -5,6 +5,7 @@ Base `prefect` command-line application
 import asyncio
 import platform
 import sys
+from contextvars import ContextVar
 from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version as import_version
 from typing import Any
@@ -28,6 +29,9 @@ from prefect.types._datetime import parse_datetime
 
 app: PrefectTyper = PrefectTyper(add_completion=True, no_args_is_help=True)
 
+# Context variable to control interactivity in dry run mode
+_dry_run_mode: ContextVar[bool] = ContextVar("dry_run_mode", default=False)
+
 
 def version_callback(value: bool) -> None:
     if value:
@@ -36,6 +40,9 @@ def version_callback(value: bool) -> None:
 
 
 def is_interactive() -> bool:
+    # Check if we're in dry run mode first
+    if _dry_run_mode.get():
+        return False
     return app.console.is_interactive
 
 

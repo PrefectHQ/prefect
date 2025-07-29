@@ -24,6 +24,7 @@ uv run pytest -n4              # Run tests in parallel
 uv run pytest tests/some_file.py -k test_name  # Run specific test
 prefect server start           # Start local server
 prefect config view            # Inspect configuration
+docker run -p 4200:4200 --rm -d prefecthq/prefect:3.4.7-python3.12 -- prefect server start --host 0.0.0.0 # Start local server in docker
 ```
 
 ## Tech Stack
@@ -35,6 +36,8 @@ prefect config view            # Inspect configuration
 - **PostgreSQL/SQLite** databases
 
 ## Development Guidelines
+
+Work from repo root.
 
 ### Code Conventions
 
