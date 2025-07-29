@@ -2557,7 +2557,6 @@ class TestClientCustomHeadersSetting:
             }
         )
 
-    #     settings = get_current_settings()
     def test_invalid_json_string_raises_error(self, monkeypatch: pytest.MonkeyPatch):
         """Test that invalid JSON raises appropriate error."""
         monkeypatch.setenv("PREFECT_CLIENT_CUSTOM_HEADERS", "not-valid-json")
