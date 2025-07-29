@@ -1,6 +1,8 @@
 from typing import ClassVar, Dict
+import json
 
 from pydantic import AliasChoices, AliasPath, Field
+from pydantic import field_validator
 from pydantic_settings import SettingsConfigDict
 
 from prefect.settings.base import (
@@ -102,3 +104,9 @@ class ClientSettings(PrefectBaseSettings):
         default_factory=ClientMetricsSettings,
         description="Settings for controlling metrics reporting from the client",
     )
+
+    @field_validator("custom_headers", mode="before")
+    def validate_custom_headers(cls, v):
+        if isinstance(v, str):
+            return json.loads(v)
+        return v
