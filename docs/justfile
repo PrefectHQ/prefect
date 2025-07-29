@@ -1,0 +1,3 @@
+# Build and serve documentation
+docs:
+    npx mint@latest dev
