@@ -27,8 +27,6 @@ const property: SchemaObject & { anyOf: (SchemaObject | ReferenceObject)[] } = {
 	anyOf: [MyModel, MyModel2],
 };
 
-
-
 describe("SchemaFormInputAnyOf", () => {
 	it("renders the correct fields for each model and preserves shared parameter values", () => {
 		let value: Record<string, unknown> = {
