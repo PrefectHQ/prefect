@@ -34,7 +34,7 @@ from prefect_aws.workers.ecs_worker import (
 from pydantic import ValidationError
 
 from prefect.server.schemas.core import FlowRun
-from prefect.settings import PREFECT_API_KEY
+from prefect.settings import PREFECT_API_AUTH_STRING, PREFECT_API_KEY
 from prefect.settings.context import temporary_settings
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.slugify import slugify
@@ -2718,4 +2718,98 @@ async def test_run_task_with_api_key_secret_arn(
         env
         for env in task["overrides"]["containerOverrides"][0]["environment"]
         if env["name"] == "PREFECT_API_KEY"
+    )
+
+
+@pytest.fixture
+def prefect_api_auth_string_setting():
+    with temporary_settings({PREFECT_API_AUTH_STRING: "test-auth-string"}):
+        yield
+
+
+@pytest.mark.usefixtures("ecs_mocks", "prefect_api_auth_string_setting")
+async def test_run_task_with_api_auth_string_secret_arn(
+    aws_credentials: AwsCredentials, flow_run: FlowRun
+):
+    configuration = await construct_configuration(
+        aws_credentials=aws_credentials,
+        prefect_api_auth_string_secret_arn="arn:aws:secretsmanager:us-east-1:123456789012:secret:prefect-worker-api-auth-string",
+    )
+    configuration.prepare_for_flow_run(flow_run)
+
+    work_pool_name = "test"
+    session = aws_credentials.get_boto3_session()
+    ecs_client = session.client("ecs")
+    async with ECSWorker(work_pool_name=work_pool_name) as worker:
+        result = await run_then_stop_task(worker, configuration, flow_run)
+
+    assert result.status_code == 0
+    _, task_arn = parse_identifier(result.identifier)
+
+    task = describe_task(ecs_client, task_arn)
+    task_definition = describe_task_definition(ecs_client, task)
+
+    assert {
+        "name": "PREFECT_API_AUTH_STRING",
+        "valueFrom": "arn:aws:secretsmanager:us-east-1:123456789012:secret:prefect-worker-api-auth-string",
+    } in task_definition["containerDefinitions"][0]["secrets"]
+
+    assert not any(
+        env
+        for env in task["overrides"]["containerOverrides"][0]["environment"]
+        if env["name"] == "PREFECT_API_AUTH_STRING"
+    )
+
+
+@pytest.fixture
+def prefect_both_secrets_setting():
+    with temporary_settings(
+        {PREFECT_API_KEY: "test-api-key", PREFECT_API_AUTH_STRING: "test-auth-string"}
+    ):
+        yield
+
+
+@pytest.mark.usefixtures("ecs_mocks", "prefect_both_secrets_setting")
+async def test_run_task_with_both_secrets(
+    aws_credentials: AwsCredentials, flow_run: FlowRun
+):
+    configuration = await construct_configuration(
+        aws_credentials=aws_credentials,
+        prefect_api_key_secret_arn="arn:aws:secretsmanager:us-east-1:123456789012:secret:prefect-worker-api-key",
+        prefect_api_auth_string_secret_arn="arn:aws:secretsmanager:us-east-1:123456789012:secret:prefect-worker-api-auth-string",
+    )
+    configuration.prepare_for_flow_run(flow_run)
+
+    work_pool_name = "test"
+    session = aws_credentials.get_boto3_session()
+    ecs_client = session.client("ecs")
+    async with ECSWorker(work_pool_name=work_pool_name) as worker:
+        result = await run_then_stop_task(worker, configuration, flow_run)
+
+    assert result.status_code == 0
+    _, task_arn = parse_identifier(result.identifier)
+
+    task = describe_task(ecs_client, task_arn)
+    task_definition = describe_task_definition(ecs_client, task)
+
+    expected_secrets = [
+        {
+            "name": "PREFECT_API_KEY",
+            "valueFrom": "arn:aws:secretsmanager:us-east-1:123456789012:secret:prefect-worker-api-key",
+        },
+        {
+            "name": "PREFECT_API_AUTH_STRING",
+            "valueFrom": "arn:aws:secretsmanager:us-east-1:123456789012:secret:prefect-worker-api-auth-string",
+        },
+    ]
+
+    actual_secrets = task_definition["containerDefinitions"][0]["secrets"]
+    assert len(actual_secrets) == 2
+    for expected_secret in expected_secrets:
+        assert expected_secret in actual_secrets
+
+    assert not any(
+        env
+        for env in task["overrides"]["containerOverrides"][0]["environment"]
+        if env["name"] in ["PREFECT_API_KEY", "PREFECT_API_AUTH_STRING"]
     )
