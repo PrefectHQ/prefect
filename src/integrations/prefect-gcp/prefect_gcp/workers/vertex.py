@@ -208,6 +208,40 @@ class VertexAIWorkerVariables(BaseVariables):
             "state of a Vertex AI Job."
         ),
     )
+    prefect_api_key_secret_name: Optional[str] = Field(
+        default=None,
+        title="Prefect API Key Secret Name",
+        description=(
+            "The name of the GCP Secret Manager secret containing the Prefect API key. "
+            "This secret will be used to authenticate Vertex AI Jobs with Prefect Cloud. "
+            "If not provided, the PREFECT_API_KEY environment variable will be used."
+        ),
+    )
+    prefect_api_key_secret_version: Optional[str] = Field(
+        default="latest",
+        title="Prefect API Key Secret Version",
+        description=(
+            "The version of the GCP Secret Manager secret to use for the Prefect API key. "
+            "Defaults to 'latest'."
+        ),
+    )
+    prefect_api_auth_string_secret_name: Optional[str] = Field(
+        default=None,
+        title="Prefect API Auth String Secret Name",
+        description=(
+            "The name of the GCP Secret Manager secret containing the Prefect API auth string. "
+            "This secret will be used to authenticate Vertex AI Jobs with Prefect Cloud. "
+            "If not provided, the PREFECT_API_AUTH_STRING environment variable will be used."
+        ),
+    )
+    prefect_api_auth_string_secret_version: Optional[str] = Field(
+        default="latest",
+        title="Prefect API Auth String Secret Version",
+        description=(
+            "The version of the GCP Secret Manager secret to use for the Prefect API auth string. "
+            "Defaults to 'latest'."
+        ),
+    )
 
 
 def _get_base_job_spec() -> Dict[str, Any]:
@@ -300,6 +334,40 @@ class VertexAIWorkerJobConfiguration(BaseJobConfiguration):
             "state of a Vertex AI Job."
         ),
     )
+    prefect_api_key_secret_name: Optional[str] = Field(
+        default=None,
+        title="Prefect API Key Secret Name",
+        description=(
+            "The name of the GCP Secret Manager secret containing the Prefect API key. "
+            "This secret will be used to authenticate Vertex AI Jobs with Prefect Cloud. "
+            "If not provided, the PREFECT_API_KEY environment variable will be used."
+        ),
+    )
+    prefect_api_key_secret_version: Optional[str] = Field(
+        default="latest",
+        title="Prefect API Key Secret Version",
+        description=(
+            "The version of the GCP Secret Manager secret to use for the Prefect API key. "
+            "Defaults to 'latest'."
+        ),
+    )
+    prefect_api_auth_string_secret_name: Optional[str] = Field(
+        default=None,
+        title="Prefect API Auth String Secret Name",
+        description=(
+            "The name of the GCP Secret Manager secret containing the Prefect API auth string. "
+            "This secret will be used to authenticate Vertex AI Jobs with Prefect Cloud. "
+            "If not provided, the PREFECT_API_AUTH_STRING environment variable will be used."
+        ),
+    )
+    prefect_api_auth_string_secret_version: Optional[str] = Field(
+        default="latest",
+        title="Prefect API Auth String Secret Version",
+        description=(
+            "The version of the GCP Secret Manager secret to use for the Prefect API auth string. "
+            "Defaults to 'latest'."
+        ),
+    )
 
     @property
     def project(self) -> str:
@@ -326,9 +394,41 @@ class VertexAIWorkerJobConfiguration(BaseJobConfiguration):
     ):
         super().prepare_for_flow_run(flow_run, deployment, flow, work_pool, worker_name)
 
+        self._configure_api_key_secrets()
         self._inject_formatted_env_vars()
         self._inject_formatted_command()
         self._ensure_existence_of_service_account()
+
+    def _configure_api_key_secrets(self):
+        """Configure Prefect API credentials from GCP Secret Manager.
+
+        This method handles the configuration of Prefect API credentials using
+        GCP Secret Manager. When secret names are provided, it removes the
+        corresponding environment variables and sets up secret references
+        that can be used by the container at runtime.
+        """
+        if self.prefect_api_key_secret_name:
+            # Remove PREFECT_API_KEY from environment variables since it will be
+            # provided via secret reference
+            if "PREFECT_API_KEY" in self.env:
+                del self.env["PREFECT_API_KEY"]
+
+            # Add secret reference environment variables for the container to use
+            # These can be used by the container to fetch the actual secret value
+            secret_version = self.prefect_api_key_secret_version or "latest"
+            secret_ref = f"projects/{self.project}/secrets/{self.prefect_api_key_secret_name}/versions/{secret_version}"
+            self.env["PREFECT_API_KEY_SECRET_REF"] = secret_ref
+
+        if self.prefect_api_auth_string_secret_name:
+            # Remove PREFECT_API_AUTH_STRING from environment variables since it will be
+            # provided via secret reference
+            if "PREFECT_API_AUTH_STRING" in self.env:
+                del self.env["PREFECT_API_AUTH_STRING"]
+
+            # Add secret reference environment variables for the container to use
+            secret_version = self.prefect_api_auth_string_secret_version or "latest"
+            secret_ref = f"projects/{self.project}/secrets/{self.prefect_api_auth_string_secret_name}/versions/{secret_version}"
+            self.env["PREFECT_API_AUTH_STRING_SECRET_REF"] = secret_ref
 
     def _inject_formatted_env_vars(self):
         """Inject environment variables in the Vertex job_spec configuration,

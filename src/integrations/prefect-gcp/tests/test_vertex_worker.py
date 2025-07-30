@@ -272,3 +272,238 @@ class TestVertexAIWorker:
             assert result == VertexAIWorkerResult(
                 status_code=1, identifier=job_display_name
             )
+
+
+class TestVertexAIWorkerSecrets:
+    """Test Prefect API key and auth string secret configuration."""
+
+    def test_prefect_api_key_secret_removes_env_var_and_adds_secret_ref(
+        self, service_account_info, gcp_credentials, flow_run
+    ):
+        """Test that configuring a Prefect API key secret removes the env var and adds secret reference."""
+        job_config = VertexAIWorkerJobConfiguration(
+            name="my-custom-ai-job",
+            region="us-central1",
+            credentials=gcp_credentials,
+            prefect_api_key_secret_name="my-prefect-api-key",
+            prefect_api_key_secret_version="1",
+            job_spec={
+                "service_account_name": "my-service-account",
+                "maximum_run_time_hours": 1,
+                "worker_pool_specs": [
+                    {
+                        "replica_count": 1,
+                        "container_spec": {
+                            "image_uri": "gcr.io/your-project/your-repo:latest",
+                        },
+                        "machine_spec": {
+                            "machine_type": "n1-standard-4",
+                        },
+                        "disk_spec": {
+                            "boot_disk_type": "pd-ssd",
+                            "boot_disk_size_gb": 100,
+                        },
+                    }
+                ],
+            },
+        )
+
+        # Add PREFECT_API_KEY to env to simulate it being set
+        job_config.env["PREFECT_API_KEY"] = "pnu_test_key"
+
+        job_config.prepare_for_flow_run(flow_run, None, None)
+
+        # PREFECT_API_KEY should be removed from env
+        assert "PREFECT_API_KEY" not in job_config.env
+
+        # Secret reference should be added
+        assert "PREFECT_API_KEY_SECRET_REF" in job_config.env
+        expected_secret_ref = (
+            f"projects/{gcp_credentials.project}/secrets/my-prefect-api-key/versions/1"
+        )
+        assert job_config.env["PREFECT_API_KEY_SECRET_REF"] == expected_secret_ref
+
+    def test_prefect_api_auth_string_secret_removes_env_var_and_adds_secret_ref(
+        self, service_account_info, gcp_credentials, flow_run
+    ):
+        """Test that configuring a Prefect API auth string secret removes the env var and adds secret reference."""
+        job_config = VertexAIWorkerJobConfiguration(
+            name="my-custom-ai-job",
+            region="us-central1",
+            credentials=gcp_credentials,
+            prefect_api_auth_string_secret_name="my-prefect-auth-string",
+            prefect_api_auth_string_secret_version="latest",
+            job_spec={
+                "service_account_name": "my-service-account",
+                "maximum_run_time_hours": 1,
+                "worker_pool_specs": [
+                    {
+                        "replica_count": 1,
+                        "container_spec": {
+                            "image_uri": "gcr.io/your-project/your-repo:latest",
+                        },
+                        "machine_spec": {
+                            "machine_type": "n1-standard-4",
+                        },
+                        "disk_spec": {
+                            "boot_disk_type": "pd-ssd",
+                            "boot_disk_size_gb": 100,
+                        },
+                    }
+                ],
+            },
+        )
+
+        # Add PREFECT_API_AUTH_STRING to env to simulate it being set
+        job_config.env["PREFECT_API_AUTH_STRING"] = "test_auth_string"
+
+        job_config.prepare_for_flow_run(flow_run, None, None)
+
+        # PREFECT_API_AUTH_STRING should be removed from env
+        assert "PREFECT_API_AUTH_STRING" not in job_config.env
+
+        # Secret reference should be added
+        assert "PREFECT_API_AUTH_STRING_SECRET_REF" in job_config.env
+        expected_secret_ref = f"projects/{gcp_credentials.project}/secrets/my-prefect-auth-string/versions/latest"
+        assert (
+            job_config.env["PREFECT_API_AUTH_STRING_SECRET_REF"] == expected_secret_ref
+        )
+
+    def test_both_secrets_configured(
+        self, service_account_info, gcp_credentials, flow_run
+    ):
+        """Test that both API key and auth string secrets can be configured simultaneously."""
+        job_config = VertexAIWorkerJobConfiguration(
+            name="my-custom-ai-job",
+            region="us-central1",
+            credentials=gcp_credentials,
+            prefect_api_key_secret_name="my-prefect-api-key",
+            prefect_api_key_secret_version="2",
+            prefect_api_auth_string_secret_name="my-prefect-auth-string",
+            prefect_api_auth_string_secret_version="3",
+            job_spec={
+                "service_account_name": "my-service-account",
+                "maximum_run_time_hours": 1,
+                "worker_pool_specs": [
+                    {
+                        "replica_count": 1,
+                        "container_spec": {
+                            "image_uri": "gcr.io/your-project/your-repo:latest",
+                        },
+                        "machine_spec": {
+                            "machine_type": "n1-standard-4",
+                        },
+                        "disk_spec": {
+                            "boot_disk_type": "pd-ssd",
+                            "boot_disk_size_gb": 100,
+                        },
+                    }
+                ],
+            },
+        )
+
+        # Add both env vars to simulate them being set
+        job_config.env["PREFECT_API_KEY"] = "pnu_test_key"
+        job_config.env["PREFECT_API_AUTH_STRING"] = "test_auth_string"
+
+        job_config.prepare_for_flow_run(flow_run, None, None)
+
+        # Both should be removed from env
+        assert "PREFECT_API_KEY" not in job_config.env
+        assert "PREFECT_API_AUTH_STRING" not in job_config.env
+
+        # Both secret references should be added
+        assert "PREFECT_API_KEY_SECRET_REF" in job_config.env
+        assert "PREFECT_API_AUTH_STRING_SECRET_REF" in job_config.env
+
+        expected_api_key_ref = (
+            f"projects/{gcp_credentials.project}/secrets/my-prefect-api-key/versions/2"
+        )
+        expected_auth_string_ref = f"projects/{gcp_credentials.project}/secrets/my-prefect-auth-string/versions/3"
+
+        assert job_config.env["PREFECT_API_KEY_SECRET_REF"] == expected_api_key_ref
+        assert (
+            job_config.env["PREFECT_API_AUTH_STRING_SECRET_REF"]
+            == expected_auth_string_ref
+        )
+
+    def test_secret_version_defaults_to_latest(
+        self, service_account_info, gcp_credentials, flow_run
+    ):
+        """Test that secret version defaults to 'latest' when not specified."""
+        job_config = VertexAIWorkerJobConfiguration(
+            name="my-custom-ai-job",
+            region="us-central1",
+            credentials=gcp_credentials,
+            prefect_api_key_secret_name="my-prefect-api-key",
+            # No version specified - should default to 'latest'
+            job_spec={
+                "service_account_name": "my-service-account",
+                "maximum_run_time_hours": 1,
+                "worker_pool_specs": [
+                    {
+                        "replica_count": 1,
+                        "container_spec": {
+                            "image_uri": "gcr.io/your-project/your-repo:latest",
+                        },
+                        "machine_spec": {
+                            "machine_type": "n1-standard-4",
+                        },
+                        "disk_spec": {
+                            "boot_disk_type": "pd-ssd",
+                            "boot_disk_size_gb": 100,
+                        },
+                    }
+                ],
+            },
+        )
+
+        job_config.env["PREFECT_API_KEY"] = "pnu_test_key"
+        job_config.prepare_for_flow_run(flow_run, None, None)
+
+        expected_secret_ref = f"projects/{gcp_credentials.project}/secrets/my-prefect-api-key/versions/latest"
+        assert job_config.env["PREFECT_API_KEY_SECRET_REF"] == expected_secret_ref
+
+    def test_no_secrets_configured_preserves_env_vars(
+        self, service_account_info, gcp_credentials, flow_run
+    ):
+        """Test that when no secrets are configured, environment variables are preserved."""
+        job_config = VertexAIWorkerJobConfiguration(
+            name="my-custom-ai-job",
+            region="us-central1",
+            credentials=gcp_credentials,
+            # No secret names configured
+            job_spec={
+                "service_account_name": "my-service-account",
+                "maximum_run_time_hours": 1,
+                "worker_pool_specs": [
+                    {
+                        "replica_count": 1,
+                        "container_spec": {
+                            "image_uri": "gcr.io/your-project/your-repo:latest",
+                        },
+                        "machine_spec": {
+                            "machine_type": "n1-standard-4",
+                        },
+                        "disk_spec": {
+                            "boot_disk_type": "pd-ssd",
+                            "boot_disk_size_gb": 100,
+                        },
+                    }
+                ],
+            },
+        )
+
+        # Add both env vars to simulate them being set
+        job_config.env["PREFECT_API_KEY"] = "pnu_test_key"
+        job_config.env["PREFECT_API_AUTH_STRING"] = "test_auth_string"
+
+        job_config.prepare_for_flow_run(flow_run, None, None)
+
+        # Both should be preserved in env
+        assert job_config.env["PREFECT_API_KEY"] == "pnu_test_key"
+        assert job_config.env["PREFECT_API_AUTH_STRING"] == "test_auth_string"
+
+        # No secret references should be added
+        assert "PREFECT_API_KEY_SECRET_REF" not in job_config.env
+        assert "PREFECT_API_AUTH_STRING_SECRET_REF" not in job_config.env
