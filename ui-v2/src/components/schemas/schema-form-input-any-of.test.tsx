@@ -27,16 +27,16 @@ const property: SchemaObject & { anyOf: (SchemaObject | ReferenceObject)[] } = {
 	anyOf: [MyModel, MyModel2],
 };
 
-import type { MyModel2Type, MyModelType } from "./schema-form-types";
+
 
 describe("SchemaFormInputAnyOf", () => {
 	it("renders the correct fields for each model and preserves shared parameter values", () => {
-		let value: MyModelType | MyModel2Type = {
+		let value: Record<string, unknown> = {
 			shared_parameter: "foo",
 			unique_1: 1,
 		};
-		const handleChange = vi.fn((v: MyModelType | MyModel2Type) => {
-			value = v;
+		const handleChange = vi.fn((v: unknown) => {
+			value = v as Record<string, unknown>;
 		});
 
 		render(
@@ -64,13 +64,14 @@ describe("SchemaFormInputAnyOf", () => {
 	});
 
 	it("does not render blank form and checks numeric field values when switching between models with overlapping parameters", () => {
-		let value: MyModelType | MyModel2Type = {
+		let value: Record<string, unknown> = {
 			shared_parameter: "test",
 			unique_1: 42,
 		};
-		const handleChange = vi.fn((v: MyModelType | MyModel2Type) => {
-			value = v;
+		const handleChange = vi.fn((v: unknown) => {
+			value = v as Record<string, unknown>;
 		});
+
 		render(
 			<SchemaFormProvider schema={property} kinds={["json"]}>
 				<SchemaFormInputAnyOf

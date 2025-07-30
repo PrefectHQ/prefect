@@ -3,7 +3,7 @@ import { useRef, useState } from "react";
 import { Card } from "../ui/card";
 import { ToggleGroup, ToggleGroupItem } from "../ui/toggle-group";
 import { SchemaFormProperty } from "./schema-form-property";
-import type { MyModel2Type, MyModelType } from "./schema-form-types";
+
 import type { SchemaFormErrors } from "./types/errors";
 import { useSchemaFormContext } from "./use-schema-form-context";
 import { getIndexForAnyOfPropertyValue } from "./utilities/getIndexForAnyOfPropertyValue";
@@ -18,7 +18,7 @@ import {
 export type SchemaFormInputAnyOfProps = {
 	value: unknown;
 	property: SchemaObject & { anyOf: (SchemaObject | ReferenceObject)[] };
-	onValueChange: (value: MyModelType | MyModel2Type) => void;
+	onValueChange: (value: unknown) => void;
 	errors: SchemaFormErrors;
 };
 
@@ -69,7 +69,7 @@ export function SchemaFormInputAnyOf({
 		setSelectedIndex(newSelectedIndex);
 
 		const newValue = values.current.get(newSelectedIndex) ?? value;
-		onValueChange(newValue as MyModelType | MyModel2Type);
+		onValueChange(newValue);
 	}
 
 	return (
@@ -94,10 +94,10 @@ export function SchemaFormInputAnyOf({
 
 			<Card className="p-2">
 				<SchemaFormProperty
-					value={value as MyModelType | MyModel2Type}
+					value={value}
 					property={property.anyOf[selectedIndex]}
 					onValueChange={(value: unknown) =>
-						onValueChange(value as MyModelType | MyModel2Type)
+						onValueChange(value)
 					}
 					errors={errors}
 					showLabel={false}
