@@ -1,7 +1,7 @@
 import subprocess
 import sys
 
-from prefect.utilities.processutils import run_process
+import prefect.utilities.processutils
 
 
 def install_packages(
@@ -49,11 +49,11 @@ async def ainstall_packages(
     try:
         import uv
 
-        await run_process(
+        await prefect.utilities.processutils.run_process(
             [uv.find_uv_bin(), *base_command], stream_output=stream_output
         )
     except (ImportError, ModuleNotFoundError, FileNotFoundError):
-        await run_process(
+        await prefect.utilities.processutils.run_process(
             [sys.executable, "-m", *base_command],
             stream_output=stream_output,
         )

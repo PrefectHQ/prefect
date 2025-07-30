@@ -23,8 +23,6 @@ from prefect.settings import (
 )
 from prefect.utilities.dispatch import lookup_type
 from prefect.utilities.processutils import (
-    get_sys_executable,
-    run_process,
     setup_signal_handlers_worker,
 )
 from prefect.workers.base import BaseWorker

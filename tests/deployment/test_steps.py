@@ -151,7 +151,9 @@ class TestRunStep:
             import_object_mock.call_count == 2
         )  # once before and once after installation
         subprocess.check_call.assert_called_once_with(
-            [uv.find_uv_bin(), "pip", "install", "test-package>=1.0.0"]
+            [uv.find_uv_bin(), "pip", "install", "test-package>=1.0.0"],
+            stdout=sys.stdout,
+            stderr=sys.stderr,
         )
 
     @pytest.mark.parametrize(
@@ -186,7 +188,9 @@ class TestRunStep:
             import_object_mock.call_count == 2
         )  # once before and once after installation
         subprocess.check_call.assert_called_once_with(
-            [uv.find_uv_bin(), "pip", "install", expected]
+            [uv.find_uv_bin(), "pip", "install", expected],
+            stdout=sys.stdout,
+            stderr=sys.stderr,
         )
 
     async def test_install_multiple_requirements(self, monkeypatch):
@@ -216,7 +220,9 @@ class TestRunStep:
 
         import_module_mock.assert_has_calls([call("test_package"), call("another")])
         subprocess.check_call.assert_called_once_with(
-            [uv.find_uv_bin(), "pip", "install", "test-package>=1.0.0", "another"]
+            [uv.find_uv_bin(), "pip", "install", "test-package>=1.0.0", "another"],
+            stdout=sys.stdout,
+            stderr=sys.stderr,
         )
 
     async def test_requirement_installation_failure(self, monkeypatch, caplog):
@@ -970,7 +976,7 @@ class TestPipInstallRequirements:
         )
 
         open_process_mock.assert_called_once_with(
-            [uv.find_uv_bin(), "pip", "install", "-r", "dev-requirements.txt"],
+            [sys.executable, "-m", "pip", "install", "-r", "dev-requirements.txt"],
             cwd=None,
             stderr=ANY,
             stdout=ANY,
@@ -1024,7 +1030,7 @@ class TestPipInstallRequirements:
         assert output == step_outputs
 
         open_process_mock.assert_called_once_with(
-            [uv.find_uv_bin(), "pip", "install", "-r", "requirements.txt"],
+            [sys.executable, "-m", "pip", "install", "-r", "requirements.txt"],
             cwd="hello-projects",
             stderr=ANY,
             stdout=ANY,

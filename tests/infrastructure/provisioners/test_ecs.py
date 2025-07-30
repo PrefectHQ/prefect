@@ -1,13 +1,11 @@
 import json
-import shlex
-import sys
 from textwrap import dedent
 from unittest.mock import ANY, MagicMock, call, patch
 
 import boto3
 import pytest
-from moto import mock_aws
 import uv
+from moto import mock_aws
 
 from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas.actions import BlockDocumentCreate
@@ -71,7 +69,7 @@ def existing_iam_policy():
 
 @pytest.fixture
 def mock_run_process():
-    with patch("prefect.infrastructure.provisioners.ecs.run_process") as mock:
+    with patch("prefect.utilities.processutils.run_process") as mock:
         yield mock
 
 
@@ -794,7 +792,7 @@ class TestElasticContainerServicePushProvisioner:
         with patch("prefect.infrastructure.provisioners.ecs.importlib") as mock:
             yield mock
 
-    async def test__prompt_boto3_installation(
+    async def test_prompt_boto3_installation(
         self, provisioner, mock_confirm, mock_run_process
     ):
         await provisioner._prompt_boto3_installation()

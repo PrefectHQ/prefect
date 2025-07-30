@@ -6,8 +6,6 @@ import contextvars
 import importlib
 import ipaddress
 import json
-import shlex
-import sys
 from copy import deepcopy
 from functools import partial
 from textwrap import dedent

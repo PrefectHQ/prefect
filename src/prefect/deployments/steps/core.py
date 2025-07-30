@@ -92,7 +92,7 @@ def _get_function_for_step(
             for package in packages
             if package
         ]
-        install_packages(packages)
+        install_packages(packages, stream_output=True)
 
     except subprocess.CalledProcessError:
         get_logger("deployments.steps.core").warning(

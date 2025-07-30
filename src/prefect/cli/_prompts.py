@@ -27,7 +27,7 @@ from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich.prompt import Confirm, InvalidResponse, Prompt, PromptBase
 from rich.table import Table
 
-from prefect._internal.installation import ainstall_packages, install_packages
+from prefect._internal.installation import ainstall_packages
 from prefect.cli._utilities import exit_with_error
 from prefect.client.collections import get_collections_metadata_client
 from prefect.client.schemas.actions import (
@@ -49,7 +49,6 @@ from prefect.utilities import urls
 from prefect.utilities._ast import find_flow_functions_in_file
 from prefect.utilities._git import get_git_remote_origin_url
 from prefect.utilities.filesystem import filter_files
-from prefect.utilities.processutils import get_sys_executable, run_process
 from prefect.utilities.slugify import slugify
 
 if TYPE_CHECKING:
