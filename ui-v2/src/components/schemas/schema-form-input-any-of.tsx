@@ -96,9 +96,7 @@ export function SchemaFormInputAnyOf({
 				<SchemaFormProperty
 					value={value}
 					property={property.anyOf[selectedIndex]}
-					onValueChange={(value: unknown) =>
-						onValueChange(value)
-					}
+					onValueChange={(value: unknown) => onValueChange(value)}
 					errors={errors}
 					showLabel={false}
 					nested={false}
