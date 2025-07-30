@@ -745,13 +745,13 @@ class TestPullFromRemoteStorage:
         return remote_storage_mock
 
     @pytest.fixture
-    def mock_ainstall_packages(self, monkeypatch):
-        mock_ainstall_packages = MagicMock()
+    def mock_install_packages(self, monkeypatch):
+        mock_install_packages = MagicMock()
         monkeypatch.setattr(
-            "prefect.deployments.steps.core.ainstall_packages",
-            mock_ainstall_packages,
+            "prefect.deployments.steps.core.install_packages",
+            mock_install_packages,
         )
-        return mock_ainstall_packages
+        return mock_install_packages
 
     @pytest.fixture
     def import_module_mock(self, monkeypatch):
@@ -763,7 +763,7 @@ class TestPullFromRemoteStorage:
         return import_module_mock
 
     async def test_pull_from_remote_storage(
-        self, remote_storage_mock, mock_ainstall_packages, import_module_mock
+        self, remote_storage_mock, mock_install_packages, import_module_mock
     ):
         output = await run_step(
             {
@@ -777,7 +777,7 @@ class TestPullFromRemoteStorage:
         )
         assert output["directory"] == "bucket/folder"
         import_module_mock.assert_called_once_with("s3fs")
-        mock_ainstall_packages.assert_called_once_with(["s3fs<3.0"], stream_output=True)
+        mock_install_packages.assert_called_once_with(["s3fs<3.0"], stream_output=True)
         remote_storage_mock.assert_called_once_with(
             "s3://bucket/folder",
             key="my-access-key-id",
