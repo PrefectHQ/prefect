@@ -1,3 +1,4 @@
+import importlib
 import subprocess
 import sys
 
@@ -20,7 +21,7 @@ def install_packages(
         stdout = subprocess.DEVNULL
         stderr = subprocess.DEVNULL
     try:
-        import uv
+        uv = importlib.import_module("uv")
 
         command = [uv.find_uv_bin(), *base_command]
         subprocess.check_call(
@@ -47,7 +48,7 @@ async def ainstall_packages(
     if upgrade:
         base_command.append("--upgrade")
     try:
-        import uv
+        uv = importlib.import_module("uv")
 
         await prefect.utilities.processutils.run_process(
             [uv.find_uv_bin(), *base_command], stream_output=stream_output

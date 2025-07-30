@@ -801,7 +801,7 @@ class TestElasticContainerServicePushProvisioner:
         self, provisioner, mock_confirm, mock_run_process, mock_ainstall_packages
     ):
         await provisioner._prompt_boto3_installation()
-        mock_ainstall_packages.assert_called_once_with(["boto3"], stream_output=True)
+        mock_ainstall_packages.assert_called_once_with(["boto3"])
 
     def test_is_boto3_installed(self, provisioner, mock_importlib):
         assert provisioner.is_boto3_installed()
@@ -853,11 +853,7 @@ class TestElasticContainerServicePushProvisioner:
                 console=ANY,
             ),
         ]
-        mock_ainstall_packages.assert_has_calls(
-            [
-                call(["boto3"], stream_output=True),
-            ]
-        )
+        mock_ainstall_packages.assert_called_once_with(["boto3"])
         assert mock_run_process.mock_calls == [
             call(
                 "docker login -u AWS -p 123456789012-auth-token"
