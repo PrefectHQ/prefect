@@ -1,8 +1,6 @@
 import subprocess
 import sys
-from unittest.mock import AsyncMock, Mock, patch
-
-import pytest
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 from prefect._internal.installation import ainstall_packages, install_packages
 
@@ -11,7 +9,7 @@ class TestInstallPackages:
     @patch("prefect._internal.installation.importlib.import_module")
     @patch("subprocess.check_call")
     def test_install_packages_with_uv_available(
-        self, mock_check_call, mock_import_module
+        self, mock_check_call: MagicMock, mock_import_module: MagicMock
     ):
         packages = ["pytest", "requests"]
         mock_uv = Mock()
@@ -33,7 +31,7 @@ class TestInstallPackages:
     )
     @patch("subprocess.check_call")
     def test_install_packages_with_uv_unavailable_import_error(
-        self, mock_check_call, mock_import_module
+        self, mock_check_call: MagicMock, mock_import_module: MagicMock
     ):
         packages = ["pytest", "requests"]
 
@@ -52,7 +50,7 @@ class TestInstallPackages:
     )
     @patch("subprocess.check_call")
     def test_install_packages_with_uv_unavailable_module_not_found_error(
-        self, mock_check_call, mock_import_module
+        self, mock_check_call: MagicMock, mock_import_module: MagicMock
     ):
         packages = ["pytest", "requests"]
 
@@ -68,7 +66,7 @@ class TestInstallPackages:
     @patch("prefect._internal.installation.importlib.import_module")
     @patch("subprocess.check_call")
     def test_install_packages_with_uv_file_not_found_error(
-        self, mock_check_call, mock_import_module
+        self, mock_check_call: MagicMock, mock_import_module: MagicMock
     ):
         packages = ["pytest", "requests"]
         mock_uv = Mock()
@@ -87,7 +85,7 @@ class TestInstallPackages:
     @patch("prefect._internal.installation.importlib.import_module")
     @patch("subprocess.check_call")
     def test_install_packages_with_upgrade_flag(
-        self, mock_check_call, mock_import_module
+        self, mock_check_call: MagicMock, mock_import_module: MagicMock
     ):
         packages = ["pytest", "requests"]
         mock_uv = Mock()
@@ -106,7 +104,7 @@ class TestInstallPackages:
     @patch("prefect._internal.installation.importlib.import_module")
     @patch("subprocess.check_call")
     def test_install_packages_with_stream_output(
-        self, mock_check_call, mock_import_module
+        self, mock_check_call: MagicMock, mock_import_module: MagicMock
     ):
         packages = ["pytest", "requests"]
         mock_uv = Mock()
@@ -125,7 +123,7 @@ class TestInstallPackages:
     @patch("prefect._internal.installation.importlib.import_module")
     @patch("subprocess.check_call")
     def test_install_packages_with_upgrade_and_stream_output(
-        self, mock_check_call, mock_import_module
+        self, mock_check_call: MagicMock, mock_import_module: MagicMock
     ):
         packages = ["pytest", "requests"]
         mock_uv = Mock()
@@ -147,7 +145,7 @@ class TestInstallPackages:
     )
     @patch("subprocess.check_call")
     def test_install_packages_fallback_with_upgrade_and_stream_output(
-        self, mock_check_call, mock_import_module
+        self, mock_check_call: MagicMock, mock_import_module: MagicMock
     ):
         packages = ["pytest", "requests"]
 
@@ -162,11 +160,10 @@ class TestInstallPackages:
 
 
 class TestAinstallPackages:
-    @pytest.mark.asyncio
     @patch("prefect._internal.installation.importlib.import_module")
     @patch("prefect.utilities.processutils.run_process", new_callable=AsyncMock)
     async def test_ainstall_packages_with_uv_available(
-        self, mock_run_process, mock_import_module
+        self, mock_run_process: AsyncMock, mock_import_module: MagicMock
     ):
         packages = ["pytest", "requests"]
         mock_uv = Mock()
@@ -181,14 +178,13 @@ class TestAinstallPackages:
             stream_output=False,
         )
 
-    @pytest.mark.asyncio
     @patch(
         "prefect._internal.installation.importlib.import_module",
         side_effect=ImportError("No module named 'uv'"),
     )
     @patch("prefect.utilities.processutils.run_process", new_callable=AsyncMock)
     async def test_ainstall_packages_with_uv_unavailable_import_error(
-        self, mock_run_process, mock_import_module
+        self, mock_run_process: AsyncMock, mock_import_module: MagicMock
     ):
         packages = ["pytest", "requests"]
 
@@ -200,14 +196,13 @@ class TestAinstallPackages:
             stream_output=False,
         )
 
-    @pytest.mark.asyncio
     @patch(
         "prefect._internal.installation.importlib.import_module",
         side_effect=ModuleNotFoundError("No module named 'uv'"),
     )
     @patch("prefect.utilities.processutils.run_process", new_callable=AsyncMock)
     async def test_ainstall_packages_with_uv_unavailable_module_not_found_error(
-        self, mock_run_process, mock_import_module
+        self, mock_run_process: AsyncMock, mock_import_module: MagicMock
     ):
         packages = ["pytest", "requests"]
 
@@ -219,11 +214,10 @@ class TestAinstallPackages:
             stream_output=False,
         )
 
-    @pytest.mark.asyncio
     @patch("prefect._internal.installation.importlib.import_module")
     @patch("prefect.utilities.processutils.run_process", new_callable=AsyncMock)
     async def test_ainstall_packages_with_uv_file_not_found_error(
-        self, mock_run_process, mock_import_module
+        self, mock_run_process: AsyncMock, mock_import_module: MagicMock
     ):
         packages = ["pytest", "requests"]
         mock_uv = Mock()
@@ -238,11 +232,10 @@ class TestAinstallPackages:
             stream_output=False,
         )
 
-    @pytest.mark.asyncio
     @patch("prefect._internal.installation.importlib.import_module")
     @patch("prefect.utilities.processutils.run_process", new_callable=AsyncMock)
     async def test_ainstall_packages_with_upgrade_flag(
-        self, mock_run_process, mock_import_module
+        self, mock_run_process: AsyncMock, mock_import_module: MagicMock
     ):
         packages = ["pytest", "requests"]
         mock_uv = Mock()
@@ -257,11 +250,10 @@ class TestAinstallPackages:
             stream_output=False,
         )
 
-    @pytest.mark.asyncio
     @patch("prefect._internal.installation.importlib.import_module")
     @patch("prefect.utilities.processutils.run_process", new_callable=AsyncMock)
     async def test_ainstall_packages_with_stream_output(
-        self, mock_run_process, mock_import_module
+        self, mock_run_process: AsyncMock, mock_import_module: MagicMock
     ):
         packages = ["pytest", "requests"]
         mock_uv = Mock()
@@ -276,11 +268,10 @@ class TestAinstallPackages:
             stream_output=True,
         )
 
-    @pytest.mark.asyncio
     @patch("prefect._internal.installation.importlib.import_module")
     @patch("prefect.utilities.processutils.run_process", new_callable=AsyncMock)
     async def test_ainstall_packages_with_upgrade_and_stream_output(
-        self, mock_run_process, mock_import_module
+        self, mock_run_process: AsyncMock, mock_import_module: MagicMock
     ):
         packages = ["pytest", "requests"]
         mock_uv = Mock()
@@ -295,14 +286,13 @@ class TestAinstallPackages:
             stream_output=True,
         )
 
-    @pytest.mark.asyncio
     @patch(
         "prefect._internal.installation.importlib.import_module",
         side_effect=ImportError("No module named 'uv'"),
     )
     @patch("prefect.utilities.processutils.run_process", new_callable=AsyncMock)
     async def test_ainstall_packages_fallback_with_upgrade_and_stream_output(
-        self, mock_run_process, mock_import_module
+        self, mock_run_process: AsyncMock, mock_import_module: MagicMock
     ):
         packages = ["pytest", "requests"]
 
