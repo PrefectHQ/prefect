@@ -4,7 +4,6 @@ from unittest.mock import ANY, MagicMock, call, patch
 
 import boto3
 import pytest
-import uv
 from moto import mock_aws
 
 from prefect.client.orchestration import PrefectClient
@@ -69,7 +68,13 @@ def existing_iam_policy():
 
 @pytest.fixture
 def mock_run_process():
-    with patch("prefect.utilities.processutils.run_process") as mock:
+    with patch("prefect.infrastructure.provisioners.ecs.run_process") as mock:
+        yield mock
+
+
+@pytest.fixture
+def mock_ainstall_packages():
+    with patch("prefect.infrastructure.provisioners.ecs.ainstall_packages") as mock:
         yield mock
 
 
@@ -793,12 +798,10 @@ class TestElasticContainerServicePushProvisioner:
             yield mock
 
     async def test_prompt_boto3_installation(
-        self, provisioner, mock_confirm, mock_run_process
+        self, provisioner, mock_confirm, mock_run_process, mock_ainstall_packages
     ):
         await provisioner._prompt_boto3_installation()
-        mock_run_process.assert_called_once_with(
-            [uv.find_uv_bin(), "pip", "install", "boto3"]
-        )
+        mock_ainstall_packages.assert_called_once_with(["boto3"], stream_output=True)
 
     def test_is_boto3_installed(self, provisioner, mock_importlib):
         assert provisioner.is_boto3_installed()
@@ -811,6 +814,7 @@ class TestElasticContainerServicePushProvisioner:
         mock_confirm,
         mock_run_process: MagicMock,
         mock_importlib,
+        mock_ainstall_packages,
     ):
         mock_confirm.ask.side_effect = [
             True,
@@ -849,8 +853,12 @@ class TestElasticContainerServicePushProvisioner:
                 console=ANY,
             ),
         ]
+        mock_ainstall_packages.assert_has_calls(
+            [
+                call(["boto3"], stream_output=True),
+            ]
+        )
         assert mock_run_process.mock_calls == [
-            call([uv.find_uv_bin(), "pip", "install", "boto3"]),
             call(
                 "docker login -u AWS -p 123456789012-auth-token"
                 " https://123456789012.dkr.ecr.us-east-1.amazonaws.com"

@@ -745,13 +745,13 @@ class TestPullFromRemoteStorage:
         return remote_storage_mock
 
     @pytest.fixture
-    def subprocess_mock(self, monkeypatch):
-        subprocess_mock = MagicMock()
+    def mock_ainstall_packages(self, monkeypatch):
+        mock_ainstall_packages = MagicMock()
         monkeypatch.setattr(
-            "prefect.deployments.steps.core.subprocess",
-            subprocess_mock,
+            "prefect.deployments.steps.core.ainstall_packages",
+            mock_ainstall_packages,
         )
-        return subprocess_mock
+        return mock_ainstall_packages
 
     @pytest.fixture
     def import_module_mock(self, monkeypatch):
@@ -763,7 +763,7 @@ class TestPullFromRemoteStorage:
         return import_module_mock
 
     async def test_pull_from_remote_storage(
-        self, remote_storage_mock, subprocess_mock, import_module_mock
+        self, remote_storage_mock, mock_ainstall_packages, import_module_mock
     ):
         output = await run_step(
             {
@@ -777,9 +777,7 @@ class TestPullFromRemoteStorage:
         )
         assert output["directory"] == "bucket/folder"
         import_module_mock.assert_called_once_with("s3fs")
-        subprocess_mock.check_call.assert_called_once_with(
-            [uv.find_uv_bin(), "pip", "install", "s3fs<3.0"]
-        )
+        mock_ainstall_packages.assert_called_once_with(["s3fs<3.0"], stream_output=True)
         remote_storage_mock.assert_called_once_with(
             "s3://bucket/folder",
             key="my-access-key-id",
@@ -946,7 +944,7 @@ class TestPipInstallRequirements:
         )
 
         open_process_mock.assert_called_once_with(
-            [uv.find_uv_bin(), "pip", "install", "-r", "requirements.txt"],
+            [sys.executable, "-m", "pip", "install", "-r", "requirements.txt"],
             cwd=None,
             stderr=ANY,
             stdout=ANY,
