@@ -608,7 +608,7 @@ def generate_default_dockerfile(context: Optional[Path] = None):
     if (context / "requirements.txt").exists():
         lines.append(f"COPY requirements.txt /opt/prefect/{dir_name}/requirements.txt")
         lines.append(
-            f"RUN python -m pip install -r /opt/prefect/{dir_name}/requirements.txt"
+            f"RUN uv pip install -r /opt/prefect/{dir_name}/requirements.txt"
         )
 
     lines.append(f"COPY . /opt/prefect/{dir_name}/")

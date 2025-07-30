@@ -11,10 +11,11 @@ Whenever a step is run, the following actions are taken:
 - The step's output is returned and used to resolve inputs for subsequent steps
 """
 
+from __future__ import annotations
+
 import os
 import re
 import subprocess
-import sys
 import warnings
 from copy import deepcopy
 from importlib import import_module
@@ -22,6 +23,7 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 
 from prefect._internal.compatibility.deprecated import PrefectDeprecationWarning
 from prefect._internal.concurrency.api import Call, from_async
+from prefect._internal.installation import install_packages
 from prefect._internal.integrations import KNOWN_EXTRAS_FOR_PACKAGES
 from prefect.logging.loggers import get_logger
 from prefect.settings import PREFECT_DEBUG_MODE
@@ -90,7 +92,8 @@ def _get_function_for_step(
             for package in packages
             if package
         ]
-        subprocess.check_call([sys.executable, "-m", "pip", "install", *packages])
+        install_packages(packages)
+
     except subprocess.CalledProcessError:
         get_logger("deployments.steps.core").warning(
             "Unable to install required packages for %s", fully_qualified_name

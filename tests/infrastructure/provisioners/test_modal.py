@@ -4,6 +4,7 @@ from unittest.mock import AsyncMock, MagicMock, call, patch
 from uuid import UUID
 
 import pytest
+import uv
 
 from prefect.blocks.core import Block
 from prefect.client.orchestration import PrefectClient
@@ -110,7 +111,7 @@ async def test_provision(
     mock_run_process.assert_has_calls(
         [
             # install modal
-            call([shlex.quote(sys.executable), "-m", "pip", "install", "modal"]),
+            call([uv.find_uv_bin(), "pip", "install", "modal"]),
             # create new token
             call([shlex.quote(sys.executable), "-m", "modal", "token", "new"]),
         ]

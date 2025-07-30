@@ -7,6 +7,7 @@ from unittest.mock import ANY, MagicMock, call, patch
 import boto3
 import pytest
 from moto import mock_aws
+import uv
 
 from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas.actions import BlockDocumentCreate
@@ -798,7 +799,7 @@ class TestElasticContainerServicePushProvisioner:
     ):
         await provisioner._prompt_boto3_installation()
         mock_run_process.assert_called_once_with(
-            [shlex.quote(sys.executable), "-m", "pip", "install", "boto3"]
+            [uv.find_uv_bin(), "pip", "install", "boto3"]
         )
 
     def test_is_boto3_installed(self, provisioner, mock_importlib):
@@ -851,7 +852,7 @@ class TestElasticContainerServicePushProvisioner:
             ),
         ]
         assert mock_run_process.mock_calls == [
-            call([shlex.quote(sys.executable), "-m", "pip", "install", "boto3"]),
+            call([uv.find_uv_bin(), "pip", "install", "boto3"]),
             call(
                 "docker login -u AWS -p 123456789012-auth-token"
                 " https://123456789012.dkr.ecr.us-east-1.amazonaws.com"

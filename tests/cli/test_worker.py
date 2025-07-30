@@ -11,6 +11,7 @@ import pytest
 import readchar
 import respx
 from typer import Exit
+import uv
 
 import prefect
 from prefect.client.orchestration import PrefectClient
@@ -590,7 +591,7 @@ class TestInstallPolicyOption:
         )
 
         run_process_mock.assert_called_once_with(
-            [sys.executable, "-m", "pip", "install", "prefect[kubernetes]"],
+            [uv.find_uv_bin(), "pip", "install", "prefect[kubernetes]"],
             stream_output=True,
         )
 
@@ -624,7 +625,7 @@ class TestInstallPolicyOption:
         )
 
         run_process_mock.assert_called_once_with(
-            [sys.executable, "-m", "pip", "install", "prefect[kubernetes]"],
+            [uv.find_uv_bin(), "pip", "install", "prefect[kubernetes]"],
             stream_output=True,
         )
 
@@ -689,7 +690,7 @@ class TestInstallPolicyOption:
         )
 
         run_process_mock.assert_called_once_with(
-            [sys.executable, "-m", "pip", "install", "prefect[kubernetes]"],
+            [uv.find_uv_bin(), "pip", "install", "prefect[kubernetes]"],
             stream_output=True,
         )
 
@@ -720,14 +721,7 @@ class TestInstallPolicyOption:
         )
 
         run_process_mock.assert_called_once_with(
-            [
-                sys.executable,
-                "-m",
-                "pip",
-                "install",
-                "prefect[kubernetes]",
-                "--upgrade",
-            ],
+            [uv.find_uv_bin(), "pip", "install", "prefect[kubernetes]", "--upgrade"],
             stream_output=True,
         )
 
