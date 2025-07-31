@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import logging
 import re
 import shlex
 import time
@@ -33,8 +32,6 @@ from prefect_gcp.utilities import slugify_name
 if TYPE_CHECKING:
     from prefect.client.schemas.objects import Flow, FlowRun, WorkPool
     from prefect.client.schemas.responses import DeploymentResponse
-
-logger = logging.getLogger(__name__)
 
 
 def _get_default_job_body_template() -> Dict[str, Any]:
