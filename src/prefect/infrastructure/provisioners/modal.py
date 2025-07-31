@@ -10,6 +10,7 @@ from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich.prompt import Confirm
 
+from prefect._internal.installation import ainstall_packages
 from prefect.client.schemas.actions import BlockDocumentCreate
 from prefect.client.schemas.objects import BlockDocument
 from prefect.client.utilities import inject_client
@@ -66,9 +67,7 @@ class ModalPushProvisioner:
             task = progress.add_task("modal install")
             progress.start()
             global modal
-            await run_process(
-                [shlex.quote(sys.executable), "-m", "pip", "install", "modal"]
-            )
+            await ainstall_packages(["modal"])
             modal = importlib.import_module("modal")
             progress.advance(task)
 

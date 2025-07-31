@@ -1,6 +1,4 @@
 import importlib
-import shlex
-import sys
 from copy import deepcopy
 from types import ModuleType
 from typing import TYPE_CHECKING, Any, Dict, Optional
@@ -10,6 +8,7 @@ from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich.prompt import Confirm
 
+from prefect._internal.installation import ainstall_packages
 from prefect.client.schemas.actions import BlockDocumentCreate
 from prefect.client.schemas.objects import BlockDocument
 from prefect.client.utilities import inject_client
@@ -66,9 +65,7 @@ class CoiledPushProvisioner:
             task = progress.add_task("coiled install")
             progress.start()
             global coiled
-            await run_process(
-                [shlex.quote(sys.executable), "-m", "pip", "install", "coiled"]
-            )
+            await ainstall_packages(["coiled"])
             coiled = importlib.import_module("coiled")
             progress.advance(task)
 

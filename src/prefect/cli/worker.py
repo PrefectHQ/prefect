@@ -6,6 +6,7 @@ from typing import List, Optional, Type
 
 import typer
 
+from prefect._internal.installation import ainstall_packages
 from prefect._internal.integrations import KNOWN_EXTRAS_FOR_PACKAGES
 from prefect.cli._prompts import confirm
 from prefect.cli._types import PrefectTyper, SettingsOption
@@ -22,8 +23,6 @@ from prefect.settings import (
 )
 from prefect.utilities.dispatch import lookup_type
 from prefect.utilities.processutils import (
-    get_sys_executable,
-    run_process,
     setup_signal_handlers_worker,
 )
 from prefect.workers.base import BaseWorker
@@ -255,10 +254,7 @@ async def _install_package(
 ) -> Optional[Type[BaseWorker]]:
     app.console.print(f"Installing {package}...")
     install_package = KNOWN_EXTRAS_FOR_PACKAGES.get(package, package)
-    command = [get_sys_executable(), "-m", "pip", "install", install_package]
-    if upgrade:
-        command.append("--upgrade")
-    await run_process(command, stream_output=True)
+    await ainstall_packages([install_package], stream_output=True, upgrade=upgrade)
 
 
 async def _find_package_for_worker_type(worker_type: str) -> Optional[str]:
