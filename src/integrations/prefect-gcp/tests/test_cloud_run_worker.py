@@ -270,7 +270,7 @@ class TestCloudRunWorkerJobConfiguration:
         assert len(caplog.records) == 0
 
     def test_populate_envs_logs_warning_when_plaintext_without_secret(
-        self, cloud_run_worker_job_config, caplog
+        self, cloud_run_worker_job_config, caplog, flow_run
     ):
         """Test that warnings are logged when plaintext credentials are provided without secrets"""
         # Set up environment with plaintext credentials but no secrets
@@ -283,24 +283,24 @@ class TestCloudRunWorkerJobConfiguration:
         cloud_run_worker_job_config.prefect_api_key_secret = None
         cloud_run_worker_job_config.prefect_api_auth_string_secret = None
 
-        with caplog.at_level("WARNING"):
-            cloud_run_worker_job_config._populate_envs()
+        cloud_run_worker_job_config.prepare_for_flow_run(
+            flow_run=flow_run,
+        )
 
-        # Check that warnings were logged for plaintext credentials without secrets
-        assert len(caplog.records) == 2
         assert (
-            "PREFECT_API_KEY environment variable is provided in plaintext without a secret configured"
+            "PREFECT_API_KEY is provided as a plaintext environment variable"
             in caplog.text
         )
         assert (
-            "PREFECT_API_AUTH_STRING environment variable is provided in plaintext without a secret configured"
+            "PREFECT_API_AUTH_STRING is provided as a plaintext environment variable"
             in caplog.text
         )
         assert (
-            "Consider using prefect_api_key_secret for better security" in caplog.text
+            "consider providing it as a secret using 'prefect_api_key_secret' in your base job template"
+            in caplog.text
         )
         assert (
-            "Consider using prefect_api_auth_string_secret for better security"
+            "consider providing it as a secret using 'prefect_api_auth_string_secret' in your base job template"
             in caplog.text
         )
 

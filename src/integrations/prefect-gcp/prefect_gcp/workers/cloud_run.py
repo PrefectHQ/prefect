@@ -154,7 +154,6 @@ Read more about configuring work pools
     ```
 """
 
-import logging
 import re
 import shlex
 import time
@@ -170,7 +169,7 @@ from googleapiclient.discovery import Resource
 from jsonpatch import JsonPatch
 from pydantic import Field, field_validator
 
-from prefect.logging.loggers import PrefectLogAdapter
+from prefect.logging.loggers import PrefectLogAdapter, flow_run_logger
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.dockerutils import get_prefect_image_name
 from prefect.workers.base import (
@@ -337,6 +336,23 @@ class CloudRunWorkerJobConfiguration(BaseJobConfiguration):
         """property for accessing the name from the job metadata."""
         return self.job_body["metadata"]["name"]
 
+    def _get_flow_run_logger(
+        self,
+        flow_run: "FlowRun",
+        work_pool: "WorkPool | None" = None,
+        worker_name: str | None = None,
+    ) -> PrefectLogAdapter:
+        extra = {
+            "work_pool_name": (work_pool.name if work_pool else "<unknown>"),
+            "worker_name": worker_name if worker_name else "<unknown>",
+            "work_pool_id": str(work_pool.id if work_pool else "unknown"),
+        }
+
+        return flow_run_logger(flow_run=flow_run).getChild(
+            "worker",
+            extra=extra,
+        )
+
     def prepare_for_flow_run(
         self,
         flow_run: "FlowRun",
@@ -360,6 +376,7 @@ class CloudRunWorkerJobConfiguration(BaseJobConfiguration):
         super().prepare_for_flow_run(flow_run, deployment, flow, work_pool, worker_name)
 
         self._populate_envs()
+        self._warn_about_plaintext_credentials(flow_run, worker_name, work_pool)
         self._populate_or_format_command()
         self._format_args_if_present()
         self._populate_image_if_not_present()
@@ -369,25 +386,9 @@ class CloudRunWorkerJobConfiguration(BaseJobConfiguration):
         """Populate environment variables. BaseWorker.prepare_for_flow_run handles
         putting the environment variables in the `env` attribute. This method
         moves them into the jobs body"""
-        logger = logging.getLogger(__name__)
 
         # Create a copy of the environment variables to avoid modifying the original
         env_copy = self.env.copy()
-
-        # Log warnings when plaintext credentials are provided without secrets
-        if not self.prefect_api_key_secret and "PREFECT_API_KEY" in env_copy:
-            logger.warning(
-                "PREFECT_API_KEY environment variable is provided in plaintext without a secret configured. "
-                "Consider using prefect_api_key_secret for better security."
-            )
-        if (
-            not self.prefect_api_auth_string_secret
-            and "PREFECT_API_AUTH_STRING" in env_copy
-        ):
-            logger.warning(
-                "PREFECT_API_AUTH_STRING environment variable is provided in plaintext without a secret configured. "
-                "Consider using prefect_api_auth_string_secret for better security."
-            )
 
         # Remove Prefect API credentials from environment if secrets are provided
         if self.prefect_api_key_secret:
@@ -428,6 +429,40 @@ class CloudRunWorkerJobConfiguration(BaseJobConfiguration):
         self.job_body["spec"]["template"]["spec"]["template"]["spec"]["containers"][0][
             "env"
         ] = envs
+
+    def _warn_about_plaintext_credentials(
+        self,
+        flow_run: "FlowRun",
+        worker_name: str | None = None,
+        work_pool: "WorkPool | None" = None,
+    ):
+        """
+        Warns about plaintext credentials when no secrets are configured.
+        """
+        if "PREFECT_API_KEY" in self.env and not self.prefect_api_key_secret:
+            self._get_flow_run_logger(
+                flow_run=flow_run,
+                worker_name=worker_name,
+                work_pool=work_pool,
+            ).warning(
+                "PREFECT_API_KEY is provided as a plaintext environment variable. "
+                "For better security, consider providing it as a secret using "
+                "'prefect_api_key_secret' in your base job template."
+            )
+
+        if (
+            "PREFECT_API_AUTH_STRING" in self.env
+            and not self.prefect_api_auth_string_secret
+        ):
+            self._get_flow_run_logger(
+                flow_run=flow_run,
+                worker_name=worker_name,
+                work_pool=work_pool,
+            ).warning(
+                "PREFECT_API_AUTH_STRING is provided as a plaintext environment variable. "
+                "For better security, consider providing it as a secret using "
+                "'prefect_api_auth_string_secret' in your base job template."
+            )
 
     def _populate_name_if_not_present(self):
         """Adds the flow run name to the job if one is not already provided."""
