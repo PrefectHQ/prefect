@@ -3,15 +3,17 @@
 from enum import Enum
 from functools import lru_cache
 from threading import Lock
-from typing import Any, Optional, Union
+from typing import TYPE_CHECKING, Any, Optional, Union
 
 import boto3
-from mypy_boto3_s3 import S3Client
-from mypy_boto3_secretsmanager import SecretsManagerClient
 from pydantic import ConfigDict, Field, SecretStr
 
 from prefect.blocks.abstract import CredentialsBlock
 from prefect_aws.client_parameters import AwsClientParameters
+
+if TYPE_CHECKING:
+    from mypy_boto3_s3 import S3Client
+    from mypy_boto3_secretsmanager import SecretsManagerClient
 
 _LOCK = Lock()
 
@@ -164,7 +166,7 @@ class AwsCredentials(CredentialsBlock):
 
         return _get_client_cached(ctx=self, client_type=client_type)
 
-    def get_s3_client(self) -> S3Client:
+    def get_s3_client(self) -> "S3Client":
         """
         Gets an authenticated S3 client.
 
@@ -173,7 +175,7 @@ class AwsCredentials(CredentialsBlock):
         """
         return self.get_client(client_type=ClientType.S3)
 
-    def get_secrets_manager_client(self) -> SecretsManagerClient:
+    def get_secrets_manager_client(self) -> "SecretsManagerClient":
         """
         Gets an authenticated Secrets Manager client.
 
@@ -287,7 +289,7 @@ class MinIOCredentials(CredentialsBlock):
 
         return _get_client_cached(ctx=self, client_type=client_type)
 
-    def get_s3_client(self) -> S3Client:
+    def get_s3_client(self) -> "S3Client":
         """
         Gets an authenticated S3 client.
 
