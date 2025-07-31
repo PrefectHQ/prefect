@@ -6,13 +6,18 @@ mode: wide
 ---
 
 
-Using the `prefect-cloud` CLI, you can deploy any Python script in a GitHub repository.
+Using the `prefect-cloud` CLI, you can deploy any Python script that's available in a GitHub repository and run it on a schedule in the cloud for free in a few simple steps.
 
-Once deployed, scripts can be run as Prefect flows in the cloud.
+<img src="https://www.prefect.io/_next/image?url=https%3A%2F%2Fcdn.sanity.io%2Fimages%2F3ugk85nk%2Fproduction%2Fd3aaaec6363dc57de4ca8124e68a861775c72788-5120x2880.png%3Ffit%3Dmax%26auto%3Dformat&w=3840&q=75"/>
+
 ### Prerequisites
 You'll need the following to get started with Prefect Cloud:
 - [A free Prefect Cloud account](https://app.prefect.cloud/auth/sign-in)
+- [A free GitHub account](https://github.com/signup)
 - [uv](https://docs.astral.sh/uv/getting-started/installation/) installed on your system
+
+Next, open a terminal and execute the commands in the following steps to deploy and run your script in Prefect Cloud.
+
 <Steps>
   <Step title="Log in to Prefect Cloud">
     ```bash
@@ -25,12 +30,68 @@ You'll need the following to get started with Prefect Cloud:
     ```
   </Step>
   <Step title="Deploy your workflow">
+    Select a function in your script as the **entrypoint** for your workflow, and provide the path to it from the root of your repository.
+    Your entrypoint should be the "main" function of your script — the function that's called first when you run your script locally.
+
     ```bash
-    uvx prefect-cloud deploy <path/to/file.py:function_name> \
+    uvx prefect-cloud deploy <path/to/script.py:entrypoint_function_name> \
         --from <github-account>/<repo-name> \
         --name <deployment_name>
     ```
-    See [add dependencies](#add-dependencies) for including additional Python packages or the contents of your `requirements.txt` file with your deployment.
+
+    `prefect-cloud deploy` has a few helpful options, like adding Python dependencies to your deployment and setting the default parameter values for your entrypoint function.
+
+    <AccordionGroup>
+      <Accordion title="Add dependencies">
+        Add individual Python dependencies by including their package name.
+        ```bash
+        uvx prefect-cloud deploy ... --with pandas --with numpy
+        ```
+        
+        Include dependencies from a requirements file by providing the path to the file from the root of your repository.
+        ```
+        uvx prefect-cloud deploy ... --with-requirements </path/to/requirements.txt>
+        ```
+      </Accordion>
+
+      <Accordion title="Set parameter defaults">
+        If your entrypoint function has parameters, you can assign the default values used by your deployment.
+        
+        ```python
+        def hello(name: str, company: str):
+            print(f"Hello {name}, welcome to {company}!")
+        ```
+
+        ```bash
+        uvx prefect-cloud deploy ... --parameter name=Kevin --parameter company=Prefect
+        ```
+        </Accordion>
+      <Accordion title="Include environment variables">
+        Include key-value pairs that will be available as environment variables when your deployment runs.
+        ```bash
+        uvx prefect-cloud deploy ... --env KEY=VALUE --env KEY2=VALUE2
+        ```
+      </Accordion>
+      <Accordion title="Include secrets">
+        Store secrets in Secret Prefect [blocks](/v3/concepts/blocks) that will be loaded as environment variables by name reference when your deployment runs.
+        Blocks are encrypted, helping avoid storing secret values as plaintext properties on your deployment.
+        ```bash
+        uvx prefect-cloud deploy ... --secret API_KEY=actual-secret-value --secret DB_PASSWORD=another-secret-value
+        ```
+
+        Reference existing Secret blocks by name.
+        ```bash
+        uvx prefect-cloud deploy ... --secret API_KEY="{existing-api-key-block}" --secret DB_PASSWORD="{my-database-password}"
+        ```
+      </Accordion>
+      <Accordion title="Select Python version">
+        Select the version of Python to run your script on.
+        Supported Python versions include `3.9`, `3.10`, `3.11`, and `3.12`.
+        ```bash
+        uvx prefect-cloud deploy ... --with-python 3.12
+        ```
+      </Accordion>
+    </AccordionGroup>
 
     If you don't have a script to deploy, you can use this example:
     ```bash
@@ -43,68 +104,92 @@ You'll need the following to get started with Prefect Cloud:
     ```bash
     uvx prefect-cloud run <flow_name>/<deployment_name>
     ````
+    <AccordionGroup>
+      <Accordion title="Override parameter defaults for a single run">
+        You can override the inputs to your entrypoint function for ad-hoc runs of your deployment.
+
+        ```python
+        def hello(name: str, company: str):
+            print(f"Hello {name}, welcome to {company}!")
+        ```
+      
+        ```bash
+        uvx prefect-cloud run ... --parameter name=Kevin --parameter company=Prefect
+        ```
+
+      </Accordion>
+      <Accordion title="Follow run output in your terminal">
+      Tail your run's state changes and log outputs directly in your terminal.
+
+      ```bash
+      uvx prefect-cloud run ... --follow
+      ```
+      </Accordion>
+    </AccordionGroup>
+
     If using the example script, run:
     ```bash
     uvx prefect-cloud run hello_world/github_quickstart
     ```
   </Step>
   <Step title="Schedule your deployment">
+    Prefect Cloud can run your deployment on a schedule if you provide a [cron expression](https://en.wikipedia.org/wiki/Cron) like `0 * * * *` for hourly runs or `0 0 * * *` for daily runs at midnight.
     ```bash
     uvx prefect-cloud schedule <flow_name>/<deployment_name> <SCHEDULE>
     ````
-    If using the example script, run:
+
+    <AccordionGroup>
+      <Accordion title="Set per-schedule parameter defaults">
+        Prefect deployments can have multiple schedules, each with their own default parameter values.
+
+        ```python
+        def check_restaurant_reservations(restaurant: str):
+            opentable_api_tables_checker(restaurant)
+        ```
+        ```bash
+        # Hawksmoor reservations update at 12pm
+        uvx prefect-cloud schedule ... "0 12 * * *" --parameter restaurant="Hawksmoor"
+        ```
+        ```bash
+        # Carbone reservations update at 4pm
+        uvx prefect-cloud schedule ... "0 16 * * *" --parameter restaurant="Carbone" 
+        ```
+      </Accordion>
+    </AccordionGroup>
+
+    If using the example script, run the following command to schedule your deployment to run hourly:
     ```bash
     uvx prefect-cloud schedule hello_world/github_quickstart "0 * * * *"
     ```
   </Step>
+  <Step title="View your runs in Prefect Cloud">
+    Visit the [Prefect Cloud dashboard](https://app.prefect.cloud/auth/sign-in) to see the status of your runs.
+  </Step>
 </Steps>
 
-## Additional Options
 
-### Add Dependencies
+
+## Cleanup
+
+To remove schedules from your deployment, run:
 ```bash
-# Add dependencies
-uvx prefect-cloud deploy ... --with pandas --with numpy
-
-# Or install from requirements file at runtime
-uvx prefect-cloud deploy ... --with-requirements </path/to/requirements.txt>
+uvx prefect-cloud unschedule <flow_name>/<deployment_name>
 ```
 
-### Override parameter defaults
-If your entrypoint function has parameters, you can assign or override the default values used by your deployment.
-```python
-def hello(name: str, company: str):
-    print(f"Hello {name}, welcome to {company}!")
-```
-
+To delete a deployment, run:
 ```bash
-uvx prefect-cloud deploy ... --parameter name=Kevin --parameter company=Prefect
-```
-
-### Include Environment Variables
-```bash
-uvx prefect-cloud deploy ... --env KEY=VALUE --env KEY2=VALUE2
-```
-
-### Include Secrets as Environment Variables
-```bash
-# Create or replace secrets with actual values
-uvx prefect-cloud deploy ... --secret API_KEY=actual-secret-value --secret DB_PASSWORD=another-secret-value
-
-# Reference existing secret blocks
-uvx prefect-cloud deploy ... --secret API_KEY="{existing-api-key-block}" --secret DB_PASSWORD="{my-database-password}"
-```
-
-### Select Python version
-```bash
-uvx refect-cloud deploy ... --with-python 3.12
+uvx prefect-cloud delete <flow_name>/<deployment_name>
 ```
 
 ## Next steps
 
-Now that you've created your first workflow, explore Prefect's features to enable more sophisticated workflows.
+Prefect offers much more than simple code deployment and scheduling.
+Install the `prefect` Python package in your development environment, and explore the following topics:
 
-- Learn more about [flows](/v3/concepts/flows) and [tasks](/v3/concepts/tasks).
-- Learn more about [deployments](/v3/concepts/deployments).
-- Learn more about [work pools](/v3/concepts/work-pools).
-- Learn how to [run work concurrently](/v3/how-to-guides/workflows/run-work-concurrently).
+- Divide your work into [observable units](/v3/how-to-guides/workflows/write-and-run) with flows and tasks.
+- Automatically rerun workflows on failure with [retries](/v3/how-to-guides/workflows/retries).
+- Checkpoint workflow progress and skip reruns of completed work with [caching](/v3/concepts/caching).
+- [Run work concurrently](/v3/how-to-guides/workflows/run-work-concurrently) using `.submit()` and `.map()`.
+- Build a data lineage graph by [materializing assets](/v3/how-to-guides/workflows/assets).
+- [Version your deployments](/v3/how-to-guides/deployments/versioning) and roll back to working versions when they fail.
+- Run flows on your own infrastructure in custom [work pools](/v3/concepts/work-pools).
