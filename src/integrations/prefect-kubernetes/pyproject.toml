@@ -91,7 +91,7 @@ env = ["PREFECT_TEST_MODE=1"]
 timeout = 30
 
 [tool.uv.sources]
-prefect = { path = "../../../", editable = true }
+prefect = { path = "../../../" }
 
 [tool.uv.workspace]
 members = ["integration_tests"]
