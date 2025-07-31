@@ -44,7 +44,22 @@ class EcsEventHandler(Protocol):
 
 
 class EventHandlerFilters(TypedDict):
-    tags: dict[str, str | FilterCase] | None
+    tags: TagsFilter
+
+
+class TagsFilter:
+    def __init__(self, **tags: str | FilterCase):
+        self.tags = tags
+
+    def is_match(self, tags: dict[str, str]) -> bool:
+        return not self.tags or all(
+            tag_value == FilterCase.PRESENT
+            and tag_name in tags
+            or tag_value == FilterCase.ABSENT
+            and tag_name not in tags
+            or tag_value == tags.get(tag_name)
+            for tag_name, tag_value in tags.items()
+        )
 
 
 HandlerWithFilters = NamedTuple(
@@ -176,20 +191,9 @@ class EcsObserver:
                     continue
 
                 event_type = _ECS_EVENT_DETAIL_MAP[detail_type]
-                for handler in self.event_handlers[event_type]:
-                    if (tag_filters := handler.filters.get("tags")) is None:
-                        handler.handler(body, tags)
-                        continue
-
-                    if all(
-                        tag_value == FilterCase.PRESENT
-                        and tag_name in tags
-                        or tag_value == FilterCase.ABSENT
-                        and tag_name not in tags
-                        or tag_value == tags.get(tag_name)
-                        for tag_name, tag_value in tag_filters.items()
-                    ):
-                        handler.handler(body, tags)
+                for handler, filters in self.event_handlers[event_type]:
+                    if filters["tags"].is_match(tags):
+                        handler(body, tags)
 
     def on_event(
         self,
@@ -199,7 +203,10 @@ class EcsObserver:
     ):
         def decorator(fn: EcsEventHandler):
             self.event_handlers[event_type].append(
-                HandlerWithFilters(handler=fn, filters={"tags": tags})
+                HandlerWithFilters(
+                    handler=fn,
+                    filters={"tags": TagsFilter(**(tags or {}))},
+                )
             )
             return fn
 
