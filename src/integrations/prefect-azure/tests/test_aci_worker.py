@@ -13,6 +13,7 @@ from azure.mgmt.resource import ResourceManagementClient
 from prefect_azure import AzureContainerInstanceCredentials
 from prefect_azure.container_instance import ACRManagedIdentity
 from prefect_azure.workers.container_instance import (
+    ENV_SECRETS,
     AzureContainerJobConfiguration,
     AzureContainerVariables,  # noqa
     AzureContainerWorker,
@@ -1131,3 +1132,86 @@ async def test_consistent_container_group_naming(
     assert len(container_group_name) <= max_length, (
         f"Length: {len(container_group_name)}, Max: {max_length}"
     )
+
+
+def test_env_secrets_contains_auth_string():
+    """Test that ENV_SECRETS contains PREFECT_API_AUTH_STRING"""
+    assert "PREFECT_API_KEY" in ENV_SECRETS
+    assert "PREFECT_API_AUTH_STRING" in ENV_SECRETS
+
+
+def test_secure_auth_string_environment_variable(
+    raw_job_configuration, worker_flow_run, monkeypatch
+):
+    """Test that PREFECT_API_AUTH_STRING is handled as a secure variable"""
+    config = raw_job_configuration
+    # setup environment containing an API auth string we want to keep secret
+    base_env: Dict[str, str] = get_current_settings().to_environment_variables(
+        exclude_unset=True
+    )
+    base_env["PREFECT_API_AUTH_STRING"] = "my-auth-string"
+
+    config.env = base_env
+    config.prepare_for_flow_run(worker_flow_run)
+
+    container_group = config.arm_template["resources"][0]
+    container = container_group["properties"]["containers"][0]
+
+    # get the container's environment variables
+    container_env = container["properties"]["environmentVariables"]
+
+    auth_string_aci_env_variable: List[Dict] = list(
+        filter(lambda v: v["name"] == "PREFECT_API_AUTH_STRING", container_env)
+    )
+
+    # ensure the env variable made it into the list of env variables set in the
+    # ACI container
+    assert len(auth_string_aci_env_variable) == 1
+    auth_string_entry = auth_string_aci_env_variable[0]
+
+    expected = {
+        "name": "PREFECT_API_AUTH_STRING",
+        "secureValue": "my-auth-string",
+    }
+
+    assert auth_string_entry == expected
+
+
+def test_both_secrets_handled_as_secure_values(
+    raw_job_configuration, worker_flow_run, monkeypatch
+):
+    """Test that both PREFECT_API_KEY and PREFECT_API_AUTH_STRING are handled as secure values"""
+    config = raw_job_configuration
+    # setup environment containing both secrets
+    base_env: Dict[str, str] = get_current_settings().to_environment_variables(
+        exclude_unset=True
+    )
+    base_env["PREFECT_API_KEY"] = "my-api-key"
+    base_env["PREFECT_API_AUTH_STRING"] = "my-auth-string"
+
+    config.env = base_env
+    config.prepare_for_flow_run(worker_flow_run)
+
+    container_group = config.arm_template["resources"][0]
+    container = container_group["properties"]["containers"][0]
+
+    # get the container's environment variables
+    container_env = container["properties"]["environmentVariables"]
+
+    # Check PREFECT_API_KEY
+    api_key_vars = [v for v in container_env if v["name"] == "PREFECT_API_KEY"]
+    assert len(api_key_vars) == 1
+    assert api_key_vars[0] == {
+        "name": "PREFECT_API_KEY",
+        "secureValue": "my-api-key",
+    }
+
+    # Check PREFECT_API_AUTH_STRING
+    auth_string_vars = [
+        v for v in container_env if v["name"] == "PREFECT_API_AUTH_STRING"
+    ]
+    assert len(auth_string_vars) == 1
+    assert auth_string_vars[0] == {
+        "name": "PREFECT_API_AUTH_STRING",
+        "secureValue": "my-auth-string",
+    }
