@@ -24,7 +24,7 @@ classifiers = [
   "Topic :: Software Development :: Libraries",
 ]
 dependencies = [
-  "prefect>=3.4.7",
+  "prefect>=3.4.9",
   "dbt-core>=1.7.0",
   "prefect_shell>=0.3.0",
   "sgqlc>=16.0.0",
