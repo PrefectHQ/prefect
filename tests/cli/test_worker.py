@@ -10,6 +10,7 @@ import httpx
 import pytest
 import readchar
 import respx
+import uv
 from typer import Exit
 
 import prefect
@@ -568,7 +569,9 @@ class TestInstallPolicyOption:
         run_process_mock = AsyncMock()
         lookup_type_mock = MagicMock()
         lookup_type_mock.side_effect = [KeyError, MockKubernetesWorker]
-        monkeypatch.setattr("prefect.cli.worker.run_process", run_process_mock)
+        monkeypatch.setattr(
+            "prefect.utilities.processutils.run_process", run_process_mock
+        )
         monkeypatch.setattr("prefect.cli.worker.lookup_type", lookup_type_mock)
         await run_sync_in_worker_thread(
             invoke_and_assert,
@@ -590,7 +593,7 @@ class TestInstallPolicyOption:
         )
 
         run_process_mock.assert_called_once_with(
-            [sys.executable, "-m", "pip", "install", "prefect[kubernetes]"],
+            [uv.find_uv_bin(), "pip", "install", "prefect[kubernetes]"],
             stream_output=True,
         )
 
@@ -599,7 +602,9 @@ class TestInstallPolicyOption:
         run_process_mock = AsyncMock()
         lookup_type_mock = MagicMock()
         lookup_type_mock.side_effect = [KeyError, MockKubernetesWorker]
-        monkeypatch.setattr("prefect.cli.worker.run_process", run_process_mock)
+        monkeypatch.setattr(
+            "prefect.utilities.processutils.run_process", run_process_mock
+        )
         monkeypatch.setattr("prefect.cli.worker.lookup_type", lookup_type_mock)
         await run_sync_in_worker_thread(
             invoke_and_assert,
@@ -624,7 +629,7 @@ class TestInstallPolicyOption:
         )
 
         run_process_mock.assert_called_once_with(
-            [sys.executable, "-m", "pip", "install", "prefect[kubernetes]"],
+            [uv.find_uv_bin(), "pip", "install", "prefect[kubernetes]"],
             stream_output=True,
         )
 
@@ -633,7 +638,9 @@ class TestInstallPolicyOption:
         run_process_mock = AsyncMock()
         lookup_type_mock = MagicMock()
         lookup_type_mock.side_effect = [KeyError, MockKubernetesWorker]
-        monkeypatch.setattr("prefect.cli.worker.run_process", run_process_mock)
+        monkeypatch.setattr(
+            "prefect.utilities.processutils.run_process", run_process_mock
+        )
         monkeypatch.setattr("prefect.cli.worker.lookup_type", lookup_type_mock)
         kubernetes_work_pool = await prefect_client.create_work_pool(
             work_pool=WorkPoolCreate(name="test-k8s-work-pool", type="kubernetes")
@@ -667,7 +674,9 @@ class TestInstallPolicyOption:
         run_process_mock = AsyncMock()
         lookup_type_mock = MagicMock()
         lookup_type_mock.side_effect = [KeyError, MockKubernetesWorker]
-        monkeypatch.setattr("prefect.cli.worker.run_process", run_process_mock)
+        monkeypatch.setattr(
+            "prefect.utilities.processutils.run_process", run_process_mock
+        )
         monkeypatch.setattr("prefect.cli.worker.lookup_type", lookup_type_mock)
         await run_sync_in_worker_thread(
             invoke_and_assert,
@@ -689,7 +698,7 @@ class TestInstallPolicyOption:
         )
 
         run_process_mock.assert_called_once_with(
-            [sys.executable, "-m", "pip", "install", "prefect[kubernetes]"],
+            [uv.find_uv_bin(), "pip", "install", "prefect[kubernetes]"],
             stream_output=True,
         )
 
@@ -698,7 +707,9 @@ class TestInstallPolicyOption:
         run_process_mock = AsyncMock()
         lookup_type_mock = MagicMock()
         lookup_type_mock.return_value = MockKubernetesWorker
-        monkeypatch.setattr("prefect.cli.worker.run_process", run_process_mock)
+        monkeypatch.setattr(
+            "prefect.utilities.processutils.run_process", run_process_mock
+        )
         monkeypatch.setattr("prefect.cli.worker.lookup_type", lookup_type_mock)
         await run_sync_in_worker_thread(
             invoke_and_assert,
@@ -720,14 +731,7 @@ class TestInstallPolicyOption:
         )
 
         run_process_mock.assert_called_once_with(
-            [
-                sys.executable,
-                "-m",
-                "pip",
-                "install",
-                "prefect[kubernetes]",
-                "--upgrade",
-            ],
+            [uv.find_uv_bin(), "pip", "install", "prefect[kubernetes]", "--upgrade"],
             stream_output=True,
         )
 
@@ -740,7 +744,9 @@ class TestInstallPolicyOption:
         run_process_mock = AsyncMock()
         lookup_type_mock = MagicMock()
         lookup_type_mock.side_effect = KeyError
-        monkeypatch.setattr("prefect.cli.worker.run_process", run_process_mock)
+        monkeypatch.setattr(
+            "prefect.utilities.processutils.run_process", run_process_mock
+        )
         monkeypatch.setattr("prefect.cli.worker.lookup_type", lookup_type_mock)
         await run_sync_in_worker_thread(
             invoke_and_assert,
