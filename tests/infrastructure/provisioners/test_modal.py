@@ -38,6 +38,12 @@ def mock_run_process():
 
 
 @pytest.fixture
+def mock_ainstall_packages():
+    with patch("prefect.infrastructure.provisioners.modal.ainstall_packages") as mock:
+        yield mock
+
+
+@pytest.fixture
 def mock_modal(monkeypatch):
     mock = MagicMock()
     monkeypatch.setattr("prefect.infrastructure.provisioners.modal.modal", mock)
@@ -62,6 +68,7 @@ async def test_provision(
     mock_modal: MagicMock,
     mock_confirm: MagicMock,
     mock_importlib: MagicMock,
+    mock_ainstall_packages: AsyncMock,
 ):
     """
     Test provision from a clean slate:
@@ -106,11 +113,15 @@ async def test_provision(
         "default": {"$ref": {"block_document_id": str(block_document.id)}},
     }
 
+    mock_ainstall_packages.assert_has_calls(
+        [
+            call(["modal"]),
+        ]
+    )
+
     # Check expected CLI calls
     mock_run_process.assert_has_calls(
         [
-            # install modal
-            call([shlex.quote(sys.executable), "-m", "pip", "install", "modal"]),
             # create new token
             call([shlex.quote(sys.executable), "-m", "modal", "token", "new"]),
         ]
