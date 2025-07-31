@@ -33,6 +33,7 @@ class MemoryLockManager(LockManager):
     """
 
     _instance = None
+    _initialized = False
 
     def __new__(cls, *args: Any, **kwargs: Any) -> Self:
         if cls._instance is None:
@@ -40,8 +41,11 @@ class MemoryLockManager(LockManager):
         return cls._instance
 
     def __init__(self):
+        if self.__class__._initialized:
+            return
         self._locks_dict_lock = threading.Lock()
         self._locks: dict[str, _LockInfo] = {}
+        self.__class__._initialized = True
 
     def _expire_lock(self, key: str):
         """
