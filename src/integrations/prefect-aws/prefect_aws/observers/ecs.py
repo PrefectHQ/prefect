@@ -58,7 +58,7 @@ class EcsTaskTagsReader:
         self.ecs_client: "ECSClient | None" = None
         self._cache: LRUCache[str, dict[str, str]] = LRUCache(maxsize=100)
 
-    async def read_tags(self, task_arn: str) -> dict[str, str]:
+    async def read_tags(self, cluster_arn: str, task_arn: str) -> dict[str, str]:
         if not self.ecs_client:
             raise RuntimeError("ECS client not initialized for EcsTaskTagsReader")
 
@@ -66,8 +66,10 @@ class EcsTaskTagsReader:
             return self._cache[task_arn]
 
         try:
-            response = await self.ecs_client.list_tags_for_resource(
-                resourceArn=task_arn
+            response = await self.ecs_client.describe_tasks(
+                cluster=cluster_arn,
+                tasks=[task_arn],
+                include=["TAGS"],
             )
         except Exception as e:
             print(f"Error reading tags for task {task_arn}: {e}")
@@ -75,7 +77,7 @@ class EcsTaskTagsReader:
 
         tags = {
             tag["key"]: tag["value"]
-            for tag in response.get("tags", [])
+            for tag in response.get("tasks", [{}])[0].get("tags", [])
             if "key" in tag and "value" in tag
         }
         self._cache[task_arn] = tags
@@ -150,14 +152,18 @@ class EcsObserver:
     async def run(self):
         async with self.ecs_tags_reader:
             async for message in self.sqs_subscriber.stream_messages():
-                print(f"Received message: {message}")
                 if not (body := message.get("Body")):
                     print("No body in message. Skipping.")
                     continue
 
                 body = json.loads(body)
-                if task_arn := body.get("detail", {}).get("taskArn"):
-                    tags = await self.ecs_tags_reader.read_tags(task_arn)
+                if (task_arn := body.get("detail", {}).get("taskArn")) and (
+                    cluster_arn := body.get("detail", {}).get("clusterArn")
+                ):
+                    tags = await self.ecs_tags_reader.read_tags(
+                        cluster_arn=cluster_arn,
+                        task_arn=task_arn,
+                    )
                 else:
                     tags = {}
 
@@ -175,14 +181,14 @@ class EcsObserver:
                         handler.handler(body, tags)
                         continue
 
-                    for tag_name, tag_value in tag_filters.items():
-                        if tag_value == FilterCase.PRESENT and tag_name not in tags:
-                            break
-                        elif tag_value == FilterCase.ABSENT and tag_name in tags:
-                            break
-                        elif tag_value != tags.get(tag_name):
-                            break
-                    else:
+                    if all(
+                        tag_value == FilterCase.PRESENT
+                        and tag_name in tags
+                        or tag_value == FilterCase.ABSENT
+                        and tag_name not in tags
+                        or tag_value == tags.get(tag_name)
+                        for tag_name, tag_value in tag_filters.items()
+                    ):
                         handler.handler(body, tags)
 
     def on_event(
