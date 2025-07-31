@@ -8,12 +8,12 @@ Prefect 3.0 introduces a number of enhancements to the OSS product: a new events
 Most Prefect 2.0 users can upgrade without changes to their existing workflows. Please review the [upgrade guide](/v3/resources/upgrade-to-prefect-3) for more information.
 
 <Info>
-**Prefect 2.0** refers to the 2.x lineage of the open source prefect package, and **Prefect 3.0** refers exclusively to the 3.x lineage of the prefect package. Neither version is strictly tied to any aspect of Prefect's commercial product, [Prefect Cloud](/v3/manage/cloud). 
+**Prefect 2.0** refers to the 2.x lineage of the open source prefect package, and **Prefect 3.0** refers exclusively to the 3.x lineage of the prefect package. Neither version is strictly tied to any aspect of Prefect's commercial product, [Prefect Cloud](/v3/how-to-guides/cloud/connect-to-cloud).
 </Info>
 
 ## Open source events and automation system
 
-One of the largest features in Prefect 3.0 is the introduction of the events and automation system to the open source package. Previously exclusive to Prefect Cloud, this system now allows all users to create event-driven workflows and automate their system based on the presence or absence of observable events. 
+One of the largest features in Prefect 3.0 is the introduction of the events and automation system to the open source package. Previously exclusive to Prefect Cloud, this system now allows all users to create event-driven workflows and automate their system based on the presence or absence of observable events.
 
 With this new capability, you can trigger actions based on specific event payloads, cancel runs if certain conditions aren't met, or automate workflow runs based on external events. For instance, you could initiate a data processing pipeline automatically when a new file lands in an S3 bucket. The system also enables you to receive notifications for various system health events, giving you greater visibility and control over your workflows.
 

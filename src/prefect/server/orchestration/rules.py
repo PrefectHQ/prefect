@@ -5,7 +5,7 @@ This module contains all the core concepts necessary to implement Prefect's stat
 orchestration engine. These states correspond to intuitive descriptions of all the
 points that a Prefect flow or task can observe executing user code and intervene, if
 necessary. A detailed description of states can be found in our concept
-[documentation](/concepts/states).
+[documentation](https://docs.prefect.io/v3/concepts/states).
 
 Prefect's orchestration engine operates under the assumption that no governed user code
 will execute without first requesting Prefect REST API validate a change in state and record

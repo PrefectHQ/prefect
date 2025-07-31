@@ -53,7 +53,7 @@ flowchart TD
     C -.->|❌ Error occurred| E[Failed]
     C -.->|🛑 User intervention| F[Cancelled]
     C -.->|💥 Infrastructure failure| G[Crashed]
-    
+
     style A fill:#ff9,stroke:#333,stroke-width:2px,color:#000
     style B fill:#f9f,stroke:#333,stroke-width:2px,color:#000
     style C fill:#9ff,stroke:#333,stroke-width:2px,color:#000
@@ -61,7 +61,7 @@ flowchart TD
     style E fill:#f99,stroke:#333,stroke-width:2px,color:#000
     style F fill:#faa,stroke:#333,stroke-width:2px,color:#000
     style G fill:#f66,stroke:#333,stroke-width:2px,color:#fff
-    
+
     classDef default fill-opacity:0.9
 ```
 A flow run's lifecycle may be interrupted at any point, whether by:
@@ -90,12 +90,12 @@ You can also create a flow run by:
 
 - Using external schedulers (e.g. `cron` or [Modal](https://modal.com/)) to invoke flows among vanilla Python code
 - Triggering an ad-hoc run of a deployment that exists in Prefect Cloud or your Prefect server
-- Configuring a [schedule](/v3/how-to-guides/schedules/create-schedules/) or [automation](/v3/how-to-guides/automations/create-automations/) to trigger a flow on an interval or sequence of events
+- Configuring a [schedule](/v3/how-to-guides/deployments/create-schedules) or [automation](/v3/how-to-guides/automations/creating-automations) to trigger a flow on an interval or sequence of events
 
 [Deployments](/v3/how-to-guides/deployments/create-deployments/) exist to enable [arbitrary infrastructures](/v3/concepts/work-pools/) and schedules for your flow to run on.
 
 However and wherever you run your flow, Prefect monitors the **flow run**, capturing its state for observability.
-To customize the default instrumentation of your workflow, you may [log a variety of metadata](/v3/how-to-guides/workflows/add-logging) or [emit events](/v3/how-to-guides/automations/use-custom-event-grammar) about flow runs for monitoring, troubleshooting, and auditing purposes.
+To customize the default instrumentation of your workflow, you may [log a variety of metadata](/v3/how-to-guides/workflows/add-logging) or [emit events](/v3/advanced/use-custom-event-grammar) about flow runs for monitoring, troubleshooting, and auditing purposes.
 
 ### Specify flow parameters
 
@@ -190,7 +190,7 @@ Flow run parameters cannot exceed `512kb` in size.
 When possible, prefer passing a reference to a large object and load it during your flow run.
 </Note>
 
-For a deep dive into flow parameters, see the [form-building tutorial](/v3/how-to-guides/workflows/form-building).
+For a deep dive into flow parameters, see the [form-building tutorial](/v3/advanced/form-building).
 
 ## Organize flows with subflows and tasks
 
@@ -249,7 +249,7 @@ task runner for each nested flow.
 
 ## Supported function types
 
-Almost any standard Python function can be turned into a Prefect flow by adding the `@flow` decorator. 
+Almost any standard Python function can be turned into a Prefect flow by adding the `@flow` decorator.
 
 In particular, Prefect supports:
 
@@ -263,8 +263,8 @@ In particular, Prefect supports:
 <Warning>
 **Generator functions are consumed when returned from flows**
 
-The result of a completed flow must be serializable, but generators cannot be serialized. 
-Therefore, if you return a generator from a flow, the generator will be fully consumed and its yielded values will be returned as a list. 
+The result of a completed flow must be serializable, but generators cannot be serialized.
+Therefore, if you return a generator from a flow, the generator will be fully consumed and its yielded values will be returned as a list.
 This can lead to unexpected behavior or blocking if the generator is infinite or very large.
 
 Here is an example of proactive generator consumption:
@@ -286,7 +286,7 @@ def f():
 f()  # prints 'Generator consumed!'
 ```
 
-If you need to return a generator without consuming it, you can `yield` it instead of using `return`. 
+If you need to return a generator without consuming it, you can `yield` it instead of using `return`.
 Values yielded from generator flows are not considered final results and do not face the same serialization constraints:
 
 ```python
@@ -441,4 +441,4 @@ def my_flow(work_to_do: bool):
 
 if __name__ == "__main__":
     my_flow(work_to_do=False)
-``` 
+```

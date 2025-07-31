@@ -11,7 +11,7 @@ Replace `my-work-pool` with the name of the work pool you want the worker
 to poll for flow runs.
 
 For more information about work pools and workers,
-checkout out the [Prefect docs](/concepts/work-pools/).
+checkout out the [Prefect docs](https://docs.prefect.io/v3/concepts/work-pools/).
 """
 
 from __future__ import annotations

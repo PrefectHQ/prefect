@@ -5,7 +5,7 @@ description: Results represent the data returned by a flow or a task and enable 
 ---
 
 Results are the bedrock of many Prefect features - most notably [transactions](/v3/develop/transactions)
-and [caching](/v3/develop/task-caching) - and are foundational to the resilient execution paradigm that Prefect enables.
+and [caching](/v3/concepts/caching) - and are foundational to the resilient execution paradigm that Prefect enables.
 Any return value from a task or a flow is a result.
 By default these results are not persisted and no reference to them is maintained in the API.
 
@@ -61,8 +61,8 @@ persistence for that task:
 specifies where results should be stored.
 - `result_storage_key`: a string that specifies the filename of the result within the task's result storage.
 - `result_serializer`: a string or serializer that configures how the data should be serialized and deserialized.
-- `cache_policy`: a [cache policy](/v3/develop/task-caching#cache-policies) specifying the behavior of the task's cache.
-- `cache_key_fn`: [a function](/v3/develop/task-caching#cache-key-functions) that configures a custom cache policy.
+- `cache_policy`: a [cache policy](/v3/concepts/caching#cache-policies) specifying the behavior of the task's cache.
+- `cache_key_fn`: [a function](/v3/concepts/caching#cache-key-functions) that configures a custom cache policy.
 
 Similarly, setting `persist_result=True`, `result_storage`, or `result_serializer` on a flow will enable
 persistence for that flow.
@@ -144,7 +144,7 @@ You can configure the filename of the result file within result storage using ei
 - `result_storage_key`: a templated string that can use any of the fields within `prefect.runtime` and
 the task's individual parameter values. These templated values will be populated at runtime.
 - `cache_key_fn`: a function that accepts the task run context and its runtime parameters and returns
-a string. See [task caching documentation](/v3/develop/task-caching#cache-key-functions) for more information.
+a string. See [task caching documentation](/v3/concepts/caching#cache-key-functions) for more information.
 
 <Warning>
 If both `result_storage_key` and `cache_key_fn` are provided, only the `result_storage_key` will be used.
@@ -169,7 +169,7 @@ def my_flow():
 ```
 
 If a result exists at a given storage key in the storage location, the task will load it without running.
-To learn more about caching mechanics in Prefect, see the [caching documentation](/v3/develop/task-caching).
+To learn more about caching mechanics in Prefect, see the [caching documentation](/v3/concepts/caching).
 
 ### Result serialization
 

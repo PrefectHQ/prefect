@@ -1,3 +1,5 @@
+mod docs
+
 # Check for uv installation
 check-uv:
     #!/usr/bin/env sh
@@ -19,10 +21,6 @@ check-uv:
         esac
         exit 1
     fi
-
-# Build and serve documentation
-docs:
-    cd docs && npx mint@latest dev
 
 # Install development dependencies
 install: check-uv

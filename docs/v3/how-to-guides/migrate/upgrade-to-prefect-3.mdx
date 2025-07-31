@@ -10,11 +10,11 @@ The majority of these enhancements maintain compatibility with most Prefect 2.0 
 
 To learn more about the enhanced performance and new features, see [What's new in Prefect 3.0](/v3/get-started/whats-new-prefect-3).
 
-For the majority of users, upgrading to Prefect 3.0 will be a seamless process that requires few or no code changes. 
+For the majority of users, upgrading to Prefect 3.0 will be a seamless process that requires few or no code changes.
 This guide highlights key changes that you may need to consider when upgrading.
 
 <Info>
-**Prefect 2.0** refers to the 2.x lineage of the open source prefect package, and **Prefect 3.0** refers exclusively to the 3.x lineage of the prefect package. Neither version is strictly tied to any aspect of Prefect's commercial product, [Prefect Cloud](/v3/manage/cloud). 
+**Prefect 2.0** refers to the 2.x lineage of the open source prefect package, and **Prefect 3.0** refers exclusively to the 3.x lineage of the prefect package. Neither version is strictly tied to any aspect of Prefect's commercial product, [Prefect Cloud](/v3/how-to-guides/cloud/connect-to-cloud).
 </Info>
 
 ## Quickstart
@@ -46,7 +46,7 @@ Prefect 3.0 is built with Pydantic 2.0 for improved performance. All Prefect obj
 Refer to [Pydantic's migration guide](https://docs.pydantic.dev/latest/migration/) for detailed information on necessary changes.
 
 <Warning>
-We recommend pausing all deployment schedules prior to upgrading. 
+We recommend pausing all deployment schedules prior to upgrading.
 Because of differences in Pydantic datetime handling that affect the scheduler's idempotency logic, there is a small risk of the scheduler duplicating runs in its first loop.
 </Warning>
 
@@ -60,7 +60,7 @@ Some less-commonly used modules have been renamed, reorganized, or removed for c
 This change affects you if: you use advanced asynchronous behaviors in your flows.
 </info>
 
-In Prefect 2.0, it was possible to call native `async` tasks from synchronous flows, a pattern that is not normally supported in Python. Prefect 3.0.0 removes this behavior to reduce complexity and potential issues and edge cases. If you relied on asynchronous tasks in synchronous flows, you must either make your flow asynchronous or use a task runner that supports asynchronous execution. 
+In Prefect 2.0, it was possible to call native `async` tasks from synchronous flows, a pattern that is not normally supported in Python. Prefect 3.0.0 removes this behavior to reduce complexity and potential issues and edge cases. If you relied on asynchronous tasks in synchronous flows, you must either make your flow asynchronous or use a task runner that supports asynchronous execution.
 
 ### Flow final states
 

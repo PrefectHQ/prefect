@@ -5,7 +5,7 @@ description: Understand Prefect Cloud webhooks, their configuration, and how to 
 
 <span class="badge cloud"></span>
 
-Prefect Cloud webhooks can receive, observe, and respond to events from other systems. Each webhook exposes a unique URL endpoint to receive events from other systems and transform them into Prefect [events](/v3/automate/events/) for use in [automations](/v3/automate/events/automations-triggers/).
+Prefect Cloud webhooks can receive, observe, and respond to events from other systems. Each webhook exposes a unique URL endpoint to receive events from other systems and transform them into Prefect [events](/v3/concepts/events) for use in [automations](/v3/automate/events/automations-triggers/).
 
 Webhooks are defined by two essential components: a unique URL and a template that translates incoming web requests to a Prefect event.
 
@@ -217,5 +217,5 @@ In addition to [creating webhooks in the Prefect Cloud UI](/v3/how-to-guides/clo
 
 The initial configuration of your webhook may require some trial and error as you get the sender and your receiving webhook speaking a compatible language.
 
-When Prefect Cloud encounters an error during receipt of a webhook, it produces a `prefect-cloud.webhook.failed` event in your workspace. This event includes critical information about the HTTP method, headers, and body it received, as well as what the template rendered. Keep an eye out for these events when something goes wrong with webhook processing or template rendering. You can inspect these events in the [event feed](/v3/automate/events/#event-feed) in the UI to understand what might have gone wrong. 
+When Prefect Cloud encounters an error during receipt of a webhook, it produces a `prefect-cloud.webhook.failed` event in your workspace. This event includes critical information about the HTTP method, headers, and body it received, as well as what the template rendered. Keep an eye out for these events when something goes wrong with webhook processing or template rendering. You can inspect these events in the [event feed](/v3/concepts/events) in the UI to understand what might have gone wrong.
 

@@ -57,7 +57,7 @@ This example does **_not_** require:
 ## Useful things to remember
 
 - You can call any Python code from your task definitions (including other flows and tasks!)
-- Prefect [Results](/v3/concepts/caching.html) allow you to save/serialize the `return` value of your task definitions to your result storage (e.g. a local directory, S3, GCS, etc), enabling [caching](/v3/develop/task-caching) and [idempotency](/v3/develop/transactions).
+- Prefect [Results](/v3/concepts/caching) allow you to save/serialize the `return` value of your task definitions to your result storage (e.g. a local directory, S3, GCS, etc), enabling [caching](/v3/concepts/caching) and [idempotency](/v3/advanced/transactions).
 
 
 ## Defining the background task
@@ -411,7 +411,7 @@ Assuming you have obtained the code (either by cloning the repository or using `
 
 1.  **Prerequisites:** Ensure Docker Desktop (or equivalent) with `docker compose` support is running.
 
-2.  **Build and Run Services:** 
+2.  **Build and Run Services:**
     This example's task uses [marvin](https://github.com/PrefectHQ/marvin), which (by default) requires an OpenAI API key. Provide it as an environment variable when starting the services:
 
     ```bash

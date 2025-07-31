@@ -7,7 +7,7 @@ sidebarTitle: objects
 
 ## Functions
 
-### `data_discriminator` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L200" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `data_discriminator` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L203" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 data_discriminator(x: Any) -> str
@@ -210,13 +210,13 @@ Reset the fields of the model that are in the `_reset_fields` set.
 - A new instance of the model with the reset fields.
 
 
-#### `to_run_result` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L189" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `to_run_result` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L192" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 to_run_result(self, run_type: RunType) -> Optional[Union[FlowRunResult, TaskRunResult]]
 ```
 
-### `State` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L206" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `State` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L209" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 The state of a run.
@@ -224,25 +224,25 @@ The state of a run.
 
 **Methods:**
 
-#### `aresult` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L225" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `aresult` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L228" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 aresult(self: 'State[R]', raise_on_failure: Literal[True] = ..., retry_result_failure: bool = ...) -> R
 ```
 
-#### `aresult` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L232" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `aresult` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L235" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 aresult(self: 'State[R]', raise_on_failure: Literal[False] = False, retry_result_failure: bool = ...) -> Union[R, Exception]
 ```
 
-#### `aresult` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L239" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `aresult` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L242" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 aresult(self: 'State[R]', raise_on_failure: bool = ..., retry_result_failure: bool = ...) -> Union[R, Exception]
 ```
 
-#### `aresult` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L245" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `aresult` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L248" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 aresult(self, raise_on_failure: bool = True, retry_result_failure: bool = True) -> Union[R, Exception]
@@ -251,7 +251,7 @@ aresult(self, raise_on_failure: bool = True, retry_result_failure: bool = True) 
 Retrieve the result attached to this state.
 
 
-#### `default_name_from_type` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L372" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `default_name_from_type` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L375" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 default_name_from_type(self) -> Self
@@ -260,13 +260,13 @@ default_name_from_type(self) -> Self
 If a name is not provided, use the type
 
 
-#### `default_scheduled_start_time` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L382" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `default_scheduled_start_time` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L385" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 default_scheduled_start_time(self) -> Self
 ```
 
-#### `fresh_copy` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L437" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `fresh_copy` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L440" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 fresh_copy(self, **kwargs: Any) -> Self
@@ -275,67 +275,67 @@ fresh_copy(self, **kwargs: Any) -> Self
 Return a fresh copy of the state with a new ID.
 
 
-#### `is_cancelled` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L412" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `is_cancelled` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L415" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 is_cancelled(self) -> bool
 ```
 
-#### `is_cancelling` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L415" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `is_cancelling` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L418" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 is_cancelling(self) -> bool
 ```
 
-#### `is_completed` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L403" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `is_completed` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L406" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 is_completed(self) -> bool
 ```
 
-#### `is_crashed` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L409" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `is_crashed` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L412" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 is_crashed(self) -> bool
 ```
 
-#### `is_failed` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L406" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `is_failed` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L409" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 is_failed(self) -> bool
 ```
 
-#### `is_final` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L418" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `is_final` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L421" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 is_final(self) -> bool
 ```
 
-#### `is_paused` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L421" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `is_paused` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L424" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 is_paused(self) -> bool
 ```
 
-#### `is_pending` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L397" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `is_pending` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L400" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 is_pending(self) -> bool
 ```
 
-#### `is_running` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L400" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `is_running` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L403" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 is_running(self) -> bool
 ```
 
-#### `is_scheduled` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L394" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `is_scheduled` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L397" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 is_scheduled(self) -> bool
 ```
 
-#### `model_copy` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L424" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `model_copy` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L427" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 model_copy(self) -> Self
@@ -345,25 +345,25 @@ Copying API models should return an object that could be inserted into the
 database again. The 'timestamp' is reset using the default factory.
 
 
-#### `result` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L262" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `result` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L265" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 result(self: 'State[R]', raise_on_failure: Literal[True] = ..., retry_result_failure: bool = ...) -> R
 ```
 
-#### `result` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L269" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `result` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L272" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 result(self: 'State[R]', raise_on_failure: Literal[False] = False, retry_result_failure: bool = ...) -> Union[R, Exception]
 ```
 
-#### `result` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L276" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `result` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L279" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 result(self: 'State[R]', raise_on_failure: bool = ..., retry_result_failure: bool = ...) -> Union[R, Exception]
 ```
 
-#### `result` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L283" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `result` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L286" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 result(self, raise_on_failure: bool = True, retry_result_failure: bool = True) -> Union[R, Exception]
@@ -443,13 +443,13 @@ await flow_run.state.result(raise_on_failure=True) # Raises `ValueError("oh no!"
 ```
 
 
-#### `set_unpersisted_results_to_none` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L389" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `set_unpersisted_results_to_none` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L392" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 set_unpersisted_results_to_none(self) -> Self
 ```
 
-### `FlowRunPolicy` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L498" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `FlowRunPolicy` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L501" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Defines of how a flow run should be orchestrated.
@@ -463,7 +463,7 @@ Defines of how a flow run should be orchestrated.
 model_validate_list(cls, obj: Any) -> list[Self]
 ```
 
-#### `populate_deprecated_fields` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L533" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `populate_deprecated_fields` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L536" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 populate_deprecated_fields(cls, values: Any) -> Any
@@ -481,17 +481,17 @@ Reset the fields of the model that are in the `_reset_fields` set.
 - A new instance of the model with the reset fields.
 
 
-### `FlowRun` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L539" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `FlowRun` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L542" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 **Methods:**
 
-#### `set_default_name` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L697" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `set_default_name` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L700" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 set_default_name(cls, name: Optional[str]) -> str
 ```
 
-### `TaskRunPolicy` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L701" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `TaskRunPolicy` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L704" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Defines of how a task run should retry.
@@ -505,7 +505,7 @@ Defines of how a task run should retry.
 model_validate_list(cls, obj: Any) -> list[Self]
 ```
 
-#### `populate_deprecated_fields` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L730" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `populate_deprecated_fields` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L733" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 populate_deprecated_fields(self)
@@ -527,19 +527,19 @@ Reset the fields of the model that are in the `_reset_fields` set.
 - A new instance of the model with the reset fields.
 
 
-#### `validate_configured_retry_delays` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L750" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `validate_configured_retry_delays` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L753" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 validate_configured_retry_delays(cls, v: Optional[int | float | list[int] | list[float]]) -> Optional[int | float | list[int] | list[float]]
 ```
 
-#### `validate_jitter_factor` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L757" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `validate_jitter_factor` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L760" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 validate_jitter_factor(cls, v: Optional[float]) -> Optional[float]
 ```
 
-### `RunInput` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L761" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `RunInput` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L764" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Base class for classes that represent inputs to task runs, which
@@ -566,37 +566,37 @@ Reset the fields of the model that are in the `_reset_fields` set.
 - A new instance of the model with the reset fields.
 
 
-### `TaskRunResult` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L774" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `TaskRunResult` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L777" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Represents a task run result input to another task run.
 
 
-### `FlowRunResult` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L781" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `FlowRunResult` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L784" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
-### `Parameter` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L786" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `Parameter` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L789" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Represents a parameter input to a task run.
 
 
-### `Constant` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L793" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `Constant` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L796" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Represents constant input value to a task run.
 
 
-### `TaskRun` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L800" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `TaskRun` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L803" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 **Methods:**
 
-#### `set_default_name` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L910" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `set_default_name` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L913" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 set_default_name(cls, name: Optional[str]) -> Name
 ```
 
-### `Workspace` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L914" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `Workspace` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L917" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 A Prefect Cloud workspace.
@@ -606,7 +606,7 @@ Expected payload for each workspace returned by the `me/workspaces` route.
 
 **Methods:**
 
-#### `api_url` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L937" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `api_url` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L940" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 api_url(self) -> str
@@ -615,7 +615,7 @@ api_url(self) -> str
 Generate the API URL for accessing this workspace
 
 
-#### `handle` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L931" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `handle` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L934" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 handle(self) -> str
@@ -642,7 +642,7 @@ Reset the fields of the model that are in the `_reset_fields` set.
 - A new instance of the model with the reset fields.
 
 
-#### `ui_url` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L947" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `ui_url` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L950" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 ui_url(self) -> str
@@ -651,7 +651,7 @@ ui_url(self) -> str
 Generate the UI URL for accessing this workspace
 
 
-### `IPAllowlistEntry` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L961" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `IPAllowlistEntry` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L964" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 **Methods:**
 
@@ -673,7 +673,7 @@ Reset the fields of the model that are in the `_reset_fields` set.
 - A new instance of the model with the reset fields.
 
 
-### `IPAllowlist` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L973" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `IPAllowlist` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L976" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 A Prefect Cloud IP allowlist.
@@ -701,7 +701,7 @@ Reset the fields of the model that are in the `_reset_fields` set.
 - A new instance of the model with the reset fields.
 
 
-### `IPAllowlistMyAccessResponse` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L983" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `IPAllowlistMyAccessResponse` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L986" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Expected payload for an IP allowlist access response from the Prefect Cloud API.
@@ -727,19 +727,19 @@ Reset the fields of the model that are in the `_reset_fields` set.
 - A new instance of the model with the reset fields.
 
 
-### `BlockType` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L990" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `BlockType` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L993" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 An ORM representation of a block type
 
 
-### `BlockSchema` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L1014" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `BlockSchema` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L1017" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 A representation of a block schema.
 
 
-### `BlockDocument` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L1035" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `BlockDocument` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L1038" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 An ORM representation of a block document.
@@ -747,27 +747,27 @@ An ORM representation of a block document.
 
 **Methods:**
 
-#### `serialize_data` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L1075" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `serialize_data` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L1078" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 serialize_data(self, handler: SerializerFunctionWrapHandler, info: SerializationInfo) -> Any
 ```
 
-#### `validate_name_is_present_if_not_anonymous` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L1069" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `validate_name_is_present_if_not_anonymous` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L1072" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 validate_name_is_present_if_not_anonymous(cls, values: dict[str, Any]) -> dict[str, Any]
 ```
 
-### `Flow` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L1086" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `Flow` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L1089" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 An ORM representation of flow data.
 
 
-### `DeploymentSchedule` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L1100" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `DeploymentSchedule` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L1103" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
-### `VersionInfo` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L1125" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `VersionInfo` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L1128" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 **Methods:**
 
@@ -789,29 +789,29 @@ Reset the fields of the model that are in the `_reset_fields` set.
 - A new instance of the model with the reset fields.
 
 
-### `BranchingScheduleHandling` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L1130" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `BranchingScheduleHandling` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L1133" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
-### `DeploymentBranchingOptions` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L1136" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `DeploymentBranchingOptions` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L1139" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
-### `Deployment` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L1143" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `Deployment` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L1146" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 An ORM representation of deployment data.
 
 
-### `ConcurrencyLimit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L1248" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `ConcurrencyLimit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L1251" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 An ORM representation of a concurrency limit.
 
 
-### `BlockSchemaReference` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L1261" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `BlockSchemaReference` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L1264" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 An ORM representation of a block schema reference.
 
 
-### `BlockDocumentReference` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L1281" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `BlockDocumentReference` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L1284" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 An ORM representation of a block document reference.
@@ -819,19 +819,19 @@ An ORM representation of a block document reference.
 
 **Methods:**
 
-#### `validate_parent_and_ref_are_different` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L1302" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `validate_parent_and_ref_are_different` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L1305" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 validate_parent_and_ref_are_different(cls, values: Any) -> Any
 ```
 
-### `Configuration` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L1308" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `Configuration` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L1311" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 An ORM representation of account info.
 
 
-### `SavedSearchFilter` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L1315" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `SavedSearchFilter` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L1318" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 A filter for a saved search model. Intended for use by the Prefect UI.
@@ -857,19 +857,19 @@ Reset the fields of the model that are in the `_reset_fields` set.
 - A new instance of the model with the reset fields.
 
 
-### `SavedSearch` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L1332" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `SavedSearch` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L1335" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 An ORM representation of saved search data. Represents a set of filter criteria.
 
 
-### `Log` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L1342" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `Log` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L1345" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 An ORM representation of log data.
 
 
-### `QueueFilter` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L1357" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `QueueFilter` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L1360" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Filter criteria definition for a work queue.
@@ -895,17 +895,17 @@ Reset the fields of the model that are in the `_reset_fields` set.
 - A new instance of the model with the reset fields.
 
 
-### `WorkQueue` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L1370" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `WorkQueue` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L1373" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 An ORM representation of a work queue
 
 
-### `WorkQueueHealthPolicy` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L1407" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `WorkQueueHealthPolicy` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L1410" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 **Methods:**
 
-#### `evaluate_health_status` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L1423" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `evaluate_health_status` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L1426" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 evaluate_health_status(self, late_runs_count: int, last_polled: datetime.datetime | None = None) -> bool
@@ -939,7 +939,7 @@ Reset the fields of the model that are in the `_reset_fields` set.
 - A new instance of the model with the reset fields.
 
 
-### `WorkQueueStatusDetail` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L1454" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `WorkQueueStatusDetail` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L1457" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 **Methods:**
 
@@ -961,13 +961,13 @@ Reset the fields of the model that are in the `_reset_fields` set.
 - A new instance of the model with the reset fields.
 
 
-### `Agent` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L1470" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `Agent` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L1473" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 An ORM representation of an agent
 
 
-### `WorkPoolStorageConfiguration` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L1488" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `WorkPoolStorageConfiguration` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L1491" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 A work pool storage configuration
@@ -993,7 +993,7 @@ Reset the fields of the model that are in the `_reset_fields` set.
 - A new instance of the model with the reset fields.
 
 
-### `WorkPool` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L1503" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `WorkPool` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L1506" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 An ORM representation of a work pool
@@ -1001,49 +1001,49 @@ An ORM representation of a work pool
 
 **Methods:**
 
-#### `helpful_error_for_missing_default_queue_id` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L1550" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `helpful_error_for_missing_default_queue_id` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L1553" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 helpful_error_for_missing_default_queue_id(cls, v: Optional[UUID]) -> UUID
 ```
 
-#### `is_managed_pool` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L1545" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `is_managed_pool` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L1548" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 is_managed_pool(self) -> bool
 ```
 
-#### `is_push_pool` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L1541" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `is_push_pool` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L1544" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 is_push_pool(self) -> bool
 ```
 
-### `Worker` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L1554" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `Worker` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L1557" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 An ORM representation of a worker
 
 
-### `Artifact` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L1580" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `Artifact` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L1583" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 **Methods:**
 
-#### `validate_metadata_length` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L1618" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `validate_metadata_length` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L1621" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 validate_metadata_length(cls, v: Optional[dict[str, str]]) -> Optional[dict[str, str]]
 ```
 
-### `ArtifactCollection` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L1624" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `ArtifactCollection` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L1627" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
-### `Variable` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L1661" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `Variable` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L1664" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
-### `FlowRunInput` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L1680" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `FlowRunInput` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L1683" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 **Methods:**
 
-#### `decoded_value` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L1689" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `decoded_value` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L1692" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 decoded_value(self) -> Any
@@ -1055,15 +1055,15 @@ Decode the value of the input.
 - the decoded value
 
 
-### `GlobalConcurrencyLimit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L1699" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `GlobalConcurrencyLimit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L1702" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 An ORM representation of a global concurrency limit
 
 
-### `CsrfToken` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L1726" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `CsrfToken` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L1729" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
-### `Integration` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L1742" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `Integration` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L1745" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 A representation of an installed Prefect integration.
@@ -1089,7 +1089,7 @@ Reset the fields of the model that are in the `_reset_fields` set.
 - A new instance of the model with the reset fields.
 
 
-### `WorkerMetadata` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L1749" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `WorkerMetadata` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L1752" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Worker metadata.

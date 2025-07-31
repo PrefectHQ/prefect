@@ -6,17 +6,17 @@ description: Learn how to use Modal as a push work pool to schedule, run, and de
 
 Prefect is the world's best orchestrator.
 Modal is the world's best serverless compute framework.
-It only makes sense that they would fit together perfectly. 
+It only makes sense that they would fit together perfectly.
 
 In this tutorial, you'll build your first Prefect deployment that runs on Modal every hour, and create a scalable framework to grow your project.
 
 Here's an architecture diagram which shows what you'll build.
 
-![image.png](/v3/img/tutorials/modal/modal%200.png)
+![image.png](/v3/img/tutorials/modal/0.png)
 
 You'll build a full serverless infrastructure framework for scheduling and provisioning workflows.
 GitHub will act as the source of truth, Prefect will be the orchestrator, and Modal will be the serverless infrastructure.
-You'll only pay for the Modal CPU time you use. 
+You'll only pay for the Modal CPU time you use.
 
 First, here's a recap of some important terms:
 
@@ -98,7 +98,7 @@ Your repository should have a `prefect.yaml` deployment configuration file, stan
 
    You will be prompted to choose your code storage; select `git` to store code within a git repository.
 
-   ![image.png](/v3/img/tutorials/modal/modal%201.png)
+   ![image.png](/v3/img/tutorials/modal/1.png)
 
 1. Because this is meant to be a scalable repository, create a submodule just for your workflows.
 
@@ -192,11 +192,11 @@ For simplicity, use a classic token, but you can configure a fine-grained token 
 
 In GitHub, go to [Personal access tokens](https://github.com/settings/tokens) and click **Generate new token (classic)**.
 
-![image.png](/v3/img/tutorials/modal/modal%202.png)
+![image.png](/v3/img/tutorials/modal/2.png)
 
 Give the token a name, an expiration date, and repository access.
 
-![image.png](/v3/img/tutorials/modal/modal%203.png)
+![image.png](/v3/img/tutorials/modal/3.png)
 
 Once you've created the token, copy it and give it to Prefect.
 First, run:
@@ -272,7 +272,7 @@ This is much more flexible.
 
 You need to give Prefect access to your Modal account to provision a serverless instance to run your flows and tasks.
 Modal will be the _Work Pool_ in Prefect terms, remaining off when unused, and spinning up the infrastructure you need when a new flow run is scheduled.
-Prefect makes this incredibly easy. 
+Prefect makes this incredibly easy.
 
 First, authenticate with Modal:
 
@@ -335,11 +335,11 @@ First, create two secrets to add to the GitHub repository: `PREFECT_API_KEY` and
 
 2. For `PREFECT_API_KEY`, go to the [API keys](https://app.prefect.cloud/my/api-keys) page and create a new API key.
 
-   ![image.png](/v3/img/tutorials/modal/modal%204.png)
+   ![image.png](/v3/img/tutorials/modal/4.png)
 
 Go to your repository, and then **Settings** / **Secrets and variables** / **Actions**.
 
-![image.png](/v3/img/tutorials/modal/modal%205.png)
+![image.png](/v3/img/tutorials/modal/5.png)
 
 Click **New repository secret** to add these secrets to your GitHub repository.
 
@@ -405,12 +405,12 @@ prefect-deploy: setup
 Before pushing your code, run `make prefect-deploy` once to make sure everything works.
 Prefect will suggest changes to `prefect.yaml`, which you should accept.
 
-![image.png](/v3/img/tutorials/modal/modal%206.png)
+![image.png](/v3/img/tutorials/modal/6.png)
 
 You let Prefect override your deployment spec, which allowed your CD to run without any interruptions or prompts.
 If you go to the **Deployment** page in Prefect Cloud, you'll see your deployment!
 
-![image.png](/v3/img/tutorials/modal/modal%207.png)
+![image.png](/v3/img/tutorials/modal/7.png)
 
 There are no runs yet.
 The output from `make prefect-deploy` shows the command to run your deployed flow.
@@ -423,7 +423,7 @@ git push
 
 Go to the repository in **GitHub**, and then open **Actions** to verify that your CI/CD is running successfully.
 
-![image.png](/v3/img/tutorials/modal/modal%208.png)
+![image.png](/v3/img/tutorials/modal/8.png)
 
 You can see the flow run in Prefect Cloud as well.
 
@@ -441,23 +441,23 @@ You should see the run start in your Prefect dashboard.
 In 30-60 seconds, you should see it run in Modal.
 You can click on the run to see the logs.
 
-![image.png](/v3/img/tutorials/modal/modal%209.png)
+![image.png](/v3/img/tutorials/modal/9.png)
 
 Click into the app and then click **App Logs** on the left to show everything that’s happening inside the flow run!
 
-![image.png](/v3/img/tutorials/modal/modal%2010.png)
+![image.png](/v3/img/tutorials/modal/10.png)
 
 Click on a specific log line to get more details.
 
-![image.png](/v3/img/tutorials/modal/modal%2011.png)
+![image.png](/v3/img/tutorials/modal/11.png)
 
 If you open the URL in that log, you’ll see the corresponding logs in Prefect Cloud.
 
-![image.png](/v3/img/tutorials/modal/modal%2012.png)
+![image.png](/v3/img/tutorials/modal/12.png)
 
 As you make changes to either the code or deployment file, Prefect will redeploy and Modal will automatically pick up changes.
 You've successfully built your first Prefect deployment that runs on Modal every hour!
 
 <Note>
-For more information about CI/CD in Prefect, see [Build deployments via CI/CD](/v3/how-to-guides/deployments/deploy-ci-cd).
+For more information about CI/CD in Prefect, see [Build deployments via CI/CD](/v3/advanced/deploy-ci-cd).
 </Note>

@@ -100,14 +100,14 @@ Get a graph of the tasks and subflow runs for the given flow run
 ### `resume_flow_run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/flow_runs.py#L380" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-resume_flow_run(flow_run_id: UUID = Path(..., description='The flow run id', alias='id'), db: PrefectDBInterface = Depends(provide_database_interface), run_input: Optional[dict[str, Any]] = Body(default=None, embed=True), response: Response = None, flow_policy: type[FlowRunOrchestrationPolicy] = Depends(orchestration_dependencies.provide_flow_policy), task_policy: type[TaskRunOrchestrationPolicy] = Depends(orchestration_dependencies.provide_task_policy), orchestration_parameters: Dict[str, Any] = Depends(orchestration_dependencies.provide_flow_orchestration_parameters), api_version: str = Depends(dependencies.provide_request_api_version)) -> OrchestrationResult
+resume_flow_run(response: Response, flow_run_id: UUID = Path(..., description='The flow run id', alias='id'), db: PrefectDBInterface = Depends(provide_database_interface), run_input: Optional[dict[str, Any]] = Body(default=None, embed=True), flow_policy: type[FlowRunOrchestrationPolicy] = Depends(orchestration_dependencies.provide_flow_policy), task_policy: type[TaskRunOrchestrationPolicy] = Depends(orchestration_dependencies.provide_task_policy), orchestration_parameters: Dict[str, Any] = Depends(orchestration_dependencies.provide_flow_orchestration_parameters), api_version: str = Depends(dependencies.provide_request_api_version), client_version: Optional[str] = Depends(dependencies.get_prefect_client_version)) -> OrchestrationResult
 ```
 
 
 Resume a paused flow run.
 
 
-### `read_flow_runs` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/flow_runs.py#L530" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `read_flow_runs` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/flow_runs.py#L533" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_flow_runs(sort: schemas.sorting.FlowRunSort = Body(schemas.sorting.FlowRunSort.ID_DESC), limit: int = dependencies.LimitBody(), offset: int = Body(0, ge=0), flows: Optional[schemas.filters.FlowFilter] = None, flow_runs: Optional[schemas.filters.FlowRunFilter] = None, task_runs: Optional[schemas.filters.TaskRunFilter] = None, deployments: Optional[schemas.filters.DeploymentFilter] = None, work_pools: Optional[schemas.filters.WorkPoolFilter] = None, work_pool_queues: Optional[schemas.filters.WorkQueueFilter] = None, db: PrefectDBInterface = Depends(provide_database_interface)) -> List[schemas.responses.FlowRunResponse]
@@ -117,7 +117,7 @@ read_flow_runs(sort: schemas.sorting.FlowRunSort = Body(schemas.sorting.FlowRunS
 Query for flow runs.
 
 
-### `delete_flow_run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/flow_runs.py#L573" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `delete_flow_run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/flow_runs.py#L576" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 delete_flow_run(background_tasks: BackgroundTasks, flow_run_id: UUID = Path(..., description='The flow run id', alias='id'), db: PrefectDBInterface = Depends(provide_database_interface)) -> None
@@ -127,23 +127,23 @@ delete_flow_run(background_tasks: BackgroundTasks, flow_run_id: UUID = Path(...,
 Delete a flow run by id.
 
 
-### `delete_flow_run_logs` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/flow_runs.py#L592" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `delete_flow_run_logs` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/flow_runs.py#L595" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 delete_flow_run_logs(db: PrefectDBInterface, flow_run_id: UUID) -> None
 ```
 
-### `set_flow_run_state` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/flow_runs.py#L603" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `set_flow_run_state` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/flow_runs.py#L606" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-set_flow_run_state(flow_run_id: UUID = Path(..., description='The flow run id', alias='id'), state: schemas.actions.StateCreate = Body(..., description='The intended state.'), force: bool = Body(False, description='If false, orchestration rules will be applied that may alter or prevent the state transition. If True, orchestration rules are not applied.'), db: PrefectDBInterface = Depends(provide_database_interface), flow_policy: type[FlowRunOrchestrationPolicy] = Depends(orchestration_dependencies.provide_flow_policy), orchestration_parameters: Dict[str, Any] = Depends(orchestration_dependencies.provide_flow_orchestration_parameters), response: Response = None, api_version: str = Depends(dependencies.provide_request_api_version)) -> OrchestrationResult
+set_flow_run_state(response: Response, flow_run_id: UUID = Path(..., description='The flow run id', alias='id'), state: schemas.actions.StateCreate = Body(..., description='The intended state.'), force: bool = Body(False, description='If false, orchestration rules will be applied that may alter or prevent the state transition. If True, orchestration rules are not applied.'), db: PrefectDBInterface = Depends(provide_database_interface), flow_policy: type[FlowRunOrchestrationPolicy] = Depends(orchestration_dependencies.provide_flow_policy), orchestration_parameters: Dict[str, Any] = Depends(orchestration_dependencies.provide_flow_orchestration_parameters), api_version: str = Depends(dependencies.provide_request_api_version), client_version: Optional[str] = Depends(dependencies.get_prefect_client_version)) -> OrchestrationResult
 ```
 
 
 Set a flow run state, invoking any orchestration rules.
 
 
-### `create_flow_run_input` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/flow_runs.py#L654" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `create_flow_run_input` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/flow_runs.py#L659" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 create_flow_run_input(flow_run_id: UUID = Path(..., description='The flow run id', alias='id'), key: str = Body(..., description='The input key'), value: bytes = Body(..., description='The value of the input'), sender: Optional[str] = Body(None, description='The sender of the input'), db: PrefectDBInterface = Depends(provide_database_interface)) -> None
@@ -153,7 +153,7 @@ create_flow_run_input(flow_run_id: UUID = Path(..., description='The flow run id
 Create a key/value input for a flow run.
 
 
-### `filter_flow_run_input` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/flow_runs.py#L690" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `filter_flow_run_input` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/flow_runs.py#L695" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 filter_flow_run_input(flow_run_id: UUID = Path(..., description='The flow run id', alias='id'), prefix: str = Body(..., description='The input key prefix', embed=True), limit: int = Body(1, description='The maximum number of results to return', embed=True), exclude_keys: List[str] = Body([], description='Exclude inputs with these keys', embed=True), db: PrefectDBInterface = Depends(provide_database_interface)) -> List[schemas.core.FlowRunInput]
@@ -163,7 +163,7 @@ filter_flow_run_input(flow_run_id: UUID = Path(..., description='The flow run id
 Filter flow run inputs by key prefix
 
 
-### `read_flow_run_input` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/flow_runs.py#L715" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `read_flow_run_input` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/flow_runs.py#L720" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_flow_run_input(flow_run_id: UUID = Path(..., description='The flow run id', alias='id'), key: str = Path(..., description='The input key', alias='key'), db: PrefectDBInterface = Depends(provide_database_interface)) -> PlainTextResponse
@@ -173,7 +173,7 @@ read_flow_run_input(flow_run_id: UUID = Path(..., description='The flow run id',
 Create a value from a flow run input
 
 
-### `delete_flow_run_input` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/flow_runs.py#L738" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `delete_flow_run_input` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/flow_runs.py#L743" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 delete_flow_run_input(flow_run_id: UUID = Path(..., description='The flow run id', alias='id'), key: str = Path(..., description='The input key', alias='key'), db: PrefectDBInterface = Depends(provide_database_interface)) -> None
@@ -183,7 +183,7 @@ delete_flow_run_input(flow_run_id: UUID = Path(..., description='The flow run id
 Delete a flow run input
 
 
-### `paginate_flow_runs` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/flow_runs.py#L760" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `paginate_flow_runs` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/flow_runs.py#L765" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 paginate_flow_runs(sort: schemas.sorting.FlowRunSort = Body(schemas.sorting.FlowRunSort.ID_DESC), limit: int = dependencies.LimitBody(), page: int = Body(1, ge=1), flows: Optional[schemas.filters.FlowFilter] = None, flow_runs: Optional[schemas.filters.FlowRunFilter] = None, task_runs: Optional[schemas.filters.TaskRunFilter] = None, deployments: Optional[schemas.filters.DeploymentFilter] = None, work_pools: Optional[schemas.filters.WorkPoolFilter] = None, work_pool_queues: Optional[schemas.filters.WorkQueueFilter] = None, db: PrefectDBInterface = Depends(provide_database_interface)) -> FlowRunPaginationResponse
@@ -193,7 +193,7 @@ paginate_flow_runs(sort: schemas.sorting.FlowRunSort = Body(schemas.sorting.Flow
 Pagination query for flow runs.
 
 
-### `download_logs` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/flow_runs.py#L827" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `download_logs` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/flow_runs.py#L832" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 download_logs(flow_run_id: UUID = Path(..., description='The flow run id', alias='id'), db: PrefectDBInterface = Depends(provide_database_interface)) -> StreamingResponse
@@ -203,7 +203,7 @@ download_logs(flow_run_id: UUID = Path(..., description='The flow run id', alias
 Download all flow run logs as a CSV file, collecting all logs until there are no more logs to retrieve.
 
 
-### `update_flow_run_labels` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/flow_runs.py#L893" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `update_flow_run_labels` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/flow_runs.py#L898" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 update_flow_run_labels(flow_run_id: UUID = Path(..., description='The flow run id', alias='id'), labels: Dict[str, Any] = Body(..., description='The labels to update'), db: PrefectDBInterface = Depends(provide_database_interface)) -> None
