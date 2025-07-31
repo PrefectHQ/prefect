@@ -12,7 +12,7 @@ from io import StringIO
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Generator
 from unittest import mock
-from unittest.mock import ANY, MagicMock
+from unittest.mock import ANY, MagicMock, patch
 
 import pytest
 from rich.color import Color, ColorType
@@ -819,10 +819,12 @@ class TestAPILogHandler:
             with temporary_settings(updates={PREFECT_LOGGING_TO_API_MAX_LOG_SIZE: "1"}):
                 logger.info("test")
 
-        mock_log_worker.instance().send.assert_not_called()
+        mock_log_worker.instance().send.assert_called_once()
+        sent_log = mock_log_worker.instance().send.call_args[0][0]
         output = capsys.readouterr()
-        assert "ValueError" in output.err
-        assert "is greater than the max size of 1" in output.err
+        assert sent_log["message"].endswith("... [truncated]")
+        assert sent_log["__payload_truncated__"] is True
+        assert "ValueError" not in output.err
 
     def test_handler_knows_how_large_logs_are(self):
         dict_log = {
@@ -1978,3 +1980,39 @@ def test_eavesdropping():
     logging.getLogger("my_logger").debug("This is after the context")
 
     assert eavesdropper.text() == "[INFO]: Hello, world!\n[WARNING]: Another one!"
+
+
+def test_prepare_truncates_oversized_log():
+    max_log_size = 500
+
+    handler = APILogHandler()
+
+    very_long_msg = "X" * (max_log_size * 2)
+    record = logging.LogRecord(
+        name="test.logger.flow",
+        level=logging.INFO,
+        pathname=__file__,
+        lineno=10,
+        msg=very_long_msg,
+        args=(),
+        exc_info=None,
+    )
+    record.flow_run_id = str(uuid.uuid4())
+
+    with patch(
+        "prefect.settings.PREFECT_LOGGING_TO_API_MAX_LOG_SIZE.value",
+        return_value=max_log_size,
+    ):
+        log = handler.prepare(record)
+
+    # Check truncation suffix is present
+    assert "... [truncated]" in log["message"]
+
+    # Check size does not exceed max_log_size
+    assert log["__payload_size__"] <= max_log_size
+
+    # flow_run_id should match
+    assert log["flow_run_id"] == record.flow_run_id
+
+    # Message should not be empty (except the truncation text)
+    assert log["message"].strip() != ""
