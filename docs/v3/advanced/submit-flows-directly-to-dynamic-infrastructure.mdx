@@ -162,7 +162,7 @@ When you run this code on your machine, `my_flow` will execute locally, while `m
 <Note>
 **Parameters must be serializable**
 
-Parameters passed to infrastructure-bound flows are serialized with `cloudpickle` to allow them to be transported to the destination infrastructure. 
+Parameters passed to infrastructure-bound flows are serialized with `cloudpickle` to allow them to be transported to the destination infrastructure.
 
 Most Python objects can be serialized with `cloudpickle`, but objects like database connections cannot be serialized. For parameters that cannot be serialized, you'll need to create the object inside your infrastructure-bound workflow.
 </Note>
@@ -185,7 +185,7 @@ def custom_namespace_flow():
     pass
 ```
 
-Any kwargs passed to the infrastructure decorator will override the corresponding default value in the [base job template](/v3/how-to-guides/deployments/manage-work-pools#base-job-template) for the specified work pool.
+Any kwargs passed to the infrastructure decorator will override the corresponding default value in the [base job template](/v3/how-to-guides/deployment_infra/manage-work-pools#base-job-template) for the specified work pool.
 
 
 ## Further reading

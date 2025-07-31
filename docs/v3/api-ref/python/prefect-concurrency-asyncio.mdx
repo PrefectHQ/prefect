@@ -7,7 +7,7 @@ sidebarTitle: asyncio
 
 ## Functions
 
-### `concurrency` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/concurrency/asyncio.py#L29" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `concurrency` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/concurrency/asyncio.py#L26" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 concurrency(names: Union[str, list[str]], occupy: int = 1, timeout_seconds: Optional[float] = None, max_retries: Optional[int] = None, lease_duration: float = 300, strict: bool = False) -> AsyncGenerator[None, None]
@@ -46,7 +46,7 @@ async def main():
 ```
 
 
-### `rate_limit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/concurrency/asyncio.py#L135" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `rate_limit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/concurrency/asyncio.py#L101" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 rate_limit(names: Union[str, list[str]], occupy: int = 1, timeout_seconds: Optional[float] = None, strict: bool = False) -> None

@@ -7,7 +7,7 @@ sidebarTitle: sync
 
 ## Functions
 
-### `concurrency` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/concurrency/sync.py#L73" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `concurrency` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/concurrency/sync.py#L66" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 concurrency(names: Union[str, list[str]], occupy: int = 1, timeout_seconds: Optional[float] = None, max_retries: Optional[int] = None, lease_duration: float = 300, strict: bool = False) -> Generator[None, None, None]
@@ -45,7 +45,7 @@ def main():
 ```
 
 
-### `rate_limit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/concurrency/sync.py#L171" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `rate_limit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/concurrency/sync.py#L136" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 rate_limit(names: Union[str, list[str]], occupy: int = 1, timeout_seconds: Optional[float] = None, strict: bool = False) -> None
