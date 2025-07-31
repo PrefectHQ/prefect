@@ -13,7 +13,7 @@ For example, you can run flows on Vertex AI or Cloud Run, read and write data to
 
 ### Install `prefect-gcp`
 
-Install `prefect-gcp` as an extra of `prefect`. 
+Install `prefect-gcp` as an extra of `prefect`.
 If you don't already have `prefect` installed, it will install the newest version of `prefect` as well.
 
 <CodeGroup>
@@ -120,7 +120,7 @@ GcpCredentials(
 ```
 This credential block can be used to create other `prefect_gcp` blocks.
 
-<Warning> 
+<Warning>
 **`service_account_info` vs `service_account_file`**
 
 The advantage of using `service_account_info`, instead of `service_account_file`, is that it is accessible across containers.
@@ -179,7 +179,7 @@ gcs_bucket.save("GCS-BLOCK-NAME")
 
 Run flows on [Google Cloud Run](https://cloud.google.com/run) or [Vertex AI](https://cloud.google.com/vertex-ai) to dynamically scale your infrastructure.
 
-Prefect Cloud offers [Google Cloud Run push work pools](/v3/deploy/infrastructure-examples/serverless). Push work pools submit runs directly to Google Cloud Run, instead of requiring a worker to actively poll for flow runs to execute.
+Prefect Cloud offers [Google Cloud Run push work pools](/v3/how-to-guides/deployment_infra/serverless). Push work pools submit runs directly to Google Cloud Run, instead of requiring a worker to actively poll for flow runs to execute.
 
 See the [Google Cloud Run Worker Guide](/integrations/prefect-gcp/gcp-worker-guide) for a walkthrough of using Google Cloud Run in a hybrid work pool.
 
@@ -263,7 +263,7 @@ if __name__ == "__main__":
     cloud_storage_flow()
 ```
 
-<Info> 
+<Info>
 **Upload and download directories**
 
 `GcsBucket` supports uploading and downloading entire directories.

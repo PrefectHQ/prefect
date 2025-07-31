@@ -279,7 +279,7 @@ class PrefectClient(
     WorkPoolAsyncClient,
 ):
     """
-    An asynchronous client for interacting with the [Prefect REST API](/api-ref/rest-api/).
+    An asynchronous client for interacting with the [Prefect REST API](https://docs.prefect.io/v3/api-ref/rest-api/).
 
     Args:
         api: the REST API URL or FastAPI application to connect to
@@ -1142,7 +1142,7 @@ class SyncPrefectClient(
     WorkPoolClient,
 ):
     """
-    A synchronous client for interacting with the [Prefect REST API](/api-ref/rest-api/).
+    A synchronous client for interacting with the [Prefect REST API](https://docs.prefect.io/v3/api-ref/rest-api/).
 
     Args:
         api: the REST API URL or FastAPI application to connect to

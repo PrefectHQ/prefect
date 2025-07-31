@@ -19,7 +19,7 @@ if __name__ == "__main__":
 
 Tasks are defined as decorated Python functions. Above, `explain_tasks` is an instance of a task.
 
-Tasks are cache-able and retryable units of work that are easy to execute concurrently, in parallel, and/or with [transactional semantics](/v3/concepts/transactions/).
+Tasks are cache-able and retryable units of work that are easy to execute concurrently, in parallel, and/or with [transactional semantics](/v3/advanced/transactions).
 
 Like flows, tasks are free to call other tasks or flows, there is no required nesting pattern.
 
@@ -57,14 +57,14 @@ flowchart TD
     B -.->|💥 Infrastructure failure| E[Crashed]
     D -->|🔄 Retry attempt| B
     D -.->|😵 Retries exhausted| F[Failed]
-    
+
     style A fill:#f9f,stroke:#333,stroke-width:2px,color:#000
     style B fill:#9ff,stroke:#333,stroke-width:2px,color:#000
     style C fill:#9f9,stroke:#333,stroke-width:2px,color:#000
     style D fill:#ff9,stroke:#333,stroke-width:2px,color:#000
     style E fill:#f66,stroke:#333,stroke-width:2px,color:#fff
     style F fill:#f99,stroke:#333,stroke-width:2px,color:#000
-    
+
     classDef default fill-opacity:0.9
 ```
 
@@ -115,14 +115,14 @@ Each task offers isolated observability within the Prefect UI. Task-level metric
 <Note>
 **How big should a task be?**
 
-Prefect encourages "small tasks." As a rule of thumb, each task should represent a logical step or significant "side effect" in your workflow. 
+Prefect encourages "small tasks." As a rule of thumb, each task should represent a logical step or significant "side effect" in your workflow.
 This allows task-level observability and orchestration to narrate your workflow out-of-the-box.
 
 <img src="/v3/img/concepts/narrative-encapsulation.png" alt="Narrative encapsulation" />
 
 </Note>
 
-For detailed configuration options and implementation guidance, see [how to write and run workflows](/v3/how-to-guides/workflows/write-and-run). 
+For detailed configuration options and implementation guidance, see [how to write and run workflows](/v3/how-to-guides/workflows/write-and-run).
 
 ## Background tasks
 

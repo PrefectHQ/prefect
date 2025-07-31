@@ -157,7 +157,7 @@ def git_clone(
                 repository: https://github.com/org/repo.git
                 access_token: "{{ prefect.blocks.secret.github-access-token }}" # Requires creation of a Secret block
         ```
-        Note that you will need to [create a Secret block](/concepts/blocks/#using-existing-block-types) to store the
+        Note that you will need to [create a Secret block](https://docs.prefect.io/v3/concepts/blocks/#pre-registered-blocks) to store the
         value of your git credentials. You can also store a username/password combo or token prefix (e.g. `x-token-auth`)
         in your secret block. Refer to your git providers documentation for the correct authentication schema.
 

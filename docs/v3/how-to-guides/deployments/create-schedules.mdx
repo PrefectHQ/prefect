@@ -8,8 +8,8 @@ There are several ways to create a schedule for a deployment:
 
 - Through the Prefect UI
 - With the `cron`, `interval`, or `rrule` parameters if building your deployment with the
-[`serve` method](/v3/how-to-guides/deployments/run-flows-in-local-processes#serve-a-flow) of the `Flow` object or
-[the `serve` utility](/v3/how-to-guides/deployments/run-flows-in-local-processes#serve-multiple-flows-at-once) for managing multiple flows simultaneously
+[`serve` method](/v3/how-to-guides/deployment_infra/run-flows-in-local-processes#serve-a-flow) of the `Flow` object or
+[the `serve` utility](/v3/how-to-guides/deployment_infra/run-flows-in-local-processes#serve-multiple-flows-at-once) for managing multiple flows simultaneously
 - If using [worker-based deployments](/v3/deploy/infrastructure-concepts/workers/)
   - When you define a deployment with `flow.serve` or `flow.deploy`
   - Through the interactive `prefect deploy` command
@@ -104,7 +104,7 @@ You can create a schedule through the interactive `prefect deploy` command. You 
 You can also create schedules for existing deployments using the `prefect deployment schedule create` command. This command allows you to specify schedule details directly without going through the interactive flow.
 
 <Note>
-By default `prefect deployment schedule create` adds _additional_ schedules to your deployment. 
+By default `prefect deployment schedule create` adds _additional_ schedules to your deployment.
 Use the `--replace` flag to remove old schedules and update with the new one.
 </Note>
 

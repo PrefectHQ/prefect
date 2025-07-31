@@ -38,7 +38,7 @@ flowchart TB
         end
 
         prefect_worker -->|kicks off| ecs_task
-    
+
         fr_task_definition[Flow Run Task Definition]
 
         subgraph ecs_task[ECS Task Execution]
@@ -215,7 +215,7 @@ Next, create an ECS task definition that specifies the Docker image for the Pref
 - Use `prefect config view` to view the `PREFECT_API_URL` for your current Prefect profile. Use this to replace `<prefect-api-url>`.
 
 - For the `PREFECT_API_KEY`:
-  - **Prefect Cloud users**: If you are on a paid plan you can create a [service account](/v3/manage/cloud/manage-users/service-accounts) for the worker. If you are on a free plan, you can pass a user's API key.
+  - **Prefect Cloud users**: If you are on a paid plan you can create a [service account](/v3/how-to-guides/cloud/manage-users/service-accounts) for the worker. If you are on a free plan, you can pass a user's API key.
   - **Self-hosted Prefect server users**: There is no concept of a `PREFECT_API_KEY` in a self-hosted Prefect server. You should either:
     - Remove the `PREFECT_API_KEY` environment variable from your task definition (if your server has no authentication)
     - Replace it with `PREFECT_API_AUTH_STRING` containing your basic auth credentials (if your server uses [basic authentication](/v3/advanced/security-settings#basic-authentication))

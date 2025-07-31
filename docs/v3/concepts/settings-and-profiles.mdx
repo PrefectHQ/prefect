@@ -34,7 +34,7 @@ Most editors have plugins for TOML that provide syntax highlighting, linting, an
 <Tip>
 **Writing TOML**
 
-TOML is a simple configuration language. If you're new to TOML, learn more about the syntax in the [official documentation](https://toml.io/en/). 
+TOML is a simple configuration language. If you're new to TOML, learn more about the syntax in the [official documentation](https://toml.io/en/).
 
 In particular, note that TOML uses square brackets to denote [tables](https://toml.io/en/v1.0.0#table), which are analogous to dictionaries in Python.
 </Tip>
@@ -68,7 +68,7 @@ For example, if you set `PREFECT_API_URL` in both your environment and your acti
 
 ### Environment variables
 
-Environment variables are useful for temporarily overriding settings or configuring the runtime environment of a workflow. 
+Environment variables are useful for temporarily overriding settings or configuring the runtime environment of a workflow.
 
 All Prefect settings can be set using environment variables prefixed with `PREFECT_`. They take precedence over all other sources, making them ideal for adjustments that should only apply to a single session or process.
 
@@ -97,7 +97,7 @@ environment variable on the job or process executing the workflow.
 
 ### `.env` file
 
-`.env` files are useful for declaring local settings that you want to apply across multiple runs. 
+`.env` files are useful for declaring local settings that you want to apply across multiple runs.
 
 When running `prefect` in a directory that contains a `.env` file, Prefect will automatically apply the settings in the file. We recommend keeping your `.env` files local and not committing them to your code repositories.
 
@@ -113,7 +113,7 @@ View supported environment variables for each setting in the [settings reference
 
 ### `prefect.toml` file
 
-A `prefect.toml` file is useful when you want to declare settings for an entire project. 
+A `prefect.toml` file is useful when you want to declare settings for an entire project.
 
 You can keep a `prefect.toml` file in your project directory and the declared settings will be automatically applied when running `prefect` in that directory. We recommend committing this file to your code repositories to ensure consistency across environments.
 
@@ -202,22 +202,22 @@ prefect config unset PREFECT_LOGGING_LEVEL -y
 
 ## Common client settings
 
-- [`api.url`](/v3/develop/settings-ref/#url): this setting specifies the API endpoint of your 
+- [`api.url`](/v3/develop/settings-ref/#url): this setting specifies the API endpoint of your
 Prefect Cloud workspace or a self-hosted Prefect server instance.
-- [`api.key`](/v3/develop/settings-ref/#key): this setting specifies the 
-[API key](/v3/manage/cloud/manage-users/api-keys/) used to authenticate with Prefect Cloud.
+- [`api.key`](/v3/develop/settings-ref/#key): this setting specifies the
+[API key](/v3/how-to-guides/cloud/manage-users/api-keys) used to authenticate with Prefect Cloud.
 - [`home`](/v3/develop/settings-ref/#home): the `home` value specifies the local Prefect directory for configuration files,
 profiles, and the location of the default Prefect SQLite database.
 
 <Tip>
 **Use `prefect cloud login` to set these values for Prefect Cloud**
 
-To set `PREFECT_API_URL` and `PREFECT_API_KEY` for your active profile, run `prefect cloud login`. 
-Read more about [managing API keys](/v3/manage/cloud/manage-users/api-keys/). 
+To set `PREFECT_API_URL` and `PREFECT_API_KEY` for your active profile, run `prefect cloud login`.
+Read more about [managing API keys](/v3/how-to-guides/cloud/manage-users/api-keys).
 </Tip>
 
 ## Common server settings
 
 
 - [`server.database.connection_url`](/v3/develop/settings-ref#connection-url): the database connection URL for a self-hosted Prefect server instance.
-Must be provided in a SQLAlchemy-compatible format. Prefect currently supports SQLite and Postgres. 
+Must be provided in a SQLAlchemy-compatible format. Prefect currently supports SQLite and Postgres.

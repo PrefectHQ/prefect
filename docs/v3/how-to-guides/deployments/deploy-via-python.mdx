@@ -9,7 +9,7 @@ This can be more flexible if you have to programmatically gather configuration a
 
 ## When to use `flow.deploy` instead of `flow.serve`
 
-The `flow.serve` method is one [simple way to create a deployment with the Python SDK](/v3/how-to-guides/deployments/run-flows-in-local-processes#serve-a-flow). It's ideal when you have readily available, static infrastructure for your flow runs and you don't need the dynamic dispatch of infrastructure per flow run offered by work pools.
+The `flow.serve` method is one [simple way to create a deployment with the Python SDK](/v3/how-to-guides/deployment_infra/run-flows-in-local-processes#serve-a-flow). It's ideal when you have readily available, static infrastructure for your flow runs and you don't need the dynamic dispatch of infrastructure per flow run offered by work pools.
 
 However, you might want to consider using `flow.deploy` to associate your flow with a work pool that enables dynamic dispatch of infrastructure per flow run for the following reasons:
 
@@ -24,15 +24,15 @@ Let's explore how to create a deployment using the Python SDK and leverage dynam
 
 Before deploying your flow using `flow.deploy`, ensure you have the following:
 
-1. **A running Prefect server or Prefect Cloud workspace:** You can either run a Prefect server locally or use a Prefect Cloud workspace. 
-To start a local server, run `prefect server start`. To use Prefect Cloud, sign up for an account at [app.prefect.cloud](https://app.prefect.cloud) 
+1. **A running Prefect server or Prefect Cloud workspace:** You can either run a Prefect server locally or use a Prefect Cloud workspace.
+To start a local server, run `prefect server start`. To use Prefect Cloud, sign up for an account at [app.prefect.cloud](https://app.prefect.cloud)
 and follow the [Connect to Prefect Cloud](/v3/manage/cloud/connect-to-cloud/) guide.
 
-2. **A Prefect flow:** You should have a flow defined in your Python script. If you haven't created a flow yet, refer to the 
+2. **A Prefect flow:** You should have a flow defined in your Python script. If you haven't created a flow yet, refer to the
 [Write Workflows](/v3/how-to-guides/workflows/write-and-run) guide.
 
-3. **A work pool:** You need a work pool to manage the infrastructure for running your flow. If you haven't created a work pool, you can do so through 
-the Prefect UI or using the Prefect CLI. For more information, see the [Work Pools](/v3/concepts/work-pools/) guide. 
+3. **A work pool:** You need a work pool to manage the infrastructure for running your flow. If you haven't created a work pool, you can do so through
+the Prefect UI or using the Prefect CLI. For more information, see the [Work Pools](/v3/concepts/work-pools/) guide.
 
     For examples in this guide, we'll use a Docker work pool created by running:
     ```bash
@@ -40,10 +40,10 @@ the Prefect UI or using the Prefect CLI. For more information, see the [Work Poo
     ```
 
 4. **Docker:** Docker will be used to build and store the image containing your flow code. You can download and install
-Docker from the [official Docker website](https://www.docker.com/get-started/). If you don't want to use Docker, you 
+Docker from the [official Docker website](https://www.docker.com/get-started/). If you don't want to use Docker, you
 can see other options in the [Use remote code storage](#use-remote-code-storage) section.
 
-5. **(Optional) A Docker registry:** While not strictly necessary for local development, having an account with a Docker registry (such as 
+5. **(Optional) A Docker registry:** While not strictly necessary for local development, having an account with a Docker registry (such as
 Docker Hub) is recommended for storing and sharing your Docker images.
 
 
@@ -107,7 +107,7 @@ In this example, we set `push=False` to skip pushing the image to a registry. Th
 <Note>
 **Where's the Dockerfile?**
 
-In the above example, we didn't specify a Dockerfile. By default, Prefect will generate a Dockerfile for us that copies the flow code into an image and installs 
+In the above example, we didn't specify a Dockerfile. By default, Prefect will generate a Dockerfile for us that copies the flow code into an image and installs
 any additional dependencies.
 
 If you want to write and use your own Dockerfile, you can do so by passing a `dockerfile` parameter to `flow.deploy`.
@@ -251,12 +251,12 @@ To deploy a flow with a schedule, you can use one of the following options:
     ```
     </Expandable>
 
-    Learn more about schedules [here](/v3/how-to-guides/automations/create-schedules).
+    Learn more about schedules [here](/v3/how-to-guides/deployments/create-schedules).
 
 
 ## Use remote code storage
 
-In addition to storing your  code in a Docker image, Prefect also supports deploying your code to remote storage. This approach allows you to 
+In addition to storing your  code in a Docker image, Prefect also supports deploying your code to remote storage. This approach allows you to
 store your flow code in a remote location, such as a Git repository or cloud storage service.
 
 Using remote storage for your code has several advantages:
@@ -328,7 +328,7 @@ Note these parameters can still be overridden on a per-deployment basis.
 
 ## Set job variables
 
-You can set default job variables for a deployment using the `job_variables` keyword argument in `flow.deploy`. 
+You can set default job variables for a deployment using the `job_variables` keyword argument in `flow.deploy`.
 The job variables provided will override the values set on the work pool.
 
 ```python job-variables.py
@@ -378,7 +378,7 @@ def my_flow_2():
 
 if __name__ == "__main__":
     deploy(
-        # Use the `to_deployment` method to specify configuration 
+        # Use the `to_deployment` method to specify configuration
         #specific to each deployment
         my_flow_1.to_deployment("my-deployment-1"),
         my_flow_2.to_deployment("my-deployment-2"),
@@ -386,7 +386,7 @@ if __name__ == "__main__":
         # Specify shared configuration for both deployments
         image="my-registry.com/my-docker-image:my-tag",
         push=False,
-        work_pool_name="my-work-pool",  
+        work_pool_name="my-work-pool",
     )
 ```
 
@@ -402,5 +402,5 @@ This approach offers the following benefits:
 - [Work Pools](/v3/concepts/work-pools/)
 - [Store Flow Code](/v3/deploy/infrastructure-concepts/store-flow-code/)
 - [Customize Infrastructure](/v3/how-to-guides/deployments/customize-job-variables)
-- [Schedules](/v3/how-to-guides/automations/create-schedules)
+- [Schedules](/v3/how-to-guides/deployments/create-schedules)
 - [Write Workflows](/v3/how-to-guides/workflows/write-and-run)

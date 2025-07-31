@@ -7,7 +7,7 @@ description: Deploy cloud infrastructure without expertise with Coiled
 This page provides a step-by-step guide to run Prefect flows in your own cloud
 account using two technologies:
 
--  [Serverless push work pools](serverless), which remove the need to
+-  [Serverless push work pools](/v3/how-to-guides/deployment_infra/serverless), which remove the need to
    host any always-on Prefect worker
 -  [Coiled](https://coiled.io?utm_source=prefect-docs), which manages cloud VMs such as
    ECS, Cloud Run, and ACI in your account ergonomically and accessibly.
@@ -30,7 +30,7 @@ walks through the steps in this article:
 </div>
 
 
-## Install and set up accounts 
+## Install and set up accounts
 
 ```
 pip install prefect coiled prefect-coiled
@@ -116,7 +116,7 @@ prefect deployment run 'my-flow/example-coiled-deployment'
 
 Or by going to the deployment at the URL that Prefect prints in the CLI.
 
-## Dockerless execution 
+## Dockerless execution
 
 You don’t have to use Docker if you don’t want to.  In our example above we used Docker to build an image locally and push up to our Docker image repository:
 

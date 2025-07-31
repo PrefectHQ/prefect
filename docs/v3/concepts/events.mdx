@@ -6,7 +6,7 @@ description: An event is a notification of a change - a record of activity in yo
 Events can represent API calls, state transitions, or changes in your execution environment or infrastructure.
 
 Events power several Prefect features, including flow run logs and [automations](/v3/concepts/automations/).
-In Prefect Cloud, events power [audit logs](/v3/manage/cloud/manage-users/audit-logs/).
+In Prefect Cloud, events power [audit logs](/v3/how-to-guides/cloud/manage-users/audit-logs).
 
 
 import { COMBINED } from "/snippets/resource-management/combined.mdx"
@@ -43,13 +43,13 @@ prefect-cloud.automation.action.executed
 prefect-cloud.user.logged-in
 ```
 
-See how to [emit and use custom events](/v3/how-to-guides/automations/use-custom-event-grammar/) to trigger automations.
+See how to [emit and use custom events](/v3/advanced/use-custom-event-grammar) to trigger automations.
 
 
 ## Resources
 
-Every event has a primary resource, which describes the object that emitted an event. 
-Resources are used as quasi-stable identifiers for sources of events, and are represented as dot-delimited strings. 
+Every event has a primary resource, which describes the object that emitted an event.
+Resources are used as quasi-stable identifiers for sources of events, and are represented as dot-delimited strings.
 
 For example:
 
@@ -59,7 +59,7 @@ acme.user.kiki.elt_script_1
 prefect.flow-run.e3755d32-cec5-42ca-9bcd-af236e308ba6
 ```
 
-Resources can have additional arbitrary labels which can be used in event aggregation queries. 
+Resources can have additional arbitrary labels which can be used in event aggregation queries.
 For example:
 
 ```json
@@ -70,7 +70,7 @@ For example:
 ```
 
 Events may contain related resources, used to associate the event with other resources.
-For example, a primary resource can act on or with another resource. 
+For example, a primary resource can act on or with another resource.
 Here is an example of a related resource:
 
 ```json
@@ -90,12 +90,12 @@ Here is an example of a related resource:
 
 ## Respond to events
 
-From any event detail page, you can configure an [automation](/v3/concepts/automations/) to trigger on 
+From any event detail page, you can configure an [automation](/v3/concepts/automations/) to trigger on
 the observation of matching events—or a lack of matching events—by clicking the automate button in the overflow menu:
 
 ![Automation from event](/v3/img/ui/automation-from-event.png)
 
-The default trigger configuration fires every time it sees an event with a matching resource identifier. 
+The default trigger configuration fires every time it sees an event with a matching resource identifier.
 Advanced configuration is possible through [custom event triggers](/v3/concepts/event-triggers/).
 
 

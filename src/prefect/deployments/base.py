@@ -2,7 +2,7 @@
 Core primitives for managing Prefect deployments via `prefect deploy`, providing a minimally opinionated
 build system for managing flows and deployments.
 
-To get started, follow along with [the deloyments tutorial](/tutorials/deployments/).
+To get started, follow along with [the deployments tutorial](https://docs.prefect.io/v3/how-to-guides/deployments/create-deployments).
 """
 
 from __future__ import annotations
