@@ -254,7 +254,9 @@ def mask_sensitive_env_values(
 
 def mask_api_key(task_run_request):
     return mask_sensitive_env_values(
-        deepcopy(task_run_request), ["PREFECT_API_KEY"], keep_length=6
+        deepcopy(task_run_request),
+        ["PREFECT_API_KEY", "PREFECT_API_AUTH_STRING"],
+        keep_length=6,
     )
 
 
@@ -295,6 +297,7 @@ class ECSJobConfiguration(BaseJobConfiguration):
     cluster: Optional[str] = Field(default=None)
     match_latest_revision_in_family: bool = Field(default=False)
     prefect_api_key_secret_arn: Optional[str] = Field(default=None)
+    prefect_api_auth_string_secret_arn: Optional[str] = Field(default=None)
 
     execution_role_arn: Optional[str] = Field(
         title="Execution Role ARN",
@@ -319,6 +322,10 @@ class ECSJobConfiguration(BaseJobConfiguration):
         if self.prefect_api_key_secret_arn:
             # Remove the PREFECT_API_KEY from the environment variables because it will be provided via a secret
             del self.env["PREFECT_API_KEY"]
+        if self.prefect_api_auth_string_secret_arn:
+            # Remove the PREFECT_API_AUTH_STRING from the environment variables because it will be provided via a secret
+            if "PREFECT_API_AUTH_STRING" in self.env:
+                del self.env["PREFECT_API_AUTH_STRING"]
 
     @model_validator(mode="after")
     def task_run_request_requires_arn_if_no_task_definition_given(self) -> Self:
@@ -522,6 +529,15 @@ class ECSVariables(BaseVariables):
             "An ARN of an AWS secret containing a Prefect API key. This key will be used "
             "to authenticate ECS tasks with Prefect Cloud. If not provided, the "
             "PREFECT_API_KEY environment variable will be used if the worker has one."
+        ),
+    )
+    prefect_api_auth_string_secret_arn: Optional[str] = Field(
+        title="Prefect API Auth String Secret ARN",
+        default=None,
+        description=(
+            "An ARN of an AWS secret containing a Prefect API auth string. This string will be used "
+            "to authenticate ECS tasks with Prefect Cloud. If not provided, the "
+            "PREFECT_API_AUTH_STRING environment variable will be used if the worker has one."
         ),
     )
     task_role_arn: Optional[str] = Field(
@@ -1475,18 +1491,34 @@ class ECSWorker(BaseWorker):
 
         _drop_empty_keys_from_dict(task_definition)
 
+        # Handle secrets for both API key and auth string
+        secrets = []
         if configuration.prefect_api_key_secret_arn:
-            # Add the PREFECT_API_KEY to the secrets
-            container["secrets"] = [
+            secrets.append(
                 {
                     "name": "PREFECT_API_KEY",
                     "valueFrom": configuration.prefect_api_key_secret_arn,
                 }
-            ]
+            )
             # Remove the PREFECT_API_KEY from the environment variables
             for item in tuple(container.get("environment", [])):
                 if item["name"] == "PREFECT_API_KEY":
                     container["environment"].remove(item)  # type: ignore
+
+        if configuration.prefect_api_auth_string_secret_arn:
+            secrets.append(
+                {
+                    "name": "PREFECT_API_AUTH_STRING",
+                    "valueFrom": configuration.prefect_api_auth_string_secret_arn,
+                }
+            )
+            # Remove the PREFECT_API_AUTH_STRING from the environment variables
+            for item in tuple(container.get("environment", [])):
+                if item["name"] == "PREFECT_API_AUTH_STRING":
+                    container["environment"].remove(item)  # type: ignore
+
+        if secrets:
+            container["secrets"] = secrets
 
         return task_definition
 
