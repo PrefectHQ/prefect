@@ -291,3 +291,110 @@ class TestCloudRunWorkerJobV2Configuration:
             mount["name"] == "cloudsql" and mount["mountPath"] == "/cloudsql"
             for mount in template["containers"][0]["volumeMounts"]
         )
+
+    def test_populate_env_with_prefect_api_key_secret(
+        self, cloud_run_worker_v2_job_config
+    ):
+        cloud_run_worker_v2_job_config.prefect_api_key_secret = SecretKeySelector(
+            secret="prefect-api-key", version="latest"
+        )
+        cloud_run_worker_v2_job_config._populate_env()
+
+        env_vars = cloud_run_worker_v2_job_config.job_body["template"]["template"][
+            "containers"
+        ][0]["env"]
+
+        assert {"name": "ENV1", "value": "VALUE1"} in env_vars
+        assert {"name": "ENV2", "value": "VALUE2"} in env_vars
+        assert {
+            "name": "PREFECT_API_KEY",
+            "valueSource": {
+                "secretKeyRef": {"secret": "prefect-api-key", "version": "latest"}
+            },
+        } in env_vars
+
+    def test_populate_env_with_prefect_api_auth_string_secret(
+        self, cloud_run_worker_v2_job_config
+    ):
+        cloud_run_worker_v2_job_config.prefect_api_auth_string_secret = (
+            SecretKeySelector(secret="prefect-auth-string", version="latest")
+        )
+        cloud_run_worker_v2_job_config._populate_env()
+
+        env_vars = cloud_run_worker_v2_job_config.job_body["template"]["template"][
+            "containers"
+        ][0]["env"]
+
+        assert {"name": "ENV1", "value": "VALUE1"} in env_vars
+        assert {"name": "ENV2", "value": "VALUE2"} in env_vars
+        assert {
+            "name": "PREFECT_API_AUTH_STRING",
+            "valueSource": {
+                "secretKeyRef": {"secret": "prefect-auth-string", "version": "latest"}
+            },
+        } in env_vars
+
+    def test_populate_env_with_both_prefect_secrets(
+        self, cloud_run_worker_v2_job_config
+    ):
+        cloud_run_worker_v2_job_config.prefect_api_key_secret = SecretKeySelector(
+            secret="prefect-api-key", version="latest"
+        )
+        cloud_run_worker_v2_job_config.prefect_api_auth_string_secret = (
+            SecretKeySelector(secret="prefect-auth-string", version="latest")
+        )
+        cloud_run_worker_v2_job_config._populate_env()
+
+        env_vars = cloud_run_worker_v2_job_config.job_body["template"]["template"][
+            "containers"
+        ][0]["env"]
+
+        assert {"name": "ENV1", "value": "VALUE1"} in env_vars
+        assert {"name": "ENV2", "value": "VALUE2"} in env_vars
+        assert {
+            "name": "PREFECT_API_KEY",
+            "valueSource": {
+                "secretKeyRef": {"secret": "prefect-api-key", "version": "latest"}
+            },
+        } in env_vars
+        assert {
+            "name": "PREFECT_API_AUTH_STRING",
+            "valueSource": {
+                "secretKeyRef": {"secret": "prefect-auth-string", "version": "latest"}
+            },
+        } in env_vars
+
+    def test_populate_env_with_all_secret_types(self, cloud_run_worker_v2_job_config):
+        cloud_run_worker_v2_job_config.env_from_secrets = {
+            "SECRET_ENV1": SecretKeySelector(secret="SECRET1", version="latest")
+        }
+        cloud_run_worker_v2_job_config.prefect_api_key_secret = SecretKeySelector(
+            secret="prefect-api-key", version="latest"
+        )
+        cloud_run_worker_v2_job_config.prefect_api_auth_string_secret = (
+            SecretKeySelector(secret="prefect-auth-string", version="latest")
+        )
+        cloud_run_worker_v2_job_config._populate_env()
+
+        env_vars = cloud_run_worker_v2_job_config.job_body["template"]["template"][
+            "containers"
+        ][0]["env"]
+
+        assert {"name": "ENV1", "value": "VALUE1"} in env_vars
+        assert {"name": "ENV2", "value": "VALUE2"} in env_vars
+        assert {
+            "name": "SECRET_ENV1",
+            "valueSource": {"secretKeyRef": {"secret": "SECRET1", "version": "latest"}},
+        } in env_vars
+        assert {
+            "name": "PREFECT_API_KEY",
+            "valueSource": {
+                "secretKeyRef": {"secret": "prefect-api-key", "version": "latest"}
+            },
+        } in env_vars
+        assert {
+            "name": "PREFECT_API_AUTH_STRING",
+            "valueSource": {
+                "secretKeyRef": {"secret": "prefect-auth-string", "version": "latest"}
+            },
+        } in env_vars

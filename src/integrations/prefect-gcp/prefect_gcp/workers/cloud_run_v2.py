@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import re
 import shlex
 import time
@@ -14,7 +16,7 @@ from googleapiclient.errors import HttpError
 from jsonpatch import JsonPatch
 from pydantic import Field, PrivateAttr, field_validator
 
-from prefect.logging.loggers import PrefectLogAdapter
+from prefect.logging.loggers import PrefectLogAdapter, flow_run_logger
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.dockerutils import get_prefect_image_name
 from prefect.workers.base import (
@@ -105,6 +107,16 @@ class CloudRunWorkerJobV2Configuration(BaseJobConfiguration):
         title="Environment Variables from Secrets",
         description="Environment variables to set from GCP secrets when starting a flow run.",
     )
+    prefect_api_key_secret: Optional[SecretKeySelector] = Field(
+        default=None,
+        title="Prefect API Key Secret",
+        description="The GCP secret to use for the Prefect API key. When provided, the secret will be used instead of the PREFECT_API_KEY environment variable.",
+    )
+    prefect_api_auth_string_secret: Optional[SecretKeySelector] = Field(
+        default=None,
+        title="Prefect API Auth String Secret",
+        description="The GCP secret to use for the Prefect API auth string. When provided, the secret will be used instead of the PREFECT_API_AUTH_STRING environment variable.",
+    )
     cloudsql_instances: Optional[List[str]] = Field(
         default_factory=list,
         title="Cloud SQL Instances",
@@ -158,6 +170,23 @@ class CloudRunWorkerJobV2Configuration(BaseJobConfiguration):
 
         return self._job_name
 
+    def _get_flow_run_logger(
+        self,
+        flow_run: "FlowRun",
+        work_pool: "WorkPool | None" = None,
+        worker_name: str | None = None,
+    ) -> PrefectLogAdapter:
+        extra = {
+            "work_pool_name": (work_pool.name if work_pool else "<unknown>"),
+            "worker_name": worker_name if worker_name else "<unknown>",
+            "work_pool_id": str(work_pool.id if work_pool else "unknown"),
+        }
+
+        return flow_run_logger(flow_run=flow_run).getChild(
+            "worker",
+            extra=extra,
+        )
+
     def prepare_for_flow_run(
         self,
         flow_run: "FlowRun",
@@ -189,6 +218,11 @@ class CloudRunWorkerJobV2Configuration(BaseJobConfiguration):
         )
 
         self._populate_env()
+        self._warn_about_plaintext_credentials(
+            flow_run=flow_run,
+            worker_name=worker_name,
+            work_pool=work_pool,
+        )
         self._configure_cloudsql_volumes()
         self._populate_or_format_command()
         self._format_args_if_present()
@@ -202,11 +236,65 @@ class CloudRunWorkerJobV2Configuration(BaseJobConfiguration):
         """
         self.job_body["template"]["template"]["timeout"] = f"{self.timeout}s"
 
+    def _warn_about_plaintext_credentials(
+        self,
+        flow_run: "FlowRun",
+        worker_name: str | None = None,
+        work_pool: "WorkPool | None" = None,
+    ):
+        """
+        Warns about plaintext credentials when no secrets are configured.
+        """
+        if (
+            "PREFECT_API_KEY" in self.env
+            and not self.prefect_api_key_secret
+            and "PREFECT_API_KEY" not in self.env_from_secrets
+        ):
+            self._get_flow_run_logger(
+                flow_run=flow_run,
+                worker_name=worker_name,
+                work_pool=work_pool,
+            ).warning(
+                "PREFECT_API_KEY is provided as a plaintext environment variable. "
+                "For better security, consider providing it as a secret using "
+                "'prefect_api_key_secret' or 'env_from_secrets' in your base job template."
+            )
+
+        if (
+            "PREFECT_API_AUTH_STRING" in self.env
+            and not self.prefect_api_auth_string_secret
+            and "PREFECT_API_AUTH_STRING" not in self.env_from_secrets
+        ):
+            self._get_flow_run_logger(
+                flow_run=flow_run,
+                worker_name=worker_name,
+                work_pool=work_pool,
+            ).warning(
+                "PREFECT_API_AUTH_STRING is provided as a plaintext environment variable. "
+                "For better security, consider providing it as a secret using "
+                "'prefect_api_auth_string_secret' or 'env_from_secrets' in your base job template."
+            )
+
     def _populate_env(self):
         """
         Populates the job body with environment variables.
         """
-        envs = [{"name": k, "value": v} for k, v in self.env.items()]
+        # Filter out plaintext Prefect API key/auth string if secrets are configured
+        filtered_env = {}
+        for k, v in self.env.items():
+            if k == "PREFECT_API_KEY" and (
+                self.prefect_api_key_secret
+                or "PREFECT_API_KEY" in self.env_from_secrets
+            ):
+                continue  # Skip plaintext API key if secret is configured
+            if k == "PREFECT_API_AUTH_STRING" and (
+                self.prefect_api_auth_string_secret
+                or "PREFECT_API_AUTH_STRING" in self.env_from_secrets
+            ):
+                continue  # Skip plaintext auth string if secret is configured
+            filtered_env[k] = v
+
+        envs = [{"name": k, "value": v} for k, v in filtered_env.items()]
         envs_from_secrets = [
             {
                 "name": k,
@@ -215,6 +303,28 @@ class CloudRunWorkerJobV2Configuration(BaseJobConfiguration):
             for k, v in self.env_from_secrets.items()
         ]
         envs.extend(envs_from_secrets)
+
+        # Add Prefect API key from secret if configured
+        if self.prefect_api_key_secret:
+            envs.append(
+                {
+                    "name": "PREFECT_API_KEY",
+                    "valueSource": {
+                        "secretKeyRef": self.prefect_api_key_secret.model_dump()
+                    },
+                }
+            )
+
+        # Add Prefect API auth string from secret if configured
+        if self.prefect_api_auth_string_secret:
+            envs.append(
+                {
+                    "name": "PREFECT_API_AUTH_STRING",
+                    "valueSource": {
+                        "secretKeyRef": self.prefect_api_auth_string_secret.model_dump()
+                    },
+                }
+            )
 
         self.job_body["template"]["template"]["containers"][0]["env"].extend(envs)
 
@@ -385,6 +495,28 @@ class CloudRunWorkerV2Variables(BaseVariables):
                     "secret": "SECRET_NAME",
                     "version": "latest",
                 }
+            }
+        ],
+    )
+    prefect_api_key_secret: Optional[SecretKeySelector] = Field(
+        default=None,
+        title="Prefect API Key Secret",
+        description="The GCP secret to use for the Prefect API key. When provided, the secret will be used instead of the PREFECT_API_KEY environment variable.",
+        examples=[
+            {
+                "secret": "prefect-api-key",
+                "version": "latest",
+            }
+        ],
+    )
+    prefect_api_auth_string_secret: Optional[SecretKeySelector] = Field(
+        default=None,
+        title="Prefect API Auth String Secret",
+        description="The GCP secret to use for the Prefect API auth string. When provided, the secret will be used instead of the PREFECT_API_AUTH_STRING environment variable.",
+        examples=[
+            {
+                "secret": "prefect-api-auth-string",
+                "version": "latest",
             }
         ],
     )
