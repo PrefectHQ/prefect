@@ -1088,6 +1088,37 @@ class TestIsolationLevel:
                 ):
                     pass
 
+        async def test_serializable_isolation_works_with_multiple_asyncio_tasks(self):
+            """
+            Regression test for issue https://github.com/PrefectHQ/prefect/issues/18600
+
+            The current task is accounted for in the generated lock holder. Nested transactions
+            spanning multiple tasks could previously fail because each task resulted in a different lock holder,
+            so the lock could not be released and would raise an error.
+            """
+
+            async def child_task():
+                async with atransaction(
+                    key="child",
+                    store=ResultStore(lock_manager=MemoryLockManager()),
+                    isolation_level=IsolationLevel.SERIALIZABLE,
+                ) as txn:
+                    txn.stage({"foo": "bar"})
+
+            async def parent_task():
+                async with atransaction(
+                    key="parent",
+                    store=ResultStore(lock_manager=MemoryLockManager()),
+                    isolation_level=IsolationLevel.SERIALIZABLE,
+                ):
+                    t = asyncio.create_task(child_task())
+                    await t
+
+            # Should not raise an error
+            await parent_task()
+
+            assert ResultStore().read("child").result == {"foo": "bar"}
+
 
 class TestHooks:
     class TestTransaction:
