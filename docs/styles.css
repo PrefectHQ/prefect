@@ -1,5 +1,5 @@
 #topbar-cta-button > a > span {
-  background-color: #2D6DF6;
+  background-color: #2d6df6;
   border-radius: 0.25rem;
 }
 
@@ -12,7 +12,7 @@
   letter-spacing: 0.4px;
 }
 
-#topbar-cta-button>a div>span,
+#topbar-cta-button > a div > span,
 #topbar-cta-button > a div > svg {
   color: #fff;
 }
@@ -21,26 +21,28 @@ img {
   filter: none !important;
 }
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap');
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap");
 
 /* Base font settings */
 body {
-    font-family: 'Inter', sans-serif;
+  font-family: "Inter", sans-serif;
 }
 
-h1, h2, h3, h4, h5, h6 {
-    font-family: 'Roboto', sans-serif;
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: "Roboto", sans-serif;
 }
 
 /* Other custom styles */
 p {
-    font-family: 'Inter', sans-serif;
+  font-family: "Inter", sans-serif;
 }
 
-[role="listitem"] *:last-child {
-    border-bottom: none !important;
+[role="listitem"] *:last-child:not(.code-block, .link) {
+  border-bottom: none !important;
 }
-
-
-
