@@ -154,6 +154,8 @@ Read more about configuring work pools
     ```
 """
 
+from __future__ import annotations
+
 import re
 import shlex
 import time
