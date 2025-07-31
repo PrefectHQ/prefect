@@ -230,22 +230,40 @@ class APILogHandler(logging.Handler):
             except ValueError:
                 flow_run_id = None
 
+        formatted_message = self.format(record)
+
         log = LogCreate(
             flow_run_id=flow_run_id,
             task_run_id=task_run_id,
             worker_id=worker_id,
             name=record.name,
             level=record.levelno,
-            timestamp=from_timestamp(getattr(record, "created", None) or time.time()),  # pyright: ignore[reportArgumentType] DateTime is split into two types depending on Python version
-            message=self.format(record),
+            timestamp=from_timestamp(getattr(record, "created", None) or time.time()),  # pyright: ignore[reportArgumentType]
+            message=formatted_message,
         ).model_dump(mode="json")
 
         log_size = log["__payload_size__"] = self._get_payload_size(log)
         if log_size > PREFECT_LOGGING_TO_API_MAX_LOG_SIZE.value():
-            raise ValueError(
-                f"Log of size {log_size} is greater than the max size of "
-                f"{PREFECT_LOGGING_TO_API_MAX_LOG_SIZE.value()}"
-            )
+            max_size = PREFECT_LOGGING_TO_API_MAX_LOG_SIZE.value()
+            oversize = log_size - max_size
+            BUFFER = 50
+            truncated_length = max(len(formatted_message) - oversize - BUFFER, 0)
+            truncated_message = formatted_message[:truncated_length] + "... [truncated]"
+
+            log = LogCreate(
+                flow_run_id=flow_run_id,
+                task_run_id=task_run_id,
+                worker_id=worker_id,
+                name=record.name,
+                level=record.levelno,
+                timestamp=from_timestamp(
+                    getattr(record, "created", None) or time.time()  # pyright: ignore[reportArgumentType] DateTime is split into two types depending on Python version
+                ),
+                message=truncated_message,
+            ).model_dump(mode="json")
+
+            log["__payload_truncated__"] = True
+            log["__payload_size__"] = self._get_payload_size(log)
 
         return log
 
