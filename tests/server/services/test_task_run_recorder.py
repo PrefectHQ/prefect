@@ -3,11 +3,13 @@ from datetime import datetime, timedelta, timezone
 from itertools import permutations
 from pathlib import Path
 from typing import AsyncGenerator
-from uuid import UUID
+from unittest.mock import AsyncMock, patch
+from uuid import UUID, uuid4
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from prefect.server.events.ordering import PRECEDING_EVENT_LOOKBACK
 from prefect.server.events.schemas.events import ReceivedEvent
 from prefect.server.models.flow_runs import create_flow_run
 from prefect.server.models.task_run_states import (
@@ -20,6 +22,7 @@ from prefect.server.schemas.states import StateDetails, StateType
 from prefect.server.services import task_run_recorder
 from prefect.server.utilities.messaging import MessageHandler, create_publisher
 from prefect.server.utilities.messaging.memory import MemoryMessage
+from prefect.types._datetime import now
 
 
 async def test_start_and_stop_service():
@@ -791,3 +794,77 @@ async def test_task_run_recorder_sends_repeated_failed_messages_to_dead_letter(
         await service_task
     except asyncio.CancelledError:
         pass
+
+
+async def test_record_lost_follower_task_run_events_skips_old_events(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    frozen_now = now("UTC")
+
+    old_event = ReceivedEvent(
+        occurred=frozen_now - timedelta(days=1, minutes=1),
+        received=frozen_now - timedelta(days=1),
+        resource={
+            "prefect.resource.id": "prefect.old.12345",
+        },
+        event="old.event",
+        follows=uuid4(),
+        id=uuid4(),
+    )
+
+    get_lost_followers_mock = AsyncMock()
+    get_lost_followers_mock.return_value = [old_event]
+    monkeypatch.setattr(
+        "prefect.server.events.ordering.CausalOrdering.get_lost_followers",
+        get_lost_followers_mock,
+    )
+    record_task_run_event_mock = AsyncMock()
+    monkeypatch.setattr(
+        "prefect.server.services.task_run_recorder.record_task_run_event",
+        record_task_run_event_mock,
+    )
+
+    await task_run_recorder.record_lost_follower_task_run_events()
+    record_task_run_event_mock.assert_not_awaited()
+
+
+async def test_lost_followers_are_recorded(monkeypatch: pytest.MonkeyPatch):
+    frozen_now = now("UTC")
+    event = ReceivedEvent(
+        occurred=(frozen_now - PRECEDING_EVENT_LOOKBACK) + timedelta(seconds=2),
+        received=(frozen_now - PRECEDING_EVENT_LOOKBACK) + timedelta(seconds=4),
+        event="prefect.task-run.Running",
+        resource={
+            "prefect.resource.id": f"prefect.task-run.{str(uuid4())}",
+        },
+        follows=uuid4(),
+        id=uuid4(),
+    )
+    # record a follower that never sees its leader
+    await task_run_recorder.record_task_run_event(event)
+
+    record_task_run_event_mock = AsyncMock()
+    monkeypatch.setattr(
+        "prefect.server.services.task_run_recorder.record_task_run_event",
+        record_task_run_event_mock,
+    )
+
+    # move time forward so we can record the lost follower
+    with patch("prefect.types._datetime.now") as the_future:
+        the_future.return_value = frozen_now + (PRECEDING_EVENT_LOOKBACK * 2)
+        await task_run_recorder.record_lost_follower_task_run_events()
+
+    record_task_run_event_mock.assert_awaited_with(event)
+
+
+async def test_lost_followers_are_recorded_periodically(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    record_lost_follower_task_run_events_mock = AsyncMock()
+    monkeypatch.setattr(
+        "prefect.server.services.task_run_recorder.record_lost_follower_task_run_events",
+        record_lost_follower_task_run_events_mock,
+    )
+    async with task_run_recorder.consumer():
+        await asyncio.sleep(1)
+        assert record_lost_follower_task_run_events_mock.await_count >= 1
