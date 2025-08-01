@@ -61,6 +61,8 @@ def maintain_concurrency_lease(
     with WatcherThreadCancelScope() as cancel_scope:
 
         def handle_lease_renewal_failure(future: concurrent.futures.Future[None]):
+            if future.cancelled():
+                return
             exc = future.exception()
             if exc:
                 try:
