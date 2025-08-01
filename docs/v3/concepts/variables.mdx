@@ -24,7 +24,7 @@ sensitive information.
 
 ## Manage variables
 
-Create, read, edit, and delete variables through the Prefect UI, API, and CLI. 
+Create, read, edit, and delete variables through the Prefect UI, Python SDK, API, CLI or Terraform. 
 Names must adhere to these traditional variable naming conventions:
 
 - Have no more than 255 characters
@@ -44,6 +44,30 @@ are visible to anyone with access to the server or workspace.
 To create a new variable:
 1. Select the **+** button next to the header of the **Variables** page. 
 1. Enter the name and value of the variable.
+
+### Through the Python SDK
+
+You can access variables at runtime using the `prefect.variables` module in the Python SDK.
+
+```python
+from prefect.variables import Variable
+
+# Set a variable
+
+Variable.set("my_variable", "my_value")
+
+# Get a variable
+
+my_var = Variable.get("my_variable")
+
+# Update a variable by passing the `overwrite` parameter
+# If the variable does not exist, it will be created
+
+Variable.set("my_variable", "my_new_value", overwrite=True)
+
+# Delete a variable
+Variable.unset("my_variable")
+```
 
 ### Through the REST API
 
