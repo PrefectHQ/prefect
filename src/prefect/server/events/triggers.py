@@ -42,8 +42,8 @@ from prefect.server.events.models.composite_trigger_child_firing import (
 )
 from prefect.server.events.ordering import (
     PRECEDING_EVENT_LOOKBACK,
-    CausalOrdering,
     EventArrivedEarly,
+    get_triggers_causal_ordering,
 )
 from prefect.server.events.schemas.automations import (
     Automation,
@@ -496,7 +496,7 @@ async def reactive_evaluation(event: ReceivedEvent, depth: int = 0) -> None:
     async with AsyncExitStack() as stack:
         await update_events_clock(event)
         await stack.enter_async_context(
-            causal_ordering().preceding_event_confirmed(
+            get_triggers_causal_ordering().preceding_event_confirmed(
                 reactive_evaluation, event, depth
             )
         )
@@ -597,7 +597,7 @@ async def reactive_evaluation(event: ReceivedEvent, depth: int = 0) -> None:
 @retry_async_fn(max_attempts=3, retry_on_exceptions=(sa.exc.OperationalError,))
 async def get_lost_followers() -> List[ReceivedEvent]:
     """Get followers that have been sitting around longer than our lookback"""
-    return await causal_ordering().get_lost_followers()
+    return await get_triggers_causal_ordering().get_lost_followers()
 
 
 async def periodic_evaluation(now: prefect.types._datetime.DateTime) -> None:
@@ -999,10 +999,6 @@ async def reset() -> None:
     next_proactive_runs.clear()
 
 
-def causal_ordering() -> CausalOrdering:
-    return CausalOrdering(scope="")
-
-
 async def listen_for_automation_changes() -> None:
     """
     Listens for any changes to automations via PostgreSQL NOTIFY/LISTEN,
@@ -1086,7 +1082,7 @@ async def consumer(
 
     proactive_task = asyncio.create_task(evaluate_periodically(periodic_granularity))
 
-    ordering = causal_ordering()
+    ordering = get_triggers_causal_ordering()
 
     async def message_handler(message: Message):
         if not message.data:

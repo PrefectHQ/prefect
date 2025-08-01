@@ -6,10 +6,10 @@ import pytest
 
 from prefect.server.events.ordering import (
     MAX_DEPTH_OF_PRECEDING_EVENT,
-    CausalOrdering,
     EventArrivedEarly,
     MaxDepthExceeded,
 )
+from prefect.server.events.ordering.db import CausalOrdering
 from prefect.server.events.schemas.events import ReceivedEvent, Resource
 from prefect.types._datetime import DateTime
 
@@ -117,7 +117,7 @@ async def test_ordering_is_correct(
     in_proper_order: Sequence[ReceivedEvent],
     example: Sequence[ReceivedEvent],
 ):
-    processed = []
+    processed: list[ReceivedEvent] = []
 
     async def evaluate(event: ReceivedEvent, depth: int = 0) -> None:
         async with causal_ordering.preceding_event_confirmed(
@@ -137,7 +137,7 @@ async def test_ordering_is_correct(
 
 @pytest.fixture
 def worst_case(event_one: ReceivedEvent) -> list[ReceivedEvent]:
-    causal_order = []
+    causal_order: list[ReceivedEvent] = []
 
     # The worst case scenario for exceeding the depth of the preceding event is to have
     # a long chain of events that are all linked to the same preceding event and then
@@ -191,7 +191,7 @@ async def test_only_looks_to_a_certain_horizon(
     event_one.received -= timedelta(days=1)
     event_two.received -= timedelta(days=1)
 
-    processed = []
+    processed: list[ReceivedEvent] = []
 
     async def evaluate(event: ReceivedEvent, depth: int = 0) -> None:
         async with causal_ordering.preceding_event_confirmed(
@@ -213,7 +213,7 @@ async def test_returns_lost_followers_in_occurred_order(
     event_three_b: ReceivedEvent,
     monkeypatch: pytest.MonkeyPatch,
 ):
-    processed = []
+    processed: list[ReceivedEvent] = []
 
     async def evaluate(event: ReceivedEvent, depth: int = 0) -> None:
         async with causal_ordering.preceding_event_confirmed(
@@ -232,7 +232,7 @@ async def test_returns_lost_followers_in_occurred_order(
 
     # setting to a negative duration here simulates moving into the future
     monkeypatch.setattr(
-        "prefect.server.events.ordering.PRECEDING_EVENT_LOOKBACK",
+        "prefect.server.events.ordering.db.PRECEDING_EVENT_LOOKBACK",
         timedelta(minutes=-1),
     )
 
@@ -246,7 +246,7 @@ async def test_two_instances_do_not_interfere(
     event_two: ReceivedEvent,
 ):
     # A partial test that two instances of the same class do not interfere with each
-    # other.  This does not test every piece of functionality, but illustrates that
+    # other. This does not test every piece of functionality, but illustrates that
     # prefixes are used.
 
     ordering_one = CausalOrdering(scope="one")
