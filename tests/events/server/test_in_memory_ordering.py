@@ -209,10 +209,10 @@ class TestEventSeenTracking:
         assert await causal_ordering.event_has_been_seen(event_one)
 
         # Mock time to simulate expiration
-        with patch("prefect.server.events.ordering.memory.datetime") as mock_datetime:
+        with patch("prefect.types._datetime.now") as mock_now:
             # Set current time to be past expiration
             future_time = event_one.received + SEEN_EXPIRATION + timedelta(seconds=1)
-            mock_datetime.now.return_value = future_time
+            mock_now.return_value = future_time
 
             # Should not be seen anymore due to expiration
             assert not await causal_ordering.event_has_been_seen(event_one)
@@ -296,7 +296,7 @@ class TestLostFollowers:
         await causal_ordering.record_follower(event_three_b)
 
         # Mock time to simulate events being old
-        with patch("prefect.server.events.ordering.memory.datetime") as mock_datetime:
+        with patch("prefect.types._datetime.now") as mock_now:
             # We need to make the earliest received time old enough
             earliest_received = min(
                 event_two.received, event_three_a.received, event_three_b.received
@@ -304,7 +304,7 @@ class TestLostFollowers:
             future_time = (
                 earliest_received + PRECEDING_EVENT_LOOKBACK + timedelta(seconds=1)
             )
-            mock_datetime.now.return_value = future_time
+            mock_now.return_value = future_time
 
             lost_followers = await causal_ordering.get_lost_followers()
 
@@ -362,11 +362,11 @@ class TestCausalOrderingFlow:
         event_two: ReceivedEvent,
     ):
         # Old events should not wait - patch datetime.now to make event appear old
-        with patch("prefect.server.events.ordering.memory.datetime") as mock_datetime:
+        with patch("prefect.types._datetime.now") as mock_now:
             future_time = (
                 event_two.received + PRECEDING_EVENT_LOOKBACK + timedelta(seconds=1)
             )
-            mock_datetime.now.return_value = future_time
+            mock_now.return_value = future_time
             await causal_ordering.wait_for_leader(event_two)  # Should not raise
 
     async def test_wait_for_leader_seen(
@@ -501,11 +501,11 @@ class TestErrorConditions:
         assert processed == []
 
         # Mock time to simulate events being lost
-        with patch("prefect.server.events.ordering.memory.datetime") as mock_datetime:
+        with patch("prefect.types._datetime.now") as mock_now:
             future_time = (
                 event_two.received + PRECEDING_EVENT_LOOKBACK + timedelta(seconds=1)
             )
-            mock_datetime.now.return_value = future_time
+            mock_now.return_value = future_time
 
             # Because event_one never arrived, only event_two should be lost
             # (event_three_a and event_three_b are waiting for event_two, not event_one)

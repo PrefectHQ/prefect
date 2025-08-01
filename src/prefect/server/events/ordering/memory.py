@@ -1,4 +1,5 @@
 import asyncio
+import logging
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
 from typing import Any, AsyncGenerator, Dict, List, Set, Union
@@ -19,7 +20,7 @@ from prefect.server.events.ordering import (
 from prefect.server.events.ordering import CausalOrdering as _CausalOrdering
 from prefect.server.events.schemas.events import Event, ReceivedEvent
 
-logger = get_logger(__name__)
+logger: logging.Logger = get_logger(__name__)
 
 # How long we'll wait for an in-flight event to be processed for follower handling
 IN_FLIGHT_EVENT_TIMEOUT = timedelta(seconds=8)
@@ -101,7 +102,7 @@ class CausalOrdering(_CausalOrdering):
             if event_id not in self._seen_events:
                 return False
             # Clean up expired entries
-            now = datetime.now(timezone.utc)
+            now = prefect.types._datetime.now("UTC")
             return now - self._seen_events[event_id] < SEEN_EXPIRATION
 
     async def record_event_as_seen(self, event: ReceivedEvent) -> None:
