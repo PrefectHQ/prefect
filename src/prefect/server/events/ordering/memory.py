@@ -39,7 +39,7 @@ class CausalOrdering(_CausalOrdering):
     _instances: Dict[str, "CausalOrdering"] = {}
     _locks: Dict[str, asyncio.Lock] = {}
 
-    def __new__(cls, scope: str):
+    def __new__(cls, scope: str) -> "CausalOrdering":
         if scope not in cls._instances:
             cls._instances[scope] = super().__new__(cls)
         return cls._instances[scope]
@@ -63,7 +63,7 @@ class CausalOrdering(_CausalOrdering):
 
         self._initialized = True
 
-    def clear(self):
+    def clear(self) -> None:
         """Clear all data for this scope."""
         self._processing_events.clear()
         self._seen_events.clear()
@@ -72,7 +72,7 @@ class CausalOrdering(_CausalOrdering):
         self._waitlist.clear()
 
     @classmethod
-    def clear_all_scopes(cls):
+    def clear_all_scopes(cls) -> None:
         """Clear all data for all scopes - useful for testing."""
         for instance in cls._instances.values():
             instance.clear()
@@ -197,7 +197,9 @@ class CausalOrdering(_CausalOrdering):
         return sorted(lost_events, key=lambda f: f.occurred)
 
     @asynccontextmanager
-    async def event_is_processing(self, event: ReceivedEvent):
+    async def event_is_processing(
+        self, event: ReceivedEvent
+    ) -> AsyncGenerator[None, None]:
         """Mark an event as being processed for the duration of its lifespan through
         the ordering system."""
         if not await self.record_event_as_processing(event):
@@ -210,7 +212,7 @@ class CausalOrdering(_CausalOrdering):
         finally:
             await self.forget_event_is_processing(event)
 
-    async def wait_for_leader(self, event: ReceivedEvent):
+    async def wait_for_leader(self, event: ReceivedEvent) -> None:
         """Given an event, wait for its leader to be processed before proceeding, or
         raise EventArrivedEarly if we would wait too long in this attempt."""
         # If this event doesn't follow anything (meaningfully), it's ready to go now
@@ -309,7 +311,7 @@ class CausalOrdering(_CausalOrdering):
         if event.follows and event.follows != event.id:
             await self.forget_follower(event)
 
-    def _log(self, event: ReceivedEvent, message: str, *args: Any):
+    def _log(self, event: ReceivedEvent, message: str, *args: Any) -> None:
         logger.info(
             "Event %r (%s) for %r " + message,
             event.event,

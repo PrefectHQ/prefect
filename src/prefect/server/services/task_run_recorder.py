@@ -171,7 +171,7 @@ async def record_task_run_event(event: ReceivedEvent, depth: int = 0) -> None:
         )
 
 
-async def record_lost_follower_task_run_events():
+async def record_lost_follower_task_run_events() -> None:
     ordering = get_task_run_recorder_causal_ordering()
     events = await ordering.get_lost_followers()
 
@@ -187,7 +187,7 @@ async def record_lost_follower_task_run_events():
         await record_task_run_event(event)
 
 
-async def periodically_process_followers(periodic_granularity: timedelta):
+async def periodically_process_followers(periodic_granularity: timedelta) -> NoReturn:
     """Periodically process followers that are waiting on a leader event that never arrived"""
 
     logger.info(
