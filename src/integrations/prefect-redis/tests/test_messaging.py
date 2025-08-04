@@ -15,6 +15,7 @@ from prefect_redis.messaging import (
     RedisMessagingConsumerSettings,
     RedisMessagingPublisherSettings,
     StopConsumer,
+    _trim_stream_to_lowest_delivered_id,
 )
 from redis.asyncio import Redis
 
@@ -493,7 +494,6 @@ class TestRedisMessagingSettings:
 
 async def test_trimming_with_no_delivered_messages(redis: Redis):
     """Test that stream trimming handles the case where no messages have been delivered."""
-    from prefect_redis.messaging import _trim_stream_to_lowest_delivered_id
 
     stream_name = "test-trim-stream"
 
@@ -513,9 +513,10 @@ async def test_trimming_with_no_delivered_messages(redis: Redis):
     assert length == 2
 
 
-async def test_trimming_skips_idle_consumer_groups(redis: Redis, monkeypatch):
+async def test_trimming_skips_idle_consumer_groups(
+    redis: Redis, monkeypatch: pytest.MonkeyPatch
+):
     """Test that stream trimming skips consumer groups with all consumers idle beyond threshold."""
-    from prefect_redis.messaging import _trim_stream_to_lowest_delivered_id
 
     stream_name = "test-trim-idle-stream"
 
