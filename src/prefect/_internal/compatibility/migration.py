@@ -60,7 +60,7 @@ MOVED_IN_V3 = {
     "prefect.client:get_client": "prefect.client.orchestration:get_client",
 }
 
-upgrade_guide_msg = "Refer to the upgrade guide for more information: https://docs.prefect.io/latest/resources/upgrade-agents-to-workers."
+upgrade_guide_msg = "Refer to the upgrade guide for more information: https://docs.prefect.io/v3/how-to-guides/migrate/upgrade-agents-to-workers."
 
 REMOVED_IN_V3 = {
     "prefect.client.schemas.objects:MinimalDeploymentSchedule": "Use `prefect.client.schemas.actions.DeploymentScheduleCreate` instead.",
