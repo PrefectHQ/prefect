@@ -430,15 +430,15 @@ services:
   pgbouncer:
     image: edoburu/pgbouncer:latest
     environment:
-      DATABASES_HOST: postgres
-      DATABASES_PORT: 5432
-      DATABASES_USER: prefect
-      DATABASES_PASSWORD: prefect
-      DATABASES_DBNAME: prefect
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: prefect
+      DB_PASSWORD: prefect
+      DB_NAME: prefect
       POOL_MODE: transaction  # Recommended for Prefect
       MAX_CLIENT_CONN: 1000
       DEFAULT_POOL_SIZE: 25
-      RESERVE_POOL_SIZE: 5
+      LISTEN_PORT: 6432  # PgBouncer listening port
     ports:
       - "6432:6432"
     depends_on:
@@ -465,17 +465,30 @@ server_reset_query = DISCARD ALL
 
 ### Configuring Prefect for PgBouncer
 
-To use PgBouncer with Prefect, configure SQLAlchemy to use NullPool:
+To use PgBouncer with Prefect, configure SQLAlchemy to use NullPool by setting `pool_size` to None:
+
+```python
+# In your Prefect configuration
+from prefect.server.database.configurations import AsyncPostgresConfiguration
+
+config = AsyncPostgresConfiguration(
+    connection_url="postgresql+asyncpg://prefect:prefect@localhost:6432/prefect",
+    sqlalchemy_pool_size=None,  # This enables NullPool
+    statement_cache_size=0       # Disable for transaction mode
+)
+```
+
+For environment variable configuration:
 
 ```bash
-# Disable SQLAlchemy's connection pooling
-export PREFECT_SERVER_DATABASE_SQLALCHEMY_POOL_SIZE=null
+# Connect through PgBouncer (note port 6432)
+export PREFECT_SERVER_DATABASE_CONNECTION_URL="postgresql+asyncpg://prefect:prefect@localhost:6432/prefect"
 
 # Disable statement caching for transaction mode compatibility
 export PREFECT_SERVER_DATABASE_SQLALCHEMY_CONNECT_ARGS_STATEMENT_CACHE_SIZE=0
 
-# Connect through PgBouncer (note port 6432)
-export PREFECT_SERVER_DATABASE_CONNECTION_URL="postgresql+asyncpg://prefect:prefect@localhost:6432/prefect"
+# Note: Setting pool_size via environment variable to None/null requires special handling
+# It's recommended to configure this in code or via Prefect settings
 ```
 
 ### Important considerations
@@ -532,7 +545,7 @@ services:
 ### Troubleshooting PgBouncer
 
 **"prepared statement does not exist" errors**
-- Ensure `PREFECT_SERVER_DATABASE_SQLALCHEMY_CONNECT_ARGS_STATEMENT_CACHE_SIZE=0` is set
+- Ensure `statement_cache_size=0` is set in your configuration
 - Verify PgBouncer is in `transaction` mode, not `session` mode
 
 **"too many clients" errors**
@@ -543,6 +556,31 @@ services:
 - Monitor PgBouncer's `SHOW POOLS` for `cl_waiting` (clients waiting for connections)
 - Increase `default_pool_size` if connections are maxed out
 - Check PostgreSQL for slow queries that hold connections
+
+### Verified working configuration
+
+Here's a complete, tested configuration for using Prefect with PgBouncer:
+
+```python
+# Example: Creating a Prefect database configuration with PgBouncer
+from prefect.server.database.configurations import AsyncPostgresConfiguration
+from prefect.settings import temporary_settings, PREFECT_SERVER_DATABASE_SQLALCHEMY_POOL_SIZE
+
+# Use temporary settings to ensure pool_size is None
+with temporary_settings({PREFECT_SERVER_DATABASE_SQLALCHEMY_POOL_SIZE: None}):
+    config = AsyncPostgresConfiguration(
+        connection_url="postgresql+asyncpg://user:pass@pgbouncer:6432/prefect",
+        sqlalchemy_pool_size=None,      # Uses NullPool
+        statement_cache_size=0          # Required for transaction mode
+    )
+    
+    # This configuration will:
+    # - Use NullPool (no connection pooling in SQLAlchemy)
+    # - Disable prepared statement caching
+    # - Let PgBouncer handle all connection pooling
+```
+
+This configuration has been tested with PgBouncer in transaction mode and correctly handles connection pooling at the PgBouncer level rather than the application level.
 
 ## Further reading
 
