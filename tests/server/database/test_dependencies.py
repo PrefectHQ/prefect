@@ -2,6 +2,7 @@ import asyncio
 from uuid import UUID
 
 import pytest
+import sqlalchemy as sa
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.server.database import PrefectDBInterface, dependencies
@@ -209,3 +210,47 @@ class TestDBInject:
 
         assert asyncio.iscoroutinefunction(coroutine_with_injected_db)
         assert asyncio.run(coroutine_with_injected_db(42)) is self.db
+
+
+class TestNullPoolConfiguration:
+    """Test NullPool configuration for PgBouncer support."""
+
+    async def test_null_pool_size_uses_nullpool(self):
+        """Test that setting pool_size to None uses NullPool."""
+        # Use temporary settings with pool_size=None
+        from prefect.settings import (
+            PREFECT_SERVER_DATABASE_SQLALCHEMY_POOL_SIZE,
+            temporary_settings,
+        )
+
+        with temporary_settings({PREFECT_SERVER_DATABASE_SQLALCHEMY_POOL_SIZE: None}):
+            # Clear any cached engines
+            from prefect.server.database.configurations import ENGINES
+
+            ENGINES.clear()
+
+            # Use a unique connection URL to avoid engine caching
+            import uuid
+
+            unique_db = f"test_nullpool_{uuid.uuid4().hex[:8]}"
+            config = AsyncPostgresConfiguration(
+                connection_url=f"postgresql+asyncpg://user:pass@localhost:5433/{unique_db}",
+            )
+
+            engine = await config.engine()
+            # When using NullPool, SQLAlchemy doesn't wrap it in AsyncAdaptedQueuePool
+            assert isinstance(engine.pool, sa.pool.NullPool)
+
+            await engine.dispose()
+
+    async def test_integer_pool_size_uses_regular_pool(self):
+        """Test that setting pool_size to an integer uses regular pool."""
+        config = AsyncPostgresConfiguration(
+            connection_url="postgresql+asyncpg://user:pass@localhost/db",
+            sqlalchemy_pool_size=5,
+        )
+
+        engine = await config.engine()
+        assert not isinstance(engine.pool, sa.pool.NullPool)
+
+        await engine.dispose()

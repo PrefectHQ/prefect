@@ -401,9 +401,148 @@ For example, you could run the retention flow daily at 2 AM to clean up old flow
 - Review query plans with `EXPLAIN ANALYZE`
 
 ### "Connection limit reached"
-- Implement connection pooling immediately
+- Implement connection pooling with PgBouncer (see below)
 - Check for connection leaks: connections in 'idle' state for hours
 - Reduce Prefect worker/agent connection counts
+
+## Using PgBouncer for connection pooling
+
+For high-scale Prefect deployments with many workers or API instances, using PgBouncer as an external connection pooler can significantly reduce database connection overhead and improve performance.
+
+### Why use PgBouncer?
+
+When you have multiple Prefect servers and workers, each maintains its own connection pool to the database. With 10 API servers each using a pool of 5 connections, you're using 50 connections even if most are idle. PgBouncer consolidates these into a single, efficient pool.
+
+### Setting up PgBouncer
+
+1. **Install PgBouncer** (example using Docker):
+
+```yaml
+# docker-compose.yml
+services:
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: prefect
+      POSTGRES_PASSWORD: prefect
+      POSTGRES_DB: prefect
+    
+  pgbouncer:
+    image: edoburu/pgbouncer:latest
+    environment:
+      DATABASES_HOST: postgres
+      DATABASES_PORT: 5432
+      DATABASES_USER: prefect
+      DATABASES_PASSWORD: prefect
+      DATABASES_DBNAME: prefect
+      POOL_MODE: transaction  # Recommended for Prefect
+      MAX_CLIENT_CONN: 1000
+      DEFAULT_POOL_SIZE: 25
+      RESERVE_POOL_SIZE: 5
+    ports:
+      - "6432:6432"
+    depends_on:
+      - postgres
+```
+
+2. **Configure PgBouncer** (if not using Docker):
+
+Create `/etc/pgbouncer/pgbouncer.ini`:
+
+```ini
+[databases]
+prefect = host=localhost port=5432 dbname=prefect
+
+[pgbouncer]
+listen_addr = *
+listen_port = 6432
+pool_mode = transaction
+max_client_conn = 1000
+default_pool_size = 25
+reserve_pool_size = 5
+server_reset_query = DISCARD ALL
+```
+
+### Configuring Prefect for PgBouncer
+
+To use PgBouncer with Prefect, configure SQLAlchemy to use NullPool:
+
+```bash
+# Disable SQLAlchemy's connection pooling
+export PREFECT_SERVER_DATABASE_SQLALCHEMY_POOL_SIZE=null
+
+# Disable statement caching for transaction mode compatibility
+export PREFECT_SERVER_DATABASE_SQLALCHEMY_CONNECT_ARGS_STATEMENT_CACHE_SIZE=0
+
+# Connect through PgBouncer (note port 6432)
+export PREFECT_SERVER_DATABASE_CONNECTION_URL="postgresql+asyncpg://prefect:prefect@localhost:6432/prefect"
+```
+
+### Important considerations
+
+1. **Pool Mode**: Use `transaction` mode for Prefect. This mode releases connections back to the pool after each transaction, providing the best connection reuse.
+
+2. **Statement Caching**: Disable prepared statement caching when using transaction mode, as prepared statements don't persist across different backend connections.
+
+3. **Connection Limits**: Set PgBouncer's `default_pool_size` based on your PostgreSQL `max_connections` and expected load. A good starting point is 25-50 connections.
+
+4. **Monitoring**: Monitor both PgBouncer and PostgreSQL connections:
+
+```sql
+-- Check PgBouncer stats (connect to PgBouncer on port 6432)
+SHOW POOLS;
+SHOW STATS;
+
+-- Check actual PostgreSQL connections (connect to PostgreSQL directly)
+SELECT count(*), state, usename 
+FROM pg_stat_activity 
+GROUP BY state, usename;
+```
+
+### Example production configuration
+
+For a production Prefect deployment with high availability:
+
+```yaml
+# docker-compose.yml
+services:
+  prefect-api:
+    image: prefecthq/prefect:3-latest
+    deploy:
+      replicas: 3
+    environment:
+      PREFECT_SERVER_DATABASE_CONNECTION_URL: "postgresql+asyncpg://prefect:${DB_PASSWORD}@pgbouncer:6432/prefect"
+      PREFECT_SERVER_DATABASE_SQLALCHEMY_POOL_SIZE: "null"  # Disable SQLAlchemy pooling
+      PREFECT_SERVER_DATABASE_SQLALCHEMY_CONNECT_ARGS_STATEMENT_CACHE_SIZE: "0"
+    depends_on:
+      - pgbouncer
+
+  prefect-worker:
+    image: prefecthq/prefect:3-latest
+    deploy:
+      replicas: 5
+    environment:
+      PREFECT_API_URL: "http://prefect-api:4200/api"
+      PREFECT_SERVER_DATABASE_CONNECTION_URL: "postgresql+asyncpg://prefect:${DB_PASSWORD}@pgbouncer:6432/prefect"
+      PREFECT_SERVER_DATABASE_SQLALCHEMY_POOL_SIZE: "null"
+    depends_on:
+      - pgbouncer
+```
+
+### Troubleshooting PgBouncer
+
+**"prepared statement does not exist" errors**
+- Ensure `PREFECT_SERVER_DATABASE_SQLALCHEMY_CONNECT_ARGS_STATEMENT_CACHE_SIZE=0` is set
+- Verify PgBouncer is in `transaction` mode, not `session` mode
+
+**"too many clients" errors**
+- Increase `max_client_conn` in PgBouncer configuration
+- Check for connection leaks in your application
+
+**Performance degradation**
+- Monitor PgBouncer's `SHOW POOLS` for `cl_waiting` (clients waiting for connections)
+- Increase `default_pool_size` if connections are maxed out
+- Check PostgreSQL for slow queries that hold connections
 
 ## Further reading
 
@@ -411,3 +550,5 @@ For example, you could run the retention flow daily at 2 AM to clean up old flow
 - [PostgreSQL routine maintenance](https://www.postgresql.org/docs/current/routine-vacuuming.html)
 - [Monitoring PostgreSQL](https://www.postgresql.org/docs/current/monitoring-stats.html)
 - [pg_repack extension](https://github.com/reorg/pg_repack)
+- [PgBouncer documentation](https://www.pgbouncer.org/)
+- [PgBouncer configuration](https://www.pgbouncer.org/config.html)

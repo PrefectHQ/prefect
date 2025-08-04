@@ -101,9 +101,9 @@ class SQLAlchemySettings(PrefectBaseSettings):
         description="Settings for controlling SQLAlchemy connection behavior",
     )
 
-    pool_size: int = Field(
+    pool_size: Optional[int] = Field(
         default=5,
-        description="Controls connection pool size of database connection pools from the Prefect backend.",
+        description="Controls connection pool size of database connection pools from the Prefect backend. Set to None/null to use NullPool for external connection poolers like PgBouncer.",
         validation_alias=AliasChoices(
             AliasPath("pool_size"),
             "prefect_server_database_sqlalchemy_pool_size",

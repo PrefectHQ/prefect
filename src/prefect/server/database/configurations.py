@@ -149,7 +149,8 @@ class BaseDatabaseConfiguration(ABC):
         )
         self.sqlalchemy_pool_size: Optional[int] = (
             sqlalchemy_pool_size
-            or get_current_settings().server.database.sqlalchemy.pool_size
+            if sqlalchemy_pool_size is not None
+            else get_current_settings().server.database.sqlalchemy.pool_size
         )
         self.sqlalchemy_max_overflow: Optional[int] = (
             sqlalchemy_max_overflow
@@ -233,11 +234,13 @@ class AsyncPostgresConfiguration(BaseDatabaseConfiguration):
             self.timeout,
         )
         if cache_key not in ENGINES:
-            kwargs: dict[str, Any] = (
-                get_current_settings().server.database.sqlalchemy.model_dump(
-                    mode="json", exclude={"connect_args"}
-                )
-            )
+            # Get base sqlalchemy settings
+            sqlalchemy_settings = get_current_settings().server.database.sqlalchemy
+
+            # Start with non-pool related settings
+            kwargs: dict[str, Any] = {
+                "pool_recycle": sqlalchemy_settings.pool_recycle,
+            }
             connect_args: dict[str, Any] = {}
 
             if self.timeout is not None:
@@ -285,23 +288,29 @@ class AsyncPostgresConfiguration(BaseDatabaseConfiguration):
             if connect_args:
                 kwargs["connect_args"] = connect_args
 
-            if self.sqlalchemy_pool_size is not None:
+            if self.sqlalchemy_pool_size is None:
+                # Use NullPool for external connection poolers like PgBouncer
+                from sqlalchemy.pool import NullPool
+
+                kwargs["poolclass"] = NullPool
+                # NullPool doesn't support pool-related parameters, so don't add them
+            else:
+                # Regular pool configuration
                 kwargs["pool_size"] = self.sqlalchemy_pool_size
-
-            if self.sqlalchemy_max_overflow is not None:
+                kwargs["pool_timeout"] = sqlalchemy_settings.pool_timeout
                 kwargs["max_overflow"] = self.sqlalchemy_max_overflow
-
-            engine = create_async_engine(
-                self.connection_url,
-                echo=self.echo,
                 # "pre-ping" connections upon checkout to ensure they have not been
                 # closed on the server side
-                pool_pre_ping=True,
+                kwargs["pool_pre_ping"] = True
                 # Use connections in LIFO order to help reduce connections
                 # after spiky load and in general increase the likelihood
                 # that a given connection pulled from the pool will be
                 # usable.
-                pool_use_lifo=True,
+                kwargs["pool_use_lifo"] = True
+
+            engine = create_async_engine(
+                self.connection_url,
+                echo=self.echo,
                 **kwargs,
             )
 
