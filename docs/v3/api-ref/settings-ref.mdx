@@ -951,9 +951,9 @@ Settings for controlling SQLAlchemy connection behavior
 **TOML dotted key path**: `server.database.sqlalchemy.connect_args`
 
 ### `pool_size`
-Controls connection pool size of database connection pools from the Prefect backend.
+Controls connection pool size of database connection pools from the Prefect backend. Set to None/null to use NullPool for external connection poolers like PgBouncer.
 
-**Type**: `integer`
+**Type**: `integer | None`
 
 **Default**: `5`
 
