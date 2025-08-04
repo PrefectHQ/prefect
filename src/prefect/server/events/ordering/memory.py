@@ -1,8 +1,10 @@
+from __future__ import annotations
+
 import asyncio
 import logging
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
-from typing import Any, AsyncGenerator, Dict, List, Set, Union
+from typing import Any, AsyncGenerator
 from uuid import UUID
 
 import anyio
@@ -36,8 +38,8 @@ class EventBeingProcessed(Exception):
 
 class CausalOrdering(_CausalOrdering):
     # Class-level storage for different scopes
-    _instances: Dict[str, "CausalOrdering"] = {}
-    _locks: Dict[str, asyncio.Lock] = {}
+    _instances: dict[str, "CausalOrdering"] = {}
+    _locks: dict[str, asyncio.Lock] = {}
 
     def __new__(cls, scope: str) -> "CausalOrdering":
         if scope not in cls._instances:
@@ -50,11 +52,11 @@ class CausalOrdering(_CausalOrdering):
             return
 
         self.scope: str = scope
-        self._processing_events: Set[UUID] = set()
-        self._seen_events: Dict[UUID, datetime] = {}
-        self._followers: Dict[UUID, Set[UUID]] = {}  # leader_id -> set of follower_ids
-        self._events: Dict[UUID, ReceivedEvent] = {}  # event_id -> event
-        self._waitlist: Dict[UUID, datetime] = {}  # event_id -> received_time
+        self._processing_events: set[UUID] = set()
+        self._seen_events: dict[UUID, datetime] = {}
+        self._followers: dict[UUID, set[UUID]] = {}  # leader_id -> set of follower_ids
+        self._events: dict[UUID, ReceivedEvent] = {}  # event_id -> event
+        self._waitlist: dict[UUID, datetime] = {}  # event_id -> received_time
 
         # Each scope gets its own lock
         if scope not in self.__class__._locks:
@@ -87,7 +89,7 @@ class CausalOrdering(_CausalOrdering):
             self._processing_events.add(event.id)
             return True
 
-    async def event_has_started_processing(self, event: Union[UUID, Event]) -> bool:
+    async def event_has_started_processing(self, event: UUID | Event) -> bool:
         event_id = event.id if isinstance(event, Event) else event
         async with self._lock:
             return event_id in self._processing_events
@@ -96,7 +98,7 @@ class CausalOrdering(_CausalOrdering):
         async with self._lock:
             self._processing_events.discard(event.id)
 
-    async def event_has_been_seen(self, event: Union[UUID, Event]) -> bool:
+    async def event_has_been_seen(self, event: UUID | Event) -> bool:
         event_id = event.id if isinstance(event, Event) else event
         async with self._lock:
             if event_id not in self._seen_events:
@@ -145,7 +147,7 @@ class CausalOrdering(_CausalOrdering):
                     del self._followers[follower.follows]
             self._events.pop(follower.id, None)
 
-    async def get_followers(self, leader: ReceivedEvent) -> List[ReceivedEvent]:
+    async def get_followers(self, leader: ReceivedEvent) -> list[ReceivedEvent]:
         """Returns events that were waiting on this leader event to arrive."""
         async with self._lock:
             follower_ids = self._followers.get(leader.id, set()).copy()
@@ -158,7 +160,7 @@ class CausalOrdering(_CausalOrdering):
         # Sort by occurred time to maintain causal order
         return sorted(follower_events, key=lambda f: f.occurred)
 
-    async def followers_by_id(self, follower_ids: List[UUID]) -> List[ReceivedEvent]:
+    async def followers_by_id(self, follower_ids: list[UUID]) -> list[ReceivedEvent]:
         """Returns the events with the given IDs, in the order they occurred."""
         async with self._lock:
             follower_events = [
@@ -167,7 +169,7 @@ class CausalOrdering(_CausalOrdering):
 
         return sorted(follower_events, key=lambda f: f.occurred)
 
-    async def get_lost_followers(self) -> List[ReceivedEvent]:
+    async def get_lost_followers(self) -> list[ReceivedEvent]:
         """Returns events that were waiting on a leader event that never arrived."""
         cutoff_time = prefect.types._datetime.now("UTC") - PRECEDING_EVENT_LOOKBACK
 
@@ -269,11 +271,11 @@ class CausalOrdering(_CausalOrdering):
         and processed that event before proceeding.
 
         Args:
-            handler (event_handler): The function to call when an out-of-order event is
+            handler: The function to call when an out-of-order event is
                 ready to be processed
-            event (ReceivedEvent): The event to be processed. This object should include
+            event: The event to be processed. This object should include
                 metadata indicating if and what event it follows.
-            depth (int, optional): The current recursion depth, used to prevent infinite
+            depth: The current recursion depth, used to prevent infinite
                 recursion due to cyclic dependencies between events. Defaults to 0.
 
         Raises EventArrivedEarly if the current event shouldn't be processed yet.
