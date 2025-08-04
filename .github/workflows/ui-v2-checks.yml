@@ -36,7 +36,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version-file: ".nvmrc"
+          node-version-file: "ui-v2/.nvmrc"
           cache-dependency-path: "**/package-lock.json"
 
       - name: Install UI dependencies
