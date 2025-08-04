@@ -512,5 +512,77 @@ async def test_trimming_with_no_delivered_messages(redis: Redis):
     length = await redis.xlen(stream_name)
     assert length == 2
 
-    # Clean up
-    await redis.delete(stream_name)
+
+async def test_trimming_skips_idle_consumer_groups(redis: Redis, monkeypatch):
+    """Test that stream trimming skips consumer groups with all consumers idle beyond threshold."""
+    from prefect_redis.messaging import _trim_stream_to_lowest_delivered_id
+
+    stream_name = "test-trim-idle-stream"
+
+    # Create a stream with 10 messages
+    message_ids = []
+    for i in range(10):
+        msg_id = await redis.xadd(stream_name, {"data": f"test{i}"})
+        message_ids.append(msg_id)
+
+    # Create two consumer groups
+    await redis.xgroup_create(stream_name, "active-group", id="0")
+    await redis.xgroup_create(stream_name, "stuck-group", id="0")
+
+    # Active group consumes all messages
+    messages = await redis.xreadgroup(
+        groupname="active-group",
+        consumername="consumer-1",
+        streams={stream_name: ">"},
+        count=10,
+    )
+    for stream, msgs in messages:
+        for msg_id, data in msgs:
+            await redis.xack(stream_name, "active-group", msg_id)
+
+    # Stuck group only consumes first 3 messages
+    messages = await redis.xreadgroup(
+        groupname="stuck-group",
+        consumername="consumer-2",
+        streams={stream_name: ">"},
+        count=3,
+    )
+    stuck_last_id = None
+    for stream, msgs in messages:
+        for msg_id, data in msgs:
+            await redis.xack(stream_name, "stuck-group", msg_id)
+            stuck_last_id = msg_id
+
+    # Wait to make consumers idle (need to wait longer than the threshold)
+    await asyncio.sleep(1.5)
+
+    # Set a very short idle threshold for testing (1 second)
+    # The setting expects seconds as an integer
+    monkeypatch.setenv("PREFECT_REDIS_MESSAGING_CONSUMER_TRIM_IDLE_THRESHOLD", "1")
+
+    # Create a new active consumer to allow trimming
+    # This simulates an active consumer that keeps processing
+    await redis.xreadgroup(
+        groupname="active-group",
+        consumername="consumer-3",  # New consumer with fresh idle time
+        streams={stream_name: ">"},
+        count=1,
+    )
+
+    # Trim the stream - should skip the stuck group but use the active group
+    await _trim_stream_to_lowest_delivered_id(stream_name)
+
+    # Check results
+    stream_info = await redis.xinfo_stream(stream_name)
+    first_entry_id = (
+        stream_info["first-entry"][0] if stream_info["first-entry"] else None
+    )
+
+    # The stream should be trimmed past the stuck group's position
+    assert first_entry_id is not None
+    assert first_entry_id > stuck_last_id
+
+    # Should have trimmed most messages (keeping only the last one or few)
+    assert (
+        stream_info["length"] <= 2
+    )  # Redis might keep 1-2 messages due to trimming behavior
