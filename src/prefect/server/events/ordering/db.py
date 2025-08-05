@@ -1,18 +1,10 @@
-"""
-Manages the partial causal ordering of events for a particular consumer.  This module
-maintains a buffer of events to be processed, aiming to process them in the order they
-occurred causally.
-"""
-
 from collections import defaultdict
 from contextlib import asynccontextmanager
-from datetime import timedelta
 from typing import (
     TYPE_CHECKING,
     List,
     Mapping,
     MutableMapping,
-    Protocol,
     Union,
 )
 from uuid import UUID
@@ -23,6 +15,15 @@ from cachetools import TTLCache
 import prefect.types._datetime
 from prefect.logging import get_logger
 from prefect.server.database import PrefectDBInterface, db_injector
+from prefect.server.events.ordering import (
+    MAX_DEPTH_OF_PRECEDING_EVENT,
+    PRECEDING_EVENT_LOOKBACK,
+    SEEN_EXPIRATION,
+    EventArrivedEarly,
+    MaxDepthExceeded,
+    event_handler,
+)
+from prefect.server.events.ordering import CausalOrdering as _CausalOrdering
 from prefect.server.events.schemas.events import Event, ReceivedEvent
 
 if TYPE_CHECKING:
@@ -30,36 +31,8 @@ if TYPE_CHECKING:
 
 logger: "logging.Logger" = get_logger(__name__)
 
-# How long we'll retain preceding events (to aid with ordering)
-PRECEDING_EVENT_LOOKBACK = timedelta(minutes=15)
 
-# How long we'll retain events we've processed (to prevent re-processing an event)
-PROCESSED_EVENT_LOOKBACK = timedelta(minutes=30)
-
-# How long we'll remember that we've seen an event
-SEEN_EXPIRATION = max(PRECEDING_EVENT_LOOKBACK, PROCESSED_EVENT_LOOKBACK)
-
-# How deep we'll allow the recursion to go when processing events
-MAX_DEPTH_OF_PRECEDING_EVENT = 20
-
-
-class EventArrivedEarly(Exception):
-    def __init__(self, event: ReceivedEvent):
-        self.event = event
-
-
-class MaxDepthExceeded(Exception):
-    def __init__(self, event: ReceivedEvent):
-        self.event = event
-
-
-class event_handler(Protocol):
-    async def __call__(
-        self, event: ReceivedEvent, depth: int = 0
-    ) -> None: ...  # pragma: no cover
-
-
-class CausalOrdering:
+class CausalOrdering(_CausalOrdering):
     _seen_events: Mapping[str, MutableMapping[UUID, bool]] = defaultdict(
         lambda: TTLCache(maxsize=10000, ttl=SEEN_EXPIRATION.total_seconds())
     )
