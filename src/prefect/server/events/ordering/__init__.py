@@ -6,19 +6,16 @@ occurred causally.
 
 import abc
 from datetime import timedelta
-import importlib
 from typing import (
     TYPE_CHECKING,
     AsyncContextManager,
     List,
     Protocol,
     Union,
-    runtime_checkable,
 )
 from uuid import UUID
 from prefect.logging import get_logger
 from prefect.server.events.schemas.events import Event, ReceivedEvent
-from prefect.settings import get_current_settings
 
 if TYPE_CHECKING:
     import logging
@@ -36,11 +33,6 @@ SEEN_EXPIRATION = max(PRECEDING_EVENT_LOOKBACK, PROCESSED_EVENT_LOOKBACK)
 
 # How deep we'll allow the recursion to go when processing events
 MAX_DEPTH_OF_PRECEDING_EVENT = 20
-
-
-@runtime_checkable
-class CausalOrderingModule(Protocol):
-    CausalOrdering: type["CausalOrdering"]
 
 
 class EventArrivedEarly(Exception):
@@ -96,12 +88,8 @@ def get_triggers_causal_ordering() -> CausalOrdering:
 
 
 def get_task_run_recorder_causal_ordering() -> CausalOrdering:
-    import_path = get_current_settings().server.events.causal_ordering
-    causal_ordering_module = importlib.import_module(import_path)
+    from prefect.server.events.ordering.memory import (
+        CausalOrdering as TaskRunRecorderCausalOrdering,
+    )
 
-    if not isinstance(causal_ordering_module, CausalOrderingModule):
-        raise ValueError(
-            f"Module at {import_path} does not export a CausalOrdering class. Please check your server.events.causal_ordering setting."
-        )
-
-    return causal_ordering_module.CausalOrdering(scope="task-run-recorder")
+    return TaskRunRecorderCausalOrdering(scope="task-run-recorder")
