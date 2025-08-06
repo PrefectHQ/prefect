@@ -55,7 +55,7 @@ prepare-release VERSION:
     echo "Preparing release notes for version {{VERSION}}..."
     
     # Run the script to fetch from draft and generate docs
-    python scripts/prepare_release_notes.py {{VERSION}}
+    uv run scripts/prepare_release_notes.py {{VERSION}}
     
     # Open the generated file in the user's editor
     if [ -n "$EDITOR" ]; then

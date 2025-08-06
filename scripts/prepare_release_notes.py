@@ -1,46 +1,31 @@
 #!/usr/bin/env python3
 """
-Prepare release notes for a new release from a GitHub draft release.
-This script fetches release notes from a draft release and updates the documentation.
+Prepare release notes documentation for an upcoming release.
+This script generates release notes from merged PRs and adds them to the docs.
 
-RELEASE PROCESS:
-================
+USAGE:
+======
+Run this script before creating a new release to prepare the documentation:
+  `just prepare-release VERSION [SUBTITLE]`
+  or
+  `python scripts/prepare_release_notes.py 3.5.0 "Optional Subtitle"`
 
-1. BEFORE THE RELEASE:
-   - Create a draft release on GitHub:
-     a. Go to https://github.com/PrefectHQ/prefect/releases/new
-     b. Set tag to the new version (e.g., '3.5.0')
-     c. Click "Generate release notes" to auto-populate from merged PRs
-     d. Add a creative subtitle after the version if desired
-     e. Save as DRAFT (important: do not publish yet)
+The script will:
+- Generate release notes from merged PRs since the last release
+- Apply formatting transformations (remove New Contributors, convert headers to bold)
+- Add the release notes to the appropriate minor version page (e.g., version-3-5.mdx)
+- Update docs.json to include the new page if needed
+- Open the file in your $EDITOR for review
 
-2. PREPARE RELEASE NOTES:
-   - Run this script: `just prepare-release VERSION`
-     (or manually: `python scripts/prepare_release_notes.py 3.5.0`)
-   - The script will:
-     * Fetch the draft release from GitHub
-     * Format the content (remove New Contributors, convert headers to bold)
-     * Add it to the appropriate minor version page (e.g., version-3-5.mdx)
-     * Update docs.json to include the new page if needed
-     * Open the file in your $EDITOR for review
+WORKFLOW:
+=========
+1. Run this script with the upcoming version number
+2. Review and edit the generated markdown
+3. Commit the changes and create a PR
+4. Merge to main before creating the actual GitHub release
 
-3. REVIEW AND EDIT:
-   - Review the generated release notes for accuracy
-   - Fix any spelling/grammar issues
-   - Ensure version constraints are properly wrapped in backticks
-   - Add any additional context or highlights at the top
-
-4. COMMIT AND CREATE PR:
-   - Commit the changes
-   - Create a PR and get it reviewed
-   - Merge to main
-
-5. PUBLISH THE RELEASE:
-   - After the PR is merged, go back to GitHub releases
-   - Find your draft release
-   - Click "Publish release" to make it official
-
-FORMATTING NOTES:
+FORMATTING:
+===========
 - New Contributors sections are automatically removed
 - ### and #### headers are converted to bold text to reduce nav clutter
 - Version constraints like <0.14.0,>=0.12.0 are wrapped in backticks
@@ -60,25 +45,54 @@ def run_command(cmd: list[str]) -> str:
     return result.stdout.strip()
 
 
-def get_draft_release(version: str) -> dict | None:
-    """Get draft release information from GitHub."""
+def generate_release_notes(version: str, subtitle: str = "") -> dict:
+    """Generate release notes from merged PRs since the last release."""
     try:
-        # List all releases including drafts
-        output = run_command(
-            ["gh", "release", "list", "--json", "tagName,name,body,publishedAt,isDraft"]
-        )
-        releases = json.loads(output)
+        # Get the previous version tag to use as starting point
+        output = run_command(["git", "tag", "-l", "3.*", "--sort=-version:refname"])
+        tags = output.split("\n") if output else []
 
-        # Find the draft release for this version
-        for release in releases:
-            if release.get("isDraft") and release.get("tagName") == version:
-                return release
+        # Filter out rc, dev, and other pre-release versions
+        stable_tags = []
+        for tag in tags:
+            if not any(x in tag for x in ["rc", "dev", "alpha", "beta"]):
+                stable_tags.append(tag)
 
-        print(f"No draft release found for version {version}")
-        return None
+        previous_tag = stable_tags[0] if stable_tags else None
+
+        # Generate release notes using gh CLI
+        cmd = [
+            "gh",
+            "api",
+            "/repos/PrefectHQ/prefect/releases/generate-notes",
+            "-X",
+            "POST",
+            "-f",
+            f"tag_name={version}",
+        ]
+
+        if previous_tag:
+            cmd.extend(["-f", f"previous_tag_name={previous_tag}"])
+
+        output = run_command(cmd)
+        result = json.loads(output)
+
+        # Build the release info dict
+        release_info = {
+            "body": result.get("body", ""),
+            "name": f"{version} - {subtitle}" if subtitle else version,
+            "tagName": version,
+        }
+
+        return release_info
     except subprocess.CalledProcessError as e:
-        print(f"Error fetching releases: {e}")
-        return None
+        print(f"Error generating release notes: {e}")
+        # Return a basic structure if generation fails
+        return {
+            "body": "Release notes will be added manually.",
+            "name": f"{version} - {subtitle}" if subtitle else version,
+            "tagName": version,
+        }
 
 
 def parse_version(tag: str) -> tuple[int, int, int]:
@@ -356,15 +370,19 @@ def update_docs_json(minor_version: str):
 
 def main():
     """Main function."""
-    if len(sys.argv) != 2:
-        print("Usage: python scripts/prepare_release_notes.py <version>")
+    if len(sys.argv) < 2 or len(sys.argv) > 3:
+        print("Usage: python scripts/prepare_release_notes.py <version> [subtitle]")
         print("Example: python scripts/prepare_release_notes.py 3.5.0")
         print(
-            "\nNote: This requires a draft release to exist on GitHub for the specified version."
+            "Example: python scripts/prepare_release_notes.py 3.5.0 'Performance Improvements'"
+        )
+        print(
+            "\nThis will generate release notes from merged PRs since the last release."
         )
         sys.exit(1)
 
     version = sys.argv[1]
+    subtitle = sys.argv[2] if len(sys.argv) == 3 else ""
 
     # Validate version format
     if not re.match(r"^\d+\.\d+\.\d+$", version):
@@ -384,21 +402,12 @@ def main():
     minor_version = f"{major}.{minor}"
 
     print(f"Preparing release notes for {version}...")
-    print("Fetching draft release from GitHub...")
+    print("Generating release notes from merged PRs...")
 
-    # Get the draft release
-    release_info = get_draft_release(version)
-    if not release_info:
-        print(f"\nError: No draft release found for version {version}")
-        print("\nTo create a draft release:")
-        print("  1. Go to https://github.com/PrefectHQ/prefect/releases/new")
-        print(f"  2. Set tag to '{version}'")
-        print("  3. Generate release notes")
-        print("  4. Save as draft")
-        print("  5. Run this script again")
-        sys.exit(1)
+    # Generate the release notes
+    release_info = generate_release_notes(version, subtitle)
 
-    print(f"Found draft release: {release_info.get('name', version)}")
+    print(f"Generated release notes for: {release_info.get('name', version)}")
 
     # Update the minor version page
     if update_minor_version_page(minor_version, version, release_info):
@@ -409,8 +418,7 @@ def main():
         print("  1. Review the generated release notes")
         print("  2. Make any necessary edits")
         print("  3. Commit the changes")
-        print("  4. Create PR and merge")
-        print("  5. Publish the draft release on GitHub")
+        print("  4. Create PR and merge to main")
     else:
         print(f"\n❌ Failed to prepare release notes for {version}")
         sys.exit(1)
