@@ -83,16 +83,16 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
 
         try:
             lease_key = self._lease_key(lease.id)
-
-            # Store the lease data
             serialized_lease = self._serialize_lease(lease)
-            await self.redis_client.set(lease_key, serialized_lease)
 
-            # Store expiration timestamp for efficient expiration queries
-            await self.redis_client.zadd(
+            # Use pipeline for atomic operations
+            pipe = self.redis_client.pipeline()
+            pipe.set(lease_key, serialized_lease)
+            pipe.zadd(
                 "prefect:concurrency:expirations",
                 {str(lease.id): expiration.timestamp()},
             )
+            await pipe.execute()
 
             return lease
         except RedisError as e:
@@ -128,16 +128,16 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
             # Update expiration
             new_expiration = datetime.now(timezone.utc) + ttl
             lease.expiration = new_expiration
-
-            # Store updated lease
             serialized_lease = self._serialize_lease(lease)
-            await self.redis_client.set(lease_key, serialized_lease)
 
-            # Update expiration in sorted set
-            await self.redis_client.zadd(
+            # Use pipeline for atomic operations
+            pipe = self.redis_client.pipeline()
+            pipe.set(lease_key, serialized_lease)
+            pipe.zadd(
                 "prefect:concurrency:expirations",
                 {str(lease_id): new_expiration.timestamp()},
             )
+            await pipe.execute()
         except RedisError as e:
             logger.error(f"Failed to renew lease {lease_id}: {e}")
             raise
@@ -146,13 +146,11 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
         try:
             lease_key = self._lease_key(lease_id)
 
-            # Remove lease data
-            await self.redis_client.delete(lease_key)
-
-            # Remove from expiration tracking
-            await self.redis_client.zrem(
-                "prefect:concurrency:expirations", str(lease_id)
-            )
+            # Use pipeline for atomic operations
+            pipe = self.redis_client.pipeline()
+            pipe.delete(lease_key)
+            pipe.zrem("prefect:concurrency:expirations", str(lease_id))
+            await pipe.execute()
         except RedisError as e:
             logger.error(f"Failed to revoke lease {lease_id}: {e}")
             raise
