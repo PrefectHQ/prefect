@@ -86,8 +86,25 @@ def format_release_notes(release_info: dict, version: str) -> str:
             subtitle = first_line.split(":", 1)[1].strip() if ":" in first_line else ""
 
     skip_next_empty = False
+    skip_section = False
     for i, line in enumerate(lines):
         line_stripped = line.strip()
+
+        # Skip New Contributors sections entirely
+        if line_stripped == "## New Contributors":
+            skip_section = True
+            continue
+        elif skip_section and line_stripped.startswith("##"):
+            # We've hit the next section, stop skipping
+            skip_section = False
+        elif skip_section and line_stripped.startswith("**Full Changelog**"):
+            # Keep the Full Changelog line and stop skipping
+            skip_section = False
+            filtered_lines.append(line)
+            continue
+        elif skip_section:
+            # Skip lines in the New Contributors section
+            continue
 
         # Skip various duplicate header formats
         should_skip = False
@@ -149,7 +166,13 @@ def format_release_notes(release_info: dict, version: str) -> str:
             continue
 
         skip_next_empty = False
-        filtered_lines.append(line)
+
+        # Transform ### headers to bold text to reduce nav clutter
+        if line.startswith("### "):
+            header_text = line[4:].strip()
+            filtered_lines.append(f"**{header_text}**")
+        else:
+            filtered_lines.append(line)
 
     body = "\n".join(filtered_lines).strip()
 
