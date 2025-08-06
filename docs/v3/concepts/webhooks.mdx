@@ -20,9 +20,9 @@ All webhooks may accept requests with the most common HTTP methods:
 *   Use `GET`, `HEAD`, and `DELETE` for webhooks that define a static event template, or a template that does not depend on the _body_ of the HTTP request. The headers of the request will be available for templates.
 *   Use `POST`, `PUT`, and `PATCH` when the webhook request includes a body. See [How HTTP request components are handled](#how-http-request-components-are-handled) for more details on how the body is parsed.
 
-Prefect Cloud webhooks are deliberately quiet to the outside world, and only return a `204 No Content` response when they are successful or a `400 Bad Request` error when there is any error interpreting the request. For more visibility when your webhooks fail, see the [Troubleshooting Webhook Configuration](#troubleshooting-webhook-configuration) section below.
+Prefect Cloud webhooks are deliberately quiet to the outside world, and only return a `204 No Content` response when they are successful (except in certain scenarios, [see below](#webhook-authentication-and-validation)) or a `400 Bad Request` error when there is any error interpreting the request. For more visibility when your webhooks fail, see the [Troubleshooting Webhook Configuration](#troubleshooting-webhook-configuration) section below.
 
-## Webhook Authentication
+## Webhook Authentication and Validation
 
 To enhance security, within a Prefect Cloud Pro or Enterprise tier account, you can assign a service account to a webhook. This feature provides an additional layer of security and is highly recommended, especially for enterprise environments.
 
@@ -47,6 +47,10 @@ An account-level setting is available to enforce authentication on all webhooks.
 *   All existing webhooks without an associated service account will be automatically disabled.
 *   New webhooks must be created with an associated service account.
 *   Existing webhooks must be updated to include a service account before they can be re-enabled.
+
+### Azure Event Grid subscriptions
+
+Prefect Cloud webhooks support [Azure Event Grid webhook event handlers](https://learn.microsoft.com/en-us/azure/event-grid/handler-webhooks), including handling the [endpoint validation steps](https://learn.microsoft.com/en-us/azure/event-grid/receive-events?source=recommendations#endpoint-validation). When Event Grid sends a validation request to Prefect Cloud, the webhook automatically responds with the necessary validation code, confirming endpoint ownership and validity.
 
 ## Webhook Templates
 
