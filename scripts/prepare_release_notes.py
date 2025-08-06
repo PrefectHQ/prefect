@@ -251,6 +251,17 @@ def format_release_notes(release_info: dict, version: str) -> str:
     # Wrap version constraints in backticks
     body = re.sub(version_pattern, wrap_version, body)
 
+    # Convert GitHub usernames to hyperlinks (e.g., @username -> [@username](https://github.com/username))
+    github_user_pattern = r"@([a-zA-Z0-9](?:[a-zA-Z0-9]|-(?=[a-zA-Z0-9])){0,38})"
+    body = re.sub(github_user_pattern, r"[@\1](https://github.com/\1)", body)
+
+    # Convert full PR URLs to short format with links
+    # e.g., https://github.com/PrefectHQ/prefect/pull/1234 -> [#1234](https://github.com/PrefectHQ/prefect/pull/1234)
+    pr_url_pattern = r"https://github\.com/PrefectHQ/prefect/pull/(\d+)"
+    body = re.sub(
+        pr_url_pattern, r"[#\1](https://github.com/PrefectHQ/prefect/pull/\1)", body
+    )
+
     # Format the patch release section
     patch_title = f"## {tag}"
 
