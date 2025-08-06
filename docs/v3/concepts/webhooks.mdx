@@ -20,7 +20,7 @@ All webhooks may accept requests with the most common HTTP methods:
 *   Use `GET`, `HEAD`, and `DELETE` for webhooks that define a static event template, or a template that does not depend on the _body_ of the HTTP request. The headers of the request will be available for templates.
 *   Use `POST`, `PUT`, and `PATCH` when the webhook request includes a body. See [How HTTP request components are handled](#how-http-request-components-are-handled) for more details on how the body is parsed.
 
-Prefect Cloud webhooks are deliberately quiet to the outside world, and only return a `204 No Content` response when they are successful or a `400 Bad Request` error when there is any error interpreting the request. Prefect Cloud webhooks also fully support [Azure Event Grid webhook event handlers](https://learn.microsoft.com/en-us/azure/event-grid/handler-webhooks), automatically handling the endpoint validation steps. For more visibility when your webhooks fail, see the [Troubleshooting Webhook Configuration](#troubleshooting-webhook-configuration) section below.
+Prefect Cloud webhooks are deliberately quiet to the outside world, and only return a `204 No Content` response when they are successful (except in certain scenarios, [see below](#webhook-authentication-and-validation)) or a `400 Bad Request` error when there is any error interpreting the request. For more visibility when your webhooks fail, see the [Troubleshooting Webhook Configuration](#troubleshooting-webhook-configuration) section below.
 
 ## Webhook Authentication and Validation
 
