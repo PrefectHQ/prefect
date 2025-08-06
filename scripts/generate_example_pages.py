@@ -57,7 +57,7 @@ async def convert_example_to_mdx_page(example_path: anyio.Path) -> str:
             frontmatter = "---\n"
 
             for line in text[: match.end()].split("\n"):
-                if line.startswith(("title:", "description:", "icon:")):
+                if line.startswith(("title:", "description:", "icon:", "keywords:")):
                     frontmatter += line + "\n"
 
             frontmatter += "---\n\n"

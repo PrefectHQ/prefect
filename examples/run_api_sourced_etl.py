@@ -3,8 +3,7 @@
 # description: Build a small ETL pipeline that fetches JSON from a public API, transforms it with pandas, and writes a CSV – all orchestrated by Prefect.
 # icon: database
 # dependencies: ["prefect", "httpx", "pandas"]
-# cmd: ["python", "01_getting_started/03_run_api_sourced_etl.py"]
-# tags: [getting_started, etl, pandas]
+# keywords: ["getting_started", "etl", "pandas"]
 # draft: false
 # ---
 #

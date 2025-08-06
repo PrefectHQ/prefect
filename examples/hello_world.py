@@ -3,8 +3,7 @@
 # description: Your first steps with Prefect – learn how to create a basic flow and understand core concepts.
 # icon: play
 # dependencies: ["prefect"]
-# cmd: ["python", "01_getting_started/01_hello_world.py"]
-# tags: [getting_started, basics]
+# keywords: ["getting_started", "basics"]
 # draft: false
 # ---
 #
