@@ -13,7 +13,7 @@ _EXAMPLES_DIR = _REPO_ROOT / "examples"
 _MDX_EXAMPLES_DIR = _REPO_ROOT / "docs" / "v3" / "examples"
 _RE_NEWLINE = re.compile(r"\r?\n")
 _RE_FRONTMATTER = re.compile(r"^---$", re.MULTILINE)
-_GITHUB_BASE_URL = "https://github.com/PrefectHQ/prefect/blob/main/examples/"
+_GITHUB_BASE_URL = "https://github.com/PrefectHQ/prefect/blob/main/"
 
 
 @dataclass
