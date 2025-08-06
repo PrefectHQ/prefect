@@ -1,7 +1,11 @@
+import json
 import re
-from typing import AsyncIterator
+import textwrap
+from dataclasses import dataclass
+from typing import TypedDict
 
 import anyio
+import yaml
 from slugify import slugify
 
 _REPO_ROOT = anyio.Path(__file__).parent.parent
@@ -12,16 +16,46 @@ _RE_FRONTMATTER = re.compile(r"^---$", re.MULTILINE)
 _GITHUB_BASE_URL = "https://github.com/PrefectHQ/prefect/blob/main/examples/"
 
 
-async def get_example_paths() -> AsyncIterator[anyio.Path]:
+@dataclass
+class Example:
+    path: anyio.Path
+    title: str
+    description: str
+    icon: str
+    keywords: list[str]
+
+
+class Frontmatter(TypedDict, total=False):
+    title: str
+    description: str
+    icon: str
+    keywords: list[str]
+
+
+async def get_examples() -> list[Example]:
+    examples: list[Example] = []
     async for file in _EXAMPLES_DIR.iterdir():
         if await file.is_file() and file.suffix == ".py":
-            yield file
+            text = await file.read_text()
+            example_frontmatter = extract_front_matter(text)
+            if not example_frontmatter:
+                continue
+            examples.append(
+                Example(
+                    path=file,
+                    title=example_frontmatter.get("title", ""),
+                    description=example_frontmatter.get("description", ""),
+                    icon=example_frontmatter.get("icon", ""),
+                    keywords=example_frontmatter.get("keywords", []),
+                )
+            )
+    return examples
 
 
-async def convert_example_to_mdx_page(example_path: anyio.Path) -> str:
+async def convert_example_to_mdx_page(example: Example) -> str:
     """Render a Python code example to Markdown documentation format."""
 
-    content = await example_path.read_text()
+    content = await example.path.read_text()
 
     lines = _RE_NEWLINE.split(content)
     markdown: list[str] = []
@@ -45,7 +79,7 @@ async def convert_example_to_mdx_page(example_path: anyio.Path) -> str:
     if _RE_FRONTMATTER.match(text):
         # Strip out frontmatter from text.
         if match := _RE_FRONTMATTER.search(text, 4):
-            github_url = f"{_GITHUB_BASE_URL}{example_path.relative_to(_REPO_ROOT)}"
+            github_url = f"{_GITHUB_BASE_URL}{example.path.relative_to(_REPO_ROOT)}"
 
             # Using raw HTML for precise placement; most Markdown/MDX renderers will
             # preserve the styling while allowing fallback to a plain link if HTML
@@ -68,11 +102,77 @@ async def convert_example_to_mdx_page(example_path: anyio.Path) -> str:
     return text
 
 
+def extract_front_matter(text: str) -> Frontmatter:
+    # find the block between the first two "# ---" lines
+    m = re.search(
+        r"^(?:# ---\s*\n)(.*?)(?:\n# ---)", text, flags=re.DOTALL | re.MULTILINE
+    )
+    if not m:
+        return {}
+    # strip leading "# " from each line
+    fm = "\n".join(line.lstrip("# ").rstrip() for line in m.group(1).splitlines())
+    return yaml.safe_load(fm)
+
+
+async def generate_index_page(examples: list[Example]) -> str:
+    TOP = textwrap.dedent("""
+---
+title: Overview
+icon: bars
+---
+<CardGroup cols={3}>
+    """)
+    BOTTOM = textwrap.dedent("""
+    </CardGroup>
+    """)
+
+    return (
+        TOP
+        + "\n".join(
+            f"""
+        <Card title="{example.title}" icon="{example.icon}" href="/v3/examples/{slugify(example.path.stem)}">
+            {example.description}
+        </Card>
+        """
+            for example in examples
+        )
+        + BOTTOM
+    )
+
+
+async def update_docs_json(examples: list[Example]) -> None:
+    docs_json_path = _REPO_ROOT / "docs" / "docs.json"
+    docs_json = await docs_json_path.read_text()
+    docs_json = json.loads(docs_json)
+    tabs = docs_json["navigation"]["tabs"]
+    for tab in tabs:
+        if tab["tab"] == "Examples":
+            tab["pages"] = [
+                "v3/examples/index",
+                {
+                    "group": "Examples",
+                    "pages": [
+                        f"v3/examples/{slugify(example.path.stem)}"
+                        for example in examples
+                    ],
+                },
+            ]
+            break
+    docs_json["navigation"]["tabs"] = tabs
+    await docs_json_path.write_text(json.dumps(docs_json, indent=2))
+
+
 async def main() -> None:
-    async for example_path in get_example_paths():
-        text = await convert_example_to_mdx_page(example_path)
-        destination_path = _MDX_EXAMPLES_DIR / f"{slugify(example_path.stem)}.mdx"
+    examples = await get_examples()
+    for example in examples:
+        text = await convert_example_to_mdx_page(example)
+        destination_path = _MDX_EXAMPLES_DIR / f"{slugify(example.path.stem)}.mdx"
         await destination_path.write_text(text)
+
+    index_page = await generate_index_page(examples)
+    await (_MDX_EXAMPLES_DIR / "index.mdx").write_text(index_page)
+
+    await update_docs_json(examples)
 
 
 if __name__ == "__main__":
