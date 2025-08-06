@@ -252,7 +252,10 @@ def format_release_notes(release_info: dict, version: str) -> str:
     body = re.sub(version_pattern, wrap_version, body)
 
     # Convert GitHub usernames to hyperlinks (e.g., @username -> [@username](https://github.com/username))
-    github_user_pattern = r"@([a-zA-Z0-9](?:[a-zA-Z0-9]|-(?=[a-zA-Z0-9])){0,38})"
+    # But avoid matching npm packages like @prefecthq/prefect-ui-library
+    github_user_pattern = (
+        r"(?<!\w)@([a-zA-Z0-9](?:[a-zA-Z0-9]|-(?=[a-zA-Z0-9])){0,38})(?![a-zA-Z0-9/-])"
+    )
     body = re.sub(github_user_pattern, r"[@\1](https://github.com/\1)", body)
 
     # Convert full PR URLs to short format with links

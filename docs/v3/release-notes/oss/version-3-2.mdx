@@ -71,7 +71,7 @@ Stay tuned, our next release will include Python 3.13 support!
 * Get `pyright` check passing for `prefect.runner` submodules by [@desertaxle](https://github.com/desertaxle) in [#17502](https://github.com/PrefectHQ/prefect/pull/17502)
 * update `Field` `examples` kwargs for gcp and databricks by [@zzstoatzz](https://github.com/zzstoatzz) in [#17526](https://github.com/PrefectHQ/prefect/pull/17526)
 * Adds back telemetry service to all servers when enabled by [@cicdw](https://github.com/cicdw) in [#17528](https://github.com/PrefectHQ/prefect/pull/17528)
-* Update [@prefecthq](https://github.com/prefecthq)/prefect-ui-library to version 3.11.51 by [@marvin-robot](https://github.com/marvin-robot) in [#17539](https://github.com/PrefectHQ/prefect/pull/17539)
+* Update @prefecthq/prefect-ui-library to version 3.11.51 by [@marvin-robot](https://github.com/marvin-robot) in [#17539](https://github.com/PrefectHQ/prefect/pull/17539)
 
 **Documentation 📓**
 * fix broken slack link in docs by [@aaazzam](https://github.com/aaazzam) in [#17491](https://github.com/PrefectHQ/prefect/pull/17491)
@@ -241,7 +241,7 @@ This release contains a fix for bug a where the default `Runner` limit would pro
 * Upgrade websockets to v15 by [@sam-phinizy](https://github.com/sam-phinizy) in [#17274](https://github.com/PrefectHQ/prefect/pull/17274)
 
 **Development & Tidiness 🧹**
-* Update [@prefecthq](https://github.com/prefecthq)/prefect-ui-library to version 3.11.43 by [@marvin-robot](https://github.com/marvin-robot) in [#17309](https://github.com/PrefectHQ/prefect/pull/17309)
+* Update @prefecthq/prefect-ui-library to version 3.11.43 by [@marvin-robot](https://github.com/marvin-robot) in [#17309](https://github.com/PrefectHQ/prefect/pull/17309)
 * Fix dependency installation for flow submission by [@desertaxle](https://github.com/desertaxle) in [#17289](https://github.com/PrefectHQ/prefect/pull/17289)
 * Expose `KubernetesClusterConfig` at the top level of `prefect-kubernetes` by [@desertaxle](https://github.com/desertaxle) in [#17268](https://github.com/PrefectHQ/prefect/pull/17268)
 
@@ -346,8 +346,7 @@ This release includes a fix for https://github.com/PrefectHQ/prefect/issues/1718
 
 *Released on February 18, 2025*
 
-**fixes issue with `3.2.3`**
-
+## fixes issue with `3.2.3`
 There was a packaging bug with 3.2.3 where the UI was not included in the published wheel due to project configuration changes, which this release resolves.
 
 * Remove "Pod ... has started." log from `KubernetesWorker` by [@kevingrismore](https://github.com/kevingrismore) in [#17174](https://github.com/PrefectHQ/prefect/pull/17174)
@@ -456,12 +455,12 @@ send_email.serve(
   schedules=[
     Cron(
       "0 8 * * *",
-      parameters={"to": "jim.halpert[@dundermifflin](https://github.com/dundermifflin).com"}
+      parameters={"to": "jim.halpert@dundermifflin.com"}
     ),
     Cron(
       "5 8 * * *",
       parameters={
-        "to": "dwight.schrute[@dundermifflin](https://github.com/dundermifflin).com",
+        "to": "dwight.schrute@dundermifflin.com",
         "message": "Stop goofing off! You're assistant _to_ the regional manager!"
       }
     )
@@ -508,11 +507,11 @@ See [the documentation](https://docs.prefect.io/v3/automate/add-schedules#associ
 **Development & Tidiness 🧹**
 * more pendulum consolidation by [@zzstoatzz](https://github.com/zzstoatzz) in [#16911](https://github.com/PrefectHQ/prefect/pull/16911)
 * fix `emit_event` docstring by [@zzstoatzz](https://github.com/zzstoatzz) in [#16918](https://github.com/PrefectHQ/prefect/pull/16918)
-* Update [@prefecthq](https://github.com/prefecthq)/prefect-ui-library to version 3.11.39 by [@marvin-robot](https://github.com/marvin-robot) in [#16919](https://github.com/PrefectHQ/prefect/pull/16919)
+* Update @prefecthq/prefect-ui-library to version 3.11.39 by [@marvin-robot](https://github.com/marvin-robot) in [#16919](https://github.com/PrefectHQ/prefect/pull/16919)
 * Fix `prefect-dask` test suite by [@desertaxle](https://github.com/desertaxle) in [#16920](https://github.com/PrefectHQ/prefect/pull/16920)
 * refactor work pool client methods by [@aaazzam](https://github.com/aaazzam) in [#16661](https://github.com/PrefectHQ/prefect/pull/16661)
-* Update [@prefecthq](https://github.com/prefecthq)/prefect-ui-library to version 3.11.40 by [@marvin-robot](https://github.com/marvin-robot) in [#16929](https://github.com/PrefectHQ/prefect/pull/16929)
-* Update [@prefecthq](https://github.com/prefecthq)/prefect-ui-library to version 3.11.41 by [@marvin-robot](https://github.com/marvin-robot) in [#16930](https://github.com/PrefectHQ/prefect/pull/16930)
+* Update @prefecthq/prefect-ui-library to version 3.11.40 by [@marvin-robot](https://github.com/marvin-robot) in [#16929](https://github.com/PrefectHQ/prefect/pull/16929)
+* Update @prefecthq/prefect-ui-library to version 3.11.41 by [@marvin-robot](https://github.com/marvin-robot) in [#16930](https://github.com/PrefectHQ/prefect/pull/16930)
 * more pendulum consolidation by [@zzstoatzz](https://github.com/zzstoatzz) in [#16922](https://github.com/PrefectHQ/prefect/pull/16922)
 * Unifies background service running between the web server and CLI by [@chrisguidry](https://github.com/chrisguidry) in [#16927](https://github.com/PrefectHQ/prefect/pull/16927)
 * rm `pendulum` use in `schedules.py` by [@zzstoatzz](https://github.com/zzstoatzz) in [#16943](https://github.com/PrefectHQ/prefect/pull/16943)
@@ -525,7 +524,7 @@ See [the documentation](https://docs.prefect.io/v3/automate/add-schedules#associ
 * Remove full team from schema json updates by [@cicdw](https://github.com/cicdw) in [#17008](https://github.com/PrefectHQ/prefect/pull/17008)
 * Fix migration downgrades on deployment schedule table by [@cicdw](https://github.com/cicdw) in [#17044](https://github.com/PrefectHQ/prefect/pull/17044)
 * Refactor results and result records to improve circular import situation by [@cicdw](https://github.com/cicdw) in [#17031](https://github.com/PrefectHQ/prefect/pull/17031)
-* Update [@prefecthq](https://github.com/prefecthq)/prefect-ui-library to version 3.11.42 by [@marvin-robot](https://github.com/marvin-robot) in [#17046](https://github.com/PrefectHQ/prefect/pull/17046)
+* Update @prefecthq/prefect-ui-library to version 3.11.42 by [@marvin-robot](https://github.com/marvin-robot) in [#17046](https://github.com/PrefectHQ/prefect/pull/17046)
 
 **Documentation 📓**
 * Consolidates discovery of Prefect server `Service`s to the base class by [@chrisguidry](https://github.com/chrisguidry) in [#16913](https://github.com/PrefectHQ/prefect/pull/16913)
