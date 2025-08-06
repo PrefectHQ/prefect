@@ -1408,12 +1408,6 @@
               "v3/release-notes/oss/version-3-1",
               "v3/release-notes/oss/version-3-0"
             ]
-          },
-          {
-            "group": "Cloud",
-            "pages": [
-              "v3/release-notes/cloud/index"
-            ]
           }
         ]
       }
