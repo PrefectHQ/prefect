@@ -10,7 +10,7 @@ blocking execution of its caller until the task completes.
 
 To enable concurrent, parallel, or distributed execution of tasks, use the `.submit()` or `.map()` methods to submit tasks to a **task runner**. 
 
-The default task runner in Prefect is the [`ThreadPoolTaskRunner`](https://reference.prefect.io/prefect/task-runners/#prefect.task_runners.ThreadPoolTaskRunner),
+The default task runner in Prefect is the [`ThreadPoolTaskRunner`](https://reference.prefect.io/prefect/task_runners/#prefect.task_runners.ThreadPoolTaskRunner),
 which runs tasks concurrently in independent threads.
 
 For truly parallel or distributed task execution, you must use one of the following task runners, which are available as extras of the `prefect` library:
