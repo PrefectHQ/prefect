@@ -166,9 +166,13 @@ def format_release_notes(release_info: dict) -> str:
 
         skip_next_empty = False
 
-        # Transform ### headers to bold text to reduce nav clutter
+        # Transform ### and #### headers to bold text to reduce nav clutter
         if line.startswith("### "):
             header_text = line[4:].strip()
+            filtered_lines.append(f"**{header_text}**")
+        elif line.startswith("#### "):
+            # Integration subsections - also convert to bold
+            header_text = line[5:].strip()
             filtered_lines.append(f"**{header_text}**")
         else:
             filtered_lines.append(line)
