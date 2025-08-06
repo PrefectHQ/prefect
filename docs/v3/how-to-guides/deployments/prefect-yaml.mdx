@@ -287,9 +287,9 @@ pull:
 Use utility steps within a build, push, or pull action to assist in managing the deployment lifecycle:
 
 - `run_shell_script` allows for the execution of one or more shell commands in a subprocess, and returns the standard output
-and standard error of the script.
-This step is useful for scripts that require execution in a specific environment, or those which have specific input and output
-requirements.
+and standard error of the script. This step is useful for scripts that require execution in a specific environment, or those 
+which have specific input and output requirements. Note that setting `stream_output: true` for `run_shell_script` writes the
+output & error to the console in the execution environment, which may not be visible from Prefect.
 
 Here is an example of retrieving the short Git commit hash of the current repository to use as a Docker image tag:
 
