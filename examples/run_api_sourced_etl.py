@@ -1,5 +1,5 @@
 # ---
-# title: API-sourced ETL – Prefect + pandas
+# title: API-sourced ETL
 # description: Build a small ETL pipeline that fetches JSON from a public API, transforms it with pandas, and writes a CSV – all orchestrated by Prefect.
 # icon: database
 # dependencies: ["prefect", "httpx", "pandas"]

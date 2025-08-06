@@ -115,8 +115,7 @@ def extract_front_matter(text: str) -> Frontmatter:
 
 
 async def generate_index_page(examples: list[Example]) -> str:
-    TOP = textwrap.dedent("""
----
+    TOP = textwrap.dedent("""---
 title: Overview
 icon: bars
 ---
