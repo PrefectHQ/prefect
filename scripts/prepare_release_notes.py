@@ -2,6 +2,49 @@
 """
 Prepare release notes for a new release from a GitHub draft release.
 This script fetches release notes from a draft release and updates the documentation.
+
+RELEASE PROCESS:
+================
+
+1. BEFORE THE RELEASE:
+   - Create a draft release on GitHub:
+     a. Go to https://github.com/PrefectHQ/prefect/releases/new
+     b. Set tag to the new version (e.g., '3.5.0')
+     c. Click "Generate release notes" to auto-populate from merged PRs
+     d. Add a creative subtitle after the version if desired
+     e. Save as DRAFT (important: do not publish yet)
+
+2. PREPARE RELEASE NOTES:
+   - Run this script: `just prepare-release VERSION`
+     (or manually: `python scripts/prepare_release_notes.py 3.5.0`)
+   - The script will:
+     * Fetch the draft release from GitHub
+     * Format the content (remove New Contributors, convert headers to bold)
+     * Add it to the appropriate minor version page (e.g., version-3-5.mdx)
+     * Update docs.json to include the new page if needed
+     * Open the file in your $EDITOR for review
+
+3. REVIEW AND EDIT:
+   - Review the generated release notes for accuracy
+   - Fix any spelling/grammar issues
+   - Ensure version constraints are properly wrapped in backticks
+   - Add any additional context or highlights at the top
+
+4. COMMIT AND CREATE PR:
+   - Commit the changes
+   - Create a PR and get it reviewed
+   - Merge to main
+
+5. PUBLISH THE RELEASE:
+   - After the PR is merged, go back to GitHub releases
+   - Find your draft release
+   - Click "Publish release" to make it official
+
+FORMATTING NOTES:
+- New Contributors sections are automatically removed
+- ### and #### headers are converted to bold text to reduce nav clutter
+- Version constraints like <0.14.0,>=0.12.0 are wrapped in backticks
+- Dates are formatted as "Month Day, Year" on a separate line
 """
 
 import json

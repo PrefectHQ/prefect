@@ -2,6 +2,56 @@
 """
 Backfill release notes documentation from GitHub releases.
 This script generates release notes pages for all 3.x releases.
+
+PURPOSE:
+========
+This script is used to regenerate ALL historical release notes from GitHub.
+It should only be needed in these cases:
+1. Initial setup of release notes documentation
+2. Fixing formatting issues across all releases
+3. Recovering from data loss
+4. Major restructuring of release notes format
+
+USAGE:
+======
+Run from the repository root:
+    python scripts/backfill_release_notes.py
+
+This will:
+1. Fetch all stable 3.x release tags from git
+2. Query GitHub API for each release's information
+3. Group releases by minor version (3.0, 3.1, 3.2, etc.)
+4. Generate one MDX page per minor version with all patches
+5. Create the index page and directory structure
+
+DIRECTORY STRUCTURE:
+====================
+docs/v3/release-notes/
+├── index.mdx                    # Main release notes landing page
+├── oss/
+│   ├── version-3-0.mdx         # All 3.0.x releases
+│   ├── version-3-1.mdx         # All 3.1.x releases
+│   └── ...
+└── cloud/
+    └── index.mdx                # Placeholder for cloud releases
+
+FORMATTING:
+===========
+The script applies several transformations to improve readability:
+- Removes "New Contributors" sections (reduce clutter)
+- Converts ### headers to **bold text** (simplify right-nav)
+- Converts #### headers to **bold text** (for integration subsections)
+- Wraps version constraints in backticks (e.g., `<2.0,>=1.5`)
+- Removes duplicate headers and "What's Changed" sections
+- Formats dates consistently as "Month Day, Year"
+
+REQUIREMENTS:
+=============
+- Must be run from the Prefect repository root
+- Requires 'gh' CLI tool to be installed and authenticated
+- Needs git repository with all tags fetched
+
+NOTE: For preparing release notes for a NEW release, use prepare_release_notes.py instead.
 """
 
 import json
