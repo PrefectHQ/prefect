@@ -1,9 +1,10 @@
 ---
-title: API-sourced ETL with pandas
+title: API-sourced ETL – Prefect + pandas
 description: Build a small ETL pipeline that fetches JSON from a public API, transforms it with pandas, and writes a CSV – all orchestrated by Prefect.
+icon: database
 ---
 
-<a href="https://github.com/prefecthq/examples/blob/examples-markdown/examples/01_getting_started/03_run_api_sourced_etl.py" target="_blank">View on GitHub</a>
+<a href="https://github.com/PrefectHQ/prefect/blob/main/examples/examples/run_api_sourced_etl.py" target="_blank">View on GitHub</a>
 
 
 Prefect turns everyday Python into production-grade workflows with **zero boilerplate**.
@@ -55,12 +56,12 @@ Watch as Prefect orchestrates the ETL pipeline with automatic retries and loggin
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, List
+from typing import Any
 
 import httpx
 import pandas as pd
-from prefect import flow, task
 
+from prefect import flow, task
 
 ```
 
@@ -78,6 +79,7 @@ def fetch_page(page: int, api_base: str, per_page: int) -> list[dict[str, Any]]:
     response = httpx.get(url, params=params, timeout=30)
     response.raise_for_status()
     return response.json()
+
 
 ```
 
@@ -105,6 +107,7 @@ def to_dataframe(raw_articles: list[list[dict[str, Any]]]) -> pd.DataFrame:
     ]
     return df
 
+
 ```
 
 ---------------------------------------------------------------------------
@@ -118,6 +121,7 @@ def save_csv(df: pd.DataFrame, path: Path) -> None:
     df.to_csv(path, index=False)
     print(f"Saved {len(df)} rows ➜ {path}\n\nPreview:\n{df.head()}\n")
 
+
 ```
 
 ---------------------------------------------------------------------------
@@ -130,7 +134,7 @@ def etl(api_base: str, pages: int, per_page: int, output_file: Path) -> None:
     """Run the end-to-end ETL for *pages* of articles."""
 
     # Extract – simple loop for clarity
-    raw_pages: List[list[dict[str, Any]]] = []
+    raw_pages: list[list[dict[str, Any]]] = []
     for page_number in range(1, pages + 1):
         raw_pages.append(fetch_page(page_number, api_base, per_page))
 

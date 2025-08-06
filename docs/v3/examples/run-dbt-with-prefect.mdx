@@ -1,9 +1,10 @@
 ---
-title: dbt Model Orchestration
+title: dbt Model Orchestration – Prefect + dbt
 description: Orchestrate any dbt project with bullet-proof retries, observability, and a single Python file – no YAML or shell scripts required.
+icon: database
 ---
 
-<a href="https://github.com/prefecthq/examples/blob/examples-markdown/examples/02_flows/run_dbt_with_prefect.py" target="_blank">View on GitHub</a>
+<a href="https://github.com/PrefectHQ/prefect/blob/main/examples/examples/run_dbt_with_prefect.py" target="_blank">View on GitHub</a>
 
 
 **Transform unreliable dbt scripts into production-grade data pipelines with enterprise observability, automatic failure recovery, and zero-downtime deployments.**
@@ -55,9 +56,9 @@ import urllib.request
 import zipfile
 from pathlib import Path
 
-from prefect import flow, task
 from prefect_dbt import PrefectDbtRunner, PrefectDbtSettings
 
+from prefect import flow, task
 
 DEFAULT_REPO_ZIP = (
     "https://github.com/PrefectHQ/examples/archive/refs/heads/examples-markdown.zip"
@@ -101,9 +102,13 @@ def build_dbt_project(repo_zip_url: str = DEFAULT_REPO_ZIP) -> Path:
         zf.extractall(tmp_extract_base)
 
     # Find the folder containing dbt_project.yml (in resources/prefect_dbt_project)
-    candidates = list(tmp_extract_base.rglob("**/resources/prefect_dbt_project/dbt_project.yml"))
+    candidates = list(
+        tmp_extract_base.rglob("**/resources/prefect_dbt_project/dbt_project.yml")
+    )
     if not candidates:
-        raise ValueError("dbt_project.yml not found in resources/prefect_dbt_project – structure unexpected")
+        raise ValueError(
+            "dbt_project.yml not found in resources/prefect_dbt_project – structure unexpected"
+        )
 
     project_root = candidates[0].parent
     shutil.move(str(project_root), str(project_dir))
@@ -111,6 +116,7 @@ def build_dbt_project(repo_zip_url: str = DEFAULT_REPO_ZIP) -> Path:
 
     print(f"Extracted dbt project to {project_dir}\n")
     return project_dir
+
 
 ```
 
@@ -144,6 +150,7 @@ def create_dbt_profiles(project_dir: Path) -> None:
 
     print(f"Created/updated profiles.yml at {profiles_path}")
 
+
 ```
 
 ---------------------------------------------------------------------------
@@ -170,7 +177,7 @@ def run_dbt_commands(commands: list[str], project_dir: Path) -> None:
     # Configure dbt settings to point to our project directory
     settings = PrefectDbtSettings(
         project_dir=str(project_dir),
-        profiles_dir=str(project_dir)  # Use project dir for profiles too
+        profiles_dir=str(project_dir),  # Use project dir for profiles too
     )
 
     # Create runner and execute commands
@@ -181,6 +188,7 @@ def run_dbt_commands(commands: list[str], project_dir: Path) -> None:
         print(f"Executing: dbt {command}")
         runner.invoke(command.split())
         print(f"Completed: dbt {command}\n")
+
 
 ```
 
@@ -223,6 +231,7 @@ def dbt_flow(repo_zip_url: str = DEFAULT_REPO_ZIP) -> None:
     # Let users know where the DuckDB file was written for exploration
     duckdb_path = project_dir / "demo.duckdb"
     print(f"\nDone! DuckDB file located at: {duckdb_path.resolve()}")
+
 
 ```
 

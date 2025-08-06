@@ -1,9 +1,10 @@
 ---
 title: Simple web scraper
 description: Learn how to scrape article content from web pages with Prefect tasks, retries, and automatic logging.
+icon: globe
 ---
 
-<a href="https://github.com/prefecthq/examples/blob/examples-markdown/examples/01_getting_started/02_simple_web_scraper.py" target="_blank">View on GitHub</a>
+<a href="https://github.com/PrefectHQ/prefect/blob/main/examples/examples/simple_web_scraper.py" target="_blank">View on GitHub</a>
 
 
 This example shows how Prefect enhances regular Python code without getting in its way.
@@ -29,11 +30,9 @@ the decorators and the code would still work - Prefect just makes it more resili
 ```python
 from __future__ import annotations
 
-import re
-from typing import List
-
 import requests
 from bs4 import BeautifulSoup
+
 from prefect import flow, task
 
 ```
@@ -53,6 +52,7 @@ def fetch_html(url: str) -> str:
     response = requests.get(url, timeout=10)
     response.raise_for_status()
     return response.text
+
 
 @task
 def parse_article(html: str) -> str:
@@ -77,16 +77,13 @@ def parse_article(html: str) -> str:
         if not text:
             continue
 
-        if elem.name.startswith('h'):
-            content.extend([
-                "\n" + "=" * 80,
-                text.upper(),
-                "=" * 80 + "\n"
-            ])
+        if elem.name.startswith("h"):
+            content.extend(["\n" + "=" * 80, text.upper(), "=" * 80 + "\n"])
         else:
             content.extend([text, ""])
 
     return "\n".join(content)
+
 
 ```
 
@@ -98,7 +95,7 @@ tasks, other flows, and any Python you need. We enable `log_prints=True` so each
 
 ```python
 @flow(log_prints=True)
-def scrape(urls: List[str] | None = None) -> None:
+def scrape(urls: list[str] | None = None) -> None:
     """Scrape and print article content from URLs.
 
     A regular Python function that composes our tasks together.
@@ -108,6 +105,7 @@ def scrape(urls: List[str] | None = None) -> None:
         for url in urls:
             content = parse_article(fetch_html(url))
             print(content if content else "No article content found.")
+
 
 ```
 
