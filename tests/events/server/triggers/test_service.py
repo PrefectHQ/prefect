@@ -10,6 +10,7 @@ import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.server.events import actions, triggers
+from prefect.server.events.ordering import get_triggers_causal_ordering
 from prefect.server.events.schemas.automations import (
     Automation,
     EventTrigger,
@@ -366,7 +367,7 @@ async def test_only_processes_event_once(
         },
     )
 
-    causal_ordering = triggers.causal_ordering()
+    causal_ordering = get_triggers_causal_ordering()
     reactive_evaluation.side_effect = causal_ordering.record_event_as_seen
 
     await asyncio.gather(*[message_handler(message) for _ in range(50)])
