@@ -501,6 +501,7 @@ class Consumer(_Consumer):
 
         if now - self._last_trimmed > self.trim_every.total_seconds():
             await _trim_stream_to_lowest_delivered_id(self.stream)
+            await _cleanup_empty_consumer_groups(self.stream)
             self._last_trimmed = now
 
 
@@ -598,3 +599,33 @@ async def _trim_stream_to_lowest_delivered_id(stream_name: str) -> None:
     # Trim the stream up to (but not including) the lowest ID
     # XTRIM with MINID removes all entries with IDs strictly lower than the given ID
     await redis_client.xtrim(stream_name, minid=lowest_id, approximate=False)
+
+
+async def _cleanup_empty_consumer_groups(stream_name: str) -> None:
+    """
+    Removes consumer groups that have no active consumers.
+
+    Consumer groups with no consumers are considered abandoned and can safely be
+    deleted to prevent them from blocking stream trimming operations.
+
+    Args:
+        stream_name: The name of the Redis stream to clean up groups for
+    """
+    redis_client: Redis = get_async_redis_client()
+
+    try:
+        groups = await redis_client.xinfo_groups(stream_name)
+    except Exception as e:
+        logger.debug(f"Unable to get consumer groups for stream {stream_name}: {e}")
+        return
+
+    for group in groups:
+        try:
+            consumers = await redis_client.xinfo_consumers(stream_name, group["name"])
+            if not consumers:
+                # No consumers in this group - it's abandoned
+                logger.debug(f"Deleting empty consumer group '{group['name']}'")
+                await redis_client.xgroup_destroy(stream_name, group["name"])
+        except Exception as e:
+            # If we can't check or delete, just continue
+            logger.debug(f"Unable to cleanup group '{group['name']}': {e}")
