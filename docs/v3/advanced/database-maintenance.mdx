@@ -487,8 +487,8 @@ export PREFECT_SERVER_DATABASE_CONNECTION_URL="postgresql+asyncpg://prefect:pref
 # Disable statement caching for transaction mode compatibility
 export PREFECT_SERVER_DATABASE_SQLALCHEMY_CONNECT_ARGS_STATEMENT_CACHE_SIZE=0
 
-# Note: Setting pool_size via environment variable to None/null requires special handling
-# It's recommended to configure this in code or via Prefect settings
+# IMPORTANT: pool_size cannot be set to None via environment variables due to 
+# Pydantic parsing limitations. You must configure it in code or use a settings file.
 ```
 
 ### Important considerations

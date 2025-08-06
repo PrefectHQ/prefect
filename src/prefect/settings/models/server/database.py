@@ -93,7 +93,8 @@ class SQLAlchemySettings(PrefectBaseSettings):
     """
 
     model_config: ClassVar[SettingsConfigDict] = build_settings_config(
-        ("server", "database", "sqlalchemy")
+        ("server", "database", "sqlalchemy"),
+        env_parse_none_str="null",  # Allow 'null' string to be parsed as None
     )
 
     connect_args: SQLAlchemyConnectArgsSettings = Field(
