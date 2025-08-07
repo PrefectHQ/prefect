@@ -1,9 +1,11 @@
 ---
 title: Hello, world!
 description: Your first steps with Prefect – learn how to create a basic flow and understand core concepts.
+icon: play
+keywords: ["getting_started", "basics"]
 ---
 
-<a href="https://github.com/prefecthq/examples/blob/examples-markdown/examples/01_getting_started/01_hello_world.py" target="_blank">View on GitHub</a>
+<a href="https://github.com/PrefectHQ/prefect/blob/main/examples/hello_world.py" target="_blank">View on GitHub</a>
 
 
 Welcome to your first Prefect flow. In under a minute you will:
@@ -36,6 +38,7 @@ def hello(name: str = "Marvin") -> None:
     """Log a friendly greeting."""
     print(f"Hello, {name}!")
 
+
 ```
 
 ## Running our flow locally and with parameters
@@ -49,7 +52,9 @@ Now let's see different ways we can call that flow:
 ```python
 if __name__ == "__main__":
     # run the flow with default parameters
-    with tags("test"): # This is a tag that we can use to filter the flow runs in the UI
+    with tags(
+        "test"
+    ):  # This is a tag that we can use to filter the flow runs in the UI
         hello()  # Logs: "Hello, Marvin!"
 
         # run the flow with a different input

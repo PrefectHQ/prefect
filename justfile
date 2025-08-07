@@ -43,6 +43,10 @@ api-ref *MODULES:
 api-ref-clean:
     rm -rf docs/python-sdk
 
+# Generate example pages
+generate-examples:
+    uv run --isolated -p 3.13 --with anyio scripts/generate_example_pages.py
+
 # TODO: consider these for GHA (https://just.systems/man/en/github-actions.html)
 
 # - uses: extractions/setup-just@v2

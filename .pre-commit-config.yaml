@@ -1,4 +1,4 @@
-default_install_hook_types: 
+default_install_hook_types:
   - pre-commit
   - pre-push
 
@@ -61,6 +61,19 @@ repos:
               scripts/generate_settings_schema.py|
               scripts/generate_settings_ref.py|
               scripts/run_precommit_generation_scripts.py
+          )$
+        stages:
+          - pre-push
+      - id: generate-example-pages
+        name: Generate example pages
+        language: system
+        entry: uv run --isolated -p 3.13 --with anyio scripts/generate_example_pages.py
+        pass_filenames: false
+        files: |
+          (?x)^(
+              .pre-commit-config.yaml|
+              examples/.*| 
+              scripts/generate_example_pages.py
           )$
         stages:
           - pre-push
