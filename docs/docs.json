@@ -1394,6 +1394,22 @@
             ]
           }
         ]
+      },
+      {
+        "tab": "Release Notes",
+        "pages": [
+          "v3/release-notes/index",
+          {
+            "group": "OSS",
+            "pages": [
+              "v3/release-notes/oss/version-3-4",
+              "v3/release-notes/oss/version-3-3",
+              "v3/release-notes/oss/version-3-2",
+              "v3/release-notes/oss/version-3-1",
+              "v3/release-notes/oss/version-3-0"
+            ]
+          }
+        ]
       }
     ]
   },

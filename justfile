@@ -47,6 +47,35 @@ api-ref-clean:
 generate-examples:
     uv run --isolated -p 3.13 --with anyio scripts/generate_example_pages.py
 
+# Prepare release notes from a GitHub draft release
+# Usage: just prepare-release 3.5.0
+prepare-release VERSION:
+    #!/usr/bin/env bash
+    set -e
+    echo "Preparing release notes for version {{VERSION}}..."
+    
+    # Run the script to fetch from draft and generate docs
+    uv run scripts/prepare_release_notes.py {{VERSION}}
+    
+    # Open the generated file in the user's editor
+    if [ -n "$EDITOR" ]; then
+        # Determine the minor version for the file path
+        MINOR=$(echo {{VERSION}} | cut -d. -f1-2)
+        FILE="docs/v3/release-notes/oss/version-${MINOR//./-}.mdx"
+        
+        if [ -f "$FILE" ]; then
+            echo "Opening $FILE in $EDITOR..."
+            $EDITOR "$FILE"
+        else
+            echo "Generated file not found: $FILE"
+        fi
+    else
+        echo "No EDITOR environment variable set. Please review the generated files manually."
+    fi
+    
+    echo ""
+    echo "After review, commit the changes and create a PR."
+
 # TODO: consider these for GHA (https://just.systems/man/en/github-actions.html)
 
 # - uses: extractions/setup-just@v2
