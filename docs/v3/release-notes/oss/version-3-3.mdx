@@ -36,12 +36,13 @@ This feature enables you to easily execute workflows on various infrastructure e
 
 Here's a small example of the new `@kubernetes` decorator in action:
 
+{/* pmd-metadata: notest */}
 ```python
 from prefect import flow
 from prefect_kubernetes import kubernetes
 
 @kubernetes(work_pool="olympic")
-[@flow](https://github.com/flow)(result_storage="s3-bucket/remote-result-storage")
+@flow(result_storage="s3-bucket/remote-result-storage")
 def my_k8s_flow():
     return "🏊‍♀️ Finished another lap!"
 
