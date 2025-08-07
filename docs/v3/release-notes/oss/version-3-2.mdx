@@ -291,7 +291,7 @@ This release contains a fix for bug a where the default `Runner` limit would pro
 **Experimental**
 
 * Add `KuberenetesWorker.submit` for ad-hoc submission to a Kubernetes work pool by [@desertaxle](https://github.com/desertaxle) in [#17218](https://github.com/PrefectHQ/prefect/pull/17218)
-* Add `[@kubernetes](https://github.com/kubernetes)` decorator by [@desertaxle](https://github.com/desertaxle) in [#17248](https://github.com/PrefectHQ/prefect/pull/17248)
+* Add `@kubernetes` decorator by [@desertaxle](https://github.com/desertaxle) in [#17248](https://github.com/PrefectHQ/prefect/pull/17248)
 * remove unused experimental `bundles.types` file in `prefect-aws` by [@zzstoatzz](https://github.com/zzstoatzz) in [#17241](https://github.com/PrefectHQ/prefect/pull/17241)
 * Add `PrefectFuture` implementation for flow runs by [@desertaxle](https://github.com/desertaxle) in [#17234](https://github.com/PrefectHQ/prefect/pull/17234)
 
@@ -499,7 +499,6 @@ Notably, includes a [fix]([#17123](https://github.com/PrefectHQ/prefect/pull/171
 
 This release contains a lot! In particular, users can now specify parameters on a per-schedule basis. This is useful for flows with multiple schedules, for example:
 
-{/* pmd-metadata: notest */}
 ```python
 from prefect import flow
 from prefect.schedules import Cron

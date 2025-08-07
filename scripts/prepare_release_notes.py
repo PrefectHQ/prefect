@@ -273,10 +273,29 @@ def format_release_notes(release_info: dict, version: str) -> str:
 
     # Convert GitHub usernames to hyperlinks (e.g., @username -> [@username](https://github.com/username))
     # But avoid matching npm packages like @prefecthq/prefect-ui-library
+    # And avoid matching infrastructure decorators like @docker, @kubernetes, @ecs, @process
+    # List of known infrastructure decorators to exclude
+    infra_decorators = [
+        "docker",
+        "kubernetes",
+        "ecs",
+        "process",
+        "cloudrun",
+        "modal",
+        "azure_container",
+    ]
+
+    def replace_github_user(match):
+        username = match.group(1)
+        # Don't convert if it's an infrastructure decorator
+        if username.lower() in infra_decorators:
+            return match.group(0)  # Return the original text
+        return f"[@{username}](https://github.com/{username})"
+
     github_user_pattern = (
         r"(?<!\w)@([a-zA-Z0-9](?:[a-zA-Z0-9]|-(?=[a-zA-Z0-9])){0,38})(?![a-zA-Z0-9/-])"
     )
-    body = re.sub(github_user_pattern, r"[@\1](https://github.com/\1)", body)
+    body = re.sub(github_user_pattern, replace_github_user, body)
 
     # Convert full PR URLs to short format with links
     # e.g., https://github.com/PrefectHQ/prefect/pull/1234 -> [#1234](https://github.com/PrefectHQ/prefect/pull/1234)

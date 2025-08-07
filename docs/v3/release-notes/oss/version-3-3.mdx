@@ -34,14 +34,13 @@ We're pleased to announce the beta release of new infrastructure decorators enab
 
 This feature enables you to easily execute workflows on various infrastructure environments without the need for multiple deployments or managing persistent workers. This simplifies workflow definitions and enhances portability.
 
-Here's a small example of the new `[@kubernetes](https://github.com/kubernetes)` decorator in action:
+Here's a small example of the new `@kubernetes` decorator in action:
 
-{/* pmd-metadata: notest */}
 ```python
 from prefect import flow
 from prefect_kubernetes import kubernetes
 
-[@kubernetes](https://github.com/kubernetes)(work_pool="olympic")
+@kubernetes(work_pool="olympic")
 [@flow](https://github.com/flow)(result_storage="s3-bucket/remote-result-storage")
 def my_k8s_flow():
     return "🏊‍♀️ Finished another lap!"
@@ -65,7 +64,7 @@ Feedback is very important for us to help refine this feature while it's in beta
 * Add deployment version info to `prefect deploy` by [@kevingrismore](https://github.com/kevingrismore) in [#17466](https://github.com/PrefectHQ/prefect/pull/17466)
 * Add infrastructure decorators by [@desertaxle](https://github.com/desertaxle) in [#17863](https://github.com/PrefectHQ/prefect/pull/17863)
 * Link submitted flows to their parent flow by [@desertaxle](https://github.com/desertaxle) in [#17894](https://github.com/PrefectHQ/prefect/pull/17894)
-* Add `[@docker](https://github.com/docker)` decorator by [@desertaxle](https://github.com/desertaxle) in [#17878](https://github.com/PrefectHQ/prefect/pull/17878)
+* Add `@docker` decorator by [@desertaxle](https://github.com/desertaxle) in [#17878](https://github.com/PrefectHQ/prefect/pull/17878)
 * Add `with_options` implementation to `InfrastructureBoundFlow` by [@desertaxle](https://github.com/desertaxle) in [#17900](https://github.com/PrefectHQ/prefect/pull/17900)
 
 **Bug Fixes 🐞**
