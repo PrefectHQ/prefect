@@ -227,12 +227,32 @@ def format_release_notes(release_info: dict, version: str) -> str:
         # Transform ### and #### headers to bold text to reduce nav clutter
         if line.startswith("### "):
             header_text = line[4:].strip()
+            # Ensure there's a blank line before the header
+            # Check if we need to add spacing
+            if filtered_lines:
+                # If the last line is not empty, add a blank line
+                if filtered_lines[-1].strip():
+                    filtered_lines.append("")
             filtered_lines.append(f"**{header_text}**")
+            # Always add a blank line after headers for consistent formatting
+            filtered_lines.append("")
         elif line.startswith("#### "):
             # Integration subsections - also convert to bold
             header_text = line[5:].strip()
+            # Ensure there's a blank line before the header
+            # Check if we need to add spacing
+            if filtered_lines:
+                # If the last line is not empty, add a blank line
+                if filtered_lines[-1].strip():
+                    filtered_lines.append("")
             filtered_lines.append(f"**{header_text}**")
+            # Always add a blank line after headers for consistent formatting
+            filtered_lines.append("")
         else:
+            # Skip duplicate empty lines that might be in the source after headers
+            # This prevents having too many blank lines if source already had spacing
+            if line.strip() == "" and filtered_lines and filtered_lines[-1] == "":
+                continue
             filtered_lines.append(line)
 
     body = "\n".join(filtered_lines).strip()
