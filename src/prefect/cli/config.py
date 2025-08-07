@@ -24,6 +24,7 @@ from prefect.settings.legacy import (
     _get_settings_fields,  # type: ignore[reportPrivateUsage] Private util that needs to live next to Setting class
     _get_valid_setting_names,  # type: ignore[reportPrivateUsage] Private util that needs to live next to Setting class
 )
+from prefect.settings.validation import is_setting_or_valid_logging
 from prefect.utilities.annotations import NotSet
 from prefect.utilities.collections import listrepr
 
@@ -49,7 +50,7 @@ def set_(settings: list[str]):
                 f"Failed to parse argument {item!r}. Use the format 'VAR=VAL'."
             )
 
-        if setting not in VALID_SETTING_NAMES:
+        if not is_setting_or_valid_logging(setting, VALID_SETTING_NAMES):
             exit_with_error(f"Unknown setting name {setting!r}.")
 
         # Guard against changing settings that tweak config locations

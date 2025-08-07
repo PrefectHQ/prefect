@@ -22,6 +22,7 @@ from prefect.settings import (
     temporary_settings,
 )
 from prefect.settings.legacy import _get_valid_setting_names
+from prefect.settings.validation import is_valid_logging_setting
 from prefect.testing.cli import invoke_and_assert
 from prefect.utilities.filesystem import tmpchdir
 
@@ -104,6 +105,73 @@ def test_set_with_unknown_setting():
             """,
         expected_code=1,
     )
+
+
+def test_set_with_valid_single_logging_setting():
+    """Test that valid PREFECT_LOGGING_* settings are accepted."""
+    save_profiles(ProfilesCollection([Profile(name="foo", settings={})], active=None))
+
+    setting_name = "PREFECT_LOGGING_LOGGERS_PREFECT_FLOW_RUNS_LEVEL"
+    setting_value = "ERROR"
+
+    invoke_and_assert(
+        ["--profile", "foo", "config", "set", f"{setting_name}={setting_value}"],
+        expected_output_contains=[
+            f"Set '{setting_name}' to '{setting_value}'",
+            "Updated profile 'foo'",
+        ],
+        expected_code=0,
+    )
+
+    # Verify the setting was stored correctly
+    profiles = load_profiles()
+    assert setting_name in profiles["foo"].settings
+    assert profiles["foo"].settings[setting_name] == setting_value
+
+
+def test_set_with_multiple_valid_logging_settings():
+    """Test that multiple valid PREFECT_LOGGING_* settings can be set together."""
+    save_profiles(ProfilesCollection([Profile(name="foo", settings={})], active=None))
+
+    settings = [
+        ("PREFECT_LOGGING_LOGGERS_PREFECT_FLOW_RUNS_LEVEL", "ERROR"),
+        ("PREFECT_LOGGING_HANDLERS_CONSOLE_LEVEL", "WARNING"),
+    ]
+
+    args = [f"{name}={value}" for name, value in settings]
+    invoke_and_assert(
+        ["--profile", "foo", "config", "set"] + args,
+        expected_output_contains=[
+            f"Set '{name}' to '{value}'" for name, value in settings
+        ]
+        + ["Updated profile 'foo'"],
+        expected_code=0,
+    )
+
+    # Verify all settings were stored correctly
+    profiles = load_profiles()
+    for name, value in settings:
+        assert name in profiles["foo"].settings
+        assert profiles["foo"].settings[name] == value
+
+
+def test_set_with_invalid_logging_settings():
+    """Test that invalid PREFECT_LOGGING_* settings are rejected for security."""
+    save_profiles(ProfilesCollection([Profile(name="foo", settings={})], active=None))
+
+    invalid_settings = [
+        "PREFECT_LOGGING_",  # Empty path
+        "PREFECT_LOGGING_HANDLERS@CONSOLE_LEVEL",  # Invalid @
+        "PREFECT_LOGGING_HANDLERS.CONSOLE.LEVEL",  # Invalid .
+        "PREFECT_LOGGING_HANDLERS CONSOLE LEVEL",  # Invalid space
+    ]
+
+    for invalid_setting in invalid_settings:
+        invoke_and_assert(
+            ["--profile", "foo", "config", "set", f"{invalid_setting}=ERROR"],
+            expected_output=f"Unknown setting name '{invalid_setting}'.",
+            expected_code=1,
+        )
 
 
 @pytest.mark.parametrize("setting", ["PREFECT_HOME", "PREFECT_PROFILES_PATH"])
@@ -681,3 +749,59 @@ def test_view_with_pyproject_toml_file_and_profile(tmp_path):
 
         assert "PREFECT_CLIENT_RETRY_EXTRA_CODES='300'" in res.stdout
         assert FROM_PYPROJECT_TOML in res.stdout
+
+
+class TestIsValidLoggingSetting:
+    """Test the is_valid_logging_setting helper function."""
+
+    def test_valid_logging_settings(self):
+        """Test that valid PREFECT_LOGGING_* settings are accepted."""
+        valid_settings = [
+            "PREFECT_LOGGING_LOGGERS_PREFECT_FLOW_RUNS_LEVEL",
+            "PREFECT_LOGGING_HANDLERS_CONSOLE_LEVEL",
+            "PREFECT_LOGGING_FORMATTERS_STANDARD_FORMAT",
+            "PREFECT_LOGGING_LEVEL",
+            "PREFECT_LOGGING_ROOT_LEVEL",
+            "PREFECT_LOGGING_HANDLERS_API_CLASS",
+            "PREFECT_LOGGING_VERSION",
+            "PREFECT_LOGGING_DISABLE_EXISTING_LOGGERS",
+        ]
+
+        for setting in valid_settings:
+            assert is_valid_logging_setting(setting), f"Expected {setting} to be valid"
+
+    def test_invalid_logging_settings(self):
+        """Test that invalid PREFECT_LOGGING_* settings are rejected for security."""
+        invalid_settings = [
+            "PREFECT_LOGGING_",  # empty path
+            "PREFECT_LOGGING_HANDLERS@CONSOLE_LEVEL",  # invalid @
+            "PREFECT_LOGGING_HANDLERS.CONSOLE.LEVEL",  # invalid .
+            "PREFECT_LOGGING_HANDLERS;CONSOLE;LEVEL",  # invalid ;
+            "PREFECT_LOGGING_HANDLERS CONSOLE LEVEL",  # invalid space
+            "PREFECT_LOGGING_HANDLERS/CONSOLE/LEVEL",  # invalid /
+            "PREFECT_LOGGING_HANDLERS-CONSOLE-LEVEL",  # invalid -
+            "PREFECT_LOGGING_HANDLERS+CONSOLE+LEVEL",  # invalid +
+        ]
+
+        for setting in invalid_settings:
+            assert not is_valid_logging_setting(setting), (
+                f"Expected {setting} to be invalid"
+            )
+
+    def test_non_logging_settings(self):
+        """Test that non-PREFECT_LOGGING_* settings are rejected."""
+        non_logging_settings = [
+            "PREFECT_API_URL",
+            "PREFECT_API_KEY",
+            "PREFECT_HOME",
+            "PREFECT_PROFILES_PATH",
+            "PREFECT_TEST_SETTING",
+            "NOT_PREFECT_LOGGING_SOMETHING",  # wrong prefix
+            "PREFECT_LOGGIN_TYPO",  # typo
+            "",  # empty string
+        ]
+
+        for setting in non_logging_settings:
+            assert not is_valid_logging_setting(setting), (
+                f"Expected {setting} to be invalid"
+            )
