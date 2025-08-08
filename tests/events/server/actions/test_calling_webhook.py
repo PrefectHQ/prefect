@@ -28,7 +28,11 @@ from prefect.server.events.schemas.automations import (
     TriggeredAction,
     TriggerState,
 )
-from prefect.server.events.schemas.events import ReceivedEvent, RelatedResource
+from prefect.server.events.schemas.events import (
+    ReceivedEvent,
+    RelatedResource,
+    Resource,
+)
 from prefect.server.models import deployments, flow_runs, flows, work_queues
 from prefect.server.schemas.actions import WorkQueueCreate
 from prefect.server.schemas.core import Deployment, Flow, FlowRun, WorkQueue
@@ -356,6 +360,25 @@ async def test_success_event(
 
     await action.act(call_webhook)
     await action.succeed(call_webhook)
+
+    block_loaded_event = AssertingEventsClient.all[0].events[0]
+    assert block_loaded_event is not None
+
+    assert block_loaded_event.event == "prefect.block.webhook.loaded"
+    assert block_loaded_event.resource == Resource.model_validate(
+        {
+            "prefect.resource.id": f"prefect.block-document.{webhook_block_id}",
+            "prefect.resource.name": "webhook-test",
+        }
+    )
+    assert block_loaded_event.related == [
+        RelatedResource.model_validate(
+            {
+                "prefect.resource.id": "prefect.block-type.webhook",
+                "prefect.resource.role": "block-type",
+            }
+        ),
+    ]
 
     assert AssertingEventsClient.last
     (triggered_event, executed_event) = AssertingEventsClient.last.events
