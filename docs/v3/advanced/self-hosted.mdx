@@ -111,6 +111,19 @@ export PREFECT_REDIS_MESSAGING_PORT="6379"
 export PREFECT_REDIS_MESSAGING_DB="0"
 ```
 
+If your Redis instance requires authentication, you may configure a username and password:
+
+```bash
+export PREFECT_REDIS_MESSAGING_USERNAME="marvin"
+export PREFECT_REDIS_MESSAGING_PASSWORD="dontpanic!"
+```
+
+For Redis instances that require an encrypted connection, you can enable SSL/TLS:
+
+```bash
+export PREFECT_REDIS_MESSAGING_SSL="true"
+```
+
 Each server instance automatically generates a unique consumer name to prevent message delivery conflicts.
 
 ### Service separation
