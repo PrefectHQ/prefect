@@ -87,6 +87,7 @@ from prefect.workers.base import (
     BaseWorkerResult,
 )
 from prefect_aws.credentials import AwsCredentials, ClientType
+from prefect_aws.observers.ecs import start_observer, stop_observer
 
 if TYPE_CHECKING:
     from prefect.client.schemas.objects import APIFlow, DeploymentResponse, WorkPool
@@ -1889,3 +1890,11 @@ class ECSWorker(BaseWorker):
                     logger.debug(f" Retrieved: {taskdef_2[key]}")
 
         return taskdef_1 == taskdef_2
+
+    async def __aenter__(self) -> Self:
+        await start_observer()
+        return await super().__aenter__()
+
+    async def __aexit__(self, *exc_info: Any) -> None:
+        await stop_observer()
+        return await super().__aexit__(*exc_info)
