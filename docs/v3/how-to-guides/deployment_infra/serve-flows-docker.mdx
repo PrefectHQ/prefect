@@ -175,6 +175,137 @@ You should see logs from your newly served process, with the link to your deploy
 docker stop <CONTAINER-ID>
 ```
 
+## Health checks for production deployments
+
+When deploying to production environments like Google Cloud Run, AWS ECS, or Kubernetes, you may need to configure health checks to ensure your container is running properly. The `.serve()` method supports an optional webserver that exposes a health endpoint.
+
+### Enabling the health check webserver
+
+You can enable the health check webserver in two ways:
+
+1. **Pass `webserver=True` to `.serve()`:**
+
+```python
+if __name__ == "__main__":
+    retrieve_github_stars.serve(
+        parameters={
+            "repos": ["python/cpython", "prefectHQ/prefect"],
+        },
+        webserver=True  # Enable health check webserver
+    )
+```
+
+2. **Set the environment variable:**
+
+```bash
+PREFECT_RUNNER_SERVER_ENABLE=true
+```
+
+When enabled, the webserver exposes a health endpoint at `http://localhost:8080/health` by default.
+
+### Configuring the health check port
+
+You can customize the host and port using environment variables:
+
+```bash
+PREFECT_RUNNER_SERVER_HOST=0.0.0.0  # Allow external connections
+PREFECT_RUNNER_SERVER_PORT=8080      # Port for health checks
+```
+
+### Docker with health checks
+
+Add a health check to your Dockerfile:
+
+```dockerfile
+# ... your existing Dockerfile content ...
+
+# Health check configuration
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+  CMD curl -f http://localhost:8080/health || exit 1
+
+# Set the command to run your application with webserver enabled
+CMD ["python", "serve_retrieve_github_stars.py"]
+```
+
+Or if you prefer to use environment variables:
+
+```dockerfile
+# ... your existing Dockerfile content ...
+
+# Enable the health check webserver
+ENV PREFECT_RUNNER_SERVER_ENABLE=true
+ENV PREFECT_RUNNER_SERVER_HOST=0.0.0.0
+ENV PREFECT_RUNNER_SERVER_PORT=8080
+
+# Health check configuration
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+  CMD curl -f http://localhost:8080/health || exit 1
+
+CMD ["python", "serve_retrieve_github_stars.py"]
+```
+
+### Platform-specific configurations
+
+<Tabs>
+<Tab title="Google Cloud Run">
+Cloud Run requires containers to listen on a port. Configure your container to expose the health check port:
+
+```yaml
+# In your Cloud Run configuration
+livenessProbe:
+  httpGet:
+    path: /health
+    port: 8080
+  initialDelaySeconds: 60
+  periodSeconds: 30
+```
+
+Make sure to set the container port to 8080 in Cloud Run settings.
+</Tab>
+
+<Tab title="AWS ECS/Fargate">
+Configure health checks in your task definition:
+
+```json
+{
+  "healthCheck": {
+    "command": ["CMD-SHELL", "curl -f http://localhost:8080/health || exit 1"],
+    "interval": 30,
+    "timeout": 10,
+    "retries": 3,
+    "startPeriod": 60
+  }
+}
+```
+</Tab>
+
+<Tab title="Kubernetes">
+Add liveness and readiness probes to your deployment:
+
+```yaml
+livenessProbe:
+  httpGet:
+    path: /health
+    port: 8080
+  initialDelaySeconds: 60
+  periodSeconds: 30
+  timeoutSeconds: 10
+  failureThreshold: 3
+
+readinessProbe:
+  httpGet:
+    path: /health
+    port: 8080
+  initialDelaySeconds: 10
+  periodSeconds: 5
+```
+</Tab>
+</Tabs>
+
+The health endpoint returns:
+- **200 OK** with `{"message": "OK"}` when the runner is healthy and polling for work
+- **503 Service Unavailable** when the runner hasn't polled recently (indicating it may be unresponsive)
+
 ## Next steps
 
 Congratulations! You have packaged and served a flow on a long-lived Docker container.
