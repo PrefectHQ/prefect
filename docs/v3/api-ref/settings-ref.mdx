@@ -1605,6 +1605,18 @@ Which cache implementation to use for the events system. Should point to a modul
 **Supported environment variables**:
 `PREFECT_SERVER_EVENTS_MESSAGING_CACHE`, `PREFECT_MESSAGING_CACHE`
 
+### `causal_ordering`
+Which causal ordering implementation to use for the events system. Should point to a module that exports a CausalOrdering class.
+
+**Type**: `string`
+
+**Default**: `prefect.server.events.ordering.memory`
+
+**TOML dotted key path**: `server.events.causal_ordering`
+
+**Supported environment variables**:
+`PREFECT_SERVER_EVENTS_CAUSAL_ORDERING`
+
 ### `maximum_event_name_length`
 The maximum length of an event name.
 

@@ -140,6 +140,11 @@ class ServerEventsSettings(PrefectBaseSettings):
         ),
     )
 
+    causal_ordering: str = Field(
+        default="prefect.server.events.ordering.memory",
+        description="Which causal ordering implementation to use for the events system. Should point to a module that exports a CausalOrdering class.",
+    )
+
     maximum_event_name_length: int = Field(
         default=1024,
         gt=0,
