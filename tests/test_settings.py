@@ -351,6 +351,9 @@ SUPPORTED_SETTINGS = {
     "PREFECT_SERVER_DEPLOYMENT_SCHEDULE_MAX_SCHEDULED_RUNS": {"test_value": 10},
     "PREFECT_SERVER_EPHEMERAL_ENABLED": {"test_value": True},
     "PREFECT_SERVER_EPHEMERAL_STARTUP_TIMEOUT_SECONDS": {"test_value": 10},
+    "PREFECT_SERVER_EVENTS_CAUSAL_ORDERING": {
+        "test_value": "prefect.server.events.ordering.memory"
+    },
     "PREFECT_SERVER_EVENTS_EXPIRED_BUCKET_BUFFER": {
         "test_value": timedelta(seconds=60)
     },
