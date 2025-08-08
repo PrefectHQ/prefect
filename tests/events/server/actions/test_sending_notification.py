@@ -7,7 +7,6 @@ from uuid import UUID, uuid4
 import pytest
 
 from prefect.blocks.abstract import NotificationBlock
-from prefect.blocks.core import Block
 from prefect.blocks.notifications import NotificationError
 from prefect.server.events import actions
 from prefect.server.events.clients import AssertingEventsClient
@@ -19,7 +18,11 @@ from prefect.server.events.schemas.automations import (
     TriggeredAction,
     TriggerState,
 )
-from prefect.server.events.schemas.events import ReceivedEvent, RelatedResource
+from prefect.server.events.schemas.events import (
+    ReceivedEvent,
+    RelatedResource,
+    Resource,
+)
 from prefect.types._datetime import now
 
 
@@ -143,7 +146,10 @@ async def test_validation_error_loading_block(notify_me: TriggeredAction):
     expected_reason = re.escape(
         "The notification block was invalid: ValueError('woops')"
     )
-    with mock.patch.object(Block, "_from_block_document", side_effect=error):
+    with mock.patch(
+        "prefect.server.events.actions._load_block_from_block_document",
+        side_effect=error,
+    ):
         with pytest.raises(actions.ActionFailed, match=expected_reason):
             await action.act(notify_me)
 
@@ -203,6 +209,25 @@ async def test_success_event(
         await action.act(notify_me)
 
     await action.succeed(notify_me)
+
+    block_loaded_event = AssertingEventsClient.all[0].events[0]
+    assert block_loaded_event is not None
+
+    assert block_loaded_event.event == "prefect.block.debug-print-notification.loaded"
+    assert block_loaded_event.resource == Resource.model_validate(
+        {
+            "prefect.resource.id": f"prefect.block-document.{email_me_block_id}",
+            "prefect.resource.name": "debug-print-notification",
+        }
+    )
+    assert block_loaded_event.related == [
+        RelatedResource.model_validate(
+            {
+                "prefect.resource.id": f"prefect.block-type.{TestNotificationBlock.get_block_type_slug()}",
+                "prefect.resource.role": "block-type",
+            }
+        ),
+    ]
 
     assert AssertingEventsClient.last
     (triggered_event, executed_event) = AssertingEventsClient.last.events
