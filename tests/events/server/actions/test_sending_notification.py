@@ -7,7 +7,6 @@ from uuid import UUID, uuid4
 import pytest
 
 from prefect.blocks.abstract import NotificationBlock
-from prefect.blocks.core import Block
 from prefect.blocks.notifications import NotificationError
 from prefect.server.events import actions
 from prefect.server.events.clients import AssertingEventsClient
@@ -143,7 +142,10 @@ async def test_validation_error_loading_block(notify_me: TriggeredAction):
     expected_reason = re.escape(
         "The notification block was invalid: ValueError('woops')"
     )
-    with mock.patch.object(Block, "_from_block_document", side_effect=error):
+    with mock.patch(
+        "prefect.server.events.actions._load_block_from_block_document",
+        side_effect=error,
+    ):
         with pytest.raises(actions.ActionFailed, match=expected_reason):
             await action.act(notify_me)
 

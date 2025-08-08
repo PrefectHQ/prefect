@@ -10,7 +10,6 @@ from httpx import Response
 from pydantic import TypeAdapter
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from prefect.blocks.core import Block
 from prefect.blocks.webhook import Webhook
 from prefect.server.database.orm_models import (
     ORMDeployment,
@@ -336,7 +335,10 @@ async def test_validation_error_loading_block(took_a_picture: TriggeredAction):
     assert isinstance(action, actions.CallWebhook)
     error = ValueError("woops")
     expected_reason = re.escape("The webhook block was invalid: ValueError('woops')")
-    with mock.patch.object(Block, "_from_block_document", side_effect=error):
+    with mock.patch(
+        "prefect.server.events.actions._load_block_from_block_document",
+        side_effect=error,
+    ):
         with pytest.raises(actions.ActionFailed, match=expected_reason):
             await action.act(took_a_picture)
 
