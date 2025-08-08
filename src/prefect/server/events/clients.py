@@ -20,14 +20,12 @@ from uuid import UUID
 import httpx
 from typing_extensions import Self, TypeAlias
 
-import prefect.types._datetime
 from prefect.client.base import PrefectHttpxAsyncClient
 from prefect.logging import get_logger
 from prefect.server.events import messaging
 from prefect.server.events.schemas.events import (
     Event,
     ReceivedEvent,
-    RelatedResource,
     ResourceSpecification,
 )
 
@@ -283,47 +281,3 @@ class PrefectServerEventsAPIClient:
 
 
 TIGHT_TIMING = datetime.timedelta(minutes=5)
-
-
-async def emit_server_side_event(
-    event: str,
-    resource: dict[str, str],
-    occurred: datetime.datetime | None = None,
-    related: list[dict[str, str]] | list[RelatedResource] | None = None,
-    payload: dict[str, Any] | None = None,
-    id: UUID | None = None,
-    follows: Event | None = None,
-    **kwargs: dict[str, Any] | None,
-) -> Event | None:
-    try:
-        async with PrefectServerEventsClient() as events_client:
-            event_kwargs: dict[str, Any] = {
-                "event": event,
-                "resource": resource,
-                **kwargs,
-            }
-
-            if occurred is None:
-                occurred = prefect.types._datetime.now("UTC")
-            event_kwargs["occurred"] = occurred
-
-            if related is not None:
-                event_kwargs["related"] = related
-
-            if payload is not None:
-                event_kwargs["payload"] = payload
-
-            if id is not None:
-                event_kwargs["id"] = id
-
-            if follows is not None:
-                if -TIGHT_TIMING < (occurred - follows.occurred) < TIGHT_TIMING:
-                    event_kwargs["follows"] = follows.id
-
-            event_obj = Event(**event_kwargs)
-            await events_client.emit(event_obj)
-
-            return event_obj
-    except Exception:
-        logger.exception("Error emitting event: %s", event)
-        return None

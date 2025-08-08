@@ -51,7 +51,6 @@ from prefect.logging import get_logger
 from prefect.server.events.clients import (
     PrefectServerEventsAPIClient,
     PrefectServerEventsClient,
-    emit_server_side_event,
 )
 from prefect.server.events.schemas.events import Event, RelatedResource, Resource
 from prefect.server.events.schemas.labelling import LabelDiver
@@ -1762,8 +1761,15 @@ async def _load_block_from_block_document(
     if resources:
         kind = block._event_kind()
         resource, related = resources
-        await emit_server_side_event(
-            event=f"{kind}.loaded", resource=resource, related=related
-        )
+        async with PrefectServerEventsClient() as events_client:
+            await events_client.emit(
+                Event(
+                    id=uuid7(),
+                    occurred=now("UTC"),
+                    event=f"{kind}.loaded",
+                    resource=Resource.model_validate(resource),
+                    related=[RelatedResource.model_validate(r) for r in related],
+                )
+            )
 
     return block
