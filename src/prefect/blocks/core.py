@@ -74,7 +74,6 @@ if TYPE_CHECKING:
 
     from prefect.client.orchestration import PrefectClient, SyncPrefectClient
 
-
 R = TypeVar("R")
 P = ParamSpec("P")
 
@@ -820,7 +819,7 @@ class Block(BaseModel, ABC):
             block_document.block_document_references
         )
 
-        resources: ResourceTuple | None = block._event_method_called_resources()
+        resources: Optional[ResourceTuple] = block._event_method_called_resources()
         if resources:
             kind = block._event_kind()
             resource, related = resources
