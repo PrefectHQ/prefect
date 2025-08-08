@@ -1444,6 +1444,15 @@
                     "title": "Messaging Cache",
                     "type": "string"
                 },
+                "causal_ordering": {
+                    "default": "prefect.server.events.ordering.memory",
+                    "description": "Which causal ordering implementation to use for the events system. Should point to a module that exports a CausalOrdering class.",
+                    "supported_environment_variables": [
+                        "PREFECT_SERVER_EVENTS_CAUSAL_ORDERING"
+                    ],
+                    "title": "Causal Ordering",
+                    "type": "string"
+                },
                 "maximum_event_name_length": {
                     "default": 1024,
                     "description": "The maximum length of an event name.",
