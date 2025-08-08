@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import datetime
 import hashlib
 import html
 import inspect
@@ -17,6 +18,7 @@ from typing import (
     Coroutine,
     FrozenSet,
     Optional,
+    Protocol,
     TypeVar,
     Union,
     cast,
@@ -73,6 +75,8 @@ if TYPE_CHECKING:
     from pydantic.main import IncEx
 
     from prefect.client.orchestration import PrefectClient, SyncPrefectClient
+    from prefect.events.schemas.events import Event, RelatedResource
+
 
 R = TypeVar("R")
 P = ParamSpec("P")
@@ -100,6 +104,20 @@ class UnknownBlockType(Exception):
     """
     Raised when a block type is not found in the registry.
     """
+
+
+class _EmitEventFunc(Protocol):
+    def __call__(
+        self,
+        event: str,
+        resource: dict[str, str],
+        occurred: datetime.datetime | None = None,
+        related: "list[dict[str, str]] | list[RelatedResource] | None" = None,
+        payload: dict[str, Any] | None = None,
+        id: UUID | None = None,
+        follows: "Event | None" = None,
+        **kwargs: dict[str, Any] | None,
+    ) -> "Event | None": ...
 
 
 def _collect_nested_reference_strings(
@@ -781,7 +799,9 @@ class Block(BaseModel, ABC):
         )
 
     @classmethod
-    def _from_block_document(cls, block_document: BlockDocument) -> Self:
+    def _from_block_document(
+        cls, block_document: BlockDocument, emit_event_func: _EmitEventFunc = emit_event
+    ) -> Self:
         """
         Instantiates a block from a given block document. The corresponding block class
         will be looked up in the block registry based on the corresponding block schema
@@ -819,11 +839,11 @@ class Block(BaseModel, ABC):
             block_document.block_document_references
         )
 
-        resources: Optional[ResourceTuple] = block._event_method_called_resources()
+        resources: ResourceTuple | None = block._event_method_called_resources()
         if resources:
             kind = block._event_kind()
             resource, related = resources
-            emit_event(event=f"{kind}.loaded", resource=resource, related=related)
+            emit_event_func(event=f"{kind}.loaded", resource=resource, related=related)
 
         return block
 

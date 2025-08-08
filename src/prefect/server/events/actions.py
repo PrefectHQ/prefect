@@ -51,6 +51,7 @@ from prefect.logging import get_logger
 from prefect.server.events.clients import (
     PrefectServerEventsAPIClient,
     PrefectServerEventsClient,
+    emit_server_side_event,
 )
 from prefect.server.events.schemas.events import Event, RelatedResource, Resource
 from prefect.server.events.schemas.labelling import LabelDiver
@@ -1189,7 +1190,9 @@ class CallWebhook(JinjaTemplateAction):
 
             try:
                 block_document = BlockDocument.model_validate(response.json())
-                block = Block._from_block_document(block_document)
+                block = Block._from_block_document(
+                    block_document, emit_event_func=emit_server_side_event
+                )
             except Exception as e:
                 raise ActionFailed(f"The webhook block was invalid: {e!r}")
 
@@ -1263,7 +1266,9 @@ class SendNotification(JinjaTemplateAction):
 
             try:
                 block_document = BlockDocument.model_validate(response.json())
-                block = Block._from_block_document(block_document)
+                block = Block._from_block_document(
+                    block_document, emit_event_func=emit_server_side_event
+                )
             except Exception as e:
                 raise ActionFailed(f"The notification block was invalid: {e!r}")
 
