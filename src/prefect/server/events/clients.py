@@ -1,7 +1,4 @@
-from __future__ import annotations
-
 import abc
-import datetime
 from textwrap import dedent
 from types import TracebackType
 from typing import (
@@ -278,6 +275,3 @@ class PrefectServerEventsAPIClient:
         return await self._http_client.patch(
             f"/automations/{automation_id}", json={"enabled": True}
         )
-
-
-TIGHT_TIMING = datetime.timedelta(minutes=5)
