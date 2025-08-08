@@ -32,6 +32,23 @@ def is_v2_type(v: t.Any) -> bool:
         return False
 
 
+def convert_const_to_enum(schema: dict[str, t.Any]) -> None:
+    """
+    Recursively convert `const` fields to `enum` with a single value
+    to enable dropdown rendering in the UI.
+    """
+    for key, value in list(schema.items()):
+        if key == "const":
+            schema["enum"] = [value]
+            del schema["const"]
+        elif isinstance(value, dict):
+            convert_const_to_enum(value)
+        elif isinstance(value, list):
+            for item in value:
+                if isinstance(item, dict):
+                    convert_const_to_enum(item)
+
+
 def has_v2_type_as_param(signature: inspect.Signature) -> bool:
     parameters = signature.parameters.values()
     for p in parameters:
@@ -106,5 +123,7 @@ def create_v2_schema(
     # ensure backwards compatibility by copying $defs into definitions
     if "$defs" in schema:
         schema["definitions"] = schema["$defs"]
+
+    convert_const_to_enum(schema)
 
     return schema

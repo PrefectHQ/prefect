@@ -27,7 +27,7 @@ def project_dir(tmp_path: Path):
 class TestDiscoverFlows:
     async def test_find_all_flows_in_dir_tree(self, project_dir: Path):
         flows = await search_for_flow_functions(str(project_dir))
-        assert len(flows) == 7, f"Expected 7 flows, found {len(flows)}"
+        assert len(flows) == 8, f"Expected 8 flows, found {len(flows)}"
 
         expected_flows = [
             {
@@ -52,6 +52,11 @@ class TestDiscoverFlows:
             {
                 "flow_name": "Second important name",
                 "function_name": "my_flow2",
+                "filepath": str(project_dir / "flows" / "hello.py"),
+            },
+            {
+                "flow_name": "Third important name",
+                "function_name": "my_flow3",
                 "filepath": str(project_dir / "flows" / "hello.py"),
             },
             {

@@ -6163,3 +6163,44 @@ class TestDeployingUsingCustomPrefectFile:
         )
 
         assert await invalid_update_deployment.apply()
+
+    @pytest.mark.usefixtures("project_dir")
+    async def test_deployment_openapi_schema_for_single_value_literal(
+        self, work_pool: WorkPool, prefect_client: PrefectClient
+    ):
+        """test for https://github.com/PrefectHQ/prefect/issues/18648"""
+        prefect_yaml_file = Path("prefect.yaml")
+        with prefect_yaml_file.open(mode="r") as f:
+            deploy_config = yaml.safe_load(f)
+
+        deploy_config["deployments"] = [
+            {
+                "name": "test-name-my-flow3",
+                "entrypoint": "flows/hello.py:my_flow3",
+                "work_pool": {
+                    "name": work_pool.name,
+                },
+            }
+        ]
+
+        with prefect_yaml_file.open(mode="w") as f:
+            yaml.safe_dump(deploy_config, f)
+
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command="deploy -n test-name-my-flow3",
+        )
+
+        deployment = await prefect_client.read_deployment_by_name(
+            "Third important name/test-name-my-flow3"
+        )
+        assert deployment.name == "test-name-my-flow3"
+        assert deployment.parameter_openapi_schema.get("properties") == {
+            "var1": {
+                "enum": ["a", "b"],
+                "position": 0,
+                "title": "var1",
+                "type": "string",
+            },
+            "var2": {"position": 1, "title": "var2", "type": "string", "enum": ["c"]},
+        }
