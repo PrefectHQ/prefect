@@ -25,26 +25,48 @@ from prefect.settings.constants import DEFAULT_PROFILES_PATH
 from prefect.settings.context import get_current_settings
 from prefect.settings.legacy import Setting, _get_settings_fields
 from prefect.settings.models.root import Settings
+from prefect.settings.validation import should_allow_string_key
 from prefect.utilities.collections import set_in_dict
 
 
 def _cast_settings(
     settings: dict[str | Setting, Any] | Any,
-) -> dict[Setting, Any]:
-    """For backwards compatibility, allow either Settings objects as keys or string references to settings."""
+) -> dict[Setting | str, Any]:
+    """Cast settings dict, allowing string keys for valid logging overrides.
+
+    For backwards compatibility, converts string setting names to Setting objects.
+    Valid PREFECT_LOGGING_* settings are kept as strings for the logging system.
+
+    Args:
+        settings: Dictionary of settings to cast
+
+    Returns:
+        Dictionary with Setting objects as keys, except for valid logging overrides
+
+    Raises:
+        ValueError: If settings is not a dictionary
+    """
     if not isinstance(settings, dict):
         raise ValueError("Settings must be a dictionary.")
+
     casted_settings = {}
-    for k, value in settings.items():
-        try:
-            if isinstance(k, str):
-                setting = _get_settings_fields(Settings)[k]
+    settings_fields = _get_settings_fields(Settings)
+
+    for key, value in settings.items():
+        if isinstance(key, Setting):
+            casted_settings[key] = value
+        elif isinstance(key, str):
+            if key in settings_fields:
+                # Convert string to Setting object
+                casted_settings[settings_fields[key]] = value
+            elif should_allow_string_key(key):
+                # Keep valid logging settings as string keys
+                casted_settings[key] = value
             else:
-                setting = k
-            casted_settings[setting] = value
-        except KeyError as e:
-            warnings.warn(f"Setting {e} is not recognized")
-            continue
+                warnings.warn(f"Setting {key!r} is not recognized")
+        else:
+            warnings.warn(f"Invalid setting key type: {type(key)}")
+
     return casted_settings
 
 
@@ -60,23 +82,30 @@ class Profile(BaseModel):
     )
 
     name: str
-    settings: Annotated[dict[Setting, Any], BeforeValidator(_cast_settings)] = Field(
-        default_factory=dict
+    settings: Annotated[dict[Setting | str, Any], BeforeValidator(_cast_settings)] = (
+        Field(default_factory=dict)
     )
     source: Optional[Path] = None
 
     def to_environment_variables(self) -> dict[str, str]:
         """Convert the profile settings to a dictionary of environment variables."""
-        return {
-            setting.name: str(value)
-            for setting, value in self.settings.items()
-            if value is not None
-        }
+        env_vars = {}
+        for setting, value in self.settings.items():
+            if value is not None:
+                if isinstance(setting, Setting):
+                    env_vars[setting.name] = str(value)
+                else:
+                    # For string keys (e.g., logging settings), use the key directly
+                    env_vars[setting] = str(value)
+        return env_vars
 
     def validate_settings(self) -> None:
         """
         Validate all settings in this profile by creating a partial Settings object
         with the nested structure properly constructed using accessor paths.
+
+        String keys (e.g., logging settings) are not validated through the Settings model
+        since they are handled by the logging system directly.
         """
         if not self.settings:
             return
@@ -84,7 +113,10 @@ class Profile(BaseModel):
         nested_settings: dict[str, Any] = {}
 
         for setting, value in self.settings.items():
-            set_in_dict(nested_settings, setting.accessor, value)
+            # Only validate Setting objects through the Settings model
+            # String keys (logging settings) are handled by the logging system
+            if isinstance(setting, Setting):
+                set_in_dict(nested_settings, setting.accessor, value)
 
         try:
             Settings.model_validate(nested_settings)
