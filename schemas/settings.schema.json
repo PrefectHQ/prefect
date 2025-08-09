@@ -811,14 +811,21 @@
                     "supported_environment_variables": []
                 },
                 "pool_size": {
+                    "anyOf": [
+                        {
+                            "type": "integer"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
                     "default": 5,
-                    "description": "Controls connection pool size of database connection pools from the Prefect backend.",
+                    "description": "Controls connection pool size of database connection pools from the Prefect backend. Set to None/null to use NullPool for external connection poolers like PgBouncer.",
                     "supported_environment_variables": [
                         "PREFECT_SERVER_DATABASE_SQLALCHEMY_POOL_SIZE",
                         "PREFECT_SQLALCHEMY_POOL_SIZE"
                     ],
-                    "title": "Pool Size",
-                    "type": "integer"
+                    "title": "Pool Size"
                 },
                 "pool_recycle": {
                     "default": 3600,
