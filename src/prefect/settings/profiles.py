@@ -82,7 +82,7 @@ class Profile(BaseModel):
     )
 
     name: str
-    settings: Annotated[dict[Setting | str, Any], BeforeValidator(_cast_settings)] = (
+    settings: Annotated[dict[Union[Setting, str], Any], BeforeValidator(_cast_settings)] = (
         Field(default_factory=dict)
     )
     source: Optional[Path] = None
