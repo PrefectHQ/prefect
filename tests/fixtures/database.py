@@ -7,6 +7,7 @@ from contextlib import asynccontextmanager
 from typing import AsyncContextManager, AsyncGenerator, Callable, Optional, Type
 
 import pytest
+from sqlalchemy import text
 from sqlalchemy.exc import InterfaceError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -103,12 +104,22 @@ async def clear_db(db, request):
         for attempt in range(max_retries):
             try:
                 async with db.session_context(begin_transaction=True) as session:
-                    await session.execute(orm_models.Agent.__table__.delete())
-                    await session.execute(orm_models.WorkPool.__table__.delete())
+                    bind = session.get_bind()
+                    tables = list(orm_models.Base.metadata.sorted_tables)
 
-                    for table in reversed(orm_models.Base.metadata.sorted_tables):
-                        await session.execute(table.delete())
-                    break
+                    if bind.dialect.name == "postgresql":
+                        prep = bind.dialect.identifier_preparer
+                        names = ", ".join(prep.format_table(t) for t in tables)
+                        await session.execute(
+                            text(f"TRUNCATE {names} RESTART IDENTITY CASCADE")
+                        )
+                    else:
+                        await session.execute(orm_models.Agent.__table__.delete())
+                        await session.execute(orm_models.WorkPool.__table__.delete())
+
+                        for table in reversed(tables):
+                            await session.execute(table.delete())
+                        break
             except InterfaceError:
                 if attempt < max_retries - 1:
                     print(
