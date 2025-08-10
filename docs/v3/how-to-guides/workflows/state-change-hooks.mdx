@@ -27,7 +27,7 @@ To send a notification when a flow or task run fails, you can specify a `on_fail
 ```python
 from prefect import flow
 from prefect.blocks.core import Block
-from prefect.settings import PREFECT_API_URL
+from prefect.settings import get_current_settings
 
 
 @flow(retries=1)
@@ -41,11 +41,13 @@ def notify_slack(flow, flow_run, state):
         "slack-webhook/my-slack-webhook"
     )
 
+    PREFECT_API_URL = get_current_settings().api.url
+
     slack_webhook_block.notify(
         (
             f"Your job {flow_run.name} entered {state.name} "
             f"with message:\n\n"
-            f"See <https://{PREFECT_API_URL.value()}/flow-runs/"
+            f"See <https://{PREFECT_API_URL}/flow-runs/"
             f"flow-run/{flow_run.id}|the flow run in the UI>\n\n"
             f"Tags: {flow_run.tags}\n\n"
             f"Scheduled start: {flow_run.expected_start_time}"
