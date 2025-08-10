@@ -7,8 +7,8 @@ from contextlib import asynccontextmanager
 from typing import AsyncContextManager, AsyncGenerator, Callable, Optional, Type
 
 import pytest
-from sqlalchemy import text
-from sqlalchemy.exc import InterfaceError
+from sqlalchemy import func, select, text
+from sqlalchemy.exc import DBAPIError, InterfaceError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.blocks.notifications import NotificationBlock
@@ -109,6 +109,14 @@ async def clear_db(db, request):
 
                     if bind.dialect.name == "postgresql":
                         prep = bind.dialect.identifier_preparer
+                        await session.execute(
+                            select(
+                                func.pg_advisory_xact_lock(
+                                    func.hashtext(func.current_schema())
+                                )
+                            )
+                        )
+                        await session.execute(text("SET LOCAL lock_timeout = '5s'"))
                         names = ", ".join(prep.format_table(t) for t in tables)
                         await session.execute(
                             text(f"TRUNCATE {names} RESTART IDENTITY CASCADE")
@@ -120,7 +128,7 @@ async def clear_db(db, request):
                         for table in reversed(tables):
                             await session.execute(table.delete())
                         break
-            except InterfaceError:
+            except (InterfaceError, DBAPIError):
                 if attempt < max_retries - 1:
                     print(
                         "Connection issue. Retrying entire deletion operation"
