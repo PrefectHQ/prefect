@@ -12,6 +12,32 @@ import { createFakeWorkPoolType } from "./create-fake-work-pool-type";
 
 const STATUS_TYPE_VALUES = ["READY", "NOT_READY", "PAUSED", null] as const;
 
+export const createFakeWorkPoolWithJobTemplate =
+	(): components["schemas"]["WorkPool"] => {
+		return createFakeWorkPool({
+			base_job_template: {
+				job_configuration: {
+					image: "python:3.9",
+					env: { NODE_ENV: "production" },
+					command: ["python", "main.py"],
+				},
+				variables: {
+					image: {
+						type: "string",
+						default: "python:3.9",
+						title: "Docker Image",
+						description: "The Docker image to use",
+					},
+					env: {
+						type: "object",
+						default: {},
+						title: "Environment Variables",
+					},
+				},
+			},
+		});
+	};
+
 export const createFakeWorkPool = (
 	overrides?: Partial<components["schemas"]["WorkPool"]>,
 ): components["schemas"]["WorkPool"] => {
@@ -23,27 +49,21 @@ export const createFakeWorkPool = (
 		updated: randPastDate().toISOString(),
 		base_job_template: {
 			job_configuration: {
-				command: "{{ command }}",
-				env: "{{ env }}",
+				image: "python:3.9",
+				env: { NODE_ENV: "production" },
+				command: ["python", "main.py"],
 			},
 			variables: {
-				type: "object",
-				properties: {
-					command: {
-						type: "string",
-						default: "prefect flow run",
-						title: "Command",
-						description: "Command to execute the flow",
-					},
-					env: {
-						type: "object",
-						default: {},
-						title: "Environment Variables",
-						description: "Environment variables for the job",
-						additionalProperties: {
-							type: "string",
-						},
-					},
+				image: {
+					type: "string",
+					default: "python:3.9",
+					title: "Docker Image",
+					description: "The Docker image to use",
+				},
+				env: {
+					type: "object",
+					default: {},
+					title: "Environment Variables",
 				},
 			},
 		},

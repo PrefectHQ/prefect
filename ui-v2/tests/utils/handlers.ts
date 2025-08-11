@@ -186,6 +186,9 @@ const workPoolsHandlers = [
 	http.post(buildApiUrl("/work_pools/count"), () => {
 		return HttpResponse.json(0);
 	}),
+	http.post(buildApiUrl("/work_pools/:name/workers/filter"), () => {
+		return HttpResponse.json([]);
+	}),
 ];
 
 const workQueuesHandlers = [
