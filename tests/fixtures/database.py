@@ -7,7 +7,7 @@ from contextlib import asynccontextmanager
 from typing import AsyncContextManager, AsyncGenerator, Callable, Optional, Type
 
 import pytest
-from sqlalchemy.exc import InterfaceError
+from sqlalchemy.exc import DBAPIError, InterfaceError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.blocks.notifications import NotificationBlock
@@ -109,7 +109,7 @@ async def clear_db(db, request):
                     for table in reversed(orm_models.Base.metadata.sorted_tables):
                         await session.execute(table.delete())
                     break
-            except InterfaceError:
+            except (InterfaceError, DBAPIError):
                 if attempt < max_retries - 1:
                     print(
                         "Connection issue. Retrying entire deletion operation"
