@@ -8,8 +8,8 @@ import {
 import { FormattedDate } from "@/components/ui/formatted-date";
 import { PollStatus } from "@/components/work-pools/poll-status";
 import { WorkPoolStatusBadge } from "@/components/work-pools/work-pool-status-badge";
-import { toTitleCase } from "@/lib/schema-utils";
 import { cn } from "@/lib/utils";
+import { titleCase } from "@/utils";
 
 import type { WorkPoolDetailsProps } from "./types";
 
@@ -51,7 +51,7 @@ function BasicInfoSection({ workPool }: { workPool: WorkPool }) {
 			field: "Type",
 			ComponentValue: () =>
 				workPool.type ? (
-					<FieldValue>{toTitleCase(workPool.type)}</FieldValue>
+					<FieldValue>{titleCase(workPool.type)}</FieldValue>
 				) : (
 					<None />
 				),
