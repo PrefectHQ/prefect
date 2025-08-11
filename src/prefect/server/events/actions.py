@@ -1189,7 +1189,7 @@ class CallWebhook(JinjaTemplateAction):
 
             try:
                 block_document = BlockDocument.model_validate(response.json())
-                block = Block._from_block_document(block_document)
+                block = await _load_block_from_block_document(block_document)
             except Exception as e:
                 raise ActionFailed(f"The webhook block was invalid: {e!r}")
 
@@ -1263,7 +1263,7 @@ class SendNotification(JinjaTemplateAction):
 
             try:
                 block_document = BlockDocument.model_validate(response.json())
-                block = Block._from_block_document(block_document)
+                block = await _load_block_from_block_document(block_document)
             except Exception as e:
                 raise ActionFailed(f"The notification block was invalid: {e!r}")
 
@@ -1739,3 +1739,37 @@ async def consumer() -> AsyncGenerator[MessageHandler, None]:
 
     logger.info("Starting action message handler")
     yield message_handler
+
+
+async def _load_block_from_block_document(
+    block_document: BlockDocument,
+) -> Block:
+    if block_document.block_schema is None:
+        raise ValueError("Unable to determine block schema for provided block document")
+
+    block_cls = Block.get_block_class_from_schema(block_document.block_schema)
+
+    block = block_cls.model_validate(block_document.data)
+    block._block_document_id = block_document.id
+    block.__class__._block_schema_id = block_document.block_schema_id
+    block.__class__._block_type_id = block_document.block_type_id
+    block._block_document_name = block_document.name
+    block._is_anonymous = block_document.is_anonymous
+    block._define_metadata_on_nested_blocks(block_document.block_document_references)
+
+    resources = block._event_method_called_resources()
+    if resources:
+        kind = block._event_kind()
+        resource, related = resources
+        async with PrefectServerEventsClient() as events_client:
+            await events_client.emit(
+                Event(
+                    id=uuid7(),
+                    occurred=now("UTC"),
+                    event=f"{kind}.loaded",
+                    resource=Resource.model_validate(resource),
+                    related=[RelatedResource.model_validate(r) for r in related],
+                )
+            )
+
+    return block
