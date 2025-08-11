@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import Any, List, Union, cast
+from typing import Any, Union, cast
 
 import toml
 import typer
@@ -37,7 +37,7 @@ app.add_typer(config_app)
 
 
 @config_app.command("set")
-def set_(settings: List[str]):
+def set_(settings: list[str]):
     """
     Change the value for a setting by setting the value in the current profile.
     """
