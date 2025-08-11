@@ -9,6 +9,8 @@ from typing import (
     Iterable,
     Iterator,
     Optional,
+    Dict,
+    Optional, Union
 )
 
 import toml
@@ -30,8 +32,8 @@ from prefect.utilities.collections import set_in_dict
 
 
 def _cast_settings(
-    settings: dict[str | Setting, Any] | Any,
-) -> dict[Setting | str, Any]:
+    settings: Union[Dict[Union[str, Setting], Any], Any],
+) -> Dict[Union[Setting, str], Any]:
     """Cast settings dict, allowing string keys for valid logging overrides.
 
     For backwards compatibility, converts string setting names to Setting objects.
@@ -82,12 +84,12 @@ class Profile(BaseModel):
     )
 
     name: str
-    settings: Annotated[dict[Union[Setting, str], Any], BeforeValidator(_cast_settings)] = (
+    settings: Annotated[Dict[Union[Setting, str], Any], BeforeValidator(_cast_settings)] = (
         Field(default_factory=dict)
     )
     source: Optional[Path] = None
 
-    def to_environment_variables(self) -> dict[str, str]:
+    def to_environment_variables(self) -> Dict[str, str]:
         """Convert the profile settings to a dictionary of environment variables."""
         env_vars = {}
         for setting, value in self.settings.items():
@@ -110,7 +112,7 @@ class Profile(BaseModel):
         if not self.settings:
             return
 
-        nested_settings: dict[str, Any] = {}
+        nested_settings: Dict[str, Any] = {}
 
         for setting, value in self.settings.items():
             # Only validate Setting objects through the Settings model

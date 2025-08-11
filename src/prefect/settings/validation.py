@@ -8,7 +8,7 @@ parts of the settings system without creating circular dependencies.
 from __future__ import annotations
 
 import re
-from typing import TYPE_CHECKING
+from typing import FrozenSet, Union, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from prefect.settings.legacy import Setting
@@ -46,7 +46,7 @@ def is_valid_logging_setting(setting_name: str) -> bool:
 
 
 def is_setting_or_valid_logging(
-    setting_name: str, valid_setting_names: frozenset[str]
+    setting_name: str, valid_setting_names: FrozenSet[str]
 ) -> bool:
     """
     Check if a setting name is either a valid Prefect setting or a valid logging override.
@@ -61,7 +61,7 @@ def is_setting_or_valid_logging(
     return setting_name in valid_setting_names or is_valid_logging_setting(setting_name)
 
 
-def should_allow_string_key(setting_key: str | Setting) -> bool:
+def should_allow_string_key(setting_key: Union[str, Setting]) -> bool:
     """
     Determine if a setting key should be kept as a string rather than converted to Setting.
 
