@@ -1,1 +1,1 @@
-export { capitalize, pluralize } from "./utils";
+export { capitalize, pluralize, titleCase } from "./utils";

@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/form";
 import { LogoImage } from "@/components/ui/logo-image";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { titleCase } from "@/utils/utils";
+import { titleCase } from "@/utils";
 
 type WorkPoolTypeSelectOption = {
 	label: string;
