@@ -2,16 +2,7 @@ from __future__ import annotations
 
 import warnings
 from pathlib import Path
-from typing import (
-    Annotated,
-    Any,
-    ClassVar,
-    Iterable,
-    Iterator,
-    Optional,
-    Dict,
-    Optional, Union
-)
+from typing import Annotated, Any, ClassVar, Dict, Iterable, Iterator, Optional, Union
 
 import toml
 from pydantic import (
@@ -84,9 +75,9 @@ class Profile(BaseModel):
     )
 
     name: str
-    settings: Annotated[Dict[Union[Setting, str], Any], BeforeValidator(_cast_settings)] = (
-        Field(default_factory=dict)
-    )
+    settings: Annotated[
+        Dict[Union[Setting, str], Any], BeforeValidator(_cast_settings)
+    ] = Field(default_factory=dict)
     source: Optional[Path] = None
 
     def to_environment_variables(self) -> Dict[str, str]:

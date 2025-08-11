@@ -8,7 +8,7 @@ parts of the settings system without creating circular dependencies.
 from __future__ import annotations
 
 import re
-from typing import FrozenSet, Union, TYPE_CHECKING
+from typing import TYPE_CHECKING, FrozenSet, Union
 
 if TYPE_CHECKING:
     from prefect.settings.legacy import Setting

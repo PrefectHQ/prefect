@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import Any, Union, cast, List
+from typing import Any, List, Union, cast
 
 import toml
 import typer
