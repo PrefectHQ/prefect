@@ -50,7 +50,7 @@ class BaseClient:
         self._http_client = PrefectHttpxAsyncClient(
             transport=httpx.ASGITransport(app=api_app, raise_app_exceptions=False),
             headers={**additional_headers},
-            base_url="http://prefect-in-memory/api",
+            base_url=f"http://prefect-in-memory{settings.server.api.base_path or '/api'}",
             enable_csrf_support=settings.server.api.csrf_protection_enabled,
             raise_on_all_errors=False,
         )
