@@ -7,7 +7,6 @@ from contextlib import asynccontextmanager
 from typing import AsyncContextManager, AsyncGenerator, Callable, Optional, Type
 
 import pytest
-from sqlalchemy import func, select, text
 from sqlalchemy.exc import DBAPIError, InterfaceError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -104,30 +103,12 @@ async def clear_db(db, request):
         for attempt in range(max_retries):
             try:
                 async with db.session_context(begin_transaction=True) as session:
-                    bind = session.get_bind()
-                    tables = list(orm_models.Base.metadata.sorted_tables)
+                    await session.execute(orm_models.Agent.__table__.delete())
+                    await session.execute(orm_models.WorkPool.__table__.delete())
 
-                    if bind.dialect.name == "postgresql":
-                        prep = bind.dialect.identifier_preparer
-                        await session.execute(
-                            select(
-                                func.pg_advisory_xact_lock(
-                                    func.hashtext(func.current_schema())
-                                )
-                            )
-                        )
-                        await session.execute(text("SET LOCAL lock_timeout = '5s'"))
-                        names = ", ".join(prep.format_table(t) for t in tables)
-                        await session.execute(
-                            text(f"TRUNCATE {names} RESTART IDENTITY CASCADE")
-                        )
-                    else:
-                        await session.execute(orm_models.Agent.__table__.delete())
-                        await session.execute(orm_models.WorkPool.__table__.delete())
-
-                        for table in reversed(tables):
-                            await session.execute(table.delete())
-                        break
+                    for table in reversed(orm_models.Base.metadata.sorted_tables):
+                        await session.execute(table.delete())
+                    break
             except (InterfaceError, DBAPIError):
                 if attempt < max_retries - 1:
                     print(
