@@ -805,3 +805,30 @@ class TestIsValidLoggingSetting:
             assert not is_valid_logging_setting(setting), (
                 f"Expected {setting} to be invalid"
             )
+
+
+def test_view_with_custom_logging_setting():
+    """Test that config view properly displays custom logging settings."""
+    save_profiles(
+        ProfilesCollection(
+            [
+                Profile(
+                    name="test",
+                    settings={
+                        "PREFECT_LOGGING_HANDLERS_CONSOLE_LEVEL": "WARNING",
+                        "PREFECT_LOGGING_LOGGERS_PREFECT_FLOW_RUNS_LEVEL": "ERROR",
+                    },
+                )
+            ],
+            active=None,
+        )
+    )
+
+    invoke_and_assert(
+        ["--profile", "test", "config", "view", "--show-sources"],
+        expected_output_contains=[
+            "PREFECT_LOGGING_HANDLERS_CONSOLE_LEVEL='WARNING' (from profile)",
+            "PREFECT_LOGGING_LOGGERS_PREFECT_FLOW_RUNS_LEVEL='ERROR' (from profile)",
+        ],
+        expected_code=0,
+    )

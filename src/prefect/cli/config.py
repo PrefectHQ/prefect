@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import Any, Union, cast
+from typing import Any, List, Union, cast
 
 import toml
 import typer
@@ -287,7 +287,20 @@ def view(
 
     # Process settings from the current profile
     for setting, value in current_profile_settings.items():
-        if setting.name not in processed_settings:
+        # Handle both Setting objects and string keys (for custom logging settings)
+        if isinstance(setting, str):
+            # Custom logging setting stored as string key
+            if setting not in processed_settings:
+                # Create a minimal display for custom logging settings
+                display_value = (
+                    "********"
+                    if "SECRET" in setting or "KEY" in setting or "TOKEN" in setting
+                    else value
+                )
+                source_blurb = " (from profile)" if show_sources else ""
+                settings_output.append(f"{setting}='{display_value}'{source_blurb}")
+                processed_settings.add(setting)
+        elif setting.name not in processed_settings:
             _process_setting(setting, value, "profile")
 
     if show_defaults:

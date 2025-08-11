@@ -319,6 +319,40 @@ class Settings(PrefectBaseSettings):
         )
         return new_settings
 
+    def to_environment_variables(
+        self,
+        exclude_unset: bool = False,
+        include_secrets: bool = True,
+        include_aliases: bool = False,
+    ) -> dict[str, str]:
+        """
+        Convert the settings object to a dictionary of environment variables.
+
+        This override includes custom logging settings from the active profile.
+        """
+        # Get base environment variables from parent class
+        env_variables = super().to_environment_variables(
+            exclude_unset=exclude_unset,
+            include_secrets=include_secrets,
+            include_aliases=include_aliases,
+        )
+
+        # Add custom logging settings from the profile if available
+        from prefect.context import SettingsContext
+
+        settings_context = SettingsContext.get()
+        if settings_context and settings_context.profile:
+            # Include string keys (custom logging settings) that start with PREFECT_LOGGING_
+            for setting_key, setting_value in settings_context.profile.settings.items():
+                if (
+                    isinstance(setting_key, str)
+                    and setting_key.startswith("PREFECT_LOGGING_")
+                    and setting_value is not None
+                ):
+                    env_variables[setting_key] = str(setting_value)
+
+        return env_variables
+
     def hash_key(self) -> str:
         """
         Return a hash key for the settings object.  This is needed since some

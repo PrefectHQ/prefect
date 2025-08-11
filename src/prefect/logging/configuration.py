@@ -32,6 +32,7 @@ to_envvar: Callable[[str], str] = partial(re.sub, re.compile(r"[^0-9a-zA-Z]+"), 
 def load_logging_config(path: Path) -> dict[str, Any]:
     """
     Loads logging configuration from a path allowing override from the environment
+    and profile settings
     """
     current_settings = get_current_settings()
     template = string.Template(path.read_text())
@@ -45,9 +46,51 @@ def load_logging_config(path: Path) -> dict[str, Any]:
             )
         )
 
-    # Load overrides from the environment
+    # Load overrides from profile and environment
     flat_config = dict_to_flatdict(config)
+    
+    # Apply settings overrides
+    settings_dict = current_settings.to_environment_variables(include_aliases=True)
+    for setting_key, setting_value in settings_dict.items():
+        if not setting_key.startswith("PREFECT_LOGGING_"):
+            continue
+            
+        path = setting_key[16:].lower()  # Remove prefix
+        if not path:
+            continue
+            
+        parts = path.split("_")
+        
+        # Try different key combinations to match existing config
+        candidates = []
+        if parts[0] == "loggers" and len(parts) > 2:
+            # Try logger.name.setting and logger_name.setting patterns
+            candidates = [
+                (parts[0], ".".join(parts[1:-1]), parts[-1]),
+                (parts[0], "_".join(parts[1:-1]), parts[-1])
+            ]
+        elif parts[0] in ["formatters", "handlers"] and len(parts) >= 3:
+            # Handlers/formatters may have underscores in names
+            candidates = [(parts[0], parts[1], "_".join(parts[2:]))]
+        
+        # Add default interpretation
+        candidates.append(tuple(parts))
+        
+        # Find first matching key
+        key_tup = next((k for k in candidates if k in flat_config), None)
+        
+        if key_tup and key_tup in flat_config:
+            # Skip if overridden by environment variable
+            env_key = to_envvar(f"PREFECT_LOGGING_{path}").upper()
+            if not os.environ.get(env_key):
+                # Apply value with proper type
+                flat_config[key_tup] = (
+                    setting_value.split(",") 
+                    if isinstance(flat_config[key_tup], list)
+                    else setting_value
+                )
 
+    # Then check environment variables (higher priority)
     for key_tup, val in flat_config.items():
         env_val = os.environ.get(
             # Generate a valid environment variable with nesting indicated with '_'
@@ -59,8 +102,8 @@ def load_logging_config(path: Path) -> dict[str, Any]:
             else:
                 val = env_val
 
-        # reassign the updated value
-        flat_config[key_tup] = val
+            # reassign the updated value
+            flat_config[key_tup] = val
 
     return flatdict_to_dict(flat_config)
 
