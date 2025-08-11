@@ -27,8 +27,10 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
 
     def __init__(self, redis_client: Redis | None = None):
         self.redis_client = redis_client or get_async_redis_client()
-        self.lease_prefix = "prefect:concurrency:lease:"
-        self.expiration_prefix = "prefect:concurrency:expiration:"
+        self.base_prefix = "prefect:concurrency:"
+        self.lease_prefix = f"{self.base_prefix}lease:"
+        self.expirations_key = f"{self.base_prefix}expirations"
+        self.expiration_prefix = f"{self.base_prefix}expiration:"
 
     def _lease_key(self, lease_id: UUID) -> str:
         """Generate Redis key for a lease."""
@@ -89,7 +91,7 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
             pipe = self.redis_client.pipeline()
             pipe.set(lease_key, serialized_lease)
             pipe.zadd(
-                "prefect:concurrency:expirations",
+                self.expirations_key,
                 {str(lease.id): expiration.timestamp()},
             )
             await pipe.execute()
@@ -134,7 +136,7 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
             pipe = self.redis_client.pipeline()
             pipe.set(lease_key, serialized_lease)
             pipe.zadd(
-                "prefect:concurrency:expirations",
+                self.expirations_key,
                 {str(lease_id): new_expiration.timestamp()},
             )
             await pipe.execute()
@@ -149,7 +151,7 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
             # Use pipeline for atomic operations
             pipe = self.redis_client.pipeline()
             pipe.delete(lease_key)
-            pipe.zrem("prefect:concurrency:expirations", str(lease_id))
+            pipe.zrem(self.expirations_key, str(lease_id))
             await pipe.execute()
         except RedisError as e:
             logger.error(f"Failed to revoke lease {lease_id}: {e}")
@@ -161,7 +163,7 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
 
             # Get lease IDs that expire after now (active leases)
             active_lease_ids = await self.redis_client.zrangebyscore(
-                "prefect:concurrency:expirations", now, "+inf", start=0, num=limit
+                self.expirations_key, now, "+inf", start=0, num=limit
             )
 
             return [UUID(lease_id) for lease_id in active_lease_ids]
@@ -175,7 +177,7 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
 
             # Get lease IDs that expire before now (expired leases)
             expired_lease_ids = await self.redis_client.zrangebyscore(
-                "prefect:concurrency:expirations", "-inf", now, start=0, num=limit
+                self.expirations_key, "-inf", now, start=0, num=limit
             )
 
             return [UUID(lease_id) for lease_id in expired_lease_ids]
