@@ -82,7 +82,7 @@
 	},
 	"devDependencies": {
 		"@biomejs/biome": "^2.1.2",
-		"@eslint/js": "^9.32.0",
+		"@eslint/js": "^9.33.0",
 		"@storybook/addon-docs": "^9.1.0",
 		"@storybook/react-vite": "^9.1.0",
 		"@tailwindcss/postcss": "^4.1.11",
@@ -108,7 +108,7 @@
 		"eslint-plugin-react": "^7.37.5",
 		"eslint-plugin-react-hooks": "^5.2.0",
 		"eslint-plugin-react-refresh": "^0.4.20",
-		"eslint-plugin-storybook": "^9.1.0",
+		"eslint-plugin-storybook": "^9.1.1",
 		"eslint-plugin-testing-library": "^7.6.3",
 		"eslint-plugin-unused-imports": "^4.1.4",
 		"globals": "^16.3.0",
