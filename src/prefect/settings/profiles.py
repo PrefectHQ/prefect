@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import warnings
 from pathlib import Path
-from typing import Annotated, Any, ClassVar, Dict, Iterable, Iterator, Optional, Union
+from typing import Annotated, Any, ClassVar, Iterable, Iterator, Optional, Union
 
 import toml
 from pydantic import (
@@ -23,8 +23,8 @@ from prefect.utilities.collections import set_in_dict
 
 
 def _cast_settings(
-    settings: Union[Dict[Union[str, Setting], Any], Any],
-) -> Dict[Union[Setting, str], Any]:
+    settings: dict[str | Setting, Any] | Any,
+) -> dict[Setting, Any]:
     """Cast settings dict, allowing string keys for valid logging overrides.
 
     For backwards compatibility, converts string setting names to Setting objects.
@@ -76,11 +76,11 @@ class Profile(BaseModel):
 
     name: str
     settings: Annotated[
-        Dict[Union[Setting, str], Any], BeforeValidator(_cast_settings)
+        dict[Union[Setting, str], Any], BeforeValidator(_cast_settings)
     ] = Field(default_factory=dict)
     source: Optional[Path] = None
 
-    def to_environment_variables(self) -> Dict[str, str]:
+    def to_environment_variables(self) -> dict[str, str]:
         """Convert the profile settings to a dictionary of environment variables."""
         env_vars = {}
         for setting, value in self.settings.items():
@@ -103,7 +103,7 @@ class Profile(BaseModel):
         if not self.settings:
             return
 
-        nested_settings: Dict[str, Any] = {}
+        nested_settings: dict[str, Any] = {}
 
         for setting, value in self.settings.items():
             # Only validate Setting objects through the Settings model
