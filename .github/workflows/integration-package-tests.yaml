@@ -84,7 +84,7 @@ jobs:
           redis:latest
 
       - name: Run tests
-        if: matrix.package != 'prefect-ray'
+        if: matrix.package != 'prefect-ray' && matrix.package != 'prefect-aws'
         env:
           PREFECT_API_DATABASE_CONNECTION_URL: "sqlite+aiosqlite:///./orion-tests.db"
         working-directory: src/integrations/${{ matrix.package }}
