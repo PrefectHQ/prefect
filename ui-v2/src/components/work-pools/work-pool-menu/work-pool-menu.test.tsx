@@ -65,20 +65,25 @@ const createWrapper = () => {
 		history: createMemoryHistory(),
 	});
 
-	return ({ children }: { children: React.ReactNode }) => (
+	const Wrapper = ({ children }: { children: React.ReactNode }) => (
 		<QueryClientProvider client={queryClient}>
 			<RouterProvider router={router} />
 			{children}
 		</QueryClientProvider>
 	);
+	Wrapper.displayName = "TestWrapper";
+	return Wrapper;
 };
+
+const writeTextMock = vi.fn();
 
 describe("WorkPoolMenu", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
+		writeTextMock.mockResolvedValue(undefined);
 		Object.assign(navigator, {
 			clipboard: {
-				writeText: vi.fn().mockResolvedValue(undefined),
+				writeText: writeTextMock,
 			},
 		});
 	});
@@ -122,7 +127,7 @@ describe("WorkPoolMenu", () => {
 		await user.click(copyButton);
 
 		await waitFor(() => {
-			expect(navigator.clipboard.writeText).toHaveBeenCalledWith("123");
+			expect(writeTextMock).toHaveBeenCalledWith("123");
 			expect(toast.success).toHaveBeenCalledWith("ID copied to clipboard");
 		});
 	});

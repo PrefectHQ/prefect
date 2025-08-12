@@ -65,7 +65,7 @@ export const DeleteWorkPoolDialog = ({
 				<AlertDialogHeader>
 					<AlertDialogTitle>Delete Work Pool</AlertDialogTitle>
 					<AlertDialogDescription>
-						Are you sure you want to delete the work pool "{workPool.name}"?
+						Are you sure you want to delete the work pool &ldquo;{workPool.name}&rdquo;?
 						This action cannot be undone.
 					</AlertDialogDescription>
 				</AlertDialogHeader>

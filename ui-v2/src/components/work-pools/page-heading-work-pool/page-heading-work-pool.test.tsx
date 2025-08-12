@@ -68,12 +68,14 @@ const createWrapper = () => {
 		history: createMemoryHistory(),
 	});
 
-	return ({ children }: { children: React.ReactNode }) => (
+	const Wrapper = ({ children }: { children: React.ReactNode }) => (
 		<QueryClientProvider client={queryClient}>
 			<RouterProvider router={router} />
 			<TooltipProvider>{children}</TooltipProvider>
 		</QueryClientProvider>
 	);
+	Wrapper.displayName = "TestWrapper";
+	return Wrapper;
 };
 
 describe("PageHeadingWorkPool", () => {

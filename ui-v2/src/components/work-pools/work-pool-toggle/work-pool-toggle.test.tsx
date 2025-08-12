@@ -61,11 +61,13 @@ const createWrapper = () => {
 		},
 	});
 
-	return ({ children }: { children: React.ReactNode }) => (
+	const Wrapper = ({ children }: { children: React.ReactNode }) => (
 		<QueryClientProvider client={queryClient}>
 			<TooltipProvider>{children}</TooltipProvider>
 		</QueryClientProvider>
 	);
+	Wrapper.displayName = "TestWrapper";
+	return Wrapper;
 };
 
 describe("WorkPoolToggle", () => {
