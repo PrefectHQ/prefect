@@ -1,32 +1,10 @@
 from __future__ import annotations
 
-from functools import partial
-from typing import Annotated, Optional, Union
+from typing import Optional
 
-from pydantic import BeforeValidator, Field
+from pydantic import Field
 
 from prefect.settings.base import PrefectBaseSettings, build_settings_config
-from prefect.types import validate_set_T_from_delim_string
-
-
-def _validate_label_filters(value: dict[str, str] | str | None) -> dict[str, str]:
-    if value is None:
-        return {}
-    if isinstance(value, dict):
-        return value
-    split_value = value.split(",")
-    return {
-        k.strip(): v.strip() for k, v in (item.split("=", 1) for item in split_value)
-    }
-
-
-LabelFilters = Annotated[
-    Union[dict[str, str], str, None], BeforeValidator(_validate_label_filters)
-]
-Namespaces = Annotated[
-    Union[set[str], str, None],
-    BeforeValidator(partial(validate_set_T_from_delim_string, type_=str)),
-]
 
 
 class EcsObserverSqsSettings(PrefectBaseSettings):

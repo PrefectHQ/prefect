@@ -17,6 +17,7 @@ from typing import (
     NamedTuple,
     Protocol,
     TypedDict,
+    Union,
 )
 
 import aiobotocore.session
@@ -95,7 +96,7 @@ class TagsFilter:
 HandlerWithFilters = NamedTuple(
     "HandlerWithFilters",
     [
-        ("handler", EcsEventHandler | AsyncEcsEventHandler),
+        ("handler", Union[EcsEventHandler, AsyncEcsEventHandler]),
         ("filters", EventHandlerFilters),
     ],
 )
