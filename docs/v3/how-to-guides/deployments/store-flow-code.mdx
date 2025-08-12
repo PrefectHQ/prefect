@@ -207,7 +207,11 @@ If using the Python `deploy` method with a private repository that references a 
     For accessing a private repository, we suggest creating a [Personal Access Tokens (PATs)](https://docs.github.com/en/github/authenticating-to-github/creating-a-personal-access-token).
     We recommend using HTTPS with [fine-grained Personal Access Tokens](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens#creating-a-fine-grained-personal-access-token) to limit access by repository. 
     
-    Per least privilege, we recommend granting the token the ability to read **Contents** and for your repository.
+    <Warning>
+    **Personal Access Token Permissions**
+
+    When using a fine-grained token, ensure to add permissions to the token prior to saving. Per least privilege, we recommend granting the token the ability to read **Contents** and **Metadata** for your repository.
+    </Warning>
 
     If using a `Secret` block, you can create it through code or the UI ahead of time and reference it at deployment creation as shown above. 
 
