@@ -38,8 +38,7 @@ repos:
             src/prefect/input/.*
           )$
   - repo: https://github.com/astral-sh/uv-pre-commit
-    # uv version.
-    rev: 0.6.17
+    rev: 0.8.9
     hooks:
       - id: uv-lock
 
