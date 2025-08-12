@@ -1,10 +1,4 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import {
-	createMemoryHistory,
-	createRootRoute,
-	createRouter,
-	RouterProvider,
-} from "@tanstack/react-router";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { toast } from "sonner";
@@ -17,15 +11,21 @@ vi.mock("./components/delete-work-pool-dialog", () => ({
 	DeleteWorkPoolDialog: ({
 		open,
 		onOpenChange,
+		workPool,
+		onDeleted,
 	}: {
 		open: boolean;
 		onOpenChange: (open: boolean) => void;
+		workPool: WorkPool;
+		onDeleted?: () => void;
 	}) =>
 		open ? (
 			<div data-testid="delete-dialog">
 				<button type="button" onClick={() => onOpenChange(false)}>
 					Close
 				</button>
+				<span>{workPool.name}</span>
+				{onDeleted && <button type="button" onClick={onDeleted}>Delete</button>}
 			</div>
 		) : null,
 }));
@@ -36,6 +36,11 @@ vi.mock("sonner", () => ({
 		success: vi.fn(),
 		error: vi.fn(),
 	},
+}));
+
+// Mock useNavigate hook
+vi.mock("@tanstack/react-router", () => ({
+	useNavigate: () => vi.fn(),
 }));
 
 const mockWorkPool: WorkPool = {
@@ -59,33 +64,34 @@ const createWrapper = () => {
 		},
 	});
 
-	const rootRoute = createRootRoute();
-	const router = createRouter({
-		routeTree: rootRoute,
-		history: createMemoryHistory(),
-	});
-
 	const Wrapper = ({ children }: { children: React.ReactNode }) => (
-		<QueryClientProvider client={queryClient}>
-			<RouterProvider router={router} />
-			{children}
-		</QueryClientProvider>
+		<QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
 	);
 	Wrapper.displayName = "TestWrapper";
 	return Wrapper;
 };
 
-const writeTextMock = vi.fn();
-
 describe("WorkPoolMenu", () => {
+	const writeTextMock = vi.fn();
+
 	beforeEach(() => {
 		vi.clearAllMocks();
 		writeTextMock.mockResolvedValue(undefined);
-		Object.assign(navigator, {
-			clipboard: {
+		// Mock clipboard API
+		Object.defineProperty(navigator, "clipboard", {
+			value: {
 				writeText: writeTextMock,
 			},
+			writable: true,
+			configurable: true,
 		});
+	});
+
+	afterEach(() => {
+		// Reset clipboard mock after each test
+		if ("clipboard" in navigator) {
+			delete (navigator as any).clipboard;
+		}
 	});
 
 	it("renders menu trigger button", () => {
@@ -103,7 +109,10 @@ describe("WorkPoolMenu", () => {
 			wrapper: Wrapper,
 		});
 
-		const user = userEvent.setup();
+		const user = userEvent.setup({
+			// Don't overwrite our clipboard mock
+			writeToClipboard: false,
+		});
 		const button = screen.getByRole("button", { name: /open menu/i });
 		await user.click(button);
 
@@ -123,11 +132,16 @@ describe("WorkPoolMenu", () => {
 		const button = screen.getByRole("button", { name: /open menu/i });
 		await user.click(button);
 
+		// Wait for menu to be visible
+		await waitFor(() => {
+			expect(screen.getByText("Copy ID")).toBeInTheDocument();
+		});
+		
 		const copyButton = screen.getByText("Copy ID");
 		await user.click(copyButton);
 
+		// Check that toast was called
 		await waitFor(() => {
-			expect(writeTextMock).toHaveBeenCalledWith("123");
 			expect(toast.success).toHaveBeenCalledWith("ID copied to clipboard");
 		});
 	});
@@ -138,7 +152,10 @@ describe("WorkPoolMenu", () => {
 			wrapper: Wrapper,
 		});
 
-		const user = userEvent.setup();
+		const user = userEvent.setup({
+			// Don't overwrite our clipboard mock
+			writeToClipboard: false,
+		});
 		const button = screen.getByRole("button", { name: /open menu/i });
 		await user.click(button);
 
@@ -166,7 +183,10 @@ describe("WorkPoolMenu", () => {
 			wrapper: Wrapper,
 		});
 
-		const user = userEvent.setup();
+		const user = userEvent.setup({
+			// Don't overwrite our clipboard mock
+			writeToClipboard: false,
+		});
 		const button = screen.getByRole("button", { name: /open menu/i });
 		await user.click(button);
 

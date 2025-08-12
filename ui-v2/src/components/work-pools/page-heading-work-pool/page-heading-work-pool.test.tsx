@@ -1,22 +1,20 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import {
-	createMemoryHistory,
-	createRootRoute,
-	createRouter,
-	RouterProvider,
-} from "@tanstack/react-router";
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import type { WorkPool } from "@/api/work-pools";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { PageHeadingWorkPool } from "./page-heading-work-pool";
 
-// Mock Tanstack Router Link
+// Mock Tanstack Router
 vi.mock("@tanstack/react-router", async () => {
 	const actual = await vi.importActual("@tanstack/react-router");
 	return {
 		...actual,
 		Link: ({ children, to }: { children: React.ReactNode; to: string }) => (
+			<a href={to}>{children}</a>
+		),
+		useNavigate: () => vi.fn(),
+		createLink: () => ({ children, to }: { children: React.ReactNode; to: string }) => (
 			<a href={to}>{children}</a>
 		),
 	};
@@ -62,15 +60,8 @@ const createWrapper = () => {
 		},
 	});
 
-	const rootRoute = createRootRoute();
-	const router = createRouter({
-		routeTree: rootRoute,
-		history: createMemoryHistory(),
-	});
-
 	const Wrapper = ({ children }: { children: React.ReactNode }) => (
 		<QueryClientProvider client={queryClient}>
-			<RouterProvider router={router} />
 			<TooltipProvider>{children}</TooltipProvider>
 		</QueryClientProvider>
 	);
@@ -85,7 +76,9 @@ describe("PageHeadingWorkPool", () => {
 			wrapper: Wrapper,
 		});
 		expect(screen.getByText("Work Pools")).toBeInTheDocument();
-		expect(screen.getByText(mockWorkPool.name)).toBeInTheDocument();
+		// Check that the work pool name appears in the breadcrumb
+		const breadcrumb = screen.getByRole("navigation", { name: /breadcrumb/i });
+		expect(breadcrumb).toHaveTextContent(mockWorkPool.name);
 	});
 
 	it("displays work pool title and status", () => {
@@ -93,7 +86,9 @@ describe("PageHeadingWorkPool", () => {
 		render(<PageHeadingWorkPool workPool={mockWorkPool} />, {
 			wrapper: Wrapper,
 		});
-		expect(screen.getByText(mockWorkPool.name)).toBeInTheDocument();
+		// Check the heading contains the work pool name
+		const heading = screen.getByRole("heading");
+		expect(heading).toHaveTextContent(mockWorkPool.name);
 		expect(screen.getByTestId("work-pool-status-badge")).toBeInTheDocument();
 	});
 
