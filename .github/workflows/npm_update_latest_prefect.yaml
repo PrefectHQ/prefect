@@ -18,7 +18,7 @@
         # required to write to the repo
         contents: write
       steps:
-        - uses: actions/checkout@v4
+        - uses: actions/checkout@v5
   
         - name: Configure Git
           run: |
