@@ -609,6 +609,25 @@ class Task(Generic[P, R]):
             else []
         )
 
+        # Collect telemetry for task creation
+        try:
+            from prefect.telemetry.sdk_usage import record_decorator
+
+            record_decorator(
+                "task",
+                retries=retries is not None,
+                cache_key_fn=cache_key_fn is not None,
+                cache_policy=cache_policy is not NotSet,
+                persist_result=persist_result is not None,
+                tags=tags is not None,
+                timeout=timeout_seconds is not None,
+                hooks=any([on_completion, on_failure, on_rollback, on_commit]),
+                asset_deps=asset_deps is not None,
+            )
+        except Exception:
+            # Never let telemetry break user code
+            pass
+
     @property
     def ismethod(self) -> bool:
         return hasattr(self.fn, "__prefect_self__")

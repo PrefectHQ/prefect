@@ -404,6 +404,24 @@ class Flow(Generic[P, R]):
 
         self._entrypoint = f"{module}:{getattr(fn, '__qualname__', fn.__name__)}"
 
+        # Collect telemetry for flow creation
+        try:
+            from prefect.telemetry.sdk_usage import record_decorator
+
+            record_decorator(
+                "flow",
+                retries=retries is not None,
+                persist_result=persist_result is not None,
+                tags=False,  # We'll add tag tracking later
+                timeout=timeout_seconds is not None,
+                hooks=any(
+                    [on_completion, on_failure, on_cancellation, on_crashed, on_running]
+                ),
+            )
+        except Exception:
+            # Never let telemetry break user code
+            pass
+
     @property
     def ismethod(self) -> bool:
         return hasattr(self.fn, "__prefect_self__")
