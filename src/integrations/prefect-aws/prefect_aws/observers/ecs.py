@@ -88,7 +88,7 @@ class TagsFilter:
             or tag_value == FilterCase.ABSENT
             and tag_name not in tags
             or tag_value == tags.get(tag_name)
-            for tag_name, tag_value in tags.items()
+            for tag_name, tag_value in self.tags.items()
         )
 
 
