@@ -92,6 +92,7 @@ jobs:
           --numprocesses auto
           --maxprocesses 4
           --dist worksteal
+          -vv
 
       # Run prefect-ray tests sequentially to avoid Ray cluster issues
       - name: Run tests for prefect-ray
