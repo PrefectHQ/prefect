@@ -14,9 +14,11 @@ vi.mock("@tanstack/react-router", async () => {
 			<a href={to}>{children}</a>
 		),
 		useNavigate: () => vi.fn(),
-		createLink: () => ({ children, to }: { children: React.ReactNode; to: string }) => (
-			<a href={to}>{children}</a>
-		),
+		createLink:
+			() =>
+			({ children, to }: { children: React.ReactNode; to: string }) => (
+				<a href={to}>{children}</a>
+			),
 	};
 });
 

@@ -25,7 +25,11 @@ vi.mock("./components/delete-work-pool-dialog", () => ({
 					Close
 				</button>
 				<span>{workPool.name}</span>
-				{onDeleted && <button type="button" onClick={onDeleted}>Delete</button>}
+				{onDeleted && (
+					<button type="button" onClick={onDeleted}>
+						Delete
+					</button>
+				)}
 			</div>
 		) : null,
 }));
@@ -87,13 +91,6 @@ describe("WorkPoolMenu", () => {
 		});
 	});
 
-	afterEach(() => {
-		// Reset clipboard mock after each test
-		if ("clipboard" in navigator) {
-			delete (navigator as any).clipboard;
-		}
-	});
-
 	it("renders menu trigger button", () => {
 		const Wrapper = createWrapper();
 		render(<WorkPoolMenu workPool={mockWorkPool} />, {
@@ -136,7 +133,7 @@ describe("WorkPoolMenu", () => {
 		await waitFor(() => {
 			expect(screen.getByText("Copy ID")).toBeInTheDocument();
 		});
-		
+
 		const copyButton = screen.getByText("Copy ID");
 		await user.click(copyButton);
 
