@@ -84,7 +84,7 @@ jobs:
           redis:latest
 
       - name: Run tests
-        if: matrix.package != 'prefect-ray' && matrix.package != 'prefect-aws'
+        if: matrix.package != 'prefect-ray'
         env:
           PREFECT_API_DATABASE_CONNECTION_URL: "sqlite+aiosqlite:///./orion-tests.db"
         working-directory: src/integrations/${{ matrix.package }}
@@ -102,27 +102,3 @@ jobs:
         working-directory: src/integrations/${{ matrix.package }}
         run: >
           uv run pytest tests
-
-      - name: Run worker tests for prefect-aws
-        if: matrix.package == 'prefect-aws'
-        env:
-          PREFECT_API_DATABASE_CONNECTION_URL: "sqlite+aiosqlite:///./orion-tests.db"
-        working-directory: src/integrations/${{ matrix.package }}
-        run: >
-          uv run pytest tests/deployments tests/experimental
-          --numprocesses auto
-          --maxprocesses 4
-          --dist worksteal
-          -vv
-
-      - name: Run other tests for prefect-aws
-        if: matrix.package == 'prefect-aws'
-        env:
-          PREFECT_API_DATABASE_CONNECTION_URL: "sqlite+aiosqlite:///./orion-tests.db"
-        working-directory: src/integrations/${{ matrix.package }}
-        run: >
-          uv run pytest tests --ignore=tests/deployments --ignore=tests/experimental
-          --numprocesses auto
-          --maxprocesses 4
-          --dist worksteal
-          -vv
