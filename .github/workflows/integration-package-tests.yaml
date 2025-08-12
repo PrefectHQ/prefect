@@ -93,7 +93,6 @@ jobs:
           --numprocesses auto
           --maxprocesses 4
           --dist worksteal
-          -vv
 
       # Run prefect-ray tests sequentially to avoid Ray cluster issues
       - name: Run tests for prefect-ray
@@ -103,3 +102,27 @@ jobs:
         working-directory: src/integrations/${{ matrix.package }}
         run: >
           uv run pytest tests
+
+      - name: Run worker tests for prefect-aws
+        if: matrix.package == 'prefect-aws'
+        env:
+          PREFECT_API_DATABASE_CONNECTION_URL: "sqlite+aiosqlite:///./orion-tests.db"
+        working-directory: src/integrations/${{ matrix.package }}
+        run: >
+          uv run pytest tests/workers tests/observers
+          --numprocesses auto
+          --maxprocesses 4
+          --dist worksteal
+          -vv
+
+      - name: Run other tests for prefect-aws
+        if: matrix.package == 'prefect-aws'
+        env:
+          PREFECT_API_DATABASE_CONNECTION_URL: "sqlite+aiosqlite:///./orion-tests.db"
+        working-directory: src/integrations/${{ matrix.package }}
+        run: >
+          uv run pytest tests --ignore=tests/workers --ignore=tests/observers
+          --numprocesses auto
+          --maxprocesses 4
+          --dist worksteal
+          -vv
