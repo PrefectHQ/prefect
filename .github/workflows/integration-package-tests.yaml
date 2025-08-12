@@ -103,25 +103,25 @@ jobs:
         run: >
           uv run pytest tests
 
-      - name: Run worker tests for prefect-aws
-        if: matrix.package == 'prefect-aws'
-        env:
-          PREFECT_API_DATABASE_CONNECTION_URL: "sqlite+aiosqlite:///./orion-tests.db"
-        working-directory: src/integrations/${{ matrix.package }}
-        run: >
-          uv run pytest tests/workers tests/observers tests/deployments tests/experimental tests/test_s3.py tests/test_credentials.py
-          --numprocesses auto
-          --maxprocesses 4
-          --dist worksteal
-          -vv
-
       - name: Run other tests for prefect-aws
         if: matrix.package == 'prefect-aws'
         env:
           PREFECT_API_DATABASE_CONNECTION_URL: "sqlite+aiosqlite:///./orion-tests.db"
         working-directory: src/integrations/${{ matrix.package }}
         run: >
-          uv run pytest tests --ignore=tests/workers --ignore=tests/observers --ignore=tests/deployments --ignore=tests/experimental --ignore=tests/test_s3.py --ignore=tests/test_credentials.py
+          uv run pytest tests/test_s3.py tests/test_credentials.py
+          --numprocesses auto
+          --maxprocesses 4
+          --dist worksteal
+          -vv
+
+      - name: Run other other tests for prefect-aws
+        if: matrix.package == 'prefect-aws'
+        env:
+          PREFECT_API_DATABASE_CONNECTION_URL: "sqlite+aiosqlite:///./orion-tests.db"
+        working-directory: src/integrations/${{ matrix.package }}
+        run: >
+          uv run pytest tests --ignore=tests/test_s3.py --ignore=tests/test_credentials.py
           --numprocesses auto
           --maxprocesses 4
           --dist worksteal
