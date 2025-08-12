@@ -38,7 +38,17 @@ class AbstractAppriseNotificationBlock(NotificationBlock, ABC):
         )
 
         if PREFECT_NOTIFY_TYPE_DEFAULT not in NOTIFY_TYPES:
-            NOTIFY_TYPES += (PREFECT_NOTIFY_TYPE_DEFAULT,)  # pyright: ignore[reportUnknownVariableType]
+            # Handle both tuple (apprise < 1.9.4) and frozenset (apprise >= 1.9.4)
+            if isinstance(NOTIFY_TYPES, frozenset):
+                # For frozenset, we need to create a new frozenset with the added type
+                import apprise
+
+                apprise.NOTIFY_TYPES = frozenset(
+                    NOTIFY_TYPES | {PREFECT_NOTIFY_TYPE_DEFAULT}
+                )  # pyright: ignore[reportUnknownVariableType]
+            else:
+                # For tuple, use the original approach
+                NOTIFY_TYPES += (PREFECT_NOTIFY_TYPE_DEFAULT,)  # pyright: ignore[reportUnknownVariableType]
 
         super().__init__(*args, **kwargs)
 
