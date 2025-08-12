@@ -352,23 +352,3 @@ check-hidden = true
 
 [tool.uv]
 required-version = ">=0.6.15" # make sure upload_time is included to avoid churn (see https://github.com/dependabot/dependabot-core/issues/12127)
-
-[tool.uv.sources]
-prefect-aws = { path = "src/integrations/prefect-aws" }
-prefect-azure = { path = "src/integrations/prefect-azure" }
-prefect-bitbucket = { path = "src/integrations/prefect-bitbucket" }
-prefect-dask = { path = "src/integrations/prefect-dask" }
-prefect-databricks = { path = "src/integrations/prefect-databricks" }
-prefect-dbt = { path = "src/integrations/prefect-dbt" }
-prefect-docker = { path = "src/integrations/prefect-docker" }
-prefect-email = { path = "src/integrations/prefect-email" }
-prefect-gcp = { path = "src/integrations/prefect-gcp" }
-prefect-github = { path = "src/integrations/prefect-github" }
-prefect-gitlab = { path = "src/integrations/prefect-gitlab" }
-prefect-kubernetes = { path = "src/integrations/prefect-kubernetes" }
-prefect-ray = { path = "src/integrations/prefect-ray" }
-prefect-redis = { path = "src/integrations/prefect-redis" }
-prefect-shell = { path = "src/integrations/prefect-shell" }
-prefect-slack = { path = "src/integrations/prefect-slack" }
-prefect-sqlalchemy = { path = "src/integrations/prefect-sqlalchemy" }
-prefect-snowflake = { path = "src/integrations/prefect-snowflake" }
