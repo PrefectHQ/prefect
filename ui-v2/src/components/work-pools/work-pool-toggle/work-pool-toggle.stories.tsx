@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react";
-import { fn } from "storybook/test";
 import { buildApiUrl } from "@tests/utils/handlers";
 import { HttpResponse, http } from "msw";
+import { fn } from "storybook/test";
 import type { WorkPool } from "@/api/work-pools";
 import { WorkPoolToggle } from "./work-pool-toggle";
 

@@ -23,7 +23,9 @@ vi.mock("./components/delete-work-pool-dialog", () => ({
 	}) =>
 		open ? (
 			<div data-testid="delete-dialog">
-				<button type="button" onClick={() => onOpenChange(false)}>Close</button>
+				<button type="button" onClick={() => onOpenChange(false)}>
+					Close
+				</button>
 			</div>
 		) : null,
 }));

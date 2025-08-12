@@ -9,10 +9,13 @@ export const WorkPoolTitle = ({ workPool }: WorkPoolTitleProps) => {
 	return (
 		<div className="flex items-center gap-2">
 			<span>{workPool.name}</span>
-			<WorkPoolStatusBadge 
+			<WorkPoolStatusBadge
 				status={
-					(workPool.status?.toLowerCase() as "ready" | "paused" | "not_ready") ?? "not_ready"
-				} 
+					(workPool.status?.toLowerCase() as
+						| "ready"
+						| "paused"
+						| "not_ready") ?? "not_ready"
+				}
 			/>
 		</div>
 	);

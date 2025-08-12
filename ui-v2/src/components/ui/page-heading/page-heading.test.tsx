@@ -25,7 +25,10 @@ describe("PageHeading", () => {
 
 	it("renders actions when provided", () => {
 		render(
-			<PageHeading title="Test Title" actions={<button type="button">Test Action</button>} />,
+			<PageHeading
+				title="Test Title"
+				actions={<button type="button">Test Action</button>}
+			/>,
 		);
 		expect(screen.getByText("Test Action")).toBeInTheDocument();
 	});

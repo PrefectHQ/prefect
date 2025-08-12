@@ -40,11 +40,15 @@ export const WithBreadcrumbs: Story = {
 			<Breadcrumb>
 				<BreadcrumbList>
 					<BreadcrumbItem>
-						<span className="hover:text-foreground transition-colors cursor-pointer">Home</span>
+						<span className="hover:text-foreground transition-colors cursor-pointer">
+							Home
+						</span>
 					</BreadcrumbItem>
 					<BreadcrumbSeparator />
 					<BreadcrumbItem>
-						<span className="hover:text-foreground transition-colors cursor-pointer">Section</span>
+						<span className="hover:text-foreground transition-colors cursor-pointer">
+							Section
+						</span>
 					</BreadcrumbItem>
 					<BreadcrumbSeparator />
 					<BreadcrumbItem>
@@ -78,7 +82,9 @@ export const Complete: Story = {
 			<Breadcrumb>
 				<BreadcrumbList>
 					<BreadcrumbItem>
-						<span className="hover:text-foreground transition-colors cursor-pointer">Work Pools</span>
+						<span className="hover:text-foreground transition-colors cursor-pointer">
+							Work Pools
+						</span>
 					</BreadcrumbItem>
 					<BreadcrumbSeparator />
 					<BreadcrumbItem>

@@ -1,17 +1,30 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { buildApiUrl } from "@tests/utils/handlers";
+import { HttpResponse, http } from "msw";
+import { setupServer } from "msw/node";
 import { toast } from "sonner";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import {
+	afterAll,
+	afterEach,
+	beforeAll,
+	beforeEach,
+	describe,
+	expect,
+	it,
+	vi,
+} from "vitest";
 import type { WorkPool } from "@/api/work-pools";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { WorkPoolToggle } from "./work-pool-toggle";
 
-// Mock the API hooks
-vi.mock("@/api/work-pools", () => ({
-	usePauseWorkPool: vi.fn(),
-	useResumeWorkPool: vi.fn(),
-}));
+// Setup MSW server
+const server = setupServer();
+
+beforeAll(() => server.listen());
+afterEach(() => server.resetHandlers());
+afterAll(() => server.close());
 
 // Mock toast
 vi.mock("sonner", () => ({
@@ -60,19 +73,7 @@ describe("WorkPoolToggle", () => {
 		vi.clearAllMocks();
 	});
 
-	it("shows switch as checked when work pool is active", async () => {
-		const { usePauseWorkPool, useResumeWorkPool } = vi.mocked(
-			await import("@/api/work-pools"),
-		);
-		usePauseWorkPool.mockReturnValue({
-			pauseWorkPool: vi.fn(),
-			isPending: false,
-		} as any);
-		useResumeWorkPool.mockReturnValue({
-			resumeWorkPool: vi.fn(),
-			isPending: false,
-		} as any);
-
+	it("shows switch as checked when work pool is active", () => {
 		const Wrapper = createWrapper();
 		render(<WorkPoolToggle workPool={mockWorkPoolReady} />, {
 			wrapper: Wrapper,
@@ -82,19 +83,7 @@ describe("WorkPoolToggle", () => {
 		expect(switchElement).toHaveAttribute("aria-checked", "true");
 	});
 
-	it("shows switch as unchecked when work pool is paused", async () => {
-		const { usePauseWorkPool, useResumeWorkPool } = vi.mocked(
-			await import("@/api/work-pools"),
-		);
-		usePauseWorkPool.mockReturnValue({
-			pauseWorkPool: vi.fn(),
-			isPending: false,
-		} as any);
-		useResumeWorkPool.mockReturnValue({
-			resumeWorkPool: vi.fn(),
-			isPending: false,
-		} as any);
-
+	it("shows switch as unchecked when work pool is paused", () => {
 		const Wrapper = createWrapper();
 		render(<WorkPoolToggle workPool={mockWorkPoolPaused} />, {
 			wrapper: Wrapper,
@@ -105,20 +94,11 @@ describe("WorkPoolToggle", () => {
 	});
 
 	it("calls pauseWorkPool when toggling from active to paused", async () => {
-		const pauseWorkPoolMock = vi.fn((_, options) => {
-			options.onSuccess();
-		});
-		const { usePauseWorkPool, useResumeWorkPool } = vi.mocked(
-			await import("@/api/work-pools"),
+		server.use(
+			http.patch(buildApiUrl("/work_pools/:name"), () => {
+				return HttpResponse.json({ ...mockWorkPoolReady, is_paused: true });
+			}),
 		);
-		usePauseWorkPool.mockReturnValue({
-			pauseWorkPool: pauseWorkPoolMock,
-			isPending: false,
-		} as any);
-		useResumeWorkPool.mockReturnValue({
-			resumeWorkPool: vi.fn(),
-			isPending: false,
-		} as any);
 
 		const onUpdate = vi.fn();
 		const Wrapper = createWrapper();
@@ -134,33 +114,17 @@ describe("WorkPoolToggle", () => {
 		await user.click(switchElement);
 
 		await waitFor(() => {
-			expect(pauseWorkPoolMock).toHaveBeenCalledWith(
-				"test-work-pool",
-				expect.objectContaining({
-					onSuccess: expect.any(Function),
-					onError: expect.any(Function),
-				}),
-			);
 			expect(toast.success).toHaveBeenCalledWith("Work pool paused");
 			expect(onUpdate).toHaveBeenCalled();
 		});
 	});
 
 	it("calls resumeWorkPool when toggling from paused to active", async () => {
-		const resumeWorkPoolMock = vi.fn((_, options) => {
-			options.onSuccess();
-		});
-		const { usePauseWorkPool, useResumeWorkPool } = vi.mocked(
-			await import("@/api/work-pools"),
+		server.use(
+			http.patch(buildApiUrl("/work_pools/:name"), () => {
+				return HttpResponse.json({ ...mockWorkPoolPaused, is_paused: false });
+			}),
 		);
-		usePauseWorkPool.mockReturnValue({
-			pauseWorkPool: vi.fn(),
-			isPending: false,
-		} as any);
-		useResumeWorkPool.mockReturnValue({
-			resumeWorkPool: resumeWorkPoolMock,
-			isPending: false,
-		} as any);
 
 		const onUpdate = vi.fn();
 		const Wrapper = createWrapper();
@@ -176,55 +140,49 @@ describe("WorkPoolToggle", () => {
 		await user.click(switchElement);
 
 		await waitFor(() => {
-			expect(resumeWorkPoolMock).toHaveBeenCalledWith(
-				"test-work-pool",
-				expect.objectContaining({
-					onSuccess: expect.any(Function),
-					onError: expect.any(Function),
-				}),
-			);
 			expect(toast.success).toHaveBeenCalledWith("Work pool resumed");
 			expect(onUpdate).toHaveBeenCalled();
 		});
 	});
 
 	it("shows loading state during mutation", async () => {
-		const { usePauseWorkPool, useResumeWorkPool } = vi.mocked(
-			await import("@/api/work-pools"),
+		// Set up a slow response to test loading state
+		server.use(
+			http.patch(buildApiUrl("/work_pools/:name"), async () => {
+				await new Promise((resolve) => setTimeout(resolve, 1000));
+				return HttpResponse.json({ ...mockWorkPoolReady, is_paused: true });
+			}),
 		);
-		usePauseWorkPool.mockReturnValue({
-			pauseWorkPool: vi.fn(),
-			isPending: true,
-		} as any);
-		useResumeWorkPool.mockReturnValue({
-			resumeWorkPool: vi.fn(),
-			isPending: false,
-		} as any);
 
 		const Wrapper = createWrapper();
 		render(<WorkPoolToggle workPool={mockWorkPoolReady} />, {
 			wrapper: Wrapper,
 		});
 
+		const user = userEvent.setup();
 		const switchElement = screen.getByRole("switch");
-		expect(switchElement).toBeDisabled();
+
+		// Start the toggle action but don't wait for it
+		const clickPromise = user.click(switchElement);
+
+		// Check that switch gets disabled during loading
+		await waitFor(() => {
+			expect(switchElement).toBeDisabled();
+		});
+
+		// Clean up by waiting for the click to complete
+		await clickPromise;
 	});
 
 	it("handles errors gracefully", async () => {
-		const pauseWorkPoolMock = vi.fn((_, options) => {
-			options.onError();
-		});
-		const { usePauseWorkPool, useResumeWorkPool } = vi.mocked(
-			await import("@/api/work-pools"),
+		server.use(
+			http.patch(buildApiUrl("/work_pools/:name"), () => {
+				return HttpResponse.json(
+					{ detail: "Failed to pause work pool" },
+					{ status: 500 },
+				);
+			}),
 		);
-		usePauseWorkPool.mockReturnValue({
-			pauseWorkPool: pauseWorkPoolMock,
-			isPending: false,
-		} as any);
-		useResumeWorkPool.mockReturnValue({
-			resumeWorkPool: vi.fn(),
-			isPending: false,
-		} as any);
 
 		const Wrapper = createWrapper();
 		render(<WorkPoolToggle workPool={mockWorkPoolReady} />, {

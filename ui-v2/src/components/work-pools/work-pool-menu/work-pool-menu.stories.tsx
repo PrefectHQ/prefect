@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react";
-import { fn } from "storybook/test";
 import { buildApiUrl } from "@tests/utils/handlers";
 import { HttpResponse, http } from "msw";
+import { fn } from "storybook/test";
 import type { WorkPool } from "@/api/work-pools";
 import { WorkPoolMenu } from "./work-pool-menu";
 
@@ -46,9 +46,6 @@ export const Default: Story = {
 };
 
 // TODO: Add permission stories when WorkPool type supports `can` field
-
-
-
 
 export const LongWorkPoolName: Story = {
 	args: {
