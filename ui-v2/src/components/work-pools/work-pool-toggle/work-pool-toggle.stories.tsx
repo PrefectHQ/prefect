@@ -3,6 +3,7 @@ import { buildApiUrl } from "@tests/utils/handlers";
 import { HttpResponse, http } from "msw";
 import { fn } from "storybook/test";
 import type { WorkPool } from "@/api/work-pools";
+import { reactQueryDecorator } from "@/storybook/utils";
 import { WorkPoolToggle } from "./work-pool-toggle";
 
 const mockWorkPool: WorkPool = {
@@ -27,6 +28,7 @@ const mockWorkPoolPaused: WorkPool = {
 const meta: Meta<typeof WorkPoolToggle> = {
 	title: "Components/WorkPools/WorkPoolToggle",
 	component: WorkPoolToggle,
+	decorators: [reactQueryDecorator],
 	parameters: {
 		layout: "centered",
 		msw: {
@@ -97,17 +99,3 @@ export const WithError: Story = {
 		},
 	},
 };
-
-// TODO: Add permission stories when WorkPool type supports `can` field
-// export const NoUpdatePermission: Story = {
-// 	args: {
-// 		workPool: {
-// 			...mockWorkPool,
-// 			can: {
-// 				read: true,
-// 				update: false,
-// 				delete: false,
-// 			},
-// 		},
-// 	},
-// };

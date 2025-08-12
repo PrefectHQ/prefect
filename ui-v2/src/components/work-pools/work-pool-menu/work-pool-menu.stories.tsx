@@ -3,6 +3,7 @@ import { buildApiUrl } from "@tests/utils/handlers";
 import { HttpResponse, http } from "msw";
 import { fn } from "storybook/test";
 import type { WorkPool } from "@/api/work-pools";
+import { reactQueryDecorator, routerDecorator } from "@/storybook/utils";
 import { WorkPoolMenu } from "./work-pool-menu";
 
 const mockWorkPool: WorkPool = {
@@ -21,6 +22,7 @@ const mockWorkPool: WorkPool = {
 const meta: Meta<typeof WorkPoolMenu> = {
 	title: "Components/WorkPools/WorkPoolMenu",
 	component: WorkPoolMenu,
+	decorators: [reactQueryDecorator, routerDecorator],
 	parameters: {
 		layout: "centered",
 		msw: {

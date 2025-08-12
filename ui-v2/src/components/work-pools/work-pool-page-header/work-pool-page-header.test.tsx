@@ -3,7 +3,7 @@ import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import type { WorkPool } from "@/api/work-pools";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { PageHeadingWorkPool } from "./page-heading-work-pool";
+import { WorkPoolPageHeader } from "./work-pool-page-header";
 
 // Mock Tanstack Router
 vi.mock("@tanstack/react-router", async () => {
@@ -71,10 +71,10 @@ const createWrapper = () => {
 	return Wrapper;
 };
 
-describe("PageHeadingWorkPool", () => {
+describe("WorkPoolPageHeader", () => {
 	it("renders breadcrumbs correctly", () => {
 		const Wrapper = createWrapper();
-		render(<PageHeadingWorkPool workPool={mockWorkPool} />, {
+		render(<WorkPoolPageHeader workPool={mockWorkPool} />, {
 			wrapper: Wrapper,
 		});
 		expect(screen.getByText("Work Pools")).toBeInTheDocument();
@@ -85,7 +85,7 @@ describe("PageHeadingWorkPool", () => {
 
 	it("displays work pool title and status", () => {
 		const Wrapper = createWrapper();
-		render(<PageHeadingWorkPool workPool={mockWorkPool} />, {
+		render(<WorkPoolPageHeader workPool={mockWorkPool} />, {
 			wrapper: Wrapper,
 		});
 		// Check the heading contains the work pool name
@@ -96,7 +96,7 @@ describe("PageHeadingWorkPool", () => {
 
 	it("shows actions components", () => {
 		const Wrapper = createWrapper();
-		render(<PageHeadingWorkPool workPool={mockWorkPool} />, {
+		render(<WorkPoolPageHeader workPool={mockWorkPool} />, {
 			wrapper: Wrapper,
 		});
 		expect(screen.getByTestId("work-pool-toggle")).toBeInTheDocument();
@@ -106,12 +106,9 @@ describe("PageHeadingWorkPool", () => {
 	it("passes onUpdate callback to actions", () => {
 		const onUpdate = vi.fn();
 		const Wrapper = createWrapper();
-		render(
-			<PageHeadingWorkPool workPool={mockWorkPool} onUpdate={onUpdate} />,
-			{
-				wrapper: Wrapper,
-			},
-		);
+		render(<WorkPoolPageHeader workPool={mockWorkPool} onUpdate={onUpdate} />, {
+			wrapper: Wrapper,
+		});
 		expect(screen.getByTestId("work-pool-toggle")).toBeInTheDocument();
 		expect(screen.getByTestId("work-pool-menu")).toBeInTheDocument();
 	});
@@ -119,7 +116,7 @@ describe("PageHeadingWorkPool", () => {
 	it("applies custom className", () => {
 		const Wrapper = createWrapper();
 		const { container } = render(
-			<PageHeadingWorkPool workPool={mockWorkPool} className="custom-class" />,
+			<WorkPoolPageHeader workPool={mockWorkPool} className="custom-class" />,
 			{
 				wrapper: Wrapper,
 			},

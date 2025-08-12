@@ -3,7 +3,8 @@ import { buildApiUrl } from "@tests/utils/handlers";
 import { HttpResponse, http } from "msw";
 import { fn } from "storybook/test";
 import type { WorkPool } from "@/api/work-pools";
-import { PageHeadingWorkPool } from "./page-heading-work-pool";
+import { reactQueryDecorator, routerDecorator } from "@/storybook/utils";
+import { WorkPoolPageHeader } from "./work-pool-page-header";
 
 const mockWorkPool: WorkPool = {
 	id: "wp-123",
@@ -29,9 +30,10 @@ const mockWorkPoolNotReady: WorkPool = {
 	status: "NOT_READY",
 };
 
-const meta: Meta<typeof PageHeadingWorkPool> = {
-	title: "Components/WorkPools/PageHeadingWorkPool",
-	component: PageHeadingWorkPool,
+const meta: Meta<typeof WorkPoolPageHeader> = {
+	title: "Components/WorkPools/WorkPoolPageHeader",
+	component: WorkPoolPageHeader,
+	decorators: [reactQueryDecorator, routerDecorator],
 	parameters: {
 		layout: "padded",
 		msw: {
@@ -51,7 +53,7 @@ const meta: Meta<typeof PageHeadingWorkPool> = {
 };
 
 export default meta;
-type Story = StoryObj<typeof PageHeadingWorkPool>;
+type Story = StoryObj<typeof WorkPoolPageHeader>;
 
 export const Default: Story = {
 	args: {

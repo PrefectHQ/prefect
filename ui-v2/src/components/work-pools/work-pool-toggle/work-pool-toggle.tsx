@@ -22,13 +22,9 @@ export const WorkPoolToggle = ({
 	const { handleToggle, isLoading } = useWorkPoolToggle(workPool, onUpdate);
 	const isPaused = workPool.status === "PAUSED";
 
-	// Only show if user has update permissions
-	// For now, we'll show it always since permissions aren't fully implemented
-	// TODO: Check workPool.can?.update when permissions are available
-
 	return (
 		<Tooltip>
-			<TooltipTrigger asChild>
+			<TooltipTrigger>
 				<Switch
 					checked={!isPaused}
 					onCheckedChange={handleToggle}
