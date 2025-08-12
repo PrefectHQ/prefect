@@ -367,6 +367,7 @@ class TestEcsObserver:
         self, observer, mock_sqs_subscriber, mock_tags_reader
     ):
         handler = AsyncMock()
+        handler.__name__ = "test_handler"  # Mock needs __name__ attribute
         observer.on_event("task", tags={"prefect": "test"})(handler)
 
         message = {
@@ -404,6 +405,7 @@ class TestEcsObserver:
         self, observer, mock_sqs_subscriber, mock_tags_reader
     ):
         handler = Mock()
+        handler.__name__ = "test_handler"  # Mock needs __name__ attribute
         observer.on_event("task")(handler)
 
         message = {"MessageId": "123"}
@@ -459,7 +461,11 @@ class TestEcsObserver:
         self, observer, mock_sqs_subscriber, mock_tags_reader
     ):
         matching_handler = AsyncMock()
+        matching_handler.__name__ = "matching_handler"  # Mock needs __name__ attribute
         non_matching_handler = AsyncMock()
+        non_matching_handler.__name__ = (
+            "non_matching_handler"  # Mock needs __name__ attribute
+        )
 
         observer.on_event("task", tags={"env": "prod"})(matching_handler)
         observer.on_event("task", tags={"env": "dev"})(non_matching_handler)
