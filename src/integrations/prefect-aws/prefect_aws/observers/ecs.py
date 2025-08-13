@@ -22,6 +22,7 @@ from typing import (
 
 import aiobotocore.session
 import anyio
+from botocore.exceptions import ClientError
 from cachetools import LRUCache
 from mypy_boto3_sqs.type_defs import MessageTypeDef
 from prefect_aws.settings import EcsObserverSettings
@@ -143,6 +144,130 @@ class EcsTaskTagsReader:
             await self.ecs_client.__aexit__(*args)
 
 
+class AwsInfrastructureManager:
+    """Manages AWS infrastructure setup for ECS observer with shared session."""
+
+    def __init__(self, region: str | None = None):
+        self.region = region
+        self.session = aiobotocore.session.get_session()
+        self.sqs_client = None
+        self.events_client = None
+        self._stack = None
+
+    async def __aenter__(self):
+        """Initialize AWS clients with shared session using AsyncExitStack."""
+        self._stack = AsyncExitStack()
+        await self._stack.__aenter__()
+
+        self.sqs_client = await self._stack.enter_async_context(
+            self.session.create_client("sqs", region_name=self.region)
+        )
+        self.events_client = await self._stack.enter_async_context(
+            self.session.create_client("events", region_name=self.region)
+        )
+        return self
+
+    async def __aexit__(self, *args: Any) -> None:
+        """Clean up AWS clients using AsyncExitStack."""
+        if self._stack:
+            await self._stack.__aexit__(*args)
+            self._stack = None
+
+    async def check_sqs_queue_exists(self, queue_name: str) -> bool:
+        """Check if an SQS queue exists."""
+        if not self.sqs_client:
+            raise RuntimeError("SQS client not initialized")
+
+        try:
+            await self.sqs_client.get_queue_url(QueueName=queue_name)
+            return True
+        except ClientError as e:
+            if e.response["Error"]["Code"] == "AWS.SimpleQueueService.NonExistentQueue":
+                return False
+            raise
+
+    async def setup_sqs_queue(self, queue_name: str) -> str:
+        """Create SQS queue and return its ARN."""
+        if not self.sqs_client:
+            raise RuntimeError("SQS client not initialized")
+
+        response = await self.sqs_client.create_queue(
+            QueueName=queue_name,
+            Attributes={
+                "MessageRetentionPeriod": "1209600",  # 14 days
+                "VisibilityTimeoutSeconds": "60",
+            },
+        )
+        queue_url = response["QueueUrl"]
+
+        # Get queue attributes to retrieve the ARN
+        queue_attrs = await self.sqs_client.get_queue_attributes(
+            QueueUrl=queue_url, AttributeNames=["QueueArn"]
+        )
+        queue_arn = queue_attrs["Attributes"]["QueueArn"]
+
+        # Set policy to allow EventBridge to send messages
+        policy = {
+            "Version": "2012-10-17",
+            "Id": "EventBridgePolicy",
+            "Statement": [
+                {
+                    "Sid": "AllowEventBridgeToSendMessage",
+                    "Effect": "Allow",
+                    "Principal": {"Service": "events.amazonaws.com"},
+                    "Action": "sqs:SendMessage",
+                    "Resource": queue_arn,
+                }
+            ],
+        }
+
+        await self.sqs_client.set_queue_attributes(
+            QueueUrl=queue_url, Attributes={"Policy": json.dumps(policy)}
+        )
+
+        logger.info(f"Created SQS queue: {queue_name} with ARN: {queue_arn}")
+        return queue_arn
+
+    async def setup_eventbridge_rule(self, queue_arn: str):
+        """Set up EventBridge rule for ECS task state changes."""
+        if not self.events_client:
+            raise RuntimeError("Events client not initialized")
+
+        rule_name = "prefect-ecs-task-state-changes"
+
+        # Create or update the rule
+        await self.events_client.put_rule(
+            Name=rule_name,
+            EventPattern=json.dumps(
+                {
+                    "source": ["aws.ecs"],
+                    "detail-type": [
+                        "ECS Task State Change",
+                        "ECS Container Instance State Change",
+                        "ECS Deployment",
+                    ],
+                }
+            ),
+            Description="EventBridge rule for Prefect ECS task state changes",
+            State="ENABLED",
+        )
+
+        # Add the SQS queue as a target
+        await self.events_client.put_targets(
+            Rule=rule_name, Targets=[{"Id": "1", "Arn": queue_arn}]
+        )
+
+        logger.info(
+            f"Created EventBridge rule: {rule_name} targeting queue: {queue_arn}"
+        )
+
+    async def setup_complete_infrastructure(self, queue_name: str) -> str:
+        """Set up both SQS queue and EventBridge rule, returning queue ARN."""
+        queue_arn = await self.setup_sqs_queue(queue_name)
+        await self.setup_eventbridge_rule(queue_arn)
+        return queue_arn
+
+
 class SqsSubscriber:
     def __init__(self, queue_name: str, queue_region: str | None = None):
         self.queue_name = queue_name
@@ -199,10 +324,43 @@ class EcsObserver:
             "deployment": [],
         }
 
+    async def _ensure_queue_setup(self):
+        """Ensure SQS queue and EventBridge rule are set up if needed."""
+        async with AwsInfrastructureManager(
+            region=self.settings.sqs.queue_region
+        ) as infra_manager:
+            queue_exists = await infra_manager.check_sqs_queue_exists(
+                self.settings.sqs.queue_name
+            )
+
+            if not queue_exists:
+                if self.settings.automatic_setup:
+                    logger.info(
+                        f"SQS queue '{self.settings.sqs.queue_name}' does not exist. "
+                        "Setting up queue and EventBridge rule automatically."
+                    )
+                    await infra_manager.setup_complete_infrastructure(
+                        self.settings.sqs.queue_name
+                    )
+                    logger.info("Automatic setup completed successfully.")
+                else:
+                    logger.warning(
+                        f"SQS queue '{self.settings.sqs.queue_name}' does not exist and "
+                        "automatic setup is disabled. The ECS observer will still function, "
+                        "but ECS task state change events will not be replicated to Prefect. "
+                        "To resolve this, either:\n"
+                        "1. Manually set up the SQS queue and EventBridge rule, or\n"
+                        "2. Enable automatic setup by setting "
+                        "PREFECT_INTEGRATIONS_AWS_ECS_OBSERVER_AUTOMATIC_SETUP=true"
+                    )
+
     async def run(self, started_event: asyncio.Event | None = None):
         async with AsyncExitStack() as stack:
             task_group = await stack.enter_async_context(anyio.create_task_group())
             await stack.enter_async_context(self.ecs_tags_reader)
+
+            await self._ensure_queue_setup()
+
             if started_event:
                 started_event.set()
 
