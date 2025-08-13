@@ -4184,29 +4184,9 @@ dependencies = [
     { name = "exceptiongroup" },
     { name = "prefect" },
 ]
-
-[package.metadata]
-requires-dist = [
-    { name = "docker", specifier = ">=6.1.1" },
-    { name = "exceptiongroup" },
-    { name = "prefect", directory = "." },
-]
-
-[package.metadata.requires-dev]
-dev = [
-    { name = "coverage" },
-    { name = "interrogate" },
-    { name = "mkdocs" },
-    { name = "mkdocs-gen-files" },
-    { name = "mkdocs-material" },
-    { name = "mkdocstrings", extras = ["python"] },
-    { name = "mypy" },
-    { name = "pillow" },
-    { name = "pre-commit" },
-    { name = "pytest", specifier = ">=8.3" },
-    { name = "pytest-asyncio" },
-    { name = "pytest-env" },
-    { name = "pytest-xdist" },
+sdist = { url = "https://files.pythonhosted.org/packages/f0/41/f763035762da3dcf641f6d89956e351d48f76bbf72392e4095a9181c1cc9/prefect_docker-0.6.6.tar.gz", hash = "sha256:fd9a927b36d4b86ccbfd810688b186be07a0b2c99afbae5864aaec89963fa078", size = 39079, upload-time = "2025-05-28T18:06:36.136Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/65/3e/d97e83cd1d0b5d9e40a5cc41838e2b79fc210ec7b533486c5461727cf513/prefect_docker-0.6.6-py3-none-any.whl", hash = "sha256:5b9ab447bfa563cf3304e66b32113727d40fd451144ea3a199e5b6406293eb0b", size = 27518, upload-time = "2025-05-28T18:06:34.773Z" },
 ]
 
 [[package]]
@@ -4277,34 +4257,9 @@ dependencies = [
     { name = "pyopenssl" },
     { name = "tenacity" },
 ]
-
-[package.metadata]
-requires-dist = [
-    { name = "exceptiongroup" },
-    { name = "kopf", specifier = ">=1.37.4" },
-    { name = "kubernetes-asyncio", specifier = ">=32.0.0" },
-    { name = "prefect", directory = "." },
-    { name = "pyopenssl", specifier = ">=24.1.0" },
-    { name = "tenacity", specifier = ">=8.2.3" },
-]
-
-[package.metadata.requires-dev]
-dev = [
-    { name = "aiohttp" },
-    { name = "coverage" },
-    { name = "interrogate" },
-    { name = "mkdocs" },
-    { name = "mkdocs-gen-files" },
-    { name = "mkdocs-material" },
-    { name = "mkdocstrings", extras = ["python"] },
-    { name = "mypy" },
-    { name = "pillow" },
-    { name = "pre-commit" },
-    { name = "pytest", specifier = ">=8.3" },
-    { name = "pytest-asyncio" },
-    { name = "pytest-env" },
-    { name = "pytest-timeout" },
-    { name = "pytest-xdist" },
+sdist = { url = "https://files.pythonhosted.org/packages/68/6e/c0ac2119c979055b325dc71a62df71244e0ec01496527b57c08905a407b9/prefect_kubernetes-0.6.4.tar.gz", hash = "sha256:8fab81584e4ffb44cd3d9da69ef3a64170e4ffd2cf418beee83bdb2049844693", size = 66911, upload-time = "2025-07-31T20:37:02.783Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/fc/90/07baf0d506cfd5c9986bdd0dba560fc0e592c273519e29c058c1ae04d3d0/prefect_kubernetes-0.6.4-py3-none-any.whl", hash = "sha256:b8151b20031cad98a44139a31e07023a116690516b0919b5b4f0353b5dcee19d", size = 39109, upload-time = "2025-07-31T20:37:01.695Z" },
 ]
 
 [[package]]
