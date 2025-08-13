@@ -10,8 +10,7 @@ from prefect.cli.root import app
 
 if TYPE_CHECKING:
     from prefect.client.orchestration import PrefectClient
-
-from prefect.client.schemas.objects import Variable
+    from prefect.client.schemas.objects import Variable
 
 
 async def gather_variables(client: "PrefectClient") -> list["Variable"]:
@@ -35,52 +34,9 @@ async def transfer_variables(
 
     Returns a dictionary with succeeded, failed, and skipped variables.
     """
-    results = {
-        "succeeded": [],
-        "failed": [],
-        "skipped": [],
-    }
-
-    for variable in variables:
-        try:
-            # Check if variable already exists
-            existing = None
-            try:
-                existing = await to_client.read_variable_by_name(variable.name)
-            except Exception:
-                # Variable doesn't exist, we can create it
-                pass
-
-            if existing:
-                results["skipped"].append(
-                    {
-                        "name": variable.name,
-                        "reason": "already exists",
-                    }
-                )
-                continue
-
-            # Create the variable in the target
-            await to_client.create_variable(
-                variable=Variable(
-                    name=variable.name,
-                    value=variable.value,
-                    tags=variable.tags if hasattr(variable, "tags") else [],
-                )
-            )
-
-            results["succeeded"].append(
-                {
-                    "name": variable.name,
-                }
-            )
-
-        except Exception as e:
-            results["failed"].append(
-                {
-                    "name": variable.name,
-                    "error": str(e),
-                }
-            )
-
-    return results
+    # TODO: Implement variable transfer
+    # See IMPLEMENTATION_NOTES.md for details
+    raise NotImplementedError(
+        "Variable transfer not yet implemented. "
+        "This should be straightforward as variables have no dependencies."
+    )

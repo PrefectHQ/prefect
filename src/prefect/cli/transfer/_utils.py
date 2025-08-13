@@ -80,6 +80,10 @@ async def preview_transfer(resources: dict, console: Console):
                 name = getattr(item, "name", "unknown")
                 work_pool_type = getattr(item, "type", "unknown")
                 content.append(f"• {name} [dim]({work_pool_type})[/dim]")
+            elif resource_type == ResourceType.WORK_QUEUES:
+                name = getattr(item, "name", "unknown")
+                pool = getattr(item, "work_pool_name", "unknown")
+                content.append(f"• {name} [dim](pool: {pool})[/dim]")
             elif resource_type == ResourceType.CONCURRENCY_LIMITS:
                 name = getattr(item, "name", "unknown")
                 limit = getattr(item, "limit", "unknown")

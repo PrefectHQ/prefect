@@ -38,59 +38,9 @@ async def transfer_concurrency_limits(
 
     Returns a dictionary with succeeded, failed, and skipped limits.
     """
-    results = {
-        "succeeded": [],
-        "failed": [],
-        "skipped": [],
-    }
-
-    for limit in limits:
-        try:
-            # Check if limit already exists
-            existing = None
-            try:
-                existing = await to_client.read_global_concurrency_limit_by_name(
-                    limit.name
-                )
-            except Exception:
-                # Limit doesn't exist, we can create it
-                pass
-
-            if existing:
-                results["skipped"].append(
-                    {
-                        "name": limit.name,
-                        "reason": "already exists",
-                    }
-                )
-                continue
-
-            # Create the limit in the target
-            from prefect.client.schemas.actions import GlobalConcurrencyLimitCreate
-
-            await to_client.create_global_concurrency_limit(
-                concurrency_limit=GlobalConcurrencyLimitCreate(
-                    name=limit.name,
-                    limit=limit.limit,
-                    active=limit.active,
-                    active_slots=0,  # Start with no active slots
-                    slot_decay_per_second=limit.slot_decay_per_second,
-                )
-            )
-
-            results["succeeded"].append(
-                {
-                    "name": limit.name,
-                    "limit": limit.limit,
-                }
-            )
-
-        except Exception as e:
-            results["failed"].append(
-                {
-                    "name": limit.name,
-                    "error": str(e),
-                }
-            )
-
-    return results
+    # TODO: Implement concurrency limit transfer
+    # See IMPLEMENTATION_NOTES.md for details
+    raise NotImplementedError(
+        "Concurrency limit transfer not yet implemented. "
+        "This should be straightforward as concurrency limits have no dependencies."
+    )

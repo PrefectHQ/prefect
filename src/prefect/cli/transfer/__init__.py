@@ -43,6 +43,7 @@ async def transfer(
     from ._utils import display_resource_summary, display_transfer_results
     from ._variables import gather_variables, transfer_variables
     from ._work_pools import gather_work_pools, transfer_work_pools
+    from ._work_queues import gather_work_queues, transfer_work_queues
 
     console = app.console
 
@@ -160,6 +161,7 @@ async def _gather_resources(
     from ._deployments import gather_deployments
     from ._variables import gather_variables
     from ._work_pools import gather_work_pools
+    from ._work_queues import gather_work_queues
 
     resources = {}
 
@@ -174,6 +176,9 @@ async def _gather_resources(
 
     if ResourceType.WORK_POOLS in resource_types:
         resources[ResourceType.WORK_POOLS] = await gather_work_pools(client)
+
+    if ResourceType.WORK_QUEUES in resource_types:
+        resources[ResourceType.WORK_QUEUES] = await gather_work_queues(client)
 
     if ResourceType.CONCURRENCY_LIMITS in resource_types:
         resources[ResourceType.CONCURRENCY_LIMITS] = await gather_concurrency_limits(
@@ -204,6 +209,7 @@ async def _execute_transfer(
     from ._dependencies import resolve_dependencies
     from ._variables import transfer_variables
     from ._work_pools import transfer_work_pools
+    from ._work_queues import transfer_work_queues
 
     results = {
         "succeeded": {},
@@ -219,25 +225,44 @@ async def _execute_transfer(
         if resource_type not in resources or not resources[resource_type]:
             continue
 
-        if resource_type == ResourceType.BLOCKS:
-            type_results = await transfer_blocks(resources[resource_type], to_client)
-        elif resource_type == ResourceType.VARIABLES:
-            type_results = await transfer_variables(resources[resource_type], to_client)
-        elif resource_type == ResourceType.WORK_POOLS:
-            type_results = await transfer_work_pools(
-                resources[resource_type], to_client
-            )
-        elif resource_type == ResourceType.DEPLOYMENTS:
-            type_results = await transfer_deployments(
-                resources[resource_type], to_client
-            )
-        elif resource_type == ResourceType.CONCURRENCY_LIMITS:
-            type_results = await transfer_concurrency_limits(
-                resources[resource_type], to_client
-            )
-        else:
-            # Skip unsupported types
-            continue
+        try:
+            if resource_type == ResourceType.BLOCKS:
+                type_results = await transfer_blocks(
+                    resources[resource_type], to_client
+                )
+            elif resource_type == ResourceType.VARIABLES:
+                type_results = await transfer_variables(
+                    resources[resource_type], to_client
+                )
+            elif resource_type == ResourceType.WORK_POOLS:
+                type_results = await transfer_work_pools(
+                    resources[resource_type], to_client
+                )
+            elif resource_type == ResourceType.WORK_QUEUES:
+                type_results = await transfer_work_queues(
+                    resources[resource_type], to_client
+                )
+            elif resource_type == ResourceType.DEPLOYMENTS:
+                type_results = await transfer_deployments(
+                    resources[resource_type], to_client
+                )
+            elif resource_type == ResourceType.CONCURRENCY_LIMITS:
+                type_results = await transfer_concurrency_limits(
+                    resources[resource_type], to_client
+                )
+            else:
+                # Skip unsupported types
+                continue
+        except NotImplementedError as e:
+            # Mark all resources of this type as failed due to not implemented
+            type_results = {
+                "succeeded": [],
+                "failed": [
+                    {"name": getattr(r, "name", "unknown"), "error": str(e)}
+                    for r in resources[resource_type]
+                ],
+                "skipped": [],
+            }
 
         # Aggregate results
         for status in ["succeeded", "failed", "skipped"]:

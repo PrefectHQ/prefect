@@ -35,7 +35,8 @@ def resolve_dependencies(resources: dict) -> list[ResourceType]:
         ResourceType.CONCURRENCY_LIMITS,  # No dependencies
         ResourceType.BLOCKS,  # May have internal dependencies
         ResourceType.WORK_POOLS,  # Depends on blocks
-        ResourceType.DEPLOYMENTS,  # Depends on flows, work pools, blocks
+        ResourceType.WORK_QUEUES,  # Depends on work pools
+        ResourceType.DEPLOYMENTS,  # Depends on flows, work queues, blocks
         ResourceType.AUTOMATIONS,  # Depends on deployments
     ]
 
