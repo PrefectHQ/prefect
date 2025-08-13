@@ -10,7 +10,6 @@ import typer
 from rich.console import Console
 from rich.panel import Panel
 from rich.progress import Progress, SpinnerColumn, TextColumn
-from rich.table import Table
 
 from prefect.cli._utilities import exit_with_error, exit_with_success
 from prefect.cli.root import app
@@ -92,33 +91,33 @@ async def transfer(
     if not resources_to_transfer:
         exit_with_error("All resource types have been excluded. Nothing to transfer.")
 
-    # Create a nice summary table
-    summary_table = Table(title="Transfer Configuration", show_header=False)
-    summary_table.add_column(style="bold cyan")
-    summary_table.add_column()
-
-    summary_table.add_row("Source Profile", from_profile)
-    summary_table.add_row("Target Profile", to_profile)
-
-    # Format resource types
-    transfer_list = ", ".join(sorted(r.value for r in resources_to_transfer))
-    summary_table.add_row("Resources to Transfer", transfer_list)
+    # Create configuration panel
+    config_content = f"""[bold cyan]Source:[/bold cyan] {from_profile}
+[bold cyan]Target:[/bold cyan] {to_profile}"""
 
     if exclude:
-        exclude_list = ", ".join(sorted(r.value for r in exclude))
-        summary_table.add_row("Excluded Resources", exclude_list)
+        included = sorted(r.value for r in resources_to_transfer)
+        excluded = sorted(r.value for r in exclude)
+        config_content += f"\n[bold cyan]Including:[/bold cyan] {', '.join(included)}"
+        config_content += f"\n[bold cyan]Excluding:[/bold cyan] {', '.join(excluded)}"
 
     if dry_run:
-        summary_table.add_row(
-            "Mode", "[yellow]DRY RUN - No changes will be made[/yellow]"
-        )
+        title = "[yellow]Transfer Configuration (Dry Run)[/yellow]"
+    else:
+        title = "Transfer Configuration"
+
+    config_panel = Panel(
+        config_content,
+        title=title,
+        expand=False,
+        padding=(1, 2),
+    )
 
     console.print()
-    console.print(summary_table)
-    console.print()
+    console.print(config_panel)
 
     # First gather resources to show what will be transferred
-    console.print("Analyzing source profile...")
+    console.print("\n[dim]Analyzing source profile...[/dim]\n")
 
     with use_profile(from_profile):
         async with get_client() as from_client:
@@ -132,10 +131,9 @@ async def transfer(
     _display_resource_summary(resources, console)
 
     if dry_run:
-        console.print("\n[yellow]DRY RUN MODE - No changes will be made[/yellow]")
-        console.print("\nResources that would be transferred:")
+        console.print()
         await _preview_transfer(resources, console)
-        console.print("\n[green]Dry run completed successfully.[/green]")
+        console.print("\n[green]Dry run completed successfully[/green]")
         return
 
     # Confirmation prompt with resource counts visible
@@ -145,7 +143,9 @@ async def transfer(
             console.print("\n[yellow]No resources found to transfer.[/yellow]")
             return
 
-        if not typer.confirm(f"\nDo you want to transfer {total_count} resource(s)?"):
+        if not typer.confirm(
+            f"\nDo you want to transfer {total_count} resource(s) to {to_profile!r}?"
+        ):
             exit_with_error("Transfer cancelled.")
 
     # Execute actual transfer
@@ -178,26 +178,35 @@ async def transfer(
 
 
 def _display_resource_summary(resources: dict, console: Console):
-    """Display a summary table of resources found."""
-    if not any(resources.values()):
+    """Display a summary of resources found."""
+    total = sum(len(items) for items in resources.values() if items)
+
+    if total == 0:
+        console.print("[yellow]No resources found in source profile[/yellow]")
         return
 
-    summary = Table(title="Resources Found", show_header=True)
-    summary.add_column("Resource Type", style="cyan")
-    summary.add_column("Count", justify="right", style="green")
-
-    total = 0
+    # Build summary text
+    summary_lines = []
     for resource_type, items in sorted(resources.items()):
         if items:
             count = len(items)
-            total += count
-            summary.add_row(resource_type.value.title(), str(count))
+            summary_lines.append(
+                f"[cyan]{resource_type.value.title()}:[/cyan] [bold green]{count}[/bold green]"
+            )
 
-    if total > 0:
-        summary.add_section()
-        summary.add_row("[bold]Total[/bold]", f"[bold]{total}[/bold]")
+    summary_content = "\n".join(summary_lines)
+    summary_content += (
+        f"\n\n[bold]Total: {total} resource{'s' if total != 1 else ''}[/bold]"
+    )
 
-    console.print(summary)
+    summary_panel = Panel(
+        summary_content,
+        title="Resources Found",
+        expand=False,
+        padding=(1, 2),
+    )
+
+    console.print(summary_panel)
 
 
 async def _gather_resources(
@@ -312,12 +321,12 @@ async def _preview_transfer(resources: dict, console: Console):
             content.append(f"[dim]... and {len(items) - 5} more[/dim]")
 
         panel_content = "\n".join(content) if content else "[dim]None[/dim]"
-        panel = Panel(
-            panel_content,
-            title=f"[bold cyan]{resource_type.value.title()}[/bold cyan] ({len(items)} items)",
-            expand=False,
+
+        # Use simpler display without panels for cleaner look
+        console.print(
+            f"\n[bold cyan]{resource_type.value.title()}[/bold cyan] [dim]({len(items)} items)[/dim]"
         )
-        console.print(panel)
+        console.print(panel_content)
 
 
 async def _execute_transfer(
