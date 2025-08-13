@@ -622,7 +622,7 @@ async def _cleanup_empty_consumer_groups(stream_name: str) -> None:
     for group in groups:
         try:
             consumers = await redis_client.xinfo_consumers(stream_name, group["name"])
-            if not consumers and group["name"].startswith("ephemeral"):
+            if not consumers:
                 # No consumers in this group - it's abandoned
                 logger.debug(f"Deleting empty consumer group '{group['name']}'")
                 await redis_client.xgroup_destroy(stream_name, group["name"])
