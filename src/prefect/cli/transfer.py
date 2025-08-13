@@ -8,7 +8,9 @@ from enum import Enum
 
 import typer
 from rich.console import Console
+from rich.panel import Panel
 from rich.progress import Progress, SpinnerColumn, TextColumn
+from rich.table import Table
 
 from prefect.cli._utilities import exit_with_error, exit_with_success
 from prefect.cli.root import app
@@ -90,71 +92,81 @@ async def transfer(
     if not resources_to_transfer:
         exit_with_error("All resource types have been excluded. Nothing to transfer.")
 
-    # Display transfer summary
-    console.print("\n[bold]Transfer Summary[/bold]")
-    console.print(f"  Source profile: [cyan]{from_profile}[/cyan]")
-    console.print(f"  Target profile: [cyan]{to_profile}[/cyan]")
-    console.print("  Resource types to transfer:")
-    for resource in sorted(resources_to_transfer):
-        console.print(f"    • {resource.value}")
+    # Create a nice summary table
+    summary_table = Table(title="Transfer Configuration", show_header=False)
+    summary_table.add_column(style="bold cyan")
+    summary_table.add_column()
+
+    summary_table.add_row("Source Profile", from_profile)
+    summary_table.add_row("Target Profile", to_profile)
+
+    # Format resource types
+    transfer_list = ", ".join(sorted(r.value for r in resources_to_transfer))
+    summary_table.add_row("Resources to Transfer", transfer_list)
 
     if exclude:
-        console.print("  Excluded resource types:")
-        for resource in sorted(exclude):
-            console.print(f"    • {resource.value}")
+        exclude_list = ", ".join(sorted(r.value for r in exclude))
+        summary_table.add_row("Excluded Resources", exclude_list)
+
+    if dry_run:
+        summary_table.add_row(
+            "Mode", "[yellow]DRY RUN - No changes will be made[/yellow]"
+        )
+
+    console.print()
+    console.print(summary_table)
+    console.print()
+
+    # First gather resources to show what will be transferred
+    console.print("Analyzing source profile...")
+
+    with use_profile(from_profile):
+        async with get_client() as from_client:
+            resources = await _gather_resources(
+                from_client,
+                resources_to_transfer,
+                Progress(),  # Silent progress for gathering
+            )
+
+    # Show resource counts
+    _display_resource_summary(resources, console)
 
     if dry_run:
         console.print("\n[yellow]DRY RUN MODE - No changes will be made[/yellow]")
+        console.print("\nResources that would be transferred:")
+        await _preview_transfer(resources, console)
+        console.print("\n[green]Dry run completed successfully.[/green]")
+        return
 
-    # Confirmation prompt
-    if not force and not dry_run:
-        if not typer.confirm("\nDo you want to proceed with the transfer?"):
+    # Confirmation prompt with resource counts visible
+    if not force:
+        total_count = sum(len(items) for items in resources.values())
+        if total_count == 0:
+            console.print("\n[yellow]No resources found to transfer.[/yellow]")
+            return
+
+        if not typer.confirm(f"\nDo you want to transfer {total_count} resource(s)?"):
             exit_with_error("Transfer cancelled.")
 
-    # Execute transfer
+    # Execute actual transfer
     with Progress(
         SpinnerColumn(),
         TextColumn("[progress.description]{task.description}"),
         console=console,
     ) as progress:
-        # Initialize transfer orchestrator
-        task = progress.add_task("Initializing transfer...", total=None)
+        progress.add_task("Transferring resources...", total=None)
 
         try:
-            # Create transfer context with both profiles
-            with use_profile(from_profile):
-                async with get_client() as from_client:
-                    # Gather resources from source
-                    progress.update(
-                        task, description="Gathering resources from source profile..."
-                    )
-                    resources = await _gather_resources(
-                        from_client,
-                        resources_to_transfer,
+            with use_profile(to_profile):
+                async with get_client() as to_client:
+                    results = await _execute_transfer(
+                        resources,
+                        to_client,
                         progress,
                     )
 
-                    # Switch to target profile
-                    with use_profile(to_profile):
-                        async with get_client() as to_client:
-                            # Transfer resources to target
-                            progress.update(
-                                task,
-                                description="Transferring resources to target profile...",
-                            )
-
-                            if dry_run:
-                                # In dry run mode, just display what would be transferred
-                                await _preview_transfer(resources, console)
-                            else:
-                                results = await _execute_transfer(
-                                    resources,
-                                    to_client,
-                                    progress,
-                                )
-
-                                # Display results
-                                _display_transfer_results(results, console)
+                    # Display results
+                    _display_transfer_results(results, console)
 
         except Exception as e:
             exit_with_error(f"Transfer failed: {e}")
@@ -162,10 +174,30 @@ async def transfer(
         finally:
             progress.stop()
 
-    if dry_run:
-        console.print("\n[green]Dry run completed successfully.[/green]")
-    else:
-        exit_with_success("Transfer completed successfully.")
+    exit_with_success("Transfer completed successfully.")
+
+
+def _display_resource_summary(resources: dict, console: Console):
+    """Display a summary table of resources found."""
+    if not any(resources.values()):
+        return
+
+    summary = Table(title="Resources Found", show_header=True)
+    summary.add_column("Resource Type", style="cyan")
+    summary.add_column("Count", justify="right", style="green")
+
+    total = 0
+    for resource_type, items in sorted(resources.items()):
+        if items:
+            count = len(items)
+            total += count
+            summary.add_row(resource_type.value.title(), str(count))
+
+    if total > 0:
+        summary.add_section()
+        summary.add_row("[bold]Total[/bold]", f"[bold]{total}[/bold]")
+
+    console.print(summary)
 
 
 async def _gather_resources(
@@ -240,51 +272,52 @@ async def _gather_resources(
 
 async def _preview_transfer(resources: dict, console: Console):
     """
-    Display a preview of what would be transferred in dry run mode.
+    Display a detailed preview of what would be transferred.
     """
-    console.print("\n[bold]Resources to be transferred:[/bold]\n")
+    for resource_type, items in sorted(resources.items()):
+        if not items:
+            continue
 
-    total_resources = 0
-    for resource_type, items in resources.items():
-        if items:
-            total_resources += len(items)
-            console.print(f"[cyan]{resource_type.value}[/cyan]: {len(items)} item(s)")
+        # Create a panel for each resource type
+        content = []
+        for i, item in enumerate(items[:5]):  # Show up to 5 examples
+            if resource_type == ResourceType.BLOCKS:
+                name = getattr(item, "name", "unknown")
+                block_type = (
+                    getattr(item.block_type, "slug", "unknown")
+                    if hasattr(item, "block_type")
+                    else "unknown"
+                )
+                content.append(f"• {name} [dim]({block_type})[/dim]")
+            elif resource_type == ResourceType.VARIABLES:
+                name = getattr(item, "name", "unknown")
+                value = getattr(item, "value", "unknown")
+                # Truncate long values
+                if isinstance(value, str) and len(value) > 50:
+                    value = value[:47] + "..."
+                content.append(f"• {name} = [dim]{value}[/dim]")
+            elif resource_type == ResourceType.DEPLOYMENTS:
+                name = getattr(item, "name", "unknown")
+                content.append(f"• {name}")
+            elif resource_type == ResourceType.WORK_POOLS:
+                name = getattr(item, "name", "unknown")
+                work_pool_type = getattr(item, "type", "unknown")
+                content.append(f"• {name} [dim]({work_pool_type})[/dim]")
+            elif resource_type == ResourceType.CONCURRENCY_LIMITS:
+                name = getattr(item, "name", "unknown")
+                limit = getattr(item, "limit", "unknown")
+                content.append(f"• {name} [dim](limit: {limit})[/dim]")
 
-            # Show first few items as examples
-            for i, item in enumerate(items[:3]):
-                if resource_type == ResourceType.BLOCKS:
-                    name = getattr(item, "name", "unknown")
-                    block_type = (
-                        getattr(item.block_type, "slug", "unknown")
-                        if hasattr(item, "block_type")
-                        else "unknown"
-                    )
-                    console.print(f"  • {name} ({block_type})")
-                elif resource_type == ResourceType.VARIABLES:
-                    name = getattr(item, "name", "unknown")
-                    value = getattr(item, "value", "unknown")
-                    # Truncate long values
-                    if isinstance(value, str) and len(value) > 50:
-                        value = value[:47] + "..."
-                    console.print(f"  • {name} = {value}")
-                elif resource_type == ResourceType.DEPLOYMENTS:
-                    name = getattr(item, "name", "unknown")
-                    console.print(f"  • {name}")
-                elif resource_type == ResourceType.WORK_POOLS:
-                    name = getattr(item, "name", "unknown")
-                    console.print(f"  • {name}")
-                elif resource_type == ResourceType.CONCURRENCY_LIMITS:
-                    name = getattr(item, "name", "unknown")
-                    limit = getattr(item, "limit", "unknown")
-                    console.print(f"  • {name} (limit: {limit})")
+        if len(items) > 5:
+            content.append(f"[dim]... and {len(items) - 5} more[/dim]")
 
-            if len(items) > 3:
-                console.print(f"  ... and {len(items) - 3} more")
-
-    if total_resources == 0:
-        console.print("[yellow]No resources found to transfer.[/yellow]")
-    else:
-        console.print(f"\n[bold]Total: {total_resources} resource(s)[/bold]")
+        panel_content = "\n".join(content) if content else "[dim]None[/dim]"
+        panel = Panel(
+            panel_content,
+            title=f"[bold cyan]{resource_type.value.title()}[/bold cyan] ({len(items)} items)",
+            expand=False,
+        )
+        console.print(panel)
 
 
 async def _execute_transfer(
