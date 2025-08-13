@@ -26,47 +26,21 @@ async def transfer(
     to_profile: str = typer.Option(
         ..., "--to", help="Target profile to transfer resources to"
     ),
-    exclude: list[ResourceType] = typer.Option(
-        [],
-        "--exclude",
-        help="Resource types to exclude from transfer",
-    ),
-    dry_run: bool = typer.Option(
-        False,
-        "--dry-run",
-        help="Preview what would be transferred without making changes",
-    ),
-    force: bool = typer.Option(
-        False,
-        "--force",
-        "-f",
-        help="Skip confirmation prompts",
-    ),
 ):
     """
     Transfer resources from one Prefect profile to another.
 
-    By default, all supported resource types are transferred. Use --exclude
-    to omit specific resource types.
+    Transfers all supported resource types including blocks, variables,
+    work pools, deployments, and concurrency limits.
 
     Examples:
         Transfer all resources from staging to production:
             $ prefect transfer --from staging --to prod
-
-        Transfer everything except blocks and deployments:
-            $ prefect transfer --from staging --to prod --exclude blocks --exclude deployments
-
-        Preview transfer without making changes:
-            $ prefect transfer --from staging --to prod --dry-run
     """
     from ._blocks import gather_blocks, transfer_blocks
     from ._concurrency import gather_concurrency_limits, transfer_concurrency_limits
     from ._deployments import gather_deployments, transfer_deployments
-    from ._utils import (
-        display_resource_summary,
-        display_transfer_results,
-        preview_transfer,
-    )
+    from ._utils import display_resource_summary, display_transfer_results
     from ._variables import gather_variables, transfer_variables
     from ._work_pools import gather_work_pools, transfer_work_pools
 
@@ -84,27 +58,14 @@ async def transfer(
     if from_profile == to_profile:
         exit_with_error("Source and target profiles must be different.")
 
-    # Determine which resource types to transfer
-    all_resources = set(ResourceType)
-    resources_to_transfer = all_resources - set(exclude)
-
-    if not resources_to_transfer:
-        exit_with_error("All resource types have been excluded. Nothing to transfer.")
+    # Transfer all resource types
+    resources_to_transfer = set(ResourceType)
 
     # Create configuration panel
     config_content = f"""[bold cyan]Source:[/bold cyan] {from_profile}
 [bold cyan]Target:[/bold cyan] {to_profile}"""
 
-    if exclude:
-        included = sorted(r.value for r in resources_to_transfer)
-        excluded = sorted(r.value for r in exclude)
-        config_content += f"\n[bold cyan]Including:[/bold cyan] {', '.join(included)}"
-        config_content += f"\n[bold cyan]Excluding:[/bold cyan] {', '.join(excluded)}"
-
-    if dry_run:
-        title = "[yellow]Transfer Configuration (Dry Run)[/yellow]"
-    else:
-        title = "Transfer Configuration"
+    title = "Transfer Configuration"
 
     config_panel = Panel(
         config_content,
@@ -129,23 +90,16 @@ async def transfer(
     # Show resource counts
     display_resource_summary(resources, console)
 
-    if dry_run:
-        console.print()
-        await preview_transfer(resources, console)
-        console.print("\n[green]Dry run completed successfully[/green]")
+    # Confirmation prompt with resource counts visible
+    total_count = sum(len(items) for items in resources.values())
+    if total_count == 0:
+        console.print("\n[yellow]No resources found to transfer.[/yellow]")
         return
 
-    # Confirmation prompt with resource counts visible
-    if not force:
-        total_count = sum(len(items) for items in resources.values())
-        if total_count == 0:
-            console.print("\n[yellow]No resources found to transfer.[/yellow]")
-            return
-
-        if not typer.confirm(
-            f"\nDo you want to transfer {total_count} resource(s) to {to_profile!r}?"
-        ):
-            exit_with_error("Transfer cancelled.")
+    if not typer.confirm(
+        f"\nDo you want to transfer {total_count} resource(s) to {to_profile!r}?"
+    ):
+        exit_with_error("Transfer cancelled.")
 
     # Execute actual transfer
     with Progress(
