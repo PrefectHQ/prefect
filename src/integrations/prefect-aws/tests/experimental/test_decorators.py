@@ -12,6 +12,12 @@ from prefect.client.schemas.objects import WorkPool, WorkPoolStorageConfiguratio
 from prefect.futures import PrefectFuture
 
 
+@pytest.fixture(autouse=True)
+def mock_start_observer(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setattr("prefect_aws.workers.ecs_worker.start_observer", AsyncMock())
+    monkeypatch.setattr("prefect_aws.workers.ecs_worker.stop_observer", AsyncMock())
+
+
 @pytest.fixture
 def mock_submit(monkeypatch: pytest.MonkeyPatch) -> Generator[AsyncMock, None, None]:
     """Create a mock for the ECSWorker.submit method"""

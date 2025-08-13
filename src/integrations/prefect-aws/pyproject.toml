@@ -24,6 +24,7 @@ classifiers = [
   "Topic :: Software Development :: Libraries",
 ]
 dependencies = [
+  "aiobotocore>=2.23.2",
   "boto3>=1.24.53",
   "botocore>=1.27.53",
   "mypy_boto3_s3>=1.24.94",
@@ -36,10 +37,9 @@ dynamic = ["version"]
 
 [dependency-groups]
 dev = [
-  "black",
-  "boto3-stubs >= 1.24.39",
+  "boto3-stubs[essential] >= 1.24.39",
+  "types-aiobotocore[essential,ecs] >= 1.24.39",
   "coverage",
-  "flake8",
   "interrogate",
   "isort",
   "mkdocs",
@@ -50,13 +50,13 @@ dev = [
   "moto >= 3.1.16, < 4.2.5",
   "mypy",
   "pillow",
-  "pre-commit",
   "pytest >= 8.3",
-  "pytest-asyncio >= 0.18.2, != 0.22.0, < 0.23.0", # Cannot override event loop in 0.23.0. See https://github.com/pytest-dev/pytest-asyncio/issues/706 for more details.
+  "pytest-asyncio",
   "pytest-cov",
   "pytest-env",
   "pytest-xdist",
   "types-boto3 >= 1.0.2",
+  "ruff>=0.12.8",
 ]
 
 [project.urls]

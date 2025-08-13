@@ -65,6 +65,7 @@ jobs:
       - name: Set up uv and Python ${{ matrix.python-version }}
         uses: astral-sh/setup-uv@v6
         with:
+          version: latest
           enable-cache: true
           python-version: ${{ matrix.python-version }}
           cache-dependency-glob: " src/integrations/${{ matrix.package }}/pyproject.toml"
