@@ -2388,6 +2388,49 @@
             "title": "TasksSettings",
             "type": "object"
         },
+        "TelemetrySettings": {
+            "description": "Settings for anonymous SDK usage telemetry.\n\nSDK telemetry helps us understand how Prefect is used and improve the product.\nNo personal or sensitive data is collected. This is separate from server\ntelemetry and OpenTelemetry tracing.",
+            "properties": {
+                "enabled": {
+                    "default": false,
+                    "description": "Enable anonymous SDK usage telemetry. No personal or sensitive data is collected.",
+                    "supported_environment_variables": [
+                        "PREFECT_TELEMETRY_ENABLED"
+                    ],
+                    "title": "Enabled",
+                    "type": "boolean"
+                },
+                "endpoint": {
+                    "default": "https://sens-o-matic.prefect.io/sdk",
+                    "description": "Telemetry collection endpoint",
+                    "supported_environment_variables": [
+                        "PREFECT_TELEMETRY_ENDPOINT"
+                    ],
+                    "title": "Endpoint",
+                    "type": "string"
+                },
+                "batch_size": {
+                    "default": 100,
+                    "description": "Number of events to batch before sending",
+                    "supported_environment_variables": [
+                        "PREFECT_TELEMETRY_BATCH_SIZE"
+                    ],
+                    "title": "Batch Size",
+                    "type": "integer"
+                },
+                "batch_interval_seconds": {
+                    "default": 300.0,
+                    "description": "Maximum time between telemetry sends",
+                    "supported_environment_variables": [
+                        "PREFECT_TELEMETRY_BATCH_INTERVAL_SECONDS"
+                    ],
+                    "title": "Batch Interval Seconds",
+                    "type": "number"
+                }
+            },
+            "title": "TelemetrySettings",
+            "type": "object"
+        },
         "TestingSettings": {
             "properties": {
                 "test_mode": {
@@ -2585,6 +2628,11 @@
         "tasks": {
             "$ref": "#/$defs/TasksSettings",
             "description": "Settings for controlling task behavior",
+            "supported_environment_variables": []
+        },
+        "telemetry": {
+            "$ref": "#/$defs/TelemetrySettings",
+            "description": "Settings for anonymous SDK usage telemetry",
             "supported_environment_variables": []
         },
         "testing": {

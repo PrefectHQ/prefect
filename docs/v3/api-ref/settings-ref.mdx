@@ -120,6 +120,13 @@ Settings for controlling task behavior
 
 **TOML dotted key path**: `tasks`
 
+### `telemetry`
+Settings for anonymous SDK usage telemetry
+
+**Type**: [TelemetrySettings](#telemetrysettings)
+
+**TOML dotted key path**: `telemetry`
+
 ### `testing`
 Settings used during testing
 
@@ -2658,6 +2665,61 @@ Settings for controlling client-side task scheduling behavior
 **Type**: [TasksSchedulingSettings](#tasksschedulingsettings)
 
 **TOML dotted key path**: `tasks.scheduling`
+
+---
+## TelemetrySettings
+Settings for anonymous SDK usage telemetry.
+
+SDK telemetry helps us understand how Prefect is used and improve the product.
+No personal or sensitive data is collected. This is separate from server
+telemetry and OpenTelemetry tracing.
+### `enabled`
+Enable anonymous SDK usage telemetry. No personal or sensitive data is collected.
+
+**Type**: `boolean`
+
+**Default**: `False`
+
+**TOML dotted key path**: `telemetry.enabled`
+
+**Supported environment variables**:
+`PREFECT_TELEMETRY_ENABLED`
+
+### `endpoint`
+Telemetry collection endpoint
+
+**Type**: `string`
+
+**Default**: `https://sens-o-matic.prefect.io/sdk`
+
+**TOML dotted key path**: `telemetry.endpoint`
+
+**Supported environment variables**:
+`PREFECT_TELEMETRY_ENDPOINT`
+
+### `batch_size`
+Number of events to batch before sending
+
+**Type**: `integer`
+
+**Default**: `100`
+
+**TOML dotted key path**: `telemetry.batch_size`
+
+**Supported environment variables**:
+`PREFECT_TELEMETRY_BATCH_SIZE`
+
+### `batch_interval_seconds`
+Maximum time between telemetry sends
+
+**Type**: `number`
+
+**Default**: `300.0`
+
+**TOML dotted key path**: `telemetry.batch_interval_seconds`
+
+**Supported environment variables**:
+`PREFECT_TELEMETRY_BATCH_INTERVAL_SECONDS`
 
 ---
 ## TestingSettings
