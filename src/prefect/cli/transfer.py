@@ -180,39 +180,60 @@ async def _gather_resources(
     """
     resources = {}
 
-    # TODO: Implement resource gathering for each type
-    # This will involve calling the appropriate client methods to list resources
-
     if ResourceType.BLOCKS in resource_types:
-        # blocks = await client.read_block_documents()
-        # resources[ResourceType.BLOCKS] = blocks
-        pass
-
-    if ResourceType.DEPLOYMENTS in resource_types:
-        # deployments = await client.read_deployments()
-        # resources[ResourceType.DEPLOYMENTS] = deployments
-        pass
-
-    if ResourceType.WORK_POOLS in resource_types:
-        # work_pools = await client.read_work_pools()
-        # resources[ResourceType.WORK_POOLS] = work_pools
-        pass
+        try:
+            blocks = await client.read_block_documents()
+            resources[ResourceType.BLOCKS] = blocks
+        except Exception as e:
+            # Log but don't fail - some resources might not be available
+            app.console.print(f"[yellow]Warning: Could not read blocks: {e}[/yellow]")
+            resources[ResourceType.BLOCKS] = []
 
     if ResourceType.VARIABLES in resource_types:
-        # variables = await client.read_variables()
-        # resources[ResourceType.VARIABLES] = variables
-        pass
+        try:
+            variables = await client.read_variables()
+            resources[ResourceType.VARIABLES] = variables
+        except Exception as e:
+            app.console.print(
+                f"[yellow]Warning: Could not read variables: {e}[/yellow]"
+            )
+            resources[ResourceType.VARIABLES] = []
+
+    if ResourceType.DEPLOYMENTS in resource_types:
+        try:
+            deployments = await client.read_deployments()
+            resources[ResourceType.DEPLOYMENTS] = deployments
+        except Exception as e:
+            app.console.print(
+                f"[yellow]Warning: Could not read deployments: {e}[/yellow]"
+            )
+            resources[ResourceType.DEPLOYMENTS] = []
+
+    if ResourceType.WORK_POOLS in resource_types:
+        try:
+            work_pools = await client.read_work_pools()
+            resources[ResourceType.WORK_POOLS] = work_pools
+        except Exception as e:
+            app.console.print(
+                f"[yellow]Warning: Could not read work pools: {e}[/yellow]"
+            )
+            resources[ResourceType.WORK_POOLS] = []
 
     if ResourceType.CONCURRENCY_LIMITS in resource_types:
-        # limits = await client.read_concurrency_limits()
-        # resources[ResourceType.CONCURRENCY_LIMITS] = limits
-        pass
+        try:
+            # Try global concurrency limits
+            limits = await client.read_global_concurrency_limits()
+            resources[ResourceType.CONCURRENCY_LIMITS] = limits
+        except Exception as e:
+            app.console.print(
+                f"[yellow]Warning: Could not read concurrency limits: {e}[/yellow]"
+            )
+            resources[ResourceType.CONCURRENCY_LIMITS] = []
 
     if ResourceType.AUTOMATIONS in resource_types:
-        # Check if automations are available (Cloud only)
-        # automations = await client.read_automations()
-        # resources[ResourceType.AUTOMATIONS] = automations
-        pass
+        # Automations are Cloud-only - we'll skip for now
+        # TODO: Implement when Cloud API is available
+        resources[ResourceType.AUTOMATIONS] = []
 
     return resources
 
@@ -223,13 +244,47 @@ async def _preview_transfer(resources: dict, console: Console):
     """
     console.print("\n[bold]Resources to be transferred:[/bold]\n")
 
+    total_resources = 0
     for resource_type, items in resources.items():
         if items:
+            total_resources += len(items)
             console.print(f"[cyan]{resource_type.value}[/cyan]: {len(items)} item(s)")
-            # TODO: Display more details about each resource
 
-    if not resources:
+            # Show first few items as examples
+            for i, item in enumerate(items[:3]):
+                if resource_type == ResourceType.BLOCKS:
+                    name = getattr(item, "name", "unknown")
+                    block_type = (
+                        getattr(item.block_type, "slug", "unknown")
+                        if hasattr(item, "block_type")
+                        else "unknown"
+                    )
+                    console.print(f"  • {name} ({block_type})")
+                elif resource_type == ResourceType.VARIABLES:
+                    name = getattr(item, "name", "unknown")
+                    value = getattr(item, "value", "unknown")
+                    # Truncate long values
+                    if isinstance(value, str) and len(value) > 50:
+                        value = value[:47] + "..."
+                    console.print(f"  • {name} = {value}")
+                elif resource_type == ResourceType.DEPLOYMENTS:
+                    name = getattr(item, "name", "unknown")
+                    console.print(f"  • {name}")
+                elif resource_type == ResourceType.WORK_POOLS:
+                    name = getattr(item, "name", "unknown")
+                    console.print(f"  • {name}")
+                elif resource_type == ResourceType.CONCURRENCY_LIMITS:
+                    name = getattr(item, "name", "unknown")
+                    limit = getattr(item, "limit", "unknown")
+                    console.print(f"  • {name} (limit: {limit})")
+
+            if len(items) > 3:
+                console.print(f"  ... and {len(items) - 3} more")
+
+    if total_resources == 0:
         console.print("[yellow]No resources found to transfer.[/yellow]")
+    else:
+        console.print(f"\n[bold]Total: {total_resources} resource(s)[/bold]")
 
 
 async def _execute_transfer(
