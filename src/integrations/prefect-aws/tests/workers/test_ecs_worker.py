@@ -3,7 +3,7 @@ import logging
 from functools import partial
 from itertools import product
 from typing import Any, Awaitable, Callable, Dict, List, Optional
-from unittest.mock import ANY, MagicMock
+from unittest.mock import ANY, AsyncMock, MagicMock
 from unittest.mock import patch as mock_patch
 from uuid import uuid4
 
@@ -94,6 +94,12 @@ def inject_moto_patches(moto_mock, patches: Dict[str, List[Callable]]):
 def prefect_api_key_setting():
     with temporary_settings({PREFECT_API_KEY: "test-api-key"}):
         yield
+
+
+@pytest.fixture(autouse=True)
+def mock_start_observer(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setattr("prefect_aws.workers.ecs_worker.start_observer", AsyncMock())
+    monkeypatch.setattr("prefect_aws.workers.ecs_worker.stop_observer", AsyncMock())
 
 
 def patch_run_task(mock, run_task, *args, **kwargs):
