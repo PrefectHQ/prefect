@@ -10,7 +10,6 @@ import typer
 from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
-from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import exit_with_error, exit_with_success
 from prefect.cli.root import app
 from prefect.client.orchestration import get_client
@@ -29,13 +28,7 @@ class ResourceType(str, Enum):
     AUTOMATIONS = "automations"
 
 
-transfer_app: PrefectTyper = PrefectTyper(
-    name="transfer", help="Transfer resources between Prefect profiles."
-)
-app.add_typer(transfer_app)
-
-
-@transfer_app.callback(invoke_without_command=True)
+@app.command()
 async def transfer(
     from_profile: str = typer.Option(
         ..., "--from", help="Source profile to transfer resources from"
@@ -129,7 +122,7 @@ async def transfer(
 
         try:
             # Create transfer context with both profiles
-            async with use_profile(from_profile):
+            with use_profile(from_profile):
                 async with get_client() as from_client:
                     # Gather resources from source
                     progress.update(
@@ -142,7 +135,7 @@ async def transfer(
                     )
 
                     # Switch to target profile
-                    async with use_profile(to_profile):
+                    with use_profile(to_profile):
                         async with get_client() as to_client:
                             # Transfer resources to target
                             progress.update(
