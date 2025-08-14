@@ -76,7 +76,7 @@ class AsyncEcsEventHandler(Protocol):
     ) -> None: ...
 
 
-H = TypeVar("H", bound=EcsEventHandler | AsyncEcsEventHandler)
+H = TypeVar("H", bound=Union[EcsEventHandler, AsyncEcsEventHandler])
 
 
 class EventHandlerFilters(TypedDict):
