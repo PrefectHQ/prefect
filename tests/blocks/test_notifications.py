@@ -316,7 +316,7 @@ class TestOpsgenieWebhook:
 
             AppriseMock.assert_called_once()
             apprise_instance_mock.add.assert_called_once_with(
-                f"opsgenie://{self.API_KEY}//?action=new&region=us&priority=normal&"
+                servers=f"opsgenie://{self.API_KEY}/?action=new&region=us&priority=normal&"
                 "batch=no&%3Ainfo=note&%3Asuccess=close&%3Awarning=new&%3Afailure="
                 "new&format=text&overflow=upstream"
             )
@@ -343,7 +343,7 @@ class TestOpsgenieWebhook:
 
             AppriseMock.assert_called_once()
             apprise_instance_mock.add.assert_called_once_with(
-                f"opsgenie://{self.API_KEY}/{targets}/?{params}"
+                servers=f"opsgenie://{self.API_KEY}/{targets}?{params}"
                 "&%3Ainfo=note&%3Asuccess=close&%3Awarning=new&%3Afailure=new&format=text&overflow=upstream"
             )
 

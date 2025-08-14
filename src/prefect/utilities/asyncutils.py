@@ -514,7 +514,7 @@ class GatherTaskGroup(anyio.abc.TaskGroup):
         await self._task_group.__aenter__()
         return self
 
-    async def __aexit__(self, *tb: Any) -> Optional[bool]:
+    async def __aexit__(self, *tb: Any) -> Optional[bool]:  # pyright: ignore[reportIncompatibleMethodOverride]
         try:
             retval = await self._task_group.__aexit__(*tb)
             return retval
