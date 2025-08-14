@@ -1,3 +1,4 @@
+import { useState } from "react";
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -8,6 +9,8 @@ import {
 	AlertDialogHeader,
 	AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 export type DeleteConfirmationDialogProps = {
 	isOpen: boolean;
@@ -15,6 +18,9 @@ export type DeleteConfirmationDialogProps = {
 	description: string;
 	onConfirm: () => void;
 	onClose: () => void;
+	confirmText?: string;
+	isLoading?: boolean;
+	loadingText?: string;
 };
 
 export const DeleteConfirmationDialog = ({
@@ -23,25 +29,56 @@ export const DeleteConfirmationDialog = ({
 	description,
 	onConfirm,
 	onClose,
-}: DeleteConfirmationDialogProps) => (
-	<AlertDialog open={isOpen} onOpenChange={onClose}>
-		<AlertDialogContent>
-			<AlertDialogHeader>
-				<AlertDialogTitle>{title}</AlertDialogTitle>
-				<AlertDialogDescription>{description}</AlertDialogDescription>
-			</AlertDialogHeader>
-			<AlertDialogFooter>
-				<AlertDialogCancel onClick={onClose}>Cancel</AlertDialogCancel>
-				<AlertDialogAction
-					variant="destructive"
-					onClick={() => {
-						onConfirm();
-						onClose();
-					}}
-				>
-					Delete
-				</AlertDialogAction>
-			</AlertDialogFooter>
-		</AlertDialogContent>
-	</AlertDialog>
-);
+	confirmText,
+	isLoading = false,
+	loadingText = "Deleting...",
+}: DeleteConfirmationDialogProps) => {
+	const [inputValue, setInputValue] = useState("");
+
+	const handleClose = () => {
+		setInputValue("");
+		onClose();
+	};
+
+	const handleConfirm = () => {
+		onConfirm();
+		setInputValue("");
+	};
+
+	const isConfirmDisabled =
+		isLoading || (!!confirmText && inputValue !== confirmText);
+
+	return (
+		<AlertDialog open={isOpen} onOpenChange={handleClose}>
+			<AlertDialogContent>
+				<AlertDialogHeader>
+					<AlertDialogTitle>{title}</AlertDialogTitle>
+					<AlertDialogDescription>{description}</AlertDialogDescription>
+				</AlertDialogHeader>
+				{confirmText && (
+					<div className="space-y-2">
+						<Label htmlFor="confirm-text">
+							Type <strong>{confirmText}</strong> to confirm:
+						</Label>
+						<Input
+							id="confirm-text"
+							value={inputValue}
+							onChange={(e) => setInputValue(e.target.value)}
+							placeholder={confirmText}
+						/>
+					</div>
+				)}
+				<AlertDialogFooter>
+					<AlertDialogCancel onClick={handleClose}>Cancel</AlertDialogCancel>
+					<AlertDialogAction
+						variant="destructive"
+						onClick={handleConfirm}
+						disabled={isConfirmDisabled}
+					>
+						{isLoading ? loadingText : "Delete"}
+					</AlertDialogAction>
+				</AlertDialogFooter>
+			</AlertDialogContent>
+		</AlertDialog>
+	);
+};
