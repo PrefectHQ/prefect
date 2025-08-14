@@ -1,0 +1,25 @@
+---
+title: prefect-redis
+---
+
+## 0.2.4
+
+*Released on August 14, 2025*
+
+**Enhancements ➕➕**
+
+- Add Redis-based concurrency lease storage implementation by [@desertaxle](https://github.com/desertaxle) in [#18646](https://github.com/PrefectHQ/prefect/pull/18646)
+  - New `ConcurrencyLeaseStorage` class for managing task and flow concurrency limits
+  - Atomic lease operations using Redis pipelines
+  - Support for lease expiration tracking and management
+
+**Bug Fixes 🐞**
+
+- Fix Redis stream trimming blocked by inactive consumer groups by [@zzstoatzz](https://github.com/zzstoatzz) in [#18642](https://github.com/PrefectHQ/prefect/pull/18642)
+  - Added idle threshold checking to prevent abandoned consumer groups from blocking stream trimming
+  - Automatic cleanup of empty consumer groups with `ephemeral` prefix
+  - New `PREFECT_REDIS_MESSAGING_CONSUMER_TRIM_IDLE_THRESHOLD` setting (default: 5 minutes)
+
+**Development & Tidiness 🧹**
+
+- Bump minimum `prefect` version to 3.4.9 by [@desertaxle](https://github.com/desertaxle) in [#18709](https://github.com/PrefectHQ/prefect/pull/18709)
