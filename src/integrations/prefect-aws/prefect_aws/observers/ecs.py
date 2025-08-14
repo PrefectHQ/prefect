@@ -17,6 +17,7 @@ from typing import (
     NamedTuple,
     Protocol,
     TypedDict,
+    TypeVar,
     Union,
 )
 
@@ -73,6 +74,9 @@ class AsyncEcsEventHandler(Protocol):
         event: dict[str, Any],
         tags: dict[str, str],
     ) -> None: ...
+
+
+H = TypeVar("H", bound=EcsEventHandler | AsyncEcsEventHandler)
 
 
 class EventHandlerFilters(TypedDict):
@@ -417,7 +421,7 @@ class EcsObserver:
         /,
         tags: dict[str, str | FilterCase] | None = None,
     ):
-        def decorator(fn: EcsEventHandler | AsyncEcsEventHandler):
+        def decorator(fn: H) -> H:
             self.event_handlers[event_type].append(
                 HandlerWithFilters(
                     handler=fn,
@@ -493,7 +497,7 @@ _DEFAULT_ECS_OBSERVER = EcsObserver()
 @_DEFAULT_ECS_OBSERVER.on_event(
     "task", tags={"prefect.io/flow-run-id": FilterCase.PRESENT}
 )
-async def replicate_ecs_event(event: dict[str, Any], tags: dict[str, str]):
+async def replicate_ecs_event(event: dict[str, Any], tags: dict[str, str]) -> None:
     handler_logger = logger.getChild("replicate_ecs_event")
     event_id = event.get("id")
     if not event_id:
