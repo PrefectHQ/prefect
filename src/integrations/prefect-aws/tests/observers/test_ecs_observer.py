@@ -13,6 +13,7 @@ from prefect_aws.observers.ecs import (
     EcsObserver,
     EcsTaskTagsReader,
     FilterCase,
+    ObserverInfrastructureManager,
     SqsSubscriber,
     TagsFilter,
     _related_resources_from_tags,
@@ -20,9 +21,46 @@ from prefect_aws.observers.ecs import (
     start_observer,
     stop_observer,
 )
-from prefect_aws.settings import EcsObserverSettings
+from prefect_aws.settings import EcsObserverSettings, EcsObserverSqsSettings
 
 from prefect.events.schemas.events import Event, Resource
+
+
+class TestEcsObserverSettings:
+    def test_default_values(self):
+        settings = EcsObserverSettings()
+        assert settings.enabled is True
+        assert settings.automatic_setup is False
+        assert isinstance(settings.sqs, EcsObserverSqsSettings)
+
+    def test_custom_values(self):
+        settings = EcsObserverSettings(
+            enabled=False,
+            automatic_setup=True,
+        )
+        assert settings.enabled is False
+        assert settings.automatic_setup is True
+
+    def test_sqs_settings_defaults(self):
+        sqs_settings = EcsObserverSqsSettings()
+        assert sqs_settings.queue_name == "prefect-ecs-tasks-events"
+        assert sqs_settings.queue_region is None
+
+    def test_sqs_settings_custom_values(self):
+        sqs_settings = EcsObserverSqsSettings(
+            queue_name="custom-queue", queue_region="us-west-2"
+        )
+        assert sqs_settings.queue_name == "custom-queue"
+        assert sqs_settings.queue_region == "us-west-2"
+
+    def test_nested_sqs_settings(self):
+        settings = EcsObserverSettings(
+            sqs=EcsObserverSqsSettings(
+                queue_name="nested-queue", queue_region="eu-west-1"
+            )
+        )
+        assert settings.sqs.queue_name == "nested-queue"
+        assert settings.sqs.queue_region == "eu-west-1"
 
 
 class TestTagsFilter:
@@ -280,6 +318,198 @@ class TestSqsSubscriber:
         # The generator is interrupted before the delete after yield can execute
 
 
+class TestObserverInfrastructureManager:
+    @pytest.fixture
+    def infrastructure_manager(self):
+        return ObserverInfrastructureManager(region="us-east-1")
+
+    @pytest.fixture
+    def mock_sqs_client(self):
+        return AsyncMock()
+
+    @pytest.fixture
+    def mock_events_client(self):
+        return AsyncMock()
+
+    def test_init(self):
+        manager = ObserverInfrastructureManager()
+        assert manager.region is None
+        assert manager.sqs_client is None
+        assert manager.events_client is None
+        assert manager._stack is None
+
+    def test_init_with_region(self):
+        manager = ObserverInfrastructureManager(region="us-west-2")
+        assert manager.region == "us-west-2"
+
+    @patch("prefect_aws.observers.ecs.AsyncExitStack")
+    @patch("prefect_aws.observers.ecs.aiobotocore.session.get_session")
+    async def test_context_manager_setup(
+        self, mock_get_session, mock_async_exit_stack, infrastructure_manager
+    ):
+        mock_session = Mock()
+        mock_sqs_client = AsyncMock()
+        mock_events_client = AsyncMock()
+        mock_stack_instance = AsyncMock()
+
+        mock_get_session.return_value = mock_session
+        mock_async_exit_stack.return_value = mock_stack_instance
+        mock_stack_instance.enter_async_context.side_effect = [
+            mock_sqs_client,
+            mock_events_client,
+        ]
+
+        async with infrastructure_manager as manager:
+            assert manager.sqs_client == mock_sqs_client
+            assert manager.events_client == mock_events_client
+
+        # Verify stack setup was called
+        mock_stack_instance.__aenter__.assert_called_once()
+        assert mock_stack_instance.enter_async_context.call_count == 2
+
+    async def test_check_sqs_queue_exists_true(
+        self, infrastructure_manager, mock_sqs_client
+    ):
+        infrastructure_manager.sqs_client = mock_sqs_client
+        mock_sqs_client.get_queue_url.return_value = {
+            "QueueUrl": "https://sqs.us-east-1.amazonaws.com/123/test-queue"
+        }
+
+        result = await infrastructure_manager.check_sqs_queue_exists("test-queue")
+
+        assert result is True
+        mock_sqs_client.get_queue_url.assert_called_once_with(QueueName="test-queue")
+
+    async def test_check_sqs_queue_exists_false(
+        self, infrastructure_manager, mock_sqs_client
+    ):
+        from botocore.exceptions import ClientError
+
+        infrastructure_manager.sqs_client = mock_sqs_client
+        mock_sqs_client.get_queue_url.side_effect = ClientError(
+            {"Error": {"Code": "AWS.SimpleQueueService.NonExistentQueue"}},
+            "GetQueueUrl",
+        )
+
+        result = await infrastructure_manager.check_sqs_queue_exists(
+            "nonexistent-queue"
+        )
+
+        assert result is False
+        mock_sqs_client.get_queue_url.assert_called_once_with(
+            QueueName="nonexistent-queue"
+        )
+
+    async def test_check_sqs_queue_exists_other_error(
+        self, infrastructure_manager, mock_sqs_client
+    ):
+        from botocore.exceptions import ClientError
+
+        infrastructure_manager.sqs_client = mock_sqs_client
+        mock_sqs_client.get_queue_url.side_effect = ClientError(
+            {"Error": {"Code": "AccessDenied"}}, "GetQueueUrl"
+        )
+
+        with pytest.raises(ClientError):
+            await infrastructure_manager.check_sqs_queue_exists("test-queue")
+
+    async def test_check_sqs_queue_exists_no_client(self, infrastructure_manager):
+        with pytest.raises(RuntimeError, match="SQS client not initialized"):
+            await infrastructure_manager.check_sqs_queue_exists("test-queue")
+
+    async def test_setup_sqs_queue(self, infrastructure_manager, mock_sqs_client):
+        infrastructure_manager.sqs_client = mock_sqs_client
+
+        # Mock create_queue response
+        mock_sqs_client.create_queue.return_value = {
+            "QueueUrl": "https://sqs.us-east-1.amazonaws.com/123/test-queue"
+        }
+
+        # Mock get_queue_attributes response
+        mock_sqs_client.get_queue_attributes.return_value = {
+            "Attributes": {"QueueArn": "arn:aws:sqs:us-east-1:123:test-queue"}
+        }
+
+        result = await infrastructure_manager.setup_sqs_queue("test-queue")
+
+        assert result == "arn:aws:sqs:us-east-1:123:test-queue"
+
+        # Verify create_queue was called with correct parameters
+        mock_sqs_client.create_queue.assert_called_once_with(
+            QueueName="test-queue",
+            Attributes={
+                "MessageRetentionPeriod": "1209600",
+                "VisibilityTimeoutSeconds": "60",
+            },
+        )
+
+        # Verify policy was set
+        policy_call = mock_sqs_client.set_queue_attributes.call_args
+        assert (
+            policy_call[1]["QueueUrl"]
+            == "https://sqs.us-east-1.amazonaws.com/123/test-queue"
+        )
+        policy = json.loads(policy_call[1]["Attributes"]["Policy"])
+        assert policy["Version"] == "2012-10-17"
+        assert len(policy["Statement"]) == 1
+        assert policy["Statement"][0]["Principal"]["Service"] == "events.amazonaws.com"
+
+    async def test_setup_sqs_queue_no_client(self, infrastructure_manager):
+        with pytest.raises(RuntimeError, match="SQS client not initialized"):
+            await infrastructure_manager.setup_sqs_queue("test-queue")
+
+    async def test_setup_eventbridge_rule(
+        self, infrastructure_manager, mock_events_client
+    ):
+        infrastructure_manager.events_client = mock_events_client
+        queue_arn = "arn:aws:sqs:us-east-1:123:test-queue"
+
+        await infrastructure_manager.setup_eventbridge_rule(queue_arn)
+
+        # Verify put_rule was called
+        put_rule_call = mock_events_client.put_rule.call_args
+        assert put_rule_call[1]["Name"] == "prefect-ecs-task-state-changes"
+        event_pattern = json.loads(put_rule_call[1]["EventPattern"])
+        assert event_pattern["source"] == ["aws.ecs"]
+        assert "ECS Task State Change" in event_pattern["detail-type"]
+
+        # Verify put_targets was called
+        put_targets_call = mock_events_client.put_targets.call_args
+        assert put_targets_call[1]["Rule"] == "prefect-ecs-task-state-changes"
+        assert put_targets_call[1]["Targets"][0]["Arn"] == queue_arn
+
+    async def test_setup_eventbridge_rule_no_client(self, infrastructure_manager):
+        with pytest.raises(RuntimeError, match="Events client not initialized"):
+            await infrastructure_manager.setup_eventbridge_rule(
+                "arn:aws:sqs:us-east-1:123:test"
+            )
+
+    async def test_setup_complete_infrastructure(
+        self, infrastructure_manager, mock_sqs_client, mock_events_client
+    ):
+        infrastructure_manager.sqs_client = mock_sqs_client
+        infrastructure_manager.events_client = mock_events_client
+
+        # Mock the setup_sqs_queue response
+        mock_sqs_client.create_queue.return_value = {
+            "QueueUrl": "https://sqs.us-east-1.amazonaws.com/123/test-queue"
+        }
+        mock_sqs_client.get_queue_attributes.return_value = {
+            "Attributes": {"QueueArn": "arn:aws:sqs:us-east-1:123:test-queue"}
+        }
+
+        result = await infrastructure_manager.setup_complete_infrastructure(
+            "test-queue"
+        )
+
+        assert result == "arn:aws:sqs:us-east-1:123:test-queue"
+
+        # Verify both SQS and EventBridge setup were called
+        mock_sqs_client.create_queue.assert_called_once()
+        mock_events_client.put_rule.assert_called_once()
+        mock_events_client.put_targets.assert_called_once()
+
+
 class TestEcsObserver:
     @pytest.fixture
     def settings(self):
@@ -299,6 +529,9 @@ class TestEcsObserver:
     def mock_infrastructure_manager(self):
         manager = AsyncMock()
         manager.check_sqs_queue_exists.return_value = True
+        # Mock context manager behavior
+        manager.__aenter__.return_value = manager
+        manager.__aexit__.return_value = None
         return manager
 
     @pytest.fixture
@@ -511,6 +744,93 @@ class TestEcsObserver:
             await task
         except asyncio.CancelledError:
             pass
+
+    async def test_ensure_queue_setup_queue_exists(self):
+        settings = EcsObserverSettings()
+        mock_manager_instance = AsyncMock()
+        mock_manager_instance.check_sqs_queue_exists.return_value = True
+
+        mock_infrastructure_manager = AsyncMock()
+        mock_infrastructure_manager.__aenter__.return_value = mock_manager_instance
+        mock_infrastructure_manager.__aexit__.return_value = None
+
+        observer = EcsObserver(
+            settings=settings,
+            infrastructure_manager=mock_infrastructure_manager,
+        )
+
+        await observer._ensure_queue_setup()
+
+        # Should check if queue exists but not set up infrastructure
+        mock_manager_instance.check_sqs_queue_exists.assert_called_once_with(
+            settings.sqs.queue_name
+        )
+        mock_manager_instance.setup_complete_infrastructure.assert_not_called()
+
+    async def test_ensure_queue_setup_queue_missing_automatic_setup_enabled(self):
+        settings = EcsObserverSettings(automatic_setup=True)
+        mock_manager_instance = AsyncMock()
+        mock_manager_instance.check_sqs_queue_exists.return_value = False
+        mock_manager_instance.setup_complete_infrastructure.return_value = (
+            "arn:aws:sqs:us-east-1:123:test"
+        )
+
+        mock_infrastructure_manager = AsyncMock()
+        mock_infrastructure_manager.__aenter__.return_value = mock_manager_instance
+        mock_infrastructure_manager.__aexit__.return_value = None
+
+        observer = EcsObserver(
+            settings=settings,
+            infrastructure_manager=mock_infrastructure_manager,
+        )
+
+        await observer._ensure_queue_setup()
+
+        # Should check if queue exists and set up infrastructure
+        mock_manager_instance.check_sqs_queue_exists.assert_called_once_with(
+            settings.sqs.queue_name
+        )
+        mock_manager_instance.setup_complete_infrastructure.assert_called_once_with(
+            settings.sqs.queue_name
+        )
+
+    async def test_ensure_queue_setup_queue_missing_automatic_setup_disabled(self):
+        settings = EcsObserverSettings(automatic_setup=False)
+        mock_manager_instance = AsyncMock()
+        mock_manager_instance.check_sqs_queue_exists.return_value = False
+
+        mock_infrastructure_manager = AsyncMock()
+        mock_infrastructure_manager.__aenter__.return_value = mock_manager_instance
+        mock_infrastructure_manager.__aexit__.return_value = None
+
+        observer = EcsObserver(
+            settings=settings,
+            infrastructure_manager=mock_infrastructure_manager,
+        )
+
+        await observer._ensure_queue_setup()
+
+        # Should check if queue exists but not set up infrastructure
+        mock_manager_instance.check_sqs_queue_exists.assert_called_once_with(
+            settings.sqs.queue_name
+        )
+        mock_manager_instance.setup_complete_infrastructure.assert_not_called()
+
+    def test_init_with_custom_infrastructure_manager(
+        self, settings, mock_sqs_subscriber, mock_tags_reader
+    ):
+        custom_manager = AsyncMock()
+        observer = EcsObserver(
+            settings=settings,
+            sqs_subscriber=mock_sqs_subscriber,
+            ecs_tags_reader=mock_tags_reader,
+            infrastructure_manager=custom_manager,
+        )
+
+        assert observer.infrastructure_manager == custom_manager
+        assert observer.settings == settings
+        assert observer.sqs_subscriber == mock_sqs_subscriber
+        assert observer.ecs_tags_reader == mock_tags_reader
 
 
 class TestRelatedResourcesFromTags:
