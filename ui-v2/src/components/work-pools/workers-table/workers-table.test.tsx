@@ -1,9 +1,9 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { buildApiUrl, server } from "@tests/utils";
 import { HttpResponse, http } from "msw";
-import { setupServer } from "msw/node";
-import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import { createFakeWorkPoolWorkers } from "@/mocks/create-fake-work-pool-worker";
 import { WorkersTable } from "./workers-table";
 
@@ -20,18 +20,26 @@ const mockWorkersOnline = [
 	},
 ];
 
-const server = setupServer(
-	http.post("/api/work_pools/test-pool/workers/filter", () => {
-		return HttpResponse.json(mockWorkersOnline);
-	}),
-	http.post("/api/work_pools/empty-pool/workers/filter", () => {
-		return HttpResponse.json([]);
-	}),
-);
+// Override the default empty handler for specific tests
+const setupWorkersHandler = (
+	poolName: string,
+	workers: typeof mockWorkersOnline = [],
+) => {
+	server.use(
+		http.post(buildApiUrl("/work_pools/:name/workers/filter"), (req) => {
+			const params = req.params;
+			if (params.name === poolName) {
+				return HttpResponse.json(workers);
+			}
+			// Fallback to empty array for other pools
+			return HttpResponse.json([]);
+		}),
+	);
+};
 
-beforeAll(() => server.listen());
-afterEach(() => server.resetHandlers());
-afterAll(() => server.close());
+afterEach(() => {
+	server.resetHandlers();
+});
 
 const renderWithQueryClient = (component: React.ReactElement) => {
 	const queryClient = new QueryClient({
@@ -47,6 +55,7 @@ const renderWithQueryClient = (component: React.ReactElement) => {
 
 describe("WorkersTable", () => {
 	it("renders workers list correctly", async () => {
+		setupWorkersHandler("test-pool", mockWorkersOnline);
 		renderWithQueryClient(<WorkersTable workPoolName="test-pool" />);
 
 		await waitFor(() => {
@@ -59,6 +68,7 @@ describe("WorkersTable", () => {
 	it("filters workers based on search query", async () => {
 		const user = userEvent.setup();
 
+		setupWorkersHandler("test-pool", mockWorkersOnline);
 		renderWithQueryClient(<WorkersTable workPoolName="test-pool" />);
 
 		await waitFor(() => {
@@ -77,6 +87,7 @@ describe("WorkersTable", () => {
 	});
 
 	it("shows empty state when no workers", async () => {
+		setupWorkersHandler("empty-pool", []);
 		renderWithQueryClient(<WorkersTable workPoolName="empty-pool" />);
 
 		await waitFor(() => {
@@ -92,6 +103,7 @@ describe("WorkersTable", () => {
 	it("shows 'no results' when search has no matches", async () => {
 		const user = userEvent.setup();
 
+		setupWorkersHandler("test-pool", mockWorkersOnline);
 		renderWithQueryClient(<WorkersTable workPoolName="test-pool" />);
 
 		await waitFor(() => {
@@ -114,6 +126,7 @@ describe("WorkersTable", () => {
 	it("clears search filters", async () => {
 		const user = userEvent.setup();
 
+		setupWorkersHandler("test-pool", mockWorkersOnline);
 		renderWithQueryClient(<WorkersTable workPoolName="test-pool" />);
 
 		await waitFor(() => {

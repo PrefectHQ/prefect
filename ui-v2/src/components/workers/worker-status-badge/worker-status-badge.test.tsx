@@ -7,19 +7,22 @@ describe("WorkerStatusBadge", () => {
 		render(<WorkerStatusBadge status="ONLINE" />);
 
 		expect(screen.getByText("Online")).toBeInTheDocument();
-		expect(screen.getByRole("generic")).toHaveClass("bg-green-100");
+		const badge = screen.getByText("Online").closest('[data-slot="badge"]');
+		expect(badge).toHaveClass("bg-green-100");
 	});
 
 	it("displays offline status correctly", () => {
 		render(<WorkerStatusBadge status="OFFLINE" />);
 
 		expect(screen.getByText("Offline")).toBeInTheDocument();
-		expect(screen.getByRole("generic")).toHaveClass("bg-gray-100");
+		const badge = screen.getByText("Offline").closest('[data-slot="badge"]');
+		expect(badge).toHaveClass("bg-gray-100");
 	});
 
 	it("applies custom className", () => {
 		render(<WorkerStatusBadge status="ONLINE" className="custom-class" />);
 
-		expect(screen.getByRole("generic")).toHaveClass("custom-class");
+		const badge = screen.getByText("Online").closest('[data-slot="badge"]');
+		expect(badge).toHaveClass("custom-class");
 	});
 });
