@@ -1,6 +1,9 @@
 import type { Meta, StoryObj } from "@storybook/react";
+import { buildApiUrl } from "@tests/utils/handlers";
 import { HttpResponse, http } from "msw";
 import { createFakeWorkPoolWorkers } from "@/mocks/create-fake-work-pool-worker";
+import { reactQueryDecorator } from "@/storybook/utils/react-query-decorator";
+import { toastDecorator } from "@/storybook/utils/toast-decorator";
 import { WorkersTable } from "./workers-table";
 
 const mockWorkers = createFakeWorkPoolWorkers(5, {
@@ -34,6 +37,7 @@ const mockWorkersWithVariety = [
 const meta = {
 	title: "Components/WorkPools/WorkersTable",
 	component: WorkersTable,
+	decorators: [toastDecorator, reactQueryDecorator],
 	parameters: {
 		layout: "padded",
 	},
@@ -49,8 +53,11 @@ export const Default: Story = {
 	parameters: {
 		msw: {
 			handlers: [
-				http.post("/api/work_pools/test-pool/workers/filter", () => {
-					return HttpResponse.json(mockWorkersWithVariety);
+				http.post(buildApiUrl("/work_pools/:name/workers/filter"), (req) => {
+					if (req.params.name === "test-pool") {
+						return HttpResponse.json(mockWorkersWithVariety);
+					}
+					return HttpResponse.json([]);
 				}),
 			],
 		},
@@ -64,8 +71,11 @@ export const EmptyState: Story = {
 	parameters: {
 		msw: {
 			handlers: [
-				http.post("/api/work_pools/empty-pool/workers/filter", () => {
-					return HttpResponse.json([]);
+				http.post(buildApiUrl("/work_pools/:name/workers/filter"), (req) => {
+					if (req.params.name === "empty-pool") {
+						return HttpResponse.json([]);
+					}
+					return HttpResponse.json(mockWorkersWithVariety);
 				}),
 			],
 		},
@@ -79,8 +89,11 @@ export const Loading: Story = {
 	parameters: {
 		msw: {
 			handlers: [
-				http.post("/api/work_pools/loading-pool/workers/filter", () => {
-					return new Promise(() => {}); // Never resolves
+				http.post(buildApiUrl("/work_pools/:name/workers/filter"), (req) => {
+					if (req.params.name === "loading-pool") {
+						return new Promise(() => {}); // Never resolves
+					}
+					return HttpResponse.json(mockWorkersWithVariety);
 				}),
 			],
 		},
@@ -94,8 +107,11 @@ export const SingleWorker: Story = {
 	parameters: {
 		msw: {
 			handlers: [
-				http.post("/api/work_pools/single-worker-pool/workers/filter", () => {
-					return HttpResponse.json([mockWorkersWithVariety[0]]);
+				http.post(buildApiUrl("/work_pools/:name/workers/filter"), (req) => {
+					if (req.params.name === "single-worker-pool") {
+						return HttpResponse.json([mockWorkersWithVariety[0]]);
+					}
+					return HttpResponse.json(mockWorkersWithVariety);
 				}),
 			],
 		},
@@ -109,11 +125,14 @@ export const ManyWorkers: Story = {
 	parameters: {
 		msw: {
 			handlers: [
-				http.post("/api/work_pools/many-workers-pool/workers/filter", () => {
-					const manyWorkers = createFakeWorkPoolWorkers(50, {
-						work_pool_id: "many-workers-pool-id",
-					});
-					return HttpResponse.json(manyWorkers);
+				http.post(buildApiUrl("/work_pools/:name/workers/filter"), (req) => {
+					if (req.params.name === "many-workers-pool") {
+						const manyWorkers = createFakeWorkPoolWorkers(50, {
+							work_pool_id: "many-workers-pool-id",
+						});
+						return HttpResponse.json(manyWorkers);
+					}
+					return HttpResponse.json(mockWorkersWithVariety);
 				}),
 			],
 		},
