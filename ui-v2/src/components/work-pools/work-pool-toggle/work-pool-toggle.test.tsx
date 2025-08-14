@@ -118,7 +118,13 @@ describe("WorkPoolToggle", () => {
 			wrapper: Wrapper,
 		});
 
-		const tooltipTrigger = screen.getByRole("switch");
-		expect(tooltipTrigger).toHaveAttribute("data-slot", "tooltip-trigger");
+		const tooltipTrigger = document.querySelector(
+			"[data-slot='tooltip-trigger']",
+		);
+		expect(tooltipTrigger).toBeInTheDocument();
+
+		const switchElement = screen.getByRole("switch");
+		expect(switchElement).toBeInTheDocument();
+		expect(switchElement).toHaveAttribute("data-slot", "switch");
 	});
 });

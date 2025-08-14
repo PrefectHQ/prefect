@@ -24,14 +24,16 @@ export const WorkPoolToggle = ({
 
 	return (
 		<Tooltip>
-			<TooltipTrigger>
-				<Switch
-					checked={!isPaused}
-					onCheckedChange={handleToggle}
-					disabled={isLoading}
-					aria-label={isPaused ? "Resume work pool" : "Pause work pool"}
-					className={cn(className)}
-				/>
+			<TooltipTrigger asChild>
+				<div>
+					<Switch
+						checked={!isPaused}
+						onCheckedChange={handleToggle}
+						disabled={isLoading}
+						aria-label={isPaused ? "Resume work pool" : "Pause work pool"}
+						className={cn(className)}
+					/>
+				</div>
 			</TooltipTrigger>
 			<TooltipContent>
 				<p>Pause or resume this work pool</p>
