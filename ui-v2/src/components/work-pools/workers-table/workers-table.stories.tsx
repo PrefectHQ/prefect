@@ -1,9 +1,12 @@
 import type { Meta, StoryObj } from "@storybook/react";
+import { useSuspenseQuery } from "@tanstack/react-query";
 import { buildApiUrl } from "@tests/utils/handlers";
 import { HttpResponse, http } from "msw";
+import { buildListWorkPoolWorkersQuery } from "@/api/work-pools";
 import { createFakeWorkPoolWorkers } from "@/mocks/create-fake-work-pool-worker";
 import { reactQueryDecorator } from "@/storybook/utils/react-query-decorator";
 import { toastDecorator } from "@/storybook/utils/toast-decorator";
+import { useWorkersTableState } from "./hooks/use-workers-table-state";
 import { WorkersTable } from "./workers-table";
 
 const mockWorkers = createFakeWorkPoolWorkers(5, {
@@ -34,9 +37,33 @@ const mockWorkersWithVariety = [
 	},
 ];
 
+// Wrapper component that handles state management for Storybook
+const WorkersTableStory = ({ workPoolName }: { workPoolName: string }) => {
+	const { data: workers = [] } = useSuspenseQuery(
+		buildListWorkPoolWorkersQuery(workPoolName),
+	);
+	const {
+		pagination,
+		columnFilters,
+		onPaginationChange,
+		onColumnFiltersChange,
+	} = useWorkersTableState();
+
+	return (
+		<WorkersTable
+			workPoolName={workPoolName}
+			workers={workers}
+			pagination={pagination}
+			columnFilters={columnFilters}
+			onPaginationChange={onPaginationChange}
+			onColumnFiltersChange={onColumnFiltersChange}
+		/>
+	);
+};
+
 const meta = {
 	title: "Components/WorkPools/WorkersTable",
-	component: WorkersTable,
+	component: WorkersTableStory,
 	decorators: [toastDecorator, reactQueryDecorator],
 	parameters: {
 		layout: "padded",
@@ -44,7 +71,7 @@ const meta = {
 	args: {
 		workPoolName: "test-pool",
 	},
-} satisfies Meta<typeof WorkersTable>;
+} satisfies Meta<typeof WorkersTableStory>;
 
 export default meta;
 type Story = StoryObj<typeof meta>;

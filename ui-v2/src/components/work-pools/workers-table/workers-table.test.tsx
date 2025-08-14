@@ -1,9 +1,12 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import type {
+	ColumnFiltersState,
+	PaginationState,
+} from "@tanstack/react-table";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { buildApiUrl, server } from "@tests/utils";
-import { HttpResponse, http } from "msw";
-import { afterEach, describe, expect, it } from "vitest";
+import { useState } from "react";
+import { describe, expect, it } from "vitest";
 import { createFakeWorkPoolWorkers } from "@/mocks/create-fake-work-pool-worker";
 import { WorkersTable } from "./workers-table";
 
@@ -20,26 +23,31 @@ const mockWorkersOnline = [
 	},
 ];
 
-// Override the default empty handler for specific tests
-const setupWorkersHandler = (
-	poolName: string,
-	workers: typeof mockWorkersOnline = [],
-) => {
-	server.use(
-		http.post(buildApiUrl("/work_pools/:name/workers/filter"), (req) => {
-			const params = req.params;
-			if (params.name === poolName) {
-				return HttpResponse.json(workers);
-			}
-			// Fallback to empty array for other pools
-			return HttpResponse.json([]);
-		}),
+// Test wrapper that provides state management for the controlled component
+const WorkersTableWrapper = ({
+	workPoolName,
+	workers,
+}: {
+	workPoolName: string;
+	workers: typeof mockWorkersOnline;
+}) => {
+	const [pagination, setPagination] = useState<PaginationState>({
+		pageIndex: 0,
+		pageSize: 10,
+	});
+	const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
+
+	return (
+		<WorkersTable
+			workPoolName={workPoolName}
+			workers={workers}
+			pagination={pagination}
+			columnFilters={columnFilters}
+			onPaginationChange={setPagination}
+			onColumnFiltersChange={setColumnFilters}
+		/>
 	);
 };
-
-afterEach(() => {
-	server.resetHandlers();
-});
 
 const renderWithQueryClient = (component: React.ReactElement) => {
 	const queryClient = new QueryClient({
@@ -55,25 +63,28 @@ const renderWithQueryClient = (component: React.ReactElement) => {
 
 describe("WorkersTable", () => {
 	it("renders workers list correctly", async () => {
-		setupWorkersHandler("test-pool", mockWorkersOnline);
-		renderWithQueryClient(<WorkersTable workPoolName="test-pool" />);
+		renderWithQueryClient(
+			<WorkersTableWrapper
+				workPoolName="test-pool"
+				workers={mockWorkersOnline}
+			/>,
+		);
 
-		await waitFor(() => {
-			expect(screen.getByText("online-worker")).toBeInTheDocument();
-		});
-
+		expect(screen.getByText("online-worker")).toBeInTheDocument();
 		expect(screen.getByText("4 workers")).toBeInTheDocument();
 	});
 
 	it("filters workers based on search query", async () => {
 		const user = userEvent.setup();
 
-		setupWorkersHandler("test-pool", mockWorkersOnline);
-		renderWithQueryClient(<WorkersTable workPoolName="test-pool" />);
+		renderWithQueryClient(
+			<WorkersTableWrapper
+				workPoolName="test-pool"
+				workers={mockWorkersOnline}
+			/>,
+		);
 
-		await waitFor(() => {
-			expect(screen.getByText("online-worker")).toBeInTheDocument();
-		});
+		expect(screen.getByText("online-worker")).toBeInTheDocument();
 
 		const searchInput = screen.getByPlaceholderText("Search workers...");
 		await user.type(searchInput, "online");
@@ -87,13 +98,11 @@ describe("WorkersTable", () => {
 	});
 
 	it("shows empty state when no workers", async () => {
-		setupWorkersHandler("empty-pool", []);
-		renderWithQueryClient(<WorkersTable workPoolName="empty-pool" />);
+		renderWithQueryClient(
+			<WorkersTableWrapper workPoolName="empty-pool" workers={[]} />,
+		);
 
-		await waitFor(() => {
-			expect(screen.getByText("No workers running")).toBeInTheDocument();
-		});
-
+		expect(screen.getByText("No workers running")).toBeInTheDocument();
 		expect(screen.getByText("0 workers")).toBeInTheDocument();
 		expect(
 			screen.getByText('prefect worker start --pool "empty-pool"'),
@@ -103,12 +112,14 @@ describe("WorkersTable", () => {
 	it("shows 'no results' when search has no matches", async () => {
 		const user = userEvent.setup();
 
-		setupWorkersHandler("test-pool", mockWorkersOnline);
-		renderWithQueryClient(<WorkersTable workPoolName="test-pool" />);
+		renderWithQueryClient(
+			<WorkersTableWrapper
+				workPoolName="test-pool"
+				workers={mockWorkersOnline}
+			/>,
+		);
 
-		await waitFor(() => {
-			expect(screen.getByText("4 workers")).toBeInTheDocument();
-		});
+		expect(screen.getByText("4 workers")).toBeInTheDocument();
 
 		const searchInput = screen.getByPlaceholderText("Search workers...");
 		await user.type(searchInput, "nonexistent-worker");
@@ -126,12 +137,14 @@ describe("WorkersTable", () => {
 	it("clears search filters", async () => {
 		const user = userEvent.setup();
 
-		setupWorkersHandler("test-pool", mockWorkersOnline);
-		renderWithQueryClient(<WorkersTable workPoolName="test-pool" />);
+		renderWithQueryClient(
+			<WorkersTableWrapper
+				workPoolName="test-pool"
+				workers={mockWorkersOnline}
+			/>,
+		);
 
-		await waitFor(() => {
-			expect(screen.getByText("4 workers")).toBeInTheDocument();
-		});
+		expect(screen.getByText("4 workers")).toBeInTheDocument();
 
 		const searchInput = screen.getByPlaceholderText("Search workers...");
 		await user.type(searchInput, "online");
