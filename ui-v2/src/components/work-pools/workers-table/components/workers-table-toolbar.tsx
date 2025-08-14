@@ -1,7 +1,14 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-import type { WorkersTableToolbarProps } from "../types";
+
+export interface WorkersTableToolbarProps {
+	searchQuery: string;
+	onSearchChange: (query: string) => void;
+	resultsCount: number;
+	totalCount: number;
+	className?: string;
+}
 
 export const WorkersTableToolbar = ({
 	searchQuery,

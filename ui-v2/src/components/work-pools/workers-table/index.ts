@@ -1,2 +1,1 @@
-export type { WorkersTableProps } from "./types";
-export { WorkersTable } from "./workers-table";
+export { WorkersTable, type WorkersTableProps } from "./workers-table";

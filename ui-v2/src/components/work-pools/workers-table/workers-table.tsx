@@ -3,7 +3,11 @@ import { cn } from "@/lib/utils";
 import { WorkersTableEmptyState } from "./components/workers-table-empty-state";
 import { WorkersTableToolbar } from "./components/workers-table-toolbar";
 import { useWorkersTable } from "./hooks/use-workers-table";
-import type { WorkersTableProps } from "./types";
+
+export interface WorkersTableProps {
+	workPoolName: string;
+	className?: string;
+}
 
 export const WorkersTable = ({
 	workPoolName,

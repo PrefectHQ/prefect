@@ -7,7 +7,12 @@ import {
 	EmptyStateTitle,
 } from "@/components/ui/empty-state";
 import { cn } from "@/lib/utils";
-import type { WorkersTableEmptyStateProps } from "../types";
+
+export interface WorkersTableEmptyStateProps {
+	hasSearchQuery: boolean;
+	workPoolName: string;
+	className?: string;
+}
 
 export const WorkersTableEmptyState = ({
 	hasSearchQuery,

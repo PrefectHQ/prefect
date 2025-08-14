@@ -1,5 +1,10 @@
+import type { WorkPoolWorker } from "@/api/work-pools";
 import { WorkerMenu } from "@/components/workers/worker-menu";
-import type { WorkersTableRowActionsProps } from "../types";
+
+export interface WorkersTableRowActionsProps {
+	worker: WorkPoolWorker;
+	workPoolName: string;
+}
 
 export const WorkersTableRowActions = ({
 	worker,
