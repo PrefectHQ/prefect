@@ -287,7 +287,7 @@ class RRuleSchedule(PrefectBaseModel):
             kwargs = dict(dtstart=dtstart.replace(tzinfo=timezone))
             if until := _rrule_dt(exr, "_until"):
                 kwargs.update(until=until.replace(tzinfo=timezone))
-            localized_exrules.append(exr.replace(**kwargs))  # pyright: ignore[reportUnknownArgumentType, reportUnknownMemberType] missing type hints
+            localized_exrules.append(exr.replace(**kwargs))  # pyright: ignore[reportArgumentType, reportUnknownArgumentType, reportUnknownMemberType] missing type hints
         setattr(rrule, "_exrule", localized_exrules)
 
         # update rdates
