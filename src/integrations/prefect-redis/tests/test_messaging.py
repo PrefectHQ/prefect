@@ -15,6 +15,8 @@ from prefect_redis.messaging import (
     RedisMessagingConsumerSettings,
     RedisMessagingPublisherSettings,
     StopConsumer,
+    _cleanup_empty_consumer_groups,
+    _trim_stream_to_lowest_delivered_id,
 )
 from redis.asyncio import Redis
 
@@ -493,7 +495,6 @@ class TestRedisMessagingSettings:
 
 async def test_trimming_with_no_delivered_messages(redis: Redis):
     """Test that stream trimming handles the case where no messages have been delivered."""
-    from prefect_redis.messaging import _trim_stream_to_lowest_delivered_id
 
     stream_name = "test-trim-stream"
 
@@ -512,5 +513,118 @@ async def test_trimming_with_no_delivered_messages(redis: Redis):
     length = await redis.xlen(stream_name)
     assert length == 2
 
-    # Clean up
-    await redis.delete(stream_name)
+
+async def test_trimming_skips_idle_consumer_groups(
+    redis: Redis, monkeypatch: pytest.MonkeyPatch
+):
+    """Test that stream trimming skips consumer groups with all consumers idle beyond threshold."""
+
+    stream_name = "test-trim-idle-stream"
+
+    # Create a stream with 10 messages
+    message_ids = []
+    for i in range(10):
+        msg_id = await redis.xadd(stream_name, {"data": f"test{i}"})
+        message_ids.append(msg_id)
+
+    # Create two consumer groups
+    await redis.xgroup_create(stream_name, "active-group", id="0")
+    await redis.xgroup_create(stream_name, "stuck-group", id="0")
+
+    # Active group consumes all messages
+    messages = await redis.xreadgroup(
+        groupname="active-group",
+        consumername="consumer-1",
+        streams={stream_name: ">"},
+        count=10,
+    )
+    for stream, msgs in messages:
+        for msg_id, data in msgs:
+            await redis.xack(stream_name, "active-group", msg_id)
+
+    # Stuck group only consumes first 3 messages
+    messages = await redis.xreadgroup(
+        groupname="stuck-group",
+        consumername="consumer-2",
+        streams={stream_name: ">"},
+        count=3,
+    )
+    stuck_last_id = None
+    for stream, msgs in messages:
+        for msg_id, data in msgs:
+            await redis.xack(stream_name, "stuck-group", msg_id)
+            stuck_last_id = msg_id
+
+    # Wait to make consumers idle (need to wait longer than the threshold)
+    await asyncio.sleep(1.5)
+
+    # Set a very short idle threshold for testing (1 second)
+    # The setting expects seconds as an integer
+    monkeypatch.setenv("PREFECT_REDIS_MESSAGING_CONSUMER_TRIM_IDLE_THRESHOLD", "1")
+
+    # Create a new active consumer to allow trimming
+    # This simulates an active consumer that keeps processing
+    await redis.xreadgroup(
+        groupname="active-group",
+        consumername="consumer-3",  # New consumer with fresh idle time
+        streams={stream_name: ">"},
+        count=1,
+    )
+
+    # Trim the stream - should skip the stuck group but use the active group
+    await _trim_stream_to_lowest_delivered_id(stream_name)
+
+    # Check results
+    stream_info = await redis.xinfo_stream(stream_name)
+    first_entry_id = (
+        stream_info["first-entry"][0] if stream_info["first-entry"] else None
+    )
+
+    # The stream should be trimmed past the stuck group's position
+    assert first_entry_id is not None
+    assert first_entry_id > stuck_last_id
+
+    # Should have trimmed most messages (keeping only the last one or few)
+    assert (
+        stream_info["length"] <= 2
+    )  # Redis might keep 1-2 messages due to trimming behavior
+
+
+async def test_cleanup_empty_consumer_groups(redis: Redis):
+    """Test that empty consumer groups are cleaned up."""
+
+    stream_name = "test-cleanup-stream"
+
+    # Create a stream with a message
+    await redis.xadd(stream_name, {"data": "test"})
+
+    # Create multiple consumer groups
+    await redis.xgroup_create(stream_name, "ephemeral-active-group", id="0")
+    await redis.xgroup_create(stream_name, "ephemeral-empty-group-1", id="0")
+    await redis.xgroup_create(stream_name, "ephemeral-empty-group-2", id="0")
+
+    # Add a consumer to the active group
+    await redis.xreadgroup(
+        groupname="ephemeral-active-group",
+        consumername="consumer-1",
+        streams={stream_name: ">"},
+        count=1,
+    )
+
+    # Verify all groups exist
+    groups_before = await redis.xinfo_groups(stream_name)
+    assert len(groups_before) == 3
+    group_names_before = {g["name"] for g in groups_before}
+    assert group_names_before == {
+        "ephemeral-active-group",
+        "ephemeral-empty-group-1",
+        "ephemeral-empty-group-2",
+    }
+
+    # Run cleanup
+    await _cleanup_empty_consumer_groups(stream_name)
+
+    # Verify only the active group remains
+    groups_after = await redis.xinfo_groups(stream_name)
+    assert len(groups_after) == 1
+    assert groups_after[0]["name"] == "ephemeral-active-group"
