@@ -296,11 +296,24 @@ class TestEcsObserver:
         return reader
 
     @pytest.fixture
-    def observer(self, settings, mock_sqs_subscriber, mock_tags_reader):
+    def mock_infrastructure_manager(self):
+        manager = AsyncMock()
+        manager.check_sqs_queue_exists.return_value = True
+        return manager
+
+    @pytest.fixture
+    def observer(
+        self,
+        settings,
+        mock_sqs_subscriber,
+        mock_tags_reader,
+        mock_infrastructure_manager,
+    ):
         return EcsObserver(
             settings=settings,
             sqs_subscriber=mock_sqs_subscriber,
             ecs_tags_reader=mock_tags_reader,
+            infrastructure_manager=mock_infrastructure_manager,
         )
 
     def test_init_with_defaults(self):

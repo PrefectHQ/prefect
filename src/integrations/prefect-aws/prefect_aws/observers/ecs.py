@@ -144,7 +144,7 @@ class EcsTaskTagsReader:
             await self.ecs_client.__aexit__(*args)
 
 
-class AwsInfrastructureManager:
+class ObserverInfrastructureManager:
     """Manages AWS infrastructure setup for ECS observer with shared session."""
 
     def __init__(self, region: str | None = None):
@@ -307,6 +307,7 @@ class EcsObserver:
         settings: EcsObserverSettings | None = None,
         sqs_subscriber: SqsSubscriber | None = None,
         ecs_tags_reader: EcsTaskTagsReader | None = None,
+        infrastructure_manager: ObserverInfrastructureManager | None = None,
     ):
         self.settings = settings or EcsObserverSettings()
 
@@ -315,6 +316,9 @@ class EcsObserver:
             queue_region=self.settings.sqs.queue_region,
         )
         self.ecs_tags_reader = ecs_tags_reader or EcsTaskTagsReader()
+        self.infrastructure_manager = (
+            infrastructure_manager or ObserverInfrastructureManager()
+        )
         self.event_handlers: dict[
             Literal["task", "container-instance", "deployment"],
             list[HandlerWithFilters],
@@ -326,9 +330,7 @@ class EcsObserver:
 
     async def _ensure_queue_setup(self):
         """Ensure SQS queue and EventBridge rule are set up if needed."""
-        async with AwsInfrastructureManager(
-            region=self.settings.sqs.queue_region
-        ) as infra_manager:
+        async with self.infrastructure_manager as infra_manager:
             queue_exists = await infra_manager.check_sqs_queue_exists(
                 self.settings.sqs.queue_name
             )
