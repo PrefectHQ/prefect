@@ -1406,7 +1406,27 @@
               "v3/release-notes/oss/version-3-3",
               "v3/release-notes/oss/version-3-2",
               "v3/release-notes/oss/version-3-1",
-              "v3/release-notes/oss/version-3-0"
+              "v3/release-notes/oss/version-3-0",
+              {
+                "group": "Integrations",
+                "pages": [
+                  "v3/release-notes/integrations/prefect-aws",
+                  "v3/release-notes/integrations/prefect-azure",
+                  "v3/release-notes/integrations/prefect-dask",
+                  "v3/release-notes/integrations/prefect-databricks",
+                  "v3/release-notes/integrations/prefect-dbt",
+                  "v3/release-notes/integrations/prefect-docker",
+                  "v3/release-notes/integrations/prefect-email",
+                  "v3/release-notes/integrations/prefect-gcp",
+                  "v3/release-notes/integrations/prefect-github",
+                  "v3/release-notes/integrations/prefect-gitlab",
+                  "v3/release-notes/integrations/prefect-kubernetes",
+                  "v3/release-notes/integrations/prefect-redis",
+                  "v3/release-notes/integrations/prefect-slack",
+                  "v3/release-notes/integrations/prefect-snowflake",
+                  "v3/release-notes/integrations/prefect-sqlalchemy"
+                ]
+              }
             ]
           }
         ]
