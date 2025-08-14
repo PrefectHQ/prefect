@@ -1,6 +1,7 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
 import {
 	getCoreRowModel,
+	getPaginationRowModel,
 	getSortedRowModel,
 	useReactTable,
 } from "@tanstack/react-table";
@@ -39,8 +40,13 @@ export const useWorkersTable = (workPoolName: string) => {
 		columns,
 		getCoreRowModel: getCoreRowModel(),
 		getSortedRowModel: getSortedRowModel(),
+		getPaginationRowModel: getPaginationRowModel(),
 		initialState: {
 			sorting: [{ id: "name", desc: false }],
+			pagination: {
+				pageIndex: 0,
+				pageSize: 10,
+			},
 		},
 	});
 
