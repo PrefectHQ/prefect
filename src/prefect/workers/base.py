@@ -1024,7 +1024,8 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
             for dist in distributions()
             # PyPI packages often use dashes, but Python package names use underscores
             # because they must be valid identifiers.
-            if (name := dist.metadata.get("Name"))
+            if dist.metadata
+            and (name := dist.metadata.get("Name"))
             and (name.replace("-", "_") in installed_integrations)
         ]
 
