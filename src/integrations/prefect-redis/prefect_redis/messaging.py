@@ -25,7 +25,7 @@ from typing import (
 import orjson
 from pydantic import BeforeValidator, Field
 from redis.asyncio import Redis
-from redis.exceptions import ResponseError
+from redis.exceptions import ResponseError, WatchError
 from typing_extensions import Self
 
 from prefect.logging import get_logger
@@ -501,7 +501,7 @@ class Consumer(_Consumer):
 
         if now - self._last_trimmed > self.trim_every.total_seconds():
             await _trim_stream_to_lowest_delivered_id(self.stream)
-            await _cleanup_empty_consumer_groups(self.stream)
+            await _cleanup_empty_consumer_groups_atomically(self.stream)
             self._last_trimmed = now
 
 
@@ -601,15 +601,15 @@ async def _trim_stream_to_lowest_delivered_id(stream_name: str) -> None:
     await redis_client.xtrim(stream_name, minid=lowest_id, approximate=False)
 
 
-async def _cleanup_empty_consumer_groups(stream_name: str) -> None:
+async def _cleanup_empty_consumer_groups_atomically(stream_name: str) -> None:
     """
-    Removes consumer groups that have no active consumers.
+        Removes consumer groups that have no active consumers atomically to avoid race condition.
 
-    Consumer groups with no consumers are considered abandoned and can safely be
-    deleted to prevent them from blocking stream trimming operations.
+        Consumer groups with no consumers are considered abandoned and can safely be
+        deleted to prevent them from blocking stream trimming operations.
 
-    Args:
-        stream_name: The name of the Redis stream to clean up groups for
+        Args:
+            stream_name: The name of the Redis stream to clean up groups for
     """
     redis_client: Redis = get_async_redis_client()
 
@@ -619,13 +619,48 @@ async def _cleanup_empty_consumer_groups(stream_name: str) -> None:
         logger.debug(f"Unable to get consumer groups for stream {stream_name}: {e}")
         return
 
+    deleted_count = 0
+
     for group in groups:
-        try:
-            consumers = await redis_client.xinfo_consumers(stream_name, group["name"])
-            if not consumers and group["name"].startswith("ephemeral"):
-                # No consumers in this group - it's abandoned
-                logger.debug(f"Deleting empty consumer group '{group['name']}'")
-                await redis_client.xgroup_destroy(stream_name, group["name"])
-        except Exception as e:
-            # If we can't check or delete, just continue
-            logger.debug(f"Unable to cleanup group '{group['name']}': {e}")
+        group_name = group["name"]
+
+        async with redis_client.pipeline() as pipe:
+            try:
+                await pipe.watch(stream_name)
+
+                consumers = await pipe.xinfo_consumers(stream_name, group_name)
+                group_info = await pipe.xinfo_groups(stream_name)
+
+                if consumers:
+                    logger.debug(f"Group '{group_name}' has {len(consumers)} consumers, skipping deletion")
+                    continue
+
+                # Check if group has pending messages
+                current_group = next((g for g in group_info if g["name"] == group_name), None)
+                pending = int((current_group or {}).get("pending", 0) or 0)
+                if pending > 0:
+                    logger.debug(f"Group '{group_name}' has {pending} pending messages, skipping deletion")
+                    continue
+
+                # if not pending messages in group, delete it
+                await pipe.multi()
+                pipe.xgroup_destroy(stream_name, group_name)
+                await pipe.execute()
+
+                logger.debug(f"Deleted empty consumer group '{group_name}' from stream {stream_name}")
+                deleted_count += 1
+
+            except WatchError:
+                logger.debug(f"Stream {stream_name} modified while evaluating group '{group_name}', skipping for now")
+            except ResponseError as e:
+                logger.debug(f"Group '{group_name}' changed concurrently: {e}")
+            except Exception as e:
+                logger.debug(f"Unable to cleanup group '{group_name}': {e}")
+            finally:
+                try:
+                    await pipe.reset()
+                except Exception:
+                    pass
+
+    if deleted_count > 0:
+        logger.debug(f"Cleaned up {deleted_count} empty consumer groups from stream {stream_name}")

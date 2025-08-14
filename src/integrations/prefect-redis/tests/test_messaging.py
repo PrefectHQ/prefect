@@ -15,7 +15,7 @@ from prefect_redis.messaging import (
     RedisMessagingConsumerSettings,
     RedisMessagingPublisherSettings,
     StopConsumer,
-    _cleanup_empty_consumer_groups,
+    _cleanup_empty_consumer_groups_atomically,
     _trim_stream_to_lowest_delivered_id,
 )
 from redis.asyncio import Redis
@@ -590,41 +590,79 @@ async def test_trimming_skips_idle_consumer_groups(
     )  # Redis might keep 1-2 messages due to trimming behavior
 
 
-async def test_cleanup_empty_consumer_groups(redis: Redis):
-    """Test that empty consumer groups are cleaned up."""
+async def test_cleanup_empty_consumer_groups_atomically(redis: Redis):
+    """Test that empty consumer groups are removed and the active group remains."""
 
     stream_name = "test-cleanup-stream"
 
-    # Create a stream with a message
+    # Create the stream with a message
     await redis.xadd(stream_name, {"data": "test"})
 
     # Create multiple consumer groups
-    await redis.xgroup_create(stream_name, "ephemeral-active-group", id="0")
-    await redis.xgroup_create(stream_name, "ephemeral-empty-group-1", id="0")
-    await redis.xgroup_create(stream_name, "ephemeral-empty-group-2", id="0")
+    await redis.xgroup_create(stream_name, "active-group", id="0")
+    await redis.xgroup_create(stream_name, "empty-group-1", id="0")
+    await redis.xgroup_create(stream_name, "empty-group-2", id="0")
 
-    # Add a consumer to the active group
+    # Add a consumer to the active group (creates a pending entry for the group)
     await redis.xreadgroup(
-        groupname="ephemeral-active-group",
+        groupname="active-group",
         consumername="consumer-1",
         streams={stream_name: ">"},
         count=1,
     )
 
-    # Verify all groups exist
+    # Verify that all groups exist
     groups_before = await redis.xinfo_groups(stream_name)
     assert len(groups_before) == 3
-    group_names_before = {g["name"] for g in groups_before}
-    assert group_names_before == {
-        "ephemeral-active-group",
-        "ephemeral-empty-group-1",
-        "ephemeral-empty-group-2",
-    }
+    assert {g["name"] for g in groups_before} == {"active-group", "empty-group-1", "empty-group-2"}
 
-    # Run cleanup
-    await _cleanup_empty_consumer_groups(stream_name)
+    # Run atomic cleanup
+    await _cleanup_empty_consumer_groups_atomically(stream_name)
 
-    # Verify only the active group remains
+    # Verify that only the active group remains
     groups_after = await redis.xinfo_groups(stream_name)
     assert len(groups_after) == 1
-    assert groups_after[0]["name"] == "ephemeral-active-group"
+    assert groups_after[0]["name"] == "active-group"
+
+
+async def test_cleanup_keeps_group_with_pending_but_no_consumers(redis: Redis):
+    """
+    Ensure the atomic cleanup DOES NOT delete a group that has no consumers
+    but still has pending messages (new, more conservative behavior).
+    """
+
+    stream_name = "test-cleanup-stream-pending"
+
+    # Create the stream with a message
+    await redis.xadd(stream_name, {"data": "test"})
+
+    # Create two groups: one will have "orphaned" pending, the other will be truly empty
+    await redis.xgroup_create(stream_name, "orphaned-pending-group", id="0")
+    await redis.xgroup_create(stream_name, "empty-group", id="0")
+
+    # Read from the first group to create a pending message
+    await redis.xreadgroup(
+        groupname="orphaned-pending-group",
+        consumername="c1",
+        streams={stream_name: ">"},
+        count=1,
+    )
+
+    # Remove the consumer, leaving the group with pending messages but no consumers
+    await redis.xgroup_delconsumer(stream_name, "orphaned-pending-group", "c1")
+
+    # Sanity check: no consumers and pending > 0
+    consumers_mid = await redis.xinfo_consumers(stream_name, "orphaned-pending-group")
+    assert consumers_mid == []  # no consumers
+    groups_mid = await redis.xinfo_groups(stream_name)
+    pending_orphan = next(g for g in groups_mid if g["name"] == "orphaned-pending-group")["pending"]
+    assert pending_orphan > 0
+
+    # Run atomic cleanup
+    await _cleanup_empty_consumer_groups_atomically(stream_name)
+
+    # It should keep the group with pending and remove the truly empty one
+    groups_after = await redis.xinfo_groups(stream_name)
+    names_after = {g["name"] for g in groups_after}
+    assert "orphaned-pending-group" in names_after
+    assert "empty-group" not in names_after
