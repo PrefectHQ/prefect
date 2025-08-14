@@ -31,9 +31,10 @@ afterEach(() => server.resetHandlers());
 afterAll(() => server.close());
 
 // Mock navigator.clipboard
+const mockWriteText = vi.fn().mockImplementation(() => Promise.resolve());
 Object.assign(navigator, {
 	clipboard: {
-		writeText: vi.fn().mockImplementation(() => Promise.resolve()),
+		writeText: mockWriteText,
 	},
 });
 
@@ -66,7 +67,7 @@ describe("WorkerMenu", () => {
 		const copyButton = screen.getByText("Copy ID");
 		await user.click(copyButton);
 
-		expect(navigator.clipboard.writeText).toHaveBeenCalledWith(mockWorker.id);
+		expect(mockWriteText).toHaveBeenCalledWith(mockWorker.id);
 	});
 
 	it("shows delete confirmation dialog", async () => {

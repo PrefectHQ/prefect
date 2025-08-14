@@ -32,7 +32,8 @@ export const WorkersTableEmptyState = ({
 				<EmptyStateIcon id="Bot" />
 				<EmptyStateTitle>No workers running</EmptyStateTitle>
 				<EmptyStateDescription>
-					No workers are currently running for the "{workPoolName}" work pool.
+					No workers are currently running for the &ldquo;{workPoolName}&rdquo;
+					work pool.
 				</EmptyStateDescription>
 				<EmptyStateActions>
 					<CodeBanner
