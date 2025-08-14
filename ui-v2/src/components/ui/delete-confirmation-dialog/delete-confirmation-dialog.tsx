@@ -46,7 +46,7 @@ export const DeleteConfirmationDialog = ({
 	};
 
 	const isConfirmDisabled =
-		isLoading || (confirmText && inputValue !== confirmText);
+		isLoading || (!!confirmText && inputValue !== confirmText);
 
 	return (
 		<AlertDialog open={isOpen} onOpenChange={handleClose}>
