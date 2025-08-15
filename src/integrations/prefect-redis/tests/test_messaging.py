@@ -20,7 +20,6 @@ from prefect_redis.messaging import (
 )
 from redis.asyncio import Redis
 
-
 from prefect.server.events import Event
 from prefect.server.events.clients import PrefectServerEventsClient
 from prefect.server.events.messaging import EventPublisher
@@ -615,7 +614,11 @@ async def test_cleanup_empty_consumer_groups_atomically(redis: Redis):
     # Verify that all groups exist
     groups_before = await redis.xinfo_groups(stream_name)
     assert len(groups_before) == 3
-    assert {g["name"] for g in groups_before} == {"active-group", "empty-group-1", "empty-group-2"}
+    assert {g["name"] for g in groups_before} == {
+        "active-group",
+        "empty-group-1",
+        "empty-group-2",
+    }
 
     # Run atomic cleanup
     await _cleanup_empty_consumer_groups_atomically(stream_name)
@@ -656,7 +659,9 @@ async def test_cleanup_keeps_group_with_pending_but_no_consumers(redis: Redis):
     consumers_mid = await redis.xinfo_consumers(stream_name, "orphaned-pending-group")
     assert consumers_mid == []  # no consumers
     groups_mid = await redis.xinfo_groups(stream_name)
-    pending_orphan = next(g for g in groups_mid if g["name"] == "orphaned-pending-group")["pending"]
+    pending_orphan = next(
+        g for g in groups_mid if g["name"] == "orphaned-pending-group"
+    )["pending"]
     assert pending_orphan > 0
 
     # Run atomic cleanup

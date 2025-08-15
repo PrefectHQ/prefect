@@ -26,7 +26,6 @@ import orjson
 from pydantic import BeforeValidator, Field
 from redis.asyncio import Redis
 from redis.exceptions import ResponseError, WatchError
-
 from typing_extensions import Self
 
 from prefect.logging import get_logger
@@ -604,13 +603,13 @@ async def _trim_stream_to_lowest_delivered_id(stream_name: str) -> None:
 
 async def _cleanup_empty_consumer_groups_atomically(stream_name: str) -> None:
     """
-        Removes consumer groups that have no active consumers atomically to avoid race condition.
+    Removes consumer groups that have no active consumers atomically to avoid race condition.
 
-        Consumer groups with no consumers are considered abandoned and can safely be
-        deleted to prevent them from blocking stream trimming operations.
+    Consumer groups with no consumers are considered abandoned and can safely be
+    deleted to prevent them from blocking stream trimming operations.
 
-        Args:
-            stream_name: The name of the Redis stream to clean up groups for
+    Args:
+        stream_name: The name of the Redis stream to clean up groups for
     """
     redis_client: Redis = get_async_redis_client()
 
@@ -633,14 +632,20 @@ async def _cleanup_empty_consumer_groups_atomically(stream_name: str) -> None:
                 group_info = await pipe.xinfo_groups(stream_name)
 
                 if consumers:
-                    logger.debug(f"Group '{group_name}' has {len(consumers)} consumers, skipping deletion")
+                    logger.debug(
+                        f"Group '{group_name}' has {len(consumers)} consumers, skipping deletion"
+                    )
                     continue
 
                 # Check if group has pending messages
-                current_group = next((g for g in group_info if g["name"] == group_name), None)
+                current_group = next(
+                    (g for g in group_info if g["name"] == group_name), None
+                )
                 pending = int((current_group or {}).get("pending", 0) or 0)
                 if pending > 0:
-                    logger.debug(f"Group '{group_name}' has {pending} pending messages, skipping deletion")
+                    logger.debug(
+                        f"Group '{group_name}' has {pending} pending messages, skipping deletion"
+                    )
                     continue
 
                 # if not pending messages in group, delete it
@@ -648,11 +653,15 @@ async def _cleanup_empty_consumer_groups_atomically(stream_name: str) -> None:
                 pipe.xgroup_destroy(stream_name, group_name)
                 await pipe.execute()
 
-                logger.debug(f"Deleted empty consumer group '{group_name}' from stream {stream_name}")
+                logger.debug(
+                    f"Deleted empty consumer group '{group_name}' from stream {stream_name}"
+                )
                 deleted_count += 1
 
             except WatchError:
-                logger.debug(f"Stream {stream_name} modified while evaluating group '{group_name}', skipping for now")
+                logger.debug(
+                    f"Stream {stream_name} modified while evaluating group '{group_name}', skipping for now"
+                )
             except ResponseError as e:
                 logger.debug(f"Group '{group_name}' changed concurrently: {e}")
             except Exception as e:
@@ -664,4 +673,6 @@ async def _cleanup_empty_consumer_groups_atomically(stream_name: str) -> None:
                     pass
 
     if deleted_count > 0:
-        logger.debug(f"Cleaned up {deleted_count} empty consumer groups from stream {stream_name}")
+        logger.debug(
+            f"Cleaned up {deleted_count} empty consumer groups from stream {stream_name}"
+        )
