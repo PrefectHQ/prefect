@@ -629,13 +629,14 @@ async def _cleanup_empty_consumer_groups_atomically(stream_name: str) -> None:
                 await pipe.watch(stream_name)
 
                 consumers = await pipe.xinfo_consumers(stream_name, group_name)
-                group_info = await pipe.xinfo_groups(stream_name)
 
                 if consumers:
                     logger.debug(
                         f"Group '{group_name}' has {len(consumers)} consumers, skipping deletion"
                     )
                     continue
+
+                group_info = await pipe.xinfo_groups(stream_name)
 
                 # Check if group has pending messages
                 current_group = next(
@@ -649,7 +650,7 @@ async def _cleanup_empty_consumer_groups_atomically(stream_name: str) -> None:
                     continue
 
                 # if not pending messages in group, delete it
-                await pipe.multi()
+                pipe.multi()
                 pipe.xgroup_destroy(stream_name, group_name)
                 await pipe.execute()
 
