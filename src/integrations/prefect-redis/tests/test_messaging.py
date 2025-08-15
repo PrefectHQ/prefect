@@ -599,13 +599,13 @@ async def test_cleanup_empty_consumer_groups_atomically(redis: Redis):
     await redis.xadd(stream_name, {"data": "test"})
 
     # Create multiple consumer groups
-    await redis.xgroup_create(stream_name, "active-group", id="0")
-    await redis.xgroup_create(stream_name, "empty-group-1", id="0")
-    await redis.xgroup_create(stream_name, "empty-group-2", id="0")
+    await redis.xgroup_create(stream_name, "ephemeral-active-group", id="0")
+    await redis.xgroup_create(stream_name, "ephemeral-empty-group-1", id="0")
+    await redis.xgroup_create(stream_name, "ephemeral-empty-group-2", id="0")
 
     # Add a consumer to the active group (creates a pending entry for the group)
     await redis.xreadgroup(
-        groupname="active-group",
+        groupname="ephemeral-active-group",
         consumername="consumer-1",
         streams={stream_name: ">"},
         count=1,
