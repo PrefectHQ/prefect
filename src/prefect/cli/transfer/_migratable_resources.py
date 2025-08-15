@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import abc
 import uuid
-from typing import Any, Generic, Protocol, Self, TypeVar, overload
+from typing import Any, Generic, Protocol, TypeVar, overload
+
+from typing_extensions import Self
 
 from prefect.client.orchestration import get_client
 from prefect.client.schemas.actions import (
@@ -86,8 +88,15 @@ class MigratableResource(Generic[T], abc.ABC):
     @abc.abstractmethod
     async def get_dependencies(self) -> "list[MigratableProtocol]": ...
 
+    @classmethod
+    @abc.abstractmethod
+    async def get_instance(cls, id: uuid.UUID) -> "MigratableResource[T] | None": ...
+
     @abc.abstractmethod
     async def migrate(self) -> None: ...
+
+    def __str__(self) -> str:
+        return f"{type(self).__name__}(source_id={self.source_id})"
 
 
 class MigratableWorkPool(MigratableResource[WorkPool]):
@@ -117,6 +126,21 @@ class MigratableWorkPool(MigratableResource[WorkPool]):
             cls._instances[obj.id] = instance
             return instance
 
+    @classmethod
+    async def get_instance(cls, id: uuid.UUID) -> "MigratableResource[WorkPool] | None":
+        if id in cls._instances:
+            return cls._instances[id]
+        return None
+
+    @classmethod
+    async def get_instance_by_name(
+        cls, name: str
+    ) -> "MigratableResource[WorkPool] | None":
+        for instance in cls._instances.values():
+            if instance.source_work_pool.name == name:
+                return instance
+        return None
+
     async def get_dependencies(self) -> "list[MigratableProtocol]":
         if self._dependencies:
             return self._dependencies
@@ -126,12 +150,17 @@ class MigratableWorkPool(MigratableResource[WorkPool]):
                 self.source_work_pool.storage_configuration.default_result_storage_block_id
                 is not None
             ):
-                result_storage_block = await client.read_block_document(
-                    self.source_work_pool.storage_configuration.default_result_storage_block_id
-                )
-                self._dependencies.append(
-                    await construct_migratable_resource(result_storage_block)
-                )
+                if dependency := await MigratableBlockDocument.get_instance(
+                    id=self.source_work_pool.storage_configuration.default_result_storage_block_id
+                ):
+                    self._dependencies.append(dependency)
+                else:
+                    result_storage_block = await client.read_block_document(
+                        self.source_work_pool.storage_configuration.default_result_storage_block_id
+                    )
+                    self._dependencies.append(
+                        await construct_migratable_resource(result_storage_block)
+                    )
             if (
                 self.source_work_pool.storage_configuration.bundle_upload_step
                 is not None
@@ -147,6 +176,7 @@ class MigratableWorkPool(MigratableResource[WorkPool]):
         return self._dependencies
 
     async def migrate(self) -> None:
+        # TODO: Figure out what to do with push and managed work pools
         async with get_client() as client:
             try:
                 self.destination_work_pool = await client.create_work_pool(
@@ -198,18 +228,31 @@ class MigratableWorkQueue(MigratableResource[WorkQueue]):
         cls._instances[obj.id] = instance
         return instance
 
+    @classmethod
+    async def get_instance(
+        cls, id: uuid.UUID
+    ) -> "MigratableResource[WorkQueue] | None":
+        if id in cls._instances:
+            return cls._instances[id]
+        return None
+
     async def get_dependencies(self) -> "list[MigratableProtocol]":
         if self._dependencies:
             return self._dependencies
 
         async with get_client() as client:
             if self.source_work_queue.work_pool_name is not None:
-                work_pool = await client.read_work_pool(
-                    self.source_work_queue.work_pool_name
-                )
-                self._dependencies.append(
-                    await construct_migratable_resource(work_pool)
-                )
+                if dependency := await MigratableWorkPool.get_instance_by_name(
+                    name=self.source_work_queue.work_pool_name
+                ):
+                    self._dependencies.append(dependency)
+                else:
+                    work_pool = await client.read_work_pool(
+                        self.source_work_queue.work_pool_name
+                    )
+                    self._dependencies.append(
+                        await construct_migratable_resource(work_pool)
+                    )
 
         return self._dependencies
 
@@ -253,34 +296,68 @@ class MigratableDeployment(MigratableResource[DeploymentResponse]):
         cls._instances[obj.id] = instance
         return instance
 
+    @classmethod
+    async def get_instance(
+        cls, id: uuid.UUID
+    ) -> "MigratableResource[DeploymentResponse] | None":
+        if id in cls._instances:
+            return cls._instances[id]
+        return None
+
     async def get_dependencies(self) -> "list[MigratableProtocol]":
         if self._dependencies:
             return list(self._dependencies.values())
 
         async with get_client() as client:
-            flow = await client.read_flow(self.source_deployment.flow_id)
-            self._dependencies[flow.id] = await construct_migratable_resource(flow)
+            if dependency := await MigratableFlow.get_instance(
+                id=self.source_deployment.flow_id
+            ):
+                self._dependencies[self.source_deployment.flow_id] = dependency
+            else:
+                flow = await client.read_flow(self.source_deployment.flow_id)
+                self._dependencies[flow.id] = await construct_migratable_resource(flow)
             if self.source_deployment.work_queue_id is not None:
-                work_queue = await client.read_work_queue(
-                    self.source_deployment.work_queue_id
-                )
-                self._dependencies[work_queue.id] = await construct_migratable_resource(
-                    work_queue
-                )
+                if dependency := await MigratableWorkQueue.get_instance(
+                    id=self.source_deployment.work_queue_id
+                ):
+                    self._dependencies[self.source_deployment.work_queue_id] = (
+                        dependency
+                    )
+                else:
+                    work_queue = await client.read_work_queue(
+                        self.source_deployment.work_queue_id
+                    )
+                    self._dependencies[
+                        work_queue.id
+                    ] = await construct_migratable_resource(work_queue)
             if self.source_deployment.storage_document_id is not None:
-                storage_document = await client.read_block_document(
-                    self.source_deployment.storage_document_id
-                )
-                self._dependencies[
-                    storage_document.id
-                ] = await construct_migratable_resource(storage_document)
+                if dependency := await MigratableBlockDocument.get_instance(
+                    id=self.source_deployment.storage_document_id
+                ):
+                    self._dependencies[self.source_deployment.storage_document_id] = (
+                        dependency
+                    )
+                else:
+                    storage_document = await client.read_block_document(
+                        self.source_deployment.storage_document_id
+                    )
+                    self._dependencies[
+                        storage_document.id
+                    ] = await construct_migratable_resource(storage_document)
             if self.source_deployment.infrastructure_document_id is not None:
-                infrastructure_document = await client.read_block_document(
-                    self.source_deployment.infrastructure_document_id
-                )
-                self._dependencies[
-                    infrastructure_document.id
-                ] = await construct_migratable_resource(infrastructure_document)
+                if dependency := await MigratableBlockDocument.get_instance(
+                    id=self.source_deployment.infrastructure_document_id
+                ):
+                    self._dependencies[
+                        self.source_deployment.infrastructure_document_id
+                    ] = dependency
+                else:
+                    infrastructure_document = await client.read_block_document(
+                        self.source_deployment.infrastructure_document_id
+                    )
+                    self._dependencies[
+                        infrastructure_document.id
+                    ] = await construct_migratable_resource(infrastructure_document)
             if self.source_deployment.pull_steps:
                 # TODO: Figure out how to find block document references in pull steps
                 pass
@@ -400,6 +477,12 @@ class MigratableFlow(MigratableResource[Flow]):
         cls._instances[obj.id] = instance
         return instance
 
+    @classmethod
+    async def get_instance(cls, id: uuid.UUID) -> "MigratableResource[Flow] | None":
+        if id in cls._instances:
+            return cls._instances[id]
+        return None
+
     async def get_dependencies(self) -> "list[MigratableProtocol]":
         return []
 
@@ -441,6 +524,14 @@ class MigratableBlockType(MigratableResource[BlockType]):
         instance = cls(obj)
         cls._instances[obj.id] = instance
         return instance
+
+    @classmethod
+    async def get_instance(
+        cls, id: uuid.UUID
+    ) -> "MigratableResource[BlockType] | None":
+        if id in cls._instances:
+            return cls._instances[id]
+        return None
 
     async def get_dependencies(self) -> "list[MigratableProtocol]":
         return []
@@ -487,27 +578,49 @@ class MigratableBlockSchema(MigratableResource[BlockSchema]):
         cls._instances[obj.id] = instance
         return instance
 
+    @classmethod
+    async def get_instance(
+        cls, id: uuid.UUID
+    ) -> "MigratableResource[BlockSchema] | None":
+        if id in cls._instances:
+            return cls._instances[id]
+        return None
+
     async def get_dependencies(self) -> "list[MigratableProtocol]":
         if self._dependencies:
             return list(self._dependencies.values())
 
         async with get_client() as client:
             if self.source_block_schema.block_type is not None:
-                self._dependencies[
-                    self.source_block_schema.block_type.id
-                ] = await construct_migratable_resource(
-                    self.source_block_schema.block_type
-                )
+                if dependency := await MigratableBlockType.get_instance(
+                    id=self.source_block_schema.block_type.id
+                ):
+                    self._dependencies[self.source_block_schema.block_type.id] = (
+                        dependency
+                    )
+                else:
+                    self._dependencies[
+                        self.source_block_schema.block_type.id
+                    ] = await construct_migratable_resource(
+                        self.source_block_schema.block_type
+                    )
             elif self.source_block_schema.block_type_id is not None:
-                response = await client.request(
-                    "GET",
-                    "/block_types/{id}",
-                    params={"id": self.source_block_schema.block_type_id},
-                )
-                block_type = BlockType.model_validate(response.json())
-                self._dependencies[block_type.id] = await construct_migratable_resource(
-                    block_type
-                )
+                if dependency := await MigratableBlockType.get_instance(
+                    id=self.source_block_schema.block_type_id
+                ):
+                    self._dependencies[self.source_block_schema.block_type_id] = (
+                        dependency
+                    )
+                else:
+                    response = await client.request(
+                        "GET",
+                        "/block_types/{id}",
+                        params={"id": self.source_block_schema.block_type_id},
+                    )
+                    block_type = BlockType.model_validate(response.json())
+                    self._dependencies[
+                        block_type.id
+                    ] = await construct_migratable_resource(block_type)
             else:
                 raise ValueError("Block schema has no associated block type")
 
@@ -515,15 +628,37 @@ class MigratableBlockSchema(MigratableResource[BlockSchema]):
                 self.source_block_schema.fields.get("block_schema_references", {})
             )
             for block_schema_reference in block_schema_references.values():
-                if block_schema_checksum := block_schema_reference.get(
-                    "block_schema_checksum"
-                ):
-                    block_schema = await client.read_block_schema_by_checksum(
-                        block_schema_checksum
-                    )
-                    self._dependencies[
-                        block_schema.id
-                    ] = await construct_migratable_resource(block_schema)
+                if isinstance(block_schema_reference, list):
+                    for block_schema_reference in block_schema_reference:
+                        if block_schema_checksum := block_schema_reference.get(
+                            "block_schema_checksum"
+                        ):
+                            block_schema = await client.read_block_schema_by_checksum(
+                                block_schema_checksum
+                            )
+                            if dependency := await MigratableBlockSchema.get_instance(
+                                id=block_schema.id
+                            ):
+                                self._dependencies[block_schema.id] = dependency
+                            else:
+                                self._dependencies[
+                                    block_schema.id
+                                ] = await construct_migratable_resource(block_schema)
+                else:
+                    if block_schema_checksum := block_schema_reference.get(
+                        "block_schema_checksum"
+                    ):
+                        block_schema = await client.read_block_schema_by_checksum(
+                            block_schema_checksum
+                        )
+                        if dependency := await MigratableBlockSchema.get_instance(
+                            id=block_schema.id
+                        ):
+                            self._dependencies[block_schema.id] = dependency
+                        else:
+                            self._dependencies[
+                                block_schema.id
+                            ] = await construct_migratable_resource(block_schema)
 
         return list(self._dependencies.values())
 
@@ -582,6 +717,14 @@ class MigratableBlockDocument(MigratableResource[BlockDocument]):
         cls._instances[obj.id] = instance
         return instance
 
+    @classmethod
+    async def get_instance(
+        cls, id: uuid.UUID
+    ) -> "MigratableResource[BlockDocument] | None":
+        if id in cls._instances:
+            return cls._instances[id]
+        return None
+
     async def get_dependencies(self) -> "list[MigratableProtocol]":
         if self._dependencies:
             return list(self._dependencies.values())
@@ -590,38 +733,66 @@ class MigratableBlockDocument(MigratableResource[BlockDocument]):
         # use a client, but read from disk if the object has already been fetched.
         async with get_client() as client:
             if self.source_block_document.block_type is not None:
-                self._dependencies[
-                    self.source_block_document.block_type.id
-                ] = await construct_migratable_resource(
-                    self.source_block_document.block_type
-                )
+                if dependency := await MigratableBlockType.get_instance(
+                    id=self.source_block_document.block_type.id
+                ):
+                    self._dependencies[self.source_block_document.block_type.id] = (
+                        dependency
+                    )
+                else:
+                    self._dependencies[
+                        self.source_block_document.block_type.id
+                    ] = await construct_migratable_resource(
+                        self.source_block_document.block_type
+                    )
             else:
-                response = await client.request(
-                    "GET",
-                    "/block_types/{id}",
-                    params={"id": self.source_block_document.block_type_id},
-                )
-                block_type = BlockType.model_validate(response.json())
-                self._dependencies[block_type.id] = await construct_migratable_resource(
-                    block_type
-                )
+                if dependency := await MigratableBlockType.get_instance(
+                    id=self.source_block_document.block_type_id
+                ):
+                    self._dependencies[self.source_block_document.block_type_id] = (
+                        dependency
+                    )
+                else:
+                    response = await client.request(
+                        "GET",
+                        "/block_types/{id}",
+                        params={"id": self.source_block_document.block_type_id},
+                    )
+                    block_type = BlockType.model_validate(response.json())
+                    self._dependencies[
+                        block_type.id
+                    ] = await construct_migratable_resource(block_type)
 
             if self.source_block_document.block_schema is not None:
-                self._dependencies[
-                    self.source_block_document.block_schema.id
-                ] = await construct_migratable_resource(
-                    self.source_block_document.block_schema
-                )
+                if dependency := await MigratableBlockSchema.get_instance(
+                    id=self.source_block_document.block_schema.id
+                ):
+                    self._dependencies[self.source_block_document.block_schema.id] = (
+                        dependency
+                    )
+                else:
+                    self._dependencies[
+                        self.source_block_document.block_schema.id
+                    ] = await construct_migratable_resource(
+                        self.source_block_document.block_schema
+                    )
             else:
-                response = await client.request(
-                    "GET",
-                    "/block_schemas/{id}",
-                    params={"id": self.source_block_document.block_schema_id},
-                )
-                block_schema = BlockSchema.model_validate(response.json())
-                self._dependencies[
-                    block_schema.id
-                ] = await construct_migratable_resource(block_schema)
+                if dependency := await MigratableBlockSchema.get_instance(
+                    id=self.source_block_document.block_schema_id
+                ):
+                    self._dependencies[self.source_block_document.block_schema_id] = (
+                        dependency
+                    )
+                else:
+                    response = await client.request(
+                        "GET",
+                        "/block_schemas/{id}",
+                        params={"id": self.source_block_document.block_schema_id},
+                    )
+                    block_schema = BlockSchema.model_validate(response.json())
+                    self._dependencies[
+                        block_schema.id
+                    ] = await construct_migratable_resource(block_schema)
 
             if self.source_block_document.block_document_references:
                 for (
@@ -630,12 +801,17 @@ class MigratableBlockDocument(MigratableResource[BlockDocument]):
                     if block_document_id := block_document_reference.get(
                         "block_document_id"
                     ):
-                        block_document = await client.read_block_document(
-                            block_document_id
-                        )
-                        self._dependencies[
-                            block_document.id
-                        ] = await construct_migratable_resource(block_document)
+                        if dependency := await MigratableBlockDocument.get_instance(
+                            id=block_document_id
+                        ):
+                            self._dependencies[block_document_id] = dependency
+                        else:
+                            block_document = await client.read_block_document(
+                                block_document_id
+                            )
+                            self._dependencies[
+                                block_document.id
+                            ] = await construct_migratable_resource(block_document)
 
         return list(self._dependencies.values())
 
@@ -716,6 +892,14 @@ class MigratableAutomation(MigratableResource[Automation]):
         cls._instances[obj.id] = instance
         return instance
 
+    @classmethod
+    async def get_instance(
+        cls, id: uuid.UUID
+    ) -> "MigratableResource[Automation] | None":
+        if id in cls._instances:
+            return cls._instances[id]
+        return None
+
     async def get_dependencies(self) -> "list[MigratableProtocol]":
         if self._dependencies:
             return list(self._dependencies.values())
@@ -726,55 +910,85 @@ class MigratableAutomation(MigratableResource[Automation]):
                     isinstance(action, DeploymentAction)
                     and action.deployment_id is not None
                 ):
-                    deployment = await client.read_deployment(action.deployment_id)
-                    self._dependencies[
-                        deployment.id
-                    ] = await construct_migratable_resource(deployment)
+                    if dependency := await MigratableDeployment.get_instance(
+                        id=action.deployment_id
+                    ):
+                        self._dependencies[action.deployment_id] = dependency
+                    else:
+                        deployment = await client.read_deployment(action.deployment_id)
+                        self._dependencies[
+                            deployment.id
+                        ] = await construct_migratable_resource(deployment)
                 elif (
                     isinstance(action, WorkPoolAction)
                     and action.work_pool_id is not None
                 ):
                     # TODO: Find a better way to get a work pool by id
-                    work_pool = await client.read_work_pools(
-                        work_pool_filter=WorkPoolFilter(
-                            id=WorkPoolFilterId(any_=[action.work_pool_id])
+                    if dependency := await MigratableWorkPool.get_instance(
+                        id=action.work_pool_id
+                    ):
+                        self._dependencies[action.work_pool_id] = dependency
+                    else:
+                        work_pool = await client.read_work_pools(
+                            work_pool_filter=WorkPoolFilter(
+                                id=WorkPoolFilterId(any_=[action.work_pool_id])
+                            )
                         )
-                    )
-                    if work_pool:
-                        self._dependencies[
-                            work_pool[0].id
-                        ] = await construct_migratable_resource(work_pool[0])
+                        if work_pool:
+                            self._dependencies[
+                                work_pool[0].id
+                            ] = await construct_migratable_resource(work_pool[0])
                 elif (
                     isinstance(action, WorkQueueAction)
                     and action.work_queue_id is not None
                 ):
-                    work_queue = await client.read_work_queue(action.work_queue_id)
-                    self._dependencies[
-                        work_queue.id
-                    ] = await construct_migratable_resource(work_queue)
+                    if dependency := await MigratableWorkQueue.get_instance(
+                        id=action.work_queue_id
+                    ):
+                        self._dependencies[action.work_queue_id] = dependency
+                    else:
+                        work_queue = await client.read_work_queue(action.work_queue_id)
+                        self._dependencies[
+                            work_queue.id
+                        ] = await construct_migratable_resource(work_queue)
                 elif (
                     isinstance(action, AutomationAction)
                     and action.automation_id is not None
                 ):
-                    automation = await client.find_automation(action.automation_id)
-                    if automation:
-                        self._dependencies[
-                            automation.id
-                        ] = await construct_migratable_resource(automation)
+                    if dependency := await MigratableAutomation.get_instance(
+                        id=action.automation_id
+                    ):
+                        self._dependencies[action.automation_id] = dependency
+                    else:
+                        automation = await client.find_automation(action.automation_id)
+                        if automation:
+                            self._dependencies[
+                                automation.id
+                            ] = await construct_migratable_resource(automation)
                 elif isinstance(action, CallWebhook):
-                    block_document = await client.read_block_document(
-                        action.block_document_id
-                    )
-                    self._dependencies[
-                        block_document.id
-                    ] = await construct_migratable_resource(block_document)
+                    if dependency := await MigratableBlockDocument.get_instance(
+                        id=action.block_document_id
+                    ):
+                        self._dependencies[action.block_document_id] = dependency
+                    else:
+                        block_document = await client.read_block_document(
+                            action.block_document_id
+                        )
+                        self._dependencies[
+                            block_document.id
+                        ] = await construct_migratable_resource(block_document)
                 elif isinstance(action, SendNotification):
-                    block_document = await client.read_block_document(
-                        action.block_document_id
-                    )
-                    self._dependencies[
-                        block_document.id
-                    ] = await construct_migratable_resource(block_document)
+                    if dependency := await MigratableBlockDocument.get_instance(
+                        id=action.block_document_id
+                    ):
+                        self._dependencies[action.block_document_id] = dependency
+                    else:
+                        block_document = await client.read_block_document(
+                            action.block_document_id
+                        )
+                        self._dependencies[
+                            block_document.id
+                        ] = await construct_migratable_resource(block_document)
         return list(self._dependencies.values())
 
     async def migrate(self) -> None:
@@ -867,6 +1081,14 @@ class MigratableGlobalConcurrencyLimit(
         cls._instances[obj.id] = instance
         return instance
 
+    @classmethod
+    async def get_instance(
+        cls, id: uuid.UUID
+    ) -> "MigratableResource[GlobalConcurrencyLimitResponse] | None":
+        if id in cls._instances:
+            return cls._instances[id]
+        return None
+
     async def get_dependencies(self) -> "list[MigratableProtocol]":
         return []
 
@@ -916,6 +1138,12 @@ class MigratableVariable(MigratableResource[Variable]):
         instance = cls(obj)
         cls._instances[obj.id] = instance
         return instance
+
+    @classmethod
+    async def get_instance(cls, id: uuid.UUID) -> "MigratableResource[Variable] | None":
+        if id in cls._instances:
+            return cls._instances[id]
+        return None
 
     async def get_dependencies(self) -> "list[MigratableProtocol]":
         return []
