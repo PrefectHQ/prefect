@@ -69,18 +69,18 @@ class TransferDAG(Generic[T]):
 
     def add_node(self, node: T) -> uuid.UUID:
         """
-        Add a node to the graph, deduplicating by ID.
+        Add a node to the graph, deduplicating by source ID.
 
         Args:
             node: Resource to add to the graph
 
         Returns:
-            The node's UUID
+            The node's source UUID
         """
-        if node.id not in self._nodes:
-            self._nodes[node.id] = node
-            self._status[node.id] = NodeStatus(node)
-        return node.id
+        if node.source_id not in self._nodes:
+            self._nodes[node.source_id] = node
+            self._status[node.source_id] = NodeStatus(node)
+        return node.source_id
 
     def add_edge(self, dependent_id: uuid.UUID, dependency_id: uuid.UUID) -> None:
         """
@@ -109,9 +109,9 @@ class TransferDAG(Generic[T]):
         visited: set[uuid.UUID] = set()
 
         async def visit(resource: T):
-            if resource.id in visited:
+            if resource.source_id in visited:
                 return
-            visited.add(resource.id)
+            visited.add(resource.source_id)
 
             rid = self.add_node(resource)
 
