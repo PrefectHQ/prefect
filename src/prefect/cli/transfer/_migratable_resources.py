@@ -1,8 +1,6 @@
 import abc
 import uuid
-from typing import Generic, Protocol, TypeVar, overload
-
-from typing_extensions import Self
+from typing import Generic, Protocol, Self, TypeVar, overload
 
 from prefect.client.orchestration import get_client
 from prefect.client.schemas.objects import (
@@ -70,9 +68,6 @@ class MigratableWorkPool(MigratableResource[WorkPool]):
     async def get_dependencies(self) -> "list[MigratableProtocol]":
         return []
 
-    def __repr__(self) -> str:
-        return f"WorkPool({self.obj.name})"
-
 
 class MigratableWorkQueue(MigratableResource[WorkQueue]):
     def __init__(self, obj: WorkQueue):
@@ -93,9 +88,6 @@ class MigratableWorkQueue(MigratableResource[WorkQueue]):
             work_pool = await client.read_work_pool(self.obj.work_pool_name)
             return [await construct_migratable_resource(work_pool)]
 
-    def __repr__(self) -> str:
-        return f"WorkQueue({self.obj.name})"
-
 
 class MigratableDeployment(MigratableResource[Deployment]):
     def __init__(self, obj: Deployment):
@@ -104,9 +96,6 @@ class MigratableDeployment(MigratableResource[Deployment]):
     @property
     def id(self) -> uuid.UUID:
         return self.obj.id
-
-    def __repr__(self) -> str:
-        return f"Deployment({self.obj.name})"
 
     @classmethod
     async def construct(cls, obj: Deployment) -> Self:
@@ -124,9 +113,6 @@ class MigratableFlow(MigratableResource[Flow]):
     def id(self) -> uuid.UUID:
         return self.obj.id
 
-    def __repr__(self) -> str:
-        return f"Flow({self.obj.name})"
-
     @classmethod
     async def construct(cls, obj: Flow) -> Self:
         return cls(obj)
@@ -142,9 +128,6 @@ class MigratableBlockType(MigratableResource[BlockType]):
     @property
     def id(self) -> uuid.UUID:
         return self.obj.id
-
-    def __repr__(self) -> str:
-        return f"BlockType({self.obj.name})"
 
     @classmethod
     async def construct(cls, obj: BlockType) -> Self:
@@ -162,9 +145,6 @@ class MigratableBlockSchema(MigratableResource[BlockSchema]):
     def id(self) -> uuid.UUID:
         return self.obj.id
 
-    def __repr__(self) -> str:
-        return f"BlockSchema({self.obj.checksum})"
-
     @classmethod
     async def construct(cls, obj: BlockSchema) -> Self:
         return cls(obj)
@@ -180,9 +160,6 @@ class MigratableBlockDocument(MigratableResource[BlockDocument]):
     @property
     def id(self) -> uuid.UUID:
         return self.obj.id
-
-    def __repr__(self) -> str:
-        return f"BlockDocument({self.obj.name})"
 
     @classmethod
     async def construct(cls, obj: BlockDocument) -> Self:
@@ -200,9 +177,6 @@ class MigratableAutomation(MigratableResource[Automation]):
     def id(self) -> uuid.UUID:
         return self.obj.id
 
-    def __repr__(self) -> str:
-        return f"Automation({self.obj.name})"
-
     @classmethod
     async def construct(cls, obj: Automation) -> Self:
         return cls(obj)
@@ -218,9 +192,6 @@ class MigratableGlobalConcurrencyLimit(MigratableResource[GlobalConcurrencyLimit
     @property
     def id(self) -> uuid.UUID:
         return self.obj.id
-
-    def __repr__(self) -> str:
-        return f"GlobalConcurrencyLimit({self.obj.name})"
 
     @classmethod
     async def construct(cls, obj: GlobalConcurrencyLimit) -> Self:
@@ -244,9 +215,6 @@ class MigratableVariable(MigratableResource[Variable]):
 
     async def get_dependencies(self) -> "list[MigratableProtocol]":
         return []
-
-    def __repr__(self) -> str:
-        return f"Variable({self.obj.name})"
 
 
 @overload
