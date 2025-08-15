@@ -595,7 +595,7 @@ async def test_cleanup_empty_consumer_groups_atomically(redis: Redis):
 
     stream_name = "test-cleanup-stream"
 
-    # Create the stream with a message
+    # Create a stream with a message
     await redis.xadd(stream_name, {"data": "test"})
 
     # Create multiple consumer groups
@@ -611,7 +611,7 @@ async def test_cleanup_empty_consumer_groups_atomically(redis: Redis):
         count=1,
     )
 
-    # Verify that all groups exist
+    # Verify all groups exist
     groups_before = await redis.xinfo_groups(stream_name)
     assert len(groups_before) == 3
     assert {g["name"] for g in groups_before} == {
