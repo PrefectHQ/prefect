@@ -636,6 +636,10 @@ async def _cleanup_empty_consumer_groups_atomically(stream_name: str) -> None:
                     )
                     continue
 
+                if not group_name.startswith("ephemeral"):
+                    logger.debug(f"Skipping non-ephemeral empty group '{group_name}'")
+                    continue
+
                 group_info = await pipe.xinfo_groups(stream_name)
 
                 # Check if group has pending messages

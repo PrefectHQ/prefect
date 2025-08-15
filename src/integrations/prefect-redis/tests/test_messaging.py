@@ -615,9 +615,9 @@ async def test_cleanup_empty_consumer_groups_atomically(redis: Redis):
     groups_before = await redis.xinfo_groups(stream_name)
     assert len(groups_before) == 3
     assert {g["name"] for g in groups_before} == {
-        "active-group",
-        "empty-group-1",
-        "empty-group-2",
+        "ephemeral-active-group",
+        "ephemeral-empty-group-1",
+        "ephemeral-empty-group-2",
     }
 
     # Run atomic cleanup
@@ -626,7 +626,7 @@ async def test_cleanup_empty_consumer_groups_atomically(redis: Redis):
     # Verify that only the active group remains
     groups_after = await redis.xinfo_groups(stream_name)
     assert len(groups_after) == 1
-    assert groups_after[0]["name"] == "active-group"
+    assert groups_after[0]["name"] == "ephemeral-active-group"
 
 
 async def test_cleanup_deletes_group_after_delconsumer(redis: Redis):
@@ -641,26 +641,30 @@ async def test_cleanup_deletes_group_after_delconsumer(redis: Redis):
     await redis.xadd(stream_name, {"data": "test"})
 
     # Create two groups: one will have pending then its consumer will be removed; the other is truly empty
-    await redis.xgroup_create(stream_name, "orphaned-pending-group", id="0")
-    await redis.xgroup_create(stream_name, "empty-group", id="0")
+    await redis.xgroup_create(stream_name, "ephemeral-orphaned-pending-group", id="0")
+    await redis.xgroup_create(stream_name, "ephemeral-empty-group", id="0")
 
     # Create a pending message for the first group
     await redis.xreadgroup(
-        groupname="orphaned-pending-group",
+        groupname="ephemeral-orphaned-pending-group",
         consumername="c1",
         streams={stream_name: ">"},
         count=1,
     )
 
     # Remove the only consumer; Redis clears that consumer's pending entries
-    await redis.xgroup_delconsumer(stream_name, "orphaned-pending-group", "c1")
+    await redis.xgroup_delconsumer(
+        stream_name, "ephemeral-orphaned-pending-group", "c1"
+    )
 
     # Sanity check: no consumers and pending == 0
-    consumers_mid = await redis.xinfo_consumers(stream_name, "orphaned-pending-group")
+    consumers_mid = await redis.xinfo_consumers(
+        stream_name, "ephemeral-orphaned-pending-group"
+    )
     assert consumers_mid == []  # no consumers
     groups_mid = await redis.xinfo_groups(stream_name)
     pending_after_del = next(
-        g for g in groups_mid if g["name"] == "orphaned-pending-group"
+        g for g in groups_mid if g["name"] == "ephemeral-orphaned-pending-group"
     )["pending"]
     assert pending_after_del == 0
 
@@ -670,6 +674,35 @@ async def test_cleanup_deletes_group_after_delconsumer(redis: Redis):
     # Both groups should have been removed
     groups_after = await redis.xinfo_groups(stream_name)
     names_after = {g["name"] for g in groups_after}
-    assert "orphaned-pending-group" not in names_after
-    assert "empty-group" not in names_after
+    assert "ephemeral-orphaned-pending-group" not in names_after
+    assert "ephemeral-empty-group" not in names_after
     assert len(names_after) == 0
+
+
+async def test_cleanup_skips_non_ephemeral_empty_groups(redis: Redis):
+    """Ensure non-ephemeral empty groups are not deleted by the atomic cleanup."""
+
+    stream_name = "test-cleanup-skip-non-ephemeral"
+
+    # Create the stream with a message
+    await redis.xadd(stream_name, {"data": "test"})
+
+    # Create a non-ephemeral active group and a non-ephemeral empty group
+    await redis.xgroup_create(stream_name, "active-group", id="0")
+    await redis.xgroup_create(stream_name, "empty-group-1", id="0")
+
+    # Add a consumer to the active group to keep it active
+    await redis.xreadgroup(
+        groupname="active-group",
+        consumername="consumer-1",
+        streams={stream_name: ">"},
+        count=1,
+    )
+
+    # Run atomic cleanup (should not delete non-ephemeral empty group)
+    await _cleanup_empty_consumer_groups_atomically(stream_name)
+
+    groups_after = await redis.xinfo_groups(stream_name)
+    names_after = {g["name"] for g in groups_after}
+    assert "active-group" in names_after
+    assert "empty-group-1" in names_after  # not deleted because it's not ephemeral
