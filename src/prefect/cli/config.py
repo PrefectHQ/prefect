@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import Any, Union, cast
+from typing import Any, List, Union, cast
 
 import toml
 import typer
@@ -24,6 +24,7 @@ from prefect.settings.legacy import (
     _get_settings_fields,  # type: ignore[reportPrivateUsage] Private util that needs to live next to Setting class
     _get_valid_setting_names,  # type: ignore[reportPrivateUsage] Private util that needs to live next to Setting class
 )
+from prefect.settings.validation import is_setting_or_valid_logging
 from prefect.utilities.annotations import NotSet
 from prefect.utilities.collections import listrepr
 
@@ -49,7 +50,7 @@ def set_(settings: list[str]):
                 f"Failed to parse argument {item!r}. Use the format 'VAR=VAL'."
             )
 
-        if setting not in VALID_SETTING_NAMES:
+        if not is_setting_or_valid_logging(setting, VALID_SETTING_NAMES):
             exit_with_error(f"Unknown setting name {setting!r}.")
 
         # Guard against changing settings that tweak config locations
@@ -286,7 +287,20 @@ def view(
 
     # Process settings from the current profile
     for setting, value in current_profile_settings.items():
-        if setting.name not in processed_settings:
+        # Handle both Setting objects and string keys (for custom logging settings)
+        if isinstance(setting, str):
+            # Custom logging setting stored as string key
+            if setting not in processed_settings:
+                # Create a minimal display for custom logging settings
+                display_value = (
+                    "********"
+                    if "SECRET" in setting or "KEY" in setting or "TOKEN" in setting
+                    else value
+                )
+                source_blurb = " (from profile)" if show_sources else ""
+                settings_output.append(f"{setting}='{display_value}'{source_blurb}")
+                processed_settings.add(setting)
+        elif setting.name not in processed_settings:
             _process_setting(setting, value, "profile")
 
     if show_defaults:
