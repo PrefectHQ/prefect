@@ -603,7 +603,7 @@ async def _trim_stream_to_lowest_delivered_id(stream_name: str) -> None:
 
 async def _cleanup_empty_consumer_groups_atomically(stream_name: str) -> None:
     """
-    Removes consumer groups that have no active consumers atomically to avoid race condition.
+    Removes consumer groups that have no active consumers atomically to avoid race conditions.
 
     Consumer groups with no consumers are considered abandoned and can safely be
     deleted to prevent them from blocking stream trimming operations.
@@ -624,6 +624,10 @@ async def _cleanup_empty_consumer_groups_atomically(stream_name: str) -> None:
     for group in groups:
         group_name = group["name"]
 
+        if not group_name.startswith("ephemeral"):
+            logger.debug(f"Skipping non-ephemeral empty group '{group_name}'")
+            continue
+
         async with redis_client.pipeline() as pipe:
             try:
                 await pipe.watch(stream_name)
@@ -634,10 +638,6 @@ async def _cleanup_empty_consumer_groups_atomically(stream_name: str) -> None:
                     logger.debug(
                         f"Group '{group_name}' has {len(consumers)} consumers, skipping deletion"
                     )
-                    continue
-
-                if not group_name.startswith("ephemeral"):
-                    logger.debug(f"Skipping non-ephemeral empty group '{group_name}'")
                     continue
 
                 group_info = await pipe.xinfo_groups(stream_name)
