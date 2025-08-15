@@ -13,7 +13,7 @@ import uuid
 from collections import defaultdict, deque
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Awaitable, Callable, Generic, TypeVar
+from typing import Any, Awaitable, Callable, Coroutine, Generic, TypeVar
 
 import anyio
 from anyio import create_task_group
@@ -115,13 +115,15 @@ class TransferDAG(Generic[T]):
 
             rid = self.add_node(resource)
 
+            visit_coroutines: list[Coroutine[Any, Any, None]] = []
             for dep in await resource.get_dependencies():
                 did = self.add_node(dep)
                 self.add_edge(rid, did)
-                await visit(dep)
+                visit_coroutines.append(visit(dep))
+            await asyncio.gather(*visit_coroutines)
 
-        for r in roots:
-            await visit(r)
+        visit_coroutines = [visit(r) for r in roots]
+        await asyncio.gather(*visit_coroutines)
 
     def has_cycles(self) -> bool:
         """
@@ -229,7 +231,16 @@ class TransferDAG(Generic[T]):
         layers = self.get_execution_layers(_assume_acyclic=True)
         logger.debug(f"Execution plan has {len(layers)} layers")
         for i, layer in enumerate(layers):
-            logger.debug(f"Layer {i}: {[str(n) for n in layer]}")
+            # Count each type in the layer
+            type_counts: dict[str, int] = {}
+            for node in layer:
+                node_type = type(node).__name__
+                type_counts[node_type] = type_counts.get(node_type, 0) + 1
+
+            type_summary = ", ".join(
+                [f"{count} {type_name}" for type_name, count in type_counts.items()]
+            )
+            logger.debug(f"Layer {i}: ({type_summary})")
 
         # Initialize with nodes that have no dependencies
         ready_queue = []
