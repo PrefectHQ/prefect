@@ -6,8 +6,10 @@ from typing import Any, Generic, Protocol, Self, TypeVar, overload
 
 from prefect.client.orchestration import get_client
 from prefect.client.schemas.actions import (
+    BlockDocumentCreate,
     BlockSchemaCreate,
     BlockTypeCreate,
+    DeploymentScheduleCreate,
     FlowCreate,
     GlobalConcurrencyLimitCreate,
     VariableCreate,
@@ -233,7 +235,7 @@ class MigratableDeployment(MigratableResource[DeploymentResponse]):
     def __init__(self, deployment: DeploymentResponse):
         self.source_deployment = deployment
         self.destination_deployment: DeploymentResponse | None = None
-        self._dependencies: list[MigratableProtocol] = []
+        self._dependencies: dict[uuid.UUID, MigratableProtocol] = {}
 
     @property
     def source_id(self) -> uuid.UUID:
@@ -253,40 +255,126 @@ class MigratableDeployment(MigratableResource[DeploymentResponse]):
 
     async def get_dependencies(self) -> "list[MigratableProtocol]":
         if self._dependencies:
-            return self._dependencies
+            return list(self._dependencies.values())
 
         async with get_client() as client:
             flow = await client.read_flow(self.source_deployment.flow_id)
-            self._dependencies.append(await construct_migratable_resource(flow))
+            self._dependencies[flow.id] = await construct_migratable_resource(flow)
             if self.source_deployment.work_queue_id is not None:
                 work_queue = await client.read_work_queue(
                     self.source_deployment.work_queue_id
                 )
-                self._dependencies.append(
-                    await construct_migratable_resource(work_queue)
+                self._dependencies[work_queue.id] = await construct_migratable_resource(
+                    work_queue
                 )
             if self.source_deployment.storage_document_id is not None:
                 storage_document = await client.read_block_document(
                     self.source_deployment.storage_document_id
                 )
-                self._dependencies.append(
-                    await construct_migratable_resource(storage_document)
-                )
+                self._dependencies[
+                    storage_document.id
+                ] = await construct_migratable_resource(storage_document)
             if self.source_deployment.infrastructure_document_id is not None:
                 infrastructure_document = await client.read_block_document(
                     self.source_deployment.infrastructure_document_id
                 )
-                self._dependencies.append(
-                    await construct_migratable_resource(infrastructure_document)
-                )
+                self._dependencies[
+                    infrastructure_document.id
+                ] = await construct_migratable_resource(infrastructure_document)
             if self.source_deployment.pull_steps:
                 # TODO: Figure out how to find block document references in pull steps
                 pass
 
-        return self._dependencies
+        return list(self._dependencies.values())
 
     async def migrate(self) -> None:
-        pass
+        async with get_client() as client:
+            try:
+                if (
+                    destination_flow_id := getattr(
+                        self._dependencies.get(self.source_deployment.flow_id),
+                        "destination_id",
+                        None,
+                    )
+                ) is None:
+                    raise ValueError("Unable to find destination flow")
+                if (
+                    self.source_deployment.storage_document_id
+                    and (
+                        destination_storage_document_id := getattr(
+                            self._dependencies.get(
+                                self.source_deployment.storage_document_id
+                            ),
+                            "destination_id",
+                            None,
+                        )
+                    )
+                    is None
+                ):
+                    raise ValueError("Unable to find destination storage document")
+                else:
+                    destination_storage_document_id = None
+                if (
+                    self.source_deployment.infrastructure_document_id
+                    and (
+                        destination_infrastructure_document_id := getattr(
+                            self._dependencies.get(
+                                self.source_deployment.infrastructure_document_id
+                            ),
+                            "destination_id",
+                            None,
+                        )
+                    )
+                    is None
+                ):
+                    raise ValueError(
+                        "Unable to find destination infrastructure document"
+                    )
+                else:
+                    destination_infrastructure_document_id = None
+
+                destination_deployment_id = await client.create_deployment(
+                    flow_id=destination_flow_id,
+                    name=self.source_deployment.name,
+                    version=self.source_deployment.version,
+                    version_info=self.source_deployment.version_info,
+                    schedules=[
+                        DeploymentScheduleCreate(
+                            schedule=schedule.schedule,
+                            active=schedule.active,
+                            max_scheduled_runs=schedule.max_scheduled_runs,
+                            parameters=schedule.parameters,
+                            slug=schedule.slug,
+                        )
+                        for schedule in self.source_deployment.schedules
+                    ],
+                    concurrency_limit=self.source_deployment.concurrency_limit,
+                    concurrency_options=self.source_deployment.concurrency_options,
+                    parameters=self.source_deployment.parameters,
+                    description=self.source_deployment.description,
+                    work_queue_name=self.source_deployment.work_queue_name,
+                    work_pool_name=self.source_deployment.work_pool_name,
+                    tags=self.source_deployment.tags,
+                    storage_document_id=destination_storage_document_id,
+                    path=self.source_deployment.path,
+                    entrypoint=self.source_deployment.entrypoint,
+                    infrastructure_document_id=destination_infrastructure_document_id,
+                    parameter_openapi_schema=self.source_deployment.parameter_openapi_schema,
+                    paused=self.source_deployment.paused,
+                    pull_steps=self.source_deployment.pull_steps,
+                    enforce_parameter_schema=self.source_deployment.enforce_parameter_schema,
+                    job_variables=self.source_deployment.job_variables,
+                    branch=self.source_deployment.branch,
+                    base=self.source_deployment.base,
+                    root=self.source_deployment.root,
+                )
+                self.destination_deployment = await client.read_deployment(
+                    destination_deployment_id
+                )
+            except ObjectAlreadyExists:
+                self.destination_deployment = await client.read_deployment(
+                    self.source_deployment.id
+                )
 
 
 class MigratableFlow(MigratableResource[Flow]):
@@ -317,15 +405,18 @@ class MigratableFlow(MigratableResource[Flow]):
 
     async def migrate(self) -> None:
         async with get_client() as client:
-            flow_data = FlowCreate(
-                name=self.source_flow.name,
-                tags=self.source_flow.tags,
-                labels=self.source_flow.labels,
-            )
-            # We don't have a pre-built client method that accepts tags and labels
-            await client.request(
-                "POST", "/flows/", json=flow_data.model_dump(mode="json")
-            )
+            try:
+                flow_data = FlowCreate(
+                    name=self.source_flow.name,
+                    tags=self.source_flow.tags,
+                    labels=self.source_flow.labels,
+                )
+                # We don't have a pre-built client method that accepts tags and labels
+                await client.request(
+                    "POST", "/flows/", json=flow_data.model_dump(mode="json")
+                )
+            except ObjectAlreadyExists:
+                self.destination_flow = await client.read_flow(self.source_flow.id)
 
 
 class MigratableBlockType(MigratableResource[BlockType]):
@@ -407,7 +498,7 @@ class MigratableBlockSchema(MigratableResource[BlockSchema]):
                 ] = await construct_migratable_resource(
                     self.source_block_schema.block_type
                 )
-            else:
+            elif self.source_block_schema.block_type_id is not None:
                 response = await client.request(
                     "GET",
                     "/block_types/{id}",
@@ -417,6 +508,8 @@ class MigratableBlockSchema(MigratableResource[BlockSchema]):
                 self._dependencies[block_type.id] = await construct_migratable_resource(
                     block_type
                 )
+            else:
+                raise ValueError("Block schema has no associated block type")
 
             block_schema_references: dict[str, dict[str, Any]] = (
                 self.source_block_schema.fields.get("block_schema_references", {})
@@ -435,12 +528,22 @@ class MigratableBlockSchema(MigratableResource[BlockSchema]):
         return list(self._dependencies.values())
 
     async def migrate(self) -> None:
+        if self.source_block_schema.block_type_id is None:
+            raise ValueError("Block schema has no associated block type")
+        if (
+            destination_block_type := self._dependencies.get(
+                self.source_block_schema.block_type_id
+            )
+        ) is None:
+            raise ValueError("Unable to find destination block type")
         async with get_client() as client:
             try:
                 self.destination_block_schema = await client.create_block_schema(
                     block_schema=BlockSchemaCreate(
-                        name=self.source_block_schema.name,
-                        slug=self.source_block_schema.slug,
+                        fields=self.source_block_schema.fields,
+                        block_type_id=destination_block_type.destination_id,
+                        capabilities=self.source_block_schema.capabilities,
+                        version=self.source_block_schema.version,
                     ),
                 )
             except ObjectAlreadyExists:
@@ -457,7 +560,7 @@ class MigratableBlockDocument(MigratableResource[BlockDocument]):
     def __init__(self, block_document: BlockDocument):
         self.source_block_document = block_document
         self.destination_block_document: BlockDocument | None = None
-        self._dependencies: list[MigratableProtocol] = []
+        self._dependencies: dict[uuid.UUID, MigratableProtocol] = {}
 
     @property
     def source_id(self) -> uuid.UUID:
@@ -481,16 +584,16 @@ class MigratableBlockDocument(MigratableResource[BlockDocument]):
 
     async def get_dependencies(self) -> "list[MigratableProtocol]":
         if self._dependencies:
-            return self._dependencies
+            return list(self._dependencies.values())
 
         # TODO: When we write serialized versions of the objects to disk, we should have a way to
         # use a client, but read from disk if the object has already been fetched.
         async with get_client() as client:
             if self.source_block_document.block_type is not None:
-                self._dependencies.append(
-                    await construct_migratable_resource(
-                        self.source_block_document.block_type
-                    )
+                self._dependencies[
+                    self.source_block_document.block_type.id
+                ] = await construct_migratable_resource(
+                    self.source_block_document.block_type
                 )
             else:
                 response = await client.request(
@@ -499,15 +602,15 @@ class MigratableBlockDocument(MigratableResource[BlockDocument]):
                     params={"id": self.source_block_document.block_type_id},
                 )
                 block_type = BlockType.model_validate(response.json())
-                self._dependencies.append(
-                    await construct_migratable_resource(block_type)
+                self._dependencies[block_type.id] = await construct_migratable_resource(
+                    block_type
                 )
 
             if self.source_block_document.block_schema is not None:
-                self._dependencies.append(
-                    await construct_migratable_resource(
-                        self.source_block_document.block_schema
-                    )
+                self._dependencies[
+                    self.source_block_document.block_schema.id
+                ] = await construct_migratable_resource(
+                    self.source_block_document.block_schema
                 )
             else:
                 response = await client.request(
@@ -516,9 +619,9 @@ class MigratableBlockDocument(MigratableResource[BlockDocument]):
                     params={"id": self.source_block_document.block_schema_id},
                 )
                 block_schema = BlockSchema.model_validate(response.json())
-                self._dependencies.append(
-                    await construct_migratable_resource(block_schema)
-                )
+                self._dependencies[
+                    block_schema.id
+                ] = await construct_migratable_resource(block_schema)
 
             if self.source_block_document.block_document_references:
                 for (
@@ -530,14 +633,63 @@ class MigratableBlockDocument(MigratableResource[BlockDocument]):
                         block_document = await client.read_block_document(
                             block_document_id
                         )
-                        self._dependencies.append(
-                            await construct_migratable_resource(block_document)
-                        )
+                        self._dependencies[
+                            block_document.id
+                        ] = await construct_migratable_resource(block_document)
 
-        return self._dependencies
+        return list(self._dependencies.values())
 
     async def migrate(self) -> None:
-        pass
+        if (
+            destination_block_type := self._dependencies.get(
+                self.source_block_document.block_type_id
+            )
+        ) is None or not destination_block_type.destination_id:
+            raise ValueError("Unable to find destination block type")
+        if (
+            destination_block_schema := self._dependencies.get(
+                self.source_block_document.block_schema_id
+            )
+        ) is None or not destination_block_schema.destination_id:
+            raise ValueError("Unable to find destination block schema")
+
+        async with get_client() as client:
+            try:
+                # TODO: Check if data needs to be written differently to maintain composition
+                self.destination_block_document = await client.create_block_document(
+                    block_document=BlockDocumentCreate(
+                        name=self.source_block_document.name,
+                        block_type_id=destination_block_type.destination_id,
+                        block_schema_id=destination_block_schema.destination_id,
+                        data=self.source_block_document.data,
+                    ),
+                )
+            except ObjectAlreadyExists:
+                if self.source_block_document.name is None:
+                    # This is technically impossible, but our typing thinks it's possible
+                    raise ValueError(
+                        "Block document has no name, which should be impossible. "
+                        "Please report this as a bug."
+                    )
+
+                if self.source_block_document.block_type is not None:
+                    block_type_slug = self.source_block_document.block_type.slug
+                else:
+                    # TODO: Add real client methods for places where we use `client.request`
+                    response = await client.request(
+                        "GET",
+                        "/block_types/{id}",
+                        params={"id": self.source_block_document.block_type_id},
+                    )
+                    block_type = BlockType.model_validate(response.json())
+                    block_type_slug = block_type.slug
+
+                self.destination_block_document = (
+                    await client.read_block_document_by_name(
+                        block_type_slug=block_type_slug,
+                        name=self.source_block_document.name,
+                    )
+                )
 
 
 class MigratableAutomation(MigratableResource[Automation]):
