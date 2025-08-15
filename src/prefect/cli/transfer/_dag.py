@@ -15,6 +15,10 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Awaitable, Callable, Generic, TypeVar
 
+import anyio
+from anyio import create_task_group
+from anyio.abc import TaskGroup
+
 from prefect.cli.transfer._migratable_resources import MigratableProtocol
 from prefect.logging import get_logger
 
@@ -227,24 +231,27 @@ class TransferDAG(Generic[T]):
         for i, layer in enumerate(layers):
             logger.debug(f"Layer {i}: {[str(n) for n in layer]}")
 
-        ready_queue = asyncio.Queue()
+        # Initialize with nodes that have no dependencies
+        ready_queue = []
         for nid in self._nodes:
             if not self._dependencies[nid]:
-                await ready_queue.put(nid)
+                ready_queue.append(nid)
                 self._status[nid].state = NodeState.READY
 
         results: dict[uuid.UUID, Any] = {}
-        semaphore = asyncio.Semaphore(max_workers)
+        semaphore = anyio.Semaphore(max_workers)
+        processing = set()
 
-        async def worker(nid: uuid.UUID):
+        async def worker(nid: uuid.UUID, tg: TaskGroup):
             """Process a single node."""
             node = self._nodes[nid]
-            async with semaphore:
-                # Check if node was skipped after being queued
-                if self._status[nid].state != NodeState.READY:
-                    logger.debug(f"Node {node} was skipped before execution")
-                    return
 
+            # Check if node was skipped after being queued
+            if self._status[nid].state != NodeState.READY:
+                logger.debug(f"Node {node} was skipped before execution")
+                return
+
+            async with semaphore:
                 try:
                     self._status[nid].state = NodeState.IN_PROGRESS
                     logger.debug(f"Processing {node}")
@@ -265,7 +272,10 @@ class TransferDAG(Generic[T]):
                                     for d in dst.dependencies
                                 ):
                                     dst.state = NodeState.READY
-                                    await ready_queue.put(did)
+                                    # Start the newly ready task immediately
+                                    if did not in processing:
+                                        processing.add(did)
+                                        tg.start_soon(worker, did, tg)
 
                 except Exception as e:
                     results[nid] = e
@@ -296,22 +306,15 @@ class TransferDAG(Generic[T]):
                                         f"Skipped {self._nodes[did]} due to upstream failure"
                                     )
                                     to_skip.append(did)
+                finally:
+                    processing.discard(nid)
 
-        tasks: set[asyncio.Task] = set()
-
-        while not ready_queue.empty() or tasks:
-            # Start workers for ready nodes
-            while not ready_queue.empty() and len(tasks) < max_workers:
-                nid = await ready_queue.get()
-                # Double-check state to prevent race conditions
-                if self._status[nid].state != NodeState.READY:
-                    continue
-                tasks.add(asyncio.create_task(worker(nid)))
-
-            if tasks:
-                done, tasks = await asyncio.wait(
-                    tasks, return_when=asyncio.FIRST_COMPLETED
-                )
+        async with create_task_group() as tg:
+            # Start processing all initially ready nodes
+            for nid in ready_queue:
+                if self._status[nid].state == NodeState.READY:
+                    processing.add(nid)
+                    tg.start_soon(worker, nid, tg)
 
         return results
 
