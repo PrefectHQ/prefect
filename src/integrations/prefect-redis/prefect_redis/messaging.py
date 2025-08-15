@@ -26,6 +26,7 @@ import orjson
 from pydantic import BeforeValidator, Field
 from redis.asyncio import Redis
 from redis.exceptions import ResponseError, WatchError
+
 from typing_extensions import Self
 
 from prefect.logging import get_logger

@@ -20,6 +20,7 @@ from prefect_redis.messaging import (
 )
 from redis.asyncio import Redis
 
+
 from prefect.server.events import Event
 from prefect.server.events.clients import PrefectServerEventsClient
 from prefect.server.events.messaging import EventPublisher
