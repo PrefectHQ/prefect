@@ -698,7 +698,7 @@ class MigratableAutomation(MigratableResource[Automation]):
     def __init__(self, automation: Automation):
         self.source_automation = automation
         self.destination_automation: Automation | None = None
-        self._dependencies: list[MigratableProtocol] = []
+        self._dependencies: dict[uuid.UUID, MigratableProtocol] = {}
 
     @property
     def source_id(self) -> uuid.UUID:
@@ -718,7 +718,7 @@ class MigratableAutomation(MigratableResource[Automation]):
 
     async def get_dependencies(self) -> "list[MigratableProtocol]":
         if self._dependencies:
-            return self._dependencies
+            return list(self._dependencies.values())
 
         async with get_client() as client:
             for action in self.source_automation.actions:
@@ -727,9 +727,9 @@ class MigratableAutomation(MigratableResource[Automation]):
                     and action.deployment_id is not None
                 ):
                     deployment = await client.read_deployment(action.deployment_id)
-                    self._dependencies.append(
-                        await construct_migratable_resource(deployment)
-                    )
+                    self._dependencies[
+                        deployment.id
+                    ] = await construct_migratable_resource(deployment)
                 elif (
                     isinstance(action, WorkPoolAction)
                     and action.work_pool_id is not None
@@ -741,46 +741,99 @@ class MigratableAutomation(MigratableResource[Automation]):
                         )
                     )
                     if work_pool:
-                        self._dependencies.append(
-                            await construct_migratable_resource(work_pool[0])
-                        )
+                        self._dependencies[
+                            work_pool[0].id
+                        ] = await construct_migratable_resource(work_pool[0])
                 elif (
                     isinstance(action, WorkQueueAction)
                     and action.work_queue_id is not None
                 ):
                     work_queue = await client.read_work_queue(action.work_queue_id)
-                    self._dependencies.append(
-                        await construct_migratable_resource(work_queue)
-                    )
+                    self._dependencies[
+                        work_queue.id
+                    ] = await construct_migratable_resource(work_queue)
                 elif (
                     isinstance(action, AutomationAction)
                     and action.automation_id is not None
                 ):
                     automation = await client.find_automation(action.automation_id)
                     if automation:
-                        self._dependencies.append(
-                            await construct_migratable_resource(automation)
-                        )
+                        self._dependencies[
+                            automation.id
+                        ] = await construct_migratable_resource(automation)
                 elif isinstance(action, CallWebhook):
                     block_document = await client.read_block_document(
                         action.block_document_id
                     )
-                    self._dependencies.append(
-                        await construct_migratable_resource(block_document)
-                    )
+                    self._dependencies[
+                        block_document.id
+                    ] = await construct_migratable_resource(block_document)
                 elif isinstance(action, SendNotification):
                     block_document = await client.read_block_document(
                         action.block_document_id
                     )
-                    self._dependencies.append(
-                        await construct_migratable_resource(block_document)
-                    )
-        return self._dependencies
+                    self._dependencies[
+                        block_document.id
+                    ] = await construct_migratable_resource(block_document)
+        return list(self._dependencies.values())
 
     async def migrate(self) -> None:
         async with get_client() as client:
-            # TODO: Need to update the referenced IDs in actions to the migrated IDs
-            await client.create_automation(automation=self.source_automation)
+            automations = await client.read_automations_by_name(
+                name=self.source_automation.name
+            )
+            if automations:
+                print(
+                    f"Found automationswith name {self.source_automation.name}. Skipping migration."
+                )
+                self.destination_automation = automations[0]
+            else:
+                automation_copy = self.source_automation.model_copy(deep=True)
+                for action in automation_copy.actions:
+                    if (
+                        isinstance(action, DeploymentAction)
+                        and action.deployment_id is not None
+                    ):
+                        action.deployment_id = self._dependencies[
+                            action.deployment_id
+                        ].destination_id
+                    elif (
+                        isinstance(action, WorkPoolAction)
+                        and action.work_pool_id is not None
+                    ):
+                        action.work_pool_id = self._dependencies[
+                            action.work_pool_id
+                        ].destination_id
+                    elif (
+                        isinstance(action, WorkQueueAction)
+                        and action.work_queue_id is not None
+                    ):
+                        action.work_queue_id = self._dependencies[
+                            action.work_queue_id
+                        ].destination_id
+                    elif (
+                        isinstance(action, AutomationAction)
+                        and action.automation_id is not None
+                    ):
+                        action.automation_id = self._dependencies[
+                            action.automation_id
+                        ].destination_id
+                    elif isinstance(action, CallWebhook):
+                        if destination_block_document_id := getattr(
+                            self._dependencies.get(action.block_document_id),
+                            "destination_id",
+                            None,
+                        ):
+                            action.block_document_id = destination_block_document_id
+                    elif isinstance(action, SendNotification):
+                        if destination_block_document_id := getattr(
+                            self._dependencies.get(action.block_document_id),
+                            "destination_id",
+                            None,
+                        ):
+                            action.block_document_id = destination_block_document_id
+                result = await client.create_automation(automation=automation_copy)
+                self.destination_automation = await client.read_automation(result)
 
 
 class MigratableGlobalConcurrencyLimit(
@@ -819,19 +872,26 @@ class MigratableGlobalConcurrencyLimit(
 
     async def migrate(self) -> None:
         async with get_client() as client:
-            await client.create_global_concurrency_limit(
-                concurrency_limit=GlobalConcurrencyLimitCreate(
-                    name=self.source_global_concurrency_limit.name,
-                    limit=self.source_global_concurrency_limit.limit,
-                    active=self.source_global_concurrency_limit.active,
-                    active_slots=self.source_global_concurrency_limit.active_slots,
-                ),
-            )
-            self.destination_global_concurrency_limit = (
-                await client.read_global_concurrency_limit_by_name(
-                    self.source_global_concurrency_limit.name
+            try:
+                await client.create_global_concurrency_limit(
+                    concurrency_limit=GlobalConcurrencyLimitCreate(
+                        name=self.source_global_concurrency_limit.name,
+                        limit=self.source_global_concurrency_limit.limit,
+                        active=self.source_global_concurrency_limit.active,
+                        active_slots=self.source_global_concurrency_limit.active_slots,
+                    ),
                 )
-            )
+                self.destination_global_concurrency_limit = (
+                    await client.read_global_concurrency_limit_by_name(
+                        self.source_global_concurrency_limit.name
+                    )
+                )
+            except ObjectAlreadyExists:
+                self.destination_global_concurrency_limit = (
+                    await client.read_global_concurrency_limit_by_name(
+                        self.source_global_concurrency_limit.name
+                    )
+                )
 
 
 class MigratableVariable(MigratableResource[Variable]):
@@ -848,10 +908,6 @@ class MigratableVariable(MigratableResource[Variable]):
     @property
     def destination_id(self) -> uuid.UUID | None:
         return self.destination_variable.id if self.destination_variable else None
-
-    @property
-    def id(self) -> uuid.UUID:
-        return self.source_variable.id
 
     @classmethod
     async def construct(cls, obj: Variable) -> Self:
