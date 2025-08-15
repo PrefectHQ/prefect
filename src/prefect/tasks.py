@@ -609,6 +609,9 @@ class Task(Generic[P, R]):
             else []
         )
 
+        # Temporary storage for upstream dependencies
+        self._upstream_dependencies: list[FutureOrResult[Any]] = []
+
     @property
     def ismethod(self) -> bool:
         return hasattr(self.fn, "__prefect_self__")
@@ -840,6 +843,61 @@ class Task(Generic[P, R]):
     ) -> Callable[["Transaction"], None]:
         self.on_rollback_hooks.append(fn)
         return fn
+
+    def depends_on(
+        self, upstream: Optional[OneOrManyFutureOrResult[Any]]
+    ) -> "Task[P, R]":
+        """
+        Add upstream dependencies for this task that will be used on the next submit.
+
+        This provides a type-safe way to specify task dependencies without mixing
+        them with the task's parameters. Multiple calls to depends_on will accumulate
+        dependencies. The dependencies are cleared after submission.
+
+        Args:
+            upstream: Upstream task futures to wait for before starting the task
+
+        Returns:
+            This task instance for method chaining
+
+        Examples:
+            ```python
+            @task
+            def upstream_task() -> int:
+                return 42
+
+            @task
+            def downstream_task(x: int) -> str:
+                return f"Result: {x}"
+
+            @flow
+            def my_flow():
+                future = upstream_task.submit()
+                # Type-safe way to specify dependencies
+                future2 = downstream_task.depends_on([future]).submit(5)
+                print(future2.result())
+            ```
+
+            Chaining dependencies:
+            ```python
+            @flow
+            def my_flow():
+                a = task_a.submit()
+                b = task_b.submit()
+                # Depends on both a and b
+                c = task_c.depends_on([a]).depends_on([b]).submit()
+            ```
+        """
+        if upstream is None:
+            return self
+
+        # Convert to list and extend
+        if isinstance(upstream, list):
+            self._upstream_dependencies.extend(upstream)
+        else:
+            self._upstream_dependencies.append(upstream)
+
+        return self
 
     async def create_run(
         self,
@@ -1136,6 +1194,11 @@ class Task(Generic[P, R]):
 
         from prefect.task_engine import run_task
 
+        # Use stored dependencies if available, then clear them
+        if self._upstream_dependencies:
+            wait_for = self._upstream_dependencies
+            self._upstream_dependencies = []
+
         return run_task(
             task=self,
             parameters=parameters,
@@ -1316,6 +1379,11 @@ class Task(Generic[P, R]):
             raise VisualizationUnsupportedError(
                 "`task.submit()` is not currently supported by `flow.visualize()`"
             )
+
+        # Use stored dependencies if available, then clear them
+        if self._upstream_dependencies:
+            wait_for = self._upstream_dependencies
+            self._upstream_dependencies = []
 
         task_runner = flow_run_context.task_runner
         future = task_runner.submit(self, parameters, wait_for)
@@ -1538,6 +1606,11 @@ class Task(Generic[P, R]):
             raise VisualizationUnsupportedError(
                 "`task.map()` is not currently supported by `flow.visualize()`"
             )
+
+        # Use stored dependencies if available, then clear them
+        if self._upstream_dependencies:
+            wait_for = self._upstream_dependencies
+            self._upstream_dependencies = []
 
         if deferred:
             parameters_list = expand_mapping_parameters(self.fn, parameters)
