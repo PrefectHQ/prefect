@@ -31,6 +31,11 @@ class EcsObserverSettings(PrefectBaseSettings):
         description="Whether to enable the ECS observer.",
     )
 
+    automatic_setup: bool = Field(
+        default=False,
+        description="Whether to automatically set up the SQS queue and EventBridge rule if they don't exist.",
+    )
+
     sqs: EcsObserverSqsSettings = Field(
         description="Settings for controlling ECS observer SQS behavior.",
         default_factory=EcsObserverSqsSettings,

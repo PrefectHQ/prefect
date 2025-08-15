@@ -13,6 +13,7 @@ from prefect_aws.observers.ecs import (
     EcsObserver,
     EcsTaskTagsReader,
     FilterCase,
+    ObserverInfrastructureManager,
     SqsSubscriber,
     TagsFilter,
     _related_resources_from_tags,
@@ -20,9 +21,30 @@ from prefect_aws.observers.ecs import (
     start_observer,
     stop_observer,
 )
-from prefect_aws.settings import EcsObserverSettings
+from prefect_aws.settings import EcsObserverSettings, EcsObserverSqsSettings
 
 from prefect.events.schemas.events import Event, Resource
+
+
+class TestEcsObserverSettings:
+    def test_default_values(self):
+        settings = EcsObserverSettings()
+        assert settings.enabled is True
+        assert settings.automatic_setup is False
+        assert isinstance(settings.sqs, EcsObserverSqsSettings)
+
+    def test_custom_values(self):
+        settings = EcsObserverSettings(
+            enabled=False,
+            automatic_setup=True,
+        )
+        assert settings.enabled is False
+        assert settings.automatic_setup is True
+
+    def test_sqs_settings_defaults(self):
+        sqs_settings = EcsObserverSqsSettings()
+        assert sqs_settings.queue_name == "prefect-ecs-tasks-events"
+        assert sqs_settings.queue_region is None
 
 
 class TestTagsFilter:
@@ -77,16 +99,18 @@ class TestEcsTaskTagsReader:
         client = AsyncMock()
         return client
 
-    async def test_init(self, tags_reader):
+    async def test_init(self, tags_reader: EcsTaskTagsReader):
         assert tags_reader.ecs_client is None
         assert isinstance(tags_reader._cache, LRUCache)
         assert tags_reader._cache.maxsize == 100
 
-    async def test_read_tags_without_client(self, tags_reader):
+    async def test_read_tags_without_client(self, tags_reader: EcsTaskTagsReader):
         with pytest.raises(RuntimeError, match="ECS client not initialized"):
             await tags_reader.read_tags("cluster-arn", "task-arn")
 
-    async def test_read_tags_from_cache(self, tags_reader, mock_ecs_client):
+    async def test_read_tags_from_cache(
+        self, tags_reader: EcsTaskTagsReader, mock_ecs_client: AsyncMock
+    ):
         tags_reader.ecs_client = mock_ecs_client
         cached_tags = {"key": "value"}
         tags_reader._cache["task-arn"] = cached_tags
@@ -96,7 +120,9 @@ class TestEcsTaskTagsReader:
         assert result == cached_tags
         mock_ecs_client.describe_tasks.assert_not_called()
 
-    async def test_read_tags_from_ecs(self, tags_reader, mock_ecs_client):
+    async def test_read_tags_from_ecs(
+        self, tags_reader: EcsTaskTagsReader, mock_ecs_client: AsyncMock
+    ):
         tags_reader.ecs_client = mock_ecs_client
         mock_ecs_client.describe_tasks.return_value = {
             "tasks": [
@@ -119,7 +145,9 @@ class TestEcsTaskTagsReader:
             include=["TAGS"],
         )
 
-    async def test_read_tags_handles_missing_keys(self, tags_reader, mock_ecs_client):
+    async def test_read_tags_handles_missing_keys(
+        self, tags_reader: EcsTaskTagsReader, mock_ecs_client: AsyncMock
+    ):
         tags_reader.ecs_client = mock_ecs_client
         mock_ecs_client.describe_tasks.return_value = {
             "tasks": [
@@ -138,7 +166,9 @@ class TestEcsTaskTagsReader:
 
         assert result == {"tag1": "value1"}
 
-    async def test_read_tags_handles_empty_response(self, tags_reader, mock_ecs_client):
+    async def test_read_tags_handles_empty_response(
+        self, tags_reader: EcsTaskTagsReader, mock_ecs_client: AsyncMock
+    ):
         tags_reader.ecs_client = mock_ecs_client
         mock_ecs_client.describe_tasks.return_value = {}
 
@@ -147,7 +177,10 @@ class TestEcsTaskTagsReader:
         assert result == {}
 
     async def test_read_tags_handles_exception(
-        self, tags_reader, mock_ecs_client, capfd
+        self,
+        tags_reader: EcsTaskTagsReader,
+        mock_ecs_client: AsyncMock,
+        capfd: pytest.CaptureFixture[str],
     ):
         tags_reader.ecs_client = mock_ecs_client
         mock_ecs_client.describe_tasks.side_effect = Exception("AWS error")
@@ -161,21 +194,23 @@ class TestEcsTaskTagsReader:
 
 class TestSqsSubscriber:
     @pytest.fixture
-    def subscriber(self):
+    def subscriber(self) -> SqsSubscriber:
         return SqsSubscriber("test-queue", "us-east-1")
 
-    def test_init(self):
+    def test_init(self) -> None:
         subscriber = SqsSubscriber("queue-name", "us-west-2")
         assert subscriber.queue_name == "queue-name"
         assert subscriber.queue_region == "us-west-2"
 
-    def test_init_without_region(self):
+    def test_init_without_region(self) -> None:
         subscriber = SqsSubscriber("queue-name")
         assert subscriber.queue_name == "queue-name"
         assert subscriber.queue_region is None
 
     @patch("prefect_aws.observers.ecs.aiobotocore.session.get_session")
-    async def test_stream_messages(self, mock_get_session, subscriber):
+    async def test_stream_messages(
+        self, mock_get_session: AsyncMock, subscriber: SqsSubscriber
+    ) -> None:
         mock_session = Mock()
         mock_sqs_client = AsyncMock()
         mock_client_context = AsyncMock()
@@ -236,7 +271,7 @@ class TestSqsSubscriber:
 
     @patch("prefect_aws.observers.ecs.aiobotocore.session.get_session")
     async def test_stream_messages_skips_without_receipt_handle(
-        self, mock_get_session, subscriber
+        self, mock_get_session: AsyncMock, subscriber: SqsSubscriber
     ):
         mock_session = Mock()
         mock_sqs_client = AsyncMock()
@@ -257,14 +292,14 @@ class TestSqsSubscriber:
         }
 
         # Second batch to ensure we can break out
-        empty_batch = {"Messages": []}
+        empty_batch: dict[str, list[Any]] = {"Messages": []}
 
         mock_sqs_client.receive_message.side_effect = [
             messages_batch,
             empty_batch,
         ]
 
-        messages = []
+        messages: list[dict[str, Any]] = []
         message_generator = subscriber.stream_messages()
         async for message in message_generator:
             messages.append(message)
@@ -280,27 +315,231 @@ class TestSqsSubscriber:
         # The generator is interrupted before the delete after yield can execute
 
 
+class TestObserverInfrastructureManager:
+    @pytest.fixture
+    def infrastructure_manager(self) -> ObserverInfrastructureManager:
+        return ObserverInfrastructureManager(region="us-east-1")
+
+    @pytest.fixture
+    def mock_sqs_client(self) -> AsyncMock:
+        return AsyncMock()
+
+    @pytest.fixture
+    def mock_events_client(self) -> AsyncMock:
+        return AsyncMock()
+
+    def test_init(self) -> None:
+        manager = ObserverInfrastructureManager()
+        assert manager.region is None
+        assert manager.sqs_client is None
+        assert manager.events_client is None
+        assert manager._stack is None
+
+    def test_init_with_region(self) -> None:
+        manager = ObserverInfrastructureManager(region="us-west-2")
+        assert manager.region == "us-west-2"
+
+    async def test_check_sqs_queue_exists_true(
+        self,
+        infrastructure_manager: ObserverInfrastructureManager,
+        mock_sqs_client: AsyncMock,
+    ):
+        infrastructure_manager.sqs_client = mock_sqs_client
+        mock_sqs_client.get_queue_url.return_value = {
+            "QueueUrl": "https://sqs.us-east-1.amazonaws.com/123/test-queue"
+        }
+
+        result = await infrastructure_manager.check_sqs_queue_exists("test-queue")
+
+        assert result is True
+        mock_sqs_client.get_queue_url.assert_called_once_with(QueueName="test-queue")
+
+    async def test_check_sqs_queue_exists_false(
+        self,
+        infrastructure_manager: ObserverInfrastructureManager,
+        mock_sqs_client: AsyncMock,
+    ):
+        from botocore.exceptions import ClientError
+
+        infrastructure_manager.sqs_client = mock_sqs_client
+        mock_sqs_client.get_queue_url.side_effect = ClientError(
+            {"Error": {"Code": "AWS.SimpleQueueService.NonExistentQueue"}},
+            "GetQueueUrl",
+        )
+
+        result = await infrastructure_manager.check_sqs_queue_exists(
+            "nonexistent-queue"
+        )
+
+        assert result is False
+        mock_sqs_client.get_queue_url.assert_called_once_with(
+            QueueName="nonexistent-queue"
+        )
+
+    async def test_check_sqs_queue_exists_other_error(
+        self,
+        infrastructure_manager: ObserverInfrastructureManager,
+        mock_sqs_client: AsyncMock,
+    ):
+        from botocore.exceptions import ClientError
+
+        infrastructure_manager.sqs_client = mock_sqs_client
+        mock_sqs_client.get_queue_url.side_effect = ClientError(
+            {"Error": {"Code": "AccessDenied"}}, "GetQueueUrl"
+        )
+
+        with pytest.raises(ClientError):
+            await infrastructure_manager.check_sqs_queue_exists("test-queue")
+
+    async def test_check_sqs_queue_exists_no_client(
+        self, infrastructure_manager: ObserverInfrastructureManager
+    ):
+        with pytest.raises(RuntimeError, match="SQS client not initialized"):
+            await infrastructure_manager.check_sqs_queue_exists("test-queue")
+
+    async def test_setup_sqs_queue(
+        self,
+        infrastructure_manager: ObserverInfrastructureManager,
+        mock_sqs_client: AsyncMock,
+    ):
+        infrastructure_manager.sqs_client = mock_sqs_client
+
+        # Mock create_queue response
+        mock_sqs_client.create_queue.return_value = {
+            "QueueUrl": "https://sqs.us-east-1.amazonaws.com/123/test-queue"
+        }
+
+        # Mock get_queue_attributes response
+        mock_sqs_client.get_queue_attributes.return_value = {
+            "Attributes": {"QueueArn": "arn:aws:sqs:us-east-1:123:test-queue"}
+        }
+
+        result = await infrastructure_manager.setup_sqs_queue("test-queue")
+
+        assert result == "arn:aws:sqs:us-east-1:123:test-queue"
+
+        # Verify create_queue was called with correct parameters
+        mock_sqs_client.create_queue.assert_called_once_with(
+            QueueName="test-queue",
+            Attributes={
+                "MessageRetentionPeriod": "1209600",
+                "VisibilityTimeoutSeconds": "60",
+            },
+        )
+
+        # Verify policy was set
+        policy_call = mock_sqs_client.set_queue_attributes.call_args
+        assert (
+            policy_call[1]["QueueUrl"]
+            == "https://sqs.us-east-1.amazonaws.com/123/test-queue"
+        )
+        policy = json.loads(policy_call[1]["Attributes"]["Policy"])
+        assert policy["Version"] == "2012-10-17"
+        assert len(policy["Statement"]) == 1
+        assert policy["Statement"][0]["Principal"]["Service"] == "events.amazonaws.com"
+
+    async def test_setup_sqs_queue_no_client(
+        self, infrastructure_manager: ObserverInfrastructureManager
+    ):
+        with pytest.raises(RuntimeError, match="SQS client not initialized"):
+            await infrastructure_manager.setup_sqs_queue("test-queue")
+
+    async def test_setup_eventbridge_rule(
+        self,
+        infrastructure_manager: ObserverInfrastructureManager,
+        mock_events_client: AsyncMock,
+    ):
+        infrastructure_manager.events_client = mock_events_client
+        queue_arn = "arn:aws:sqs:us-east-1:123:test-queue"
+
+        await infrastructure_manager.setup_eventbridge_rule(queue_arn)
+
+        # Verify put_rule was called
+        put_rule_call = mock_events_client.put_rule.call_args
+        assert put_rule_call[1]["Name"] == "prefect-ecs-task-state-changes"
+        event_pattern = json.loads(put_rule_call[1]["EventPattern"])
+        assert event_pattern["source"] == ["aws.ecs"]
+        assert "ECS Task State Change" in event_pattern["detail-type"]
+
+        # Verify put_targets was called
+        put_targets_call = mock_events_client.put_targets.call_args
+        assert put_targets_call[1]["Rule"] == "prefect-ecs-task-state-changes"
+        assert put_targets_call[1]["Targets"][0]["Arn"] == queue_arn
+
+    async def test_setup_eventbridge_rule_no_client(
+        self, infrastructure_manager: ObserverInfrastructureManager
+    ):
+        with pytest.raises(RuntimeError, match="Events client not initialized"):
+            await infrastructure_manager.setup_eventbridge_rule(
+                "arn:aws:sqs:us-east-1:123:test"
+            )
+
+    async def test_setup_complete_infrastructure(
+        self,
+        infrastructure_manager: ObserverInfrastructureManager,
+        mock_sqs_client: AsyncMock,
+        mock_events_client: AsyncMock,
+    ):
+        infrastructure_manager.sqs_client = mock_sqs_client
+        infrastructure_manager.events_client = mock_events_client
+
+        # Mock the setup_sqs_queue response
+        mock_sqs_client.create_queue.return_value = {
+            "QueueUrl": "https://sqs.us-east-1.amazonaws.com/123/test-queue"
+        }
+        mock_sqs_client.get_queue_attributes.return_value = {
+            "Attributes": {"QueueArn": "arn:aws:sqs:us-east-1:123:test-queue"}
+        }
+
+        result = await infrastructure_manager.setup_complete_infrastructure(
+            "test-queue"
+        )
+
+        assert result == "arn:aws:sqs:us-east-1:123:test-queue"
+
+        # Verify both SQS and EventBridge setup were called
+        mock_sqs_client.create_queue.assert_called_once()
+        mock_events_client.put_rule.assert_called_once()
+        mock_events_client.put_targets.assert_called_once()
+
+
 class TestEcsObserver:
     @pytest.fixture
-    def settings(self):
+    def settings(self) -> EcsObserverSettings:
         return EcsObserverSettings()
 
     @pytest.fixture
-    def mock_sqs_subscriber(self):
+    def mock_sqs_subscriber(self) -> AsyncMock:
         return AsyncMock(spec=SqsSubscriber)
 
     @pytest.fixture
-    def mock_tags_reader(self):
+    def mock_tags_reader(self) -> AsyncMock:
         reader = AsyncMock(spec=EcsTaskTagsReader)
         reader.__aenter__.return_value = reader
         return reader
 
     @pytest.fixture
-    def observer(self, settings, mock_sqs_subscriber, mock_tags_reader):
+    def mock_infrastructure_manager(self) -> AsyncMock:
+        manager = AsyncMock()
+        manager.check_sqs_queue_exists.return_value = True
+        # Mock context manager behavior
+        manager.__aenter__.return_value = manager
+        manager.__aexit__.return_value = None
+        return manager
+
+    @pytest.fixture
+    def observer(
+        self,
+        settings: EcsObserverSettings,
+        mock_sqs_subscriber: AsyncMock,
+        mock_tags_reader: AsyncMock,
+        mock_infrastructure_manager: AsyncMock,
+    ) -> EcsObserver:
         return EcsObserver(
             settings=settings,
             sqs_subscriber=mock_sqs_subscriber,
             ecs_tags_reader=mock_tags_reader,
+            infrastructure_manager=mock_infrastructure_manager,
         )
 
     def test_init_with_defaults(self):
@@ -315,7 +554,10 @@ class TestEcsObserver:
         }
 
     def test_init_with_custom_components(
-        self, settings, mock_sqs_subscriber, mock_tags_reader
+        self,
+        settings: EcsObserverSettings,
+        mock_sqs_subscriber: AsyncMock,
+        mock_tags_reader: AsyncMock,
     ):
         observer = EcsObserver(
             settings=settings,
@@ -326,7 +568,7 @@ class TestEcsObserver:
         assert observer.sqs_subscriber == mock_sqs_subscriber
         assert observer.ecs_tags_reader == mock_tags_reader
 
-    def test_on_event_decorator(self, observer):
+    def test_on_event_decorator(self, observer: EcsObserver):
         handler = Mock()
 
         decorated = observer.on_event("task", tags={"key": "value"})(handler)
@@ -337,7 +579,7 @@ class TestEcsObserver:
         assert handler_with_filters.handler == handler
         assert isinstance(handler_with_filters.filters["tags"], TagsFilter)
 
-    def test_on_event_decorator_multiple_handlers(self, observer):
+    def test_on_event_decorator_multiple_handlers(self, observer: EcsObserver):
         handler1 = Mock()
         handler2 = Mock()
 
@@ -347,7 +589,10 @@ class TestEcsObserver:
         assert len(observer.event_handlers["task"]) == 2
 
     async def test_run_with_started_event(
-        self, observer, mock_sqs_subscriber, mock_tags_reader
+        self,
+        observer: EcsObserver,
+        mock_sqs_subscriber: AsyncMock,
+        mock_tags_reader: AsyncMock,
     ):
         started_event = asyncio.Event()
         mock_sqs_subscriber.stream_messages.return_value = async_generator_from_list([])
@@ -364,7 +609,10 @@ class TestEcsObserver:
             pass
 
     async def test_run_processes_messages(
-        self, observer, mock_sqs_subscriber, mock_tags_reader
+        self,
+        observer: EcsObserver,
+        mock_sqs_subscriber: AsyncMock,
+        mock_tags_reader: AsyncMock,
     ):
         handler = AsyncMock()
         handler.__name__ = "test_handler"  # Mock needs __name__ attribute
@@ -402,7 +650,10 @@ class TestEcsObserver:
             pass
 
     async def test_run_skips_message_without_body(
-        self, observer, mock_sqs_subscriber, mock_tags_reader
+        self,
+        observer: EcsObserver,
+        mock_sqs_subscriber: AsyncMock,
+        mock_tags_reader: AsyncMock,
     ):
         handler = Mock()
         handler.__name__ = "test_handler"  # Mock needs __name__ attribute
@@ -426,7 +677,10 @@ class TestEcsObserver:
             pass
 
     async def test_run_handles_sync_handler(
-        self, observer, mock_sqs_subscriber, mock_tags_reader
+        self,
+        observer: EcsObserver,
+        mock_sqs_subscriber: AsyncMock,
+        mock_tags_reader: AsyncMock,
     ):
         handler = Mock()
         handler.__name__ = "test_handler"  # Mock needs __name__ attribute
@@ -458,7 +712,10 @@ class TestEcsObserver:
             pass
 
     async def test_run_filters_handlers_by_tags(
-        self, observer, mock_sqs_subscriber, mock_tags_reader
+        self,
+        observer: EcsObserver,
+        mock_sqs_subscriber: AsyncMock,
+        mock_tags_reader: AsyncMock,
     ):
         matching_handler = AsyncMock()
         matching_handler.__name__ = "matching_handler"  # Mock needs __name__ attribute
@@ -498,6 +755,96 @@ class TestEcsObserver:
             await task
         except asyncio.CancelledError:
             pass
+
+    async def test_ensure_queue_setup_queue_exists(self):
+        settings = EcsObserverSettings()
+        mock_manager_instance = AsyncMock()
+        mock_manager_instance.check_sqs_queue_exists.return_value = True
+
+        mock_infrastructure_manager = AsyncMock()
+        mock_infrastructure_manager.__aenter__.return_value = mock_manager_instance
+        mock_infrastructure_manager.__aexit__.return_value = None
+
+        observer = EcsObserver(
+            settings=settings,
+            infrastructure_manager=mock_infrastructure_manager,
+        )
+
+        await observer._ensure_queue_setup()
+
+        # Should check if queue exists but not set up infrastructure
+        mock_manager_instance.check_sqs_queue_exists.assert_called_once_with(
+            settings.sqs.queue_name
+        )
+        mock_manager_instance.setup_complete_infrastructure.assert_not_called()
+
+    async def test_ensure_queue_setup_queue_missing_automatic_setup_enabled(self):
+        settings = EcsObserverSettings(automatic_setup=True)
+        mock_manager_instance = AsyncMock()
+        mock_manager_instance.check_sqs_queue_exists.return_value = False
+        mock_manager_instance.setup_complete_infrastructure.return_value = (
+            "arn:aws:sqs:us-east-1:123:test"
+        )
+
+        mock_infrastructure_manager = AsyncMock()
+        mock_infrastructure_manager.__aenter__.return_value = mock_manager_instance
+        mock_infrastructure_manager.__aexit__.return_value = None
+
+        observer = EcsObserver(
+            settings=settings,
+            infrastructure_manager=mock_infrastructure_manager,
+        )
+
+        await observer._ensure_queue_setup()
+
+        # Should check if queue exists and set up infrastructure
+        mock_manager_instance.check_sqs_queue_exists.assert_called_once_with(
+            settings.sqs.queue_name
+        )
+        mock_manager_instance.setup_complete_infrastructure.assert_called_once_with(
+            settings.sqs.queue_name
+        )
+
+    async def test_ensure_queue_setup_queue_missing_automatic_setup_disabled(self):
+        settings = EcsObserverSettings(automatic_setup=False)
+        mock_manager_instance = AsyncMock()
+        mock_manager_instance.check_sqs_queue_exists.return_value = False
+
+        mock_infrastructure_manager = AsyncMock()
+        mock_infrastructure_manager.__aenter__.return_value = mock_manager_instance
+        mock_infrastructure_manager.__aexit__.return_value = None
+
+        observer = EcsObserver(
+            settings=settings,
+            infrastructure_manager=mock_infrastructure_manager,
+        )
+
+        await observer._ensure_queue_setup()
+
+        # Should check if queue exists but not set up infrastructure
+        mock_manager_instance.check_sqs_queue_exists.assert_called_once_with(
+            settings.sqs.queue_name
+        )
+        mock_manager_instance.setup_complete_infrastructure.assert_not_called()
+
+    def test_init_with_custom_infrastructure_manager(
+        self,
+        settings: EcsObserverSettings,
+        mock_sqs_subscriber: AsyncMock,
+        mock_tags_reader: AsyncMock,
+    ):
+        custom_manager = AsyncMock()
+        observer = EcsObserver(
+            settings=settings,
+            sqs_subscriber=mock_sqs_subscriber,
+            ecs_tags_reader=mock_tags_reader,
+            infrastructure_manager=custom_manager,
+        )
+
+        assert observer.infrastructure_manager == custom_manager
+        assert observer.settings == settings
+        assert observer.sqs_subscriber == mock_sqs_subscriber
+        assert observer.ecs_tags_reader == mock_tags_reader
 
 
 class TestRelatedResourcesFromTags:
@@ -622,7 +969,10 @@ class TestReplicateEcsEvent:
 
     @patch("prefect_aws.observers.ecs.get_events_client")
     async def test_replicate_ecs_event(
-        self, mock_get_events_client, sample_event, sample_tags
+        self,
+        mock_get_events_client: AsyncMock,
+        sample_event: dict[str, Any],
+        sample_tags: dict[str, str],
     ):
         mock_events_client = AsyncMock()
         mock_context = AsyncMock()
@@ -643,7 +993,7 @@ class TestReplicateEcsEvent:
 
     @patch("prefect_aws.observers.ecs.get_events_client")
     async def test_replicate_ecs_event_missing_id(
-        self, mock_get_events_client, sample_tags
+        self, mock_get_events_client: AsyncMock, sample_tags: dict[str, str]
     ):
         event = {"detail": {"taskArn": "arn", "lastStatus": "RUNNING"}}
 
@@ -653,7 +1003,7 @@ class TestReplicateEcsEvent:
 
     @patch("prefect_aws.observers.ecs.get_events_client")
     async def test_replicate_ecs_event_missing_task_arn(
-        self, mock_get_events_client, sample_tags
+        self, mock_get_events_client: AsyncMock, sample_tags: dict[str, str]
     ):
         event = {"id": str(uuid.uuid4()), "detail": {"lastStatus": "RUNNING"}}
 
@@ -663,7 +1013,7 @@ class TestReplicateEcsEvent:
 
     @patch("prefect_aws.observers.ecs.get_events_client")
     async def test_replicate_ecs_event_missing_last_status(
-        self, mock_get_events_client, sample_tags
+        self, mock_get_events_client: AsyncMock, sample_tags: dict[str, str]
     ):
         event = {
             "id": str(uuid.uuid4()),
@@ -679,7 +1029,11 @@ class TestReplicateEcsEvent:
     @patch("prefect_aws.observers.ecs.get_events_client")
     @patch("prefect_aws.observers.ecs._last_event_cache")
     async def test_replicate_ecs_event_with_follows(
-        self, mock_cache, mock_get_events_client, sample_event, sample_tags
+        self,
+        mock_cache: AsyncMock,
+        mock_get_events_client: AsyncMock,
+        sample_event: dict[str, Any],
+        sample_tags: dict[str, str],
     ):
         mock_events_client = AsyncMock()
         mock_context = AsyncMock()
@@ -700,7 +1054,10 @@ class TestReplicateEcsEvent:
 
     @patch("prefect_aws.observers.ecs.get_events_client")
     async def test_replicate_ecs_event_handles_exception(
-        self, mock_get_events_client, sample_event, sample_tags
+        self,
+        mock_get_events_client: AsyncMock,
+        sample_event: dict[str, Any],
+        sample_tags: dict[str, str],
     ):
         mock_events_client = AsyncMock()
         mock_context = AsyncMock()
@@ -713,7 +1070,7 @@ class TestReplicateEcsEvent:
 
 class TestObserverManagement:
     @patch("prefect_aws.observers.ecs._DEFAULT_ECS_OBSERVER")
-    async def test_start_and_stop_observer(self, mock_observer):
+    async def test_start_and_stop_observer(self, mock_observer: AsyncMock):
         mock_observer.run = AsyncMock(
             side_effect=lambda started_event: started_event.set()
         )
@@ -734,6 +1091,6 @@ class TestObserverManagement:
         await stop_observer()
 
 
-async def async_generator_from_list(items: list) -> AsyncGenerator[Any, None]:
+async def async_generator_from_list(items: list[Any]) -> AsyncGenerator[Any, None]:
     for item in items:
         yield item
