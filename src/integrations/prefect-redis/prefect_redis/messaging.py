@@ -671,11 +671,6 @@ async def _cleanup_empty_consumer_groups_atomically(stream_name: str) -> None:
                 logger.debug(f"Group '{group_name}' changed concurrently: {e}")
             except Exception as e:
                 logger.debug(f"Unable to cleanup group '{group_name}': {e}")
-            finally:
-                try:
-                    await pipe.reset()
-                except Exception:
-                    pass
 
     if deleted_count > 0:
         logger.debug(
