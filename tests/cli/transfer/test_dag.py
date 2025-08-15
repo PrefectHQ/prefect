@@ -44,7 +44,6 @@ def mock_deployment(mock_work_pool):
     )
 
 
-@pytest.mark.asyncio
 async def test_dag_construction(mock_work_pool, mock_work_queue, mock_deployment):
     """Test that the DAG correctly builds from resources."""
     # Create migratable resources
@@ -67,7 +66,6 @@ async def test_dag_construction(mock_work_pool, mock_work_queue, mock_deployment
     assert not stats["has_cycles"]
 
 
-@pytest.mark.asyncio
 async def test_dag_execution_order(mock_work_pool, mock_work_queue):
     """Test that resources are executed in dependency order."""
     # Create migratable resources
@@ -94,7 +92,6 @@ async def test_dag_execution_order(mock_work_pool, mock_work_queue):
     assert layers[1][0].id == mock_work_queue.id
 
 
-@pytest.mark.asyncio
 async def test_dag_concurrent_execution(
     mock_work_pool, mock_work_queue, mock_deployment
 ):
@@ -130,7 +127,6 @@ async def test_dag_concurrent_execution(
     assert len(results) == 3
 
 
-@pytest.mark.asyncio
 async def test_dag_failure_propagation(mock_work_pool, mock_work_queue):
     """Test that failures skip dependent resources."""
     # Create migratable resources
@@ -161,7 +157,6 @@ async def test_dag_failure_propagation(mock_work_pool, mock_work_queue):
     assert "Skipped" in str(results[mock_work_queue.id])
 
 
-@pytest.mark.asyncio
 async def test_dag_cycle_detection():
     """Test that the DAG detects cycles."""
     # Create resources with circular dependency
@@ -187,7 +182,6 @@ async def test_dag_cycle_detection():
         await dag.execute_concurrent(lambda x: uuid.uuid4())
 
 
-@pytest.mark.asyncio
 async def test_dag_deduplication(mock_work_pool):
     """Test that resources are deduplicated by ID."""
     # Create multiple queues depending on same pool
@@ -222,7 +216,6 @@ async def test_dag_deduplication(mock_work_pool):
     assert stats["total_edges"] == 2  # queue1->pool, queue2->pool
 
 
-@pytest.mark.asyncio
 async def test_dag_strict_skip_on_failure(mock_work_pool, mock_work_queue):
     """Test that READY nodes are skipped when upstream fails."""
     # Create migratable resources
