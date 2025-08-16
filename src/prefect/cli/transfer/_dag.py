@@ -8,6 +8,8 @@ This module provides a pure execution engine that:
 - Handles failure propagation (skip descendants)
 """
 
+from __future__ import annotations
+
 import asyncio
 import uuid
 from collections import defaultdict, deque
