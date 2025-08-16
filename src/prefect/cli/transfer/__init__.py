@@ -3,7 +3,10 @@ Command line interface for transferring resources between profiles.
 """
 
 from __future__ import annotations
+
+import asyncio
 from logging import Logger
+from typing import TYPE_CHECKING
 
 import typer
 from rich.console import Console
@@ -19,10 +22,11 @@ from prefect.logging import get_logger
 from prefect.settings import load_profiles
 
 from ._dag import TransferDAG
-from ._migratable_resources import (
-    MigratableProtocol,
-    construct_migratable_resource,
-)
+
+if TYPE_CHECKING:
+    # we use the forward ref and defer this import because that module imports
+    # a ton of schemas that we don't want to import here at module load time
+    from prefect.cli.transfer._migratable_resources import MigratableProtocol
 
 logger: Logger = get_logger(__name__)
 
@@ -72,7 +76,7 @@ async def transfer(
 
     with use_profile(from_profile):
         async with get_client() as client:
-            resources = await _collect_resources(client, console)
+            resources = await _collect_resources(client, from_profile, console)
 
         if not resources:
             console.print("\n[yellow]No resources found to transfer.[/yellow]")
@@ -89,7 +93,7 @@ async def transfer(
 
     console.print()
     if is_interactive() and not typer.confirm(
-        f"Transfer {stats['total_nodes']} resource(s) to '{to_profile}'?"
+        f"Transfer {stats['total_nodes']} resource(s) from '{from_profile}' to '{to_profile}'?"
     ):
         exit_with_error("Transfer cancelled.")
 
@@ -100,8 +104,12 @@ async def transfer(
     _display_results(results, dag._nodes, console)
 
 
-async def _collect_resources(client, console: Console) -> list[MigratableProtocol]:
+async def _collect_resources(
+    client, from_profile: str, console: Console
+) -> list["MigratableProtocol"]:
     """Collect all resources from the source profile."""
+    from ._migratable_resources import construct_migratable_resource
+
     resources = []
 
     console.print()
@@ -113,18 +121,22 @@ async def _collect_resources(client, console: Console) -> list[MigratableProtoco
     ) as progress:
         task = progress.add_task("Counting resources...", total=None)
 
-        collections = [
-            await client.read_work_pools(),
-            await client.read_work_queues(),
-            await client.read_deployments(),
-            await client.read_block_documents(),
-            await client.read_variables(),
-            await client.read_global_concurrency_limits(),
-            await client.read_automations(),
-        ]
+        collections = await asyncio.gather(
+            client.read_work_pools(),
+            client.read_work_queues(),
+            client.read_deployments(),
+            client.read_block_documents(),
+            client.read_variables(),
+            client.read_global_concurrency_limits(),
+            client.read_automations(),
+        )
 
         total = sum(len(c) for c in collections)
-        progress.update(task, description="Discovering resources...", total=total)
+        progress.update(
+            task,
+            description=f"Discovering resources from {from_profile}...",
+            total=total,
+        )
 
         for collection in collections:
             for item in collection:
@@ -135,8 +147,8 @@ async def _collect_resources(client, console: Console) -> list[MigratableProtoco
 
 
 async def _find_root_resources(
-    resources: list[MigratableProtocol],
-) -> list[MigratableProtocol]:
+    resources: list["MigratableProtocol"],
+) -> list["MigratableProtocol"]:
     """Find resources that aren't dependencies of any other resource."""
     all_ids = {r.source_id for r in resources}
     dependency_ids = set()
@@ -164,7 +176,7 @@ async def _execute_transfer(dag: TransferDAG, console: Console) -> dict:
     ) as progress:
         task = progress.add_task("Transferring resources...", total=total)
 
-        async def migrate_with_progress(resource: MigratableProtocol):
+        async def migrate_with_progress(resource: "MigratableProtocol"):
             nonlocal completed
             progress.update(
                 task,
@@ -190,7 +202,7 @@ async def _execute_transfer(dag: TransferDAG, console: Console) -> dict:
     return results
 
 
-def _get_resource_display_name(resource: MigratableProtocol) -> str:
+def _get_resource_display_name(resource: "MigratableProtocol") -> str:
     """Get a display name for a resource."""
     mappings = [
         ("source_work_pool", lambda r: f"work-pool/{r.source_work_pool.name}"),
