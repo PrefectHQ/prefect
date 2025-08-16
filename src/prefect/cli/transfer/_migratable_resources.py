@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import abc
 import uuid
-from typing import Any, Generic, Protocol, TypeVar, overload
+from typing import Any, Generic, Protocol, TypeVar, Union, overload
 
 from typing_extensions import Self
 
@@ -42,18 +42,18 @@ from prefect.events.actions import (
 from prefect.events.schemas.automations import Automation
 from prefect.exceptions import ObjectAlreadyExists, PrefectHTTPStatusError
 
-MigratableType = (
-    WorkPool
-    | WorkQueue
-    | DeploymentResponse
-    | Flow
-    | BlockType
-    | BlockSchema
-    | BlockDocument
-    | Automation
-    | GlobalConcurrencyLimitResponse
-    | Variable
-)
+MigratableType = Union[
+    WorkPool,
+    WorkQueue,
+    DeploymentResponse,
+    Flow,
+    BlockType,
+    BlockSchema,
+    BlockDocument,
+    Automation,
+    GlobalConcurrencyLimitResponse,
+    Variable,
+]
 
 T = TypeVar("T", bound=MigratableType)
 

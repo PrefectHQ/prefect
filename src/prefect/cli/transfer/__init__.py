@@ -3,6 +3,7 @@ Command line interface for transferring resources between profiles.
 """
 
 from __future__ import annotations
+from logging import Logger
 
 import typer
 from rich.console import Console
@@ -23,7 +24,7 @@ from ._migratable_resources import (
     construct_migratable_resource,
 )
 
-logger = get_logger(__name__)
+logger: Logger = get_logger(__name__)
 
 
 @app.command()
