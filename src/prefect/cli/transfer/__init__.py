@@ -47,7 +47,6 @@ async def transfer(
     """
     console = Console()
 
-    # Load and validate profiles
     profiles = load_profiles(include_defaults=False)
 
     if from_profile not in profiles:
@@ -59,21 +58,17 @@ async def transfer(
     if from_profile == to_profile:
         exit_with_error("Source and target profiles must be different.")
 
-    # Create configuration panel
-    config_content = f"""[bold cyan]Source:[/bold cyan] {from_profile}
-[bold cyan]Target:[/bold cyan] {to_profile}"""
-
-    config_panel = Panel(
-        config_content,
-        title="Transfer Configuration",
-        expand=False,
-        padding=(1, 2),
+    console.print()
+    console.print(
+        Panel(
+            f"[bold cyan]Source:[/bold cyan] {from_profile}\n"
+            f"[bold cyan]Target:[/bold cyan] {to_profile}",
+            title="Transfer Configuration",
+            expand=False,
+            padding=(1, 2),
+        )
     )
 
-    console.print()
-    console.print(config_panel)
-
-    # Collect resources from source profile
     with use_profile(from_profile):
         async with get_client() as client:
             resources = await _collect_resources(client, console)
@@ -82,10 +77,7 @@ async def transfer(
             console.print("\n[yellow]No resources found to transfer.[/yellow]")
             return
 
-        # Find root resources (those that aren't dependencies of others)
         roots = await _find_root_resources(resources)
-
-        # Build DAG
         dag = TransferDAG()
         await dag.build_from_roots(roots)
 
@@ -94,19 +86,16 @@ async def transfer(
     if stats["has_cycles"]:
         exit_with_error("Cannot transfer resources with circular dependencies.")
 
-    # Confirmation prompt
     console.print()
     if is_interactive() and not typer.confirm(
         f"Transfer {stats['total_nodes']} resource(s) to '{to_profile}'?"
     ):
         exit_with_error("Transfer cancelled.")
 
-    # Execute transfer
     console.print()
     with use_profile(to_profile):
         results = await _execute_transfer(dag, console)
 
-    # Display results
     _display_results(results, dag._nodes, console)
 
 
@@ -121,61 +110,25 @@ async def _collect_resources(client, console: Console) -> list[MigratableProtoco
         "[progress.percentage]{task.percentage:>3.0f}%",
         console=console,
     ) as progress:
-        # First, count total resources to collect
         task = progress.add_task("Counting resources...", total=None)
 
-        # Collect ALL work pools and queues - we'll skip push/managed during migration
-        work_pools = await client.read_work_pools()
-        work_queues = await client.read_work_queues()
-        deployments = await client.read_deployments()
-        block_documents = await client.read_block_documents()
-        variables = await client.read_variables()
-        limits = await client.read_global_concurrency_limits()
+        collections = [
+            await client.read_work_pools(),
+            await client.read_work_queues(),
+            await client.read_deployments(),
+            await client.read_block_documents(),
+            await client.read_variables(),
+            await client.read_global_concurrency_limits(),
+            await client.read_automations(),
+        ]
 
-        automations = await client.read_automations()
-
-        total = (
-            len(work_pools)
-            + len(work_queues)
-            + len(deployments)
-            + len(block_documents)
-            + len(variables)
-            + len(limits)
-            + len(automations)
-        )
-
-        # Now collect with progress
+        total = sum(len(c) for c in collections)
         progress.update(task, description="Discovering resources...", total=total)
 
-        for pool in work_pools:
-            resources.append(await construct_migratable_resource(pool))
-            progress.advance(task)
-
-        for queue in work_queues:
-            resources.append(await construct_migratable_resource(queue))
-            progress.advance(task)
-
-        for deployment in deployments:
-            resources.append(await construct_migratable_resource(deployment))
-            progress.advance(task)
-
-        # Flows are pulled in as dependencies of deployments, not collected directly
-
-        for doc in block_documents:
-            resources.append(await construct_migratable_resource(doc))
-            progress.advance(task)
-
-        for var in variables:
-            resources.append(await construct_migratable_resource(var))
-            progress.advance(task)
-
-        for limit in limits:
-            resources.append(await construct_migratable_resource(limit))
-            progress.advance(task)
-
-        for automation in automations:
-            resources.append(await construct_migratable_resource(automation))
-            progress.advance(task)
+        for collection in collections:
+            for item in collection:
+                resources.append(await construct_migratable_resource(item))
+                progress.advance(task)
 
     return resources
 
@@ -187,25 +140,18 @@ async def _find_root_resources(
     all_ids = {r.source_id for r in resources}
     dependency_ids = set()
 
-    # Collect all dependency IDs
     for resource in resources:
         deps = await resource.get_dependencies()
         dependency_ids.update(d.source_id for d in deps)
 
-    # Roots are resources that aren't dependencies
     root_ids = all_ids - dependency_ids
-
-    # If no roots found (circular deps), just return all resources
-    # The DAG will detect the cycle
-    if not root_ids:
-        return resources
-
-    return [r for r in resources if r.source_id in root_ids]
+    return (
+        resources if not root_ids else [r for r in resources if r.source_id in root_ids]
+    )
 
 
 async def _execute_transfer(dag: TransferDAG, console: Console) -> dict:
     """Execute the transfer with progress reporting."""
-    results = {}
     completed = 0
     total = len(dag._nodes)
 
@@ -219,32 +165,24 @@ async def _execute_transfer(dag: TransferDAG, console: Console) -> dict:
 
         async def migrate_with_progress(resource: MigratableProtocol):
             nonlocal completed
-            resource_name = _get_resource_display_name(resource)
             progress.update(
                 task,
-                description=f"Transferring {resource_name}...",
+                description=f"Transferring {_get_resource_display_name(resource)}...",
             )
 
             try:
                 await resource.migrate()
                 completed += 1
-                progress.update(
-                    task,
-                    advance=1,
-                )
-                return None  # Success
+                progress.update(task, advance=1)
+                return None
             except Exception as e:
                 completed += 1
-                progress.update(
-                    task,
-                    advance=1,
-                )
+                progress.update(task, advance=1)
                 raise e
 
-        # Execute DAG
         results = await dag.execute_concurrent(
             migrate_with_progress,
-            max_workers=5,  # Limit concurrency to avoid overwhelming the API
+            max_workers=5,
             skip_on_failure=True,
         )
 
@@ -253,31 +191,30 @@ async def _execute_transfer(dag: TransferDAG, console: Console) -> dict:
 
 def _get_resource_display_name(resource: MigratableProtocol) -> str:
     """Get a display name for a resource."""
-    # Try to get a name attribute from the source object
-    if hasattr(resource, "source_work_pool"):
-        return f"work-pool/{resource.source_work_pool.name}"
-    elif hasattr(resource, "source_work_queue"):
-        return f"work-queue/{resource.source_work_queue.name}"
-    elif hasattr(resource, "source_deployment"):
-        return f"deployment/{resource.source_deployment.name}"
-    elif hasattr(resource, "source_flow"):
-        return f"flow/{resource.source_flow.name}"
-    elif hasattr(resource, "source_block_document"):
-        return f"block/{resource.source_block_document.name}"
-    elif hasattr(resource, "source_block_type"):
-        return f"{resource.source_block_type.slug} (type)"
-    elif hasattr(resource, "source_block_schema"):
-        # Show a shortened version of the schema ID
-        schema_id = str(resource.source_block_schema.id)
-        return f"schema:{schema_id[:8]}"
-    elif hasattr(resource, "source_variable"):
-        return f"variable/{resource.source_variable.name}"
-    elif hasattr(resource, "source_automation"):
-        return f"automation/{resource.source_automation.name}"
-    elif hasattr(resource, "source_global_concurrency_limit"):
-        return f"concurrency-limit/{resource.source_global_concurrency_limit.name}"
-    else:
-        return str(resource)
+    mappings = [
+        ("source_work_pool", lambda r: f"work-pool/{r.source_work_pool.name}"),
+        ("source_work_queue", lambda r: f"work-queue/{r.source_work_queue.name}"),
+        ("source_deployment", lambda r: f"deployment/{r.source_deployment.name}"),
+        ("source_flow", lambda r: f"flow/{r.source_flow.name}"),
+        ("source_block_document", lambda r: f"block/{r.source_block_document.name}"),
+        ("source_block_type", lambda r: f"{r.source_block_type.slug} (type)"),
+        (
+            "source_block_schema",
+            lambda r: f"schema:{str(r.source_block_schema.id)[:8]}",
+        ),
+        ("source_variable", lambda r: f"variable/{r.source_variable.name}"),
+        ("source_automation", lambda r: f"automation/{r.source_automation.name}"),
+        (
+            "source_global_concurrency_limit",
+            lambda r: f"concurrency-limit/{r.source_global_concurrency_limit.name}",
+        ),
+    ]
+
+    for attr, formatter in mappings:
+        if hasattr(resource, attr):
+            return formatter(resource)
+
+    return str(resource)
 
 
 def _display_results(results: dict, nodes: dict, console: Console):
@@ -297,7 +234,6 @@ def _display_results(results: dict, nodes: dict, console: Console):
         else:
             failed.append((resource_name, str(result)))
 
-    # Create results table
     if succeeded or failed or skipped:
         results_table = Table(title="Transfer Results", show_header=True)
         results_table.add_column("Resource", style="cyan")
@@ -316,7 +252,6 @@ def _display_results(results: dict, nodes: dict, console: Console):
         console.print()
         console.print(results_table)
 
-    # Summary
     console.print()
     if failed:
         exit_with_error(
