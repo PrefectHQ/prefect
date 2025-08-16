@@ -1150,26 +1150,13 @@ class MigratableVariable(MigratableResource[Variable]):
 
     async def migrate(self) -> None:
         async with get_client() as client:
-            try:
-                self.destination_variable = await client.create_variable(
-                    variable=VariableCreate(
-                        name=self.source_variable.name,
-                        value=self.source_variable.value,
-                        tags=self.source_variable.tags,
-                    ),
-                )
-            except Exception as e:
-                # Variables might already exist - try to read it
-                if (
-                    "409" in str(e)
-                    or "Conflict" in str(e)
-                    or "already exists" in str(e).lower()
-                ):
-                    self.destination_variable = await client.read_variable_by_name(
-                        self.source_variable.name
-                    )
-                else:
-                    raise
+            self.destination_variable = await client.create_variable(
+                variable=VariableCreate(
+                    name=self.source_variable.name,
+                    value=self.source_variable.value,
+                    tags=self.source_variable.tags,
+                ),
+            )
 
 
 @overload
