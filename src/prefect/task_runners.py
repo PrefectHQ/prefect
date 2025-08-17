@@ -690,12 +690,20 @@ class ProcessPoolTaskRunner(TaskRunner[PrefectConcurrentFuture[Any]]):
         return super().map(task, parameters, wait_for)
 
     def cancel_all(self) -> None:
-        for event in self._cancel_events.values():
-            event.set()
-            self.logger.debug("Set cancel event")
+        # Clear cancel events first to avoid resource tracking issues
+        events_to_set = list(self._cancel_events.values())
+        self._cancel_events.clear()
+
+        for event in events_to_set:
+            try:
+                event.set()
+                self.logger.debug("Set cancel event")
+            except (OSError, ValueError):
+                # Ignore errors if event is already closed/invalid
+                pass
 
         if self._executor is not None:
-            self._executor.shutdown(cancel_futures=True)
+            self._executor.shutdown(cancel_futures=True, wait=True)
             self._executor = None
 
     def __enter__(self) -> Self:
@@ -709,8 +717,9 @@ class ProcessPoolTaskRunner(TaskRunner[PrefectConcurrentFuture[Any]]):
 
     def __exit__(self, exc_type: Any, exc_value: Any, traceback: Any) -> None:
         self.cancel_all()
+        # cancel_all() already shuts down the executor, but double-check
         if self._executor is not None:
-            self._executor.shutdown(cancel_futures=True)
+            self._executor.shutdown(cancel_futures=True, wait=True)
             self._executor = None
         super().__exit__(exc_type, exc_value, traceback)
 
