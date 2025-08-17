@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import abc
 import asyncio
+import concurrent.futures
 import multiprocessing
 import os
 import sys
@@ -9,11 +10,11 @@ import threading
 import uuid
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 from contextvars import copy_context
-from multiprocessing import Event
+from types import CoroutineType
 from typing import (
     TYPE_CHECKING,
     Any,
-    Coroutine,
+    Callable,
     Generic,
     Iterable,
     overload,
@@ -82,7 +83,7 @@ class TaskRunner(abc.ABC, Generic[F]):
     @abc.abstractmethod
     def submit(
         self,
-        task: "Task[P, Coroutine[Any, Any, R]]",
+        task: "Task[P, CoroutineType[Any, Any, R]]",
         parameters: dict[str, Any],
         wait_for: Iterable[PrefectFuture[Any]] | None = None,
         dependencies: dict[str, set[RunInput]] | None = None,
@@ -101,7 +102,7 @@ class TaskRunner(abc.ABC, Generic[F]):
     @abc.abstractmethod
     def submit(
         self,
-        task: "Task[P, R]",
+        task: "Task[P, R | CoroutineType[Any, Any, R]]",
         parameters: dict[str, Any],
         wait_for: Iterable[PrefectFuture[Any]] | None = None,
         dependencies: dict[str, set[RunInput]] | None = None,
@@ -109,7 +110,7 @@ class TaskRunner(abc.ABC, Generic[F]):
 
     def map(
         self,
-        task: "Task[P, R]",
+        task: "Task[P, R | CoroutineType[Any, Any, R]]",
         parameters: dict[str, Any | unmapped[Any] | allow_failure[Any]],
         wait_for: Iterable[PrefectFuture[R]] | None = None,
     ) -> PrefectFutureList[F]:
@@ -264,7 +265,7 @@ class ThreadPoolTaskRunner(TaskRunner[PrefectConcurrentFuture[R]]):
     @overload
     def submit(
         self,
-        task: "Task[P, Coroutine[Any, Any, R]]",
+        task: "Task[P, CoroutineType[Any, Any, R]]",
         parameters: dict[str, Any],
         wait_for: Iterable[PrefectFuture[Any]] | None = None,
         dependencies: dict[str, set[RunInput]] | None = None,
@@ -281,7 +282,7 @@ class ThreadPoolTaskRunner(TaskRunner[PrefectConcurrentFuture[R]]):
 
     def submit(
         self,
-        task: "Task[P, R | Coroutine[Any, Any, R]]",
+        task: "Task[P, R | CoroutineType[Any, Any, R]]",
         parameters: dict[str, Any],
         wait_for: Iterable[PrefectFuture[Any]] | None = None,
         dependencies: dict[str, set[RunInput]] | None = None,
@@ -355,7 +356,7 @@ class ThreadPoolTaskRunner(TaskRunner[PrefectConcurrentFuture[R]]):
     @overload
     def map(
         self,
-        task: "Task[P, Coroutine[Any, Any, R]]",
+        task: "Task[P, CoroutineType[Any, Any, R]]",
         parameters: dict[str, Any],
         wait_for: Iterable[PrefectFuture[Any]] | None = None,
     ) -> PrefectFutureList[PrefectConcurrentFuture[R]]: ...
@@ -370,7 +371,7 @@ class ThreadPoolTaskRunner(TaskRunner[PrefectConcurrentFuture[R]]):
 
     def map(
         self,
-        task: "Task[P, R]",
+        task: "Task[P, R | CoroutineType[Any, Any, R]]",
         parameters: dict[str, Any],
         wait_for: Iterable[PrefectFuture[Any]] | None = None,
     ) -> PrefectFutureList[PrefectConcurrentFuture[R]]:
@@ -439,35 +440,43 @@ def _run_task_in_subprocess(
                 return run_task_sync(*args, **kwargs)
 
 
-class _UnpicklingFuture:
+class _UnpicklingFuture(concurrent.futures.Future[R]):
     """Wrapper for a Future that unpickles the result returned by cloudpickle_wrapped_call."""
 
-    def __init__(self, wrapped_future):
+    def __init__(self, wrapped_future: concurrent.futures.Future[bytes]):
         self.wrapped_future = wrapped_future
 
-    def result(self, timeout=None):
+    def result(self, timeout: float | None = None) -> R:
         pickled_result = self.wrapped_future.result(timeout)
         import cloudpickle
 
         return cloudpickle.loads(pickled_result)
 
-    def exception(self, timeout=None):
+    def exception(self, timeout: float | None = None) -> BaseException | None:
         return self.wrapped_future.exception(timeout)
 
-    def done(self):
+    def done(self) -> bool:
         return self.wrapped_future.done()
 
-    def cancelled(self):
+    def cancelled(self) -> bool:
         return self.wrapped_future.cancelled()
 
-    def cancel(self):
+    def cancel(self) -> bool:
         return self.wrapped_future.cancel()
 
-    def add_done_callback(self, fn):
-        return self.wrapped_future.add_done_callback(fn)
+    def add_done_callback(
+        self, fn: Callable[[concurrent.futures.Future[R]], object]
+    ) -> None:
+        def _fn(wrapped_future: concurrent.futures.Future[bytes]) -> None:
+            import cloudpickle
+
+            result = cloudpickle.loads(wrapped_future.result())
+            fn(result)
+
+        return self.wrapped_future.add_done_callback(_fn)
 
 
-class ProcessPoolTaskRunner(TaskRunner[PrefectConcurrentFuture[R]]):
+class ProcessPoolTaskRunner(TaskRunner[PrefectConcurrentFuture[Any]]):
     """
     A task runner that executes tasks in a separate process pool.
 
@@ -488,15 +497,15 @@ class ProcessPoolTaskRunner(TaskRunner[PrefectConcurrentFuture[R]]):
             if max_workers is None
             else max_workers
         )
-        self._cancel_events: dict[uuid.UUID, Event] = {}
+        self._cancel_events: dict[uuid.UUID, multiprocessing.Event] = {}
 
-    def duplicate(self) -> "ProcessPoolTaskRunner[R]":
+    def duplicate(self) -> Self:
         return type(self)(max_workers=self._max_workers)
 
     @overload
     def submit(
         self,
-        task: "Task[P, Coroutine[Any, Any, R]]",
+        task: "Task[P, CoroutineType[Any, Any, R]]",
         parameters: dict[str, Any],
         wait_for: Iterable[PrefectFuture[Any]] | None = None,
         dependencies: dict[str, set[RunInput]] | None = None,
@@ -513,7 +522,7 @@ class ProcessPoolTaskRunner(TaskRunner[PrefectConcurrentFuture[R]]):
 
     def submit(
         self,
-        task: "Task[P, R | Coroutine[Any, Any, R]]",
+        task: "Task[P, R | CoroutineType[Any, Any, R]]",
         parameters: dict[str, Any],
         wait_for: Iterable[PrefectFuture[Any]] | None = None,
         dependencies: dict[str, set[RunInput]] | None = None,
@@ -583,7 +592,7 @@ class ProcessPoolTaskRunner(TaskRunner[PrefectConcurrentFuture[R]]):
         raw_future = self._executor.submit(wrapped_call)
 
         # Create a PrefectConcurrentFuture that handles unpickling
-        prefect_future = PrefectConcurrentFuture(
+        prefect_future: PrefectConcurrentFuture[R] = PrefectConcurrentFuture(
             task_run_id=task_run_id, wrapped_future=_UnpicklingFuture(raw_future)
         )
         return prefect_future
@@ -591,7 +600,7 @@ class ProcessPoolTaskRunner(TaskRunner[PrefectConcurrentFuture[R]]):
     @overload
     def map(
         self,
-        task: "Task[P, Coroutine[Any, Any, R]]",
+        task: "Task[P, CoroutineType[Any, Any, R]]",
         parameters: dict[str, Any],
         wait_for: Iterable[PrefectFuture[Any]] | None = None,
     ) -> PrefectFutureList[PrefectConcurrentFuture[R]]: ...
@@ -606,7 +615,7 @@ class ProcessPoolTaskRunner(TaskRunner[PrefectConcurrentFuture[R]]):
 
     def map(
         self,
-        task: "Task[P, R]",
+        task: "Task[P, R | CoroutineType[Any, Any, R]]",
         parameters: dict[str, Any],
         wait_for: Iterable[PrefectFuture[Any]] | None = None,
     ) -> PrefectFutureList[PrefectConcurrentFuture[R]]:
@@ -649,7 +658,7 @@ class PrefectTaskRunner(TaskRunner[PrefectDistributedFuture[R]]):
     @overload
     def submit(
         self,
-        task: "Task[P, Coroutine[Any, Any, R]]",
+        task: "Task[P, CoroutineType[Any, Any, R]]",
         parameters: dict[str, Any],
         wait_for: Iterable[PrefectFuture[Any]] | None = None,
         dependencies: dict[str, set[RunInput]] | None = None,
@@ -666,7 +675,7 @@ class PrefectTaskRunner(TaskRunner[PrefectDistributedFuture[R]]):
 
     def submit(
         self,
-        task: "Task[P, R]",
+        task: "Task[P, R | CoroutineType[Any, Any, R]]",
         parameters: dict[str, Any],
         wait_for: Iterable[PrefectFuture[Any]] | None = None,
         dependencies: dict[str, set[RunInput]] | None = None,
@@ -704,7 +713,7 @@ class PrefectTaskRunner(TaskRunner[PrefectDistributedFuture[R]]):
     @overload
     def map(
         self,
-        task: "Task[P, Coroutine[Any, Any, R]]",
+        task: "Task[P, CoroutineType[Any, Any, R]]",
         parameters: dict[str, Any],
         wait_for: Iterable[PrefectFuture[Any]] | None = None,
     ) -> PrefectFutureList[PrefectDistributedFuture[R]]: ...
@@ -719,7 +728,7 @@ class PrefectTaskRunner(TaskRunner[PrefectDistributedFuture[R]]):
 
     def map(
         self,
-        task: "Task[P, R]",
+        task: "Task[P, R | CoroutineType[Any, Any, R]]",
         parameters: dict[str, Any],
         wait_for: Iterable[PrefectFuture[Any]] | None = None,
     ) -> PrefectFutureList[PrefectDistributedFuture[R]]:

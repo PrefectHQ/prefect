@@ -1,7 +1,8 @@
 import time
 import uuid
 from concurrent.futures import Future
-from typing import Any, Iterable, Optional
+from pathlib import Path
+from typing import Any, Callable, Iterable, Optional
 from uuid import UUID
 
 import pytest
@@ -30,58 +31,58 @@ from prefect.tasks import task
 
 
 @task
-def my_test_task(param1, param2):
+def my_test_task(param1: Any, param2: Any) -> tuple[Any, Any]:
     return param1, param2
 
 
 @task
-async def my_test_async_task(param1, param2):
+async def my_test_async_task(param1: Any, param2: Any) -> tuple[Any, Any]:
     return param1, param2
 
 
 @task
-def context_matters(param1=None, param2=None):
+def context_matters(param1: Any = None, param2: Any = None) -> set[str]:
     return TagsContext.get().current_tags
 
 
 @task
-async def context_matters_async(param1=None, param2=None):
+async def context_matters_async(param1: Any = None, param2: Any = None) -> set[str]:
     return TagsContext.get().current_tags
 
 
 @task
-def task_that_raises_exception():
+def task_that_raises_exception() -> None:
     raise ValueError("Test exception from subprocess")
 
 
 @task
-async def async_task_that_raises_exception():
+async def async_task_that_raises_exception() -> None:
     raise RuntimeError("Test async exception from subprocess")
 
 
 @task
-def task_with_large_data(data):
+def task_with_large_data(data: list[int]) -> tuple[int, int]:
     # Process large data structure
-    return len(data), sum(data) if isinstance(data, list) else data
+    return len(data), sum(data)
 
 
 @task
-def task_with_unpicklable_param(func):
+def task_with_unpicklable_param(func: Callable[[int], Any]) -> Any:
     # This will fail because lambdas can't be pickled normally
     return func(42)
 
 
 @task
-def slow_task(duration=0.1):
+def slow_task(duration: float = 0.1) -> str:
     import time
 
     time.sleep(duration)
     return "completed"
 
 
-class MockFuture(PrefectWrappedFuture):
+class MockFuture(PrefectWrappedFuture[Any, Future[Any]]):
     def __init__(self, data: Any = 42):
-        super().__init__(uuid.uuid4(), Future())
+        super().__init__(uuid.uuid4(), Future[Any]())
         self._data = data
         self._state = Running()
 
@@ -269,7 +270,7 @@ class TestThreadPoolTaskRunner:
 
 class TestProcessPoolTaskRunner:
     @pytest.fixture(autouse=True)
-    def default_storage_setting(self, tmp_path):
+    def default_storage_setting(self, tmp_path: Path):
         name = str(uuid.uuid4())
         LocalFileSystem(basepath=tmp_path).save(name)
         with temporary_settings(
