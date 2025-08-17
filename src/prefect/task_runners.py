@@ -486,7 +486,7 @@ class ProcessPoolTaskRunner(TaskRunner[PrefectConcurrentFuture[Any]]):
 
     Attributes:
         max_workers: The maximum number of processes to use for executing tasks.
-            Defaults to `PREFECT_TASK_RUNNER_PROCESS_POOL_MAX_WORKERS` or `multiprocessing.cpu_count()`.
+            Defaults to `multiprocessing.cpu_count()` if `PREFECT_TASKS_RUNNER_PROCESS_POOL_MAX_WORKERS` is not set.
 
     Examples:
         Use a process pool task runner with a flow:
@@ -532,7 +532,7 @@ class ProcessPoolTaskRunner(TaskRunner[PrefectConcurrentFuture[Any]]):
 
         ```python
         # Set via environment variable
-        # PREFECT_TASK_RUNNER_PROCESS_POOL_MAX_WORKERS=8
+        # export PREFECT_TASKS_RUNNER_PROCESS_POOL_MAX_WORKERS=8
 
         from prefect import flow
         from prefect.task_runners import ProcessPoolTaskRunner
@@ -611,7 +611,7 @@ class ProcessPoolTaskRunner(TaskRunner[PrefectConcurrentFuture[Any]]):
         if wait_for and task.tags and (self._max_workers <= len(task.tags)):
             self.logger.warning(
                 f"Task {task.name} has {len(task.tags)} tags but only {self._max_workers} workers available"
-                "This may lead to dead-locks. Consider increasing the value of `PREFECT_TASK_RUNNER_PROCESS_POOL_MAX_WORKERS` or `max_workers`."
+                "This may lead to dead-locks. Consider increasing the value of `PREFECT_TASKS_RUNNER_PROCESS_POOL_MAX_WORKERS` or `max_workers`."
             )
 
         from prefect.context import FlowRunContext

@@ -27,11 +27,6 @@ class TasksRunnerSettings(PrefectBaseSettings):
         default=None,
         gt=0,
         description="The maximum number of workers for ProcessPoolTaskRunner.",
-        validation_alias=AliasChoices(
-            AliasPath("process_pool_max_workers"),
-            "prefect_tasks_runner_process_pool_max_workers",
-            "prefect_task_runner_process_pool_max_workers",
-        ),
     )
 
 

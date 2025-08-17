@@ -15,9 +15,9 @@ from prefect.futures import PrefectFuture, PrefectWrappedFuture
 from prefect.results import _default_storages
 from prefect.settings import (
     PREFECT_DEFAULT_RESULT_STORAGE_BLOCK,
-    PREFECT_TASK_RUNNER_PROCESS_POOL_MAX_WORKERS,
     PREFECT_TASK_RUNNER_THREAD_POOL_MAX_WORKERS,
     PREFECT_TASK_SCHEDULING_DEFAULT_STORAGE_BLOCK,
+    PREFECT_TASKS_RUNNER_PROCESS_POOL_MAX_WORKERS,
     temporary_settings,
 )
 from prefect.states import Completed, Running
@@ -298,7 +298,7 @@ class TestProcessPoolTaskRunner:
             assert runner._executor._max_workers == 2
 
     def test_set_max_workers_through_settings(self):
-        with temporary_settings({PREFECT_TASK_RUNNER_PROCESS_POOL_MAX_WORKERS: 3}):
+        with temporary_settings({PREFECT_TASKS_RUNNER_PROCESS_POOL_MAX_WORKERS: 3}):
             with ProcessPoolTaskRunner() as runner:
                 assert runner._executor._max_workers == 3
 
