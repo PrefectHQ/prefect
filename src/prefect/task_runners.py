@@ -548,6 +548,9 @@ class ProcessPoolTaskRunner(TaskRunner[PrefectConcurrentFuture[Any]]):
         that can take advantage of multiple CPU cores. For I/O-bound tasks,
         consider using `ThreadPoolTaskRunner` instead.
 
+        This runner uses the 'spawn' multiprocessing start method for cross-platform
+        consistency and to avoid issues with shared state between processes.
+
         All task parameters and return values must be serializable with cloudpickle.
         The runner automatically handles context propagation and environment
         variable passing to subprocess workers.
@@ -697,7 +700,11 @@ class ProcessPoolTaskRunner(TaskRunner[PrefectConcurrentFuture[Any]]):
 
     def __enter__(self) -> Self:
         super().__enter__()
-        self._executor = ProcessPoolExecutor(max_workers=self._max_workers)
+        # Use spawn method for cross-platform consistency and avoiding shared state issues
+        mp_context = multiprocessing.get_context("spawn")
+        self._executor = ProcessPoolExecutor(
+            max_workers=self._max_workers, mp_context=mp_context
+        )
         return self
 
     def __exit__(self, exc_type: Any, exc_value: Any, traceback: Any) -> None:
