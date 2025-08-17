@@ -2274,8 +2274,7 @@
                     "default": null,
                     "description": "The maximum number of workers for ProcessPoolTaskRunner.",
                     "supported_environment_variables": [
-                        "PREFECT_TASKS_RUNNER_PROCESS_POOL_MAX_WORKERS",
-                        "PREFECT_TASK_RUNNER_PROCESS_POOL_MAX_WORKERS"
+                        "PREFECT_TASKS_RUNNER_PROCESS_POOL_MAX_WORKERS"
                     ],
                     "title": "Process Pool Max Workers"
                 }
