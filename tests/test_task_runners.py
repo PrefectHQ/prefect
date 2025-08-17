@@ -14,12 +14,17 @@ from prefect.futures import PrefectFuture, PrefectWrappedFuture
 from prefect.results import _default_storages
 from prefect.settings import (
     PREFECT_DEFAULT_RESULT_STORAGE_BLOCK,
+    PREFECT_TASK_RUNNER_PROCESS_POOL_MAX_WORKERS,
     PREFECT_TASK_RUNNER_THREAD_POOL_MAX_WORKERS,
     PREFECT_TASK_SCHEDULING_DEFAULT_STORAGE_BLOCK,
     temporary_settings,
 )
 from prefect.states import Completed, Running
-from prefect.task_runners import PrefectTaskRunner, ThreadPoolTaskRunner
+from prefect.task_runners import (
+    PrefectTaskRunner,
+    ProcessPoolTaskRunner,
+    ThreadPoolTaskRunner,
+)
 from prefect.task_worker import TaskWorker
 from prefect.tasks import task
 
@@ -42,6 +47,36 @@ def context_matters(param1=None, param2=None):
 @task
 async def context_matters_async(param1=None, param2=None):
     return TagsContext.get().current_tags
+
+
+@task
+def task_that_raises_exception():
+    raise ValueError("Test exception from subprocess")
+
+
+@task
+async def async_task_that_raises_exception():
+    raise RuntimeError("Test async exception from subprocess")
+
+
+@task
+def task_with_large_data(data):
+    # Process large data structure
+    return len(data), sum(data) if isinstance(data, list) else data
+
+
+@task
+def task_with_unpicklable_param(func):
+    # This will fail because lambdas can't be pickled normally
+    return func(42)
+
+
+@task
+def slow_task(duration=0.1):
+    import time
+
+    time.sleep(duration)
+    return "completed"
 
 
 class MockFuture(PrefectWrappedFuture):
@@ -228,6 +263,217 @@ class TestThreadPoolTaskRunner:
         @flow
         def test_flow():
             return recursive_task.submit(33)
+
+        assert test_flow().result() == 0
+
+
+class TestProcessPoolTaskRunner:
+    @pytest.fixture(autouse=True)
+    def default_storage_setting(self, tmp_path):
+        name = str(uuid.uuid4())
+        LocalFileSystem(basepath=tmp_path).save(name)
+        with temporary_settings(
+            {
+                PREFECT_DEFAULT_RESULT_STORAGE_BLOCK: f"local-file-system/{name}",
+                PREFECT_TASK_SCHEDULING_DEFAULT_STORAGE_BLOCK: f"local-file-system/{name}",
+            }
+        ):
+            yield
+
+    def test_duplicate(self):
+        runner = ProcessPoolTaskRunner(max_workers=4)
+        duplicate_runner = runner.duplicate()
+        assert isinstance(duplicate_runner, ProcessPoolTaskRunner)
+        assert duplicate_runner is not runner
+        assert duplicate_runner == runner
+
+    def test_runner_must_be_started(self):
+        runner = ProcessPoolTaskRunner()
+        with pytest.raises(RuntimeError, match="Task runner is not started"):
+            runner.submit(my_test_task, {})
+
+    def test_set_max_workers(self):
+        with ProcessPoolTaskRunner(max_workers=2) as runner:
+            assert runner._executor._max_workers == 2
+
+    def test_set_max_workers_through_settings(self):
+        with temporary_settings({PREFECT_TASK_RUNNER_PROCESS_POOL_MAX_WORKERS: 3}):
+            with ProcessPoolTaskRunner() as runner:
+                assert runner._executor._max_workers == 3
+
+    def test_default_max_workers_uses_cpu_count(self):
+        import multiprocessing
+
+        with ProcessPoolTaskRunner() as runner:
+            # Should default to cpu_count when setting is None
+            assert runner._max_workers == multiprocessing.cpu_count()
+
+    def test_submit_sync_task(self):
+        with ProcessPoolTaskRunner() as runner:
+            parameters = {"param1": 1, "param2": 2}
+            future = runner.submit(my_test_task, parameters)
+            assert isinstance(future, PrefectFuture)
+            assert isinstance(future.task_run_id, UUID)
+
+            result = future.result()
+            assert result == (1, 2)
+
+    def test_submit_async_task(self):
+        with ProcessPoolTaskRunner() as runner:
+            parameters = {"param1": 3, "param2": 4}
+            future = runner.submit(my_test_async_task, parameters)
+            assert isinstance(future, PrefectFuture)
+            assert isinstance(future.task_run_id, UUID)
+
+            result = future.result()
+            assert result == (3, 4)
+
+    def test_submit_sync_task_receives_context(self):
+        with tags("tag1", "tag2"):
+            with ProcessPoolTaskRunner() as runner:
+                future = runner.submit(context_matters, {})
+                assert isinstance(future, PrefectFuture)
+                assert isinstance(future.task_run_id, UUID)
+
+                result = future.result()
+                assert result == {"tag1", "tag2"}
+
+    def test_submit_async_task_receives_context(self):
+        with tags("tag1", "tag2"):
+            with ProcessPoolTaskRunner() as runner:
+                future = runner.submit(context_matters_async, {})
+                assert isinstance(future, PrefectFuture)
+                assert isinstance(future.task_run_id, UUID)
+
+                result = future.result()
+                assert result == {"tag1", "tag2"}
+
+    def test_map_sync_task(self):
+        with ProcessPoolTaskRunner() as runner:
+            parameters = {"param1": [1, 2, 3], "param2": [4, 5, 6]}
+            futures = runner.map(my_test_task, parameters)
+            assert isinstance(futures, Iterable)
+            assert all(isinstance(future, PrefectFuture) for future in futures)
+            assert all(isinstance(future.task_run_id, UUID) for future in futures)
+
+            results = [future.result() for future in futures]
+            assert results == [(1, 4), (2, 5), (3, 6)]
+
+    def test_map_async_task(self):
+        with ProcessPoolTaskRunner() as runner:
+            parameters = {"param1": [1, 2, 3], "param2": [4, 5, 6]}
+            futures = runner.map(my_test_async_task, parameters)
+            assert isinstance(futures, Iterable)
+            assert all(isinstance(future, PrefectFuture) for future in futures)
+            assert all(isinstance(future.task_run_id, UUID) for future in futures)
+
+            results = [future.result() for future in futures]
+            assert results == [(1, 4), (2, 5), (3, 6)]
+
+    def test_map_sync_task_with_context(self):
+        with tags("tag1", "tag2"):
+            with ProcessPoolTaskRunner() as runner:
+                parameters = {"param1": [1, 2, 3], "param2": [4, 5, 6]}
+                futures = runner.map(context_matters, parameters)
+                assert isinstance(futures, Iterable)
+                assert all(isinstance(future, PrefectFuture) for future in futures)
+                assert all(isinstance(future.task_run_id, UUID) for future in futures)
+
+                results = [future.result() for future in futures]
+                assert results == [{"tag1", "tag2"}] * 3
+
+    def test_map_async_task_with_context(self):
+        with tags("tag1", "tag2"):
+            with ProcessPoolTaskRunner() as runner:
+                parameters = {"param1": [1, 2, 3], "param2": [4, 5, 6]}
+                futures = runner.map(context_matters_async, parameters)
+                assert isinstance(futures, Iterable)
+                assert all(isinstance(future, PrefectFuture) for future in futures)
+                assert all(isinstance(future.task_run_id, UUID) for future in futures)
+
+                results = [future.result() for future in futures]
+                assert results == [{"tag1", "tag2"}] * 3
+
+    def test_map_with_future_resolved_to_list(self):
+        with ProcessPoolTaskRunner() as runner:
+            future = MockFuture(data=[1, 2, 3])
+            parameters = {"param1": future, "param2": future}
+            futures = runner.map(my_test_task, parameters)
+            assert isinstance(futures, Iterable)
+            assert all(isinstance(future, PrefectFuture) for future in futures)
+            assert all(isinstance(future.task_run_id, UUID) for future in futures)
+
+            results = [future.result() for future in futures]
+            assert results == [(1, 1), (2, 2), (3, 3)]
+
+    def test_task_raises_exception(self):
+        with ProcessPoolTaskRunner() as runner:
+            future = runner.submit(task_that_raises_exception, {})
+
+            with pytest.raises(ValueError, match="Test exception from subprocess"):
+                future.result()
+
+    def test_async_task_raises_exception(self):
+        with ProcessPoolTaskRunner() as runner:
+            future = runner.submit(async_task_that_raises_exception, {})
+
+            with pytest.raises(
+                RuntimeError, match="Test async exception from subprocess"
+            ):
+                future.result()
+
+    def test_submit_task_with_large_parameters(self):
+        large_data = list(range(10000))
+        with ProcessPoolTaskRunner() as runner:
+            future = runner.submit(task_with_large_data, {"data": large_data})
+            result = future.result()
+            assert result == (10000, sum(range(10000)))
+
+    def test_cancel_all(self):
+        with ProcessPoolTaskRunner(max_workers=1) as runner:
+            # Submit a slow task
+            runner.submit(slow_task, {"duration": 1.0})
+
+            # Cancel all tasks
+            runner.cancel_all()
+
+            # The executor should be shut down
+            assert runner._executor is None
+
+    def test_executor_shutdown_on_exit(self):
+        runner = ProcessPoolTaskRunner()
+        with runner:
+            assert runner._executor is not None
+
+        # After exiting context, executor should be shut down
+        assert runner._executor is None
+
+    def test_equality(self):
+        runner1 = ProcessPoolTaskRunner(max_workers=4)
+        runner2 = ProcessPoolTaskRunner(max_workers=4)
+        runner3 = ProcessPoolTaskRunner(max_workers=2)
+
+        assert runner1 == runner2
+        assert runner1 != runner3
+        assert runner1 != "not a runner"
+
+    def test_handles_recursively_submitted_tasks(self):
+        """
+        Test similar to ThreadPoolTaskRunner but adapted for ProcessPool.
+        This ensures ProcessPoolTaskRunner can handle recursive task submission.
+        """
+
+        @task
+        def recursive_task(n):
+            if n == 0:
+                return n
+            time.sleep(0.1)
+            future = recursive_task.submit(n - 1)
+            return future.result()
+
+        @flow(task_runner=ProcessPoolTaskRunner())
+        def test_flow():
+            return recursive_task.submit(5)  # Using smaller number for process pool
 
         assert test_flow().result() == 0
 

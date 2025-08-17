@@ -23,6 +23,17 @@ class TasksRunnerSettings(PrefectBaseSettings):
         ),
     )
 
+    process_pool_max_workers: Optional[int] = Field(
+        default=None,
+        gt=0,
+        description="The maximum number of workers for ProcessPoolTaskRunner.",
+        validation_alias=AliasChoices(
+            AliasPath("process_pool_max_workers"),
+            "prefect_tasks_runner_process_pool_max_workers",
+            "prefect_task_runner_process_pool_max_workers",
+        ),
+    )
+
 
 class TasksSchedulingSettings(PrefectBaseSettings):
     model_config: ClassVar[SettingsConfigDict] = build_settings_config(

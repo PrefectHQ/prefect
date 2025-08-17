@@ -2,11 +2,14 @@ from __future__ import annotations
 
 import abc
 import asyncio
+import multiprocessing
+import os
 import sys
 import threading
 import uuid
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 from contextvars import copy_context
+from multiprocessing import Event
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -28,9 +31,10 @@ from prefect.futures import (
     PrefectFutureList,
 )
 from prefect.logging.loggers import get_logger, get_run_logger
-from prefect.settings import PREFECT_TASK_RUNNER_THREAD_POOL_MAX_WORKERS
+from prefect.settings.context import get_current_settings
 from prefect.utilities.annotations import allow_failure, quote, unmapped
 from prefect.utilities.callables import (
+    cloudpickle_wrapped_call,
     collapse_variadic_parameters,
     explode_variadic_parameter,
     get_parameter_defaults,
@@ -245,9 +249,10 @@ class ThreadPoolTaskRunner(TaskRunner[PrefectConcurrentFuture[R]]):
 
     def __init__(self, max_workers: int | None = None):
         super().__init__()
+        current_settings = get_current_settings()
         self._executor: ThreadPoolExecutor | None = None
         self._max_workers = (
-            (PREFECT_TASK_RUNNER_THREAD_POOL_MAX_WORKERS.value() or sys.maxsize)
+            (current_settings.tasks.runner.thread_pool_max_workers or sys.maxsize)
             if max_workers is None
             else max_workers
         )
@@ -400,6 +405,238 @@ class ThreadPoolTaskRunner(TaskRunner[PrefectConcurrentFuture[R]]):
 
 # Here, we alias ConcurrentTaskRunner to ThreadPoolTaskRunner for backwards compatibility
 ConcurrentTaskRunner = ThreadPoolTaskRunner
+
+
+def _run_task_in_subprocess(
+    *args: Any,
+    env: dict[str, str] | None = None,
+    **kwargs: Any,
+) -> Any:
+    """
+    Wrapper function to update environment variables and settings before running a task in a subprocess.
+    """
+    from prefect.context import hydrated_context
+    from prefect.engine import handle_engine_signals
+    from prefect.task_engine import run_task_async, run_task_sync
+
+    # Update environment variables
+    os.environ.update(env or {})
+
+    # Extract context from kwargs
+    context = kwargs.pop("context", None)
+
+    with hydrated_context(context):
+        with handle_engine_signals(kwargs.get("task_run_id")):
+            # Determine if this is an async task
+            task = kwargs.get("task")
+            if task and task.isasync:
+                # For async tasks, we need to create a new event loop
+                import asyncio
+
+                maybe_coro = run_task_async(*args, **kwargs)
+                return asyncio.run(maybe_coro)
+            else:
+                return run_task_sync(*args, **kwargs)
+
+
+class _UnpicklingFuture:
+    """Wrapper for a Future that unpickles the result returned by cloudpickle_wrapped_call."""
+
+    def __init__(self, wrapped_future):
+        self.wrapped_future = wrapped_future
+
+    def result(self, timeout=None):
+        pickled_result = self.wrapped_future.result(timeout)
+        import cloudpickle
+
+        return cloudpickle.loads(pickled_result)
+
+    def exception(self, timeout=None):
+        return self.wrapped_future.exception(timeout)
+
+    def done(self):
+        return self.wrapped_future.done()
+
+    def cancelled(self):
+        return self.wrapped_future.cancelled()
+
+    def cancel(self):
+        return self.wrapped_future.cancel()
+
+    def add_done_callback(self, fn):
+        return self.wrapped_future.add_done_callback(fn)
+
+
+class ProcessPoolTaskRunner(TaskRunner[PrefectConcurrentFuture[R]]):
+    """
+    A task runner that executes tasks in a separate process pool.
+
+    Attributes:
+        max_workers: The maximum number of processes to use for executing tasks.
+            Defaults to `PREFECT_TASK_RUNNER_PROCESS_POOL_MAX_WORKERS` or `multiprocessing.cpu_count()`.
+    """
+
+    def __init__(self, max_workers: int | None = None):
+        super().__init__()
+        current_settings = get_current_settings()
+        self._executor: ProcessPoolExecutor | None = None
+        self._max_workers = (
+            (
+                current_settings.tasks.runner.process_pool_max_workers
+                or multiprocessing.cpu_count()
+            )
+            if max_workers is None
+            else max_workers
+        )
+        self._cancel_events: dict[uuid.UUID, Event] = {}
+
+    def duplicate(self) -> "ProcessPoolTaskRunner[R]":
+        return type(self)(max_workers=self._max_workers)
+
+    @overload
+    def submit(
+        self,
+        task: "Task[P, Coroutine[Any, Any, R]]",
+        parameters: dict[str, Any],
+        wait_for: Iterable[PrefectFuture[Any]] | None = None,
+        dependencies: dict[str, set[RunInput]] | None = None,
+    ) -> PrefectConcurrentFuture[R]: ...
+
+    @overload
+    def submit(
+        self,
+        task: "Task[Any, R]",
+        parameters: dict[str, Any],
+        wait_for: Iterable[PrefectFuture[Any]] | None = None,
+        dependencies: dict[str, set[RunInput]] | None = None,
+    ) -> PrefectConcurrentFuture[R]: ...
+
+    def submit(
+        self,
+        task: "Task[P, R | Coroutine[Any, Any, R]]",
+        parameters: dict[str, Any],
+        wait_for: Iterable[PrefectFuture[Any]] | None = None,
+        dependencies: dict[str, set[RunInput]] | None = None,
+    ) -> PrefectConcurrentFuture[R]:
+        """
+        Submit a task to the task run engine running in a separate process.
+
+        Args:
+            task: The task to submit.
+            parameters: The parameters to use when running the task.
+            wait_for: A list of futures that the task depends on.
+            dependencies: A dictionary of dependencies for the task.
+
+        Returns:
+            A future object that can be used to wait for the task to complete and
+            retrieve the result.
+        """
+        if not self._started or self._executor is None:
+            raise RuntimeError("Task runner is not started")
+
+        if wait_for and task.tags and (self._max_workers <= len(task.tags)):
+            self.logger.warning(
+                f"Task {task.name} has {len(task.tags)} tags but only {self._max_workers} workers available"
+                "This may lead to dead-locks. Consider increasing the value of `PREFECT_TASK_RUNNER_PROCESS_POOL_MAX_WORKERS` or `max_workers`."
+            )
+
+        from prefect.context import FlowRunContext
+
+        task_run_id = uuid7()
+        cancel_event = multiprocessing.Event()
+        self._cancel_events[task_run_id] = cancel_event
+
+        flow_run_ctx = FlowRunContext.get()
+        if flow_run_ctx:
+            get_run_logger(flow_run_ctx).debug(
+                f"Submitting task {task.name} to process pool executor..."
+            )
+        else:
+            self.logger.debug(
+                f"Submitting task {task.name} to process pool executor..."
+            )
+
+        # Serialize the current context for the subprocess
+        from prefect.context import serialize_context
+
+        context = serialize_context()
+
+        submit_kwargs: dict[str, Any] = dict(
+            task=task,
+            task_run_id=task_run_id,
+            parameters=parameters,
+            wait_for=wait_for,
+            return_type="state",
+            dependencies=dependencies,
+            context=context,
+        )
+
+        # Prepare the cloudpickle wrapped call for subprocess execution
+        wrapped_call = cloudpickle_wrapped_call(
+            _run_task_in_subprocess,
+            env=get_current_settings().to_environment_variables(exclude_unset=True)
+            | os.environ,
+            **submit_kwargs,
+        )
+
+        # Submit to executor and create a wrapper that unpickles the result
+        raw_future = self._executor.submit(wrapped_call)
+
+        # Create a PrefectConcurrentFuture that handles unpickling
+        prefect_future = PrefectConcurrentFuture(
+            task_run_id=task_run_id, wrapped_future=_UnpicklingFuture(raw_future)
+        )
+        return prefect_future
+
+    @overload
+    def map(
+        self,
+        task: "Task[P, Coroutine[Any, Any, R]]",
+        parameters: dict[str, Any],
+        wait_for: Iterable[PrefectFuture[Any]] | None = None,
+    ) -> PrefectFutureList[PrefectConcurrentFuture[R]]: ...
+
+    @overload
+    def map(
+        self,
+        task: "Task[Any, R]",
+        parameters: dict[str, Any],
+        wait_for: Iterable[PrefectFuture[Any]] | None = None,
+    ) -> PrefectFutureList[PrefectConcurrentFuture[R]]: ...
+
+    def map(
+        self,
+        task: "Task[P, R]",
+        parameters: dict[str, Any],
+        wait_for: Iterable[PrefectFuture[Any]] | None = None,
+    ) -> PrefectFutureList[PrefectConcurrentFuture[R]]:
+        return super().map(task, parameters, wait_for)
+
+    def cancel_all(self) -> None:
+        for event in self._cancel_events.values():
+            event.set()
+            self.logger.debug("Set cancel event")
+
+        if self._executor is not None:
+            self._executor.shutdown(cancel_futures=True)
+            self._executor = None
+
+    def __enter__(self) -> Self:
+        super().__enter__()
+        self._executor = ProcessPoolExecutor(max_workers=self._max_workers)
+        return self
+
+    def __exit__(self, exc_type: Any, exc_value: Any, traceback: Any) -> None:
+        self.cancel_all()
+        if self._executor is not None:
+            self._executor.shutdown(cancel_futures=True)
+            self._executor = None
+        super().__exit__(exc_type, exc_value, traceback)
+
+    def __eq__(self, value: object) -> bool:
+        if not isinstance(value, ProcessPoolTaskRunner):
+            return False
+        return self._max_workers == value._max_workers
 
 
 class PrefectTaskRunner(TaskRunner[PrefectDistributedFuture[R]]):
