@@ -213,7 +213,7 @@ def deserialize_dict_if_string(value: Any) -> dict[str, Any]:
     return value
 
 
-JsonStringOrDict = Annotated[
+SometimesSerializedDict = Annotated[
     dict[str, Any],
     BeforeValidator(deserialize_dict_if_string),
 ]
