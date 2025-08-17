@@ -480,9 +480,77 @@ class ProcessPoolTaskRunner(TaskRunner[PrefectConcurrentFuture[Any]]):
     """
     A task runner that executes tasks in a separate process pool.
 
+    This task runner uses `ProcessPoolExecutor` to run tasks in separate processes,
+    providing true parallelism for CPU-bound tasks and process isolation. Tasks
+    are executed with proper context propagation and error handling.
+
     Attributes:
         max_workers: The maximum number of processes to use for executing tasks.
             Defaults to `PREFECT_TASK_RUNNER_PROCESS_POOL_MAX_WORKERS` or `multiprocessing.cpu_count()`.
+
+    Examples:
+        Use a process pool task runner with a flow:
+
+        ```python
+        from prefect import flow, task
+        from prefect.task_runners import ProcessPoolTaskRunner
+
+        @task
+        def compute_heavy_task(n: int) -> int:
+            # CPU-intensive computation that benefits from process isolation
+            return sum(i ** 2 for i in range(n))
+
+        @flow(task_runner=ProcessPoolTaskRunner(max_workers=4))
+        def my_flow():
+            futures = []
+            for i in range(10):
+                future = compute_heavy_task.submit(i * 1000)
+                futures.append(future)
+
+            return [future.result() for future in futures]
+        ```
+
+        Use a process pool task runner as a context manager:
+
+        ```python
+        from prefect.task_runners import ProcessPoolTaskRunner
+
+        @task
+        def my_task(x: int) -> int:
+            return x * 2
+
+        # Use the runner directly
+        with ProcessPoolTaskRunner(max_workers=2) as runner:
+            future1 = runner.submit(my_task, {"x": 1})
+            future2 = runner.submit(my_task, {"x": 2})
+
+            result1 = future1.result()  # 2
+            result2 = future2.result()  # 4
+        ```
+
+        Configure max workers via settings:
+
+        ```python
+        # Set via environment variable
+        # PREFECT_TASK_RUNNER_PROCESS_POOL_MAX_WORKERS=8
+
+        from prefect import flow
+        from prefect.task_runners import ProcessPoolTaskRunner
+
+        @flow(task_runner=ProcessPoolTaskRunner())  # Uses 8 workers from setting
+        def my_flow():
+            ...
+        ```
+
+    Note:
+        Process pool task runners provide process isolation but have overhead for
+        inter-process communication. They are most beneficial for CPU-bound tasks
+        that can take advantage of multiple CPU cores. For I/O-bound tasks,
+        consider using `ThreadPoolTaskRunner` instead.
+
+        All task parameters and return values must be serializable with cloudpickle.
+        The runner automatically handles context propagation and environment
+        variable passing to subprocess workers.
     """
 
     def __init__(self, max_workers: int | None = None):
@@ -490,12 +558,9 @@ class ProcessPoolTaskRunner(TaskRunner[PrefectConcurrentFuture[Any]]):
         current_settings = get_current_settings()
         self._executor: ProcessPoolExecutor | None = None
         self._max_workers = (
-            (
-                current_settings.tasks.runner.process_pool_max_workers
-                or multiprocessing.cpu_count()
-            )
-            if max_workers is None
-            else max_workers
+            max_workers
+            or current_settings.tasks.runner.process_pool_max_workers
+            or multiprocessing.cpu_count()
         )
         self._cancel_events: dict[uuid.UUID, multiprocessing.Event] = {}
 

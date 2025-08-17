@@ -2554,6 +2554,18 @@ The maximum number of workers for ThreadPoolTaskRunner.
 **Supported environment variables**:
 `PREFECT_TASKS_RUNNER_THREAD_POOL_MAX_WORKERS`, `PREFECT_TASK_RUNNER_THREAD_POOL_MAX_WORKERS`
 
+### `process_pool_max_workers`
+The maximum number of workers for ProcessPoolTaskRunner.
+
+**Type**: `integer | None`
+
+**Default**: `None`
+
+**TOML dotted key path**: `tasks.runner.process_pool_max_workers`
+
+**Supported environment variables**:
+`PREFECT_TASKS_RUNNER_PROCESS_POOL_MAX_WORKERS`, `PREFECT_TASK_RUNNER_PROCESS_POOL_MAX_WORKERS`
+
 ---
 ## TasksSchedulingSettings
 ### `default_storage_block`

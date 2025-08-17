@@ -2260,6 +2260,24 @@
                         "PREFECT_TASK_RUNNER_THREAD_POOL_MAX_WORKERS"
                     ],
                     "title": "Thread Pool Max Workers"
+                },
+                "process_pool_max_workers": {
+                    "anyOf": [
+                        {
+                            "exclusiveMinimum": 0,
+                            "type": "integer"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "description": "The maximum number of workers for ProcessPoolTaskRunner.",
+                    "supported_environment_variables": [
+                        "PREFECT_TASKS_RUNNER_PROCESS_POOL_MAX_WORKERS",
+                        "PREFECT_TASK_RUNNER_PROCESS_POOL_MAX_WORKERS"
+                    ],
+                    "title": "Process Pool Max Workers"
                 }
             },
             "title": "TasksRunnerSettings",
