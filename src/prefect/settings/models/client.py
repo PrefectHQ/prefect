@@ -8,7 +8,7 @@ from prefect.settings.base import (
     PrefectBaseSettings,
     build_settings_config,
 )
-from prefect.types import ClientRetryExtraCodes
+from prefect.types import ClientRetryExtraCodes, SometimesSerializedDict
 
 
 class ClientMetricsSettings(PrefectBaseSettings):
@@ -89,7 +89,7 @@ class ClientSettings(PrefectBaseSettings):
     )
 
     # this needs to be typing.Dict for now as dict[str, str] is not compatible with pydantic < 2.11
-    custom_headers: Dict[str, str] = Field(
+    custom_headers: SometimesSerializedDict = Field(
         default_factory=dict,
         description="""
         Custom HTTP headers to include with every API request to the Prefect server.
@@ -104,8 +104,8 @@ class ClientSettings(PrefectBaseSettings):
         description="Settings for controlling metrics reporting from the client",
     )
 
-    @field_validator("custom_headers", mode="before")
-    def validate_custom_headers(cls, v):
-        if isinstance(v, str):
-            return json.loads(v)
-        return v
+    # @field_validator("custom_headers", mode="before")
+    # def validate_custom_headers(cls, v):
+    #     if isinstance(v, str):
+    #         return json.loads(v)
+    #     return v
