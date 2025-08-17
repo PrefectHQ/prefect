@@ -249,9 +249,9 @@
             "group": "Examples",
             "pages": [
               "v3/examples/hello-world",
-              "v3/examples/simple-web-scraper",
               "v3/examples/run-api-sourced-etl",
-              "v3/examples/run-dbt-with-prefect"
+              "v3/examples/run-dbt-with-prefect",
+              "v3/examples/simple-web-scraper"
             ]
           }
         ]
@@ -1391,6 +1391,22 @@
               "contribute/contribute-integrations",
               "contribute/styles-practices",
               "contribute/code-of-conduct"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Release Notes",
+        "pages": [
+          "v3/release-notes/index",
+          {
+            "group": "OSS",
+            "pages": [
+              "v3/release-notes/oss/version-3-4",
+              "v3/release-notes/oss/version-3-3",
+              "v3/release-notes/oss/version-3-2",
+              "v3/release-notes/oss/version-3-1",
+              "v3/release-notes/oss/version-3-0"
             ]
           }
         ]

@@ -305,7 +305,7 @@ def test_generate_dockerfile_with_requirements(contexts):
             f"""\
                     FROM {get_prefect_image_name()}
                     COPY requirements.txt /opt/prefect/requirements/requirements.txt
-                    RUN python -m pip install -r /opt/prefect/requirements/requirements.txt
+                    RUN uv pip install -r /opt/prefect/requirements/requirements.txt
                     COPY . /opt/prefect/requirements/
                     WORKDIR /opt/prefect/requirements/
                     """

@@ -4,13 +4,13 @@ sidebarTitle: Run flows on serverless compute
 description: Learn how to use Prefect push work pools to schedule work on serverless infrastructure without having to run a worker.
 ---
 
-<span class="badge cloud"></span> Push [work pools](/v3/deploy/infrastructure-concepts/work-pools/) are a special type of work pool. They allow 
+<span class="badge cloud"></span> Push [work pools](/v3/deploy/infrastructure-concepts/work-pools/) are a special type of work pool. They allow
 Prefect Cloud to submit flow runs for execution to serverless computing infrastructure without requiring you to run a worker.
 Push work pools currently support execution in AWS ECS tasks, Azure Container Instances, Google Cloud Run jobs, Modal, and Coiled.
 
 In this guide you will:
 
-- Create a push work pool that sends work to Amazon Elastic Container Service (AWS ECS), Azure Container Instances (ACI), 
+- Create a push work pool that sends work to Amazon Elastic Container Service (AWS ECS), Azure Container Instances (ACI),
 Google Cloud Run, Modal, or Coiled
 - Deploy a flow to that work pool
 - Execute a flow without having to run a worker process to poll for flow runs
@@ -20,7 +20,7 @@ Google Cloud Run, Modal, or Coiled
 */}
 
 <Note>
-You can automatically provision infrastructure and create your push work pool using the `prefect work-pool create` 
+You can automatically provision infrastructure and create your push work pool using the `prefect work-pool create`
 CLI command with the `--provision-infra` flag.
 This approach greatly simplifies the setup process.
 </Note>
@@ -29,7 +29,7 @@ This approach greatly simplifies the setup process.
 <!-- vale on -->
 */}
 
-First, you will set up automatic infrastructure provisioning for push work pools. Then you will learn how to manually 
+First, you will set up automatic infrastructure provisioning for push work pools. Then you will learn how to manually
 set up your push work pool.
 
 ## Automatic infrastructure provisioning
@@ -39,24 +39,24 @@ Push work pools in Prefect Cloud simplify the setup and management of the infras
 However, setting up infrastructure on your cloud provider can still be a time-consuming process.
 Prefect dramatically simplifies this process by automatically provisioning the necessary infrastructure for you.
 
-We'll use the `prefect work-pool create` CLI command with the `--provision-infra` flag to automatically provision your 
+We'll use the `prefect work-pool create` CLI command with the `--provision-infra` flag to automatically provision your
 serverless cloud resources and set up your Prefect workspace to use a new push pool.
 
 ### Prerequisites
 
-To use automatic infrastructure provisioning, you need: 
+To use automatic infrastructure provisioning, you need:
 
-- the relevant cloud CLI library installed 
+- the relevant cloud CLI library installed
 - to be authenticated with your cloud provider
 
 <Tabs>
   <Tab title="AWS ECS">
 
-    Install the [AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html), 
-    [authenticate with your AWS account](https://docs.aws.amazon.com/signin/latest/userguide/command-line-sign-in.html), 
+    Install the [AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html),
+    [authenticate with your AWS account](https://docs.aws.amazon.com/signin/latest/userguide/command-line-sign-in.html),
     and [set a default region](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-files.html#cli-configure-files-methods).
 
-    If you already have the AWS CLI installed, be sure to [update to the latest version](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html#getting-started-install-instructions). 
+    If you already have the AWS CLI installed, be sure to [update to the latest version](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html#getting-started-install-instructions).
 
     You will need the following permissions in your authenticated AWS account:
 
@@ -126,12 +126,12 @@ To use automatic infrastructure provisioning, you need:
     - Managed Identity Operator
     - Azure Container Registry Contributor
 
-    Docker is also required to build and push images to your registry. You can install Docker 
+    Docker is also required to build and push images to your registry. You can install Docker
     [here](https://docs.docker.com/get-docker/).
   </Tab>
   <Tab title="Google Cloud Run">
 
-    Install the [gcloud CLI](https://cloud.google.com/sdk/docs/install) and 
+    Install the [gcloud CLI](https://cloud.google.com/sdk/docs/install) and
     [authenticate with your GCP project](https://cloud.google.com/docs/authentication/gcloud).
 
     If you already have the gcloud CLI installed, be sure to update to the latest version with `gcloud components update`.
@@ -145,7 +145,7 @@ To use automatic infrastructure provisioning, you need:
     - resourcemanager.projects.setIamPolicy
     - artifactregistry.repositories.create
 
-    Docker is also required to build and push images to your registry. You can install Docker 
+    Docker is also required to build and push images to your registry. You can install Docker
     [here](https://docs.docker.com/get-docker/).
   </Tab>
   <Tab title="Modal">
@@ -162,7 +162,7 @@ To use automatic infrastructure provisioning, you need:
     modal token new
     ```
 
-    See [Run flows on Modal](/v3/deploy/infrastructure-examples/modal) for more details.
+    See [Run flows on Modal](/v3/how-to-guides/deployment_infra/modal) for more details.
   </Tab>
   <Tab title="Coiled">
 
@@ -190,7 +190,7 @@ To use automatic infrastructure provisioning, you need:
 
 ### Automatically create a new push work pool and provision infrastructure
 
-To create a new push work pool and configure the necessary infrastructure, 
+To create a new push work pool and configure the necessary infrastructure,
 run this command for your particular cloud provider:
 
 <Tabs>
@@ -200,11 +200,11 @@ run this command for your particular cloud provider:
     prefect work-pool create --type ecs:push --provision-infra my-ecs-pool
     ```
 
-    The `--provision-infra` flag automatically sets up your default AWS account to execute 
+    The `--provision-infra` flag automatically sets up your default AWS account to execute
     flows with ECS tasks.
-    In your AWS account, this command creates a new IAM user, IAM policy, and 
+    In your AWS account, this command creates a new IAM user, IAM policy, and
     ECS cluster that uses AWS Fargate, VPC, and ECR repository (if they don't already exist).
-    In your Prefect workspace, this command creates an 
+    In your Prefect workspace, this command creates an
     [`AWSCredentials` block](/integrations/prefect-aws/index#save-credentials-to-an-aws-credentials-block) for storing the generated credentials.
 
     Here's an abbreviated example output from running the command:
@@ -241,11 +241,11 @@ run this command for your particular cloud provider:
  <Tip>
  **Default Docker build namespace**
 
-    After infrastructure provisioning completes, you will be logged into your new ECR repository and the default 
+    After infrastructure provisioning completes, you will be logged into your new ECR repository and the default
     Docker build namespace will be set to the URL of the registry.
  </Tip>
 
-        While the default namespace is set, you do not need to provide the registry URL when building images as 
+        While the default namespace is set, you do not need to provide the registry URL when building images as
         part of your deployment process.
 
         To take advantage of this, you can write your deploy scripts like this:
@@ -254,25 +254,25 @@ run this command for your particular cloud provider:
         from prefect import flow
         from prefect.docker import DockerImage
 
-        @flow(log_prints=True)            
-        def my_flow(name: str = "world"):                          
-            print(f"Hello {name}! I'm a flow running in a ECS task!") 
+        @flow(log_prints=True)
+        def my_flow(name: str = "world"):
+            print(f"Hello {name}! I'm a flow running in a ECS task!")
 
 
         if __name__ == "__main__":
             my_flow.deploy(
-                name="my-deployment", 
+                name="my-deployment",
                 work_pool_name="my-work-pool",
-                image=DockerImage(                                                 
+                image=DockerImage(
                     name="my-repository:latest",
                     platform="linux/amd64",
-                )                                                                      
-            )       
+                )
+            )
         ```
 
         This builds an image with the tag `<ecr-registry-url>/my-image:latest` and push it to the registry.
 
-        Your image name needs to match the name of the repository created with your work pool. You can create 
+        Your image name needs to match the name of the repository created with your work pool. You can create
         new repositories in the ECR console.
   </Tab>
   <Tab title="Azure Container Instances">
@@ -281,12 +281,12 @@ run this command for your particular cloud provider:
     prefect work-pool create --type azure-container-instance:push --provision-infra my-aci-pool
     ```
 
-    The `--provision-infra` flag automatically sets up your default Azure account to execute 
+    The `--provision-infra` flag automatically sets up your default Azure account to execute
     flows through Azure Container Instances.
-    In your Azure account, this command creates a resource group, app registration, service account with necessary permission, 
+    In your Azure account, this command creates a resource group, app registration, service account with necessary permission,
     generates a secret for the app registration, and creates an Azure Container Registry, (if they don't already exist).
-    In your Prefect workspace, this command creates an 
-    [`AzureContainerInstanceCredentials` block](/integrations/prefect-azure) 
+    In your Prefect workspace, this command creates an
+    [`AzureContainerInstanceCredentials` block](/integrations/prefect-azure)
     to store the client secret value from the generated secret.
 
     Here's an abbreviated example output from running the command:
@@ -312,7 +312,7 @@ run this command for your particular cloud provider:
     |         - Create Azure Container Instance credentials block aci-push-pool-credentials     |
     |                                                                                           |
     _____________________________________________________________________________________________
-    Proceed with infrastructure provisioning? [y/n]:     
+    Proceed with infrastructure provisioning? [y/n]:
     Creating resource group
     Creating app registration
     Generating secret for app registration
@@ -328,34 +328,34 @@ run this command for your particular cloud provider:
 
     <Tip>
     **Default Docker build namespace**
-        After infrastructure provisioning completes, you are logged into your new Azure Container Registry and 
+        After infrastructure provisioning completes, you are logged into your new Azure Container Registry and
         the default Docker build namespace is set to the URL of the registry.
     </Tip>
 
-        While the default namespace is set, any images you build without specifying a registry or username/organization 
+        While the default namespace is set, any images you build without specifying a registry or username/organization
         are pushed to the registry.
 
         To use this capability, write your deploy scripts like this:
 
         ```python example_deploy_script.py
         from prefect import flow
-        from prefect.docker import DockerImage                                
+        from prefect.docker import DockerImage
 
 
-        @flow(log_prints=True)                                                         
+        @flow(log_prints=True)
         def my_flow(name: str = "world"):
-            print(f"Hello {name}! I'm a flow running on an Azure Container Instance!") 
+            print(f"Hello {name}! I'm a flow running on an Azure Container Instance!")
 
 
         if __name__ == "__main__":
-            my_flow.deploy(                                                            
+            my_flow.deploy(
                 name="my-deployment",
-                work_pool_name="my-work-pool",                                    
-                image=DockerImage(                                                 
-                    name="my-image:latest",                                       
-                    platform="linux/amd64",                                            
-                )                                                                 
-            )       
+                work_pool_name="my-work-pool",
+                image=DockerImage(
+                    name="my-image:latest",
+                    platform="linux/amd64",
+                )
+            )
         ```
 
         This builds an image with the tag `<acr-registry-url>/my-image:latest` and pushes it to the registry.
@@ -363,14 +363,14 @@ run this command for your particular cloud provider:
   <Tab title="Google Cloud Run">
 
 ```bash
-prefect work-pool create --type cloud-run:push --provision-infra my-cloud-run-pool 
+prefect work-pool create --type cloud-run:push --provision-infra my-cloud-run-pool
 ```
 
-The `--provision-infra` flag allows you to select a GCP project to use for your work pool and automatically 
+The `--provision-infra` flag allows you to select a GCP project to use for your work pool and automatically
 configures it to execute flows through Cloud Run.
-In your GCP project, this command activates the Cloud Run API, creates a service account, and creates a key for the 
+In your GCP project, this command activates the Cloud Run API, creates a service account, and creates a key for the
 service account, (if they don't already exist).
-In your Prefect workspace, this command creates a 
+In your Prefect workspace, this command creates a
 [`GCPCredentials` block](/integrations/prefect-gcp/index#authenticate-using-a-gcp-credentials-block) to store the service account key.
 
 Here's an abbreviated example output from running the command:
@@ -413,18 +413,18 @@ Created work pool 'my-cloud-run-pool'!
 <Tip>
 **Default Docker build namespace**
 
-    After infrastructure provisioning completes, you are logged into your new Artifact Registry repository 
+    After infrastructure provisioning completes, you are logged into your new Artifact Registry repository
     and the default Docker build namespace is set to the URL of the repository.
 </Tip>
 
-    While the default namespace is set, any images you build without specifying a registry or username/organization 
+    While the default namespace is set, any images you build without specifying a registry or username/organization
     are pushed to the repository.
 
     To use this capability, write your deploy scripts like this:
 
     ```python example_deploy_script.py
-    from prefect import flow                                                       
-    from prefect.docker import DockerImage                                
+    from prefect import flow
+    from prefect.docker import DockerImage
 
 
     @flow(log_prints=True)
@@ -432,8 +432,8 @@ Created work pool 'my-cloud-run-pool'!
         print(f"Hello {name}! I'm a flow running on Cloud Run!")
 
 
-    if __name__ == "__main__":                                                     
-        my_flow.deploy(                                                            
+    if __name__ == "__main__":
+        my_flow.deploy(
             name="my-deployment",
             work_pool_name="above-ground",
             image=DockerImage(
@@ -443,28 +443,28 @@ Created work pool 'my-cloud-run-pool'!
         )
     ```
 
-    This builds an image with the tag `<region>-docker.pkg.dev/<project>/<repository-name>/my-image:latest` 
+    This builds an image with the tag `<region>-docker.pkg.dev/<project>/<repository-name>/my-image:latest`
     and pushes it to the repository.
   </Tab>
   <Tab title="Modal">
 
     ```bash
-    prefect work-pool create --type modal:push --provision-infra my-modal-pool 
+    prefect work-pool create --type modal:push --provision-infra my-modal-pool
     ```
 
-    Using the `--provision-infra` flag triggers the creation of a `ModalCredentials` block in your Prefect Cloud workspace. 
-    This block stores your Modal API token, which authenticates with Modal's API. By default, the token for your 
-    current Modal profile is used for the new `ModalCredentials` block. If Prefect is unable to discover a Modal 
+    Using the `--provision-infra` flag triggers the creation of a `ModalCredentials` block in your Prefect Cloud workspace.
+    This block stores your Modal API token, which authenticates with Modal's API. By default, the token for your
+    current Modal profile is used for the new `ModalCredentials` block. If Prefect is unable to discover a Modal
     API token for your current profile, you will be prompted to create a new one.
   </Tab>
   <Tab title="Coiled">
 
     ```bash
-    prefect work-pool create --type coiled:push --provision-infra my-coiled-pool 
+    prefect work-pool create --type coiled:push --provision-infra my-coiled-pool
     ```
 
-    Using the `--provision-infra` flag triggers the creation of a `CoiledCredentials` block in your Prefect Cloud workspace. 
-    This block stores your Coiled API token, which authenticates with Coiled's API. 
+    Using the `--provision-infra` flag triggers the creation of a `CoiledCredentials` block in your Prefect Cloud workspace.
+    This block stores your Coiled API token, which authenticates with Coiled's API.
   </Tab>
 </Tabs>
 
@@ -473,7 +473,7 @@ Reminder that no worker is required to run flows with a push work pool.
 
 ### Use existing resources with automatic infrastructure provisioning
 
-If you already have the necessary infrastructure set up, Prefect detects that at work pool creation and the 
+If you already have the necessary infrastructure set up, Prefect detects that at work pool creation and the
 infrastructure provisioning for that resource is skipped.
 
 For example, here's how `prefect work-pool create my-work-pool --provision-infra` looks when existing Azure resources are detected:
@@ -488,7 +488,7 @@ Generating secret for app registration
 Provisioning infrastructure
 ACI credentials block 'bb-push-pool-credentials' created
 Assigning Contributor role to service account...
-Service principal with object ID '4be6fed7-...' already has the 'Contributor' role assigned in 
+Service principal with object ID '4be6fed7-...' already has the 'Contributor' role assigned in
 '/subscriptions/.../'
 Creating Azure Container Instance
 Container instance 'prefect-aci-push-pool-container' already exists.
@@ -500,7 +500,7 @@ Created work pool 'my-work-pool'!
 
 ## Provision infrastructure for an existing push work pool
 
-If you already have a push work pool set up, but haven't configured the necessary infrastructure, you can use the 
+If you already have a push work pool set up, but haven't configured the necessary infrastructure, you can use the
 `provision-infra` sub-command to provision the infrastructure for that work pool.
 For example, you can run the following command if you have a work pool named "my-work-pool".
 
@@ -508,7 +508,7 @@ For example, you can run the following command if you have a work pool named "my
 prefect work-pool provision-infra my-work-pool
 ```
 
-Prefect creates the necessary infrastructure for the `my-work-pool` work pool and provides you with a summary 
+Prefect creates the necessary infrastructure for the `my-work-pool` work pool and provides you with a summary
 of the changes:
 
 ```bash
@@ -534,7 +534,7 @@ Proceed with infrastructure provisioning? [y/n]: y
 
 This command speeds up your infrastructure setup process.
 
-As with the examples above, you need to have the related cloud CLI library installed and to be authenticated with 
+As with the examples above, you need to have the related cloud CLI library installed and to be authenticated with
 your cloud provider.
 
 ## Manual infrastructure provisioning
@@ -553,7 +553,7 @@ In the examples below, you'll create a push work pool through the Prefect Cloud 
   </Tab>
   <Tab title="Azure Container Instances">
 
-    To push work to Azure, you need an Azure subscription, resource group, and tenant secret. 
+    To push work to Azure, you need an Azure subscription, resource group, and tenant secret.
 
     **Create Subscription and Resource Group**
 
@@ -564,17 +564,17 @@ In the examples below, you'll create a push work pool through the Prefect Cloud 
 
     1. In the Azure portal, create an app registration.
     2. In the app registration, create a client secret. Copy the value and store it somewhere safe.
-    
+
     **Add App Registration to Resource Group**
 
     1. Navigate to the resource group you created earlier.
-    1. Choose the "Access control (IAM)" blade in the left-hand side menu. Click "+ Add" button at the top, then 
+    1. Choose the "Access control (IAM)" blade in the left-hand side menu. Click "+ Add" button at the top, then
     "Add role assignment".
     1. Go to the "Privileged administrator roles" tab, click on "Contributor", then click "Next" at the bottom of the page.
-    1. Click on "+ Select members". Type the name of the app registration (otherwise it may not autopopulate) and click to add it. 
-    Then hit "Select" and click "Next". The default permissions associated with a role like "Contributor" may 
-    not be sufficient for all operations related to Azure Container Instances (ACI). The specific permissions 
-    required depend on the operations you need to perform (like creating, running, and deleting ACI container groups) 
+    1. Click on "+ Select members". Type the name of the app registration (otherwise it may not autopopulate) and click to add it.
+    Then hit "Select" and click "Next". The default permissions associated with a role like "Contributor" may
+    not be sufficient for all operations related to Azure Container Instances (ACI). The specific permissions
+    required depend on the operations you need to perform (like creating, running, and deleting ACI container groups)
     and your organization's security policies. In some cases, additional permissions or custom roles are necessary.
     1. Click "Review + assign" to finish.
   </Tab>
@@ -582,21 +582,21 @@ In the examples below, you'll create a push work pool through the Prefect Cloud 
 
     You need a GCP service account and an API Key to push work to Cloud Run.
 
-    Create a service account by navigating to the service accounts page and clicking *Create*. Name and describe your service account, 
+    Create a service account by navigating to the service accounts page and clicking *Create*. Name and describe your service account,
     and click *continue* to configure permissions.
 
     The service account must have two roles at a minimum: *Cloud Run Developer* and *Service Account User*.
 
     ![Configuring service account permissions in GCP](/v3/img/guides/gcr-service-account-setup.png)
 
-    Once you create the Service account, navigate to its *Keys* page to add an API key. Create a JSON type key, download it, 
+    Once you create the Service account, navigate to its *Keys* page to add an API key. Create a JSON type key, download it,
     and store it somewhere safe for use in the next section.
   </Tab>
   <Tab title="Modal">
 
     You need a Modal API token to push work to Modal.
 
-    Navigate to **Settings** in the Modal UI to create a Modal API token. In the **API Tokens** section of the Settings page, 
+    Navigate to **Settings** in the Modal UI to create a Modal API token. In the **API Tokens** section of the Settings page,
     click **New Token**.
 
     Copy the token ID and token secret and store them somewhere safe for use in the next section.
@@ -611,8 +611,8 @@ In the examples below, you'll create a push work pool through the Prefect Cloud 
 
 ### Work pool configuration
 
-The push work pool stores information about what type of infrastructure the flow will run on, what default values to 
-provide to compute jobs, and other important execution environment parameters. Because the push work pool needs to 
+The push work pool stores information about what type of infrastructure the flow will run on, what default values to
+provide to compute jobs, and other important execution environment parameters. Because the push work pool needs to
 integrate securely with your serverless infrastructure, you need to store your credentials in Prefect Cloud by making a block.
 
 ### Create a Credentials block
@@ -621,17 +621,17 @@ integrate securely with your serverless infrastructure, you need to store your c
   <Tab title="AWS ECS">
 
     Navigate to the blocks page, click create new block, and select AWS Credentials for the type.
-    
+
     For use in a push work pool, set the region, access key, and access key secret.
 
     Provide any other optional information and create your block.
   </Tab>
   <Tab title="Azure Container Instances">
 
-    Navigate to the blocks page and click the "+" at the top to create a new block. Find the Azure Container 
+    Navigate to the blocks page and click the "+" at the top to create a new block. Find the Azure Container
     Instance Credentials block and click "Add +".
-    
-    Locate the client ID and tenant ID on your app registration and use the client secret you saved earlier. 
+
+    Locate the client ID and tenant ID on your app registration and use the client secret you saved earlier.
     Make sure the value of the secret, not the secret ID.
 
     Provide any other optional information and click "Create".
@@ -640,7 +640,7 @@ integrate securely with your serverless infrastructure, you need to store your c
 
     Navigate to the blocks page, click create new block, and select GCP Credentials for the type.
 
-    For use in a push work pool, this block must have the contents of the JSON key stored in the 
+    For use in a push work pool, this block must have the contents of the JSON key stored in the
     Service Account Info field, as such:
 
     ![Configuring GCP Credentials block for use in cloud run push work pools](/v3/img/guides/gcp-creds-block-setup.png)
@@ -651,7 +651,7 @@ integrate securely with your serverless infrastructure, you need to store your c
 
     Navigate to the blocks page, click create new block, and select Modal Credentials for the type.
 
-    For use in a push work pool, this block must have the token ID and token secret stored in the Token ID and Token 
+    For use in a push work pool, this block must have the token ID and token secret stored in the Token ID and Token
     Secret fields, respectively.
   </Tab>
   <Tab title="Coiled">
@@ -669,34 +669,34 @@ Click **Create** to configure your push work pool by selecting a push option in 
   <Tab title="AWS ECS">
 
     Each step has several optional fields that are detailed in the
-     [work pools documentation](/v3/deploy/infrastructure-concepts/work-pools/). 
-    Select the block you created under the AWS Credentials field. 
+     [work pools documentation](/v3/deploy/infrastructure-concepts/work-pools/).
+    Select the block you created under the AWS Credentials field.
     This allows Prefect Cloud to securely interact with your ECS cluster.
  </Tab>
  <Tab title="Azure Container Instances">
 
-    Fill in the subscription ID and resource group name from the resource group you created.  
-    Add the Azure Container Instance Credentials block you created in the step above. 
+    Fill in the subscription ID and resource group name from the resource group you created.
+    Add the Azure Container Instance Credentials block you created in the step above.
  </Tab>
  <Tab title="Google Cloud Run">
 
     Each step has several optional fields that are detailed in
-    [Manage infrastructure with work pools](/v3/deploy/infrastructure-concepts/work-pools/). 
-    Select the block you created under the GCP Credentials field. 
+    [Manage infrastructure with work pools](/v3/deploy/infrastructure-concepts/work-pools/).
+    Select the block you created under the GCP Credentials field.
     This allows Prefect Cloud to securely interact with your GCP project.
  </Tab>
  <Tab title="Modal">
 
-    Each step has several optional fields that are detailed in the 
-    [work pools documentation](/v3/deploy/infrastructure-concepts/work-pools/). 
-    Select the block you created under the Modal Credentials field. 
+    Each step has several optional fields that are detailed in the
+    [work pools documentation](/v3/deploy/infrastructure-concepts/work-pools/).
+    Select the block you created under the Modal Credentials field.
     This allows Prefect Cloud to securely interact with your Modal account.
  </Tab>
  <Tab title="Coiled">
 
-    Each step has several optional fields that are detailed in the 
-    [work pools documentation](/v3/deploy/infrastructure-concepts/work-pools/). 
-    Select the block you created under the Coiled Credentials field. 
+    Each step has several optional fields that are detailed in the
+    [work pools documentation](/v3/deploy/infrastructure-concepts/work-pools/).
+    Select the block you created under the Coiled Credentials field.
     This allows Prefect Cloud to securely interact with your Coiled account.
  </Tab>
 </Tabs>
@@ -704,8 +704,8 @@ Create your pool to be ready to deploy flows to your Push work pool.
 
 ## Deployment
 
-You need to configure your [deployment](/v3/deploy/infrastructure-examples/docker/) to send flow runs to your push work pool.
-For example, if you create a deployment through the interactive command line experience, 
+You need to configure your [deployment](/v3/how-to-guides/deployment_infra/docker) to send flow runs to your push work pool.
+For example, if you create a deployment through the interactive command line experience,
 choose the work pool you just created. If you are deploying an existing `prefect.yaml` file, the deployment would contain:
 
 ```yaml
@@ -713,21 +713,21 @@ choose the work pool you just created. If you are deploying an existing `prefect
     name: my-push-pool
 ```
 
-Deploying your flow to the `my-push-pool` work pool ensures that runs that are ready for execution are 
+Deploying your flow to the `my-push-pool` work pool ensures that runs that are ready for execution are
 submitted immediately—without the need for a worker to poll for them.
 
 <Warning>
 **Serverless infrastructure may require a certain image architecture**
 
-Serverless infrastructure may assume a certain Docker image architecture; for example, 
-Google Cloud Run will fail to run images built with `linux/arm64` architecture. If using Prefect to build your image, 
+Serverless infrastructure may assume a certain Docker image architecture; for example,
+Google Cloud Run will fail to run images built with `linux/arm64` architecture. If using Prefect to build your image,
 you can change the image architecture through the `platform` keyword (for example, `platform="linux/amd64"`).
 </Warning>
 
 ## Putting it all together
 
 With your deployment created, navigate to its detail page and create a new flow run.
-You'll see the flow start running without polling the work pool, because Prefect Cloud securely connected 
+You'll see the flow start running without polling the work pool, because Prefect Cloud securely connected
 to your serverless infrastructure, created a job, ran the job, and reported on its execution.
 
 ## Usage Limits
@@ -738,4 +738,4 @@ Push work pool usage is unlimited. However push work pools limit flow runs to 24
 
 Learn more about [work pools](/v3/deploy/infrastructure-concepts/work-pools/) and [workers](/v3/deploy/infrastructure-concepts/workers/).
 
-Learn about installing dependencies at runtime or baking them into your Docker image in the [Deploy to Docker](/v3/deploy/infrastructure-examples/docker#automatically-build-a-custom-docker-image-with-a-local-dockerfile) guide.
+Learn about installing dependencies at runtime or baking them into your Docker image in the [Deploy to Docker](/v3/how-to-guides/deployment_infra/docker#automatically-build-a-custom-docker-image-with-a-local-dockerfile) guide.

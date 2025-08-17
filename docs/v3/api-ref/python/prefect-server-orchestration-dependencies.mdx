@@ -12,49 +12,49 @@ Injected orchestration dependencies
 
 ## Functions
 
-### `provide_task_policy` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/dependencies.py#L46" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `provide_task_policy` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/dependencies.py#L47" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 provide_task_policy() -> type[TaskRunOrchestrationPolicy]
 ```
 
-### `provide_flow_policy` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/dependencies.py#L57" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `provide_flow_policy` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/dependencies.py#L58" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-provide_flow_policy(client_version: Annotated[Optional[str], Depends(dependencies.get_prefect_client_version)] = None) -> type[FlowRunOrchestrationPolicy]
+provide_flow_policy() -> type[FlowRunOrchestrationPolicy]
 ```
 
-### `provide_task_orchestration_parameters` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/dependencies.py#L78" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `provide_task_orchestration_parameters` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/dependencies.py#L71" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 provide_task_orchestration_parameters() -> dict[str, Any]
 ```
 
-### `provide_flow_orchestration_parameters` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/dependencies.py#L89" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `provide_flow_orchestration_parameters` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/dependencies.py#L82" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 provide_flow_orchestration_parameters() -> dict[str, Any]
 ```
 
-### `temporary_task_policy` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/dependencies.py#L101" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `temporary_task_policy` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/dependencies.py#L94" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 temporary_task_policy(tmp_task_policy: type[TaskRunOrchestrationPolicy])
 ```
 
-### `temporary_flow_policy` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/dependencies.py#L115" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `temporary_flow_policy` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/dependencies.py#L108" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 temporary_flow_policy(tmp_flow_policy: type[FlowRunOrchestrationPolicy])
 ```
 
-### `temporary_task_orchestration_parameters` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/dependencies.py#L129" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `temporary_task_orchestration_parameters` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/dependencies.py#L122" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 temporary_task_orchestration_parameters(tmp_orchestration_parameters: dict[str, Any])
 ```
 
-### `temporary_flow_orchestration_parameters` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/dependencies.py#L151" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `temporary_flow_orchestration_parameters` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/dependencies.py#L144" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 temporary_flow_orchestration_parameters(tmp_orchestration_parameters: dict[str, Any])
@@ -62,4 +62,4 @@ temporary_flow_orchestration_parameters(tmp_orchestration_parameters: dict[str, 
 
 ## Classes
 
-### `OrchestrationDependencies` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/dependencies.py#L23" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `OrchestrationDependencies` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/dependencies.py#L22" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>

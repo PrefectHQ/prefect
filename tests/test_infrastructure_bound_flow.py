@@ -53,7 +53,7 @@ class FakeResultStorageBlock(WritableFileSystem):
 
 
 class TestInfrastructureBoundFlow:
-    @pytest.fixture
+    @pytest.fixture(autouse=True)
     def mock_subprocess_check_call(self, monkeypatch: pytest.MonkeyPatch):
         mock = MagicMock()
         monkeypatch.setattr(subprocess, "check_call", mock)

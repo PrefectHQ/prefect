@@ -56,6 +56,45 @@ inspect(name: str, output: Optional[str] = typer.Option(None, '--output', '-o', 
 
 View details about a deployment.
 
+**Examples:**
+
+`$ prefect deployment inspect "hello-world/my-deployment"`
+
+```python
+{
+    'id': '610df9c3-0fb4-4856-b330-67f588d20201',
+    'created': '2022-08-01T18:36:25.192102+00:00',
+    'updated': '2022-08-01T18:36:25.188166+00:00',
+    'name': 'my-deployment',
+    'description': None,
+    'flow_id': 'b57b0aa2-ef3a-479e-be49-381fb0483b4e',
+    'schedules': None,
+    'parameters': {'name': 'Marvin'},
+    'tags': ['test'],
+    'parameter_openapi_schema': {
+        'title': 'Parameters',
+        'type': 'object',
+        'properties': {
+            'name': {
+                'title': 'name',
+                'type': 'string'
+            }
+        },
+        'required': ['name']
+    },
+    'storage_document_id': '63ef008f-1e5d-4e07-a0d4-4535731adb32',
+    'infrastructure_document_id': '6702c598-7094-42c8-9785-338d2ec3a028',
+    'infrastructure': {
+        'type': 'process',
+        'env': {},
+        'labels': {},
+        'name': None,
+        'command': ['python', '-m', 'prefect.engine'],
+        'stream_output': True
+    }
+}
+```
+
 
 ### `create_schedule` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/deployment.py#L306" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
@@ -152,8 +191,10 @@ Delete a deployment.
 
 **Examples:**
 
-`$ prefect deployment delete test_flow/test_deployment`
-`$ prefect deployment delete --id dfd3e220-a130-4149-9af6-8d487e02fea6`
+```bash
+$ prefect deployment delete test_flow/test_deployment
+$ prefect deployment delete --id dfd3e220-a130-4149-9af6-8d487e02fea6
+```
 
 
 ## Classes

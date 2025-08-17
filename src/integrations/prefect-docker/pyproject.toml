@@ -71,7 +71,7 @@ fail_under = 80
 show_missing = true
 
 [tool.uv.sources]
-prefect = { path = "../../../", editable = true }
+prefect = { path = "../../../" }
 
 [tool.pytest.ini_options]
 asyncio_default_fixture_loop_scope = "session"

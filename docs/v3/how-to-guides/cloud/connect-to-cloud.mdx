@@ -4,20 +4,20 @@ sidebarTitle: Connect to Prefect Cloud
 description: Configure a local execution environment to access Prefect Cloud.
 ---
 
-To create flow runs in a local or remote execution environment, first connect with Prefect Cloud or a 
-Prefect server as the backend API server. 
+To create flow runs in a local or remote execution environment, first connect with Prefect Cloud or a
+Prefect server as the backend API server.
 
-This involves: 
+This involves:
 
 - Configuring the execution environment with the location of the API.
 - Authenticating with the API, either by logging in or providing a valid API key (Prefect Cloud only).
 
 ## Log into Prefect Cloud from a terminal
 
-Configure a local execution environment to use Prefect Cloud as the API server for flow runs. 
+Configure a local execution environment to use Prefect Cloud as the API server for flow runs.
 You will log in a to Prefect Cloud account from the local environment where you want to run a flow.
 
-### Steps 
+### Steps
 
 1. Open a new terminal session.
 2. [Install Prefect](/v3/get-started/install/) in the environment where you want to execute flow runs.
@@ -32,7 +32,7 @@ pip install -U prefect
 prefect cloud login
 ```
 
-The `prefect cloud login` command provides an interactive login experience. 
+The `prefect cloud login` command provides an interactive login experience.
 
 ```bash
 prefect cloud login
@@ -49,11 +49,11 @@ Paste your authentication key:
 Authenticated with Prefect Cloud! Using workspace 'prefect/terry-prefect-workspace'.
 ```
 
-You can authenticate by manually pasting an [API key](/v3/manage/cloud/manage-users/api-keys/) or through a browser-based approval that auto-generates an API key with a 30-day expiration.
+You can authenticate by manually pasting an [API key](/v3/how-to-guides/cloud/manage-users/api-keys) or through a browser-based approval that auto-generates an API key with a 30-day expiration.
 
 ### Change workspaces
 
-To change which workspace to sync with, use the `prefect cloud workspace set` 
+To change which workspace to sync with, use the `prefect cloud workspace set`
 Prefect CLI command while logged in, passing the account handle and workspace name:
 
 ```bash
@@ -62,7 +62,7 @@ prefect cloud workspace set --workspace "prefect/my-workspace"
 
 If you don't provide a workspace, you will need to select one.
 
-**Workspace Settings** also shows you the `prefect cloud workspace set` Prefect CLI 
+**Workspace Settings** also shows you the `prefect cloud workspace set` Prefect CLI
 command to sync a local execution environment with a given workspace.
 
 You may also use the `prefect cloud login` command with the `--workspace` or `-w` option to set the current workspace.
@@ -75,7 +75,7 @@ prefect cloud login --workspace "prefect/my-workspace"
 
 You can manually configure the `PREFECT_API_URL` setting to specify the Prefect Cloud API.
 
-For Prefect Cloud, configure the `PREFECT_API_URL` and `PREFECT_API_KEY` settings to authenticate 
+For Prefect Cloud, configure the `PREFECT_API_URL` and `PREFECT_API_KEY` settings to authenticate
 with Prefect Cloud by using an account ID, workspace ID, and API key.
 
 ```bash
@@ -88,22 +88,22 @@ prefect config set PREFECT_API_KEY="[API-KEY]"
 
 When authenticated to your Prefect Cloud workspace in the browser, you can get the account ID and workspace ID for the `PREFECT_API_URL` string from the page URL.
 
-For example, if you're on the dashboard page, the URL looks like this: 
+For example, if you're on the dashboard page, the URL looks like this:
 
 https://app.prefect.cloud/account/[ACCOUNT-ID]/workspace/[WORKSPACE-ID]/dashboard
 </Note>
 
-The example above configures `PREFECT_API_URL` and `PREFECT_API_KEY` in the default profile. 
+The example above configures `PREFECT_API_URL` and `PREFECT_API_KEY` in the default profile.
 
-You can use `prefect profile` CLI commands to create settings profiles for different configurations. 
-For example, you can configure a "cloud" profile to use the Prefect Cloud API URL and API key; 
-and another "local" profile for local development using a local Prefect API server started with `prefect server start`. 
+You can use `prefect profile` CLI commands to create settings profiles for different configurations.
+For example, you can configure a "cloud" profile to use the Prefect Cloud API URL and API key;
+and another "local" profile for local development using a local Prefect API server started with `prefect server start`.
 See [Settings](/v3/develop/settings-and-profiles/) for details.
 
 <Note>
 **Environment variables**
 
-You can set `PREFECT_API_URL` and `PREFECT_API_KEY` just like any other environment variable. 
+You can set `PREFECT_API_URL` and `PREFECT_API_KEY` just like any other environment variable.
 Setting these environment variables is a good way to connect to Prefect Cloud in a remote serverless environment.
 See [Overriding defaults with environment variables](/v3/develop/settings-and-profiles/) for more information.
 
@@ -111,5 +111,5 @@ See [Overriding defaults with environment variables](/v3/develop/settings-and-pr
 
 ## Install requirements in execution environments
 
-In local and remote execution environments, such as VMs and containers, ensure that you've installed any flow 
+In local and remote execution environments, such as VMs and containers, ensure that you've installed any flow
 requirements or dependencies before creating a flow run.

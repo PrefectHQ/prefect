@@ -13,7 +13,7 @@ jobs:
       PACKAGE_NAME: ${{ steps.package_name.outputs.PACKAGE_NAME }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           ref: ${{ github.event.inputs.commit }}
           fetch-depth: 0
@@ -62,7 +62,7 @@ jobs:
 
     steps:
       - name: Download build artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           name: ${{ needs.build-pypi-dists.outputs.PACKAGE_NAME}}-pypi-dists
           path: "./dist"
