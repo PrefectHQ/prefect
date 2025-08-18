@@ -2,10 +2,11 @@ from __future__ import annotations
 
 import abc
 import uuid
-from typing import Any, Generic, Protocol, TypeVar, Union, overload
+from typing import Any, Generic, Protocol, TypeVar, Union, cast, overload
 
 from typing_extensions import Self
 
+from prefect.cli.transfer._exceptions import TransferSkipped
 from prefect.client.orchestration import get_client
 from prefect.client.schemas.actions import (
     BlockDocumentCreate,
@@ -17,7 +18,12 @@ from prefect.client.schemas.actions import (
     VariableCreate,
     WorkPoolCreate,
 )
-from prefect.client.schemas.filters import WorkPoolFilter, WorkPoolFilterId
+from prefect.client.schemas.filters import (
+    FlowFilter,
+    FlowFilterName,
+    WorkPoolFilter,
+    WorkPoolFilterId,
+)
 from prefect.client.schemas.objects import (
     BlockDocument,
     BlockSchema,
@@ -39,8 +45,12 @@ from prefect.events.actions import (
     WorkPoolAction,
     WorkQueueAction,
 )
-from prefect.events.schemas.automations import Automation
-from prefect.exceptions import ObjectAlreadyExists, PrefectHTTPStatusError
+from prefect.events.schemas.automations import Automation, AutomationCore
+from prefect.exceptions import (
+    ObjectAlreadyExists,
+    ObjectLimitReached,
+    ObjectUnsupported,
+)
 
 MigratableType = Union[
     WorkPool,
@@ -178,14 +188,14 @@ class MigratableWorkPool(MigratableResource[WorkPool]):
         async with get_client() as client:
             # Skip managed pools always - they're cloud-specific infrastructure
             if self.source_work_pool.is_managed_pool:
-                raise RuntimeError("Skipped managed pool (cloud-specific)")
+                raise TransferSkipped("Skipped managed pool (cloud-specific)")
 
             # Allow push pools only if destination is Cloud
             if self.source_work_pool.is_push_pool:
                 from prefect.client.base import ServerType
 
                 if client.server_type != ServerType.CLOUD:
-                    raise RuntimeError("Skipped push pool (requires Prefect Cloud)")
+                    raise TransferSkipped("Skipped push pool (requires Prefect Cloud)")
             try:
                 self.destination_work_pool = await client.create_work_pool(
                     work_pool=WorkPoolCreate(
@@ -197,23 +207,15 @@ class MigratableWorkPool(MigratableResource[WorkPool]):
                         storage_configuration=self.source_work_pool.storage_configuration,
                     ),
                 )
-            except PrefectHTTPStatusError as e:
-                if e.response.status_code == 403 and "plan does not support" in str(e):
-                    raise RuntimeError(
-                        "Skipped - destination requires Standard/Pro tier"
-                    )
-                elif e.response.status_code == 409:  # Conflict - already exists
-                    self.destination_work_pool = await client.read_work_pool(
-                        self.source_work_pool.name
-                    )
-                    raise RuntimeError("Skipped - already exists")
-                else:
-                    raise
+            except ObjectUnsupported:
+                raise TransferSkipped(
+                    "Skipped - destination requires Standard/Pro tier"
+                )
             except ObjectAlreadyExists:
                 self.destination_work_pool = await client.read_work_pool(
                     self.source_work_pool.name
                 )
-                raise RuntimeError("Skipped - already exists")
+                raise TransferSkipped("Skipped - already exists")
 
             # Update the default queue after successful creation
             await client.update_work_queue(
@@ -298,7 +300,7 @@ class MigratableWorkQueue(MigratableResource[WorkQueue]):
                     if queue.name == self.source_work_queue.name:
                         self.destination_work_queue = queue
                         break
-                raise RuntimeError("Skipped - already exists")
+                raise TransferSkipped("Skipped - already exists")
 
 
 class MigratableDeployment(MigratableResource[DeploymentResponse]):
@@ -479,26 +481,15 @@ class MigratableDeployment(MigratableResource[DeploymentResponse]):
                 self.destination_deployment = await client.read_deployment(
                     destination_deployment_id
                 )
-            except PrefectHTTPStatusError as e:
-                if (
-                    e.response.status_code == 403
-                    and "maximum number of deployments" in str(e)
-                ):
-                    raise RuntimeError(
-                        "Skipped - deployment limit reached (upgrade tier)"
-                    )
-                elif e.response.status_code == 409:  # Conflict - already exists
-                    self.destination_deployment = await client.read_deployment(
-                        self.source_deployment.id
-                    )
-                    raise RuntimeError("Skipped - already exists")
-                else:
-                    raise
+            except ObjectLimitReached:
+                raise TransferSkipped(
+                    "Skipped - deployment limit reached (upgrade tier)"
+                )
             except ObjectAlreadyExists:
                 self.destination_deployment = await client.read_deployment(
                     self.source_deployment.id
                 )
-                raise RuntimeError("Skipped - already exists")
+                raise TransferSkipped("Skipped - already exists")
 
 
 class MigratableFlow(MigratableResource[Flow]):
@@ -548,12 +539,16 @@ class MigratableFlow(MigratableResource[Flow]):
                 self.destination_flow = Flow.model_validate(response.json())
             except ObjectAlreadyExists:
                 # Flow already exists, read it by name
-                flows = await client.read_flows()
-                for flow in flows:
-                    if flow.name == self.source_flow.name:
-                        self.destination_flow = flow
-                        break
-                raise RuntimeError("Skipped - already exists")
+                flows = await client.read_flows(
+                    flow_filter=FlowFilter(
+                        name=FlowFilterName(any_=[self.source_flow.name])
+                    )
+                )
+                if flows and len(flows) == 1:
+                    self.destination_flow = flows[0]
+                else:
+                    raise RuntimeError("Unable to find destination flow")
+                raise TransferSkipped("Skipped - already exists")
 
 
 class MigratableBlockType(MigratableResource[BlockType]):
@@ -604,7 +599,7 @@ class MigratableBlockType(MigratableResource[BlockType]):
                 self.destination_block_type = await client.read_block_type_by_slug(
                     self.source_block_type.slug
                 )
-                raise RuntimeError("Skipped - already exists")
+                raise TransferSkipped("Skipped - already exists")
 
 
 class MigratableBlockSchema(MigratableResource[BlockSchema]):
@@ -684,10 +679,10 @@ class MigratableBlockSchema(MigratableResource[BlockSchema]):
             )
             for block_schema_reference in block_schema_references.values():
                 if isinstance(block_schema_reference, list):
-                    for block_schema_reference in block_schema_reference:
-                        if block_schema_checksum := block_schema_reference.get(
-                            "block_schema_checksum"
-                        ):
+                    for nested_block_schema_reference in block_schema_reference:
+                        if block_schema_checksum := cast(
+                            dict[str, str], nested_block_schema_reference
+                        ).get("block_schema_checksum"):
                             block_schema = await client.read_block_schema_by_checksum(
                                 block_schema_checksum
                             )
@@ -742,7 +737,7 @@ class MigratableBlockSchema(MigratableResource[BlockSchema]):
                         self.source_block_schema.checksum
                     )
                 )
-                raise RuntimeError("Skipped - already exists")
+                raise TransferSkipped("Skipped - already exists")
 
 
 class MigratableBlockDocument(MigratableResource[BlockDocument]):
@@ -922,7 +917,7 @@ class MigratableBlockDocument(MigratableResource[BlockDocument]):
                         name=self.source_block_document.name,
                     )
                 )
-                raise RuntimeError("Skipped - already exists")
+                raise TransferSkipped("Skipped - already exists")
 
 
 class MigratableAutomation(MigratableResource[Automation]):
@@ -1055,9 +1050,11 @@ class MigratableAutomation(MigratableResource[Automation]):
             )
             if automations:
                 self.destination_automation = automations[0]
-                raise RuntimeError("Skipped - already exists")
+                raise TransferSkipped("Skipped - already exists")
             else:
-                automation_copy = self.source_automation.model_copy(deep=True)
+                automation_copy = AutomationCore.model_validate(
+                    self.source_automation.model_dump(mode="json")
+                )
                 for action in automation_copy.actions:
                     if (
                         isinstance(action, DeploymentAction)
@@ -1101,16 +1098,13 @@ class MigratableAutomation(MigratableResource[Automation]):
                             None,
                         ):
                             action.block_document_id = destination_block_document_id
-                # Create automation without id field - the server will generate a new one
-                automation_dict = automation_copy.model_dump(
-                    mode="json", exclude={"id", "created", "updated"}
+
+                automation_id = await client.create_automation(
+                    automation=automation_copy
                 )
-                response = await client._client.post(
-                    "/automations/", json=automation_dict
+                self.destination_automation = await client.read_automation(
+                    automation_id=automation_id
                 )
-                response.raise_for_status()
-                result = response.json()
-                self.destination_automation = await client.read_automation(result["id"])
 
 
 class MigratableGlobalConcurrencyLimit(
@@ -1171,17 +1165,13 @@ class MigratableGlobalConcurrencyLimit(
                         self.source_global_concurrency_limit.name
                     )
                 )
-            except PrefectHTTPStatusError as e:
-                # 409 means it already exists, read the existing one
-                if e.response.status_code == 409:
-                    self.destination_global_concurrency_limit = (
-                        await client.read_global_concurrency_limit_by_name(
-                            self.source_global_concurrency_limit.name
-                        )
+            except ObjectAlreadyExists:
+                self.destination_global_concurrency_limit = (
+                    await client.read_global_concurrency_limit_by_name(
+                        self.source_global_concurrency_limit.name
                     )
-                    raise RuntimeError("Skipped - already exists")
-                else:
-                    raise
+                )
+                raise TransferSkipped("Skipped - already exists")
 
 
 class MigratableVariable(MigratableResource[Variable]):
@@ -1226,15 +1216,11 @@ class MigratableVariable(MigratableResource[Variable]):
                         tags=self.source_variable.tags,
                     ),
                 )
-            except PrefectHTTPStatusError as e:
-                # 409 means it already exists, read the existing one
-                if e.response.status_code == 409:
-                    self.destination_variable = await client.read_variable_by_name(
-                        self.source_variable.name
-                    )
-                    raise RuntimeError("Skipped - already exists")
-                else:
-                    raise
+            except ObjectAlreadyExists:
+                self.destination_variable = await client.read_variable_by_name(
+                    self.source_variable.name
+                )
+                raise TransferSkipped("Skipped - already exists")
 
 
 @overload

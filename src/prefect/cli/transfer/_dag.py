@@ -15,18 +15,17 @@ import uuid
 from collections import defaultdict, deque
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Awaitable, Callable, Coroutine, Generic, TypeVar
+from typing import Any, Awaitable, Callable, Coroutine, Sequence
 
 import anyio
 from anyio import create_task_group
 from anyio.abc import TaskGroup
 
+from prefect.cli.transfer._exceptions import TransferSkipped
 from prefect.cli.transfer._migratable_resources import MigratableProtocol
 from prefect.logging import get_logger
 
 logger = get_logger(__name__)
-
-T = TypeVar("T", bound=MigratableProtocol)
 
 
 class NodeState(Enum):
@@ -41,17 +40,17 @@ class NodeState(Enum):
 
 
 @dataclass
-class NodeStatus(Generic[T]):
+class NodeStatus:
     """Tracks the status of a node during traversal."""
 
-    node: T
+    node: MigratableProtocol
     state: NodeState = NodeState.PENDING
     dependents: set[uuid.UUID] = field(default_factory=set)
     dependencies: set[uuid.UUID] = field(default_factory=set)
     error: Exception | None = None
 
 
-class TransferDAG(Generic[T]):
+class TransferDAG:
     """
     Execution DAG for managing resource transfer dependencies.
 
@@ -63,13 +62,13 @@ class TransferDAG(Generic[T]):
     """
 
     def __init__(self):
-        self._nodes: dict[uuid.UUID, T] = {}
+        self.nodes: dict[uuid.UUID, MigratableProtocol] = {}
         self._dependencies: dict[uuid.UUID, set[uuid.UUID]] = defaultdict(set)
         self._dependents: dict[uuid.UUID, set[uuid.UUID]] = defaultdict(set)
-        self._status: dict[uuid.UUID, NodeStatus[T]] = {}
+        self._status: dict[uuid.UUID, NodeStatus] = {}
         self._lock = asyncio.Lock()
 
-    def add_node(self, node: T) -> uuid.UUID:
+    def add_node(self, node: MigratableProtocol) -> uuid.UUID:
         """
         Add a node to the graph, deduplicating by source ID.
 
@@ -79,8 +78,8 @@ class TransferDAG(Generic[T]):
         Returns:
             The node's source UUID
         """
-        if node.source_id not in self._nodes:
-            self._nodes[node.source_id] = node
+        if node.source_id not in self.nodes:
+            self.nodes[node.source_id] = node
             self._status[node.source_id] = NodeStatus(node)
         return node.source_id
 
@@ -101,7 +100,7 @@ class TransferDAG(Generic[T]):
         self._status[dependent_id].dependencies.add(dependency_id)
         self._status[dependency_id].dependents.add(dependent_id)
 
-    async def build_from_roots(self, roots: list[T] | set[T] | tuple[T, ...]) -> None:
+    async def build_from_roots(self, roots: Sequence[MigratableProtocol]) -> None:
         """
         Build the graph from root resources by recursively discovering dependencies.
 
@@ -110,7 +109,7 @@ class TransferDAG(Generic[T]):
         """
         visited: set[uuid.UUID] = set()
 
-        async def visit(resource: T):
+        async def visit(resource: MigratableProtocol):
             if resource.source_id in visited:
                 return
             visited.add(resource.source_id)
@@ -143,7 +142,7 @@ class TransferDAG(Generic[T]):
             True if the graph contains cycles, False otherwise
         """
         WHITE, GRAY, BLACK = 0, 1, 2
-        color = {node_id: WHITE for node_id in self._nodes}
+        color = {node_id: WHITE for node_id in self.nodes}
 
         def visit(node_id: uuid.UUID) -> bool:
             if color[node_id] == GRAY:
@@ -158,13 +157,15 @@ class TransferDAG(Generic[T]):
             color[node_id] = BLACK
             return False
 
-        for node_id in self._nodes:
+        for node_id in self.nodes:
             if color[node_id] == WHITE:
                 if visit(node_id):
                     return True
         return False
 
-    def get_execution_layers(self, *, _assume_acyclic: bool = False) -> list[list[T]]:
+    def get_execution_layers(
+        self, *, _assume_acyclic: bool = False
+    ) -> list[list[MigratableProtocol]]:
         """
         Get execution layers using Kahn's algorithm.
 
@@ -186,13 +187,13 @@ class TransferDAG(Generic[T]):
         if not _assume_acyclic and self.has_cycles():
             raise ValueError("Cannot sort DAG with cycles")
 
-        in_degree = {n: len(self._dependencies[n]) for n in self._nodes}
+        in_degree = {n: len(self._dependencies[n]) for n in self.nodes}
 
-        layers: list[list[T]] = []
-        cur = [n for n in self._nodes if in_degree[n] == 0]
+        layers: list[list[MigratableProtocol]] = []
+        cur = [n for n in self.nodes if in_degree[n] == 0]
 
         while cur:
-            layers.append([self._nodes[n] for n in cur])
+            layers.append([self.nodes[n] for n in cur])
             nxt: list[uuid.UUID] = []
             for n in cur:
                 for d in self._dependents[n]:
@@ -205,7 +206,7 @@ class TransferDAG(Generic[T]):
 
     async def execute_concurrent(
         self,
-        process_node: Callable[[T], Awaitable[Any]],
+        process_node: Callable[[MigratableProtocol], Awaitable[Any]],
         max_workers: int = 10,
         skip_on_failure: bool = True,
     ) -> dict[uuid.UUID, Any]:
@@ -245,19 +246,19 @@ class TransferDAG(Generic[T]):
             logger.debug(f"Layer {i}: ({type_summary})")
 
         # Initialize with nodes that have no dependencies
-        ready_queue = []
-        for nid in self._nodes:
+        ready_queue: list[uuid.UUID] = []
+        for nid in self.nodes:
             if not self._dependencies[nid]:
                 ready_queue.append(nid)
                 self._status[nid].state = NodeState.READY
 
         results: dict[uuid.UUID, Any] = {}
         semaphore = anyio.Semaphore(max_workers)
-        processing = set()
+        processing: set[uuid.UUID] = set()
 
         async def worker(nid: uuid.UUID, tg: TaskGroup):
             """Process a single node."""
-            node = self._nodes[nid]
+            node = self.nodes[nid]
 
             # Check if node was skipped after being queued
             if self._status[nid].state != NodeState.READY:
@@ -312,11 +313,11 @@ class TransferDAG(Generic[T]):
                                 # Skip nodes that haven't started yet
                                 if st.state in {NodeState.PENDING, NodeState.READY}:
                                     st.state = NodeState.SKIPPED
-                                    results[did] = RuntimeError(
+                                    results[did] = TransferSkipped(
                                         f"Skipped due to {node} failure"
                                     )
                                     logger.debug(
-                                        f"Skipped {self._nodes[did]} due to upstream failure"
+                                        f"Skipped {self.nodes[did]} due to upstream failure"
                                     )
                                     to_skip.append(did)
                 finally:
@@ -340,11 +341,11 @@ class TransferDAG(Generic[T]):
         """
         deps = self._dependencies
         return {
-            "total_nodes": len(self._nodes),
+            "total_nodes": len(self.nodes),
             "total_edges": sum(len(v) for v in deps.values()),
-            "max_in_degree": max((len(deps[n]) for n in self._nodes), default=0),
+            "max_in_degree": max((len(deps[n]) for n in self.nodes), default=0),
             "max_out_degree": max(
-                (len(self._dependents[n]) for n in self._nodes), default=0
+                (len(self._dependents[n]) for n in self.nodes), default=0
             ),
             "has_cycles": self.has_cycles(),
         }
