@@ -11,11 +11,11 @@ import type { WorkPoolStatus } from "../types";
 
 export type { WorkPoolStatus };
 
-interface WorkPoolStatusIconProps {
+type WorkPoolStatusIconProps = {
 	status: WorkPoolStatus;
 	showTooltip?: boolean;
 	className?: string;
-}
+};
 
 const statusIconMap = {
 	ready: CheckCircle,

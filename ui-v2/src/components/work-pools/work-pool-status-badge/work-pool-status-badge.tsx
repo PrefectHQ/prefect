@@ -5,10 +5,10 @@ import type { WorkPoolStatus } from "../types";
 
 export type { WorkPoolStatus };
 
-interface WorkPoolStatusBadgeProps {
+type WorkPoolStatusBadgeProps = {
 	status: WorkPoolStatus;
 	className?: string;
-}
+};
 
 const getStatusLabel = (status: WorkPoolStatus): string => {
 	switch (status) {

@@ -5,12 +5,12 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-interface CodeBannerProps {
+type CodeBannerProps = {
 	command: string;
 	title: string;
 	subtitle: string;
 	className?: string;
-}
+};
 
 export const CodeBanner = ({
 	command,
