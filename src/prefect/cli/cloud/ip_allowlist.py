@@ -102,15 +102,10 @@ class IPNetworkArg(BaseModel):
 
 
 def parse_ip_network_argument(val: str) -> IPNetworkArg:
-    try:
-        return IPNetworkArg(
-            raw=val,
-            parsed=val,
-        )
-    except Exception:
-        import typer
-
-        raise typer.BadParameter("Invalid value for 'IP address or range'")
+    return IPNetworkArg(
+        raw=val,
+        parsed=val,
+    )
 
 
 IP_ARGUMENT = Annotated[
