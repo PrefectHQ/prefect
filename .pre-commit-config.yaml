@@ -77,6 +77,18 @@ repos:
           )$
         stages:
           - pre-push
+      - id: generate-api-ref
+        name: Generate API reference documentation
+        language: system
+        entry: just api-ref-all
+        pass_filenames: false
+        files: |
+          (?x)^(
+              .pre-commit-config.yaml|
+              src/prefect/.*\.py$
+          )$
+        stages:
+          - pre-push
       - id: check-ui-v2
         name: Check UI v2
         language: system
