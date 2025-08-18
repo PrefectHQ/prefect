@@ -7,22 +7,18 @@ describe("WorkPoolQueueStatusBadge", () => {
 	const testCases: Array<{
 		status: WorkPoolQueueStatus;
 		expectedLabel: string;
-		expectedVariant: string;
 	}> = [
 		{
 			status: "ready",
 			expectedLabel: "Ready",
-			expectedVariant: "success",
 		},
 		{
 			status: "paused",
 			expectedLabel: "Paused",
-			expectedVariant: "warning",
 		},
 		{
 			status: "not_ready",
 			expectedLabel: "Not Ready",
-			expectedVariant: "destructive",
 		},
 	];
 
@@ -44,29 +40,28 @@ describe("WorkPoolQueueStatusBadge", () => {
 	});
 
 	it("renders with correct icon for ready status", () => {
-		render(<WorkPoolQueueStatusBadge status="ready" />);
+		const { container } = render(<WorkPoolQueueStatusBadge status="ready" />);
 
 		// Check for CheckCircle icon
 		expect(screen.getByText("Ready")).toBeInTheDocument();
-		const badge = screen.getByText("Ready").closest("span");
-		expect(badge?.querySelector("svg")).toBeInTheDocument();
+		expect(container.querySelector("svg")).toBeInTheDocument();
 	});
 
 	it("renders with correct icon for paused status", () => {
-		render(<WorkPoolQueueStatusBadge status="paused" />);
+		const { container } = render(<WorkPoolQueueStatusBadge status="paused" />);
 
 		// Check for PauseCircle icon
 		expect(screen.getByText("Paused")).toBeInTheDocument();
-		const badge = screen.getByText("Paused").closest("span");
-		expect(badge?.querySelector("svg")).toBeInTheDocument();
+		expect(container.querySelector("svg")).toBeInTheDocument();
 	});
 
 	it("renders with correct icon for not_ready status", () => {
-		render(<WorkPoolQueueStatusBadge status="not_ready" />);
+		const { container } = render(
+			<WorkPoolQueueStatusBadge status="not_ready" />,
+		);
 
 		// Check for AlertCircle icon
 		expect(screen.getByText("Not Ready")).toBeInTheDocument();
-		const badge = screen.getByText("Not Ready").closest("span");
-		expect(badge?.querySelector("svg")).toBeInTheDocument();
+		expect(container.querySelector("svg")).toBeInTheDocument();
 	});
 });
