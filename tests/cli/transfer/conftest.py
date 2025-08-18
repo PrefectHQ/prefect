@@ -22,11 +22,22 @@ from prefect.workers.process import ProcessWorker
 @pytest.fixture
 async def transfer_flow(session: AsyncSession):
     """Create a flow for transfer testing."""
+    from prefect.client.schemas.objects import Flow
+
     model = await models.flows.create_flow(
         session=session, flow=schemas.core.Flow(name=f"transfer-flow-{uuid.uuid4()}")
     )
     await session.commit()
-    return model
+
+    # Convert to client schema object
+    return Flow(
+        id=model.id,
+        name=model.name,
+        tags=model.tags,
+        labels=model.labels,
+        created=model.created,
+        updated=model.updated,
+    )
 
 
 @pytest.fixture
@@ -467,12 +478,32 @@ async def transfer_global_concurrency_limit(session: AsyncSession):
     )
 
 
-# @pytest.fixture
-# async def transfer_automation_with_deployment(
-#     session: AsyncSession,
-#     transfer_deployment,
-#     events_client
-# ):
-#     """Create an automation with deployment action for transfer testing."""
-#     # Implementation would go here when events client fixtures are available
-#     pass
+# Automation fixtures
+@pytest.fixture
+async def transfer_automation():
+    """Create an automation for transfer testing."""
+    from datetime import timedelta
+
+    from prefect.events.actions import DoNothing
+    from prefect.events.schemas.automations import Automation, EventTrigger, Posture
+    from prefect.events.schemas.events import ResourceSpecification
+
+    automation = Automation(
+        id=uuid.uuid4(),
+        name=f"transfer-automation-{uuid.uuid4()}",
+        description="Test automation for transfer",
+        enabled=True,
+        tags=["transfer-test"],
+        trigger=EventTrigger(
+            expect={"prefect.flow-run.Completed"},
+            match=ResourceSpecification(root={}),
+            match_related=[],
+            posture=Posture.Reactive,
+            threshold=1,
+            within=timedelta(seconds=30),
+        ),
+        actions=[DoNothing()],
+        actions_on_trigger=[],
+        actions_on_resolve=[],
+    )
+    return automation

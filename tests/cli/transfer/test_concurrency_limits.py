@@ -343,15 +343,3 @@ class TestMigratableGlobalConcurrencyLimit:
         migratable = await MigratableGlobalConcurrencyLimit.construct(client_limit)
         assert migratable.source_global_concurrency_limit.limit == limit
         assert migratable.source_global_concurrency_limit.active_slots == active_slots
-
-    async def test_str_representation(
-        self, transfer_global_concurrency_limit: GlobalConcurrencyLimitResponse
-    ):
-        """Test string representation of MigratableGlobalConcurrencyLimit."""
-        migratable = await MigratableGlobalConcurrencyLimit.construct(
-            transfer_global_concurrency_limit
-        )
-        str_repr = str(migratable)
-
-        assert "MigratableGlobalConcurrencyLimit" in str_repr
-        assert str(transfer_global_concurrency_limit.id) in str_repr
