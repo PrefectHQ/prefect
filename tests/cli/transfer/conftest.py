@@ -11,6 +11,7 @@ import uuid
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from prefect.client.schemas.objects import Variable
 from prefect.filesystems import LocalFileSystem
 from prefect.server import models, schemas
 from prefect.utilities.callables import parameter_schema
@@ -400,7 +401,7 @@ async def transfer_deployment_with_infra(
 
 # Variable fixtures
 @pytest.fixture
-async def transfer_variable(session: AsyncSession):
+async def transfer_variable(session: AsyncSession) -> Variable:
     """Create a variable for transfer testing."""
     variable = await models.variables.create_variable(
         session=session,
@@ -411,7 +412,15 @@ async def transfer_variable(session: AsyncSession):
         ),
     )
     await session.commit()
-    return variable
+
+    return Variable(
+        id=variable.id,
+        name=variable.name,
+        value=variable.value,
+        tags=variable.tags,
+        created=variable.created,
+        updated=variable.updated,
+    )
 
 
 # Client fixtures for isolated testing
