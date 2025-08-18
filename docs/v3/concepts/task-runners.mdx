@@ -10,13 +10,18 @@ blocking execution of its caller until the task completes.
 
 To enable concurrent, parallel, or distributed execution of tasks, use the `.submit()` or `.map()` methods to submit tasks to a **task runner**. 
 
-The default task runner in Prefect is the [`ThreadPoolTaskRunner`](https://reference.prefect.io/prefect/task_runners/#prefect.task_runners.ThreadPoolTaskRunner),
+## Available task runners
+
+The default task runner in Prefect is the [`ThreadPoolTaskRunner`](/v3/api-ref/python/prefect-task_runners#threadpooltaskrunner),
 which runs tasks concurrently in independent threads.
 
-For truly parallel or distributed task execution, you must use one of the following task runners, which are available as extras of the `prefect` library:
+For CPU-intensive tasks that benefit from process-isolated execution, use the [`ProcessPoolTaskRunner`](/v3/api-ref/python/prefect-task_runners#processpooltaskrunner),
+which runs tasks in separate processes using Python's `multiprocessing` module.
 
-- [`DaskTaskRunner`](https://github.com/PrefectHQ/prefect/tree/main/src/integrations/prefect-dask) can run tasks using [`dask.distributed`](http://distributed.dask.org/) (install `prefect[dask]`)
-- [`RayTaskRunner`](https://github.com/PrefectHQ/prefect/tree/main/src/integrations/prefect-ray) can run tasks using [Ray](https://www.ray.io/) (install `prefect[ray]`)
+For distributed task execution across multiple machines, you can use one of the following task runners, which are available as extras of the `prefect` library:
+
+- [`DaskTaskRunner`](/integrations/prefect-dask) can run tasks using [`dask.distributed`](http://distributed.dask.org/) (install `prefect[dask]`)
+- [`RayTaskRunner`](/integrations/prefect-ray) can run tasks using [Ray](https://www.ray.io/) (install `prefect[ray]`)
 
 <Note>
 **Concurrency vs. parallelism**
@@ -34,7 +39,9 @@ such as for operations mapped across a dataset.
 
 To configure a specific task runner, provide a `task_runner` keyword argument to the parent flow:
 
-```python {12}
+<CodeGroup>
+
+```python {12} title="use threads to run tasks concurrently"
 from prefect import flow, task
 from prefect.futures import wait
 from prefect.task_runners import ThreadPoolTaskRunner
@@ -56,17 +63,42 @@ def elevator():
     wait(floors) # wait for the sequence of futures to complete
 ```
 
+
+
+```python {12} title="use processes to run tasks in isolation"
+from prefect import flow, task
+from prefect.futures import wait
+from prefect.task_runners import ProcessPoolTaskRunner
+import time
+
+@task
+def stop_at_floor(floor):
+    print(f"elevator moving to floor {floor}")
+    time.sleep(floor)
+    print(f"elevator stops on floor {floor}")
+
+@flow(task_runner=ProcessPoolTaskRunner(max_workers=3))
+def elevator():
+    floors = []
+
+    for floor in range(10, 0, -1):
+        floors.append(stop_at_floor.submit(floor))
+
+    wait(floors) # wait for the sequence of futures to complete
+```
+</CodeGroup>
+
 The `max_workers` parameter of the `ThreadPoolTaskRunner` controls the number of threads that the task runner will use to execute tasks concurrently.
 
 ## Submit tasks to a task runner
 
 When you use `.submit()` to submit a task to a task runner, the task runner creates a 
-[`PrefectFuture`](https://reference.prefect.io/prefect/futures/#prefect.futures.PrefectFuture) for access to the state and 
+[`PrefectFuture`](/v3/api-ref/python/prefect-futures#prefect.futures.PrefectFuture) for access to the state and 
 result of the task.
 
 A `PrefectFuture` is an object that provides:
 - a reference to the result returned by the task
-- a [`State`](https://reference.prefect.io/prefect/server/schemas/states/) indicating the current state of the task run
+- a [`State`](/v3/api-ref/python/prefect-server#prefect.server.schemas.states) indicating the current state of the task run
 
 <Warning>
 `PrefectFuture` objects must be resolved explicitly before returning from a flow or task. 

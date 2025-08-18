@@ -246,6 +246,56 @@ class ThreadPoolTaskRunner(TaskRunner[PrefectConcurrentFuture[R]]):
         file descriptors, potentially hitting OS limits (`OSError: Too many open files`).
         If this occurs, consider minimizing context changes within looped tasks or
         adjusting system limits for open file descriptors.
+
+    Examples:
+        Use a thread pool task runner with a flow:
+
+        ```python
+        from prefect import flow, task
+        from prefect.task_runners import ThreadPoolTaskRunner
+
+        @task
+        def my_task(x: int) -> int:
+            return x * 2
+
+        @flow(task_runner=ThreadPoolTaskRunner())
+        def my_flow():
+            future = my_task.submit(x=1)
+            return future.result()
+        ```
+
+        Use a thread pool task runner as a context manager:
+
+        ```python
+        from prefect.task_runners import ThreadPoolTaskRunner
+
+        @task
+        def my_task(x: int) -> int:
+            return x * 2
+
+        # Use the runner directly
+        with ThreadPoolTaskRunner(max_workers=2) as runner:
+            future1 = runner.submit(my_task, {"x": 1})
+            future2 = runner.submit(my_task, {"x": 2})
+
+            result1 = future1.result()  # 2
+            result2 = future2.result()  # 4
+        ```
+
+        Configure max workers via settings:
+
+        ```python
+        # Set via environment variable
+        # export PREFECT_TASK_RUNNER_THREAD_POOL_MAX_WORKERS=8
+
+        from prefect import flow
+        from prefect.task_runners import ThreadPoolTaskRunner
+
+        @flow(task_runner=ThreadPoolTaskRunner())  # Uses 8 workers from setting
+        def my_flow():
+            ...
+        ```
+
     """
 
     def __init__(self, max_workers: int | None = None):
