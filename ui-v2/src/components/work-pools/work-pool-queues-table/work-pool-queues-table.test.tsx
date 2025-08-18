@@ -56,9 +56,33 @@ vi.mock("@tanstack/react-query", async () => {
 		...actual,
 		useSuspenseQuery: vi.fn(() => ({
 			data: [
-				{ name: "default", id: "1" },
-				{ name: "queue1", id: "2" },
-				{ name: "queue2", id: "3" },
+				{
+					name: "default",
+					id: "1",
+					status: "ready",
+					is_paused: false,
+					priority: 1,
+					concurrency_limit: null,
+					work_pool_name: "test-pool",
+				},
+				{
+					name: "queue1",
+					id: "2",
+					status: "ready",
+					is_paused: false,
+					priority: 2,
+					concurrency_limit: null,
+					work_pool_name: "test-pool",
+				},
+				{
+					name: "queue2",
+					id: "3",
+					status: "paused",
+					is_paused: true,
+					priority: 3,
+					concurrency_limit: 10,
+					work_pool_name: "test-pool",
+				},
 			],
 		})),
 	};

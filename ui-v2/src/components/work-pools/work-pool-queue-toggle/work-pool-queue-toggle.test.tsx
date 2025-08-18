@@ -1,4 +1,5 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { createFakeWorkPoolQueue } from "@/mocks";
 import { WorkPoolQueueToggle } from "./work-pool-queue-toggle";
@@ -59,6 +60,7 @@ describe("WorkPoolQueueToggle", () => {
 	});
 
 	it("shows correct tooltip for default queue", async () => {
+		const user = userEvent.setup();
 		const queue = createFakeWorkPoolQueue({
 			name: "default",
 			status: "ready",
@@ -67,14 +69,16 @@ describe("WorkPoolQueueToggle", () => {
 		render(<WorkPoolQueueToggle queue={queue} />);
 
 		// Hover over the toggle to show tooltip
-		fireEvent.mouseEnter(screen.getByRole("switch"));
+		await user.hover(screen.getByRole("switch"));
 
-		expect(
-			await screen.findByText("Default queue cannot be paused"),
-		).toBeInTheDocument();
+		const tooltipTexts = await screen.findAllByText(
+			"Default queue cannot be paused",
+		);
+		expect(tooltipTexts.length).toBeGreaterThan(0);
 	});
 
 	it("shows correct tooltip for regular queue", async () => {
+		const user = userEvent.setup();
 		const queue = createFakeWorkPoolQueue({
 			name: "test-queue",
 			status: "ready",
@@ -83,11 +87,12 @@ describe("WorkPoolQueueToggle", () => {
 		render(<WorkPoolQueueToggle queue={queue} />);
 
 		// Hover over the toggle to show tooltip
-		fireEvent.mouseEnter(screen.getByRole("switch"));
+		await user.hover(screen.getByRole("switch"));
 
-		expect(
-			await screen.findByText("Pause or resume this work pool queue"),
-		).toBeInTheDocument();
+		const tooltipTexts = await screen.findAllByText(
+			"Pause or resume this work pool queue",
+		);
+		expect(tooltipTexts.length).toBeGreaterThan(0);
 	});
 
 	it("applies custom className", () => {

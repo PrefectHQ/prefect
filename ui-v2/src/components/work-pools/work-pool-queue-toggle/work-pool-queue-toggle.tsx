@@ -3,6 +3,7 @@ import { Switch } from "@/components/ui/switch";
 import {
 	Tooltip,
 	TooltipContent,
+	TooltipProvider,
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
@@ -29,27 +30,29 @@ export const WorkPoolQueueToggle = ({
 	const isDisabled = disabled || isLoading || isDefaultQueue;
 
 	return (
-		<Tooltip>
-			<TooltipTrigger asChild>
-				<div>
-					<Switch
-						checked={!isPaused}
-						onCheckedChange={handleToggle}
-						disabled={isDisabled}
-						aria-label={
-							isPaused ? "Resume work pool queue" : "Pause work pool queue"
-						}
-						className={cn(className)}
-					/>
-				</div>
-			</TooltipTrigger>
-			<TooltipContent>
-				<p>
-					{isDefaultQueue
-						? "Default queue cannot be paused"
-						: "Pause or resume this work pool queue"}
-				</p>
-			</TooltipContent>
-		</Tooltip>
+		<TooltipProvider>
+			<Tooltip>
+				<TooltipTrigger asChild>
+					<div>
+						<Switch
+							checked={!isPaused}
+							onCheckedChange={handleToggle}
+							disabled={isDisabled}
+							aria-label={
+								isPaused ? "Resume work pool queue" : "Pause work pool queue"
+							}
+							className={cn(className)}
+						/>
+					</div>
+				</TooltipTrigger>
+				<TooltipContent>
+					<p>
+						{isDefaultQueue
+							? "Default queue cannot be paused"
+							: "Pause or resume this work pool queue"}
+					</p>
+				</TooltipContent>
+			</Tooltip>
+		</TooltipProvider>
 	);
 };
