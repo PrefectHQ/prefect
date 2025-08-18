@@ -62,7 +62,7 @@ const renderWithQueryClient = (component: React.ReactElement) => {
 };
 
 describe("WorkersTable", () => {
-	it("renders workers list correctly", async () => {
+	it("renders workers list correctly", () => {
 		renderWithQueryClient(
 			<WorkersTableWrapper
 				workPoolName="test-pool"
@@ -97,7 +97,7 @@ describe("WorkersTable", () => {
 		expect(screen.queryByText(mockWorkers[0].name)).not.toBeInTheDocument();
 	});
 
-	it("shows empty state when no workers", async () => {
+	it("shows empty state when no workers", () => {
 		renderWithQueryClient(
 			<WorkersTableWrapper workPoolName="empty-pool" workers={[]} />,
 		);
