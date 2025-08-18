@@ -16,11 +16,17 @@ async def test_async_result_warnings_are_not_raised_by_engine():
             raise ValueError()
         return 1
 
-    @task(persist_result=True, cache_key_fn=lambda *_: "test")
+    @task(
+        persist_result=True,
+        cache_key_fn=lambda *_: "test_async_result_warnings_are_not_raised_by_engine",
+    )
     def foo():
         return 1
 
-    @task(persist_result=True, cache_key_fn=lambda *_: "test")
+    @task(
+        persist_result=True,
+        cache_key_fn=lambda *_: "test_async_result_warnings_are_not_raised_by_engine",
+    )
     def bar():
         return 2
 
