@@ -27,7 +27,8 @@ jobs:
   compatibility-tests:
     name: Integration tests @${{ matrix.server-version.version }}
     timeout-minutes: 10
-    runs-on: oss-larger-runners
+    runs-on: 
+      group: oss-larger-runners
 
     strategy:
       fail-fast: false
