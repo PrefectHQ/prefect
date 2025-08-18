@@ -45,6 +45,7 @@ def main() -> None:
                 "generate_mintlify_openapi_docs.py",
                 "generate_settings_schema.py",
                 "generate_settings_ref.py",
+                "generate_api_ref.py",
             ],
         )
 

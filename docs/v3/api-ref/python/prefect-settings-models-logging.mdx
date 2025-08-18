@@ -7,7 +7,7 @@ sidebarTitle: logging
 
 ## Functions
 
-### `max_log_size_smaller_than_batch_size` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/settings/models/logging.py#L21" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `max_log_size_smaller_than_batch_size` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/settings/models/logging.py#L21" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 max_log_size_smaller_than_batch_size(values: dict[str, Any]) -> dict[str, Any]
@@ -19,7 +19,7 @@ Validator for settings asserting the batch size and match log size are compatibl
 
 ## Classes
 
-### `LoggingToAPISettings` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/settings/models/logging.py#L33" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `LoggingToAPISettings` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/settings/models/logging.py#L33" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Settings for controlling logging to the API
@@ -27,7 +27,7 @@ Settings for controlling logging to the API
 
 **Methods:**
 
-#### `emit_warnings` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/settings/models/logging.py#L81" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `emit_warnings` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/settings/models/logging.py#L81" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 emit_warnings(self) -> Self
@@ -36,13 +36,13 @@ emit_warnings(self) -> Self
 Emits warnings for misconfiguration of logging settings.
 
 
-#### `ser_model` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/settings/base.py#L134" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `ser_model` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/settings/base.py#L134" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 ser_model(self, handler: SerializerFunctionWrapHandler, info: SerializationInfo) -> Any
 ```
 
-#### `settings_customise_sources` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/settings/base.py#L33" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `settings_customise_sources` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/settings/base.py#L33" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 settings_customise_sources(cls, settings_cls: type[BaseSettings], init_settings: PydanticBaseSettingsSource, env_settings: PydanticBaseSettingsSource, dotenv_settings: PydanticBaseSettingsSource, file_secret_settings: PydanticBaseSettingsSource) -> tuple[PydanticBaseSettingsSource, ...]
@@ -55,7 +55,7 @@ The order of the returned callables decides the priority of inputs; first item i
 See https://docs.pydantic.dev/latest/concepts/pydantic_settings/#customise-settings-sources
 
 
-#### `to_environment_variables` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/settings/base.py#L91" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `to_environment_variables` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/settings/base.py#L91" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 to_environment_variables(self, exclude_unset: bool = False, include_secrets: bool = True, include_aliases: bool = False) -> dict[str, str]
@@ -64,7 +64,7 @@ to_environment_variables(self, exclude_unset: bool = False, include_secrets: boo
 Convert the settings object to a dictionary of environment variables.
 
 
-### `LoggingSettings` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/settings/models/logging.py#L88" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `LoggingSettings` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/settings/models/logging.py#L88" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Settings for controlling logging behavior
@@ -72,13 +72,13 @@ Settings for controlling logging behavior
 
 **Methods:**
 
-#### `ser_model` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/settings/base.py#L134" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `ser_model` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/settings/base.py#L134" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 ser_model(self, handler: SerializerFunctionWrapHandler, info: SerializationInfo) -> Any
 ```
 
-#### `settings_customise_sources` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/settings/base.py#L33" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `settings_customise_sources` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/settings/base.py#L33" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 settings_customise_sources(cls, settings_cls: type[BaseSettings], init_settings: PydanticBaseSettingsSource, env_settings: PydanticBaseSettingsSource, dotenv_settings: PydanticBaseSettingsSource, file_secret_settings: PydanticBaseSettingsSource) -> tuple[PydanticBaseSettingsSource, ...]
@@ -91,7 +91,7 @@ The order of the returned callables decides the priority of inputs; first item i
 See https://docs.pydantic.dev/latest/concepts/pydantic_settings/#customise-settings-sources
 
 
-#### `to_environment_variables` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/settings/base.py#L91" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `to_environment_variables` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/settings/base.py#L91" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 to_environment_variables(self, exclude_unset: bool = False, include_secrets: bool = True, include_aliases: bool = False) -> dict[str, str]

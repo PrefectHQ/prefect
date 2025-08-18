@@ -7,13 +7,13 @@ sidebarTitle: flow_runs
 
 ## Functions
 
-### `read_flow_run_history` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/ui/flow_runs.py#L48" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `read_flow_run_history` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/api/ui/flow_runs.py#L48" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_flow_run_history(sort: schemas.sorting.FlowRunSort = Body(schemas.sorting.FlowRunSort.EXPECTED_START_TIME_DESC), limit: int = Body(1000, le=1000), offset: int = Body(0, ge=0), flows: schemas.filters.FlowFilter = None, flow_runs: schemas.filters.FlowRunFilter = None, task_runs: schemas.filters.TaskRunFilter = None, deployments: schemas.filters.DeploymentFilter = None, work_pools: schemas.filters.WorkPoolFilter = None, db: PrefectDBInterface = Depends(provide_database_interface)) -> List[SimpleFlowRun]
 ```
 
-### `count_task_runs_by_flow_run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/ui/flow_runs.py#L97" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `count_task_runs_by_flow_run` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/api/ui/flow_runs.py#L97" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 count_task_runs_by_flow_run(flow_run_ids: list[UUID] = Body(default=..., embed=True, max_items=200), db: PrefectDBInterface = Depends(provide_database_interface)) -> dict[UUID, int]
@@ -25,17 +25,17 @@ Get task run counts by flow run id.
 
 ## Classes
 
-### `SimpleFlowRun` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/ui/flow_runs.py#L27" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `SimpleFlowRun` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/api/ui/flow_runs.py#L27" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 **Methods:**
 
-#### `model_validate_list` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/_internal/schemas/bases.py#L56" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `model_validate_list` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/_internal/schemas/bases.py#L56" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 model_validate_list(cls, obj: Any) -> list[Self]
 ```
 
-#### `reset_fields` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/_internal/schemas/bases.py#L85" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `reset_fields` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/_internal/schemas/bases.py#L85" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 reset_fields(self: Self) -> Self
