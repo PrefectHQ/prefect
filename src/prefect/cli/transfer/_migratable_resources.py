@@ -175,13 +175,17 @@ class MigratableWorkPool(MigratableResource[WorkPool]):
         return self._dependencies
 
     async def migrate(self) -> None:
-        # Skip push and managed pools - they're infrastructure-specific
-        if self.source_work_pool.is_push_pool:
-            raise RuntimeError("Skipped push pool (infrastructure-specific)")
-        elif self.source_work_pool.is_managed_pool:
-            raise RuntimeError("Skipped managed pool (cloud-specific)")
-
         async with get_client() as client:
+            # Skip managed pools always - they're cloud-specific infrastructure
+            if self.source_work_pool.is_managed_pool:
+                raise RuntimeError("Skipped managed pool (cloud-specific)")
+
+            # Allow push pools only if destination is Cloud
+            if self.source_work_pool.is_push_pool:
+                from prefect.client.base import ServerType
+
+                if client.server_type != ServerType.CLOUD:
+                    raise RuntimeError("Skipped push pool (requires Prefect Cloud)")
             try:
                 self.destination_work_pool = await client.create_work_pool(
                     work_pool=WorkPoolCreate(
@@ -193,6 +197,18 @@ class MigratableWorkPool(MigratableResource[WorkPool]):
                         storage_configuration=self.source_work_pool.storage_configuration,
                     ),
                 )
+            except PrefectHTTPStatusError as e:
+                if e.response.status_code == 403 and "plan does not support" in str(e):
+                    raise RuntimeError(
+                        "Skipped - destination requires Standard/Pro tier"
+                    )
+                elif e.response.status_code == 409:  # Conflict - already exists
+                    self.destination_work_pool = await client.read_work_pool(
+                        self.source_work_pool.name
+                    )
+                    raise RuntimeError("Skipped - already exists")
+                else:
+                    raise
             except ObjectAlreadyExists:
                 self.destination_work_pool = await client.read_work_pool(
                     self.source_work_pool.name
@@ -463,6 +479,21 @@ class MigratableDeployment(MigratableResource[DeploymentResponse]):
                 self.destination_deployment = await client.read_deployment(
                     destination_deployment_id
                 )
+            except PrefectHTTPStatusError as e:
+                if (
+                    e.response.status_code == 403
+                    and "maximum number of deployments" in str(e)
+                ):
+                    raise RuntimeError(
+                        "Skipped - deployment limit reached (upgrade tier)"
+                    )
+                elif e.response.status_code == 409:  # Conflict - already exists
+                    self.destination_deployment = await client.read_deployment(
+                        self.source_deployment.id
+                    )
+                    raise RuntimeError("Skipped - already exists")
+                else:
+                    raise
             except ObjectAlreadyExists:
                 self.destination_deployment = await client.read_deployment(
                     self.source_deployment.id
