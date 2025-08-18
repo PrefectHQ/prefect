@@ -21,7 +21,12 @@ def check_contains(cli_result: Result, content: str, should_contain: bool) -> No
         should_contain: if True, checks that content is in cli_result,
             if False, checks that content is not in cli_result
     """
-    output = cli_result.stdout.strip()
+    stdout_output = cli_result.stdout.strip()
+    # Also check stderr, especially for error messages
+    stderr_output = getattr(cli_result, "stderr", "").strip()
+    # Combine both stdout and stderr for checking
+    output = stdout_output + stderr_output
+
     content = textwrap.dedent(content).strip()
 
     if should_contain:
