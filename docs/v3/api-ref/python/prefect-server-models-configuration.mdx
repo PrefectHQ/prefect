@@ -7,13 +7,13 @@ sidebarTitle: configuration
 
 ## Functions
 
-### `write_configuration` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/configuration.py#L11" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `write_configuration` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/models/configuration.py#L11" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 write_configuration(db: PrefectDBInterface, session: AsyncSession, configuration: schemas.core.Configuration) -> orm_models.Configuration
 ```
 
-### `read_configuration` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/configuration.py#L38" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `read_configuration` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/models/configuration.py#L38" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_configuration(db: PrefectDBInterface, session: AsyncSession, key: str) -> Optional[schemas.core.Configuration]

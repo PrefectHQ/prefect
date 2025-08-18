@@ -12,7 +12,7 @@ Utilities for working with Python callables.
 
 ## Functions
 
-### `get_call_parameters` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/callables.py#L43" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `get_call_parameters` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/callables.py#L43" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_call_parameters(fn: Callable[..., Any], call_args: tuple[Any, ...], call_kwargs: dict[str, Any], apply_defaults: bool = True) -> dict[str, Any]
@@ -34,7 +34,7 @@ Raises a ParameterBindError if the arguments/kwargs are not valid for the
 function
 
 
-### `get_parameter_defaults` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/callables.py#L83" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `get_parameter_defaults` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/callables.py#L83" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_parameter_defaults(fn: Callable[..., Any]) -> dict[str, Any]
@@ -44,7 +44,7 @@ get_parameter_defaults(fn: Callable[..., Any]) -> dict[str, Any]
 Get default parameter values for a callable.
 
 
-### `explode_variadic_parameter` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/callables.py#L100" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `explode_variadic_parameter` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/callables.py#L100" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 explode_variadic_parameter(fn: Callable[..., Any], parameters: dict[str, Any]) -> dict[str, Any]
@@ -66,7 +66,7 @@ Example:
     ```
 
 
-### `collapse_variadic_parameters` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/callables.py#L134" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `collapse_variadic_parameters` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/callables.py#L134" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 collapse_variadic_parameters(fn: Callable[..., Any], parameters: dict[str, Any]) -> dict[str, Any]
@@ -88,7 +88,7 @@ Example:
     ```
 
 
-### `parameters_to_args_kwargs` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/callables.py#L178" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `parameters_to_args_kwargs` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/callables.py#L178" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 parameters_to_args_kwargs(fn: Callable[..., Any], parameters: dict[str, Any]) -> tuple[tuple[Any, ...], dict[str, Any]]
@@ -101,7 +101,7 @@ The function _must_ have an identical signature to the original function or this
 will return an empty tuple and dict.
 
 
-### `call_with_parameters` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/callables.py#L201" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `call_with_parameters` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/callables.py#L201" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 call_with_parameters(fn: Callable[..., R], parameters: dict[str, Any]) -> R
@@ -115,7 +115,7 @@ will fail. If you need to send to a function with a different signature, extract
 the args/kwargs using `parameters_to_positional_and_keyword` directly
 
 
-### `cloudpickle_wrapped_call` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/callables.py#L213" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `cloudpickle_wrapped_call` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/callables.py#L213" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 cloudpickle_wrapped_call(__fn: Callable[..., Any], *args: Any, **kwargs: Any) -> Callable[[], bytes]
@@ -130,7 +130,7 @@ built-in pickler (e.g. `anyio.to_process` and `multiprocessing`) but may require
 a wider range of pickling support.
 
 
-### `parameter_docstrings` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/callables.py#L254" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `parameter_docstrings` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/callables.py#L254" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 parameter_docstrings(docstring: Optional[str]) -> dict[str, str]
@@ -147,19 +147,19 @@ and return a dictionary that maps parameter names to docstring.
 - Mapping from parameter names to docstrings.
 
 
-### `process_v1_params` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/callables.py#L282" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `process_v1_params` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/callables.py#L282" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 process_v1_params(param: inspect.Parameter) -> tuple[str, Any, Any]
 ```
 
-### `create_v1_schema` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/callables.py#L313" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `create_v1_schema` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/callables.py#L313" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 create_v1_schema(name_: str, model_cfg: type[Any], model_fields: Optional[dict[str, Any]] = None) -> dict[str, Any]
 ```
 
-### `parameter_schema` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/callables.py#L331" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `parameter_schema` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/callables.py#L331" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 parameter_schema(fn: Callable[..., Any]) -> ParameterSchema
@@ -181,7 +181,7 @@ of the function's arguments, including:
 - the argument schema
 
 
-### `parameter_schema_from_entrypoint` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/callables.py#L357" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `parameter_schema_from_entrypoint` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/callables.py#L357" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 parameter_schema_from_entrypoint(entrypoint: str) -> ParameterSchema
@@ -204,7 +204,7 @@ should be in the format of `module.path.to.function\:do_stuff`.
 - The parameter schema for the function.
 
 
-### `generate_parameter_schema` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/callables.py#L391" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `generate_parameter_schema` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/callables.py#L391" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 generate_parameter_schema(signature: inspect.Signature, docstrings: dict[str, str]) -> ParameterSchema
@@ -224,7 +224,7 @@ To get a signature from a function, use `inspect.signature(fn)` or
 - The parameter schema.
 
 
-### `raise_for_reserved_arguments` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/callables.py#L447" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `raise_for_reserved_arguments` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/callables.py#L447" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 raise_for_reserved_arguments(fn: Callable[..., Any], reserved_arguments: Iterable[str]) -> None
@@ -235,7 +235,7 @@ Raise a ReservedArgumentError if `fn` has any parameters that conflict
 with the names contained in `reserved_arguments`.
 
 
-### `expand_mapping_parameters` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/callables.py#L661" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `expand_mapping_parameters` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/callables.py#L661" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 expand_mapping_parameters(func: Callable[..., Any], parameters: dict[str, Any]) -> list[dict[str, Any]]
@@ -256,7 +256,7 @@ call in the mapping operation
 
 ## Classes
 
-### `ParameterSchema` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/callables.py#L238" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `ParameterSchema` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/callables.py#L238" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Simple data model corresponding to an OpenAPI `Schema`.
@@ -264,7 +264,7 @@ Simple data model corresponding to an OpenAPI `Schema`.
 
 **Methods:**
 
-#### `model_dump_for_openapi` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/callables.py#L247" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `model_dump_for_openapi` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/callables.py#L247" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 model_dump_for_openapi(self) -> dict[str, Any]

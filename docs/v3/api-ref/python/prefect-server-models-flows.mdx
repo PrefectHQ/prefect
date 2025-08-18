@@ -13,7 +13,7 @@ Intended for internal use by the Prefect REST API.
 
 ## Functions
 
-### `create_flow` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/flows.py#L21" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `create_flow` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/models/flows.py#L21" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 create_flow(db: PrefectDBInterface, session: AsyncSession, flow: schemas.core.Flow) -> orm_models.Flow
@@ -32,7 +32,7 @@ If a flow with the same name already exists, the existing flow is returned.
 - orm_models.Flow: the newly-created or existing flow
 
 
-### `update_flow` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/flows.py#L58" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `update_flow` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/models/flows.py#L58" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 update_flow(db: PrefectDBInterface, session: AsyncSession, flow_id: UUID, flow: schemas.actions.FlowUpdate) -> bool
@@ -50,7 +50,7 @@ Updates a flow.
 - whether or not matching rows were found to update
 
 
-### `read_flow` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/flows.py#L87" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `read_flow` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/models/flows.py#L87" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_flow(db: PrefectDBInterface, session: AsyncSession, flow_id: UUID) -> Optional[orm_models.Flow]
@@ -67,7 +67,7 @@ Reads a flow by id.
 - orm_models.Flow: the flow
 
 
-### `read_flow_by_name` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/flows.py#L104" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `read_flow_by_name` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/models/flows.py#L104" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_flow_by_name(db: PrefectDBInterface, session: AsyncSession, name: str) -> Optional[orm_models.Flow]
@@ -84,7 +84,7 @@ Reads a flow by name.
 - orm_models.Flow: the flow
 
 
-### `read_flows` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/flows.py#L182" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `read_flows` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/models/flows.py#L182" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_flows(db: PrefectDBInterface, session: AsyncSession, flow_filter: Union[schemas.filters.FlowFilter, None] = None, flow_run_filter: Union[schemas.filters.FlowRunFilter, None] = None, task_run_filter: Union[schemas.filters.TaskRunFilter, None] = None, deployment_filter: Union[schemas.filters.DeploymentFilter, None] = None, work_pool_filter: Union[schemas.filters.WorkPoolFilter, None] = None, sort: schemas.sorting.FlowSort = schemas.sorting.FlowSort.NAME_ASC, offset: Union[int, None] = None, limit: Union[int, None] = None) -> Sequence[orm_models.Flow]
@@ -107,7 +107,7 @@ Read multiple flows.
 - List[orm_models.Flow]: flows
 
 
-### `count_flows` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/flows.py#L234" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `count_flows` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/models/flows.py#L234" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 count_flows(db: PrefectDBInterface, session: AsyncSession, flow_filter: Union[schemas.filters.FlowFilter, None] = None, flow_run_filter: Union[schemas.filters.FlowRunFilter, None] = None, task_run_filter: Union[schemas.filters.TaskRunFilter, None] = None, deployment_filter: Union[schemas.filters.DeploymentFilter, None] = None, work_pool_filter: Union[schemas.filters.WorkPoolFilter, None] = None) -> int
@@ -128,7 +128,7 @@ Count flows.
 - count of flows
 
 
-### `delete_flow` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/flows.py#L275" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `delete_flow` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/models/flows.py#L275" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 delete_flow(db: PrefectDBInterface, session: AsyncSession, flow_id: UUID) -> bool
@@ -145,7 +145,7 @@ Delete a flow by id.
 - whether or not the flow was deleted
 
 
-### `read_flow_labels` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/flows.py#L294" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `read_flow_labels` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/models/flows.py#L294" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_flow_labels(db: PrefectDBInterface, session: AsyncSession, flow_id: UUID) -> Union[schemas.core.KeyValueLabels, None]

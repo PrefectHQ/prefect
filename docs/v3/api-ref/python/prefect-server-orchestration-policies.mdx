@@ -21,7 +21,7 @@ mechanism to configure and observe exactly what logic will fire against a transi
 
 ## Classes
 
-### `BaseOrchestrationPolicy` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/policies.py#L30" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `BaseOrchestrationPolicy` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/orchestration/policies.py#L30" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 An abstract base class used to organize orchestration rules in priority order.
@@ -33,7 +33,7 @@ different orchestration logic.
 
 **Methods:**
 
-#### `compile_transition_rules` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/policies.py#L51" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `compile_transition_rules` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/orchestration/policies.py#L51" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 compile_transition_rules(cls, from_state: states.StateType | None = None, to_state: states.StateType | None = None) -> list[type[BaseUniversalTransform[T, RP] | BaseOrchestrationRule[T, RP]]]
@@ -42,7 +42,7 @@ compile_transition_rules(cls, from_state: states.StateType | None = None, to_sta
 Returns rules in policy that are valid for the specified state transition.
 
 
-#### `priority` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/policies.py#L41" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `priority` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/orchestration/policies.py#L41" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 priority() -> list[type[BaseUniversalTransform[T, RP] | BaseOrchestrationRule[T, RP]]]
@@ -51,8 +51,8 @@ priority() -> list[type[BaseUniversalTransform[T, RP] | BaseOrchestrationRule[T,
 A list of orchestration rules in priority order.
 
 
-### `TaskRunOrchestrationPolicy` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/policies.py#L69" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `TaskRunOrchestrationPolicy` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/orchestration/policies.py#L69" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
-### `FlowRunOrchestrationPolicy` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/policies.py#L75" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `FlowRunOrchestrationPolicy` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/orchestration/policies.py#L75" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
-### `GenericOrchestrationPolicy` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/policies.py#L81" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `GenericOrchestrationPolicy` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/orchestration/policies.py#L81" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>

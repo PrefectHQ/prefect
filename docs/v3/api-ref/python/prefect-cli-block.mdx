@@ -12,31 +12,31 @@ Command line interface for working with blocks.
 
 ## Functions
 
-### `display_block` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/block.py#L46" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `display_block` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/cli/block.py#L46" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 display_block(block_document: 'BlockDocument') -> Table
 ```
 
-### `display_block_type` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/block.py#L64" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `display_block_type` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/cli/block.py#L64" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 display_block_type(block_type: 'BlockType') -> Table
 ```
 
-### `display_block_schema_properties` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/block.py#L86" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `display_block_schema_properties` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/cli/block.py#L86" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 display_block_schema_properties(block_schema_fields: dict[str, Any]) -> Table
 ```
 
-### `display_block_schema_extra_definitions` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/block.py#L111" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `display_block_schema_extra_definitions` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/cli/block.py#L111" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 display_block_schema_extra_definitions(block_schema_definitions: dict[str, Any]) -> Table
 ```
 
-### `register` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/block.py#L160" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `register` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/cli/block.py#L160" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 register(module_name: Optional[str] = typer.Option(None, '--module', '-m', help='Python module containing block types to be registered'), file_path: Optional[Path] = typer.Option(None, '--file', '-f', help='Path to .py file containing block types to be registered'))
@@ -59,7 +59,7 @@ Examples:
     $ prefect block register -f my_blocks.py
 
 
-### `block_ls` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/block.py#L258" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `block_ls` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/cli/block.py#L258" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 block_ls()
@@ -69,7 +69,7 @@ block_ls()
 View all configured blocks.
 
 
-### `block_delete` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/block.py#L287" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `block_delete` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/cli/block.py#L287" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 block_delete(slug: Optional[str] = typer.Argument(None, help="A block slug. Formatted as '<BLOCK_TYPE_SLUG>/<BLOCK_NAME>'"), block_id: Optional[UUID] = typer.Option(None, '--id', help='A block id.'))
@@ -79,7 +79,7 @@ block_delete(slug: Optional[str] = typer.Argument(None, help="A block slug. Form
 Delete a configured block.
 
 
-### `block_create` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/block.py#L332" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `block_create` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/cli/block.py#L332" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 block_create(block_type_slug: str = typer.Argument(..., help='A block type slug. View available types with: prefect block type ls', show_default=False))
@@ -89,7 +89,7 @@ block_create(block_type_slug: str = typer.Argument(..., help='A block type slug.
 Generate a link to the Prefect UI to create a block.
 
 
-### `block_inspect` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/block.py#L369" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `block_inspect` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/cli/block.py#L369" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 block_inspect(slug: Optional[str] = typer.Argument(None, help='A Block slug: <BLOCK_TYPE_SLUG>/<BLOCK_NAME>'), block_id: Optional[UUID] = typer.Option(None, '--id', help='A Block id to search for if no slug is given'))
@@ -99,7 +99,7 @@ block_inspect(slug: Optional[str] = typer.Argument(None, help='A Block slug: <BL
 Displays details about a configured block.
 
 
-### `list_types` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/block.py#L406" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `list_types` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/cli/block.py#L406" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 list_types()
@@ -109,7 +109,7 @@ list_types()
 List all block types.
 
 
-### `blocktype_inspect` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/block.py#L439" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `blocktype_inspect` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/cli/block.py#L439" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 blocktype_inspect(slug: str = typer.Argument(..., help='A block type slug'))
@@ -119,7 +119,7 @@ blocktype_inspect(slug: str = typer.Argument(..., help='A block type slug'))
 Display details about a block type.
 
 
-### `blocktype_delete` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/block.py#L473" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `blocktype_delete` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/cli/block.py#L473" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 blocktype_delete(slug: str = typer.Argument(..., help='A Block type slug'))
