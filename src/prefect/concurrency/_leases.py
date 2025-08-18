@@ -109,6 +109,9 @@ async def amaintain_concurrency_lease(
     with AsyncCancelScope() as cancel_scope:
 
         def handle_lease_renewal_failure(task: asyncio.Task[None]):
+            if task.cancelled():
+                # Cancellation is the expected way for this loop to stop
+                return
             exc = task.exception()
             if exc:
                 try:
