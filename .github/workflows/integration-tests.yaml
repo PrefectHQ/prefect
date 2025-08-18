@@ -27,7 +27,7 @@ jobs:
   compatibility-tests:
     name: Integration tests @${{ matrix.server-version.version }}
     timeout-minutes: 10
-    runs-on: ubuntu-latest
+    runs-on: oss-larger-runners
 
     strategy:
       fail-fast: false
@@ -87,7 +87,7 @@ jobs:
           PREFECT_SERVER_CONCURRENCY_LEASE_STORAGE: "prefect.server.concurrency.lease_storage.filesystem"
           SERVER_VERSION: ${{ matrix.server-version.version }}
         run: >
-          uv run pytest integration-tests/ -n auto -vv
+          uv run pytest integration-tests/ -n 4 -vv
 
       - name: Show server logs
         if: always()
