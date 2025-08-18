@@ -52,12 +52,24 @@ def interactive_console(monkeypatch: pytest.MonkeyPatch):
     def readchar() -> str:
         sys.stdin.flush()
         position = sys.stdin.tell()
-        if not sys.stdin.read():
+        remaining_input = sys.stdin.read()
+
+        if not remaining_input:
             print("TEST ERROR: CLI is attempting to read input but stdin is empty.")
             raise Exit(-2)
-        else:
+
+        # Take the first character and put the rest back
+        char = remaining_input[0]
+        rest = remaining_input[1:]
+
+        # Reset stdin position and write back the remaining input
+        sys.stdin.seek(position)
+        sys.stdin.truncate()
+        if rest:
+            sys.stdin.write(rest)
             sys.stdin.seek(position)
-        return sys.stdin.read(1)
+
+        return char
 
     monkeypatch.setattr("readchar._posix_read.readchar", readchar)
 
