@@ -1310,7 +1310,13 @@
                       "v3/api-ref/python/prefect-testing-cli",
                       "v3/api-ref/python/prefect-testing-docker",
                       "v3/api-ref/python/prefect-testing-fixtures",
-                      "v3/api-ref/python/prefect-testing-standard_test_suites",
+                      {
+                        "group": "standard_test_suites",
+                        "pages": [
+                          "v3/api-ref/python/prefect-testing-standard_test_suites-__init__",
+                          "v3/api-ref/python/prefect-testing-standard_test_suites-blocks"
+                        ]
+                      },
                       "v3/api-ref/python/prefect-testing-utilities"
                     ]
                   },
