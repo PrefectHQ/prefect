@@ -1,5 +1,5 @@
 # Build the Python distributable
-FROM python:3.9-slim AS python-builder
+FROM python:3.13.7-slim AS python-builder
 
 WORKDIR /opt/prefect
 
@@ -21,7 +21,7 @@ RUN uv build --sdist --wheel --out-dir dist && \
     mv "dist/prefect-"*".tar.gz" "dist/prefect.tar.gz"
 
 # Final image
-FROM python:3.9-slim
+FROM python:3.13.7-slim
 COPY --from=python-builder /bin/uv /bin/uv
 
 # Accept SQLite version as build argument
