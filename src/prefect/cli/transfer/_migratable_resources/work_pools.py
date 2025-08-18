@@ -139,6 +139,5 @@ class MigratableWorkPool(MigratableResource[WorkPool]):
                 id=self.destination_work_pool.default_queue_id,
                 description=self.source_default_queue.description,
                 priority=self.source_default_queue.priority,
-                filter=self.source_default_queue.filter,
                 concurrency_limit=self.source_default_queue.concurrency_limit,
             )

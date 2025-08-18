@@ -11,7 +11,8 @@ import uuid
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from prefect.client.schemas.objects import Variable
+from prefect.client.schemas.objects import Variable, WorkPool, WorkQueue
+from prefect.client.schemas.responses import DeploymentResponse
 from prefect.filesystems import LocalFileSystem
 from prefect.server import models, schemas
 from prefect.utilities.callables import parameter_schema
@@ -54,7 +55,9 @@ async def transfer_flow_2(session: AsyncSession):
 @pytest.fixture
 async def transfer_work_pool(session: AsyncSession):
     """Create a regular work pool for transfer testing."""
-    model = await models.workers.create_work_pool(
+    from prefect.client.schemas.objects import WorkPoolStorageConfiguration
+
+    orm_work_pool = await models.workers.create_work_pool(
         session=session,
         work_pool=schemas.actions.WorkPoolCreate(
             name=f"transfer-work-pool-{uuid.uuid4()}",
@@ -76,13 +79,30 @@ async def transfer_work_pool(session: AsyncSession):
         ),
     )
     await session.commit()
-    return model
+
+    # Convert to client object
+    return WorkPool(
+        id=orm_work_pool.id,
+        name=orm_work_pool.name,
+        description=orm_work_pool.description,
+        type=orm_work_pool.type,
+        base_job_template=orm_work_pool.base_job_template,
+        is_paused=orm_work_pool.is_paused,
+        concurrency_limit=orm_work_pool.concurrency_limit,
+        status=getattr(orm_work_pool, "status", None),
+        storage_configuration=WorkPoolStorageConfiguration(),
+        default_queue_id=orm_work_pool.default_queue_id,
+        created=orm_work_pool.created,
+        updated=orm_work_pool.updated,
+    )
 
 
 @pytest.fixture
 async def transfer_push_work_pool(session: AsyncSession):
     """Create a push work pool for transfer testing."""
-    model = await models.workers.create_work_pool(
+    from prefect.client.schemas.objects import WorkPoolStorageConfiguration
+
+    orm_work_pool = await models.workers.create_work_pool(
         session=session,
         work_pool=schemas.actions.WorkPoolCreate(
             name=f"transfer-push-pool-{uuid.uuid4()}",
@@ -104,13 +124,30 @@ async def transfer_push_work_pool(session: AsyncSession):
         ),
     )
     await session.commit()
-    return model
+
+    # Convert to client object
+    return WorkPool(
+        id=orm_work_pool.id,
+        name=orm_work_pool.name,
+        description=orm_work_pool.description,
+        type=orm_work_pool.type,
+        base_job_template=orm_work_pool.base_job_template,
+        is_paused=orm_work_pool.is_paused,
+        concurrency_limit=orm_work_pool.concurrency_limit,
+        status=getattr(orm_work_pool, "status", None),
+        storage_configuration=WorkPoolStorageConfiguration(),
+        default_queue_id=orm_work_pool.default_queue_id,
+        created=orm_work_pool.created,
+        updated=orm_work_pool.updated,
+    )
 
 
 @pytest.fixture
 async def transfer_managed_work_pool(session: AsyncSession):
     """Create a managed work pool for transfer testing."""
-    model = await models.workers.create_work_pool(
+    from prefect.client.schemas.objects import WorkPoolStorageConfiguration
+
+    orm_work_pool = await models.workers.create_work_pool(
         session=session,
         work_pool=schemas.actions.WorkPoolCreate(
             name=f"transfer-managed-pool-{uuid.uuid4()}",
@@ -132,13 +169,30 @@ async def transfer_managed_work_pool(session: AsyncSession):
         ),
     )
     await session.commit()
-    return model
+
+    # Convert to client object
+    return WorkPool(
+        id=orm_work_pool.id,
+        name=orm_work_pool.name,
+        description=orm_work_pool.description,
+        type=orm_work_pool.type,
+        base_job_template=orm_work_pool.base_job_template,
+        is_paused=orm_work_pool.is_paused,
+        concurrency_limit=orm_work_pool.concurrency_limit,
+        status=getattr(orm_work_pool, "status", None),
+        storage_configuration=WorkPoolStorageConfiguration(),
+        default_queue_id=orm_work_pool.default_queue_id,
+        created=orm_work_pool.created,
+        updated=orm_work_pool.updated,
+    )
 
 
 @pytest.fixture
 async def transfer_process_work_pool(session: AsyncSession):
     """Create a process work pool for transfer testing."""
-    model = await models.workers.create_work_pool(
+    from prefect.client.schemas.objects import WorkPoolStorageConfiguration
+
+    orm_work_pool = await models.workers.create_work_pool(
         session=session,
         work_pool=schemas.actions.WorkPoolCreate(
             name=f"transfer-process-pool-{uuid.uuid4()}",
@@ -147,14 +201,29 @@ async def transfer_process_work_pool(session: AsyncSession):
         ),
     )
     await session.commit()
-    return model
+
+    # Convert to client object
+    return WorkPool(
+        id=orm_work_pool.id,
+        name=orm_work_pool.name,
+        description=orm_work_pool.description,
+        type=orm_work_pool.type,
+        base_job_template=orm_work_pool.base_job_template,
+        is_paused=orm_work_pool.is_paused,
+        concurrency_limit=orm_work_pool.concurrency_limit,
+        status=getattr(orm_work_pool, "status", None),
+        storage_configuration=WorkPoolStorageConfiguration(),
+        default_queue_id=orm_work_pool.default_queue_id,
+        created=orm_work_pool.created,
+        updated=orm_work_pool.updated,
+    )
 
 
 # Work Queue fixtures
 @pytest.fixture
 async def transfer_work_queue(session: AsyncSession):
     """Create a standalone work queue for transfer testing."""
-    work_queue = await models.work_queues.create_work_queue(
+    orm_work_queue = await models.work_queues.create_work_queue(
         session=session,
         work_queue=schemas.actions.WorkQueueCreate(
             name=f"transfer-wq-{uuid.uuid4()}",
@@ -165,13 +234,28 @@ async def transfer_work_queue(session: AsyncSession):
         ),
     )
     await session.commit()
-    return work_queue
+
+    # Convert to client object
+    return WorkQueue(
+        id=orm_work_queue.id,
+        name=orm_work_queue.name,
+        description=orm_work_queue.description,
+        priority=orm_work_queue.priority,
+        concurrency_limit=orm_work_queue.concurrency_limit,
+        filter=orm_work_queue.filter,
+        is_paused=orm_work_queue.is_paused,
+        last_polled=orm_work_queue.last_polled,
+        status=getattr(orm_work_queue, "status", None),
+        work_pool_id=None,
+        created=orm_work_queue.created,
+        updated=orm_work_queue.updated,
+    )
 
 
 @pytest.fixture
 async def transfer_work_queue_with_pool(session: AsyncSession, transfer_work_pool):
     """Create a work queue associated with a work pool for transfer testing."""
-    model = await models.workers.create_work_queue(
+    orm_work_queue = await models.workers.create_work_queue(
         session=session,
         work_pool_id=transfer_work_pool.id,
         work_queue=schemas.actions.WorkQueueCreate(
@@ -182,39 +266,87 @@ async def transfer_work_queue_with_pool(session: AsyncSession, transfer_work_poo
         ),
     )
     await session.commit()
-    return model
+
+    # Convert to client object
+    return WorkQueue(
+        id=orm_work_queue.id,
+        name=orm_work_queue.name,
+        description=orm_work_queue.description,
+        priority=orm_work_queue.priority,
+        concurrency_limit=orm_work_queue.concurrency_limit,
+        filter=orm_work_queue.filter,
+        is_paused=orm_work_queue.is_paused,
+        last_polled=orm_work_queue.last_polled,
+        status=getattr(orm_work_queue, "status", None),
+        work_pool_id=transfer_work_pool.id,
+        work_pool_name=transfer_work_pool.name,
+        created=orm_work_queue.created,
+        updated=orm_work_queue.updated,
+    )
 
 
 # Block fixtures
 @pytest.fixture
 async def transfer_block_type_x(session: AsyncSession):
     """Create a block type X for transfer testing."""
-    block_type = await models.block_types.create_block_type(
+    from prefect.client.schemas.objects import BlockType
+
+    orm_block_type = await models.block_types.create_block_type(
         session=session,
         block_type=schemas.actions.BlockTypeCreate(
             name=f"transfer-x-{uuid.uuid4()}", slug=f"transfer-x-{uuid.uuid4()}"
         ),
     )
     await session.commit()
-    return block_type
+
+    # Convert to client schema object
+    return BlockType(
+        id=orm_block_type.id,
+        name=orm_block_type.name,
+        slug=orm_block_type.slug,
+        logo_url=orm_block_type.logo_url,
+        documentation_url=orm_block_type.documentation_url,
+        description=orm_block_type.description,
+        code_example=orm_block_type.code_example,
+        is_protected=orm_block_type.is_protected,
+        created=orm_block_type.created,
+        updated=orm_block_type.updated,
+    )
 
 
 @pytest.fixture
 async def transfer_block_type_y(session: AsyncSession):
     """Create a block type Y for transfer testing."""
-    block_type = await models.block_types.create_block_type(
+    from prefect.client.schemas.objects import BlockType
+
+    orm_block_type = await models.block_types.create_block_type(
         session=session,
         block_type=schemas.actions.BlockTypeCreate(
             name=f"transfer-y-{uuid.uuid4()}", slug=f"transfer-y-{uuid.uuid4()}"
         ),
     )
     await session.commit()
-    return block_type
+
+    # Convert to client schema object
+    return BlockType(
+        id=orm_block_type.id,
+        name=orm_block_type.name,
+        slug=orm_block_type.slug,
+        logo_url=orm_block_type.logo_url,
+        documentation_url=orm_block_type.documentation_url,
+        description=orm_block_type.description,
+        code_example=orm_block_type.code_example,
+        is_protected=orm_block_type.is_protected,
+        created=orm_block_type.created,
+        updated=orm_block_type.updated,
+    )
 
 
 @pytest.fixture
 async def transfer_block_schema(session: AsyncSession, transfer_block_type_x):
     """Create a block schema for transfer testing."""
+    from prefect.client.schemas.objects import BlockSchema
+
     fields = {
         "title": "transfer-x",
         "type": "object",
@@ -223,7 +355,7 @@ async def transfer_block_schema(session: AsyncSession, transfer_block_type_x):
         "block_schema_references": {},
         "block_type_slug": transfer_block_type_x.slug,
     }
-    block_schema = await models.block_schemas.create_block_schema(
+    orm_block_schema = await models.block_schemas.create_block_schema(
         session=session,
         block_schema=schemas.actions.BlockSchemaCreate(
             fields=fields,
@@ -231,7 +363,19 @@ async def transfer_block_schema(session: AsyncSession, transfer_block_type_x):
         ),
     )
     await session.commit()
-    return block_schema
+
+    # Convert to client schema object
+    return BlockSchema(
+        id=orm_block_schema.id,
+        checksum=orm_block_schema.checksum,
+        fields=orm_block_schema.fields,
+        block_type_id=orm_block_schema.block_type_id,
+        block_type=transfer_block_type_x,
+        capabilities=orm_block_schema.capabilities,
+        version=orm_block_schema.version,
+        created=orm_block_schema.created,
+        updated=orm_block_schema.updated,
+    )
 
 
 @pytest.fixture
@@ -280,7 +424,9 @@ async def transfer_block_document(
     session: AsyncSession, transfer_block_schema, transfer_block_type_x
 ):
     """Create a block document for transfer testing."""
-    block_document = await models.block_documents.create_block_document(
+    from prefect.client.schemas.objects import BlockDocument
+
+    orm_block_document = await models.block_documents.create_block_document(
         session=session,
         block_document=schemas.actions.BlockDocumentCreate(
             block_schema_id=transfer_block_schema.id,
@@ -290,7 +436,21 @@ async def transfer_block_document(
         ),
     )
     await session.commit()
-    return block_document
+
+    # Convert to client schema object
+    return BlockDocument(
+        id=orm_block_document.id,
+        name=orm_block_document.name,
+        data=orm_block_document.data,
+        block_schema_id=orm_block_document.block_schema_id,
+        block_schema=transfer_block_schema,
+        block_type_id=orm_block_document.block_type_id,
+        block_type=transfer_block_type_x,
+        block_document_references=orm_block_document.block_document_references or {},
+        is_anonymous=orm_block_document.is_anonymous,
+        created=orm_block_document.created,
+        updated=orm_block_document.updated,
+    )
 
 
 @pytest.fixture
@@ -339,75 +499,125 @@ def transfer_parameter_schema():
 
 
 @pytest.fixture
-async def transfer_deployment(
-    session: AsyncSession,
-    transfer_flow,
-    transfer_storage_document_id,
-    transfer_work_queue_with_pool,
-):
+async def transfer_deployment(transfer_flow):
     """Create a deployment for transfer testing."""
-    deployment = await models.deployments.create_deployment(
-        session=session,
-        deployment=schemas.core.Deployment(
-            name=f"transfer-deployment-{uuid.uuid4()}",
-            tags=["transfer-test"],
-            flow_id=transfer_flow.id,
-            schedules=[
-                schemas.core.DeploymentSchedule(
-                    schedule=schemas.schedules.IntervalSchedule(
-                        interval=datetime.timedelta(days=1),
-                        anchor_date=datetime.datetime(2020, 1, 1),
-                    ),
-                    active=True,
-                )
-            ],
-            storage_document_id=transfer_storage_document_id,
-            path="./transfer-subdir",
-            entrypoint="/transfer-file.py:flow",
-            work_queue_name=transfer_work_queue_with_pool.name,
-            parameter_openapi_schema=transfer_parameter_schema().model_dump_for_openapi(),
-            work_queue_id=transfer_work_queue_with_pool.id,
-        ),
+    from prefect.client.schemas.objects import DeploymentSchedule
+    from prefect.client.schemas.schedules import IntervalSchedule
+
+    # Create a simple DeploymentResponse object directly
+    return DeploymentResponse(
+        id=uuid.uuid4(),
+        name=f"transfer-deployment-{uuid.uuid4()}",
+        flow_id=transfer_flow.id,
+        schedules=[
+            DeploymentSchedule(
+                id=uuid.uuid4(),
+                deployment_id=uuid.uuid4(),  # Will be overridden
+                schedule=IntervalSchedule(
+                    interval=datetime.timedelta(days=1),
+                    anchor_date=datetime.datetime(2020, 1, 1),
+                    timezone="UTC",
+                ),
+                active=True,
+                max_scheduled_runs=None,
+                parameters={},
+                slug=None,
+                created=datetime.datetime.now(),
+                updated=datetime.datetime.now(),
+            )
+        ],
+        tags=["transfer-test"],
+        description="Test deployment for transfer",
+        version="1.0.0",
+        version_id=None,
+        version_info=None,
+        parameters={"test": "value"},
+        path="./transfer-subdir",
+        entrypoint="/transfer-file.py:flow",
+        storage_document_id=uuid.uuid4(),
+        infrastructure_document_id=None,
+        work_queue_name="default",
+        work_queue_id=uuid.uuid4(),
+        work_pool_name="default-pool",
+        parameter_openapi_schema=transfer_parameter_schema().model_dump_for_openapi(),
+        paused=False,
+        pull_steps=None,
+        job_variables={},
+        enforce_parameter_schema=True,
+        concurrency_limit=None,
+        concurrency_options=None,
+        labels={},
+        branch=None,
+        base=None,
+        root=None,
+        status=None,
+        created=datetime.datetime.now(),
+        updated=datetime.datetime.now(),
+        created_by=None,
+        updated_by=None,
+        last_polled=None,
     )
-    await session.commit()
-    return deployment
 
 
 @pytest.fixture
-async def transfer_deployment_with_infra(
-    session: AsyncSession,
-    transfer_flow,
-    transfer_storage_document_id,
-    transfer_block_document,
-    transfer_work_queue_with_pool,
-):
+async def transfer_deployment_with_infra(transfer_flow, transfer_block_document):
     """Create a deployment with infrastructure document for transfer testing."""
-    deployment = await models.deployments.create_deployment(
-        session=session,
-        deployment=schemas.core.Deployment(
-            name=f"transfer-deployment-infra-{uuid.uuid4()}",
-            tags=["transfer-test"],
-            flow_id=transfer_flow.id,
-            schedules=[
-                schemas.core.DeploymentSchedule(
-                    schedule=schemas.schedules.IntervalSchedule(
-                        interval=datetime.timedelta(days=1),
-                        anchor_date=datetime.datetime(2020, 1, 1),
-                    ),
-                    active=True,
-                )
-            ],
-            storage_document_id=transfer_storage_document_id,
-            infrastructure_document_id=transfer_block_document.id,
-            path="./transfer-subdir",
-            entrypoint="/transfer-file.py:flow",
-            work_queue_name=transfer_work_queue_with_pool.name,
-            parameter_openapi_schema=transfer_parameter_schema().model_dump_for_openapi(),
-            work_queue_id=transfer_work_queue_with_pool.id,
-        ),
+    from prefect.client.schemas.objects import DeploymentSchedule
+    from prefect.client.schemas.schedules import IntervalSchedule
+
+    # Create a simple DeploymentResponse object directly with infrastructure
+    return DeploymentResponse(
+        id=uuid.uuid4(),
+        name=f"transfer-deployment-infra-{uuid.uuid4()}",
+        flow_id=transfer_flow.id,
+        schedules=[
+            DeploymentSchedule(
+                id=uuid.uuid4(),
+                deployment_id=uuid.uuid4(),  # Will be overridden
+                schedule=IntervalSchedule(
+                    interval=datetime.timedelta(days=1),
+                    anchor_date=datetime.datetime(2020, 1, 1),
+                    timezone="UTC",
+                ),
+                active=True,
+                max_scheduled_runs=None,
+                parameters={},
+                slug=None,
+                created=datetime.datetime.now(),
+                updated=datetime.datetime.now(),
+            )
+        ],
+        tags=["transfer-test"],
+        description="Test deployment with infrastructure",
+        version="1.0.0",
+        version_id=None,
+        version_info=None,
+        parameters={"test": "value"},
+        path="./transfer-subdir",
+        entrypoint="/transfer-file.py:flow",
+        storage_document_id=uuid.uuid4(),
+        infrastructure_document_id=transfer_block_document.id,  # Has infrastructure
+        work_queue_name="default",
+        work_queue_id=uuid.uuid4(),
+        work_pool_name="default-pool",
+        parameter_openapi_schema=transfer_parameter_schema().model_dump_for_openapi(),
+        paused=False,
+        pull_steps=None,
+        job_variables={},
+        enforce_parameter_schema=True,
+        concurrency_limit=None,
+        concurrency_options=None,
+        labels={},
+        branch=None,
+        base=None,
+        root=None,
+        status=None,
+        created=datetime.datetime.now(),
+        updated=datetime.datetime.now(),
+        created_by=None,
+        updated_by=None,
+        last_polled=None,
     )
-    await session.commit()
-    return deployment
 
 
 # Variable fixtures
