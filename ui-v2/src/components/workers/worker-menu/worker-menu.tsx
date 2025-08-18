@@ -1,4 +1,4 @@
-import type { WorkPool } from "@/api/work-pools";
+import type { WorkPoolWorker } from "@/api/work-pools";
 import { Button } from "@/components/ui/button";
 import {
 	DropdownMenu,
@@ -7,26 +7,28 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
-import { DeleteWorkPoolDialog } from "./components/delete-work-pool-dialog";
-import { useWorkPoolMenu } from "./hooks/use-work-pool-menu";
+import { DeleteWorkerDialog } from "./components/delete-worker-dialog";
+import { useWorkerMenu } from "./hooks/use-worker-menu";
 
-type WorkPoolMenuProps = {
-	workPool: WorkPool;
-	onUpdate?: () => void;
+type WorkerMenuProps = {
+	worker: WorkPoolWorker;
+	workPoolName: string;
+	onWorkerDeleted?: () => void;
 	className?: string;
 };
 
-export const WorkPoolMenu = ({
-	workPool,
-	onUpdate,
+export const WorkerMenu = ({
+	worker,
+	workPoolName,
+	onWorkerDeleted,
 	className,
-}: WorkPoolMenuProps) => {
+}: WorkerMenuProps) => {
 	const {
 		menuItems,
 		showDeleteDialog,
 		setShowDeleteDialog,
 		triggerIcon: TriggerIcon,
-	} = useWorkPoolMenu(workPool);
+	} = useWorkerMenu(worker);
 
 	return (
 		<>
@@ -59,11 +61,12 @@ export const WorkPoolMenu = ({
 					})}
 				</DropdownMenuContent>
 			</DropdownMenu>
-			<DeleteWorkPoolDialog
-				workPool={workPool}
+			<DeleteWorkerDialog
+				worker={worker}
+				workPoolName={workPoolName}
 				open={showDeleteDialog}
 				onOpenChange={setShowDeleteDialog}
-				onDeleted={onUpdate}
+				onDeleted={onWorkerDeleted}
 			/>
 		</>
 	);

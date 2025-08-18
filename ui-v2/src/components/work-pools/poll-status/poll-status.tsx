@@ -5,10 +5,10 @@ import { buildListWorkPoolWorkersQuery } from "@/api/work-pools";
 import { FormattedDate } from "@/components/ui/formatted-date";
 import { cn } from "@/lib/utils";
 
-export interface PollStatusProps {
+export type PollStatusProps = {
 	workPoolName: string;
 	className?: string;
-}
+};
 
 export function PollStatus({ workPoolName, className }: PollStatusProps) {
 	const { data: workers = [] } = useSuspenseQuery(
