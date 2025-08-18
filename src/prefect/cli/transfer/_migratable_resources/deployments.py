@@ -201,11 +201,9 @@ class MigratableDeployment(MigratableResource[DeploymentResponse]):
                     destination_deployment_id
                 )
             except ObjectLimitReached:
-                raise TransferSkipped(
-                    "Skipped - deployment limit reached (upgrade tier)"
-                )
+                raise TransferSkipped("Deployment limit reached (upgrade tier)")
             except ObjectAlreadyExists:
                 self.destination_deployment = await client.read_deployment(
                     self.source_deployment.id
                 )
-                raise TransferSkipped("Skipped - already exists")
+                raise TransferSkipped("Already exists")

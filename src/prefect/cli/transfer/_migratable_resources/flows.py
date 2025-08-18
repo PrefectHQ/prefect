@@ -74,4 +74,4 @@ class MigratableFlow(MigratableResource[Flow]):
                     self.destination_flow = flows[0]
                 else:
                     raise RuntimeError("Unable to find destination flow")
-                raise TransferSkipped("Skipped - already exists")
+                raise TransferSkipped("Already exists")

@@ -23,6 +23,7 @@ from rich.table import Table
 
 from prefect.cli._utilities import exit_with_error, exit_with_success
 from prefect.cli.root import app, is_interactive
+from prefect.cli.transfer._exceptions import TransferSkipped
 from prefect.cli.transfer._migratable_resources import MigratableType
 from prefect.client.orchestration import PrefectClient, get_client
 from prefect.context import use_profile
@@ -180,11 +181,6 @@ async def _execute_transfer(dag: TransferDAG, console: Console) -> dict[uuid.UUI
         task = progress.add_task("Transferring resources...", total=total)
 
         async def migrate_with_progress(resource: "MigratableProtocol"):
-            progress.update(
-                task,
-                description=f"Transferring {_get_resource_display_name(resource)}...",
-            )
-
             try:
                 await resource.migrate()
                 progress.update(task, advance=1)
@@ -246,7 +242,7 @@ def _display_results(
 
         if result is None:
             succeeded.append(resource_name)
-        elif isinstance(result, RuntimeError) and "Skipped" in str(result):
+        elif isinstance(result, TransferSkipped):
             skipped.append((resource_name, str(result)))
         else:
             failed.append((resource_name, str(result)))

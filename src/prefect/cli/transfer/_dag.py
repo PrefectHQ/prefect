@@ -291,6 +291,31 @@ class TransferDAG:
                                         processing.add(did)
                                         tg.start_soon(worker, did, tg)
 
+                except TransferSkipped as e:
+                    results[nid] = e
+                    self._status[nid].state = NodeState.SKIPPED
+                    self._status[nid].error = e
+                    logger.debug(f"Skipped {node}: {e}")
+
+                    to_skip = deque([nid])
+                    seen_skipped: set[uuid.UUID] = set()
+                    while to_skip:
+                        cur = to_skip.popleft()
+                        if cur in seen_skipped:
+                            continue
+                        seen_skipped.add(cur)
+                        for did in self._status[cur].dependents:
+                            st = self._status[did]
+                            if st.state in {NodeState.PENDING, NodeState.READY}:
+                                st.state = NodeState.SKIPPED
+                                results[did] = TransferSkipped(
+                                    "Skipped due to upstream resource skip"
+                                )
+                                logger.debug(
+                                    f"Skipped {self.nodes[did]} due to upstream skip"
+                                )
+                                to_skip.append(did)
+
                 except Exception as e:
                     results[nid] = e
                     self._status[nid].state = NodeState.FAILED
@@ -300,13 +325,13 @@ class TransferDAG:
                     if skip_on_failure:
                         # Skip all descendants of the failed node
                         to_skip = deque([nid])
-                        seen: set[uuid.UUID] = set()
+                        seen_failed: set[uuid.UUID] = set()
 
                         while to_skip:
                             cur = to_skip.popleft()
-                            if cur in seen:
+                            if cur in seen_failed:
                                 continue
-                            seen.add(cur)
+                            seen_failed.add(cur)
 
                             for did in self._status[cur].dependents:
                                 st = self._status[did]
@@ -314,7 +339,7 @@ class TransferDAG:
                                 if st.state in {NodeState.PENDING, NodeState.READY}:
                                     st.state = NodeState.SKIPPED
                                     results[did] = TransferSkipped(
-                                        f"Skipped due to {node} failure"
+                                        "Skipped due to upstream resource failure"
                                     )
                                     logger.debug(
                                         f"Skipped {self.nodes[did]} due to upstream failure"

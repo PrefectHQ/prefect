@@ -85,4 +85,4 @@ class MigratableGlobalConcurrencyLimit(
                         self.source_global_concurrency_limit.name
                     )
                 )
-                raise TransferSkipped("Skipped - already exists")
+                raise TransferSkipped("Already exists")

@@ -67,4 +67,4 @@ class MigratableVariable(MigratableResource[Variable]):
                 self.destination_variable = await client.read_variable_by_name(
                     self.source_variable.name
                 )
-                raise TransferSkipped("Skipped - already exists")
+                raise TransferSkipped("Already exists")

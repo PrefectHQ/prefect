@@ -310,7 +310,7 @@ class TestMigratableWorkQueue:
         migratable = await MigratableWorkQueue.construct(transfer_work_queue_with_pool)
 
         # Should raise TransferSkipped
-        with pytest.raises(TransferSkipped, match="Skipped - already exists"):
+        with pytest.raises(TransferSkipped, match="Already exists"):
             await migratable.migrate()
 
         # Verify client calls
@@ -345,7 +345,7 @@ class TestMigratableWorkQueue:
         migratable = await MigratableWorkQueue.construct(transfer_work_queue_with_pool)
 
         # Should still raise TransferSkipped even though queue not found in list
-        with pytest.raises(TransferSkipped, match="Skipped - already exists"):
+        with pytest.raises(TransferSkipped, match="Already exists"):
             await migratable.migrate()
 
         # Verify calls
@@ -403,9 +403,40 @@ class TestMigratableWorkQueue:
         migratable = await MigratableWorkQueue.construct(transfer_work_queue_with_pool)
 
         # Should raise TransferSkipped
-        with pytest.raises(TransferSkipped, match="Skipped - already exists"):
+        with pytest.raises(TransferSkipped, match="Already exists"):
             await migratable.migrate()
 
         # Verify destination_work_queue is set to the matching one
         assert migratable.destination_work_queue == matching_queue
         assert migratable.destination_id == matching_queue.id
+
+    async def test_migrate_skips_default_work_queue(self):
+        """Test that migration skips work queues named 'default'."""
+        # Create a work queue with name 'default'
+        default_work_queue = WorkQueue(
+            id=uuid.uuid4(),
+            name="default",
+            description="Default work queue",
+            priority=1,
+            concurrency_limit=None,
+            is_paused=False,
+            last_polled=None,
+            status=None,
+            work_pool_id=uuid.uuid4(),
+            work_pool_name="test-pool",
+        )
+
+        # Clear instances
+        MigratableWorkQueue._instances.clear()
+
+        migratable = await MigratableWorkQueue.construct(default_work_queue)
+
+        # Should raise TransferSkipped for default work queue
+        with pytest.raises(
+            TransferSkipped,
+            match="Default work queues are created with work pools",
+        ):
+            await migratable.migrate()
+
+        # Verify no client calls were made since it's skipped early
+        assert migratable.destination_work_queue is None

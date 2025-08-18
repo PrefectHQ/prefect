@@ -75,6 +75,10 @@ class MigratableWorkQueue(MigratableResource[WorkQueue]):
         return self._dependencies
 
     async def migrate(self) -> None:
+        # Skip default work queues as they are created when work pools are transferred
+        if self.source_work_queue.name == "default":
+            raise TransferSkipped("Default work queues are created with work pools")
+
         async with get_client() as client:
             try:
                 self.destination_work_queue = await client.create_work_queue(
@@ -93,4 +97,4 @@ class MigratableWorkQueue(MigratableResource[WorkQueue]):
                     if queue.name == self.source_work_queue.name:
                         self.destination_work_queue = queue
                         break
-                raise TransferSkipped("Skipped - already exists")
+                raise TransferSkipped("Already exists")

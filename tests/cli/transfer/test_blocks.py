@@ -152,7 +152,7 @@ class TestMigratableBlockType:
         migratable = await MigratableBlockType.construct(transfer_block_type_x)
 
         # Should raise TransferSkipped
-        with pytest.raises(TransferSkipped, match="Skipped - already exists"):
+        with pytest.raises(TransferSkipped, match="Already exists"):
             await migratable.migrate()
 
         # Verify client calls
@@ -395,7 +395,7 @@ class TestMigratableBlockSchema:
         mock_client.read_block_schema_by_checksum.return_value = existing_block_schema
 
         # Should raise TransferSkipped
-        with pytest.raises(TransferSkipped, match="Skipped - already exists"):
+        with pytest.raises(TransferSkipped, match="Already exists"):
             await migratable.migrate()
 
         # Verify client calls
@@ -689,7 +689,7 @@ class TestMigratableBlockDocument:
         mock_client.read_block_document_by_name.return_value = existing_block_document
 
         # Should raise TransferSkipped
-        with pytest.raises(TransferSkipped, match="Skipped - already exists"):
+        with pytest.raises(TransferSkipped, match="Already exists"):
             await migratable.migrate()
 
         # Verify client calls

@@ -125,14 +125,12 @@ class MigratableWorkPool(MigratableResource[WorkPool]):
                     ),
                 )
             except ObjectUnsupported:
-                raise TransferSkipped(
-                    "Skipped - destination requires Standard/Pro tier"
-                )
+                raise TransferSkipped("Destination requires Standard/Pro tier")
             except ObjectAlreadyExists:
                 self.destination_work_pool = await client.read_work_pool(
                     self.source_work_pool.name
                 )
-                raise TransferSkipped("Skipped - already exists")
+                raise TransferSkipped("Already exists")
 
             # Update the default queue after successful creation
             await client.update_work_queue(

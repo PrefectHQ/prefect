@@ -539,7 +539,7 @@ class TestMigratableWorkPool:
 
         # Should raise TransferSkipped
         with pytest.raises(
-            TransferSkipped, match="Skipped - destination requires Standard/Pro tier"
+            TransferSkipped, match="Destination requires Standard/Pro tier"
         ):
             await migratable.migrate()
 
@@ -592,7 +592,7 @@ class TestMigratableWorkPool:
         migratable = await MigratableWorkPool.construct(transfer_work_pool)
 
         # Should raise TransferSkipped
-        with pytest.raises(TransferSkipped, match="Skipped - already exists"):
+        with pytest.raises(TransferSkipped, match="Already exists"):
             await migratable.migrate()
 
         # Verify client calls

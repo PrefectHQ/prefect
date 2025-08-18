@@ -238,7 +238,7 @@ class TestMigratableGlobalConcurrencyLimit:
         )
 
         # Should raise TransferSkipped
-        with pytest.raises(TransferSkipped, match="Skipped - already exists"):
+        with pytest.raises(TransferSkipped, match="Already exists"):
             await migratable.migrate()
 
         # Verify client calls

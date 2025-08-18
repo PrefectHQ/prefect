@@ -517,7 +517,7 @@ class TestTransferDAG:
         # Check final node states
         assert dag._status[success_resource.source_id].state == NodeState.COMPLETED
         assert (
-            dag._status[skip_resource.source_id].state == NodeState.FAILED
+            dag._status[skip_resource.source_id].state == NodeState.SKIPPED
         )  # TransferSkipped is treated as failure
         assert dag._status[fail_resource.source_id].state == NodeState.FAILED
 

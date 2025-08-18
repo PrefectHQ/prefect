@@ -75,7 +75,7 @@ class MigratableBlockType(MigratableResource[BlockType]):
                 self.destination_block_type = await client.read_block_type_by_slug(
                     self.source_block_type.slug
                 )
-                raise TransferSkipped("Skipped - already exists")
+                raise TransferSkipped("Already exists")
 
 
 class MigratableBlockSchema(MigratableResource[BlockSchema]):
@@ -213,7 +213,7 @@ class MigratableBlockSchema(MigratableResource[BlockSchema]):
                         self.source_block_schema.checksum
                     )
                 )
-                raise TransferSkipped("Skipped - already exists")
+                raise TransferSkipped("Already exists")
 
 
 class MigratableBlockDocument(MigratableResource[BlockDocument]):
@@ -393,4 +393,4 @@ class MigratableBlockDocument(MigratableResource[BlockDocument]):
                         name=self.source_block_document.name,
                     )
                 )
-                raise TransferSkipped("Skipped - already exists")
+                raise TransferSkipped("Already exists")

@@ -516,7 +516,7 @@ class TestMigratableDeployment:
         )
 
         # Should raise TransferSkipped
-        with pytest.raises(TransferSkipped, match="Skipped - already exists"):
+        with pytest.raises(TransferSkipped, match="Already exists"):
             await migratable.migrate()
 
         # Verify calls
@@ -557,7 +557,9 @@ class TestMigratableDeployment:
         )
 
         # Should raise TransferSkipped
-        with pytest.raises(TransferSkipped, match="Skipped - deployment limit reached"):
+        with pytest.raises(
+            TransferSkipped, match=r"Deployment limit reached \(upgrade tier\)"
+        ):
             await migratable.migrate()
 
         # Verify calls

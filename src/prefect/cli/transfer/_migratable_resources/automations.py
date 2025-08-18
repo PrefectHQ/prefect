@@ -160,7 +160,7 @@ class MigratableAutomation(MigratableResource[Automation]):
             )
             if automations:
                 self.destination_automation = automations[0]
-                raise TransferSkipped("Skipped - already exists")
+                raise TransferSkipped("Already exists")
             else:
                 automation_copy = AutomationCore.model_validate(
                     self.source_automation.model_dump(mode="json")

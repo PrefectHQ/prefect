@@ -468,7 +468,7 @@ class TestMigratableAutomation:
         migratable = await MigratableAutomation.construct(transfer_automation)
 
         # Should raise TransferSkipped
-        with pytest.raises(TransferSkipped, match="Skipped - already exists"):
+        with pytest.raises(TransferSkipped, match="Already exists"):
             await migratable.migrate()
 
         # Verify calls
