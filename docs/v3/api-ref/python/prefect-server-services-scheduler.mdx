@@ -12,13 +12,13 @@ The Scheduler service.
 
 ## Classes
 
-### `TryAgain` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/scheduler.py#L34" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `TryAgain` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/services/scheduler.py#L34" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Internal control-flow exception used to retry the Scheduler's main loop
 
 
-### `Scheduler` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/scheduler.py#L38" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `Scheduler` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/services/scheduler.py#L38" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Schedules flow runs from deployments.
@@ -26,7 +26,7 @@ Schedules flow runs from deployments.
 
 **Methods:**
 
-#### `run_once` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/scheduler.py#L76" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `run_once` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/services/scheduler.py#L76" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 run_once(self, db: PrefectDBInterface) -> None
@@ -42,7 +42,7 @@ All inserted flow runs are committed to the database at the termination of the
 loop.
 
 
-#### `run_once` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/base.py#L329" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `run_once` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/services/base.py#L329" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 run_once(self) -> None
@@ -57,13 +57,13 @@ instead of `LoopService().run_once()`, because this method will not invoke setup
 and teardown methods properly.
 
 
-#### `service_settings` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/scheduler.py#L48" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `service_settings` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/services/scheduler.py#L48" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 service_settings(cls) -> ServicesBaseSetting
 ```
 
-#### `start` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/base.py#L211" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `start` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/services/base.py#L211" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 start(self, loops: None = None) -> NoReturn
@@ -72,7 +72,7 @@ start(self, loops: None = None) -> NoReturn
 Run the service indefinitely.
 
 
-#### `stop` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/base.py#L291" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `stop` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/services/base.py#L291" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 stop(self, block: bool = True) -> None
@@ -87,7 +87,7 @@ finished running. Otherwise it requests a stop and returns but
 the service may still be running a final loop.
 
 
-### `RecentDeploymentsScheduler` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/scheduler.py#L305" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `RecentDeploymentsScheduler` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/services/scheduler.py#L305" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Schedules deployments that were updated very recently
@@ -103,7 +103,7 @@ accelerate scheduling for any deployments that users are interacting with.
 
 **Methods:**
 
-#### `run_once` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/scheduler.py#L76" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `run_once` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/services/scheduler.py#L76" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 run_once(self, db: PrefectDBInterface) -> None
@@ -119,13 +119,13 @@ All inserted flow runs are committed to the database at the termination of the
 loop.
 
 
-#### `service_settings` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/scheduler.py#L322" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `service_settings` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/services/scheduler.py#L322" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 service_settings(cls) -> ServicesBaseSetting
 ```
 
-#### `service_settings` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/scheduler.py#L48" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `service_settings` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/services/scheduler.py#L48" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 service_settings(cls) -> ServicesBaseSetting

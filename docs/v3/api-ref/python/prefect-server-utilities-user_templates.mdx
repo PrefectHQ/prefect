@@ -10,7 +10,7 @@ Utilities to support safely rendering user-supplied templates
 
 ## Functions
 
-### `register_user_template_filters` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/user_templates.py#L69" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `register_user_template_filters` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/utilities/user_templates.py#L69" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 register_user_template_filters(filters: dict[str, Any]) -> None
@@ -20,31 +20,31 @@ register_user_template_filters(filters: dict[str, Any]) -> None
 Register additional filters that will be available to user templates
 
 
-### `validate_user_template` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/user_templates.py#L74" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `validate_user_template` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/utilities/user_templates.py#L74" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 validate_user_template(template: str) -> None
 ```
 
-### `matching_types_in_templates` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/user_templates.py#L112" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `matching_types_in_templates` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/utilities/user_templates.py#L112" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 matching_types_in_templates(templates: list[str], types: set[str]) -> list[str]
 ```
 
-### `maybe_template` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/user_templates.py#L124" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `maybe_template` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/utilities/user_templates.py#L124" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 maybe_template(possible: str) -> bool
 ```
 
-### `render_user_template` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/user_templates.py#L128" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `render_user_template` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/utilities/user_templates.py#L128" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 render_user_template(template: str, context: dict[str, Any]) -> str
 ```
 
-### `render_user_template_sync` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/user_templates.py#L143" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `render_user_template_sync` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/utilities/user_templates.py#L143" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 render_user_template_sync(template: str, context: dict[str, Any]) -> str
@@ -52,9 +52,9 @@ render_user_template_sync(template: str, context: dict[str, Any]) -> str
 
 ## Classes
 
-### `UserTemplateEnvironment` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/user_templates.py#L32" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `UserTemplateEnvironment` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/utilities/user_templates.py#L32" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
-### `TemplateSecurityError` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/user_templates.py#L60" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `TemplateSecurityError` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/utilities/user_templates.py#L60" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Raised when extended validation of a template fails.

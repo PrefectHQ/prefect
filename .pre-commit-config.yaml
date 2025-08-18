@@ -53,6 +53,7 @@ repos:
         files: |
           (?x)^(
               .pre-commit-config.yaml|
+              src/prefect/.*\.py$|
               src/prefect/server/api/.*|
               src/prefect/server/schemas/.*|
               src/prefect/server/events/.*|
@@ -60,6 +61,7 @@ repos:
               scripts/generate_mintlify_openapi_docs.py|
               scripts/generate_settings_schema.py|
               scripts/generate_settings_ref.py|
+              scripts/generate_api_ref.py|
               scripts/run_precommit_generation_scripts.py
           )$
         stages:

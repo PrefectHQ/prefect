@@ -12,7 +12,7 @@ Schedule schemas
 
 ## Classes
 
-### `IntervalSchedule` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/schedules.py#L71" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `IntervalSchedule` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/schemas/schedules.py#L71" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 A schedule formed by adding `interval` increments to an `anchor_date`. If no
@@ -44,7 +44,7 @@ if not provided, the current timestamp will be used.
 
 **Methods:**
 
-#### `get_dates` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/schedules.py#L114" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get_dates` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/schemas/schedules.py#L114" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_dates(self, n: Optional[int] = None, start: Optional[datetime.datetime] = None, end: Optional[datetime.datetime] = None) -> List[DateTime]
@@ -66,13 +66,13 @@ schedule's timezone.
 - List[DateTime]: A list of dates
 
 
-#### `model_validate_list` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/_internal/schemas/bases.py#L56" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `model_validate_list` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/_internal/schemas/bases.py#L56" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 model_validate_list(cls, obj: Any) -> list[Self]
 ```
 
-#### `reset_fields` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/_internal/schemas/bases.py#L85" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `reset_fields` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/_internal/schemas/bases.py#L85" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 reset_fields(self: Self) -> Self
@@ -84,13 +84,13 @@ Reset the fields of the model that are in the `_reset_fields` set.
 - A new instance of the model with the reset fields.
 
 
-#### `validate_timezone` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/schedules.py#L110" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `validate_timezone` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/schemas/schedules.py#L110" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 validate_timezone(self)
 ```
 
-### `CronSchedule` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/schedules.py#L302" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `CronSchedule` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/schemas/schedules.py#L302" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Cron schedule
@@ -117,7 +117,7 @@ behaves like fcron and enables you to e.g. define a job that executes each
 
 **Methods:**
 
-#### `get_dates` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/schedules.py#L347" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get_dates` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/schemas/schedules.py#L347" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_dates(self, n: Optional[int] = None, start: Optional[datetime.datetime] = None, end: Optional[datetime.datetime] = None) -> List[DateTime]
@@ -139,13 +139,13 @@ schedule's timezone.
 - List[DateTime]: A list of dates
 
 
-#### `model_validate_list` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/_internal/schemas/bases.py#L56" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `model_validate_list` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/_internal/schemas/bases.py#L56" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 model_validate_list(cls, obj: Any) -> list[Self]
 ```
 
-#### `reset_fields` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/_internal/schemas/bases.py#L85" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `reset_fields` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/_internal/schemas/bases.py#L85" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 reset_fields(self: Self) -> Self
@@ -157,19 +157,19 @@ Reset the fields of the model that are in the `_reset_fields` set.
 - A new instance of the model with the reset fields.
 
 
-#### `valid_cron_string` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/schedules.py#L344" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `valid_cron_string` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/schemas/schedules.py#L344" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 valid_cron_string(cls, v: str) -> str
 ```
 
-#### `validate_timezone` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/schedules.py#L338" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `validate_timezone` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/schemas/schedules.py#L338" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 validate_timezone(self)
 ```
 
-### `RRuleSchedule` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/schedules.py#L477" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `RRuleSchedule` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/schemas/schedules.py#L477" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 RRule schedule, based on the iCalendar standard
@@ -192,13 +192,13 @@ a 9am daily schedule with a UTC start date will maintain a 9am UTC time.
 
 **Methods:**
 
-#### `from_rrule` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/schedules.py#L508" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `from_rrule` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/schemas/schedules.py#L508" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 from_rrule(cls, rrule: dateutil.rrule.rrule | dateutil.rrule.rruleset) -> 'RRuleSchedule'
 ```
 
-#### `get_dates` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/schedules.py#L620" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get_dates` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/schemas/schedules.py#L620" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_dates(self, n: Optional[int] = None, start: datetime.datetime = None, end: datetime.datetime = None) -> List[DateTime]
@@ -220,13 +220,13 @@ schedule's timezone.
 - List[DateTime]: A list of dates
 
 
-#### `model_validate_list` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/_internal/schemas/bases.py#L56" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `model_validate_list` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/_internal/schemas/bases.py#L56" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 model_validate_list(cls, obj: Any) -> list[Self]
 ```
 
-#### `reset_fields` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/_internal/schemas/bases.py#L85" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `reset_fields` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/_internal/schemas/bases.py#L85" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 reset_fields(self: Self) -> Self
@@ -238,7 +238,7 @@ Reset the fields of the model that are in the `_reset_fields` set.
 - A new instance of the model with the reset fields.
 
 
-#### `to_rrule` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/schedules.py#L565" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `to_rrule` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/schemas/schedules.py#L565" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 to_rrule(self) -> dateutil.rrule.rrule
@@ -248,7 +248,7 @@ Since rrule doesn't properly serialize/deserialize timezones, we localize dates
 here
 
 
-#### `validate_rrule_str` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/schedules.py#L504" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `validate_rrule_str` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/schemas/schedules.py#L504" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 validate_rrule_str(cls, v: str) -> str

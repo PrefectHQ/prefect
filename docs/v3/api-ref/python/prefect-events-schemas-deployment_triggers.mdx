@@ -19,7 +19,7 @@ create them from YAML.
 
 ## Classes
 
-### `BaseDeploymentTrigger` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/schemas/deployment_triggers.py#L36" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `BaseDeploymentTrigger` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/events/schemas/deployment_triggers.py#L36" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Base class describing a set of criteria that must be satisfied in order to trigger
@@ -28,13 +28,13 @@ an automation.
 
 **Methods:**
 
-#### `model_validate_list` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/_internal/schemas/bases.py#L56" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `model_validate_list` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/_internal/schemas/bases.py#L56" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 model_validate_list(cls, obj: Any) -> list[Self]
 ```
 
-#### `reset_fields` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/_internal/schemas/bases.py#L85" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `reset_fields` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/_internal/schemas/bases.py#L85" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 reset_fields(self: Self) -> Self
@@ -46,7 +46,7 @@ Reset the fields of the model that are in the `_reset_fields` set.
 - A new instance of the model with the reset fields.
 
 
-### `DeploymentEventTrigger` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/schemas/deployment_triggers.py#L73" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `DeploymentEventTrigger` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/events/schemas/deployment_triggers.py#L73" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 A trigger that fires based on the presence or absence of events within a given
@@ -55,7 +55,7 @@ period of time.
 
 **Methods:**
 
-#### `describe_for_cli` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/schemas/automations.py#L207" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `describe_for_cli` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/events/schemas/automations.py#L207" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 describe_for_cli(self, indent: int = 0) -> str
@@ -64,13 +64,13 @@ describe_for_cli(self, indent: int = 0) -> str
 Return a human-readable description of this trigger for the CLI
 
 
-#### `enforce_minimum_within_for_proactive_triggers` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/schemas/automations.py#L179" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `enforce_minimum_within_for_proactive_triggers` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/events/schemas/automations.py#L179" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 enforce_minimum_within_for_proactive_triggers(cls, data: Dict[str, Any]) -> Dict[str, Any]
 ```
 
-### `DeploymentMetricTrigger` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/schemas/deployment_triggers.py#L82" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `DeploymentMetricTrigger` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/events/schemas/deployment_triggers.py#L82" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 A trigger that fires based on the results of a metric query.
@@ -78,7 +78,7 @@ A trigger that fires based on the results of a metric query.
 
 **Methods:**
 
-#### `describe_for_cli` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/schemas/automations.py#L307" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `describe_for_cli` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/events/schemas/automations.py#L307" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 describe_for_cli(self, indent: int = 0) -> str
@@ -87,7 +87,7 @@ describe_for_cli(self, indent: int = 0) -> str
 Return a human-readable description of this trigger for the CLI
 
 
-### `DeploymentCompoundTrigger` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/schemas/deployment_triggers.py#L90" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `DeploymentCompoundTrigger` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/events/schemas/deployment_triggers.py#L90" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 A composite trigger that requires some number of triggers to have
@@ -96,7 +96,7 @@ fired within the given time period
 
 **Methods:**
 
-#### `describe_for_cli` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/schemas/automations.py#L356" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `describe_for_cli` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/events/schemas/automations.py#L356" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 describe_for_cli(self, indent: int = 0) -> str
@@ -105,13 +105,13 @@ describe_for_cli(self, indent: int = 0) -> str
 Return a human-readable description of this trigger for the CLI
 
 
-#### `validate_require` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/schemas/automations.py#L345" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `validate_require` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/events/schemas/automations.py#L345" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 validate_require(self) -> Self
 ```
 
-### `DeploymentSequenceTrigger` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/schemas/deployment_triggers.py#L97" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `DeploymentSequenceTrigger` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/events/schemas/deployment_triggers.py#L97" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 A composite trigger that requires some number of triggers to have fired
@@ -120,7 +120,7 @@ within the given time period in a specific order
 
 **Methods:**
 
-#### `describe_for_cli` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/schemas/automations.py#L380" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `describe_for_cli` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/events/schemas/automations.py#L380" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 describe_for_cli(self, indent: int = 0) -> str

@@ -7,7 +7,7 @@ sidebarTitle: engine
 
 ## Functions
 
-### `collect_task_run_inputs` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/engine.py#L66" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `collect_task_run_inputs` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/engine.py#L66" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 collect_task_run_inputs(expr: Any, max_depth: int = -1) -> set[Union[TaskRunResult, FlowRunResult]]
@@ -27,7 +27,7 @@ Examples:
     ```
 
 
-### `collect_task_run_inputs_sync` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/engine.py#L117" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `collect_task_run_inputs_sync` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/engine.py#L117" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 collect_task_run_inputs_sync(expr: Any, future_cls: Any = PrefectFuture, max_depth: int = -1) -> set[Union[TaskRunResult, FlowRunResult]]
@@ -47,13 +47,13 @@ task_inputs = {
 ```
 
 
-### `capture_sigterm` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/engine.py#L172" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `capture_sigterm` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/engine.py#L172" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 capture_sigterm() -> Generator[None, Any, None]
 ```
 
-### `resolve_inputs` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/engine.py#L201" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `resolve_inputs` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/engine.py#L201" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 resolve_inputs(parameters: dict[str, Any], return_data: bool = True, max_depth: int = -1) -> dict[str, Any]
@@ -70,7 +70,7 @@ data.
 - `UpstreamTaskError`: If any of the upstream states are not `COMPLETED`
 
 
-### `propose_state` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/engine.py#L315" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `propose_state` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/engine.py#L315" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 propose_state(client: 'PrefectClient', state: State[Any], flow_run_id: UUID, force: bool = False) -> State[Any]
@@ -103,7 +103,7 @@ error will be raised.
 the Prefect API
 
 
-### `propose_state_sync` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/engine.py#L413" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `propose_state_sync` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/engine.py#L413" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 propose_state_sync(client: 'SyncPrefectClient', state: State[Any], flow_run_id: UUID, force: bool = False) -> State[Any]
@@ -137,7 +137,7 @@ error will be raised.
 the Prefect API
 
 
-### `get_state_for_result` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/engine.py#L507" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `get_state_for_result` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/engine.py#L507" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_state_for_result(obj: Any) -> Optional[tuple[State, RunType]]
@@ -149,7 +149,7 @@ Get the state related to a result object.
 `link_state_to_result` must have been called first.
 
 
-### `link_state_to_flow_run_result` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/engine.py#L518" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `link_state_to_flow_run_result` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/engine.py#L518" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 link_state_to_flow_run_result(state: State, result: Any) -> None
@@ -159,7 +159,7 @@ link_state_to_flow_run_result(state: State, result: Any) -> None
 Creates a link between a state and flow run result
 
 
-### `link_state_to_task_run_result` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/engine.py#L523" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `link_state_to_task_run_result` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/engine.py#L523" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 link_state_to_task_run_result(state: State, result: Any) -> None
@@ -169,7 +169,7 @@ link_state_to_task_run_result(state: State, result: Any) -> None
 Creates a link between a state and task run result
 
 
-### `link_state_to_result` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/engine.py#L528" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `link_state_to_result` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/engine.py#L528" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 link_state_to_result(state: State, result: Any, run_type: RunType) -> None
@@ -208,25 +208,25 @@ We do not set an attribute, e.g. `__prefect_state__`, on the result because:
 - We cannot set this attribute on Python built-ins.
 
 
-### `should_log_prints` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/engine.py#L589" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `should_log_prints` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/engine.py#L589" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 should_log_prints(flow_or_task: Union['Flow[..., Any]', 'Task[..., Any]']) -> bool
 ```
 
-### `check_api_reachable` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/engine.py#L601" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `check_api_reachable` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/engine.py#L601" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 check_api_reachable(client: 'PrefectClient', fail_message: str) -> None
 ```
 
-### `emit_task_run_state_change_event` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/engine.py#L619" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `emit_task_run_state_change_event` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/engine.py#L619" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 emit_task_run_state_change_event(task_run: TaskRun, initial_state: Optional[State[Any]], validated_state: State[Any], follows: Optional[Event] = None) -> Optional[Event]
 ```
 
-### `resolve_to_final_result` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/engine.py#L710" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `resolve_to_final_result` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/engine.py#L710" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 resolve_to_final_result(expr: Any, context: dict[str, Any]) -> Any
@@ -237,7 +237,7 @@ Resolve any `PrefectFuture`, or `State` types nested in parameters into
 data. Designed to be use with `visit_collection`.
 
 
-### `resolve_inputs_sync` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/engine.py#L781" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `resolve_inputs_sync` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/utilities/engine.py#L781" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 resolve_inputs_sync(parameters: dict[str, Any], return_data: bool = True, max_depth: int = -1) -> dict[str, Any]

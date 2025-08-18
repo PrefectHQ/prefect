@@ -1093,7 +1093,14 @@
                               "v3/api-ref/python/prefect-server-events-models-composite_trigger_child_firing"
                             ]
                           },
-                          "v3/api-ref/python/prefect-server-events-ordering",
+                          {
+                            "group": "ordering",
+                            "pages": [
+                              "v3/api-ref/python/prefect-server-events-ordering-__init__",
+                              "v3/api-ref/python/prefect-server-events-ordering-db",
+                              "v3/api-ref/python/prefect-server-events-ordering-memory"
+                            ]
+                          },
                           "v3/api-ref/python/prefect-server-events-pipeline",
                           {
                             "group": "schemas",
@@ -1310,13 +1317,7 @@
                       "v3/api-ref/python/prefect-testing-cli",
                       "v3/api-ref/python/prefect-testing-docker",
                       "v3/api-ref/python/prefect-testing-fixtures",
-                      {
-                        "group": "standard_test_suites",
-                        "pages": [
-                          "v3/api-ref/python/prefect-testing-standard_test_suites-__init__",
-                          "v3/api-ref/python/prefect-testing-standard_test_suites-blocks"
-                        ]
-                      },
+                      "v3/api-ref/python/prefect-testing-standard_test_suites",
                       "v3/api-ref/python/prefect-testing-utilities"
                     ]
                   },

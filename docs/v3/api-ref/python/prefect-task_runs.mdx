@@ -7,7 +7,7 @@ sidebarTitle: task_runs
 
 ## Classes
 
-### `TaskRunWaiter` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_runs.py#L24" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `TaskRunWaiter` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/task_runs.py#L24" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 A service used for waiting for a task run to finish.
@@ -58,7 +58,7 @@ if __name__ == "__main__":
 
 **Methods:**
 
-#### `add_done_callback` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_runs.py#L209" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `add_done_callback` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/task_runs.py#L209" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 add_done_callback(cls, task_run_id: uuid.UUID, callback: Callable[[], None]) -> None
@@ -71,7 +71,7 @@ Add a callback to be called when a task run finishes.
 - `callback`: The callback to call when the task run finishes.
 
 
-#### `instance` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_runs.py#L231" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `instance` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/task_runs.py#L231" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 instance(cls) -> Self
@@ -80,7 +80,7 @@ instance(cls) -> Self
 Get the singleton instance of TaskRunWaiter.
 
 
-#### `start` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_runs.py#L88" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `start` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/task_runs.py#L88" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 start(self) -> None
@@ -89,7 +89,7 @@ start(self) -> None
 Start the TaskRunWaiter service.
 
 
-#### `stop` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_runs.py#L151" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `stop` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/task_runs.py#L151" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 stop(self) -> None
@@ -98,7 +98,7 @@ stop(self) -> None
 Stop the TaskRunWaiter service.
 
 
-#### `wait_for_task_run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_runs.py#L163" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `wait_for_task_run` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/task_runs.py#L163" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 wait_for_task_run(cls, task_run_id: uuid.UUID, timeout: Optional[float] = None) -> None
