@@ -436,23 +436,37 @@ async def transfer_destination_client(prefect_client):
     return prefect_client
 
 
-# Future fixtures for when events/concurrency limit support is added:
-#
-# @pytest.fixture
-# async def transfer_global_concurrency_limit(session: AsyncSession):
-#     """Create a global concurrency limit for transfer testing."""
-#     limit = await models.concurrency_limits.create_global_concurrency_limit(
-#         session=session,
-#         concurrency_limit=schemas.actions.GlobalConcurrencyLimitCreate(
-#             name=f"transfer-limit-{uuid.uuid4()}",
-#             limit=5,
-#             active=True,
-#             active_slots=[],
-#         ),
-#     )
-#     await session.commit()
-#     return limit
-#
+# Global concurrency limit fixture
+@pytest.fixture
+async def transfer_global_concurrency_limit(session: AsyncSession):
+    """Create a global concurrency limit for transfer testing."""
+    from prefect.client.schemas.responses import GlobalConcurrencyLimitResponse
+    from prefect.server import models
+
+    limit = await models.concurrency_limits_v2.create_concurrency_limit(
+        session=session,
+        concurrency_limit=schemas.core.ConcurrencyLimitV2(
+            name=f"transfer-limit-{uuid.uuid4()}",
+            limit=5,
+            active=True,
+            active_slots=0,
+        ),
+    )
+    await session.commit()
+
+    # Convert to client schema object
+    return GlobalConcurrencyLimitResponse(
+        id=limit.id,
+        name=limit.name,
+        limit=limit.limit,
+        active=limit.active,
+        active_slots=limit.active_slots,
+        slot_decay_per_second=limit.slot_decay_per_second,
+        created=limit.created,
+        updated=limit.updated,
+    )
+
+
 # @pytest.fixture
 # async def transfer_automation_with_deployment(
 #     session: AsyncSession,

@@ -1,4 +1,5 @@
 import uuid
+from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -151,11 +152,9 @@ class TestMigratableVariable:
         assert migratable.destination_variable == existing_variable
         assert migratable.destination_id == existing_variable.id
 
-    async def test_migration_with_different_value_types(self, session: AsyncSession):
-        """Test migration with variables containing different value types."""
-        from prefect.server import models, schemas
-
-        test_values = [
+    @pytest.mark.parametrize(
+        "test_value",
+        [
             "string_value",
             123,
             12.34,
@@ -163,36 +162,50 @@ class TestMigratableVariable:
             {"key": "value", "nested": {"inner": "data"}},
             ["item1", "item2", "item3"],
             None,
-        ]
+        ],
+        ids=[
+            "string",
+            "integer",
+            "float",
+            "boolean",
+            "dict",
+            "list",
+            "none",
+        ],
+    )
+    async def test_migration_with_different_value_types(
+        self, session: AsyncSession, test_value: Any
+    ):
+        """Test migration with variables containing different value types."""
+        from prefect.server import models, schemas
 
-        for value in test_values:
-            # Create variable with specific value type
-            orm_variable = await models.variables.create_variable(
-                session=session,
-                variable=schemas.actions.VariableCreate(
-                    name=f"test-var-{uuid.uuid4()}",
-                    value=value,
-                    tags=["test"],
-                ),
-            )
-            await session.commit()
+        # Clear instances before test
+        MigratableVariable._instances.clear()
 
-            # Convert to client schema object
-            variable = Variable(
-                id=orm_variable.id,
-                name=orm_variable.name,
-                value=orm_variable.value,
-                tags=orm_variable.tags,
-                created=orm_variable.created,
-                updated=orm_variable.updated,
-            )
+        # Create variable with specific value type
+        orm_variable = await models.variables.create_variable(
+            session=session,
+            variable=schemas.actions.VariableCreate(
+                name=f"test-var-{uuid.uuid4()}",
+                value=test_value,
+                tags=["test"],
+            ),
+        )
+        await session.commit()
 
-            # Test construction works with different value types
-            migratable = await MigratableVariable.construct(variable)
-            assert migratable.source_variable.value == value
+        # Convert to client schema object
+        variable = Variable(
+            id=orm_variable.id,
+            name=orm_variable.name,
+            value=orm_variable.value,
+            tags=orm_variable.tags,
+            created=orm_variable.created,
+            updated=orm_variable.updated,
+        )
 
-            # Clear instances for next iteration
-            MigratableVariable._instances.clear()
+        # Test construction works with different value types
+        migratable = await MigratableVariable.construct(variable)
+        assert migratable.source_variable.value == test_value
 
     async def test_variable_with_tags(self, session: AsyncSession):
         """Test variable with tags."""
