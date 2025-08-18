@@ -18,7 +18,7 @@ import { WorkersTableEmptyState } from "./components/workers-table-empty-state";
 import { WorkersTableRowActions } from "./components/workers-table-row-actions";
 import { WorkersTableToolbar } from "./components/workers-table-toolbar";
 
-export interface WorkersTableProps {
+export type WorkersTableProps = {
 	workPoolName: string;
 	workers: WorkPoolWorker[];
 	pagination: PaginationState;
@@ -26,7 +26,7 @@ export interface WorkersTableProps {
 	onPaginationChange: (pagination: PaginationState) => void;
 	onColumnFiltersChange: (columnFilters: ColumnFiltersState) => void;
 	className?: string;
-}
+};
 
 export const WorkersTable = ({
 	workPoolName,

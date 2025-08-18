@@ -10,12 +10,12 @@ import { cn } from "@/lib/utils";
 import { DeleteWorkerDialog } from "./components/delete-worker-dialog";
 import { useWorkerMenu } from "./hooks/use-worker-menu";
 
-interface WorkerMenuProps {
+type WorkerMenuProps = {
 	worker: WorkPoolWorker;
 	workPoolName: string;
 	onWorkerDeleted?: () => void;
 	className?: string;
-}
+};
 
 export const WorkerMenu = ({
 	worker,

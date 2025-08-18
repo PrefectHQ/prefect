@@ -8,11 +8,11 @@ import {
 } from "@/components/ui/empty-state";
 import { cn } from "@/lib/utils";
 
-export interface WorkersTableEmptyStateProps {
+export type WorkersTableEmptyStateProps = {
 	hasSearchQuery: boolean;
 	workPoolName: string;
 	className?: string;
-}
+};
 
 export const WorkersTableEmptyState = ({
 	hasSearchQuery,

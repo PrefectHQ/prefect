@@ -28,13 +28,13 @@ export const createWorkersTableColumns = (): ColumnDef<WorkPoolWorker>[] => [
 	},
 ];
 
-interface WorkersTableColumnsWithActionsProps {
+type WorkersTableColumnsWithActionsProps = {
 	workPoolName: string;
 	ActionsComponent: React.ComponentType<{
 		worker: WorkPoolWorker;
 		workPoolName: string;
 	}>;
-}
+};
 
 export const createWorkersTableColumnsWithActions = ({
 	workPoolName,

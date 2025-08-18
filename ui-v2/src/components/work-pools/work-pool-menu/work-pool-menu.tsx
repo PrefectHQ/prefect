@@ -10,11 +10,11 @@ import { cn } from "@/lib/utils";
 import { DeleteWorkPoolDialog } from "./components/delete-work-pool-dialog";
 import { useWorkPoolMenu } from "./hooks/use-work-pool-menu";
 
-interface WorkPoolMenuProps {
+type WorkPoolMenuProps = {
 	workPool: WorkPool;
 	onUpdate?: () => void;
 	className?: string;
-}
+};
 
 export const WorkPoolMenu = ({
 	workPool,

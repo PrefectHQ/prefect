@@ -3,13 +3,13 @@ import type { WorkPoolWorker } from "@/api/work-pools";
 import { useDeleteWorker } from "@/api/work-pools";
 import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog";
 
-interface DeleteWorkerDialogProps {
+type DeleteWorkerDialogProps = {
 	worker: WorkPoolWorker;
 	workPoolName: string;
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
 	onDeleted?: () => void;
-}
+};
 
 export const DeleteWorkerDialog = ({
 	worker,

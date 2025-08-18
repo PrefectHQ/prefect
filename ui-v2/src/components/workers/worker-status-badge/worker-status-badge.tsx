@@ -5,10 +5,10 @@ import { Badge } from "@/components/ui/badge";
 
 type WorkerStatus = components["schemas"]["WorkerStatus"];
 
-interface WorkerStatusBadgeProps {
+type WorkerStatusBadgeProps = {
 	status: WorkerStatus;
 	className?: string;
-}
+};
 
 const statusConfig = {
 	ONLINE: {
