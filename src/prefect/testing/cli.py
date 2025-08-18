@@ -22,8 +22,15 @@ def check_contains(cli_result: Result, content: str, should_contain: bool) -> No
             if False, checks that content is not in cli_result
     """
     stdout_output = cli_result.stdout.strip()
-    # Also check stderr, especially for error messages
-    stderr_output = getattr(cli_result, "stderr", "").strip()
+
+    # Try to get stderr, but handle the case where it's not captured separately
+    stderr_output = ""
+    try:
+        stderr_output = getattr(cli_result, "stderr", "").strip()
+    except ValueError:
+        # In some Click/Typer versions, stderr is not separately captured
+        pass
+
     # Combine both stdout and stderr for checking
     output = stdout_output + stderr_output
 
