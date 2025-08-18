@@ -6,8 +6,10 @@ description: Migrate flows, deployments, work pools, and other resources between
 
 The `prefect transfer` command enables you to migrate resources between different Prefect environments, whether moving from development to production, from self-hosted to cloud, or between cloud workspaces.
 
+The command accepts a `--from` and `--to` [profile](/v3/concepts/settings-and-profiles#profiles), and transfers all resources from the source to the destination.
+
 <Info>
-The transfer command is available in Prefect 3.5.0 and later.
+The transfer command is available in Prefect [3.4.14](/v3/release-notes/oss/version-3-4) and later.
 </Info>
 
 ## Quick start
@@ -20,20 +22,20 @@ prefect transfer --from local --to cloud
 
 The command will:
 1. Discover all resources in the source profile
-2. Analyze dependencies between resources
-3. Transfer resources in the correct order
-4. Report success, failures, and skipped resources
+2. Transfer resources to the destination profile
+3. Report success, failures, and skipped resources
 
-## Understanding resource dependencies
+## What gets transferred
 
-Prefect resources have complex dependencies that the transfer command automatically handles:
+The transfer command moves the following resources:
+- [Flows](/v3/concepts/flows) and [deployments](/v3/concepts/deployments)
+- [Work pools](/v3/concepts/work-pools) and [work queues](/v3/concepts/work-pools#work-queues)
+- [Blocks](/v3/concepts/blocks) and their associated schemas/types
+- [Variables](/v3/concepts/variables)
+- [Concurrency limits](/v3/how-to-guides/workflows/global-concurrency-limits)
+- [Automations](/v3/concepts/automations)
 
-- **Deployments** depend on flows, work pools, and storage blocks
-- **Work queues** depend on work pools
-- **Block documents** depend on block types and schemas
-- **Automations** depend on deployments, work pools, and blocks
-
-The transfer command builds a dependency graph and transfers resources in the correct order, ensuring that dependencies are satisfied.
+Resources are transferred in the correct order to preserve relationships between them.
 
 ## Common transfer scenarios
 
@@ -89,36 +91,12 @@ prefect transfer --from dev --to prod
 
 When transferring to Prefect Cloud workspaces, certain resources may be skipped based on tier limitations. The transfer command will provide clear messages explaining why resources were skipped.
 
-## Understanding the output
-
-The transfer command provides detailed status for each resource:
-
-```bash
-Transfer Results
-┏━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-┃ Resource               ┃ Status    ┃ Details                    ┃
-┡━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
-│ flow/my-flow           │ ✓ Success │                            │
-│ work-pool/k8s-pool     │ ✓ Success │                            │
-│ deployment/my-deploy   │ ✓ Success │                            │
-│ variable/api-key       │ ✓ Success │                            │
-│ work-pool/managed      │ ⊘ Skipped │ Skipped managed pool       │
-│ work-pool/push-pool    │ ⊘ Skipped │ Skipped - requires Cloud   │
-└────────────────────────┴───────────┴────────────────────────────┘
-
-Transfer completed: 4 succeeded, 2 skipped
-```
-
-Status indicators:
-- **✓ Success**: Resource transferred successfully
-- **⊘ Skipped**: Resource skipped (with reason)
-- **✗ Failed**: Transfer failed (with error details)
 
 ## Limitations
 
 ### Resources not transferred
 
-Certain resources cannot be transferred between environments:
+Certain resources are not transferred between environments:
 - Flow run history and logs
 - Result artifacts and cached data  
 - Cloud-specific infrastructure resources
@@ -194,6 +172,6 @@ PREFECT_LOGGING_LEVEL=DEBUG prefect transfer --from source --to dest
 
 ## See also
 
-- [Profiles documentation](/3.0/manage/settings-and-profiles/) for configuring source and destination profiles
-- [Work pools guide](/3.0/deploy/infrastructure-concepts/work-pools/) for understanding pool types and limitations
-- [Prefect Cloud tiers](https://www.prefect.io/pricing) for workspace capabilities
+- [Settings and profiles](/v3/concepts/settings-and-profiles) for configuring source and destination profiles
+- [Work pools](/v3/concepts/work-pools) for understanding pool types
+- [Prefect Cloud pricing](https://www.prefect.io/pricing) for workspace capabilities
