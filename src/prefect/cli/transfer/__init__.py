@@ -96,6 +96,8 @@ async def transfer(
                 console.print("\n[yellow]No resources found to transfer.[/yellow]")
                 return
 
+            # TODO: Emit transfer started event
+
             progress.update(task, description="Building dependency graph...")
             roots = await _find_root_resources(resources)
             dag = TransferDAG()
@@ -115,6 +117,8 @@ async def transfer(
     console.print()
     with use_profile(to_profile):
         results = await _execute_transfer(dag, console)
+
+    # TODO: Emit transfer completed event
 
     _display_results(results, dag.nodes, console)
 
