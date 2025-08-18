@@ -15,7 +15,7 @@ To enable concurrent, parallel, or distributed execution of tasks, use the `.sub
 The default task runner in Prefect is the [`ThreadPoolTaskRunner`](/v3/api-ref/python/prefect-task_runners#threadpooltaskrunner),
 which runs tasks concurrently in independent threads.
 
-For CPU-intensive tasks that benefit from process-isolated execution, use the [`ProcessPoolTaskRunner`](/v3/api-ref/python/prefect-task_runners#processpooltaskrunner),
+For CPU-intensive tasks that benefit from process isolation, use the [`ProcessPoolTaskRunner`](/v3/api-ref/python/prefect-task_runners#processpooltaskrunner),
 which runs tasks in separate processes using Python's `multiprocessing` module.
 
 For distributed task execution across multiple machines, you can use one of the following task runners, which are available as extras of the `prefect` library:
@@ -65,7 +65,7 @@ def elevator():
 
 
 
-```python {12} title="use processes to run tasks in isolation"
+```python {12} title="use isolated processes to run tasks in parallel"
 from prefect import flow, task
 from prefect.futures import wait
 from prefect.task_runners import ProcessPoolTaskRunner
@@ -88,7 +88,7 @@ def elevator():
 ```
 </CodeGroup>
 
-The `max_workers` parameter of the `ThreadPoolTaskRunner` controls the number of threads that the task runner will use to execute tasks concurrently.
+The `max_workers` parameter of the `ThreadPoolTaskRunner` and `ProcessPoolTaskRunner` controls the number of threads or processes (respectively) that the task runner will use to execute tasks.
 
 ## Submit tasks to a task runner
 
