@@ -8,11 +8,11 @@ import {
 import { cn } from "@/lib/utils";
 import { useWorkPoolToggle } from "./hooks/use-work-pool-toggle";
 
-interface WorkPoolToggleProps {
+type WorkPoolToggleProps = {
 	workPool: WorkPool;
 	onUpdate?: () => void;
 	className?: string;
-}
+};
 
 export const WorkPoolToggle = ({
 	workPool,

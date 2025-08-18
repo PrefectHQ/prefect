@@ -11,7 +11,11 @@ import { WorkPoolStatusBadge } from "@/components/work-pools/work-pool-status-ba
 import { cn } from "@/lib/utils";
 import { titleCase } from "@/utils";
 
-import type { WorkPoolDetailsProps } from "./types";
+type WorkPoolDetailsProps = {
+	workPool: WorkPool;
+	alternate?: boolean;
+	className?: string;
+};
 
 // Helper components for field display
 const None = () => <dd className="text-muted-foreground text-sm">None</dd>;

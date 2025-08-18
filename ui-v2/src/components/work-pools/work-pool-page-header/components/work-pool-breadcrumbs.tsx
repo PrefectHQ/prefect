@@ -7,10 +7,10 @@ import {
 	BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 
-interface WorkPoolBreadcrumbsProps {
+type WorkPoolBreadcrumbsProps = {
 	workPoolName: string;
 	className?: string;
-}
+};
 
 export const WorkPoolBreadcrumbs = ({
 	workPoolName,

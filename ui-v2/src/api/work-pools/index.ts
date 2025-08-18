@@ -4,6 +4,7 @@ export {
 	buildListWorkPoolWorkersQuery,
 	buildWorkPoolDetailsQuery,
 	useCreateWorkPool,
+	useDeleteWorker,
 	useDeleteWorkPool,
 	usePauseWorkPool,
 	useResumeWorkPool,

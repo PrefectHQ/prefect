@@ -2,10 +2,10 @@ import type { WorkPool } from "@/api/work-pools";
 import { WorkPoolMenu } from "@/components/work-pools/work-pool-menu";
 import { WorkPoolToggle } from "@/components/work-pools/work-pool-toggle";
 
-interface WorkPoolActionsProps {
+type WorkPoolActionsProps = {
 	workPool: WorkPool;
 	onUpdate?: () => void;
-}
+};
 
 export const WorkPoolActions = ({
 	workPool,

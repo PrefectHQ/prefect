@@ -5,13 +5,48 @@ import { BooleanProperty } from "./property-types/boolean-property";
 import { NumberProperty } from "./property-types/number-property";
 import { ObjectProperty } from "./property-types/object-property";
 import { StringProperty } from "./property-types/string-property";
-import type { JSONSchema, PropertyType, SchemaProperty } from "./types";
 
-export interface SchemaDisplayProps {
+export type JSONSchema = {
+	type?: string;
+	properties?: Record<string, SchemaProperty>;
+	default?: unknown;
+	title?: string;
+	description?: string;
+	items?: SchemaProperty;
+};
+
+export type SchemaProperty = {
+	type?: string;
+	default?: unknown;
+	title?: string;
+	description?: string;
+	properties?: Record<string, SchemaProperty>;
+	items?: SchemaProperty;
+	enum?: unknown[];
+};
+
+export type PropertyType =
+	| "string"
+	| "number"
+	| "integer"
+	| "boolean"
+	| "object"
+	| "array"
+	| "null"
+	| "unknown";
+
+export type PropertyRendererProps = {
+	property: SchemaProperty;
+	value: unknown;
+	path: string;
+	name: string;
+};
+
+export type SchemaDisplayProps = {
 	schema: JSONSchema;
 	data: Record<string, unknown>;
 	className?: string;
-}
+};
 
 function getPropertyDisplayName(key: string, property: SchemaProperty): string {
 	return (

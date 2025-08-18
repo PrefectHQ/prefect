@@ -1,9 +1,9 @@
 import type { WorkPool } from "@/api/work-pools";
 import { WorkPoolStatusBadge } from "@/components/work-pools/work-pool-status-badge";
 
-interface WorkPoolTitleProps {
+type WorkPoolTitleProps = {
 	workPool: WorkPool;
-}
+};
 
 export const WorkPoolTitle = ({ workPool }: WorkPoolTitleProps) => {
 	return (

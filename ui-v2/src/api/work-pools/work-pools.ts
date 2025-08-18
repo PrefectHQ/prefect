@@ -290,3 +290,42 @@ export const buildListWorkPoolWorkersQuery = (workPoolName: string) =>
 		},
 		refetchInterval: 30000, // 30 seconds for real-time updates
 	});
+
+/**
+ * Hook for deleting a work pool worker
+ * @returns Mutation for deleting a work pool worker
+ */
+export const useDeleteWorker = () => {
+	const queryClient = useQueryClient();
+
+	const { mutate: deleteWorker, ...rest } = useMutation({
+		mutationFn: ({
+			workPoolName,
+			workerName,
+		}: {
+			workPoolName: string;
+			workerName: string;
+		}) =>
+			getQueryService().DELETE("/work_pools/{work_pool_name}/workers/{name}", {
+				params: {
+					path: {
+						work_pool_name: workPoolName,
+						name: workerName,
+					},
+				},
+			}),
+		onSuccess: (_, { workPoolName }) => {
+			// Invalidate workers list for the work pool
+			void queryClient.invalidateQueries({
+				queryKey: queryKeyFactory.workersList(workPoolName),
+			});
+
+			// Also invalidate work pool details which may show worker count
+			void queryClient.invalidateQueries({
+				queryKey: queryKeyFactory.lists(),
+			});
+		},
+	});
+
+	return { deleteWorker, ...rest };
+};
