@@ -104,7 +104,7 @@ class IPNetworkArg(BaseModel):
 def parse_ip_network_argument(val: str) -> IPNetworkArg:
     return IPNetworkArg(
         raw=val,
-        parsed=val,  # type: ignore
+        parsed=val,
     )
 
 
