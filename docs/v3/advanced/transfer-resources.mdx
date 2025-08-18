@@ -39,15 +39,10 @@ The transfer command builds a dependency graph and transfers resources in the co
 
 ### Development to production
 
-Transfer resources from a local development environment to a production cloud workspace:
+Transfer resources between different environments:
 
 ```bash
-# Set up your profiles
-prefect profile create dev --from local
-prefect profile create prod --from cloud
-
-# Transfer resources
-prefect transfer --from dev --to prod
+prefect transfer --from dev-profile --to prod-profile
 ```
 
 ### Self-hosted to cloud migration
@@ -55,31 +50,16 @@ prefect transfer --from dev --to prod
 Move from a self-hosted Prefect server to Prefect Cloud:
 
 ```bash
-# Ensure your cloud profile is configured
-prefect cloud login
-
-# Transfer from self-hosted to cloud
-prefect transfer --from self-hosted --to my-cloud-workspace
+prefect transfer --from self-hosted-profile --to cloud-profile
 ```
 
 <Warning>
-When transferring to Prefect Cloud Hobby tier workspaces, note that:
-- Only managed work pools are supported (not hybrid or push pools)
-- Deployment limits apply (5 deployments maximum)
-- The transfer will skip resources that exceed tier limitations with clear messages
+When transferring to Prefect Cloud Hobby tier workspaces, certain resource types may be skipped due to tier limitations.
 </Warning>
 
 ### Workspace consolidation
 
-Combine resources from multiple workspaces into a single workspace:
-
-```bash
-# Transfer from staging
-prefect transfer --from staging-workspace --to production-workspace
-
-# Transfer from development (resources already in production will be skipped)
-prefect transfer --from dev-workspace --to production-workspace
-```
+Resources can be transferred between multiple workspaces. Resources that already exist in the destination will be skipped.
 
 ## Resource handling
 
@@ -107,15 +87,7 @@ prefect transfer --from dev --to prod
 
 ### Resource limits
 
-When transferring to Prefect Cloud workspaces with tier limitations:
-
-```bash
-prefect transfer --from unlimited-oss --to hobby-cloud
-```
-
-Resources that exceed tier limits will be skipped with explanatory messages:
-- `Skipped - destination requires Standard/Pro tier` for unsupported work pool types
-- `Skipped - deployment limit reached (upgrade tier)` when hitting deployment limits
+When transferring to Prefect Cloud workspaces, certain resources may be skipped based on tier limitations. The transfer command will provide clear messages explaining why resources were skipped.
 
 ## Understanding the output
 
@@ -146,20 +118,15 @@ Status indicators:
 
 ### Resources not transferred
 
-The following resources are never transferred:
-- **Flow run history**: Historical execution data
-- **Logs**: Flow and task run logs
-- **Artifacts**: Result artifacts and cached data
-- **Secrets**: Secret blocks (must be recreated manually)
-- **Service accounts**: Cloud-specific authentication
-- **Managed infrastructure**: Cloud-managed work pools
+Certain resources cannot be transferred between environments:
+- Flow run history and logs
+- Result artifacts and cached data  
+- Cloud-specific infrastructure resources
+- Credentials and secrets (must be recreated in the destination)
 
-### Partial support
+### Environment-specific configuration
 
-Some resources have limitations:
-- **Storage blocks**: Credentials may need to be reconfigured
-- **Infrastructure blocks**: May require environment-specific updates
-- **Notifications**: Webhook URLs may need updating
+Some resources may require manual configuration after transfer to work correctly in the new environment, particularly those that reference external systems or credentials.
 
 ## Best practices
 
@@ -205,23 +172,17 @@ After transferring resources:
 
 ### Common issues
 
-**"Skipped - already exists"**
-- Resource already exists in destination
-- This is expected for idempotent transfers
-- No action needed
+**Resources skipped as "already exists"**
+- This is expected when resources already exist in the destination
+- The transfer can be run multiple times safely
 
-**"Skipped - destination requires Standard/Pro tier"**
-- Attempting to transfer hybrid/push pools to Hobby tier
-- Upgrade destination workspace or use managed pools
-
-**"Skipped due to failed dependency"**
-- A resource this depends on failed to transfer
-- Check the failed dependency and resolve its issue
+**Resources skipped due to tier limitations**
+- Some resource types require specific Prefect Cloud tiers
+- Check your workspace tier and capabilities
 
 **Connection errors**
-- Verify profile configuration
-- Check network connectivity
-- Ensure valid authentication tokens
+- Verify both profiles are correctly configured
+- Check network connectivity and authentication
 
 ### Debug mode
 
@@ -230,7 +191,6 @@ For detailed transfer information, enable debug logging:
 ```bash
 PREFECT_LOGGING_LEVEL=DEBUG prefect transfer --from source --to dest
 ```
-
 
 ## See also
 
