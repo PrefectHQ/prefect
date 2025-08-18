@@ -255,13 +255,18 @@ class ThreadPoolTaskRunner(TaskRunner[PrefectConcurrentFuture[R]]):
         from prefect.task_runners import ThreadPoolTaskRunner
 
         @task
-        def my_task(x: int) -> int:
+        def some_io_bound_task(x: int) -> int:
+            # making a query to a database, reading a file, etc.
             return x * 2
 
-        @flow(task_runner=ThreadPoolTaskRunner())
-        def my_flow():
-            future = my_task.submit(x=1)
-            return future.result()
+        @flow(task_runner=ThreadPoolTaskRunner(max_workers=3)) # use at most 3 threads at a time
+        def my_io_bound_flow():
+            futures = []
+            for i in range(10):
+                future = some_io_bound_task.submit(i * 100)
+                futures.append(future)
+
+            return [future.result() for future in futures]
         ```
 
         Use a thread pool task runner as a context manager:
@@ -270,13 +275,14 @@ class ThreadPoolTaskRunner(TaskRunner[PrefectConcurrentFuture[R]]):
         from prefect.task_runners import ThreadPoolTaskRunner
 
         @task
-        def my_task(x: int) -> int:
+        def some_io_bound_task(x: int) -> int:
+            # making a query to a database, reading a file, etc.
             return x * 2
 
         # Use the runner directly
         with ThreadPoolTaskRunner(max_workers=2) as runner:
-            future1 = runner.submit(my_task, {"x": 1})
-            future2 = runner.submit(my_task, {"x": 2})
+            future1 = runner.submit(some_io_bound_task, {"x": 1})
+            future2 = runner.submit(some_io_bound_task, {"x": 2})
 
             result1 = future1.result()  # 2
             result2 = future2.result()  # 4
