@@ -7,149 +7,149 @@ sidebarTitle: clients
 
 ## Classes
 
-### `BaseClient` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/clients.py#L30" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `BaseClient` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/api/clients.py#L30" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
-### `OrchestrationClient` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/clients.py#L66" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `OrchestrationClient` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/api/clients.py#L66" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 **Methods:**
 
-#### `create_flow_run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/clients.py#L85" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `create_flow_run` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/api/clients.py#L85" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 create_flow_run(self, deployment_id: UUID, flow_run_create: DeploymentFlowRunCreate) -> Response
 ```
 
-#### `pause_deployment` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/clients.py#L106" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `pause_deployment` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/api/clients.py#L106" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 pause_deployment(self, deployment_id: UUID) -> Response
 ```
 
-#### `pause_work_pool` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/clients.py#L127" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `pause_work_pool` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/api/clients.py#L127" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 pause_work_pool(self, work_pool_name: str) -> Response
 ```
 
-#### `pause_work_queue` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/clients.py#L156" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `pause_work_queue` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/api/clients.py#L156" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 pause_work_queue(self, work_queue_id: UUID) -> Response
 ```
 
-#### `read_block_document_raw` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/clients.py#L168" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `read_block_document_raw` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/api/clients.py#L168" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_block_document_raw(self, block_document_id: UUID, include_secrets: bool = True) -> Response
 ```
 
-#### `read_concurrency_limit_v2_raw` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/clients.py#L218" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `read_concurrency_limit_v2_raw` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/api/clients.py#L218" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_concurrency_limit_v2_raw(self, concurrency_limit_id: UUID) -> Response
 ```
 
-#### `read_deployment` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/clients.py#L70" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `read_deployment` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/api/clients.py#L70" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_deployment(self, deployment_id: UUID) -> Optional[DeploymentResponse]
 ```
 
-#### `read_deployment_raw` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/clients.py#L67" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `read_deployment_raw` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/api/clients.py#L67" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_deployment_raw(self, deployment_id: UUID) -> Response
 ```
 
-#### `read_flow_raw` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/clients.py#L82" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `read_flow_raw` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/api/clients.py#L82" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_flow_raw(self, flow_id: UUID) -> Response
 ```
 
-#### `read_flow_run_raw` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/clients.py#L93" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `read_flow_run_raw` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/api/clients.py#L93" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_flow_run_raw(self, flow_run_id: UUID) -> Response
 ```
 
-#### `read_task_run_raw` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/clients.py#L96" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `read_task_run_raw` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/api/clients.py#L96" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_task_run_raw(self, task_run_id: UUID) -> Response
 ```
 
-#### `read_work_pool` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/clients.py#L143" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `read_work_pool` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/api/clients.py#L143" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_work_pool(self, work_pool_id: UUID) -> Optional[WorkPool]
 ```
 
-#### `read_work_pool_raw` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/clients.py#L137" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `read_work_pool_raw` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/api/clients.py#L137" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_work_pool_raw(self, work_pool_id: UUID) -> Response
 ```
 
-#### `read_work_queue_raw` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/clients.py#L150" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `read_work_queue_raw` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/api/clients.py#L150" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_work_queue_raw(self, work_queue_id: UUID) -> Response
 ```
 
-#### `read_work_queue_status_raw` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/clients.py#L153" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `read_work_queue_status_raw` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/api/clients.py#L153" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_work_queue_status_raw(self, work_queue_id: UUID) -> Response
 ```
 
-#### `read_workspace_variables` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/clients.py#L181" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `read_workspace_variables` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/api/clients.py#L181" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_workspace_variables(self, names: Optional[List[str]] = None) -> Dict[str, StrictVariableValue]
 ```
 
-#### `request` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/base.py#L22" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `request` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/base.py#L22" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 request(self, method: HTTP_METHODS, path: 'ServerRoutes', params: dict[str, Any] | None = None, path_params: dict[str, Any] | None = None, **kwargs: Any) -> 'Response'
 ```
 
-#### `resume_deployment` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/clients.py#L111" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `resume_deployment` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/api/clients.py#L111" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 resume_deployment(self, deployment_id: UUID) -> Response
 ```
 
-#### `resume_flow_run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/clients.py#L99" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `resume_flow_run` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/api/clients.py#L99" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 resume_flow_run(self, flow_run_id: UUID) -> OrchestrationResult
 ```
 
-#### `resume_work_pool` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/clients.py#L132" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `resume_work_pool` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/api/clients.py#L132" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 resume_work_pool(self, work_pool_name: str) -> Response
 ```
 
-#### `resume_work_queue` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/clients.py#L162" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `resume_work_queue` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/api/clients.py#L162" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 resume_work_queue(self, work_queue_id: UUID) -> Response
 ```
 
-#### `set_flow_run_state` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/clients.py#L116" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `set_flow_run_state` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/api/clients.py#L116" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 set_flow_run_state(self, flow_run_id: UUID, state: StateCreate) -> Response
 ```
 
-### `WorkPoolsOrchestrationClient` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/clients.py#L226" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `WorkPoolsOrchestrationClient` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/api/clients.py#L226" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 **Methods:**
 
-#### `read_work_pool` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/clients.py#L230" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `read_work_pool` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/api/clients.py#L230" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_work_pool(self, work_pool_name: str) -> WorkPool
@@ -163,7 +163,7 @@ Returns:
     Information about the requested work pool.
 
 
-#### `request` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/base.py#L22" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `request` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/base.py#L22" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 request(self, method: HTTP_METHODS, path: 'ServerRoutes', params: dict[str, Any] | None = None, path_params: dict[str, Any] | None = None, **kwargs: Any) -> 'Response'

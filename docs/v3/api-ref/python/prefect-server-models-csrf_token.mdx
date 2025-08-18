@@ -7,7 +7,7 @@ sidebarTitle: csrf_token
 
 ## Functions
 
-### `create_or_update_csrf_token` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/csrf_token.py#L14" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `create_or_update_csrf_token` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/models/csrf_token.py#L14" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 create_or_update_csrf_token(db: PrefectDBInterface, session: AsyncSession, client: str) -> core.CsrfToken
@@ -25,7 +25,7 @@ token, it will be updated.
 - core.CsrfToken: The CSRF token
 
 
-### `read_token_for_client` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/csrf_token.py#L57" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `read_token_for_client` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/models/csrf_token.py#L57" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_token_for_client(db: PrefectDBInterface, session: AsyncSession, client: str) -> Optional[core.CsrfToken]
@@ -43,7 +43,7 @@ Read a CSRF token for a client.
 expired.
 
 
-### `delete_expired_tokens` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/csrf_token.py#L90" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `delete_expired_tokens` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/models/csrf_token.py#L90" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 delete_expired_tokens(db: PrefectDBInterface, session: AsyncSession) -> int

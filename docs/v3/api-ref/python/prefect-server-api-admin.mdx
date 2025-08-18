@@ -12,7 +12,7 @@ Routes for admin-level interactions with the Prefect REST API.
 
 ## Functions
 
-### `read_settings` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/admin.py#L16" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `read_settings` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/api/admin.py#L16" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_settings() -> prefect.settings.Settings
@@ -24,7 +24,7 @@ Get the current Prefect REST API settings.
 Secret setting values will be obfuscated.
 
 
-### `read_version` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/admin.py#L26" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `read_version` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/api/admin.py#L26" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_version() -> str
@@ -34,7 +34,7 @@ read_version() -> str
 Returns the Prefect version number
 
 
-### `clear_database` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/admin.py#L32" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `clear_database` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/api/admin.py#L32" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 clear_database(db: PrefectDBInterface = Depends(provide_database_interface), confirm: bool = Body(False, embed=True, description='Pass confirm=True to confirm you want to modify the database.'), response: Response = None) -> None
@@ -44,7 +44,7 @@ clear_database(db: PrefectDBInterface = Depends(provide_database_interface), con
 Clear all database tables without dropping them.
 
 
-### `drop_database` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/admin.py#L53" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `drop_database` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/api/admin.py#L53" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 drop_database(db: PrefectDBInterface = Depends(provide_database_interface), confirm: bool = Body(False, embed=True, description='Pass confirm=True to confirm you want to modify the database.'), response: Response = None) -> None
@@ -54,7 +54,7 @@ drop_database(db: PrefectDBInterface = Depends(provide_database_interface), conf
 Drop all database objects.
 
 
-### `create_database` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/admin.py#L71" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `create_database` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/api/admin.py#L71" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 create_database(db: PrefectDBInterface = Depends(provide_database_interface), confirm: bool = Body(False, embed=True, description='Pass confirm=True to confirm you want to modify the database.'), response: Response = None) -> None

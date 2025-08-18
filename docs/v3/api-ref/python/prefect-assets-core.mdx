@@ -7,7 +7,7 @@ sidebarTitle: core
 
 ## Functions
 
-### `add_asset_metadata` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/assets/core.py#L69" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `add_asset_metadata` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/assets/core.py#L69" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 add_asset_metadata(asset: str | Asset, metadata: dict[str, Any]) -> None
@@ -15,7 +15,7 @@ add_asset_metadata(asset: str | Asset, metadata: dict[str, Any]) -> None
 
 ## Classes
 
-### `AssetProperties` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/assets/core.py#L13" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `AssetProperties` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/assets/core.py#L13" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Metadata properties to configure on an Asset
@@ -23,13 +23,13 @@ Metadata properties to configure on an Asset
 
 **Methods:**
 
-#### `model_validate_list` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/_internal/schemas/bases.py#L56" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `model_validate_list` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/_internal/schemas/bases.py#L56" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 model_validate_list(cls, obj: Any) -> list[Self]
 ```
 
-#### `reset_fields` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/_internal/schemas/bases.py#L85" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `reset_fields` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/_internal/schemas/bases.py#L85" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 reset_fields(self: Self) -> Self
@@ -41,7 +41,7 @@ Reset the fields of the model that are in the `_reset_fields` set.
 - A new instance of the model with the reset fields.
 
 
-### `Asset` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/assets/core.py#L36" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `Asset` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/assets/core.py#L36" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Assets are objects that represent materialized data,
@@ -50,19 +50,19 @@ providing a way to track lineage and dependencies.
 
 **Methods:**
 
-#### `add_metadata` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/assets/core.py#L57" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `add_metadata` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/assets/core.py#L57" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 add_metadata(self, metadata: dict[str, Any]) -> None
 ```
 
-#### `model_validate_list` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/_internal/schemas/bases.py#L56" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `model_validate_list` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/_internal/schemas/bases.py#L56" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 model_validate_list(cls, obj: Any) -> list[Self]
 ```
 
-#### `reset_fields` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/_internal/schemas/bases.py#L85" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `reset_fields` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/_internal/schemas/bases.py#L85" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 reset_fields(self: Self) -> Self

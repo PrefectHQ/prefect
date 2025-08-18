@@ -7,19 +7,19 @@ sidebarTitle: task_runs
 
 ## Functions
 
-### `read_dashboard_task_run_counts` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/ui/task_runs.py#L42" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `read_dashboard_task_run_counts` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/api/ui/task_runs.py#L42" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_dashboard_task_run_counts(task_runs: schemas.filters.TaskRunFilter, flows: Optional[schemas.filters.FlowFilter] = None, flow_runs: Optional[schemas.filters.FlowRunFilter] = None, deployments: Optional[schemas.filters.DeploymentFilter] = None, work_pools: Optional[schemas.filters.WorkPoolFilter] = None, work_queues: Optional[schemas.filters.WorkQueueFilter] = None, db: PrefectDBInterface = Depends(provide_database_interface)) -> List[TaskRunCount]
 ```
 
-### `read_task_run_counts_by_state` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/ui/task_runs.py#L162" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `read_task_run_counts_by_state` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/api/ui/task_runs.py#L162" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_task_run_counts_by_state(flows: Optional[schemas.filters.FlowFilter] = None, flow_runs: Optional[schemas.filters.FlowRunFilter] = None, task_runs: Optional[schemas.filters.TaskRunFilter] = None, deployments: Optional[schemas.filters.DeploymentFilter] = None, db: PrefectDBInterface = Depends(provide_database_interface)) -> schemas.states.CountByState
 ```
 
-### `read_task_run_with_flow_run_name` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/ui/task_runs.py#L180" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `read_task_run_with_flow_run_name` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/api/ui/task_runs.py#L180" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_task_run_with_flow_run_name(task_run_id: UUID = Path(..., description='The task run id', alias='id'), db: PrefectDBInterface = Depends(provide_database_interface)) -> schemas.ui.UITaskRun
@@ -31,17 +31,17 @@ Get a task run by id.
 
 ## Classes
 
-### `TaskRunCount` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/ui/task_runs.py#L27" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `TaskRunCount` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/api/ui/task_runs.py#L27" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 **Methods:**
 
-#### `model_validate_list` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/_internal/schemas/bases.py#L56" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `model_validate_list` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/_internal/schemas/bases.py#L56" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 model_validate_list(cls, obj: Any) -> list[Self]
 ```
 
-#### `reset_fields` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/_internal/schemas/bases.py#L85" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `reset_fields` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/_internal/schemas/bases.py#L85" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 reset_fields(self: Self) -> Self
@@ -53,7 +53,7 @@ Reset the fields of the model that are in the `_reset_fields` set.
 - A new instance of the model with the reset fields.
 
 
-#### `ser_model` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/ui/task_runs.py#L34" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `ser_model` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/api/ui/task_runs.py#L34" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 ser_model(self) -> dict[str, int]

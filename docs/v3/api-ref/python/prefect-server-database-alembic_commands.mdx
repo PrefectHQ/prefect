@@ -7,7 +7,7 @@ sidebarTitle: alembic_commands
 
 ## Functions
 
-### `with_alembic_lock` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/alembic_commands.py#L22" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `with_alembic_lock` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/database/alembic_commands.py#L22" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 with_alembic_lock(fn: Callable[P, R]) -> Callable[P, R]
@@ -23,13 +23,13 @@ dask threads were simultaneously performing alembic upgrades, and causing
 cryptic `KeyError: 'config'` when `del globals_[attr_name]`.
 
 
-### `alembic_config` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/alembic_commands.py#L41" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `alembic_config` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/database/alembic_commands.py#L41" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 alembic_config() -> 'Config'
 ```
 
-### `alembic_upgrade` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/alembic_commands.py#L54" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `alembic_upgrade` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/database/alembic_commands.py#L54" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 alembic_upgrade(revision: str = 'head', dry_run: bool = False) -> None
@@ -43,7 +43,7 @@ Run alembic upgrades on Prefect REST API database
 - `dry_run`: Show what migrations would be made without applying them. Will emit sql statements to stdout.
 
 
-### `alembic_downgrade` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/alembic_commands.py#L76" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `alembic_downgrade` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/database/alembic_commands.py#L76" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 alembic_downgrade(revision: str = '-1', dry_run: bool = False) -> None
@@ -57,7 +57,7 @@ Run alembic downgrades on Prefect REST API database
 - `dry_run`: Show what migrations would be made without applying them. Will emit sql statements to stdout.
 
 
-### `alembic_revision` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/alembic_commands.py#L91" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `alembic_revision` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/database/alembic_commands.py#L91" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 alembic_revision(message: Optional[str] = None, autogenerate: bool = False, **kwargs: Any) -> None
@@ -71,7 +71,7 @@ Create a new revision file for the database.
 - `autogenerate`: whether or not to autogenerate the script from the database.
 
 
-### `alembic_stamp` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/alembic_commands.py#L110" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `alembic_stamp` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/database/alembic_commands.py#L110" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 alembic_stamp(revision: Union[str, list[str], tuple[str, ...]]) -> None
