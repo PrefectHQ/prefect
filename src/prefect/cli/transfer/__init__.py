@@ -55,9 +55,12 @@ async def transfer(
     Automatically handles dependencies between resources and transfers them
     in the correct order.
 
-    Example:
+    \b
+    Examples:
+        \b
         Transfer all resources from staging to production:
-            $ prefect transfer --from staging --to prod
+        \b
+        $ prefect transfer --from staging --to prod
     """
     console = Console()
 

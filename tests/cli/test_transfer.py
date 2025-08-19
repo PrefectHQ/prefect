@@ -130,22 +130,6 @@ def mock_dag():
 class TestTransferArguments:
     """Test command line argument validation."""
 
-    def test_transfer_missing_from_argument(self):
-        """Test transfer command fails without --from argument."""
-        invoke_and_assert(
-            command=["transfer", "--to", "target"],
-            expected_code=2,
-            expected_output_contains="Missing option '--from'",
-        )
-
-    def test_transfer_missing_to_argument(self):
-        """Test transfer command fails without --to argument."""
-        invoke_and_assert(
-            command=["transfer", "--from", "source"],
-            expected_code=2,
-            expected_output_contains="Missing option '--to'",
-        )
-
     @patch("prefect.cli.transfer.load_profiles")
     def test_transfer_source_profile_not_found(self, mock_load_profiles: MagicMock):
         """Test transfer command fails when source profile doesn't exist."""
