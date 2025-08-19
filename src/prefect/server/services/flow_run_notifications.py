@@ -2,7 +2,6 @@
 A service that checks for flow run notifications and sends them.
 """
 import asyncio
-import sqlite3
 from uuid import UUID
 
 import sqlalchemy as sa
@@ -12,30 +11,6 @@ from prefect.server.database.dependencies import inject_db
 from prefect.server.database.interface import PrefectDBInterface
 from prefect.server.services.loop_service import LoopService
 from prefect.settings import PREFECT_UI_URL
-
-# SQLite error message constant (from server.py)
-SQLITE_LOCKED_MSG = "database is locked"
-
-
-def is_client_retryable_exception(exc: Exception):
-    """
-    Determine if an exception is retryable for SQLite database operations.
-
-    Uses the same logic as the API server's `is_client_retryable_exception`
-    to maintain consistency.
-    """
-    if isinstance(exc, sa.exc.OperationalError) and isinstance(
-        exc.orig, sqlite3.OperationalError
-    ):
-        if getattr(exc.orig, "sqlite_errorname", None) in {
-            "SQLITE_BUSY",
-            "SQLITE_BUSY_SNAPSHOT",
-        } or SQLITE_LOCKED_MSG in getattr(exc.orig, "args", []):
-            return True
-        else:
-            # Avoid falling through to the generic case
-            return False
-    return False
 
 
 class FlowRunNotifications(LoopService):
@@ -53,79 +28,46 @@ class FlowRunNotifications(LoopService):
     @inject_db
     async def run_once(self, db: PrefectDBInterface):
         while True:
-            # Retry logic for SQLite lock errors
-            max_retries = 3
-            notifications = None
+            async with db.session_context(begin_transaction=True) as session:
+                # Drain the queue one entry at a time, because if a transient
+                # database error happens while sending a notification, the whole
+                # transaction will be rolled back, which effectively re-queues any
+                # notifications that we pulled here.  If we drain in batches larger
+                # than 1, we risk double-sending earlier notifications when a
+                # transient error occurs.
+                notifications = await db.get_flow_run_notifications_from_queue(
+                    session=session,
+                    limit=1,
+                )
+                self.logger.debug(f"Got {len(notifications)} notifications from queue.")
 
-            for attempt in range(max_retries + 1):
-                try:
-                    async with db.session_context(begin_transaction=True) as session:
-                        # Drain the queue one entry at a time, because if a transient
-                        # database error happens while sending a notification, the whole
-                        # transaction will be rolled back, which effectively re-queues any
-                        # notifications that we pulled here.  If we drain in batches larger
-                        # than 1, we risk double-sending earlier notifications when a
-                        # transient error occurs.
-                        notifications = await db.get_flow_run_notifications_from_queue(
-                            session=session,
-                            limit=1,
-                        )
-                        self.logger.debug(
-                            f"Got {len(notifications)} notifications from queue."
-                        )
-
-                        # if no notifications were found, exit the retry loop
-                        if not notifications:
-                            break
-
-                        # all retrieved notifications are deleted, assert that we only got one
-                        # since we only send the first notification returned
-                        assert (
-                            len(notifications) == 1
-                        ), "Expected one notification; query limit not respected."
-
-                        try:
-                            await self.send_flow_run_notification(
-                                session=session, db=db, notification=notifications[0]
-                            )
-                        finally:
-                            connection = await session.connection()
-                            if connection.invalidated:
-                                # If the connection was invalidated due to an error that we
-                                # handled in _send_flow_run_notification, we'll need to
-                                # rollback the session in order to synchronize it with the
-                                # reality of the underlying connection before we can proceed
-                                # with more iterations of the loop.  This may happen due to
-                                # transient database connection errors, but will _not_
-                                # happen due to an calling a third-party service to send a
-                                # notification.
-                                await session.rollback()
-                                assert not connection.invalidated
-
-                    # If we get here, the transaction succeeded
+                # if no notifications were found, exit the tight loop and sleep
+                if not notifications:
                     break
 
-                except Exception as e:
-                    should_retry = (
-                        is_client_retryable_exception(e) and attempt < max_retries
+                # all retrieved notifications are deleted, assert that we only got one
+                # since we only send the first notification returned
+                assert (
+                    len(notifications) == 1
+                ), "Expected one notification; query limit not respected."
+
+                try:
+                    await self.send_flow_run_notification(
+                        session=session, db=db, notification=notifications[0]
                     )
-
-                    if should_retry:
-                        # Simple exponential backoff
-                        retry_delay = 0.05 * (2**attempt)  # 50ms, 100ms, 200ms
-                        self.logger.debug(
-                            f"SQLite database lock detected (attempt {attempt + 1}/{max_retries + 1}). "
-                            f"Retrying after {retry_delay:.3f}s..."
-                        )
-                        await asyncio.sleep(retry_delay)
-                        continue
-                    else:
-                        # Not a retryable error or max retries reached
-                        raise
-
-            # if no notifications were found, exit the tight loop and sleep
-            if not notifications:
-                break
+                finally:
+                    connection = await session.connection()
+                    if connection.invalidated:
+                        # If the connection was invalidated due to an error that we
+                        # handled in _send_flow_run_notification, we'll need to
+                        # rollback the session in order to synchronize it with the
+                        # reality of the underlying connection before we can proceed
+                        # with more iterations of the loop.  This may happen due to
+                        # transient database connection errors, but will _not_
+                        # happen due to an calling a third-party service to send a
+                        # notification.
+                        await session.rollback()
+                        assert not connection.invalidated
 
     @inject_db
     async def send_flow_run_notification(
