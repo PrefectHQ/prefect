@@ -98,11 +98,20 @@ def function_that_uses_sync_concurrency_and_goes_belly_up(
 
 
 def wrapper_func(concurrency_limit_name: str):
-    asyncio.run(
-        function_that_uses_async_concurrency_and_goes_belly_up(concurrency_limit_name)
-    )
+    try:
+        asyncio.run(
+            function_that_uses_async_concurrency_and_goes_belly_up(
+                concurrency_limit_name
+            )
+        )
+    except Exception as e:
+        print(f"Wrapper caught exception: {type(e).__name__}: {e}", flush=True)
+        import sys
+
+        sys.exit(1)
 
 
+@pytest.mark.timeout(60)  # Override default timeout
 async def test_async_concurrency_with_leases(concurrency_limit: GlobalConcurrencyLimit):
     logger.info(
         f"Starting test_async_concurrency_with_leases with limit: {concurrency_limit.name}"
@@ -211,9 +220,14 @@ async def test_async_concurrency_with_leases(concurrency_limit: GlobalConcurrenc
         assert limit.active_slots == 0
 
 
+@pytest.mark.timeout(60)  # Override default timeout
 async def test_async_concurrency_with_lease_renewal_failure(
     concurrency_limit: GlobalConcurrencyLimit,
 ):
+    print(
+        f"Starting test_async_concurrency_with_lease_renewal_failure with limit: {concurrency_limit.name}",
+        flush=True,
+    )
     logger.info(
         f"Starting test_async_concurrency_with_lease_renewal_failure with limit: {concurrency_limit.name}"
     )
@@ -223,6 +237,7 @@ async def test_async_concurrency_with_lease_renewal_failure(
     )
 
     # Start a process with some bad luck
+    print("Starting background process", flush=True)
     logger.info("Starting background process")
     process = Process(
         target=wrapper_func,
@@ -230,15 +245,24 @@ async def test_async_concurrency_with_lease_renewal_failure(
         daemon=True,
     )
     process.start()
+    print(f"Process started with PID: {process.pid}", flush=True)
 
     # Wait for lease to be created
+    print("Waiting for lease to be created...", flush=True)
     logger.info("Waiting for lease to be created...")
     active_lease = None
     start_time = datetime.now()
     timeout_seconds = 30  # Add timeout to prevent infinite loop
+    iteration = 0
     while not active_lease:
+        iteration += 1
+        print(f"Iteration {iteration}: checking for lease...", flush=True)
         await asyncio.sleep(1)
         active_lease_ids = await lease_storage.read_active_lease_ids()
+        print(
+            f"Found {len(active_lease_ids)} active lease IDs: {active_lease_ids}",
+            flush=True,
+        )
         logger.info(
             f"Found {len(active_lease_ids)} active lease IDs: {active_lease_ids}"
         )
@@ -246,11 +270,13 @@ async def test_async_concurrency_with_lease_renewal_failure(
             lease = await lease_storage.read_lease(lease_id)
             if lease and lease.resource_ids == [concurrency_limit.id]:
                 active_lease = lease
+                print(f"Found target lease: {lease.id}", flush=True)
                 logger.info(f"Found target lease: {lease.id}")
                 break
 
         # Check for timeout
         if (datetime.now() - start_time).total_seconds() > timeout_seconds:
+            print(f"Timeout after {timeout_seconds}s!", flush=True)
             logger.error(f"Timeout waiting for lease creation after {timeout_seconds}s")
             logger.error(f"Process alive: {process.is_alive()}, PID: {process.pid}")
             if process.is_alive():
@@ -287,6 +313,7 @@ async def test_async_concurrency_with_lease_renewal_failure(
     )
 
 
+@pytest.mark.timeout(60)  # Override default timeout
 async def test_sync_concurrency_with_leases(concurrency_limit: GlobalConcurrencyLimit):
     logger.info(
         f"Starting test_sync_concurrency_with_leases with limit: {concurrency_limit.name}"
@@ -394,6 +421,7 @@ async def test_sync_concurrency_with_leases(concurrency_limit: GlobalConcurrency
         assert limit.active_slots == 0
 
 
+@pytest.mark.timeout(60)  # Override default timeout
 async def test_sync_concurrency_with_lease_renewal_failure(
     concurrency_limit: GlobalConcurrencyLimit,
 ):
