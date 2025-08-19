@@ -212,7 +212,7 @@ describe("useWorkPoolQueueMenu", () => {
 			writeText: vi.fn().mockResolvedValue(undefined),
 		};
 		Object.assign(navigator, { clipboard: mockClipboard });
-		
+
 		const customQueue = createFakeWorkPoolQueue({
 			id: "custom-id",
 			name: "my-custom-queue",
