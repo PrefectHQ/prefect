@@ -13,7 +13,7 @@ import type {
 export const createFakeWorkPoolQueue = (
 	overrides?: Partial<WorkPoolQueue>,
 ): WorkPoolQueue => {
-	const statuses: WorkPoolQueueStatus[] = ["ready", "paused", "not_ready"];
+	const statuses: WorkPoolQueueStatus[] = ["READY", "PAUSED", "NOT_READY"];
 	const isDefault = overrides?.name === "default";
 
 	return {
@@ -32,7 +32,7 @@ export const createFakeWorkPoolQueue = (
 		work_pool_name: `${randProductAdjective()} work pool`,
 		last_polled: randPastDate().toISOString(),
 		status: isDefault
-			? "ready"
+			? "READY"
 			: statuses[Math.floor(Math.random() * statuses.length)],
 		...overrides,
 	};
@@ -52,7 +52,7 @@ export const createFakeWorkPoolQueues = (
 			work_pool_name: workPoolName,
 			priority: 1,
 			is_paused: false,
-			status: "ready",
+			status: "READY",
 		}),
 	);
 

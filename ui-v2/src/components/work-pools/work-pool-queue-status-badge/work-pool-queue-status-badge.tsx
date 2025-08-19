@@ -15,20 +15,20 @@ interface WorkPoolQueueStatusBadgeProps {
 }
 
 const statusConfig = {
-	ready: {
+	READY: {
 		icon: CheckCircle,
 		label: "Ready",
 		iconColor: "text-green-600",
 		tooltip:
 			"Work queue has at least one actively polling worker ready to execute work.",
 	},
-	paused: {
+	PAUSED: {
 		icon: PauseCircle,
 		label: "Paused",
 		iconColor: "text-yellow-600",
 		tooltip: "Work queue is paused. No work will be executed.",
 	},
-	not_ready: {
+	NOT_READY: {
 		icon: AlertCircle,
 		label: "Not Ready",
 		iconColor: "text-red-600",

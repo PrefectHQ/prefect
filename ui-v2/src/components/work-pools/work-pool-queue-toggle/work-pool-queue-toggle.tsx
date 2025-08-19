@@ -23,7 +23,7 @@ export const WorkPoolQueueToggle = ({
 	className,
 }: WorkPoolQueueToggleProps) => {
 	const { handleToggle, isLoading } = useWorkPoolQueueToggle(queue, onUpdate);
-	const isPaused = queue.status === "paused";
+	const isPaused = queue.status === "PAUSED";
 	const isDefaultQueue = queue.name === "default";
 
 	// Default queue cannot be paused

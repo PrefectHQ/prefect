@@ -16,7 +16,7 @@ describe("WorkPoolQueueToggle", () => {
 	it("renders toggle switch for non-default queue", () => {
 		const queue = createFakeWorkPoolQueue({
 			name: "test-queue",
-			status: "ready",
+			status: "READY",
 		});
 
 		render(<WorkPoolQueueToggle queue={queue} />);
@@ -28,7 +28,7 @@ describe("WorkPoolQueueToggle", () => {
 	it("renders toggle switch unchecked for paused queue", () => {
 		const queue = createFakeWorkPoolQueue({
 			name: "test-queue",
-			status: "paused",
+			status: "PAUSED",
 		});
 
 		render(<WorkPoolQueueToggle queue={queue} />);
@@ -40,7 +40,7 @@ describe("WorkPoolQueueToggle", () => {
 	it("disables toggle for default queue", () => {
 		const queue = createFakeWorkPoolQueue({
 			name: "default",
-			status: "ready",
+			status: "READY",
 		});
 
 		render(<WorkPoolQueueToggle queue={queue} />);
@@ -51,7 +51,7 @@ describe("WorkPoolQueueToggle", () => {
 	it("disables toggle when disabled prop is true", () => {
 		const queue = createFakeWorkPoolQueue({
 			name: "test-queue",
-			status: "ready",
+			status: "READY",
 		});
 
 		render(<WorkPoolQueueToggle queue={queue} disabled={true} />);
@@ -63,7 +63,7 @@ describe("WorkPoolQueueToggle", () => {
 		const user = userEvent.setup();
 		const queue = createFakeWorkPoolQueue({
 			name: "default",
-			status: "ready",
+			status: "READY",
 		});
 
 		render(<WorkPoolQueueToggle queue={queue} />);
@@ -81,7 +81,7 @@ describe("WorkPoolQueueToggle", () => {
 		const user = userEvent.setup();
 		const queue = createFakeWorkPoolQueue({
 			name: "test-queue",
-			status: "ready",
+			status: "READY",
 		});
 
 		render(<WorkPoolQueueToggle queue={queue} />);
@@ -98,7 +98,7 @@ describe("WorkPoolQueueToggle", () => {
 	it("applies custom className", () => {
 		const queue = createFakeWorkPoolQueue({
 			name: "test-queue",
-			status: "ready",
+			status: "READY",
 		});
 
 		const { container } = render(

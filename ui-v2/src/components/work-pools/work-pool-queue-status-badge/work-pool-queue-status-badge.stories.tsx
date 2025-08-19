@@ -11,7 +11,7 @@ const meta = {
 	argTypes: {
 		status: {
 			control: "select",
-			options: ["ready", "paused", "not_ready"],
+			options: ["READY", "PAUSED", "NOT_READY"],
 		},
 		className: {
 			control: "text",
@@ -24,31 +24,31 @@ type Story = StoryObj<typeof meta>;
 
 export const Ready: Story = {
 	args: {
-		status: "ready",
+		status: "READY",
 	},
 };
 
 export const Paused: Story = {
 	args: {
-		status: "paused",
+		status: "PAUSED",
 	},
 };
 
 export const NotReady: Story = {
 	args: {
-		status: "not_ready",
+		status: "NOT_READY",
 	},
 };
 
 export const AllStatuses: Story = {
 	args: {
-		status: "ready",
+		status: "READY",
 	},
 	render: () => (
 		<div className="flex gap-4">
-			<WorkPoolQueueStatusBadge status="ready" />
-			<WorkPoolQueueStatusBadge status="paused" />
-			<WorkPoolQueueStatusBadge status="not_ready" />
+			<WorkPoolQueueStatusBadge status="READY" />
+			<WorkPoolQueueStatusBadge status="PAUSED" />
+			<WorkPoolQueueStatusBadge status="NOT_READY" />
 		</div>
 	),
 	parameters: {

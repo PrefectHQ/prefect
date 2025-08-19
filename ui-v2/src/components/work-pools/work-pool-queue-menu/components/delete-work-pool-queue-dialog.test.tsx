@@ -117,14 +117,7 @@ describe("DeleteWorkPoolQueueDialog", () => {
 	});
 
 	it("calls mutation with correct parameters on delete", async () => {
-		const mockMutate = vi.fn(
-			(
-				_params: unknown,
-				callbacks: { onSuccess: () => void; onError: () => void },
-			) => {
-				callbacks.onSuccess();
-			},
-		);
+		const mockMutate = vi.fn() as any;
 
 		// Mock the hook to return our mock mutate function
 		const workPoolQueuesModule = await import("@/api/work-pool-queues");
@@ -132,11 +125,22 @@ describe("DeleteWorkPoolQueueDialog", () => {
 			workPoolQueuesModule.useDeleteWorkPoolQueueMutation,
 		).mockReturnValue({
 			mutate: mockMutate,
+			mutateAsync: vi.fn(),
 			isPending: false,
-			// Add other mutation properties as needed
-		} as ReturnType<
-			typeof import("@/api/work-pool-queues").useDeleteWorkPoolQueueMutation
-		>);
+			isError: false,
+			isIdle: true,
+			isSuccess: false,
+			data: undefined,
+			error: null,
+			variables: undefined,
+			status: "idle",
+			failureCount: 0,
+			failureReason: null,
+			reset: vi.fn(),
+			context: undefined,
+			isPaused: false,
+			submittedAt: 0,
+		} as any);
 
 		renderWithClient(<DeleteWorkPoolQueueDialog {...defaultProps} />);
 
@@ -158,24 +162,29 @@ describe("DeleteWorkPoolQueueDialog", () => {
 	it("shows success toast and calls callbacks on successful delete", async () => {
 		const onDeleted = vi.fn();
 		const onOpenChange = vi.fn();
-		const mockMutate = vi.fn(
-			(
-				_params: unknown,
-				callbacks: { onSuccess: () => void; onError: () => void },
-			) => {
-				callbacks.onSuccess();
-			},
-		);
+		const mockMutate = vi.fn() as any;
 
 		const workPoolQueuesModule = await import("@/api/work-pool-queues");
 		vi.mocked(
 			workPoolQueuesModule.useDeleteWorkPoolQueueMutation,
 		).mockReturnValue({
 			mutate: mockMutate,
+			mutateAsync: vi.fn(),
 			isPending: false,
-		} as ReturnType<
-			typeof import("@/api/work-pool-queues").useDeleteWorkPoolQueueMutation
-		>);
+			isError: false,
+			isIdle: true,
+			isSuccess: false,
+			data: undefined,
+			error: null,
+			variables: undefined,
+			status: "idle",
+			failureCount: 0,
+			failureReason: null,
+			reset: vi.fn(),
+			context: undefined,
+			isPaused: false,
+			submittedAt: 0,
+		} as any);
 
 		renderWithClient(
 			<DeleteWorkPoolQueueDialog
@@ -198,24 +207,29 @@ describe("DeleteWorkPoolQueueDialog", () => {
 	});
 
 	it("shows error toast on delete failure", async () => {
-		const mockMutate = vi.fn(
-			(
-				_params: unknown,
-				callbacks: { onSuccess: () => void; onError: () => void },
-			) => {
-				callbacks.onError();
-			},
-		);
+		const mockMutate = vi.fn() as any;
 
 		const workPoolQueuesModule = await import("@/api/work-pool-queues");
 		vi.mocked(
 			workPoolQueuesModule.useDeleteWorkPoolQueueMutation,
 		).mockReturnValue({
 			mutate: mockMutate,
+			mutateAsync: vi.fn(),
 			isPending: false,
-		} as ReturnType<
-			typeof import("@/api/work-pool-queues").useDeleteWorkPoolQueueMutation
-		>);
+			isError: false,
+			isIdle: true,
+			isSuccess: false,
+			data: undefined,
+			error: null,
+			variables: undefined,
+			status: "idle",
+			failureCount: 0,
+			failureReason: null,
+			reset: vi.fn(),
+			context: undefined,
+			isPaused: false,
+			submittedAt: 0,
+		} as any);
 
 		renderWithClient(<DeleteWorkPoolQueueDialog {...defaultProps} />);
 
@@ -235,10 +249,22 @@ describe("DeleteWorkPoolQueueDialog", () => {
 			workPoolQueuesModule.useDeleteWorkPoolQueueMutation,
 		).mockReturnValue({
 			mutate: vi.fn(),
+			mutateAsync: vi.fn(),
 			isPending: true,
-		} as ReturnType<
-			typeof import("@/api/work-pool-queues").useDeleteWorkPoolQueueMutation
-		>);
+			isError: false,
+			isIdle: false,
+			isSuccess: false,
+			data: undefined,
+			error: null,
+			variables: undefined,
+			status: "pending",
+			failureCount: 0,
+			failureReason: null,
+			reset: vi.fn(),
+			context: undefined,
+			isPaused: false,
+			submittedAt: 0,
+		} as any);
 
 		renderWithClient(<DeleteWorkPoolQueueDialog {...defaultProps} />);
 

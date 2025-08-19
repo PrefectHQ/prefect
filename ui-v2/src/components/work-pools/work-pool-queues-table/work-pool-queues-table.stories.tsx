@@ -9,9 +9,9 @@ const mockQueues = createFakeWorkPoolQueues("test-pool", 5);
 
 const mockQueuesWithVariedStatuses = createFakeWorkPoolQueues("test-pool", 6, [
 	{}, // default queue
-	{ name: "high-priority", priority: 0, status: "ready" },
-	{ name: "paused-queue", status: "paused" },
-	{ name: "not-ready-queue", status: "not_ready" },
+	{ name: "high-priority", priority: 0, status: "READY" },
+	{ name: "paused-queue", status: "PAUSED" },
+	{ name: "not-ready-queue", status: "NOT_READY" },
 	{ name: "limited-queue", concurrency_limit: 10 },
 ]);
 

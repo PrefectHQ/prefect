@@ -35,7 +35,7 @@ export const workPoolQueuesTableColumns: ColumnDef<WorkPoolQueue>[] = [
 					<Link
 						to="/work-pools/work-pool/$workPoolName/queue/$workQueueName"
 						params={{
-							workPoolName: queue.work_pool_name,
+							workPoolName: queue.work_pool_name || "",
 							workQueueName: queue.name,
 						}}
 						className="font-medium text-blue-600 hover:text-blue-800"
@@ -65,7 +65,7 @@ export const workPoolQueuesTableColumns: ColumnDef<WorkPoolQueue>[] = [
 		),
 		cell: ({ row }) => {
 			const limit = row.original.concurrency_limit;
-			return limit !== null ? limit.toString() : "∞";
+			return limit !== null && limit !== undefined ? limit.toString() : "∞";
 		},
 	},
 	{
@@ -98,7 +98,7 @@ export const workPoolQueuesTableColumns: ColumnDef<WorkPoolQueue>[] = [
 		accessorKey: "status",
 		header: "Status",
 		cell: ({ row }) => (
-			<WorkPoolQueueStatusBadge status={row.original.status} />
+			<WorkPoolQueueStatusBadge status={row.original.status || "READY"} />
 		),
 	},
 	{

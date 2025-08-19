@@ -6,7 +6,7 @@ import {
 import type { components } from "@/api/prefect";
 import { getQueryService } from "@/api/service";
 
-export type WorkPoolQueueStatus = "ready" | "paused" | "not_ready";
+export type WorkPoolQueueStatus = "READY" | "PAUSED" | "NOT_READY";
 
 export type WorkPoolQueue = components["schemas"]["WorkQueueResponse"];
 

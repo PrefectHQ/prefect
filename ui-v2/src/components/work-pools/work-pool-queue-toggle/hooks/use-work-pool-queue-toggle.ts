@@ -15,6 +15,11 @@ export const useWorkPoolQueueToggle = (
 
 	const handleToggle = useCallback(
 		(isResumed: boolean) => {
+			if (!queue.work_pool_name) {
+				toast.error("Work pool name is required");
+				return;
+			}
+
 			const mutation = isResumed ? resumeMutation : pauseMutation;
 			const action = isResumed ? "resumed" : "paused";
 

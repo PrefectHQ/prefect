@@ -8,19 +8,19 @@ import { WorkPoolQueueToggle } from "./work-pool-queue-toggle";
 const mockQueue = createFakeWorkPoolQueue({
 	name: "test-queue",
 	work_pool_name: "test-pool",
-	status: "ready",
+	status: "READY",
 });
 
 const mockDefaultQueue = createFakeWorkPoolQueue({
 	name: "default",
 	work_pool_name: "test-pool",
-	status: "ready",
+	status: "READY",
 });
 
 const mockPausedQueue = createFakeWorkPoolQueue({
 	name: "paused-queue",
 	work_pool_name: "test-pool",
-	status: "paused",
+	status: "PAUSED",
 });
 
 const meta = {

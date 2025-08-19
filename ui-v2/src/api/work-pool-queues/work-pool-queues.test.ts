@@ -112,7 +112,15 @@ describe("work pool queues api queries", () => {
 
 			// Test that the queryFn throws the expected error
 			if (query.queryFn) {
-				await expect(query.queryFn()).rejects.toThrow("'data' expected");
+				const mockContext = {
+					queryKey: workPoolQueuesQueryKeyFactory.list(workPoolName),
+					signal: new AbortController().signal,
+					meta: {},
+					client: {} as any,
+				} as const;
+				await expect(query.queryFn(mockContext)).rejects.toThrow(
+					"'data' expected",
+				);
 			}
 		});
 	});
@@ -190,7 +198,18 @@ describe("work pool queues api queries", () => {
 
 			// Test that the queryFn throws the expected error
 			if (query.queryFn) {
-				await expect(query.queryFn()).rejects.toThrow("'data' expected");
+				const mockContext = {
+					queryKey: workPoolQueuesQueryKeyFactory.detail(
+						workPoolName,
+						queueName,
+					),
+					signal: new AbortController().signal,
+					meta: {},
+					client: {} as any,
+				} as const;
+				await expect(query.queryFn(mockContext)).rejects.toThrow(
+					"'data' expected",
+				);
 			}
 		});
 	});

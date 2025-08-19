@@ -9,15 +9,15 @@ describe("WorkPoolQueueStatusBadge", () => {
 		expectedLabel: string;
 	}> = [
 		{
-			status: "ready",
+			status: "READY",
 			expectedLabel: "Ready",
 		},
 		{
-			status: "paused",
+			status: "PAUSED",
 			expectedLabel: "Paused",
 		},
 		{
-			status: "not_ready",
+			status: "NOT_READY",
 			expectedLabel: "Not Ready",
 		},
 	];
@@ -32,7 +32,7 @@ describe("WorkPoolQueueStatusBadge", () => {
 
 	it("applies custom className", () => {
 		const { container } = render(
-			<WorkPoolQueueStatusBadge status="ready" className="custom-class" />,
+			<WorkPoolQueueStatusBadge status="READY" className="custom-class" />,
 		);
 
 		const badge = container.querySelector(".custom-class");
@@ -40,7 +40,7 @@ describe("WorkPoolQueueStatusBadge", () => {
 	});
 
 	it("renders with correct icon for ready status", () => {
-		const { container } = render(<WorkPoolQueueStatusBadge status="ready" />);
+		const { container } = render(<WorkPoolQueueStatusBadge status="READY" />);
 
 		// Check for CheckCircle icon
 		expect(screen.getByText("Ready")).toBeInTheDocument();
@@ -48,7 +48,7 @@ describe("WorkPoolQueueStatusBadge", () => {
 	});
 
 	it("renders with correct icon for paused status", () => {
-		const { container } = render(<WorkPoolQueueStatusBadge status="paused" />);
+		const { container } = render(<WorkPoolQueueStatusBadge status="PAUSED" />);
 
 		// Check for PauseCircle icon
 		expect(screen.getByText("Paused")).toBeInTheDocument();
@@ -57,7 +57,7 @@ describe("WorkPoolQueueStatusBadge", () => {
 
 	it("renders with correct icon for not_ready status", () => {
 		const { container } = render(
-			<WorkPoolQueueStatusBadge status="not_ready" />,
+			<WorkPoolQueueStatusBadge status="NOT_READY" />,
 		);
 
 		// Check for AlertCircle icon

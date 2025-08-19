@@ -19,6 +19,11 @@ export const DeleteWorkPoolQueueDialog = ({
 	const deleteQueueMutation = useDeleteWorkPoolQueueMutation();
 
 	const handleDelete = () => {
+		if (!queue.work_pool_name) {
+			toast.error("Work pool name is required");
+			return;
+		}
+
 		deleteQueueMutation.mutate(
 			{ workPoolName: queue.work_pool_name, queueName: queue.name },
 			{

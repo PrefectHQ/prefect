@@ -59,14 +59,22 @@ describe("useWorkPoolQueueToggle", () => {
 			workPoolQueuesModule.usePauseWorkPoolQueueMutation,
 		).mockReturnValue({
 			mutate: vi.fn(),
+			mutateAsync: vi.fn(),
 			isPending: true,
-		} as
-			| ReturnType<
-					typeof import("@/api/work-pool-queues").usePauseWorkPoolQueueMutation
-			  >
-			| ReturnType<
-					typeof import("@/api/work-pool-queues").useResumeWorkPoolQueueMutation
-			  >);
+			isError: false,
+			isIdle: false,
+			isSuccess: false,
+			data: undefined,
+			error: null,
+			variables: undefined,
+			status: "pending",
+			failureCount: 0,
+			failureReason: null,
+			reset: vi.fn(),
+			context: undefined,
+			isPaused: false,
+			submittedAt: 0,
+		} as any);
 
 		const { result } = renderHook(() => useWorkPoolQueueToggle(defaultQueue), {
 			wrapper: createWrapper({ queryClient }),
@@ -82,14 +90,22 @@ describe("useWorkPoolQueueToggle", () => {
 			workPoolQueuesModule.useResumeWorkPoolQueueMutation,
 		).mockReturnValue({
 			mutate: vi.fn(),
+			mutateAsync: vi.fn(),
 			isPending: true,
-		} as
-			| ReturnType<
-					typeof import("@/api/work-pool-queues").usePauseWorkPoolQueueMutation
-			  >
-			| ReturnType<
-					typeof import("@/api/work-pool-queues").useResumeWorkPoolQueueMutation
-			  >);
+			isError: false,
+			isIdle: false,
+			isSuccess: false,
+			data: undefined,
+			error: null,
+			variables: undefined,
+			status: "pending",
+			failureCount: 0,
+			failureReason: null,
+			reset: vi.fn(),
+			context: undefined,
+			isPaused: false,
+			submittedAt: 0,
+		} as any);
 
 		const { result } = renderHook(() => useWorkPoolQueueToggle(defaultQueue), {
 			wrapper: createWrapper({ queryClient }),
@@ -100,14 +116,7 @@ describe("useWorkPoolQueueToggle", () => {
 
 	it("calls resume mutation when isResumed is true", async () => {
 		const queryClient = createTestQueryClient();
-		const mockResumeMutate = vi.fn(
-			(
-				_params: unknown,
-				callbacks: { onSuccess: () => void; onError: () => void },
-			) => {
-				callbacks.onSuccess();
-			},
-		);
+		const mockResumeMutate = vi.fn() as any;
 		const mockPauseMutate = vi.fn();
 
 		const workPoolQueuesModule = await import("@/api/work-pool-queues");
@@ -115,26 +124,42 @@ describe("useWorkPoolQueueToggle", () => {
 			workPoolQueuesModule.useResumeWorkPoolQueueMutation,
 		).mockReturnValue({
 			mutate: mockResumeMutate,
+			mutateAsync: vi.fn(),
 			isPending: false,
-		} as
-			| ReturnType<
-					typeof import("@/api/work-pool-queues").usePauseWorkPoolQueueMutation
-			  >
-			| ReturnType<
-					typeof import("@/api/work-pool-queues").useResumeWorkPoolQueueMutation
-			  >);
+			isError: false,
+			isIdle: true,
+			isSuccess: false,
+			data: undefined,
+			error: null,
+			variables: undefined,
+			status: "idle",
+			failureCount: 0,
+			failureReason: null,
+			reset: vi.fn(),
+			context: undefined,
+			isPaused: false,
+			submittedAt: 0,
+		} as any);
 		vi.mocked(
 			workPoolQueuesModule.usePauseWorkPoolQueueMutation,
 		).mockReturnValue({
 			mutate: mockPauseMutate,
+			mutateAsync: vi.fn(),
 			isPending: false,
-		} as
-			| ReturnType<
-					typeof import("@/api/work-pool-queues").usePauseWorkPoolQueueMutation
-			  >
-			| ReturnType<
-					typeof import("@/api/work-pool-queues").useResumeWorkPoolQueueMutation
-			  >);
+			isError: false,
+			isIdle: true,
+			isSuccess: false,
+			data: undefined,
+			error: null,
+			variables: undefined,
+			status: "idle",
+			failureCount: 0,
+			failureReason: null,
+			reset: vi.fn(),
+			context: undefined,
+			isPaused: false,
+			submittedAt: 0,
+		} as any);
 
 		const { result } = renderHook(() => useWorkPoolQueueToggle(defaultQueue), {
 			wrapper: createWrapper({ queryClient }),
@@ -160,40 +185,49 @@ describe("useWorkPoolQueueToggle", () => {
 	it("calls pause mutation when isResumed is false", async () => {
 		const queryClient = createTestQueryClient();
 		const mockResumeMutate = vi.fn();
-		const mockPauseMutate = vi.fn(
-			(
-				_params: unknown,
-				callbacks: { onSuccess: () => void; onError: () => void },
-			) => {
-				callbacks.onSuccess();
-			},
-		);
+		const mockPauseMutate = vi.fn() as any;
 
 		const workPoolQueuesModule = await import("@/api/work-pool-queues");
 		vi.mocked(
 			workPoolQueuesModule.useResumeWorkPoolQueueMutation,
 		).mockReturnValue({
 			mutate: mockResumeMutate,
+			mutateAsync: vi.fn(),
 			isPending: false,
-		} as
-			| ReturnType<
-					typeof import("@/api/work-pool-queues").usePauseWorkPoolQueueMutation
-			  >
-			| ReturnType<
-					typeof import("@/api/work-pool-queues").useResumeWorkPoolQueueMutation
-			  >);
+			isError: false,
+			isIdle: true,
+			isSuccess: false,
+			data: undefined,
+			error: null,
+			variables: undefined,
+			status: "idle",
+			failureCount: 0,
+			failureReason: null,
+			reset: vi.fn(),
+			context: undefined,
+			isPaused: false,
+			submittedAt: 0,
+		} as any);
 		vi.mocked(
 			workPoolQueuesModule.usePauseWorkPoolQueueMutation,
 		).mockReturnValue({
 			mutate: mockPauseMutate,
+			mutateAsync: vi.fn(),
 			isPending: false,
-		} as
-			| ReturnType<
-					typeof import("@/api/work-pool-queues").usePauseWorkPoolQueueMutation
-			  >
-			| ReturnType<
-					typeof import("@/api/work-pool-queues").useResumeWorkPoolQueueMutation
-			  >);
+			isError: false,
+			isIdle: true,
+			isSuccess: false,
+			data: undefined,
+			error: null,
+			variables: undefined,
+			status: "idle",
+			failureCount: 0,
+			failureReason: null,
+			reset: vi.fn(),
+			context: undefined,
+			isPaused: false,
+			submittedAt: 0,
+		} as any);
 
 		const { result } = renderHook(() => useWorkPoolQueueToggle(defaultQueue), {
 			wrapper: createWrapper({ queryClient }),
@@ -219,28 +253,29 @@ describe("useWorkPoolQueueToggle", () => {
 	it("shows success toast and calls onUpdate on resume success", async () => {
 		const queryClient = createTestQueryClient();
 		const onUpdate = vi.fn();
-		const mockResumeMutate = vi.fn(
-			(
-				_params: unknown,
-				callbacks: { onSuccess: () => void; onError: () => void },
-			) => {
-				callbacks.onSuccess();
-			},
-		);
+		const mockResumeMutate = vi.fn() as any;
 
 		const workPoolQueuesModule = await import("@/api/work-pool-queues");
 		vi.mocked(
 			workPoolQueuesModule.useResumeWorkPoolQueueMutation,
 		).mockReturnValue({
 			mutate: mockResumeMutate,
+			mutateAsync: vi.fn(),
 			isPending: false,
-		} as
-			| ReturnType<
-					typeof import("@/api/work-pool-queues").usePauseWorkPoolQueueMutation
-			  >
-			| ReturnType<
-					typeof import("@/api/work-pool-queues").useResumeWorkPoolQueueMutation
-			  >);
+			isError: false,
+			isIdle: true,
+			isSuccess: false,
+			data: undefined,
+			error: null,
+			variables: undefined,
+			status: "idle",
+			failureCount: 0,
+			failureReason: null,
+			reset: vi.fn(),
+			context: undefined,
+			isPaused: false,
+			submittedAt: 0,
+		} as any);
 
 		const { result } = renderHook(
 			() => useWorkPoolQueueToggle(defaultQueue, onUpdate),
@@ -262,28 +297,29 @@ describe("useWorkPoolQueueToggle", () => {
 	it("shows success toast and calls onUpdate on pause success", async () => {
 		const queryClient = createTestQueryClient();
 		const onUpdate = vi.fn();
-		const mockPauseMutate = vi.fn(
-			(
-				_params: unknown,
-				callbacks: { onSuccess: () => void; onError: () => void },
-			) => {
-				callbacks.onSuccess();
-			},
-		);
+		const mockPauseMutate = vi.fn() as any;
 
 		const workPoolQueuesModule = await import("@/api/work-pool-queues");
 		vi.mocked(
 			workPoolQueuesModule.usePauseWorkPoolQueueMutation,
 		).mockReturnValue({
 			mutate: mockPauseMutate,
+			mutateAsync: vi.fn(),
 			isPending: false,
-		} as
-			| ReturnType<
-					typeof import("@/api/work-pool-queues").usePauseWorkPoolQueueMutation
-			  >
-			| ReturnType<
-					typeof import("@/api/work-pool-queues").useResumeWorkPoolQueueMutation
-			  >);
+			isError: false,
+			isIdle: true,
+			isSuccess: false,
+			data: undefined,
+			error: null,
+			variables: undefined,
+			status: "idle",
+			failureCount: 0,
+			failureReason: null,
+			reset: vi.fn(),
+			context: undefined,
+			isPaused: false,
+			submittedAt: 0,
+		} as any);
 
 		const { result } = renderHook(
 			() => useWorkPoolQueueToggle(defaultQueue, onUpdate),
@@ -304,28 +340,29 @@ describe("useWorkPoolQueueToggle", () => {
 
 	it("shows error toast on resume failure", async () => {
 		const queryClient = createTestQueryClient();
-		const mockResumeMutate = vi.fn(
-			(
-				_params: unknown,
-				callbacks: { onSuccess: () => void; onError: () => void },
-			) => {
-				callbacks.onError();
-			},
-		);
+		const mockResumeMutate = vi.fn() as any;
 
 		const workPoolQueuesModule = await import("@/api/work-pool-queues");
 		vi.mocked(
 			workPoolQueuesModule.useResumeWorkPoolQueueMutation,
 		).mockReturnValue({
 			mutate: mockResumeMutate,
+			mutateAsync: vi.fn(),
 			isPending: false,
-		} as
-			| ReturnType<
-					typeof import("@/api/work-pool-queues").usePauseWorkPoolQueueMutation
-			  >
-			| ReturnType<
-					typeof import("@/api/work-pool-queues").useResumeWorkPoolQueueMutation
-			  >);
+			isError: false,
+			isIdle: true,
+			isSuccess: false,
+			data: undefined,
+			error: null,
+			variables: undefined,
+			status: "idle",
+			failureCount: 0,
+			failureReason: null,
+			reset: vi.fn(),
+			context: undefined,
+			isPaused: false,
+			submittedAt: 0,
+		} as any);
 
 		const { result } = renderHook(() => useWorkPoolQueueToggle(defaultQueue), {
 			wrapper: createWrapper({ queryClient }),
@@ -356,14 +393,22 @@ describe("useWorkPoolQueueToggle", () => {
 			workPoolQueuesModule.usePauseWorkPoolQueueMutation,
 		).mockReturnValue({
 			mutate: mockPauseMutate,
+			mutateAsync: vi.fn(),
 			isPending: false,
-		} as
-			| ReturnType<
-					typeof import("@/api/work-pool-queues").usePauseWorkPoolQueueMutation
-			  >
-			| ReturnType<
-					typeof import("@/api/work-pool-queues").useResumeWorkPoolQueueMutation
-			  >);
+			isError: false,
+			isIdle: true,
+			isSuccess: false,
+			data: undefined,
+			error: null,
+			variables: undefined,
+			status: "idle",
+			failureCount: 0,
+			failureReason: null,
+			reset: vi.fn(),
+			context: undefined,
+			isPaused: false,
+			submittedAt: 0,
+		} as any);
 
 		const { result } = renderHook(() => useWorkPoolQueueToggle(defaultQueue), {
 			wrapper: createWrapper({ queryClient }),
@@ -380,28 +425,29 @@ describe("useWorkPoolQueueToggle", () => {
 
 	it("works without onUpdate callback", async () => {
 		const queryClient = createTestQueryClient();
-		const mockResumeMutate = vi.fn(
-			(
-				_params: unknown,
-				callbacks: { onSuccess: () => void; onError: () => void },
-			) => {
-				callbacks.onSuccess();
-			},
-		);
+		const mockResumeMutate = vi.fn() as any;
 
 		const workPoolQueuesModule = await import("@/api/work-pool-queues");
 		vi.mocked(
 			workPoolQueuesModule.useResumeWorkPoolQueueMutation,
 		).mockReturnValue({
 			mutate: mockResumeMutate,
+			mutateAsync: vi.fn(),
 			isPending: false,
-		} as
-			| ReturnType<
-					typeof import("@/api/work-pool-queues").usePauseWorkPoolQueueMutation
-			  >
-			| ReturnType<
-					typeof import("@/api/work-pool-queues").useResumeWorkPoolQueueMutation
-			  >);
+			isError: false,
+			isIdle: true,
+			isSuccess: false,
+			data: undefined,
+			error: null,
+			variables: undefined,
+			status: "idle",
+			failureCount: 0,
+			failureReason: null,
+			reset: vi.fn(),
+			context: undefined,
+			isPaused: false,
+			submittedAt: 0,
+		} as any);
 
 		const { result } = renderHook(
 			() => useWorkPoolQueueToggle(defaultQueue), // No onUpdate callback
@@ -426,28 +472,29 @@ describe("useWorkPoolQueueToggle", () => {
 			name: "custom-queue",
 			work_pool_name: "custom-pool",
 		});
-		const mockPauseMutate = vi.fn(
-			(
-				_params: unknown,
-				callbacks: { onSuccess: () => void; onError: () => void },
-			) => {
-				callbacks.onSuccess();
-			},
-		);
+		const mockPauseMutate = vi.fn() as any;
 
 		const workPoolQueuesModule = await import("@/api/work-pool-queues");
 		vi.mocked(
 			workPoolQueuesModule.usePauseWorkPoolQueueMutation,
 		).mockReturnValue({
 			mutate: mockPauseMutate,
+			mutateAsync: vi.fn(),
 			isPending: false,
-		} as
-			| ReturnType<
-					typeof import("@/api/work-pool-queues").usePauseWorkPoolQueueMutation
-			  >
-			| ReturnType<
-					typeof import("@/api/work-pool-queues").useResumeWorkPoolQueueMutation
-			  >);
+			isError: false,
+			isIdle: true,
+			isSuccess: false,
+			data: undefined,
+			error: null,
+			variables: undefined,
+			status: "idle",
+			failureCount: 0,
+			failureReason: null,
+			reset: vi.fn(),
+			context: undefined,
+			isPaused: false,
+			submittedAt: 0,
+		} as any);
 
 		const { result } = renderHook(() => useWorkPoolQueueToggle(customQueue), {
 			wrapper: createWrapper({ queryClient }),
