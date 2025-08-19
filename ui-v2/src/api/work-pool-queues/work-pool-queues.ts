@@ -8,20 +8,7 @@ import { getQueryService } from "@/api/service";
 
 export type WorkPoolQueueStatus = "ready" | "paused" | "not_ready";
 
-export interface WorkPoolQueue {
-	id: string;
-	created: string | null;
-	updated: string | null;
-	name: string;
-	description: string | null;
-	is_paused: boolean;
-	concurrency_limit: number | null;
-	priority: number;
-	work_pool_id: string | null;
-	work_pool_name: string;
-	last_polled: string | null;
-	status: WorkPoolQueueStatus;
-}
+export type WorkPoolQueue = components["schemas"]["WorkQueueResponse"];
 
 export type WorkPoolQueueCreate = components["schemas"]["WorkQueueCreate"];
 export type WorkPoolQueueUpdate = components["schemas"]["WorkQueueUpdate"];
@@ -89,23 +76,7 @@ export const buildListWorkPoolQueuesQuery = (workPoolName: string) =>
 				throw new Error("'data' expected");
 			}
 
-			// Transform the response to include work_pool_name and status
-			return res.data.map(
-				(queue): WorkPoolQueue => ({
-					id: queue.id,
-					created: queue.created,
-					updated: queue.updated,
-					name: queue.name,
-					description: queue.description,
-					is_paused: queue.is_paused,
-					concurrency_limit: queue.concurrency_limit ?? null,
-					priority: queue.priority,
-					work_pool_id: queue.work_pool_id ?? null,
-					work_pool_name: workPoolName,
-					last_polled: queue.last_polled ?? null,
-					status: getQueueStatus(queue),
-				}),
-			);
+			return res.data;
 		},
 		refetchInterval: 30000, // 30 seconds for real-time updates
 	});
@@ -129,28 +100,19 @@ export const buildWorkPoolQueueDetailsQuery = (
 	queryOptions({
 		queryKey: workPoolQueuesQueryKeyFactory.detail(workPoolName, queueName),
 		queryFn: async (): Promise<WorkPoolQueue> => {
-			const res = await getQueryService().GET("/work_queues/{id}", {
-				params: { path: { id: queueName } }, // Assuming queueName can be used as ID
-			});
+			const res = await getQueryService().GET(
+				"/work_pools/{work_pool_name}/queues/{name}",
+				{
+					params: {
+						path: { work_pool_name: workPoolName, name: queueName },
+					},
+				},
+			);
 			if (!res.data) {
 				throw new Error("'data' expected");
 			}
 
-			// Transform the response to include work_pool_name and status
-			return {
-				id: res.data.id,
-				created: res.data.created,
-				updated: res.data.updated,
-				name: res.data.name,
-				description: res.data.description,
-				is_paused: res.data.is_paused,
-				concurrency_limit: res.data.concurrency_limit ?? null,
-				priority: res.data.priority,
-				work_pool_id: res.data.work_pool_id ?? null,
-				work_pool_name: workPoolName,
-				last_polled: res.data.last_polled ?? null,
-				status: getQueueStatus(res.data),
-			};
+			return res.data;
 		},
 	});
 
@@ -166,9 +128,15 @@ export const usePauseWorkPoolQueueMutation = () => {
 	const queryClient = useQueryClient();
 
 	return useMutation({
-		mutationFn: ({ queueName }: { workPoolName: string; queueName: string }) =>
-			getQueryService().PATCH("/work_queues/{id}", {
-				params: { path: { id: queueName } },
+		mutationFn: ({
+			workPoolName,
+			queueName,
+		}: {
+			workPoolName: string;
+			queueName: string;
+		}) =>
+			getQueryService().PATCH("/work_pools/{work_pool_name}/queues/{name}", {
+				params: { path: { work_pool_name: workPoolName, name: queueName } },
 				body: {
 					is_paused: true,
 				},
@@ -193,9 +161,15 @@ export const useResumeWorkPoolQueueMutation = () => {
 	const queryClient = useQueryClient();
 
 	return useMutation({
-		mutationFn: ({ queueName }: { workPoolName: string; queueName: string }) =>
-			getQueryService().PATCH("/work_queues/{id}", {
-				params: { path: { id: queueName } },
+		mutationFn: ({
+			workPoolName,
+			queueName,
+		}: {
+			workPoolName: string;
+			queueName: string;
+		}) =>
+			getQueryService().PATCH("/work_pools/{work_pool_name}/queues/{name}", {
+				params: { path: { work_pool_name: workPoolName, name: queueName } },
 				body: {
 					is_paused: false,
 				},
@@ -220,9 +194,15 @@ export const useDeleteWorkPoolQueueMutation = () => {
 	const queryClient = useQueryClient();
 
 	return useMutation({
-		mutationFn: ({ queueName }: { workPoolName: string; queueName: string }) =>
-			getQueryService().DELETE("/work_queues/{id}", {
-				params: { path: { id: queueName } },
+		mutationFn: ({
+			workPoolName,
+			queueName,
+		}: {
+			workPoolName: string;
+			queueName: string;
+		}) =>
+			getQueryService().DELETE("/work_pools/{work_pool_name}/queues/{name}", {
+				params: { path: { work_pool_name: workPoolName, name: queueName } },
 			}),
 
 		onSuccess: (_, { workPoolName }) => {
@@ -232,22 +212,3 @@ export const useDeleteWorkPoolQueueMutation = () => {
 		},
 	});
 };
-
-// ----------------------------
-//  Helper Functions
-// ----------------------------
-
-/**
- * Determines the status of a work queue based on its properties
- */
-function getQueueStatus(
-	queue: components["schemas"]["WorkQueueResponse"],
-): WorkPoolQueueStatus {
-	if (queue.is_paused) {
-		return "paused";
-	}
-
-	// For now, assume a queue is ready if it's not paused
-	// This logic can be extended based on actual health checks or other criteria
-	return "ready";
-}
