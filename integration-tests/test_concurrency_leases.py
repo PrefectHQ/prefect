@@ -10,9 +10,10 @@ PREFECT_SERVER_SERVICES_REPOSSESSOR_LOOP_SECONDS=1
 """
 
 import asyncio
+import logging
 import time
 import uuid
-from datetime import timedelta
+from datetime import datetime, timedelta
 from multiprocessing import Process
 from typing import Any
 from unittest import mock
@@ -28,6 +29,9 @@ from prefect.server.concurrency.lease_storage import get_concurrency_lease_stora
 from prefect.server.concurrency.lease_storage.filesystem import (
     ConcurrencyLeaseStorage as FileSystemConcurrencyLeaseStorage,
 )
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 
 @pytest.fixture(autouse=True)
@@ -90,12 +94,16 @@ def wrapper_func(concurrency_limit_name: str):
 
 
 async def test_async_concurrency_with_leases(concurrency_limit: GlobalConcurrencyLimit):
+    logger.info(
+        f"Starting test_async_concurrency_with_leases with limit: {concurrency_limit.name}"
+    )
     lease_storage = get_concurrency_lease_storage()
     assert isinstance(lease_storage, FileSystemConcurrencyLeaseStorage), (
         "Set PREFECT_SERVER_CONCURRENCY_LEASE_STORAGE=prefect.server.concurrency.lease_storage.filesystem to run these tests"
     )
 
     # Start a process doomed to fail
+    logger.info("Starting background process")
     process = Process(
         target=wrapper_func,
         args=(concurrency_limit.name,),
@@ -103,50 +111,80 @@ async def test_async_concurrency_with_leases(concurrency_limit: GlobalConcurrenc
     process.start()
 
     # Wait for lease to be created
+    logger.info("Waiting for lease to be created...")
     active_lease = None
+    start_time = datetime.now()
     while not active_lease:
         await asyncio.sleep(1)
         active_lease_ids = await lease_storage.read_active_lease_ids()
+        logger.info(
+            f"Found {len(active_lease_ids)} active lease IDs: {active_lease_ids}"
+        )
         for lease_id in active_lease_ids:
             lease = await lease_storage.read_lease(lease_id)
             if lease and lease.resource_ids == [concurrency_limit.id]:
                 active_lease = lease
+                logger.info(
+                    f"Found target lease: {lease.id} expires at {lease.expiration}"
+                )
 
+    elapsed = (datetime.now() - start_time).total_seconds()
+    logger.info(f"Lease created after {elapsed:.2f} seconds")
     assert active_lease
     updated_lease = await lease_storage.read_lease(active_lease.id)
     assert updated_lease
 
     # Wait for lease to be renewed
+    logger.info("Waiting for lease renewal...")
+    start_time = datetime.now()
     while updated_lease.expiration == active_lease.expiration:
         await asyncio.sleep(1)
         updated_lease = await lease_storage.read_lease(active_lease.id)
         assert updated_lease
+        logger.info(f"Lease expiration: {updated_lease.expiration}")
+
+    elapsed = (datetime.now() - start_time).total_seconds()
+    logger.info(f"Lease renewed after {elapsed:.2f} seconds")
 
     # Verify that the lease is renewed periodically
     assert updated_lease.expiration > active_lease.expiration
 
     # Nothing personal
+    logger.info(f"Killing process PID: {process.pid}")
     process.kill()
+    logger.info(f"Process killed, is_alive: {process.is_alive()}")
 
     # Check that the concurrency limit still has a slot taken
+    logger.info("Checking active slots immediately after kill...")
     async with prefect.get_client() as client:
         limit = await client.read_global_concurrency_limit_by_name(
             name=concurrency_limit.name
         )
+        logger.info(f"Active slots after kill: {limit.active_slots} (expected: 1)")
         assert limit.active_slots == 1
 
     # Force lease to expire immediately
+    logger.info("Forcing lease to expire...")
     await lease_storage.renew_lease(active_lease.id, timedelta(seconds=0))
 
     # Wait for the lease to be revoked
-    while (await lease_storage.read_expired_lease_ids()) != []:
+    logger.info("Waiting for lease revocation...")
+    start_time = datetime.now()
+    expired_lease_ids = await lease_storage.read_expired_lease_ids()
+    while expired_lease_ids != []:
         await asyncio.sleep(1)
+        expired_lease_ids = await lease_storage.read_expired_lease_ids()
+        logger.info(f"Expired lease IDs: {expired_lease_ids}")
+
+    elapsed = (datetime.now() - start_time).total_seconds()
+    logger.info(f"Lease revoked after {elapsed:.2f} seconds")
 
     # Check that the concurrency limit has no slots taken after the lease is revoked
     async with prefect.get_client() as client:
         limit = await client.read_global_concurrency_limit_by_name(
             name=concurrency_limit.name
         )
+        logger.info(f"Final active slots: {limit.active_slots} (expected: 0)")
         assert limit.limit == 1
         assert limit.active_slots == 0
 
@@ -154,12 +192,16 @@ async def test_async_concurrency_with_leases(concurrency_limit: GlobalConcurrenc
 async def test_async_concurrency_with_lease_renewal_failure(
     concurrency_limit: GlobalConcurrencyLimit,
 ):
+    logger.info(
+        f"Starting test_async_concurrency_with_lease_renewal_failure with limit: {concurrency_limit.name}"
+    )
     lease_storage = get_concurrency_lease_storage()
     assert isinstance(lease_storage, FileSystemConcurrencyLeaseStorage), (
         "Set PREFECT_SERVER_CONCURRENCY_LEASE_STORAGE=prefect.server.concurrency.lease_storage.filesystem to run these tests"
     )
 
     # Start a process with some bad luck
+    logger.info("Starting background process")
     process = Process(
         target=wrapper_func,
         args=(concurrency_limit.name,),
@@ -167,33 +209,52 @@ async def test_async_concurrency_with_lease_renewal_failure(
     process.start()
 
     # Wait for lease to be created
+    logger.info("Waiting for lease to be created...")
     active_lease = None
+    start_time = datetime.now()
     while not active_lease:
         await asyncio.sleep(1)
         active_lease_ids = await lease_storage.read_active_lease_ids()
+        logger.info(
+            f"Found {len(active_lease_ids)} active lease IDs: {active_lease_ids}"
+        )
         for lease_id in active_lease_ids:
             lease = await lease_storage.read_lease(lease_id)
             if lease and lease.resource_ids == [concurrency_limit.id]:
                 active_lease = lease
+                logger.info(f"Found target lease: {lease.id}")
                 break
 
+    elapsed = (datetime.now() - start_time).total_seconds()
+    logger.info(f"Lease created after {elapsed:.2f} seconds")
     assert active_lease
 
     # Revoke the current lease and create a new one to simulate a lease renewal failure
+    logger.info(f"Revoking lease {active_lease.id} to simulate renewal failure")
     await lease_storage.revoke_lease(active_lease.id)
 
     # Wait for the process to exit cleanly before the configured sleep time
+    logger.info(f"Waiting for process {process.pid} to exit...")
+    start_time = datetime.now()
     process.join(timeout=10)
+    elapsed = (datetime.now() - start_time).total_seconds()
+    logger.info(
+        f"Process exited after {elapsed:.2f} seconds with code: {process.exitcode}"
+    )
     assert process.exitcode == 1
 
 
 async def test_sync_concurrency_with_leases(concurrency_limit: GlobalConcurrencyLimit):
+    logger.info(
+        f"Starting test_sync_concurrency_with_leases with limit: {concurrency_limit.name}"
+    )
     lease_storage = get_concurrency_lease_storage()
     assert isinstance(lease_storage, FileSystemConcurrencyLeaseStorage), (
         "Set PREFECT_SERVER_CONCURRENCY_LEASE_STORAGE=prefect.server.concurrency.lease_storage.filesystem to run these tests"
     )
 
     # Start a process doomed to fail
+    logger.info("Starting background process")
     process = Process(
         target=function_that_uses_sync_concurrency_and_goes_belly_up,
         args=(concurrency_limit.name,),
@@ -201,50 +262,80 @@ async def test_sync_concurrency_with_leases(concurrency_limit: GlobalConcurrency
     process.start()
 
     # Wait for lease to be created
+    logger.info("Waiting for lease to be created...")
     active_lease = None
+    start_time = datetime.now()
     while not active_lease:
         await asyncio.sleep(1)
         active_lease_ids = await lease_storage.read_active_lease_ids()
+        logger.info(
+            f"Found {len(active_lease_ids)} active lease IDs: {active_lease_ids}"
+        )
         for lease_id in active_lease_ids:
             lease = await lease_storage.read_lease(lease_id)
             if lease and lease.resource_ids == [concurrency_limit.id]:
                 active_lease = lease
+                logger.info(
+                    f"Found target lease: {lease.id} expires at {lease.expiration}"
+                )
                 break
 
+    elapsed = (datetime.now() - start_time).total_seconds()
+    logger.info(f"Lease created after {elapsed:.2f} seconds")
     assert active_lease
     updated_lease = active_lease
 
     # Wait for lease to be renewed
+    logger.info("Waiting for lease renewal...")
+    start_time = datetime.now()
     while updated_lease.expiration == active_lease.expiration:
         updated_lease = await lease_storage.read_lease(active_lease.id)
         assert updated_lease
+        logger.info(f"Lease expiration: {updated_lease.expiration}")
         await asyncio.sleep(1)
+
+    elapsed = (datetime.now() - start_time).total_seconds()
+    logger.info(f"Lease renewed after {elapsed:.2f} seconds")
 
     # Verify that the lease is renewed periodically
     assert updated_lease.expiration > active_lease.expiration
 
     # Good night, sweet prince
+    logger.info(f"Killing process PID: {process.pid}")
     process.kill()
+    logger.info(f"Process killed, is_alive: {process.is_alive()}")
 
     # Check that the concurrency limit still has a slot taken
+    logger.info("Checking active slots immediately after kill...")
     async with prefect.get_client() as client:
         limit = await client.read_global_concurrency_limit_by_name(
             name=concurrency_limit.name
         )
+        logger.info(f"Active slots after kill: {limit.active_slots} (expected: 1)")
         assert limit.active_slots == 1
 
     # Force lease to expire immediately
+    logger.info("Forcing lease to expire...")
     await lease_storage.renew_lease(active_lease.id, timedelta(seconds=0))
 
     # Wait for the lease to be revoked
-    while (await lease_storage.read_expired_lease_ids()) != []:
+    logger.info("Waiting for lease revocation...")
+    start_time = datetime.now()
+    expired_lease_ids = await lease_storage.read_expired_lease_ids()
+    while expired_lease_ids != []:
         await asyncio.sleep(1)
+        expired_lease_ids = await lease_storage.read_expired_lease_ids()
+        logger.info(f"Expired lease IDs: {expired_lease_ids}")
+
+    elapsed = (datetime.now() - start_time).total_seconds()
+    logger.info(f"Lease revoked after {elapsed:.2f} seconds")
 
     # Check that the concurrency limit has no slots taken after the lease is revoked
     async with prefect.get_client() as client:
         limit = await client.read_global_concurrency_limit_by_name(
             name=concurrency_limit.name
         )
+        logger.info(f"Final active slots: {limit.active_slots} (expected: 0)")
         assert limit.limit == 1
         assert limit.active_slots == 0
 
@@ -252,12 +343,16 @@ async def test_sync_concurrency_with_leases(concurrency_limit: GlobalConcurrency
 async def test_sync_concurrency_with_lease_renewal_failure(
     concurrency_limit: GlobalConcurrencyLimit,
 ):
+    logger.info(
+        f"Starting test_sync_concurrency_with_lease_renewal_failure with limit: {concurrency_limit.name}"
+    )
     lease_storage = get_concurrency_lease_storage()
     assert isinstance(lease_storage, FileSystemConcurrencyLeaseStorage), (
         "Set PREFECT_SERVER_CONCURRENCY_LEASE_STORAGE=prefect.server.concurrency.lease_storage.filesystem to run these tests"
     )
 
     # Start a process with some bad luck
+    logger.info("Starting background process")
     process = Process(
         target=function_that_uses_sync_concurrency_and_goes_belly_up,
         args=(concurrency_limit.name,),
@@ -265,21 +360,36 @@ async def test_sync_concurrency_with_lease_renewal_failure(
     process.start()
 
     # Wait for lease to be created
+    logger.info("Waiting for lease to be created...")
     active_lease = None
+    start_time = datetime.now()
     while not active_lease:
         await asyncio.sleep(1)
         active_lease_ids = await lease_storage.read_active_lease_ids()
+        logger.info(
+            f"Found {len(active_lease_ids)} active lease IDs: {active_lease_ids}"
+        )
         for lease_id in active_lease_ids:
             lease = await lease_storage.read_lease(lease_id)
             if lease and lease.resource_ids == [concurrency_limit.id]:
                 active_lease = lease
+                logger.info(f"Found target lease: {lease.id}")
                 break
 
+    elapsed = (datetime.now() - start_time).total_seconds()
+    logger.info(f"Lease created after {elapsed:.2f} seconds")
     assert active_lease
 
     # Revoke the current lease and create a new one to simulate a lease renewal failure
+    logger.info(f"Revoking lease {active_lease.id} to simulate renewal failure")
     await lease_storage.revoke_lease(active_lease.id)
 
     # Wait for the process to exit cleanly before the configured sleep time
+    logger.info(f"Waiting for process {process.pid} to exit...")
+    start_time = datetime.now()
     process.join(timeout=10)
+    elapsed = (datetime.now() - start_time).total_seconds()
+    logger.info(
+        f"Process exited after {elapsed:.2f} seconds with code: {process.exitcode}"
+    )
     assert process.exitcode == 1
