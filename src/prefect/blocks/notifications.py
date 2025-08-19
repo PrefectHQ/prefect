@@ -41,7 +41,9 @@ class AbstractAppriseNotificationBlock(NotificationBlock, ABC):
         import apprise
 
         if PREFECT_NOTIFY_TYPE_DEFAULT not in apprise.NOTIFY_TYPES:
-            apprise.NOTIFY_TYPES += (PREFECT_NOTIFY_TYPE_DEFAULT,)
+            apprise.NOTIFY_TYPES = frozenset(
+                set(apprise.NOTIFY_TYPES) | {PREFECT_NOTIFY_TYPE_DEFAULT}
+            )
 
         super().__init__(*args, **kwargs)
 
