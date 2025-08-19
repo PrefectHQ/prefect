@@ -256,10 +256,9 @@ class TaskServer:
         await self._exit_stack.enter_async_context(self._client)
         await self._exit_stack.enter_async_context(self.task_runner.start())
 
-        # Re-initialize TaskGroups _exceptions attributes each time to avoid reuse
-        # issues with anyio >4.4.0. The __aexit__ method of the TaskGroup deletes the
-        # _exceptions attribute and this causes issues.
-        self._runs_task_group._exceptions = []
+        # Re-initialize the task group each time to avoid reuse issues
+        # with anyio >4.4.0.
+        self._runs_task_group = anyio.create_task_group()
 
         await self._runs_task_group.__aenter__()
 
