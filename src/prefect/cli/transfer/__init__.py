@@ -27,8 +27,10 @@ from prefect.cli.transfer._exceptions import TransferSkipped
 from prefect.cli.transfer._migratable_resources import MigratableType
 from prefect.client.orchestration import PrefectClient, get_client
 from prefect.context import use_profile
+from prefect.events.schemas.events import Event, Resource
 from prefect.logging import get_logger
 from prefect.settings import load_profiles
+from prefect.events import get_events_client
 
 from ._dag import TransferDAG
 
@@ -100,8 +102,6 @@ async def transfer(
                 console.print("\n[yellow]No resources found to transfer.[/yellow]")
                 return
 
-            # TODO: Emit transfer started event
-
             progress.update(task, description="Building dependency graph...")
             roots = await _find_root_resources(resources)
             dag = TransferDAG()
@@ -120,9 +120,59 @@ async def transfer(
 
     console.print()
     with use_profile(to_profile):
-        results = await _execute_transfer(dag, console)
+        async with get_events_client() as events_client:
+            transfer_id = uuid.uuid4()
+            await events_client.emit(
+                event=Event(
+                    event="prefect.transfer.started",
+                    resource=Resource.model_validate(
+                        {
+                            "prefect.resource.id": f"prefect.transfer.{transfer_id}",
+                            "prefect.resource.name": f"{from_profile} -> {to_profile} transfer",
+                            "prefect.resource.type": "transfer",
+                        }
+                    ),
+                    payload=dict(
+                        from_profile=from_profile,
+                        to_profile=to_profile,
+                        total_resources=stats["total_nodes"],
+                    ),
+                )
+            )
+            results = await _execute_transfer(dag, console)
 
-    # TODO: Emit transfer completed event
+            succeeded: int = 0
+            failed: int = 0
+            skipped: int = 0
+
+            for result in results.values():
+                if result is None:
+                    succeeded += 1
+                elif isinstance(result, TransferSkipped):
+                    skipped += 1
+                else:
+                    failed += 1
+
+            await events_client.emit(
+                event=Event(
+                    event="prefect.transfer.completed",
+                    resource=Resource.model_validate(
+                        {
+                            "prefect.resource.id": f"prefect.transfer.{transfer_id}",
+                            "prefect.resource.name": f"{from_profile} -> {to_profile} transfer",
+                            "prefect.resource.type": "transfer",
+                        }
+                    ),
+                    payload=dict(
+                        from_profile=from_profile,
+                        to_profile=to_profile,
+                        total_resources=stats["total_nodes"],
+                        succeeded=succeeded,
+                        failed=failed,
+                        skipped=skipped,
+                    ),
+                )
+            )
 
     _display_results(results, dag.nodes, console)
 
