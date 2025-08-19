@@ -117,6 +117,7 @@ async def test_async_concurrency_with_leases(concurrency_limit: GlobalConcurrenc
     process = Process(
         target=wrapper_func,
         args=(concurrency_limit.name,),
+        daemon=True,
     )
     process.start()
 
@@ -226,6 +227,7 @@ async def test_async_concurrency_with_lease_renewal_failure(
     process = Process(
         target=wrapper_func,
         args=(concurrency_limit.name,),
+        daemon=True,
     )
     process.start()
 
@@ -299,6 +301,7 @@ async def test_sync_concurrency_with_leases(concurrency_limit: GlobalConcurrency
     process = Process(
         target=function_that_uses_sync_concurrency_and_goes_belly_up,
         args=(concurrency_limit.name,),
+        daemon=True,
     )
     process.start()
 
@@ -407,6 +410,7 @@ async def test_sync_concurrency_with_lease_renewal_failure(
     process = Process(
         target=function_that_uses_sync_concurrency_and_goes_belly_up,
         args=(concurrency_limit.name,),
+        daemon=True,
     )
     process.start()
 
