@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Any, Literal
 from httpx import HTTPStatusError, RequestError
 
 from prefect.client.orchestration.base import BaseAsyncClient, BaseClient
-from prefect.exceptions import ObjectNotFound
+from prefect.exceptions import ObjectAlreadyExists, ObjectNotFound
 
 if TYPE_CHECKING:
     from uuid import UUID
@@ -356,11 +356,17 @@ class ConcurrencyLimitClient(BaseClient):
     def create_global_concurrency_limit(
         self, concurrency_limit: "GlobalConcurrencyLimitCreate"
     ) -> "UUID":
-        response = self.request(
-            "POST",
-            "/v2/concurrency_limits/",
-            json=concurrency_limit.model_dump(mode="json", exclude_unset=True),
-        )
+        try:
+            response = self.request(
+                "POST",
+                "/v2/concurrency_limits/",
+                json=concurrency_limit.model_dump(mode="json", exclude_unset=True),
+            )
+        except HTTPStatusError as e:
+            if e.response.status_code == 409:
+                raise ObjectAlreadyExists(http_exc=e) from e
+            else:
+                raise
         from uuid import UUID
 
         return UUID(response.json()["id"])
@@ -796,11 +802,18 @@ class ConcurrencyLimitAsyncClient(BaseAsyncClient):
     async def create_global_concurrency_limit(
         self, concurrency_limit: "GlobalConcurrencyLimitCreate"
     ) -> "UUID":
-        response = await self.request(
-            "POST",
-            "/v2/concurrency_limits/",
-            json=concurrency_limit.model_dump(mode="json", exclude_unset=True),
-        )
+        try:
+            response = await self.request(
+                "POST",
+                "/v2/concurrency_limits/",
+                json=concurrency_limit.model_dump(mode="json", exclude_unset=True),
+            )
+        except HTTPStatusError as e:
+            if e.response.status_code == 409:
+                raise ObjectAlreadyExists(http_exc=e) from e
+            else:
+                raise
+
         from uuid import UUID
 
         return UUID(response.json()["id"])

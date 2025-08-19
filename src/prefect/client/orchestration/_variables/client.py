@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 import httpx
 
 from prefect.client.orchestration.base import BaseAsyncClient, BaseClient
-from prefect.exceptions import ObjectNotFound
+from prefect.exceptions import ObjectAlreadyExists, ObjectNotFound
 
 if TYPE_CHECKING:
     from prefect.client.schemas.actions import (
@@ -27,10 +27,18 @@ class VariableClient(BaseClient):
         Returns:
             Information about the newly created variable.
         """
-        response = self._client.post(
-            "/variables/",
-            json=variable.model_dump(mode="json", exclude_unset=True),
-        )
+        try:
+            response = self.request(
+                "POST",
+                "/variables/",
+                json=variable.model_dump(mode="json", exclude_unset=True),
+            )
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == 409:
+                raise ObjectAlreadyExists(http_exc=e) from e
+            else:
+                raise
+
         from prefect.client.schemas.objects import Variable
 
         return Variable.model_validate(response.json())
@@ -91,10 +99,18 @@ class VariableClient(BaseClient):
 class VariableAsyncClient(BaseAsyncClient):
     async def create_variable(self, variable: "VariableCreate") -> "Variable":
         """Creates a variable with the provided configuration."""
-        response = await self._client.post(
-            "/variables/",
-            json=variable.model_dump(mode="json", exclude_unset=True),
-        )
+        try:
+            response = await self.request(
+                "POST",
+                "/variables/",
+                json=variable.model_dump(mode="json", exclude_unset=True),
+            )
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == 409:
+                raise ObjectAlreadyExists(http_exc=e) from e
+            else:
+                raise
+
         from prefect.client.schemas.objects import Variable
 
         return Variable.model_validate(response.json())

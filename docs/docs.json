@@ -1,17 +1,49 @@
 {
   "$schema": "https://mintlify.com/docs.json",
-  "theme": "mint",
-  "name": "Prefect",
+  "api": {
+    "playground": {
+      "display": "simple"
+    }
+  },
+  "appearance": {
+    "default": "light",
+    "strict": false
+  },
   "colors": {
-    "primary": "#2D6DF6",
+    "dark": "#2D6DF6",
     "light": "#5F92FF",
-    "dark": "#2D6DF6"
+    "primary": "#2D6DF6"
   },
   "favicon": "/logos/favicon.png",
+  "footer": {
+    "socials": {
+      "github": "https://github.com/PrefectHQ/prefect",
+      "linkedin": "https://www.linkedin.com/company/prefect/mycompany/",
+      "slack": "https://prefect.io/slack",
+      "twitter": "https://x.com/prefectio",
+      "youtube": "https://www.youtube.com/c/PrefectIO"
+    }
+  },
+  "integrations": {
+    "ga4": {
+      "measurementId": "G-8GR5P04T5Y"
+    }
+  },
+  "logo": {
+    "dark": "/logos/logo-word-white.svg",
+    "href": "https://docs.prefect.io",
+    "light": "/logos/logo-word-black.svg"
+  },
+  "name": "Prefect",
+  "navbar": {
+    "primary": {
+      "href": "https://github.com/PrefectHQ/Prefect",
+      "type": "github"
+    }
+  },
   "navigation": {
     "tabs": [
       {
-        "tab": "Getting Started",
         "groups": [
           {
             "group": "Get started",
@@ -21,10 +53,10 @@
               "v3/get-started/quickstart"
             ]
           }
-        ]
+        ],
+        "tab": "Getting Started"
       },
       {
-        "tab": "Concepts",
         "pages": [
           "v3/concepts/index",
           {
@@ -74,10 +106,10 @@
               "v3/concepts/webhooks"
             ]
           }
-        ]
+        ],
+        "tab": "Concepts"
       },
       {
-        "tab": "How-to Guides",
         "pages": [
           "v3/how-to-guides/index",
           {
@@ -182,13 +214,14 @@
             "pages": [
               "v3/how-to-guides/migrate/airflow",
               "v3/how-to-guides/migrate/upgrade-to-prefect-3",
-              "v3/how-to-guides/migrate/upgrade-agents-to-workers"
+              "v3/how-to-guides/migrate/upgrade-agents-to-workers",
+              "v3/how-to-guides/migrate/transfer-resources"
             ]
           }
-        ]
+        ],
+        "tab": "How-to Guides"
       },
       {
-        "tab": "Advanced",
         "pages": [
           "v3/advanced/index",
           {
@@ -239,10 +272,10 @@
               "v3/advanced/developing-a-custom-worker"
             ]
           }
-        ]
+        ],
+        "tab": "Advanced"
       },
       {
-        "tab": "Examples",
         "pages": [
           "v3/examples/index",
           {
@@ -254,10 +287,10 @@
               "v3/examples/simple-web-scraper"
             ]
           }
-        ]
+        ],
+        "tab": "Examples"
       },
       {
-        "tab": "Integrations",
         "groups": [
           {
             "group": "Integrations",
@@ -395,10 +428,10 @@
               }
             ]
           }
-        ]
+        ],
+        "tab": "Integrations"
       },
       {
-        "tab": "API Reference",
         "groups": [
           {
             "group": "API Reference",
@@ -822,6 +855,7 @@
                       "v3/api-ref/python/prefect-cli-shell",
                       "v3/api-ref/python/prefect-cli-task",
                       "v3/api-ref/python/prefect-cli-task_run",
+                      "v3/api-ref/python/prefect-cli-transfer",
                       "v3/api-ref/python/prefect-cli-variable",
                       "v3/api-ref/python/prefect-cli-work_pool",
                       "v3/api-ref/python/prefect-cli-work_queue",
@@ -1384,10 +1418,10 @@
               }
             ]
           }
-        ]
+        ],
+        "tab": "API Reference"
       },
       {
-        "tab": "Contribute",
         "groups": [
           {
             "group": "Contribute",
@@ -1400,10 +1434,10 @@
               "contribute/code-of-conduct"
             ]
           }
-        ]
+        ],
+        "tab": "Contribute"
       },
       {
-        "tab": "Release Notes",
         "pages": [
           "v3/release-notes/index",
           {
@@ -1416,988 +1450,956 @@
               "v3/release-notes/oss/version-3-0"
             ]
           }
-        ]
+        ],
+        "tab": "Release Notes"
       }
     ]
   },
-  "logo": {
-    "light": "/logos/logo-word-black.svg",
-    "dark": "/logos/logo-word-white.svg",
-    "href": "https://docs.prefect.io"
-  },
-  "api": {
-    "playground": {
-      "display": "simple"
-    }
-  },
-  "appearance": {
-    "default": "light",
-    "strict": false
-  },
-  "navbar": {
-    "primary": {
-      "type": "github",
-      "href": "https://github.com/PrefectHQ/Prefect"
-    }
-  },
-  "footer": {
-    "socials": {
-      "github": "https://github.com/PrefectHQ/prefect",
-      "linkedin": "https://www.linkedin.com/company/prefect/mycompany/",
-      "slack": "https://prefect.io/slack",
-      "twitter": "https://x.com/prefectio",
-      "youtube": "https://www.youtube.com/c/PrefectIO"
-    }
-  },
-  "integrations": {
-    "ga4": {
-      "measurementId": "G-8GR5P04T5Y"
-    }
-  },
   "redirects": [
     {
-      "source": "/reference",
-      "destination": "/v3/api-ref/index"
+      "destination": "/v3/api-ref/index",
+      "source": "/reference"
     },
     {
-      "source": "/reference/:slug*",
-      "destination": "/v3/api-ref/index/:slug*"
+      "destination": "/v3/api-ref/index/:slug*",
+      "source": "/reference/:slug*"
     },
     {
-      "source": "/v3/reference",
-      "destination": "/v3/api-ref/index"
+      "destination": "/v3/api-ref/index",
+      "source": "/v3/reference"
     },
     {
-      "source": "/v3/reference/:slug*",
-      "destination": "/v3/api-ref/index/:slug*"
+      "destination": "/v3/api-ref/index/:slug*",
+      "source": "/v3/reference/:slug*"
     },
     {
-      "source": "/getting-started/:slug*",
-      "destination": "/v3/getting-started/:slug*"
+      "destination": "/v3/getting-started/:slug*",
+      "source": "/getting-started/:slug*"
     },
     {
-      "source": "/tutorial/:slug*",
-      "destination": "/v3/tutorial/:slug*"
+      "destination": "/v3/tutorial/:slug*",
+      "source": "/tutorial/:slug*"
     },
     {
-      "source": "/guides/:slug*",
-      "destination": "/v3/guides/:slug*"
+      "destination": "/v3/guides/:slug*",
+      "source": "/guides/:slug*"
     },
     {
-      "source": "/concepts/:slug*",
-      "destination": "/v3/concepts/:slug*"
+      "destination": "/v3/concepts/:slug*",
+      "source": "/concepts/:slug*"
     },
     {
-      "source": "/cloud/:slug*",
-      "destination": "/v3/cloud/:slug*"
+      "destination": "/v3/cloud/:slug*",
+      "source": "/cloud/:slug*"
     },
     {
-      "source": "/api-ref/:slug*",
-      "destination": "/v3/api-ref/:slug*"
+      "destination": "/v3/api-ref/:slug*",
+      "source": "/api-ref/:slug*"
     },
     {
-      "source": "/latest/tutorial",
-      "destination": "/v3/get-started"
+      "destination": "/v3/get-started",
+      "source": "/latest/tutorial"
     },
     {
-      "source": "/latest/getting-started/quickstart",
-      "destination": "/v3/get-started"
+      "destination": "/v3/get-started",
+      "source": "/latest/getting-started/quickstart"
     },
     {
-      "source": "/latest/concepts/flows",
-      "destination": "/v3/develop/write-flows"
+      "destination": "/v3/develop/write-flows",
+      "source": "/latest/concepts/flows"
     },
     {
-      "source": "/latest/concepts/deployments",
-      "destination": "/v3/deploy"
+      "destination": "/v3/deploy",
+      "source": "/latest/concepts/deployments"
     },
     {
-      "source": "/latest/getting-started/installation",
-      "destination": "/v3/get-started/install"
+      "destination": "/v3/get-started/install",
+      "source": "/latest/getting-started/installation"
     },
     {
-      "source": "/latest/concepts/work-pools",
-      "destination": "/v3/deploy/infrastructure-concepts/work-pools"
+      "destination": "/v3/deploy/infrastructure-concepts/work-pools",
+      "source": "/latest/concepts/work-pools"
     },
     {
-      "source": "/latest/guides/host",
-      "destination": "/v3/manage/self-host"
+      "destination": "/v3/manage/self-host",
+      "source": "/latest/guides/host"
     },
     {
-      "source": "/latest/concepts/tasks",
-      "destination": "/v3/develop/write-tasks"
+      "destination": "/v3/develop/write-tasks",
+      "source": "/latest/concepts/tasks"
     },
     {
-      "source": "/v3/manage/settings-and-profiles",
-      "destination": "/v3/develop/settings-and-profiles"
+      "destination": "/v3/develop/settings-and-profiles",
+      "source": "/v3/manage/settings-and-profiles"
     },
     {
-      "source": "/latest/reference",
-      "destination": "/v3/api-ref/index"
+      "destination": "/v3/api-ref/index",
+      "source": "/latest/reference"
     },
     {
-      "source": "/latest/reference/:slug*",
-      "destination": "/v3/api-ref/index/:slug*"
+      "destination": "/v3/api-ref/index/:slug*",
+      "source": "/latest/reference/:slug*"
     },
     {
-      "source": "/latest/guides",
-      "destination": "/v3"
+      "destination": "/v3",
+      "source": "/latest/guides"
     },
     {
-      "source": "/latest/tutorial/deployments",
-      "destination": "/v3/deploy"
+      "destination": "/v3/deploy",
+      "source": "/latest/tutorial/deployments"
     },
     {
-      "source": "/latest/tutorial/flows",
-      "destination": "/v3/develop/write-flows"
+      "destination": "/v3/develop/write-flows",
+      "source": "/latest/tutorial/flows"
     },
     {
-      "source": "/latest/concepts",
-      "destination": "/v3"
+      "destination": "/v3",
+      "source": "/latest/concepts"
     },
     {
-      "source": "/latest/guides/prefect-deploy",
-      "destination": "/v3/deploy"
+      "destination": "/v3/deploy",
+      "source": "/latest/guides/prefect-deploy"
     },
     {
-      "source": "/latest/tutorial/tasks",
-      "destination": "/v3/develop/write-tasks"
+      "destination": "/v3/develop/write-tasks",
+      "source": "/latest/tutorial/tasks"
     },
     {
-      "source": "/latest/concepts/schedules",
-      "destination": "/v3/automate/add-schedules"
+      "destination": "/v3/automate/add-schedules",
+      "source": "/latest/concepts/schedules"
     },
     {
-      "source": "/latest/guides/docker",
-      "destination": "/v3/deploy/infrastructure-examples/docker"
+      "destination": "/v3/deploy/infrastructure-examples/docker",
+      "source": "/latest/guides/docker"
     },
     {
-      "source": "/latest/tutorial/work-pools",
-      "destination": "/v3/deploy/infrastructure-concepts/work-pools"
+      "destination": "/v3/deploy/infrastructure-concepts/work-pools",
+      "source": "/latest/tutorial/work-pools"
     },
     {
-      "source": "/latest/guides/settings",
-      "destination": "/v3/develop/settings-and-profiles"
+      "destination": "/v3/develop/settings-and-profiles",
+      "source": "/latest/guides/settings"
     },
     {
-      "source": "/latest/concepts/task-runners",
-      "destination": "/v3/develop/task-runners"
+      "destination": "/v3/develop/task-runners",
+      "source": "/latest/concepts/task-runners"
     },
     {
-      "source": "/latest/tutorial/workers",
-      "destination": "/v3/deploy/infrastructure-concepts/workers"
+      "destination": "/v3/deploy/infrastructure-concepts/workers",
+      "source": "/latest/tutorial/workers"
     },
     {
-      "source": "/latest/cloud",
-      "destination": "/v3/manage/cloud"
+      "destination": "/v3/manage/cloud",
+      "source": "/latest/cloud"
     },
     {
-      "source": "/latest/integrations",
-      "destination": "/v3/integrations"
+      "destination": "/v3/integrations",
+      "source": "/latest/integrations"
     },
     {
-      "source": "/latest/concepts/results",
-      "destination": "/v3/develop/results"
+      "destination": "/v3/develop/results",
+      "source": "/latest/concepts/results"
     },
     {
-      "source": "/latest/concepts/automations",
-      "destination": "/v3/automate"
+      "destination": "/v3/automate",
+      "source": "/latest/concepts/automations"
     },
     {
-      "source": "/latest/guides/logs",
-      "destination": "/v3/develop/logging"
+      "destination": "/v3/develop/logging",
+      "source": "/latest/guides/logs"
     },
     {
-      "source": "/latest/concepts/blocks",
-      "destination": "/v3/develop/blocks"
+      "destination": "/v3/develop/blocks",
+      "source": "/latest/concepts/blocks"
     },
     {
-      "source": "/latest/guides/deployment/kubernetes",
-      "destination": "/v3/deploy/infrastructure-examples/kubernetes"
+      "destination": "/v3/deploy/infrastructure-examples/kubernetes",
+      "source": "/latest/guides/deployment/kubernetes"
     },
     {
-      "source": "/latest/concepts/states",
-      "destination": "/v3/develop/manage-states"
+      "destination": "/v3/develop/manage-states",
+      "source": "/latest/concepts/states"
     },
     {
-      "source": "/latest/guides/upgrade-guide-agents-to-workers",
-      "destination": "/v3/resources/upgrade-agents-to-workers"
+      "destination": "/v3/resources/upgrade-agents-to-workers",
+      "source": "/latest/guides/upgrade-guide-agents-to-workers"
     },
     {
-      "source": "/latest/guides/webhooks",
-      "destination": "/v3/concepts/webhooks"
+      "destination": "/v3/concepts/webhooks",
+      "source": "/latest/guides/webhooks"
     },
     {
-      "source": "/latest/cloud/webhooks",
-      "destination": "/v3/concepts/webhooks"
+      "destination": "/v3/concepts/webhooks",
+      "source": "/latest/cloud/webhooks"
     },
     {
-      "source": "/latest/concepts/artifacts",
-      "destination": "/v3/develop/artifacts"
+      "destination": "/v3/develop/artifacts",
+      "source": "/latest/concepts/artifacts"
     },
     {
-      "source": "/latest/api-ref/rest-api-reference",
-      "destination": "/v3/api-ref/rest-api"
+      "destination": "/v3/api-ref/rest-api",
+      "source": "/latest/api-ref/rest-api-reference"
     },
     {
-      "source": "/latest/guides/global-concurrency-limits",
-      "destination": "/v3/develop/global-concurrency-limits"
+      "destination": "/v3/develop/global-concurrency-limits",
+      "source": "/latest/guides/global-concurrency-limits"
     },
     {
-      "source": "/latest/guides/variables",
-      "destination": "/v3/develop/variables"
+      "destination": "/v3/develop/variables",
+      "source": "/latest/guides/variables"
     },
     {
-      "source": "/latest/guides/using-the-client",
-      "destination": "/v3/api-ref"
+      "destination": "/v3/api-ref",
+      "source": "/latest/guides/using-the-client"
     },
     {
-      "source": "/latest/guides/deployment/storage-guide",
-      "destination": "/v3/deploy/infrastructure-concepts/store-flow-code"
+      "destination": "/v3/deploy/infrastructure-concepts/store-flow-code",
+      "source": "/latest/guides/deployment/storage-guide"
     },
     {
-      "source": "/latest/guides/testing",
-      "destination": "/v3/develop/test-workflows"
+      "destination": "/v3/develop/test-workflows",
+      "source": "/latest/guides/testing"
     },
     {
-      "source": "/latest/guides/deployment/push-work-pools",
-      "destination": "/v3/deploy/infrastructure-examples/serverless"
+      "destination": "/v3/deploy/infrastructure-examples/serverless",
+      "source": "/latest/guides/deployment/push-work-pools"
     },
     {
-      "source": "/latest/guides/creating-interactive-workflows",
-      "destination": "/v3/develop/inputs"
+      "destination": "/v3/develop/inputs",
+      "source": "/latest/guides/creating-interactive-workflows"
     },
     {
-      "source": "/latest/guides/dask-ray-task-runners",
-      "destination": "/integrations/prefect-dask/usage_guide"
+      "destination": "/integrations/prefect-dask/usage_guide",
+      "source": "/latest/guides/dask-ray-task-runners"
     },
     {
-      "source": "/latest/guides/ci-cd",
-      "destination": "/v3/advanced/deploy-ci-cd"
+      "destination": "/v3/advanced/deploy-ci-cd",
+      "source": "/latest/guides/ci-cd"
     },
     {
-      "source": "/latest/concepts/deployments-block-based",
-      "destination": "/v3/resources/upgrade-agents-to-workers"
+      "destination": "/v3/resources/upgrade-agents-to-workers",
+      "source": "/latest/concepts/deployments-block-based"
     },
     {
-      "source": "/latest/concepts/infrastructure",
-      "destination": "/v3/deploy/infrastructure-concepts/work-pools"
+      "destination": "/v3/deploy/infrastructure-concepts/work-pools",
+      "source": "/latest/concepts/infrastructure"
     },
     {
-      "source": "/latest/guides/runtime-context",
-      "destination": "/v3/develop/runtime-context"
+      "destination": "/v3/develop/runtime-context",
+      "source": "/latest/guides/runtime-context"
     },
     {
-      "source": "/latest/guides/deployment/overriding-job-variables",
-      "destination": "/v3/deploy/infrastructure-concepts/customize"
+      "destination": "/v3/deploy/infrastructure-concepts/customize",
+      "source": "/latest/guides/deployment/overriding-job-variables"
     },
     {
-      "source": "/latest/guides/managed-execution",
-      "destination": "/v3/deploy/infrastructure-examples/managed"
+      "destination": "/v3/deploy/infrastructure-examples/managed",
+      "source": "/latest/guides/managed-execution"
     },
     {
-      "source": "/latest/guides/specifying-upstream-dependencies",
-      "destination": "/v3/develop/write-flows"
+      "destination": "/v3/develop/write-flows",
+      "source": "/latest/guides/specifying-upstream-dependencies"
     },
     {
-      "source": "/latest/guides/automations",
-      "destination": "/v3/automate"
+      "destination": "/v3/automate",
+      "source": "/latest/guides/automations"
     },
     {
-      "source": "/latest/concepts/agents",
-      "destination": "/v3/resources/upgrade-agents-to-workers"
+      "destination": "/v3/resources/upgrade-agents-to-workers",
+      "source": "/latest/concepts/agents"
     },
     {
-      "source": "/latest/integrations/prefect-aws",
-      "destination": "/integrations/prefect-aws"
+      "destination": "/integrations/prefect-aws",
+      "source": "/latest/integrations/prefect-aws"
     },
     {
-      "source": "/latest/concepts/storage",
-      "destination": "/v3/deploy/infrastructure-concepts/store-flow-code"
+      "destination": "/v3/deploy/infrastructure-concepts/store-flow-code",
+      "source": "/latest/concepts/storage"
     },
     {
-      "source": "/latest/guides/deployment/daemonize",
-      "destination": "/v3/advanced/daemonize-processes"
+      "destination": "/v3/advanced/daemonize-processes",
+      "source": "/latest/guides/deployment/daemonize"
     },
     {
-      "source": "/latest/cloud/users/api-keys",
-      "destination": "/v3/manage/cloud/manage-users/api-keys"
+      "destination": "/v3/manage/cloud/manage-users/api-keys",
+      "source": "/latest/cloud/users/api-keys"
     },
     {
-      "source": "/latest/community",
-      "destination": "/v3/contribute"
+      "destination": "/v3/contribute",
+      "source": "/latest/community"
     },
     {
-      "source": "/latest/concepts/filesystems",
-      "destination": "/v3/develop/blocks"
+      "destination": "/v3/develop/blocks",
+      "source": "/latest/concepts/filesystems"
     },
     {
-      "source": "/latest/cloud/events",
-      "destination": "/v3/events"
+      "destination": "/v3/events",
+      "source": "/latest/cloud/events"
     },
     {
-      "source": "/latest/recipes/recipes",
-      "destination": "/v3"
+      "destination": "/v3",
+      "source": "/latest/recipes/recipes"
     },
     {
-      "source": "/latest/guides/cli-shell",
-      "destination": "/v3/develop/cli-shell"
+      "destination": "/v3/develop/cli-shell",
+      "source": "/latest/guides/cli-shell"
     },
     {
-      "source": "/latest/api-ref/server",
-      "destination": "/v3/api-ref/rest-api/server"
+      "destination": "/v3/api-ref/rest-api/server",
+      "source": "/latest/api-ref/server"
     },
     {
-      "source": "/latest/guides/moving-data",
-      "destination": "/v3/develop/blocks"
+      "destination": "/v3/develop/blocks",
+      "source": "/latest/guides/moving-data"
     },
     {
-      "source": "/latest/guides/deployment/developing-a-new-worker-type",
-      "destination": "/contribute/develop-a-new-worker-type"
+      "destination": "/contribute/develop-a-new-worker-type",
+      "source": "/latest/guides/deployment/developing-a-new-worker-type"
     },
     {
-      "source": "/latest/guides/state-change-hooks",
-      "destination": "/v3/develop/manage-states"
+      "destination": "/v3/develop/manage-states",
+      "source": "/latest/guides/state-change-hooks"
     },
     {
-      "source": "/latest/guides/deployment/serverless-workers",
-      "destination": "/v3/deploy/infrastructure-examples/serverless"
+      "destination": "/v3/deploy/infrastructure-examples/serverless",
+      "source": "/latest/guides/deployment/serverless-workers"
     },
     {
-      "source": "/latest/integrations/usage",
-      "destination": "/integrations/integrations"
+      "destination": "/integrations/integrations",
+      "source": "/latest/integrations/usage"
     },
     {
-      "source": "/latest/guides/troubleshooting",
-      "destination": "/v3/manage/cloud/troubleshoot-cloud"
+      "destination": "/v3/manage/cloud/troubleshoot-cloud",
+      "source": "/latest/guides/troubleshooting"
     },
     {
-      "source": "/latest/guides/big-data",
-      "destination": "/v3/develop/big-data"
+      "destination": "/v3/develop/big-data",
+      "source": "/latest/guides/big-data"
     },
     {
-      "source": "/latest/cloud/workspaces",
-      "destination": "/v3/how-to-guides/cloud/workspaces"
+      "destination": "/v3/how-to-guides/cloud/workspaces",
+      "source": "/latest/cloud/workspaces"
     },
     {
-      "source": "/v3/manage/cloud/workspaces",
-      "destination": "/v3/how-to-guides/cloud/workspaces"
+      "destination": "/v3/how-to-guides/cloud/workspaces",
+      "source": "/v3/manage/cloud/workspaces"
     },
     {
-      "source": "/latest/integrations/prefect-aws/ecs_guide",
-      "destination": "/integrations/prefect-aws/ecs_guide"
+      "destination": "/integrations/prefect-aws/ecs_guide",
+      "source": "/latest/integrations/prefect-aws/ecs_guide"
     },
     {
-      "source": "/latest/integrations/prefect-kubernetes",
-      "destination": "/integrations/prefect-kubernetes"
+      "destination": "/integrations/prefect-kubernetes",
+      "source": "/latest/integrations/prefect-kubernetes"
     },
     {
-      "source": "/latest/faq",
-      "destination": "/v3/get-started/whats-new-prefect-3"
+      "destination": "/v3/get-started/whats-new-prefect-3",
+      "source": "/latest/faq"
     },
     {
-      "source": "/latest/guides/migration-guide",
-      "destination": "/v3/resources/upgrade-to-prefect-3"
+      "destination": "/v3/resources/upgrade-to-prefect-3",
+      "source": "/latest/guides/migration-guide"
     },
     {
-      "source": "/latest/integrations/prefect-dbt",
-      "destination": "/integrations/prefect-dbt"
+      "destination": "/integrations/prefect-dbt",
+      "source": "/latest/integrations/prefect-dbt"
     },
     {
-      "source": "/latest/integrations/prefect-aws/ecs_worker",
-      "destination": "/integrations/prefect-aws/ecs_guide"
+      "destination": "/integrations/prefect-aws/ecs_guide",
+      "source": "/latest/integrations/prefect-aws/ecs_worker"
     },
     {
-      "source": "/latest/contributing/overview",
-      "destination": "/v3/contribute"
+      "destination": "/v3/contribute",
+      "source": "/latest/contributing/overview"
     },
     {
-      "source": "/latest/guides/secrets",
-      "destination": "/v3/develop/secrets"
+      "destination": "/v3/develop/secrets",
+      "source": "/latest/guides/secrets"
     },
     {
-      "source": "/latest/cloud/connecting",
-      "destination": "/v3/manage/cloud/connect-to-cloud"
+      "destination": "/v3/manage/cloud/connect-to-cloud",
+      "source": "/latest/cloud/connecting"
     },
     {
-      "source": "/latest/cloud/users/roles",
-      "destination": "/v3/manage/cloud/manage-users/manage-roles"
+      "destination": "/v3/manage/cloud/manage-users/manage-roles",
+      "source": "/latest/cloud/users/roles"
     },
     {
-      "source": "/latest/integrations/prefect-docker",
-      "destination": "/integrations/prefect-docker"
+      "destination": "/integrations/prefect-docker",
+      "source": "/latest/integrations/prefect-docker"
     },
     {
-      "source": "/latest/cloud/users",
-      "destination": "/v3/manage/cloud/manage-users"
+      "destination": "/v3/manage/cloud/manage-users",
+      "source": "/latest/cloud/users"
     },
     {
-      "source": "/v3/integrations/prefect-gcp",
-      "destination": "/integrations/prefect-gcp"
+      "destination": "/integrations/prefect-gcp",
+      "source": "/v3/integrations/prefect-gcp"
     },
     {
-      "source": "/latest/cloud/users/sso",
-      "destination": "/latest/manage/cloud/manage-users/configure-sso"
+      "destination": "/latest/manage/cloud/manage-users/configure-sso",
+      "source": "/latest/cloud/users/sso"
     },
     {
-      "source": "/latest/integrations/prefect-dask",
-      "destination": "/integrations/prefect-dask"
+      "destination": "/integrations/prefect-dask",
+      "source": "/latest/integrations/prefect-dask"
     },
     {
-      "source": "/latest/integrations/prefect-gcp/gcp-worker-guide",
-      "destination": "/integrations/prefect-gcp/gcp-worker-guide"
+      "destination": "/integrations/prefect-gcp/gcp-worker-guide",
+      "source": "/latest/integrations/prefect-gcp/gcp-worker-guide"
     },
     {
-      "source": "/latest/cloud/rate-limits",
-      "destination": "/v3/manage/cloud/rate-limits"
+      "destination": "/v3/manage/cloud/rate-limits",
+      "source": "/latest/cloud/rate-limits"
     },
     {
-      "source": "/latest/integrations/prefect-sqlalchemy",
-      "destination": "/integrations/prefect-sqlalchemy"
+      "destination": "/integrations/prefect-sqlalchemy",
+      "source": "/latest/integrations/prefect-sqlalchemy"
     },
     {
-      "source": "/latest/integrations/prefect-slack",
-      "destination": "/integrations/prefect-slack"
+      "destination": "/integrations/prefect-slack",
+      "source": "/latest/integrations/prefect-slack"
     },
     {
-      "source": "/latest/integrations/prefect-gitlab",
-      "destination": "/integrations/prefect-gitlab"
+      "destination": "/integrations/prefect-gitlab",
+      "source": "/latest/integrations/prefect-gitlab"
     },
     {
-      "source": "/latest/integrations/prefect-dbt/cli/commands",
-      "destination": "/integrations/prefect-dbt"
+      "destination": "/integrations/prefect-dbt",
+      "source": "/latest/integrations/prefect-dbt/cli/commands"
     },
     {
-      "source": "/latest/integrations/prefect-databricks",
-      "destination": "/integrations/prefect-databricks"
+      "destination": "/integrations/prefect-databricks",
+      "source": "/latest/integrations/prefect-databricks"
     },
     {
-      "source": "/latest/cloud/users/service-accounts",
-      "destination": "/latest/manage/cloud/manage-users/service-accounts"
+      "destination": "/latest/manage/cloud/manage-users/service-accounts",
+      "source": "/latest/cloud/users/service-accounts"
     },
     {
-      "source": "/latest/integrations/prefect-shell",
-      "destination": "/integrations/prefect-shell"
+      "destination": "/integrations/prefect-shell",
+      "source": "/latest/integrations/prefect-shell"
     },
     {
-      "source": "/latest/integrations/prefect-azure",
-      "destination": "/integrations/prefect-azure"
+      "destination": "/integrations/prefect-azure",
+      "source": "/latest/integrations/prefect-azure"
     },
     {
-      "source": "/latest/guides/deployment/aci",
-      "destination": "/integrations/prefect-azure/aci_worker#why-use-aci-for-flow-run-execution"
+      "destination": "/integrations/prefect-azure/aci_worker#why-use-aci-for-flow-run-execution",
+      "source": "/latest/guides/deployment/aci"
     },
     {
-      "source": "/latest/api-ref/server/api/deployments",
-      "destination": "/v3/api-ref/python"
+      "destination": "/v3/api-ref/python",
+      "source": "/latest/api-ref/server/api/deployments"
     },
     {
-      "source": "/latest/integrations/prefect-github",
-      "destination": "/integrations/prefect-github"
+      "destination": "/integrations/prefect-github",
+      "source": "/latest/integrations/prefect-github"
     },
     {
-      "source": "/latest/integrations/prefect-aws/s3",
-      "destination": "/integrations/prefect-aws"
+      "destination": "/integrations/prefect-aws",
+      "source": "/latest/integrations/prefect-aws/s3"
     },
     {
-      "source": "/latest/api-ref/server/api/flow_runs",
-      "destination": "/v3/api-ref"
+      "destination": "/v3/api-ref",
+      "source": "/latest/api-ref/server/api/flow_runs"
     },
     {
-      "source": "/latest/cloud/incidents",
-      "destination": "/latest/automate/incidents"
+      "destination": "/latest/automate/incidents",
+      "source": "/latest/cloud/incidents"
     },
     {
-      "source": "/latest/integrations/prefect-aws/ecs",
-      "destination": "/integrations/prefect-aws"
+      "destination": "/integrations/prefect-aws",
+      "source": "/latest/integrations/prefect-aws/ecs"
     },
     {
-      "source": "/latest/integrations/prefect-email",
-      "destination": "/integrations/prefect-email"
+      "destination": "/integrations/prefect-email",
+      "source": "/latest/integrations/prefect-email"
     },
     {
-      "source": "/latest/integrations/prefect-snowflake",
-      "destination": "/integrations/prefect-snowflake"
+      "destination": "/integrations/prefect-snowflake",
+      "source": "/latest/integrations/prefect-snowflake"
     },
     {
-      "source": "/latest/integrations/contribute",
-      "destination": "/contribute/contribute-integrations"
+      "destination": "/contribute/contribute-integrations",
+      "source": "/latest/integrations/contribute"
     },
     {
-      "source": "/latest/integrations/prefect-aws/lambda_function",
-      "destination": "/integrations/prefect-aws"
+      "destination": "/integrations/prefect-aws",
+      "source": "/latest/integrations/prefect-aws/lambda_function"
     },
     {
-      "source": "/latest/integrations/prefect-docker/host",
-      "destination": "/integrations/prefect-docker"
+      "destination": "/integrations/prefect-docker",
+      "source": "/latest/integrations/prefect-docker/host"
     },
     {
-      "source": "/latest/integrations/prefect-docker/worker",
-      "destination": "/integrations/prefect-docker"
+      "destination": "/integrations/prefect-docker",
+      "source": "/latest/integrations/prefect-docker/worker"
     },
     {
-      "source": "/latest/api-ref/server/schemas/schedules",
-      "destination": "/v3/api-ref/python"
+      "destination": "/v3/api-ref/python",
+      "source": "/latest/api-ref/server/schemas/schedules"
     },
     {
-      "source": "/latest/integrations/prefect-docker/deployments/steps",
-      "destination": "/integrations/prefect-docker"
+      "destination": "/integrations/prefect-docker",
+      "source": "/latest/integrations/prefect-docker/deployments/steps"
     },
     {
-      "source": "/latest/integrations/prefect-ray",
-      "destination": "/integrations/prefect-ray"
+      "destination": "/integrations/prefect-ray",
+      "source": "/latest/integrations/prefect-ray"
     },
     {
-      "source": "/implementation/azure/aks",
-      "destination": "/v3/deploy/infrastructure-examples/kubernetes"
+      "destination": "/v3/deploy/infrastructure-examples/kubernetes",
+      "source": "/implementation/azure/aks"
     },
     {
-      "source": "/latest/api-ref/server/models/flow_runs",
-      "destination": "/v3/api-ref/python"
+      "destination": "/v3/api-ref/python",
+      "source": "/latest/api-ref/server/models/flow_runs"
     },
     {
-      "source": "/latest/integrations/prefect-gcp/bigquery",
-      "destination": "/integrations/prefect-gcp"
+      "destination": "/integrations/prefect-gcp",
+      "source": "/latest/integrations/prefect-gcp/bigquery"
     },
     {
-      "source": "/latest/integrations/prefect-sqlalchemy/database",
-      "destination": "/integrations/prefect-sqlalchemy"
+      "destination": "/integrations/prefect-sqlalchemy",
+      "source": "/latest/integrations/prefect-sqlalchemy/database"
     },
     {
-      "source": "/latest/contributing/versioning",
-      "destination": "/contribute/styles-practices"
+      "destination": "/contribute/styles-practices",
+      "source": "/latest/contributing/versioning"
     },
     {
-      "source": "/latest/integrations/prefect-dask/task_runners",
-      "destination": "/integrations/prefect-dask"
+      "destination": "/integrations/prefect-dask",
+      "source": "/latest/integrations/prefect-dask/task_runners"
     },
     {
-      "source": "/latest/integrations/prefect-dask/usage_guide",
-      "destination": "/integrations/prefect-dask"
+      "destination": "/integrations/prefect-dask",
+      "source": "/latest/integrations/prefect-dask/usage_guide"
     },
     {
-      "source": "/latest/integrations/prefect-shell/commands",
-      "destination": "/integrations/prefect-shell"
+      "destination": "/integrations/prefect-shell",
+      "source": "/latest/integrations/prefect-shell/commands"
     },
     {
-      "source": "/latest/integrations/prefect-azure/aci_worker",
-      "destination": "/integrations/prefect-azure/aci_worker"
+      "destination": "/integrations/prefect-azure/aci_worker",
+      "source": "/latest/integrations/prefect-azure/aci_worker"
     },
     {
-      "source": "/latest/integrations/prefect-aws/batch",
-      "destination": "/integrations/prefect-aws"
+      "destination": "/integrations/prefect-aws",
+      "source": "/latest/integrations/prefect-aws/batch"
     },
     {
-      "source": "/latest/integrations/prefect-docker/containers",
-      "destination": "/integrations/prefect-docker"
+      "destination": "/integrations/prefect-docker",
+      "source": "/latest/integrations/prefect-docker/containers"
     },
     {
-      "source": "/latest/api-ref/server/api/flows",
-      "destination": "/v3/api-ref/rest-api/server/flows"
+      "destination": "/v3/api-ref/rest-api/server/flows",
+      "source": "/latest/api-ref/server/api/flows"
     },
     {
-      "source": "/latest/api-ref/server/schemas/filters",
-      "destination": "/v3/api-ref"
+      "destination": "/v3/api-ref",
+      "source": "/latest/api-ref/server/schemas/filters"
     },
     {
-      "source": "/latest/integrations/prefect-docker/images",
-      "destination": "/integrations/prefect-docker"
+      "destination": "/integrations/prefect-docker",
+      "source": "/latest/integrations/prefect-docker/images"
     },
     {
-      "source": "/latest/contributing/style",
-      "destination": "/contribute/styles-practices"
+      "destination": "/contribute/styles-practices",
+      "source": "/latest/contributing/style"
     },
     {
-      "source": "/latest/integrations/prefect-docker/credentials",
-      "destination": "/integrations/prefect-docker"
+      "destination": "/integrations/prefect-docker",
+      "source": "/latest/integrations/prefect-docker/credentials"
     },
     {
-      "source": "/latest/integrations/prefect-gcp/cloud_storage",
-      "destination": "/integrations/prefect-gcp"
+      "destination": "/integrations/prefect-gcp",
+      "source": "/latest/integrations/prefect-gcp/cloud_storage"
     },
     {
-      "source": "/latest/api-ref/server/api/admin",
-      "destination": "/v3/api-ref"
+      "destination": "/v3/api-ref",
+      "source": "/latest/api-ref/server/api/admin"
     },
     {
-      "source": "/latest/api-ref/server/api/server",
-      "destination": "/v3/api-ref"
+      "destination": "/v3/api-ref",
+      "source": "/latest/api-ref/server/api/server"
     },
     {
-      "source": "/latest/cloud/users/object-access-control-lists",
-      "destination": "/v3/manage/cloud/manage-users/object-access-control-lists"
+      "destination": "/v3/manage/cloud/manage-users/object-access-control-lists",
+      "source": "/latest/cloud/users/object-access-control-lists"
     },
     {
-      "source": "/latest/integrations/prefect-aws/secrets_manager",
-      "destination": "/integrations/prefect-aws"
+      "destination": "/integrations/prefect-aws",
+      "source": "/latest/integrations/prefect-aws/secrets_manager"
     },
     {
-      "source": "/latest/integrations/prefect-aws/credentials",
-      "destination": "/integrations/prefect-aws"
+      "destination": "/integrations/prefect-aws",
+      "source": "/latest/integrations/prefect-aws/credentials"
     },
     {
-      "source": "/latest/integrations/prefect-databricks/jobs",
-      "destination": "/integrations/prefect-databricks"
+      "destination": "/integrations/prefect-databricks",
+      "source": "/latest/integrations/prefect-databricks/jobs"
     },
     {
-      "source": "/latest/integrations/prefect-databricks/models/jobs",
-      "destination": "/integrations/prefect-databricks"
+      "destination": "/integrations/prefect-databricks",
+      "source": "/latest/integrations/prefect-databricks/models/jobs"
     },
     {
-      "source": "/latest/integrations/prefect-kubernetes/worker",
-      "destination": "/integrations/prefect-kubernetes"
+      "destination": "/integrations/prefect-kubernetes",
+      "source": "/latest/integrations/prefect-kubernetes/worker"
     },
     {
-      "source": "/latest/integrations/prefect-sqlalchemy/credentials",
-      "destination": "/integrations/prefect-sqlalchemy"
+      "destination": "/integrations/prefect-sqlalchemy",
+      "source": "/latest/integrations/prefect-sqlalchemy/credentials"
     },
     {
-      "source": "/latest/integrations/prefect-databricks/flows",
-      "destination": "/integrations/prefect-databricks"
+      "destination": "/integrations/prefect-databricks",
+      "source": "/latest/integrations/prefect-databricks/flows"
     },
     {
-      "source": "/latest/integrations/prefect-kubernetes/deployments",
-      "destination": "/integrations/prefect-kubernetes"
+      "destination": "/integrations/prefect-kubernetes",
+      "source": "/latest/integrations/prefect-kubernetes/deployments"
     },
     {
-      "source": "/latest/integrations/prefect-snowflake/credentials",
-      "destination": "/integrations/prefect-snowflake"
+      "destination": "/integrations/prefect-snowflake",
+      "source": "/latest/integrations/prefect-snowflake/credentials"
     },
     {
-      "source": "/latest/integrations/prefect-dbt/cli/credentials",
-      "destination": "/integrations/prefect-dbt"
+      "destination": "/integrations/prefect-dbt",
+      "source": "/latest/integrations/prefect-dbt/cli/credentials"
     },
     {
-      "source": "/latest/integrations/prefect-kubernetes/jobs",
-      "destination": "/integrations/prefect-kubernetes"
+      "destination": "/integrations/prefect-kubernetes",
+      "source": "/latest/integrations/prefect-kubernetes/jobs"
     },
     {
-      "source": "/latest/integrations/prefect-slack/messages",
-      "destination": "/integrations/prefect-slack"
+      "destination": "/integrations/prefect-slack",
+      "source": "/latest/integrations/prefect-slack/messages"
     },
     {
-      "source": "/v3/resources/whats-new-prefect-3",
-      "destination": "/v3/get-started/whats-new-prefect-3"
+      "destination": "/v3/get-started/whats-new-prefect-3",
+      "source": "/v3/resources/whats-new-prefect-3"
     },
     {
-      "source": "/v3/resources/deferred-tasks",
-      "destination": "/v3/develop/deferred-tasks"
+      "destination": "/v3/develop/deferred-tasks",
+      "source": "/v3/resources/deferred-tasks"
     },
     {
-      "source": "/v3/resources/visualize-flow-structure",
-      "destination": "/v3/develop/visualize-flow-structure"
+      "destination": "/v3/develop/visualize-flow-structure",
+      "source": "/v3/resources/visualize-flow-structure"
     },
     {
-      "source": "/v3/resources/big-data",
-      "destination": "/v3/develop/big-data"
+      "destination": "/v3/develop/big-data",
+      "source": "/v3/resources/big-data"
     },
     {
-      "source": "/v3/resources/cli-shell",
-      "destination": "/v3/develop/cli-shell"
+      "destination": "/v3/develop/cli-shell",
+      "source": "/v3/resources/cli-shell"
     },
     {
-      "source": "/v3/resources/secrets",
-      "destination": "/v3/develop/secrets"
+      "destination": "/v3/develop/secrets",
+      "source": "/v3/resources/secrets"
     },
     {
-      "source": "/v3/resources/cancel",
-      "destination": "/v3/develop/cancel"
+      "destination": "/v3/develop/cancel",
+      "source": "/v3/resources/cancel"
     },
     {
-      "source": "/v3/resources/daemonize-processes",
-      "destination": "/v3/advanced/daemonize-processes"
+      "destination": "/v3/advanced/daemonize-processes",
+      "source": "/v3/resources/daemonize-processes"
     },
     {
-      "source": "/v3/resources/interact-with-api",
-      "destination": "/v3/develop/interact-with-api"
+      "destination": "/v3/develop/interact-with-api",
+      "source": "/v3/resources/interact-with-api"
     },
     {
-      "source": "/v3/manage/cloud/terraform-provider",
-      "destination": "/v3/manage/infrastructure-as-code"
+      "destination": "/v3/manage/infrastructure-as-code",
+      "source": "/v3/manage/cloud/terraform-provider"
     },
     {
-      "source": "/v3/tutorials/modal",
-      "destination": "/v3/deploy/infrastructure-examples/modal"
+      "destination": "/v3/deploy/infrastructure-examples/modal",
+      "source": "/v3/tutorials/modal"
     },
     {
-      "source": "/v3/tutorials/server-and-worker",
-      "destination": "/v3/manage/server/examples/helm"
+      "destination": "/v3/manage/server/examples/helm",
+      "source": "/v3/tutorials/server-and-worker"
     },
     {
-      "source": "/v3/tutorials/form-building",
-      "destination": "v3/advanced/form-building"
+      "destination": "v3/advanced/form-building",
+      "source": "/v3/tutorials/form-building"
     },
     {
-      "source": "/latest/api-ref/prefect/:slug*",
-      "destination": "/v3/api-ref/python"
+      "destination": "/v3/api-ref/python",
+      "source": "/latest/api-ref/prefect/:slug*"
     },
     {
-      "source": "/api-ref/prefect/:slug*",
-      "destination": "/v3/api-ref/python"
+      "destination": "/v3/api-ref/python",
+      "source": "/api-ref/prefect/:slug*"
     },
     {
-      "source": "/3rc/:slug*",
-      "destination": "/v3/:slug*"
+      "destination": "/v3/:slug*",
+      "source": "/3rc/:slug*"
     },
     {
-      "source": "/latest/:slug*",
-      "destination": "/v3/:slug*"
+      "destination": "/v3/:slug*",
+      "source": "/latest/:slug*"
     },
     {
-      "source": "/3/:slug*",
-      "destination": "/v3/:slug*"
+      "destination": "/v3/:slug*",
+      "source": "/3/:slug*"
     },
     {
-      "source": "/3.0/:slug*",
-      "destination": "/v3/:slug*"
+      "destination": "/v3/:slug*",
+      "source": "/3.0/:slug*"
     },
     {
-      "source": "/2/:slug*",
-      "destination": "/v2/:slug*"
+      "destination": "/v2/:slug*",
+      "source": "/2/:slug*"
     },
     {
       "destination": "/v3/api-ref/settings-ref",
       "source": "/v3/develop/settings-ref"
     },
     {
-      "source": "/v3/deploy/infrastructure-concepts/store-flow-code#cloud-provider-storage",
-      "destination": "/v3/deploy/infrastructure-concepts/store-flow-code#blob-storage"
+      "destination": "/v3/deploy/infrastructure-concepts/store-flow-code#blob-storage",
+      "source": "/v3/deploy/infrastructure-concepts/store-flow-code#cloud-provider-storage"
     },
     {
-      "source": "/v3/develop/write-flows",
-      "destination": "/v3/how-to-guides/workflows/write-and-run"
+      "destination": "/v3/how-to-guides/workflows/write-and-run",
+      "source": "/v3/develop/write-flows"
     },
     {
-      "source": "/v3/develop/write-tasks",
-      "destination": "/v3/how-to-guides/workflows/write-and-run"
+      "destination": "/v3/how-to-guides/workflows/write-and-run",
+      "source": "/v3/develop/write-tasks"
     },
     {
-      "source": "/v3/automate/events/automations-triggers",
-      "destination": "/v3/concepts/automations"
+      "destination": "/v3/concepts/automations",
+      "source": "/v3/automate/events/automations-triggers"
     },
     {
-      "source": "/v3/automate/events/webhook-triggers",
-      "destination": "/v3/concepts/webhooks"
+      "destination": "/v3/concepts/webhooks",
+      "source": "/v3/automate/events/webhook-triggers"
     },
     {
-      "source": "/v3/automate/events/events",
-      "destination": "/v3/concepts/events"
+      "destination": "/v3/concepts/events",
+      "source": "/v3/automate/events/events"
     },
     {
-      "source": "v3/manage/cloud/connect-to-cloud",
-      "destination": "/v3/how-to-guides/cloud/connect-to-cloud"
+      "destination": "/v3/how-to-guides/cloud/connect-to-cloud",
+      "source": "v3/manage/cloud/connect-to-cloud"
     },
     {
-      "source": "v3/manage/cloud/rate-limits",
-      "destination": "/v3/concepts/rate-limits"
+      "destination": "/v3/concepts/rate-limits",
+      "source": "v3/manage/cloud/rate-limits"
     },
     {
-      "source": "/v3/automate/events/custom-triggers",
-      "destination": "/v3/concepts/event-triggers"
+      "destination": "/v3/concepts/event-triggers",
+      "source": "/v3/automate/events/custom-triggers"
     },
     {
-      "source": "/v3/automate/events/slas",
-      "destination": "/v3/concepts/slas"
+      "destination": "/v3/concepts/slas",
+      "source": "/v3/automate/events/slas"
     },
     {
-      "source": "/v3/automate/add-schedules",
-      "destination": "/v3/concepts/schedules"
+      "destination": "/v3/concepts/schedules",
+      "source": "/v3/automate/add-schedules"
     },
     {
-      "source": "/v3/deploy/run-flows-in-local-processes",
-      "destination": "/v3/how-to-guides/deployment_infra/run-flows-in-local-processes"
+      "destination": "/v3/how-to-guides/deployment_infra/run-flows-in-local-processes",
+      "source": "/v3/deploy/run-flows-in-local-processes"
     },
     {
-      "source": "v3/develop/deferred-tasks",
-      "destination": "/v3/how-to-guides/workflows/run-background-tasks"
+      "destination": "/v3/how-to-guides/workflows/run-background-tasks",
+      "source": "v3/develop/deferred-tasks"
     },
     {
-      "source": "/v3/manage/cloud/manage-users/:slug*",
-      "destination": "/v3/how-to-guides/cloud/manage-users/:slug*"
+      "destination": "/v3/how-to-guides/cloud/manage-users/:slug*",
+      "source": "/v3/manage/cloud/manage-users/:slug*"
     },
     {
-      "source": "/v3/manage/infrastructure-as-code",
-      "destination": "/v3/advanced/infrastructure-as-code"
+      "destination": "/v3/advanced/infrastructure-as-code",
+      "source": "/v3/manage/infrastructure-as-code"
     },
     {
-      "source": "/v3/deploy/infrastructure-concepts/work-pools",
-      "destination": "/v3/concepts/work-pools"
+      "destination": "/v3/concepts/work-pools",
+      "source": "/v3/deploy/infrastructure-concepts/work-pools"
     },
     {
-      "source": "/v3/develop/big-data",
-      "destination": "/v3/concepts/flows-and-tasks"
+      "destination": "/v3/concepts/flows-and-tasks",
+      "source": "/v3/develop/big-data"
     },
     {
-      "source": "/v3/develop/secrets",
-      "destination": "/v3/how-to-guides/configuration/store-secrets"
+      "destination": "/v3/how-to-guides/configuration/store-secrets",
+      "source": "/v3/develop/secrets"
     },
     {
-      "source": "/v3/deploy/deployment-versioning",
-      "destination": "/v3/how-to-guides/deployments/versioning"
+      "destination": "/v3/how-to-guides/deployments/versioning",
+      "source": "/v3/deploy/deployment-versioning"
     },
     {
-      "source": "/v3/deploy/submit-flows-directly-to-dynamic-infrastructure",
-      "destination": "/v3/advanced/submit-flows-directly-to-dynamic-infrastructure"
+      "destination": "/v3/advanced/submit-flows-directly-to-dynamic-infrastructure",
+      "source": "/v3/deploy/submit-flows-directly-to-dynamic-infrastructure"
     },
     {
-      "source": "/v3/deploy/daemonize-processes",
-      "destination": "/v3/advanced/daemonize-processes"
+      "destination": "/v3/advanced/daemonize-processes",
+      "source": "/v3/deploy/daemonize-processes"
     },
     {
-      "source": "/v3/develop/task-caching",
-      "destination": "/v3/how-to-guides/workflows/cache-workflow-results"
+      "destination": "/v3/how-to-guides/workflows/cache-workflow-results",
+      "source": "/v3/develop/task-caching"
     },
     {
-      "source": "/v3/develop/logging",
-      "destination": "/v3/how-to-guides/workflows/add-logging"
+      "destination": "/v3/how-to-guides/workflows/add-logging",
+      "source": "/v3/develop/logging"
     },
     {
-      "source": "/v3/deploy/infrastructure-concepts/workers",
-      "destination": "/v3/concepts/workers"
+      "destination": "/v3/concepts/workers",
+      "source": "/v3/deploy/infrastructure-concepts/workers"
     },
     {
-      "source": "/v3/develop/transactions",
-      "destination": "/v3/advanced/transactions"
+      "destination": "/v3/advanced/transactions",
+      "source": "/v3/develop/transactions"
     },
     {
-      "source": "/v3/develop/inputs",
-      "destination": "/v3/advanced/interactive"
+      "destination": "/v3/advanced/interactive",
+      "source": "/v3/develop/inputs"
     },
     {
-      "source": "/v3/develop/runtime-context",
-      "destination": "/v3/concepts/workflows/runtime-context"
+      "destination": "/v3/concepts/workflows/runtime-context",
+      "source": "/v3/develop/runtime-context"
     },
     {
-      "source": "/v3/develop/pause-resume",
-      "destination": "/v3/how-to-guides/advanced/interactive"
+      "destination": "/v3/how-to-guides/advanced/interactive",
+      "source": "/v3/develop/pause-resume"
     },
     {
-      "source": "/v3/develop/cancel",
-      "destination": "/v3/advanced/cancel-workflows"
+      "destination": "/v3/advanced/cancel-workflows",
+      "source": "/v3/develop/cancel"
     },
     {
-      "source": "/v3/deploy/infrastructure-concepts/customize",
-      "destination": "/v3/how-to-guides/deployments/customize-job-variables"
+      "destination": "/v3/how-to-guides/deployments/customize-job-variables",
+      "source": "/v3/deploy/infrastructure-concepts/customize"
     },
     {
-      "source": "/v3/develop/manage-states",
-      "destination": "/v3/concepts/states"
+      "destination": "/v3/concepts/states",
+      "source": "/v3/develop/manage-states"
     },
     {
-      "source": "/v3/deploy/static-infrastructure-examples/docker",
-      "destination": "/v3/how-to-guides/deployment_infra/serve-flows-docker"
+      "destination": "/v3/how-to-guides/deployment_infra/serve-flows-docker",
+      "source": "/v3/deploy/static-infrastructure-examples/docker"
     },
     {
-      "source": "/v3/develop/results",
-      "destination": "/v3/advanced/results"
+      "destination": "/v3/advanced/results",
+      "source": "/v3/develop/results"
     },
     {
-      "source": "/v3/deploy/static-infrastructure-examples/background-tasks",
-      "destination": "/v3/how-to-guides/applications/background-tasks"
+      "destination": "/v3/how-to-guides/applications/background-tasks",
+      "source": "/v3/deploy/static-infrastructure-examples/background-tasks"
     },
     {
-      "source": "/v3/deploy/infrastructure-concepts/deploy-ci-cd",
-      "destination": "/v3/advanced/deploy-ci-cd"
+      "destination": "/v3/advanced/deploy-ci-cd",
+      "source": "/v3/deploy/infrastructure-concepts/deploy-ci-cd"
     },
     {
-      "source": "/v3/develop/artifacts",
-      "destination": "/v3/how-to-guides/workflows/artifacts"
+      "destination": "/v3/how-to-guides/workflows/artifacts",
+      "source": "/v3/develop/artifacts"
     },
     {
-      "source": "/v3/develop/interact-with-api",
-      "destination": "/v3/advanced/api-client"
+      "destination": "/v3/advanced/api-client",
+      "source": "/v3/develop/interact-with-api"
     },
     {
-      "source": "/v3/develop/variables",
-      "destination": "/v3/how-to-guides/configuration/variables"
+      "destination": "/v3/how-to-guides/configuration/variables",
+      "source": "/v3/develop/variables"
     },
     {
-      "source": "/v3/deploy/infrastructure-examples/:slug*",
-      "destination": "/v3/how-to-guides/deployment_infra/:slug*"
+      "destination": "/v3/how-to-guides/deployment_infra/:slug*",
+      "source": "/v3/deploy/infrastructure-examples/:slug*"
     },
     {
-      "source": "/v3/develop/blocks",
-      "destination": "/v3/advanced/custom-blocks"
+      "destination": "/v3/advanced/custom-blocks",
+      "source": "/v3/develop/blocks"
     },
     {
-      "source": "/v3/develop/settings-and-profiles",
-      "destination": "/v3/how-to-guides/configuration/manage-settings"
+      "destination": "/v3/how-to-guides/configuration/manage-settings",
+      "source": "/v3/develop/settings-and-profiles"
     },
     {
-      "source": "/v3/develop/test-workflows",
-      "destination": "/v3/how-to-guides/workflows/test-workflows"
+      "destination": "/v3/how-to-guides/workflows/test-workflows",
+      "source": "/v3/develop/test-workflows"
     },
     {
-      "source": "/v3/deploy/infrastructure-concepts/deploy-via-python",
-      "destination": "/v3/how-to-guides/deployments/deploy-via-python"
+      "destination": "/v3/how-to-guides/deployments/deploy-via-python",
+      "source": "/v3/deploy/infrastructure-concepts/deploy-via-python"
     },
     {
-      "source": "/v3/deploy/infrastructure-concepts/prefect-yaml",
-      "destination": "/v3/how-to-guides/deployments/prefect-yaml"
+      "destination": "/v3/how-to-guides/deployments/prefect-yaml",
+      "source": "/v3/deploy/infrastructure-concepts/prefect-yaml"
     },
     {
-      "source": "/v3/deploy/infrastructure-concepts/store-flow-code",
-      "destination": "/v3/how-to-guides/deployments/store-flow-code"
+      "destination": "/v3/how-to-guides/deployments/store-flow-code",
+      "source": "/v3/deploy/infrastructure-concepts/store-flow-code"
     },
     {
-      "source": "/v3/deploy/index",
-      "destination": "/v3/concepts/deployments"
+      "destination": "/v3/concepts/deployments",
+      "source": "/v3/deploy/index"
     },
     {
-      "source": "v3/manage/server/index",
-      "destination": "/v3/concepts/server"
+      "destination": "/v3/concepts/server",
+      "source": "v3/manage/server/index"
     },
     {
-      "source": "v3/manage/server/examples/cli",
-      "destination": "/v3/how-to-guides/self-hosted/server-cli"
+      "destination": "/v3/how-to-guides/self-hosted/server-cli",
+      "source": "v3/manage/server/examples/cli"
     },
     {
-      "source": "v3/manage/server/examples/docker",
-      "destination": "/v3/how-to-guides/self-hosted/server-docker"
+      "destination": "/v3/how-to-guides/self-hosted/server-docker",
+      "source": "v3/manage/server/examples/docker"
     },
     {
-      "source": "v3/manage/server/examples/helm",
-      "destination": "/v3/advanced/server-helm"
+      "destination": "/v3/advanced/server-helm",
+      "source": "v3/manage/server/examples/helm"
     },
     {
-      "source": "v3/develop/task-runners",
-      "destination": "/v3/concepts/task-runners"
+      "destination": "/v3/concepts/task-runners",
+      "source": "v3/develop/task-runners"
     },
     {
-      "source": "v3/develop/global-concurrency-limits",
-      "destination": "/v3/how-to-guides/workflows/global-concurrency-limits"
+      "destination": "/v3/how-to-guides/workflows/global-concurrency-limits",
+      "source": "v3/develop/global-concurrency-limits"
     },
     {
-      "source": "v3/develop/task-run-limits",
-      "destination": "/v3/how-to-guides/workflows/tag-based-concurrency-limits"
+      "destination": "/v3/how-to-guides/workflows/tag-based-concurrency-limits",
+      "source": "v3/develop/task-run-limits"
     },
     {
-      "source": "v3/tutorials/airflow",
-      "destination": "/v3/how-to-guides/migrate/airflow"
+      "destination": "/v3/how-to-guides/migrate/airflow",
+      "source": "v3/tutorials/airflow"
     },
     {
-      "source": "v3/resources/upgrade-to-prefect-3",
-      "destination": "/v3/how-to-guides/migrate/upgrade-to-prefect-3"
+      "destination": "/v3/how-to-guides/migrate/upgrade-to-prefect-3",
+      "source": "v3/resources/upgrade-to-prefect-3"
     },
     {
-      "source": "v3/resources/upgrade-agents-to-workers",
-      "destination": "/v3/how-to-guides/migrate/upgrade-agents-to-workers"
+      "destination": "/v3/how-to-guides/migrate/upgrade-agents-to-workers",
+      "source": "v3/resources/upgrade-agents-to-workers"
     },
     {
-      "source": "/v3/deploy",
-      "destination": "/v3/concepts/deployments"
+      "destination": "/v3/concepts/deployments",
+      "source": "/v3/deploy"
     },
     {
-      "source": "/v3/develop/deferred-tasks",
-      "destination": "/v3/advanced/background-tasks"
+      "destination": "/v3/advanced/background-tasks",
+      "source": "/v3/develop/deferred-tasks"
     },
     {
-      "source": "/v3/automate/index",
-      "destination": "/v3/concepts/automations"
+      "destination": "/v3/concepts/automations",
+      "source": "/v3/automate/index"
     },
     {
-      "source": "/v3/manage/server/examples/helm",
-      "destination": "/v3/advanced/server-helm"
+      "destination": "/v3/advanced/server-helm",
+      "source": "/v3/manage/server/examples/helm"
     }
-  ]
+  ],
+  "theme": "mint"
 }

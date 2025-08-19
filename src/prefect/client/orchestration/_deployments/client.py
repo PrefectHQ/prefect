@@ -8,7 +8,7 @@ from httpx import HTTPStatusError, RequestError
 
 from prefect._internal.compatibility.deprecated import deprecated_callable
 from prefect.client.orchestration.base import BaseAsyncClient, BaseClient
-from prefect.exceptions import ObjectNotFound
+from prefect.exceptions import ObjectAlreadyExists, ObjectLimitReached, ObjectNotFound
 
 if TYPE_CHECKING:
     import datetime
@@ -160,7 +160,15 @@ class DeploymentClient(BaseClient):
                 mode="json"
             )
 
-        response = self.request("POST", "/deployments/", json=payload)
+        try:
+            response = self.request("POST", "/deployments/", json=payload)
+        except HTTPStatusError as e:
+            if e.response.status_code == 403 and "maximum number" in str(e):
+                raise ObjectLimitReached(http_exc=e) from e
+            if e.response.status_code == 409:
+                raise ObjectAlreadyExists(http_exc=e) from e
+            else:
+                raise
 
         deployment_id = response.json().get("id")
         if not deployment_id:
@@ -820,7 +828,18 @@ class DeploymentAsyncClient(BaseAsyncClient):
                 mode="json"
             )
 
-        response = await self.request("POST", "/deployments/", json=payload)
+        try:
+            response = await self.request("POST", "/deployments/", json=payload)
+        except HTTPStatusError as e:
+            if e.response.status_code == 403 and "maximum number of deployments" in str(
+                e
+            ):
+                raise ObjectLimitReached(http_exc=e) from e
+            if e.response.status_code == 409:
+                raise ObjectAlreadyExists(http_exc=e) from e
+            else:
+                raise
+
         deployment_id = response.json().get("id")
         if not deployment_id:
             raise RequestError(f"Malformed response: {response}")
