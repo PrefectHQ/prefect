@@ -116,8 +116,8 @@ describe("work pool queues api queries", () => {
 					queryKey: workPoolQueuesQueryKeyFactory.list(workPoolName),
 					signal: new AbortController().signal,
 					meta: {},
-					client: {} as any,
-				} as const;
+					client: {} as unknown,
+				} as Parameters<NonNullable<typeof query.queryFn>>[0];
 				await expect(query.queryFn(mockContext)).rejects.toThrow(
 					"'data' expected",
 				);
@@ -205,8 +205,8 @@ describe("work pool queues api queries", () => {
 					),
 					signal: new AbortController().signal,
 					meta: {},
-					client: {} as any,
-				} as const;
+					client: {} as QueryClient,
+				} as Parameters<NonNullable<typeof query.queryFn>>[0];
 				await expect(query.queryFn(mockContext)).rejects.toThrow(
 					"'data' expected",
 				);
