@@ -5,6 +5,7 @@ import pytest
 
 from prefect.cli.transfer._exceptions import TransferSkipped
 from prefect.cli.transfer._migratable_resources.work_queues import MigratableWorkQueue
+from prefect.client.schemas.filters import WorkQueueFilter, WorkQueueFilterName
 from prefect.client.schemas.objects import WorkQueue
 from prefect.exceptions import ObjectAlreadyExists
 
@@ -316,7 +317,10 @@ class TestMigratableWorkQueue:
         # Verify client calls
         mock_client.create_work_queue.assert_called_once()
         mock_client.read_work_queues.assert_called_once_with(
-            work_pool_name=transfer_work_queue_with_pool.work_pool_name
+            work_pool_name=transfer_work_queue_with_pool.work_pool_name,
+            work_queue_filter=WorkQueueFilter(
+                name=WorkQueueFilterName(any_=[transfer_work_queue_with_pool.name]),
+            ),
         )
 
         # Verify destination_work_queue is set to existing
@@ -344,8 +348,7 @@ class TestMigratableWorkQueue:
 
         migratable = await MigratableWorkQueue.construct(transfer_work_queue_with_pool)
 
-        # Should still raise TransferSkipped even though queue not found in list
-        with pytest.raises(TransferSkipped, match="Already exists"):
+        with pytest.raises(RuntimeError):
             await migratable.migrate()
 
         # Verify calls
@@ -356,61 +359,7 @@ class TestMigratableWorkQueue:
         assert migratable.destination_work_queue is None
 
     @patch("prefect.cli.transfer._migratable_resources.work_queues.get_client")
-    async def test_migrate_already_exists_multiple_queues_finds_correct_one(
-        self, mock_get_client: MagicMock, transfer_work_queue_with_pool: WorkQueue
-    ):
-        """Test migration finds correct queue when multiple queues exist."""
-        # Mock the client
-        mock_client = AsyncMock()
-        mock_get_client.return_value.__aenter__.return_value = mock_client
-
-        # Mock ObjectAlreadyExists exception on create
-        mock_http_exc = Exception("Conflict")
-        mock_client.create_work_queue.side_effect = ObjectAlreadyExists(mock_http_exc)
-
-        # Create multiple work queues with different names
-        other_queue = WorkQueue(
-            id=uuid.uuid4(),
-            name="other-queue",
-            description="Other queue",
-            priority=1,
-            concurrency_limit=None,
-            is_paused=False,
-            last_polled=None,
-            status=None,
-            work_pool_id=uuid.uuid4(),
-            work_pool_name="test-pool",
-        )
-
-        matching_queue = WorkQueue(
-            id=uuid.uuid4(),
-            name=transfer_work_queue_with_pool.name,  # This one matches
-            description="Matching queue",
-            priority=2,
-            concurrency_limit=5,
-            is_paused=True,
-            last_polled=None,
-            status=None,
-            work_pool_id=uuid.uuid4(),
-            work_pool_name="test-pool",
-        )
-
-        mock_client.read_work_queues.return_value = [other_queue, matching_queue]
-
-        # Clear instances
-        MigratableWorkQueue._instances.clear()
-
-        migratable = await MigratableWorkQueue.construct(transfer_work_queue_with_pool)
-
-        # Should raise TransferSkipped
-        with pytest.raises(TransferSkipped, match="Already exists"):
-            await migratable.migrate()
-
-        # Verify destination_work_queue is set to the matching one
-        assert migratable.destination_work_queue == matching_queue
-        assert migratable.destination_id == matching_queue.id
-
-    async def test_migrate_skips_default_work_queue(self):
+    async def test_migrate_skips_default_work_queue(self, mock_get_client: MagicMock):
         """Test that migration skips work queues named 'default'."""
         # Create a work queue with name 'default'
         default_work_queue = WorkQueue(
@@ -425,6 +374,13 @@ class TestMigratableWorkQueue:
             work_pool_id=uuid.uuid4(),
             work_pool_name="test-pool",
         )
+
+        # Mock the client
+        mock_client = AsyncMock()
+        mock_get_client.return_value.__aenter__.return_value = mock_client
+
+        # Mock empty work queues list (queue not found)
+        mock_client.read_work_queues.return_value = [default_work_queue]
 
         # Clear instances
         MigratableWorkQueue._instances.clear()

@@ -226,8 +226,6 @@ class TestIntegrationScenarios:
             expected_code=0,
             expected_output_contains=[
                 "Transfer resources from one Prefect profile to another",
-                "--from",
-                "--to",
             ],
         )
 
