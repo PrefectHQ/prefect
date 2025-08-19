@@ -2,6 +2,7 @@
 A service that checks for flow run notifications and sends them.
 """
 import asyncio
+import sqlite3
 from uuid import UUID
 
 import sqlalchemy as sa
@@ -11,6 +12,26 @@ from prefect.server.database.dependencies import inject_db
 from prefect.server.database.interface import PrefectDBInterface
 from prefect.server.services.loop_service import LoopService
 from prefect.settings import PREFECT_UI_URL
+
+# SQLite error message constant (consistent with server.py)
+SQLITE_LOCKED_MSG = "database is locked"
+
+
+def is_sqlite_retryable_exception(exc: Exception) -> bool:
+    """
+    Determine if an exception is a retryable SQLite database lock error.
+
+    Uses the same logic as the API server's `is_client_retryable_exception`
+    but focused specifically on SQLite lock errors.
+    """
+    if isinstance(exc, sa.exc.OperationalError) and isinstance(
+        exc.orig, sqlite3.OperationalError
+    ):
+        return getattr(exc.orig, "sqlite_errorname", None) in {
+            "SQLITE_BUSY",
+            "SQLITE_BUSY_SNAPSHOT",
+        } or SQLITE_LOCKED_MSG in getattr(exc.orig, "args", [])
+    return False
 
 
 class FlowRunNotifications(LoopService):
@@ -28,11 +49,13 @@ class FlowRunNotifications(LoopService):
     @inject_db
     async def run_once(self, db: PrefectDBInterface):
         while True:
-            # Retry logic for SQLite database lock errors
-            max_retries = 5
+            # SQLite-specific retry configuration for database lock errors
+            max_retries = 3  # Conservative retry count for database operations
             notifications = None
 
-            for attempt in range(max_retries):
+            for attempt in range(
+                max_retries + 1
+            ):  # +1 because max_retries is additional attempts
                 try:
                     async with db.session_context(begin_transaction=True) as session:
                         # Drain the queue one entry at a time, because if a transient
@@ -81,23 +104,28 @@ class FlowRunNotifications(LoopService):
                     break
 
                 except Exception as e:
-                    is_lock_error = "database is locked" in str(
-                        e
-                    ) or "OperationalError" in str(type(e))
-                    should_retry = is_lock_error and attempt < max_retries - 1
+                    should_retry = (
+                        is_sqlite_retryable_exception(e) and attempt < max_retries
+                    )
 
                     if should_retry:
-                        # Wait a bit and retry with exponential backoff
-                        import asyncio
+                        # Use simple exponential backoff for SQLite lock retries
+                        retry_delay = 0.05 * (2**attempt)  # 50ms, 100ms, 200ms
 
-                        wait_time = 0.05 * (2**attempt)  # 50ms, 100ms, 200ms, 400ms
                         self.logger.debug(
-                            f"Database lock detected, retrying after {wait_time}s..."
+                            f"SQLite database lock detected (attempt {attempt + 1}/{max_retries + 1}). "
+                            f"Retrying after {retry_delay:.3f}s... Error: {e}"
                         )
-                        await asyncio.sleep(wait_time)
+                        await asyncio.sleep(retry_delay)
                         continue
                     else:
                         # Not a retryable error or max retries reached
+                        if is_sqlite_retryable_exception(e):
+                            self.logger.warning(
+                                f"Failed to process notification after {max_retries + 1} attempts due to "
+                                f"persistent SQLite lock errors. This may indicate high database contention. "
+                                f"Last error: {e}"
+                            )
                         raise
 
             # If no notifications were found, exit the tight loop and sleep
