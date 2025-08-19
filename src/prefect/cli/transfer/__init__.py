@@ -96,6 +96,7 @@ async def transfer(
         ) as progress:
             task = progress.add_task("Collecting resources...", total=None)
             async with get_client() as client:
+                from_url = client.api_url
                 resources = await _collect_resources(client)
 
             if not resources:
@@ -120,59 +121,65 @@ async def transfer(
 
     console.print()
     with use_profile(to_profile):
-        async with get_events_client() as events_client:
-            transfer_id = uuid.uuid4()
-            await events_client.emit(
-                event=Event(
-                    event="prefect.transfer.started",
-                    resource=Resource.model_validate(
-                        {
-                            "prefect.resource.id": f"prefect.transfer.{transfer_id}",
-                            "prefect.resource.name": f"{from_profile} -> {to_profile} transfer",
-                            "prefect.resource.type": "transfer",
-                        }
-                    ),
-                    payload=dict(
-                        from_profile=from_profile,
-                        to_profile=to_profile,
-                        total_resources=stats["total_nodes"],
-                    ),
+        async with get_client() as client:
+            to_url = client.api_url
+            async with get_events_client() as events_client:
+                transfer_id = uuid.uuid4()
+                await events_client.emit(
+                    event=Event(
+                        event="prefect.workspace.transfer.started",
+                        resource=Resource.model_validate(
+                            {
+                                "prefect.resource.id": f"prefect.workspace.transfer.{transfer_id}",
+                                "prefect.resource.name": f"{from_profile} -> {to_profile} transfer",
+                                "prefect.resource.role": "transfer",
+                            }
+                        ),
+                        payload=dict(
+                            source_profile=from_profile,
+                            target_profile=to_profile,
+                            source_url=str(from_url),
+                            target_url=str(to_url),
+                            total_resources=stats["total_nodes"],
+                        ),
+                    )
                 )
-            )
-            results = await _execute_transfer(dag, console)
+                results = await _execute_transfer(dag, console)
 
-            succeeded: int = 0
-            failed: int = 0
-            skipped: int = 0
+                succeeded: int = 0
+                failed: int = 0
+                skipped: int = 0
 
-            for result in results.values():
-                if result is None:
-                    succeeded += 1
-                elif isinstance(result, TransferSkipped):
-                    skipped += 1
-                else:
-                    failed += 1
+                for result in results.values():
+                    if result is None:
+                        succeeded += 1
+                    elif isinstance(result, TransferSkipped):
+                        skipped += 1
+                    else:
+                        failed += 1
 
-            await events_client.emit(
-                event=Event(
-                    event="prefect.transfer.completed",
-                    resource=Resource.model_validate(
-                        {
-                            "prefect.resource.id": f"prefect.transfer.{transfer_id}",
-                            "prefect.resource.name": f"{from_profile} -> {to_profile} transfer",
-                            "prefect.resource.type": "transfer",
-                        }
-                    ),
-                    payload=dict(
-                        from_profile=from_profile,
-                        to_profile=to_profile,
-                        total_resources=stats["total_nodes"],
-                        succeeded=succeeded,
-                        failed=failed,
-                        skipped=skipped,
-                    ),
+                await events_client.emit(
+                    event=Event(
+                        event="prefect.workspace.transfer.completed",
+                        resource=Resource.model_validate(
+                            {
+                                "prefect.resource.id": f"prefect.workspace.transfer.{transfer_id}",
+                                "prefect.resource.name": f"{from_profile} -> {to_profile} transfer",
+                                "prefect.resource.role": "transfer",
+                            }
+                        ),
+                        payload=dict(
+                            source_profile=from_profile,
+                            target_profile=to_profile,
+                            source_url=str(from_url),
+                            target_url=str(to_url),
+                            total_resources=stats["total_nodes"],
+                            succeeded=succeeded,
+                            failed=failed,
+                            skipped=skipped,
+                        ),
+                    )
                 )
-            )
 
     _display_results(results, dag.nodes, console)
 
