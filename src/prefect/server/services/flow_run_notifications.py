@@ -13,24 +13,28 @@ from prefect.server.database.interface import PrefectDBInterface
 from prefect.server.services.loop_service import LoopService
 from prefect.settings import PREFECT_UI_URL
 
-# SQLite error message constant (consistent with server.py)
+# SQLite error message constant (from server.py)
 SQLITE_LOCKED_MSG = "database is locked"
 
 
-def is_sqlite_retryable_exception(exc: Exception) -> bool:
+def is_client_retryable_exception(exc: Exception):
     """
-    Determine if an exception is a retryable SQLite database lock error.
+    Determine if an exception is retryable for SQLite database operations.
 
     Uses the same logic as the API server's `is_client_retryable_exception`
-    but focused specifically on SQLite lock errors.
+    to maintain consistency.
     """
     if isinstance(exc, sa.exc.OperationalError) and isinstance(
         exc.orig, sqlite3.OperationalError
     ):
-        return getattr(exc.orig, "sqlite_errorname", None) in {
+        if getattr(exc.orig, "sqlite_errorname", None) in {
             "SQLITE_BUSY",
             "SQLITE_BUSY_SNAPSHOT",
-        } or SQLITE_LOCKED_MSG in getattr(exc.orig, "args", [])
+        } or SQLITE_LOCKED_MSG in getattr(exc.orig, "args", []):
+            return True
+        else:
+            # Avoid falling through to the generic case
+            return False
     return False
 
 
@@ -49,13 +53,11 @@ class FlowRunNotifications(LoopService):
     @inject_db
     async def run_once(self, db: PrefectDBInterface):
         while True:
-            # SQLite-specific retry configuration for database lock errors
-            max_retries = 3  # Conservative retry count for database operations
+            # Retry logic for SQLite lock errors
+            max_retries = 3
             notifications = None
 
-            for attempt in range(
-                max_retries + 1
-            ):  # +1 because max_retries is additional attempts
+            for attempt in range(max_retries + 1):
                 try:
                     async with db.session_context(begin_transaction=True) as session:
                         # Drain the queue one entry at a time, because if a transient
@@ -72,7 +74,7 @@ class FlowRunNotifications(LoopService):
                             f"Got {len(notifications)} notifications from queue."
                         )
 
-                        # if no notifications were found, exit the tight loop and sleep
+                        # if no notifications were found, exit the retry loop
                         if not notifications:
                             break
 
@@ -105,30 +107,23 @@ class FlowRunNotifications(LoopService):
 
                 except Exception as e:
                     should_retry = (
-                        is_sqlite_retryable_exception(e) and attempt < max_retries
+                        is_client_retryable_exception(e) and attempt < max_retries
                     )
 
                     if should_retry:
-                        # Use simple exponential backoff for SQLite lock retries
+                        # Simple exponential backoff
                         retry_delay = 0.05 * (2**attempt)  # 50ms, 100ms, 200ms
-
                         self.logger.debug(
                             f"SQLite database lock detected (attempt {attempt + 1}/{max_retries + 1}). "
-                            f"Retrying after {retry_delay:.3f}s... Error: {e}"
+                            f"Retrying after {retry_delay:.3f}s..."
                         )
                         await asyncio.sleep(retry_delay)
                         continue
                     else:
                         # Not a retryable error or max retries reached
-                        if is_sqlite_retryable_exception(e):
-                            self.logger.warning(
-                                f"Failed to process notification after {max_retries + 1} attempts due to "
-                                f"persistent SQLite lock errors. This may indicate high database contention. "
-                                f"Last error: {e}"
-                            )
                         raise
 
-            # If no notifications were found, exit the tight loop and sleep
+            # if no notifications were found, exit the tight loop and sleep
             if not notifications:
                 break
 
