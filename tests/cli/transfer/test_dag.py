@@ -428,7 +428,7 @@ class TestTransferDAG:
             assert resource.migrate_called
 
     async def test_execute_respects_max_workers_limit(self):
-        """Test execution respects max_workers semaphore."""
+        """Test execution respects max_workers limiter."""
         dag = TransferDAG()
 
         # Track active workers

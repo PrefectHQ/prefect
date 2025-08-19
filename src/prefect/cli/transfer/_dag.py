@@ -253,7 +253,7 @@ class TransferDAG:
                 self._status[nid].state = NodeState.READY
 
         results: dict[uuid.UUID, Any] = {}
-        semaphore = anyio.Semaphore(max_workers)
+        limiter = anyio.CapacityLimiter(max_workers)
         processing: set[uuid.UUID] = set()
 
         async def worker(nid: uuid.UUID, tg: TaskGroup):
@@ -265,7 +265,7 @@ class TransferDAG:
                 logger.debug(f"Node {node} was skipped before execution")
                 return
 
-            async with semaphore:
+            async with limiter:
                 try:
                     self._status[nid].state = NodeState.IN_PROGRESS
                     logger.debug(f"Processing {node}")
@@ -296,25 +296,6 @@ class TransferDAG:
                     self._status[nid].state = NodeState.SKIPPED
                     self._status[nid].error = e
                     logger.debug(f"Skipped {node}: {e}")
-
-                    to_skip = deque([nid])
-                    seen_skipped: set[uuid.UUID] = set()
-                    while to_skip:
-                        cur = to_skip.popleft()
-                        if cur in seen_skipped:
-                            continue
-                        seen_skipped.add(cur)
-                        for did in self._status[cur].dependents:
-                            st = self._status[did]
-                            if st.state in {NodeState.PENDING, NodeState.READY}:
-                                st.state = NodeState.SKIPPED
-                                results[did] = TransferSkipped(
-                                    "Skipped due to upstream resource skip"
-                                )
-                                logger.debug(
-                                    f"Skipped {self.nodes[did]} due to upstream skip"
-                                )
-                                to_skip.append(did)
 
                 except Exception as e:
                     results[nid] = e
