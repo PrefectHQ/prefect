@@ -7,7 +7,7 @@ sidebarTitle: variables
 
 ## Functions
 
-### `create_variable` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/variables.py#L13" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `create_variable` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/models/variables.py#L13" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 create_variable(db: PrefectDBInterface, session: AsyncSession, variable: VariableCreate) -> orm_models.Variable
@@ -24,7 +24,7 @@ Create a variable
 - orm_models.Variable
 
 
-### `read_variable` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/variables.py#L34" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `read_variable` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/models/variables.py#L34" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_variable(db: PrefectDBInterface, session: AsyncSession, variable_id: UUID) -> Optional[orm_models.Variable]
@@ -34,7 +34,7 @@ read_variable(db: PrefectDBInterface, session: AsyncSession, variable_id: UUID) 
 Reads a variable by id.
 
 
-### `read_variable_by_name` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/variables.py#L48" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `read_variable_by_name` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/models/variables.py#L48" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_variable_by_name(db: PrefectDBInterface, session: AsyncSession, name: str) -> Optional[orm_models.Variable]
@@ -44,7 +44,7 @@ read_variable_by_name(db: PrefectDBInterface, session: AsyncSession, name: str) 
 Reads a variable by name.
 
 
-### `read_variables` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/variables.py#L62" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `read_variables` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/models/variables.py#L62" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_variables(db: PrefectDBInterface, session: AsyncSession, variable_filter: Optional[filters.VariableFilter] = None, sort: sorting.VariableSort = sorting.VariableSort.NAME_ASC, offset: Optional[int] = None, limit: Optional[int] = None) -> Sequence[orm_models.Variable]
@@ -54,7 +54,7 @@ read_variables(db: PrefectDBInterface, session: AsyncSession, variable_filter: O
 Read variables, applying filers.
 
 
-### `count_variables` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/variables.py#L88" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `count_variables` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/models/variables.py#L88" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 count_variables(db: PrefectDBInterface, session: AsyncSession, variable_filter: Optional[filters.VariableFilter] = None) -> int
@@ -64,7 +64,7 @@ count_variables(db: PrefectDBInterface, session: AsyncSession, variable_filter: 
 Count variables, applying filters.
 
 
-### `update_variable` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/variables.py#L107" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `update_variable` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/models/variables.py#L107" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 update_variable(db: PrefectDBInterface, session: AsyncSession, variable_id: UUID, variable: VariableUpdate) -> bool
@@ -74,7 +74,7 @@ update_variable(db: PrefectDBInterface, session: AsyncSession, variable_id: UUID
 Updates a variable by id.
 
 
-### `update_variable_by_name` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/variables.py#L127" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `update_variable_by_name` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/models/variables.py#L127" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 update_variable_by_name(db: PrefectDBInterface, session: AsyncSession, name: str, variable: VariableUpdate) -> bool
@@ -84,7 +84,7 @@ update_variable_by_name(db: PrefectDBInterface, session: AsyncSession, name: str
 Updates a variable by name.
 
 
-### `delete_variable` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/variables.py#L144" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `delete_variable` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/models/variables.py#L144" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 delete_variable(db: PrefectDBInterface, session: AsyncSession, variable_id: UUID) -> bool
@@ -94,7 +94,7 @@ delete_variable(db: PrefectDBInterface, session: AsyncSession, variable_id: UUID
 Delete a variable by id.
 
 
-### `delete_variable_by_name` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/variables.py#L158" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `delete_variable_by_name` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/models/variables.py#L158" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 delete_variable_by_name(db: PrefectDBInterface, session: AsyncSession, name: str) -> bool

@@ -4,11 +4,11 @@ import { WorkPoolActions } from "./components/work-pool-actions";
 import { WorkPoolBreadcrumbs } from "./components/work-pool-breadcrumbs";
 import { WorkPoolTitle } from "./components/work-pool-title";
 
-interface WorkPoolPageHeaderProps {
+type WorkPoolPageHeaderProps = {
 	workPool: WorkPool;
 	onUpdate?: () => void;
 	className?: string;
-}
+};
 
 export const WorkPoolPageHeader = ({
 	workPool,

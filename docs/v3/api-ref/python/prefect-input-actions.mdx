@@ -7,19 +7,19 @@ sidebarTitle: actions
 
 ## Functions
 
-### `ensure_flow_run_id` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/input/actions.py#L20" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `ensure_flow_run_id` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/input/actions.py#L20" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 ensure_flow_run_id(flow_run_id: Optional[UUID] = None) -> UUID
 ```
 
-### `create_flow_run_input_from_model` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/input/actions.py#L32" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `create_flow_run_input_from_model` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/input/actions.py#L32" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 create_flow_run_input_from_model(key: str, model_instance: pydantic.BaseModel, flow_run_id: Optional[UUID] = None, sender: Optional[str] = None)
 ```
 
-### `create_flow_run_input` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/input/actions.py#L58" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `create_flow_run_input` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/input/actions.py#L58" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 create_flow_run_input(client: 'PrefectClient', key: str, value: Any, flow_run_id: Optional[UUID] = None, sender: Optional[str] = None)
@@ -36,13 +36,13 @@ and stored as a flow run input value.
 default to pulling the flow run ID from the current context.
 
 
-### `filter_flow_run_input` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/input/actions.py#L87" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `filter_flow_run_input` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/input/actions.py#L87" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 filter_flow_run_input(client: 'PrefectClient', key_prefix: str, limit: int = 1, exclude_keys: Optional[Set[str]] = None, flow_run_id: Optional[UUID] = None)
 ```
 
-### `read_flow_run_input` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/input/actions.py#L109" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `read_flow_run_input` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/input/actions.py#L109" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_flow_run_input(client: 'PrefectClient', key: str, flow_run_id: Optional[UUID] = None) -> Any
@@ -56,7 +56,7 @@ Read a flow run input.
 - `-`: the flow run ID
 
 
-### `delete_flow_run_input` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/input/actions.py#L132" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `delete_flow_run_input` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/input/actions.py#L132" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 delete_flow_run_input(client: 'PrefectClient', key: str, flow_run_id: Optional[UUID] = None)

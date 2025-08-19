@@ -7,7 +7,7 @@ sidebarTitle: ip_allowlist
 
 ## Functions
 
-### `require_access_to_ip_allowlisting` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/cloud/ip_allowlist.py#L28" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `require_access_to_ip_allowlisting` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/cli/cloud/ip_allowlist.py#L28" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 require_access_to_ip_allowlisting(ctx: typer.Context) -> None
@@ -17,7 +17,7 @@ require_access_to_ip_allowlisting(ctx: typer.Context) -> None
 Enforce access to IP allowlisting for all subcommands.
 
 
-### `enable` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/cloud/ip_allowlist.py#L54" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `enable` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/cli/cloud/ip_allowlist.py#L54" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 enable(ctx: typer.Context) -> None
@@ -27,7 +27,7 @@ enable(ctx: typer.Context) -> None
 Enable the IP allowlist for your account. When enabled, if the allowlist is non-empty, then access to your Prefect Cloud account will be restricted to only those IP addresses on the allowlist.
 
 
-### `disable` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/cloud/ip_allowlist.py#L80" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `disable` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/cli/cloud/ip_allowlist.py#L80" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 disable()
@@ -37,7 +37,7 @@ disable()
 Disable the IP allowlist for your account. When disabled, all IP addresses will be allowed to access your Prefect Cloud account.
 
 
-### `ls` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/cloud/ip_allowlist.py#L89" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `ls` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/cli/cloud/ip_allowlist.py#L89" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 ls(ctx: typer.Context)
@@ -47,13 +47,13 @@ ls(ctx: typer.Context)
 Fetch and list all IP allowlist entries in your account.
 
 
-### `parse_ip_network_argument` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/cloud/ip_allowlist.py#L104" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `parse_ip_network_argument` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/cli/cloud/ip_allowlist.py#L104" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 parse_ip_network_argument(val: str) -> IPNetworkArg
 ```
 
-### `add` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/cloud/ip_allowlist.py#L122" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `add` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/cli/cloud/ip_allowlist.py#L122" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 add(ctx: typer.Context, ip_address_or_range: IP_ARGUMENT, description: Optional[str] = typer.Option(None, '--description', '-d', help='A short description to annotate the entry with.'))
@@ -63,7 +63,7 @@ add(ctx: typer.Context, ip_address_or_range: IP_ARGUMENT, description: Optional[
 Add a new IP entry to your account IP allowlist.
 
 
-### `remove` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/cloud/ip_allowlist.py#L167" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `remove` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/cli/cloud/ip_allowlist.py#L167" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 remove(ctx: typer.Context, ip_address_or_range: IP_ARGUMENT)
@@ -73,7 +73,7 @@ remove(ctx: typer.Context, ip_address_or_range: IP_ARGUMENT)
 Remove an IP entry from your account IP allowlist.
 
 
-### `toggle` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/cloud/ip_allowlist.py#L189" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `toggle` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/cli/cloud/ip_allowlist.py#L189" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 toggle(ctx: typer.Context, ip_address_or_range: IP_ARGUMENT)
@@ -85,4 +85,4 @@ Toggle the enabled status of an individual IP entry in your account IP allowlist
 
 ## Classes
 
-### `IPNetworkArg` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/cloud/ip_allowlist.py#L99" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `IPNetworkArg` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/cli/cloud/ip_allowlist.py#L99" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
