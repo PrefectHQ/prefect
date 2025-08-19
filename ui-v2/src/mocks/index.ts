@@ -29,6 +29,10 @@ export {
 	createFakeWorkPoolWithJobTemplate,
 } from "./create-fake-work-pool";
 export {
+	createFakeWorkPoolQueue,
+	createFakeWorkPoolQueues,
+} from "./create-fake-work-pool-queue";
+export {
 	createFakeWorkPoolWorker,
 	createFakeWorkPoolWorkers,
 } from "./create-fake-work-pool-worker";

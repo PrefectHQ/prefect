@@ -197,6 +197,21 @@ const workQueuesHandlers = [
 	}),
 ];
 
+const workPoolQueuesHandlers = [
+	http.post(buildApiUrl("/work_pools/:work_pool_name/queues/filter"), () => {
+		return HttpResponse.json([]);
+	}),
+	http.get(buildApiUrl("/work_queues/:id"), () => {
+		return HttpResponse.json({});
+	}),
+	http.patch(buildApiUrl("/work_queues/:id"), () => {
+		return HttpResponse.json({});
+	}),
+	http.delete(buildApiUrl("/work_queues/:id"), () => {
+		return new HttpResponse(null, { status: 204 });
+	}),
+];
+
 export const handlers = [
 	...automationsHandlers,
 	...blockDocumentsHandlers,
@@ -213,4 +228,5 @@ export const handlers = [
 	...versionHandlers,
 	...workPoolsHandlers,
 	...workQueuesHandlers,
+	...workPoolQueuesHandlers,
 ];
