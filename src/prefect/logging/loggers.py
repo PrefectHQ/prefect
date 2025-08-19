@@ -13,7 +13,6 @@ from typing_extensions import Self
 
 from prefect.exceptions import MissingContextError
 from prefect.logging.filters import ObfuscateApiKeyFilter
-from prefect.telemetry.logging import add_telemetry_log_handler
 
 if sys.version_info >= (3, 12):
     LoggingAdapter = logging.LoggerAdapter[logging.Logger]
@@ -86,8 +85,6 @@ def get_logger(name: str | None = None) -> logging.Logger:
     obfuscate_api_key_filter = ObfuscateApiKeyFilter()
     logger.addFilter(obfuscate_api_key_filter)
 
-    add_telemetry_log_handler(logger=logger)
-
     return logger
 
 
@@ -153,12 +150,6 @@ def get_run_logger(
         logger.disabled = True
     else:
         raise MissingContextError("There is no active flow or task run context.")
-
-    if isinstance(logger, logging.LoggerAdapter):
-        assert isinstance(logger.logger, logging.Logger)
-        add_telemetry_log_handler(logger.logger)
-    else:
-        add_telemetry_log_handler(logger)
 
     return logger
 
