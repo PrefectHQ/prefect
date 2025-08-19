@@ -5,6 +5,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from prefect.cli.transfer import _find_root_resources, _get_resource_display_name
 from prefect.cli.transfer._exceptions import TransferSkipped
 from prefect.cli.transfer._migratable_resources.base import MigratableProtocol
 from prefect.settings import Profile, ProfilesCollection
@@ -236,15 +237,20 @@ class TestHelperFunctions:
 
     def test_get_resource_display_name_work_pool(self):
         """Test display name generation for work pool."""
-        from prefect.cli.transfer import _get_resource_display_name
 
         resource = MockMigratableResource(uuid.uuid4(), "test-pool", "work_pool")
         display_name = _get_resource_display_name(resource)
         assert display_name == "work-pool/test-pool"
 
+    def test_get_resource_display_name_work_queue(self):
+        """Test display name generation for work queue."""
+
+        resource = MockMigratableResource(uuid.uuid4(), "test-queue", "work_queue")
+        display_name = _get_resource_display_name(resource)
+        assert display_name == "work-queue/test-queue"
+
     def test_get_resource_display_name_deployment(self):
         """Test display name generation for deployment."""
-        from prefect.cli.transfer import _get_resource_display_name
 
         resource = MockMigratableResource(uuid.uuid4(), "test-deploy", "deployment")
         display_name = _get_resource_display_name(resource)
@@ -252,15 +258,60 @@ class TestHelperFunctions:
 
     def test_get_resource_display_name_block_type(self):
         """Test display name generation for block type."""
-        from prefect.cli.transfer import _get_resource_display_name
 
         resource = MockMigratableResource(uuid.uuid4(), "test-block-type", "block_type")
         display_name = _get_resource_display_name(resource)
-        assert display_name == "test-block-type (type)"
+        assert display_name == "block-type/test-block-type"
+
+    def test_get_resource_display_name_block_schema(self):
+        """Test display name generation for block schema."""
+
+        id = uuid.uuid4()
+        resource = MockMigratableResource(id, "test-block-schema", "block_schema")
+        display_name = _get_resource_display_name(resource)
+        assert display_name == f"block-schema/{str(id)[:8]}"
+
+    def test_get_resource_display_name_variable(self):
+        """Test display name generation for variable."""
+
+        resource = MockMigratableResource(uuid.uuid4(), "test-var", "variable")
+        display_name = _get_resource_display_name(resource)
+        assert display_name == "variable/test-var"
+
+    def test_get_resource_display_name_automation(self):
+        """Test display name generation for automation."""
+
+        resource = MockMigratableResource(uuid.uuid4(), "test-automation", "automation")
+        display_name = _get_resource_display_name(resource)
+        assert display_name == "automation/test-automation"
+
+    def test_get_resource_display_name_concurrency_limit(self):
+        """Test display name generation for concurrency limit."""
+
+        resource = MockMigratableResource(
+            uuid.uuid4(), "test-concurrency-limit", "concurrency_limit"
+        )
+        display_name = _get_resource_display_name(resource)
+        assert display_name == "concurrency-limit/test-concurrency-limit"
+
+    def test_get_resource_display_name_block_document(self):
+        """Test display name generation for block document."""
+
+        resource = MockMigratableResource(
+            uuid.uuid4(), "test-block-document", "block_document"
+        )
+        display_name = _get_resource_display_name(resource)
+        assert display_name == "block-document/test-block-document"
+
+    def test_get_resource_display_name_flow(self):
+        """Test display name generation for flow."""
+
+        resource = MockMigratableResource(uuid.uuid4(), "test-flow", "flow")
+        display_name = _get_resource_display_name(resource)
+        assert display_name == "flow/test-flow"
 
     def test_get_resource_display_name_unknown(self):
         """Test display name generation for unknown resource type."""
-        from prefect.cli.transfer import _get_resource_display_name
 
         resource = MockMigratableResource(uuid.uuid4(), "test", "unknown")
         display_name = _get_resource_display_name(resource)
@@ -270,7 +321,6 @@ class TestHelperFunctions:
         self, mock_resources: list[MockMigratableResource]
     ):
         """Test _find_root_resources identifies correct root resources."""
-        from prefect.cli.transfer import _find_root_resources
 
         # Create mock resources with dependencies
         root1 = MockMigratableResource(uuid.uuid4(), "root1")

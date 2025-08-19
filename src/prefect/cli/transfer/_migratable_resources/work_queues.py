@@ -12,6 +12,7 @@ from prefect.cli.transfer._migratable_resources.base import (
 )
 from prefect.cli.transfer._migratable_resources.work_pools import MigratableWorkPool
 from prefect.client.orchestration import get_client
+from prefect.client.schemas.filters import WorkQueueFilter, WorkQueueFilterName
 from prefect.client.schemas.objects import (
     WorkQueue,
 )
@@ -75,11 +76,17 @@ class MigratableWorkQueue(MigratableResource[WorkQueue]):
         return self._dependencies
 
     async def migrate(self) -> None:
-        # Skip default work queues as they are created when work pools are transferred
-        if self.source_work_queue.name == "default":
-            raise TransferSkipped("Default work queues are created with work pools")
-
         async with get_client() as client:
+            # Skip default work queues as they are created when work pools are transferred
+            if self.source_work_queue.name == "default":
+                work_queues = await client.read_work_queues(
+                    work_pool_name=self.source_work_queue.work_pool_name,
+                    work_queue_filter=WorkQueueFilter(
+                        name=WorkQueueFilterName(any_=["default"]),
+                    ),
+                )
+                raise TransferSkipped("Default work queues are created with work pools")
+
             try:
                 self.destination_work_queue = await client.create_work_queue(
                     name=self.source_work_queue.name,
@@ -91,10 +98,15 @@ class MigratableWorkQueue(MigratableResource[WorkQueue]):
             except ObjectAlreadyExists:
                 # Work queue already exists, read it by work pool and name
                 work_queues = await client.read_work_queues(
-                    work_pool_name=self.source_work_queue.work_pool_name
+                    work_pool_name=self.source_work_queue.work_pool_name,
+                    work_queue_filter=WorkQueueFilter(
+                        name=WorkQueueFilterName(any_=[self.source_work_queue.name]),
+                    ),
                 )
-                for queue in work_queues:
-                    if queue.name == self.source_work_queue.name:
-                        self.destination_work_queue = queue
-                        break
-                raise TransferSkipped("Already exists")
+                if work_queues:
+                    self.destination_work_queue = work_queues[0]
+                    raise TransferSkipped("Already exists")
+                else:
+                    raise RuntimeError(
+                        "Transfer failed due to conflict, but no existing queue found."
+                    )

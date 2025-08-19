@@ -208,11 +208,14 @@ def _get_resource_display_name(resource: "MigratableProtocol") -> str:
         ("source_work_queue", lambda r: f"work-queue/{r.source_work_queue.name}"),
         ("source_deployment", lambda r: f"deployment/{r.source_deployment.name}"),
         ("source_flow", lambda r: f"flow/{r.source_flow.name}"),
-        ("source_block_document", lambda r: f"block/{r.source_block_document.name}"),
-        ("source_block_type", lambda r: f"{r.source_block_type.slug} (type)"),
+        (
+            "source_block_document",
+            lambda r: f"block-document/{r.source_block_document.name}",
+        ),
+        ("source_block_type", lambda r: f"block-type/{r.source_block_type.slug}"),
         (
             "source_block_schema",
-            lambda r: f"schema:{str(r.source_block_schema.id)[:8]}",
+            lambda r: f"block-schema/{str(r.source_block_schema.id)[:8]}",
         ),
         ("source_variable", lambda r: f"variable/{r.source_variable.name}"),
         ("source_automation", lambda r: f"automation/{r.source_automation.name}"),
@@ -254,16 +257,16 @@ def _display_results(
         results_table = Table(title="Transfer Results", show_header=True)
         results_table.add_column("Resource", style="cyan")
         results_table.add_column("Status", style="white")
-        results_table.add_column("Details", style="dim")
+        results_table.add_column("Details", style="dim", no_wrap=False)
 
         for name in succeeded:
             results_table.add_row(name, "[green]✓ Success[/green]", "")
 
         for name, error in failed:
-            results_table.add_row(name, "[red]✗ Failed[/red]", str(error)[:50])
+            results_table.add_row(name, "[red]✗ Failed[/red]", str(error))
 
         for name, reason in skipped:
-            results_table.add_row(name, "[yellow]⊘ Skipped[/yellow]", reason[:50])
+            results_table.add_row(name, "[yellow]⊘ Skipped[/yellow]", reason)
 
         console.print()
         console.print(results_table)

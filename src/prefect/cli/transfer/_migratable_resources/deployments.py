@@ -12,6 +12,7 @@ from prefect.cli.transfer._migratable_resources.base import (
 )
 from prefect.cli.transfer._migratable_resources.blocks import MigratableBlockDocument
 from prefect.cli.transfer._migratable_resources.flows import MigratableFlow
+from prefect.cli.transfer._migratable_resources.work_pools import MigratableWorkPool
 from prefect.cli.transfer._migratable_resources.work_queues import MigratableWorkQueue
 from prefect.client.orchestration import get_client
 from prefect.client.schemas.actions import DeploymentScheduleCreate
@@ -82,6 +83,18 @@ class MigratableDeployment(MigratableResource[DeploymentResponse]):
                     self._dependencies[
                         work_queue.id
                     ] = await construct_migratable_resource(work_queue)
+            if self.source_deployment.work_pool_name is not None:
+                if dependency := await MigratableWorkPool.get_instance_by_name(
+                    name=self.source_deployment.work_pool_name
+                ):
+                    self._dependencies[dependency.source_id] = dependency
+                else:
+                    work_pool = await client.read_work_pool(
+                        self.source_deployment.work_pool_name
+                    )
+                    self._dependencies[
+                        work_pool.id
+                    ] = await construct_migratable_resource(work_pool)
             if self.source_deployment.storage_document_id is not None:
                 if dependency := await MigratableBlockDocument.get_instance(
                     id=self.source_deployment.storage_document_id
