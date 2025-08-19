@@ -30,8 +30,8 @@ from prefect.server.concurrency.lease_storage.filesystem import (
     ConcurrencyLeaseStorage as FileSystemConcurrencyLeaseStorage,
 )
 
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
 
 
 @pytest.fixture(autouse=True)
