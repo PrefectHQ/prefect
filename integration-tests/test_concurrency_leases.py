@@ -30,14 +30,6 @@ from prefect.server.concurrency.lease_storage.filesystem import (
 )
 
 
-@pytest.fixture(autouse=True)
-async def clear_lease_storage():
-    lease_storage = get_concurrency_lease_storage()
-    active_lease_ids = await lease_storage.read_active_lease_ids()
-    for lease_id in active_lease_ids:
-        await lease_storage.revoke_lease(lease_id)
-
-
 @pytest.fixture
 async def concurrency_limit():
     async with prefect.get_client() as client:
