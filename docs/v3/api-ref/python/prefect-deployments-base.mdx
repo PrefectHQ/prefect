@@ -15,7 +15,7 @@ To get started, follow along with [the deployments tutorial](https://docs.prefec
 
 ## Functions
 
-### `create_default_prefect_yaml` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/deployments/base.py#L26" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `create_default_prefect_yaml` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/deployments/base.py#L26" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 create_default_prefect_yaml(path: str, name: Optional[str] = None, contents: Optional[Dict[str, Any]] = None) -> bool
@@ -32,7 +32,7 @@ will be used
 defaults will be used
 
 
-### `configure_project_by_recipe` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/deployments/base.py#L117" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `configure_project_by_recipe` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/deployments/base.py#L117" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 configure_project_by_recipe(recipe: str, **formatting_kwargs: Any) -> dict[str, Any] | type[NotSet]
@@ -49,7 +49,7 @@ Given a recipe name, returns a dictionary representing base configuration option
 - `ValueError`: if provided recipe name does not exist.
 
 
-### `initialize_project` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/deployments/base.py#L146" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `initialize_project` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/deployments/base.py#L146" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 initialize_project(name: Optional[str] = None, recipe: Optional[str] = None, inputs: Optional[Dict[str, Any]] = None) -> List[str]

@@ -8,12 +8,12 @@ import {
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
-interface FormattedDateProps {
+type FormattedDateProps = {
 	date: string | Date | null | undefined;
 	format?: "relative" | "absolute" | "both";
 	showTooltip?: boolean;
 	className?: string;
-}
+};
 
 export const FormattedDate = ({
 	date,

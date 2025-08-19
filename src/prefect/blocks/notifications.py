@@ -14,7 +14,7 @@ from prefect.utilities.asyncutils import sync_compatible
 from prefect.utilities.templating import apply_values, find_placeholders
 from prefect.utilities.urls import validate_restricted_url
 
-PREFECT_NOTIFY_TYPE_DEFAULT = "prefect_default"
+PREFECT_NOTIFY_TYPE_DEFAULT = "info"  # Use a valid apprise type as default
 
 
 class AbstractAppriseNotificationBlock(NotificationBlock, ABC):
@@ -22,24 +22,12 @@ class AbstractAppriseNotificationBlock(NotificationBlock, ABC):
     An abstract class for sending notifications using Apprise.
     """
 
-    notify_type: Literal["prefect_default", "info", "success", "warning", "failure"] = (
-        Field(
-            default=PREFECT_NOTIFY_TYPE_DEFAULT,
-            description=(
-                "The type of notification being performed; the prefect_default "
-                "is a plain notification that does not attach an image."
-            ),
-        )
+    notify_type: Literal["info", "success", "warning", "failure"] = Field(
+        default=PREFECT_NOTIFY_TYPE_DEFAULT,
+        description="The type of notification being performed.",
     )
 
     def __init__(self, *args: Any, **kwargs: Any):
-        from apprise import (
-            NOTIFY_TYPES,  # pyright: ignore[reportAttributeAccessIssue, reportUnknownVariableType] incomplete type hints in apprise
-        )
-
-        if PREFECT_NOTIFY_TYPE_DEFAULT not in NOTIFY_TYPES:
-            NOTIFY_TYPES += (PREFECT_NOTIFY_TYPE_DEFAULT,)  # pyright: ignore[reportUnknownVariableType]
-
         super().__init__(*args, **kwargs)
 
     def _start_apprise_client(self, url: SecretStr):
@@ -227,8 +215,7 @@ class PagerDutyWebHook(AbstractAppriseNotificationBlock):
         "https://docs.prefect.io/latest/automate/events/automations-triggers#sending-notifications-with-automations"
     )
 
-    # The default cannot be prefect_default because NotifyPagerDuty's
-    # PAGERDUTY_SEVERITY_MAP only has these notify types defined as keys
+    # PagerDuty requires a valid severity level from its PAGERDUTY_SEVERITY_MAP
     notify_type: Literal["info", "success", "warning", "failure"] = Field(  # pyright: ignore[reportIncompatibleVariableOverride]
         default="info", description="The severity of the notification."
     )

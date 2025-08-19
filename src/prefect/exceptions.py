@@ -240,6 +240,26 @@ class ObjectAlreadyExists(PrefectException):
         super().__init__(*args, **kwargs)
 
 
+class ObjectLimitReached(PrefectException):
+    """
+    Raised when the client receives a 403 (forbidden) from the API due to reaching an object limit (e.g. maximum number of deployments).
+    """
+
+    def __init__(self, http_exc: Exception, *args: Any, **kwargs: Any) -> None:
+        self.http_exc = http_exc
+        super().__init__(*args, **kwargs)
+
+
+class ObjectUnsupported(PrefectException):
+    """
+    Raised when the client receives a 403 (forbidden) from the API due to an unsupported object (i.e. requires a specific Prefect Cloud tier).
+    """
+
+    def __init__(self, http_exc: Exception, *args: Any, **kwargs: Any) -> None:
+        self.http_exc = http_exc
+        super().__init__(*args, **kwargs)
+
+
 class UpstreamTaskError(PrefectException):
     """
     Raised when a task relies on the result of another task but that task is not
