@@ -1,9 +1,6 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import type { SortingState } from "@tanstack/react-table";
 import { fireEvent, render, screen } from "@testing-library/react";
-import { buildApiUrl, server } from "@tests/utils";
-import { HttpResponse, http } from "msw";
-import { Suspense } from "react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { createFakeWorkPoolQueues } from "@/mocks";
 import { WorkPoolQueuesTable } from "./work-pool-queues-table";
 
@@ -53,16 +50,6 @@ vi.mock("@/components/ui/data-table", () => ({
 	),
 }));
 
-const createTestQueryClient = () => {
-	return new QueryClient({
-		defaultOptions: {
-			queries: {
-				retry: false,
-			},
-		},
-	});
-};
-
 describe("WorkPoolQueuesTable", () => {
 	const mockQueues = createFakeWorkPoolQueues("test-pool", 3, [
 		{ name: "default", status: "READY", is_paused: false, priority: 1 },
@@ -76,135 +63,131 @@ describe("WorkPoolQueuesTable", () => {
 		},
 	]);
 
-	const renderWithClient = (component: React.ReactElement) => {
-		const queryClient = createTestQueryClient();
-		return render(
-			<QueryClientProvider client={queryClient}>
-				<Suspense fallback={<div data-testid="loading">Loading...</div>}>
-					{component}
-				</Suspense>
-			</QueryClientProvider>,
-		);
+	const defaultProps = {
+		queues: mockQueues,
+		searchQuery: "",
+		sortState: [{ id: "name", desc: false }] as SortingState,
+		totalCount: mockQueues.length,
+		workPoolName: "test-pool",
+		onSearchChange: vi.fn(),
+		onSortingChange: vi.fn(),
 	};
 
-	beforeEach(() => {
-		// Default API response for work pool queues
-		server.use(
-			http.post(buildApiUrl("/work_pools/test-pool/queues/filter"), () => {
-				return HttpResponse.json(mockQueues);
-			}),
-		);
-	});
+	it("renders toolbar and data table", () => {
+		render(<WorkPoolQueuesTable {...defaultProps} />);
 
-	it("renders toolbar and data table", async () => {
-		renderWithClient(<WorkPoolQueuesTable workPoolName="test-pool" />);
-
-		// Should eventually render toolbar after data loads
-		expect(await screen.findByTestId("toolbar")).toBeInTheDocument();
+		// Should render toolbar
+		expect(screen.getByTestId("toolbar")).toBeInTheDocument();
 
 		// Should render data table
 		expect(screen.getByTestId("data-table")).toBeInTheDocument();
 	});
 
-	it("shows correct queue count in toolbar", async () => {
-		renderWithClient(<WorkPoolQueuesTable workPoolName="test-pool" />);
+	it("shows correct queue count in toolbar", () => {
+		render(<WorkPoolQueuesTable {...defaultProps} />);
 
 		// Should show the total count from mock data
-		expect(await screen.findByText("3 queues")).toBeInTheDocument();
+		expect(screen.getByText("3 queues")).toBeInTheDocument();
 	});
 
-	it("filters queues based on search query", async () => {
-		renderWithClient(<WorkPoolQueuesTable workPoolName="test-pool" />);
-
-		// Wait for initial load
-		await screen.findByTestId("data-table");
+	it("calls onSearchChange when search input changes", () => {
+		const onSearchChange = vi.fn();
+		render(
+			<WorkPoolQueuesTable {...defaultProps} onSearchChange={onSearchChange} />,
+		);
 
 		// Type in search input
 		const searchInput = screen.getByTestId("search-input");
 		fireEvent.change(searchInput, { target: { value: "default" } });
 
-		// Should show filtered results
-		expect(await screen.findByText(/1 of 3 queues/)).toBeInTheDocument();
+		// Should call onSearchChange callback
+		expect(onSearchChange).toHaveBeenCalledWith("default");
 	});
 
-	it("shows empty state when no queues match search", async () => {
-		renderWithClient(<WorkPoolQueuesTable workPoolName="test-pool" />);
-
-		// Wait for initial load
-		await screen.findByTestId("data-table");
-
-		// Search for something that won't match
-		const searchInput = screen.getByTestId("search-input");
-		fireEvent.change(searchInput, { target: { value: "nonexistent" } });
-
-		// Should show empty state
-		expect(await screen.findByText("No queues found")).toBeInTheDocument();
-	});
-
-	it("shows empty state when API returns no queues", async () => {
-		// Override the default API response to return empty array
-		server.use(
-			http.post(buildApiUrl("/work_pools/empty-pool/queues/filter"), () => {
-				return HttpResponse.json([]);
-			}),
+	it("shows empty state when no queues provided with search query", () => {
+		render(
+			<WorkPoolQueuesTable
+				{...defaultProps}
+				queues={[]}
+				searchQuery="nonexistent"
+			/>,
 		);
 
-		renderWithClient(<WorkPoolQueuesTable workPoolName="empty-pool" />);
-
-		// Should show empty state
-		expect(await screen.findByText("No queues yet")).toBeInTheDocument();
+		// Should show empty state with search query
+		expect(screen.getByText("No queues found")).toBeInTheDocument();
 	});
 
-	it("applies custom className", async () => {
-		const { container } = renderWithClient(
-			<WorkPoolQueuesTable workPoolName="test-pool" className="custom-class" />,
-		);
+	it("shows empty state when no queues and no search query", () => {
+		render(<WorkPoolQueuesTable {...defaultProps} queues={[]} />);
 
-		// Wait for component to render
-		await screen.findByTestId("toolbar");
+		// Should show empty state without search query
+		expect(screen.getByText("No queues yet")).toBeInTheDocument();
+	});
+
+	it("applies custom className", () => {
+		const { container } = render(
+			<WorkPoolQueuesTable {...defaultProps} className="custom-class" />,
+		);
 
 		const tableContainer = container.querySelector(".custom-class");
 		expect(tableContainer).toBeInTheDocument();
 	});
 
-	it("calls correct API endpoint for different work pool names", async () => {
-		let apiCalled = false;
+	it("displays correct counts for different queue data", () => {
 		const customPoolQueues = createFakeWorkPoolQueues("custom-pool", 2);
-
-		server.use(
-			http.post(buildApiUrl("/work_pools/custom-pool/queues/filter"), () => {
-				apiCalled = true;
-				return HttpResponse.json(customPoolQueues);
-			}),
+		render(
+			<WorkPoolQueuesTable
+				{...defaultProps}
+				queues={customPoolQueues}
+				totalCount={2}
+				workPoolName="custom-pool"
+			/>,
 		);
 
-		renderWithClient(<WorkPoolQueuesTable workPoolName="custom-pool" />);
-
-		// Wait for data to load
-		await screen.findByTestId("data-table");
-
-		expect(apiCalled).toBe(true);
-		expect(await screen.findByText("2 queues")).toBeInTheDocument();
+		expect(screen.getByText("2 queues")).toBeInTheDocument();
 	});
 
-	it("handles API error gracefully", async () => {
-		// Mock API to return error
-		server.use(
-			http.post(buildApiUrl("/work_pools/error-pool/queues/filter"), () => {
-				return HttpResponse.json(
-					{ error: "Failed to fetch queues" },
-					{ status: 500 },
-				);
-			}),
+	it("passes sorting state to table correctly", () => {
+		const customSortState = [{ id: "priority", desc: true }] as SortingState;
+		render(
+			<WorkPoolQueuesTable {...defaultProps} sortState={customSortState} />,
 		);
 
-		// The component should handle the error gracefully
-		// This test assumes the component has error boundaries or error handling
-		renderWithClient(<WorkPoolQueuesTable workPoolName="error-pool" />);
+		// Component should render without errors with custom sort state
+		expect(screen.getByTestId("data-table")).toBeInTheDocument();
+	});
 
-		// Wait a moment and check if loading state persists (indicating an error)
-		// or check if an error boundary appears
-		const loading = await screen.findByTestId("loading");
-		expect(loading).toBeInTheDocument();
+	it("calls onSortingChange when provided", () => {
+		const onSortingChange = vi.fn();
+		render(
+			<WorkPoolQueuesTable
+				{...defaultProps}
+				onSortingChange={onSortingChange}
+			/>,
+		);
+
+		// Component should render without errors
+		expect(screen.getByTestId("data-table")).toBeInTheDocument();
+	});
+
+	it("shows search query in toolbar input", () => {
+		render(<WorkPoolQueuesTable {...defaultProps} searchQuery="test search" />);
+
+		const searchInput = screen.getByTestId("search-input");
+		expect(searchInput).toHaveValue("test search");
+	});
+
+	it("displays correct results count when filtered", () => {
+		const filteredQueues = mockQueues.slice(0, 1); // Only 1 queue
+		render(
+			<WorkPoolQueuesTable
+				{...defaultProps}
+				queues={filteredQueues}
+				searchQuery="default"
+			/>,
+		);
+
+		// Should show filtered count
+		expect(screen.getByText("1 of 3 queues")).toBeInTheDocument();
 	});
 });

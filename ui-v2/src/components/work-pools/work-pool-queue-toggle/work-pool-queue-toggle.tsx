@@ -14,7 +14,7 @@ type WorkPoolQueueToggleProps = {
 	onUpdate?: () => void;
 	disabled?: boolean;
 	className?: string;
-}
+};
 
 export const WorkPoolQueueToggle = ({
 	queue,

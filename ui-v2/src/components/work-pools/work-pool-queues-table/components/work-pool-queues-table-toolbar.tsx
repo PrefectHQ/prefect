@@ -10,7 +10,7 @@ type WorkPoolQueuesTableToolbarProps = {
 	totalCount: number;
 	workPoolName: string;
 	className?: string;
-}
+};
 
 export const WorkPoolQueuesTableToolbar = ({
 	searchQuery,

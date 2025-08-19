@@ -14,7 +14,7 @@ type WorkPoolQueueMenuProps = {
 	queue: WorkPoolQueue;
 	onUpdate?: () => void;
 	className?: string;
-}
+};
 
 export const WorkPoolQueueMenu = ({
 	queue,

@@ -8,7 +8,7 @@ type DeleteWorkPoolQueueDialogProps = {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
 	onDeleted?: () => void;
-}
+};
 
 export const DeleteWorkPoolQueueDialog = ({
 	queue,

@@ -1,11 +1,11 @@
-import { useSuspenseQuery } from "@tanstack/react-query";
+import type { OnChangeFn, SortingState } from "@tanstack/react-table";
 import {
 	getCoreRowModel,
 	getSortedRowModel,
 	useReactTable,
 } from "@tanstack/react-table";
-import { useMemo, useState } from "react";
-import { buildListWorkPoolQueuesQuery } from "@/api/work-pool-queues";
+import { useCallback } from "react";
+import type { WorkPoolQueue } from "@/api/work-pool-queues";
 import { DataTable } from "@/components/ui/data-table";
 import { cn } from "@/lib/utils";
 import { workPoolQueuesTableColumns } from "./components/work-pool-queues-table-columns";
@@ -13,47 +13,62 @@ import { WorkPoolQueuesTableEmptyState } from "./components/work-pool-queues-tab
 import { WorkPoolQueuesTableToolbar } from "./components/work-pool-queues-table-toolbar";
 
 type WorkPoolQueuesTableProps = {
+	queues: WorkPoolQueue[];
+	searchQuery: string;
+	sortState: SortingState;
+	totalCount: number;
 	workPoolName: string;
 	className?: string;
+	onSearchChange: (query: string) => void;
+	onSortingChange: OnChangeFn<SortingState>;
 };
 
 export const WorkPoolQueuesTable = ({
+	queues,
+	searchQuery,
+	sortState,
+	totalCount,
 	workPoolName,
 	className,
+	onSearchChange,
+	onSortingChange,
 }: WorkPoolQueuesTableProps) => {
-	const { data: queues = [] } = useSuspenseQuery(
-		buildListWorkPoolQueuesQuery(workPoolName),
+	const handleSortingChange: OnChangeFn<SortingState> = useCallback(
+		(updater) => {
+			let newSorting = sortState;
+			if (typeof updater === "function") {
+				newSorting = updater(sortState);
+			} else {
+				newSorting = updater;
+			}
+			onSortingChange(newSorting);
+		},
+		[sortState, onSortingChange],
 	);
 
-	const [searchQuery, setSearchQuery] = useState("");
-
-	const filteredQueues = useMemo(() => {
-		if (!searchQuery) return queues;
-		return queues.filter((queue) =>
-			queue.name.toLowerCase().includes(searchQuery.toLowerCase()),
-		);
-	}, [queues, searchQuery]);
-
 	const table = useReactTable({
-		data: filteredQueues,
+		data: queues,
 		columns: workPoolQueuesTableColumns,
 		getCoreRowModel: getCoreRowModel(),
 		getSortedRowModel: getSortedRowModel(),
-		initialState: {
-			sorting: [{ id: "name", desc: false }],
+		state: {
+			sorting: sortState,
 		},
+		onSortingChange: handleSortingChange,
 	});
+
+	const resultsCount = queues.length;
 
 	return (
 		<div className={cn("space-y-4", className)}>
 			<WorkPoolQueuesTableToolbar
 				searchQuery={searchQuery}
-				onSearchChange={setSearchQuery}
-				resultsCount={filteredQueues.length}
-				totalCount={queues.length}
+				onSearchChange={onSearchChange}
+				resultsCount={resultsCount}
+				totalCount={totalCount}
 				workPoolName={workPoolName}
 			/>
-			{filteredQueues.length === 0 ? (
+			{resultsCount === 0 ? (
 				<WorkPoolQueuesTableEmptyState
 					hasSearchQuery={!!searchQuery}
 					workPoolName={workPoolName}
