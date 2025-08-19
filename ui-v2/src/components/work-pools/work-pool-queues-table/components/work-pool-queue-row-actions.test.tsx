@@ -5,23 +5,43 @@ import { WorkPoolQueueRowActions } from "./work-pool-queue-row-actions";
 
 // Mock the child components
 vi.mock("@/components/work-pools/work-pool-queue-toggle", () => ({
-	WorkPoolQueueToggle: vi.fn(({ queue, onUpdate, className }) => (
-		<div data-testid="work-pool-queue-toggle">
-			<span>Queue: {queue.name}</span>
-			{onUpdate && <span>Has onUpdate</span>}
-			{className && <span>Class: {className}</span>}
-		</div>
-	)),
+	WorkPoolQueueToggle: vi.fn(
+		({
+			queue,
+			onUpdate,
+			className,
+		}: {
+			queue: { name: string };
+			onUpdate?: () => void;
+			className?: string;
+		}) => (
+			<div data-testid="work-pool-queue-toggle">
+				<span>Queue: {queue.name}</span>
+				{onUpdate && <span>Has onUpdate</span>}
+				{className && <span>Class: {className}</span>}
+			</div>
+		),
+	),
 }));
 
 vi.mock("@/components/work-pools/work-pool-queue-menu", () => ({
-	WorkPoolQueueMenu: vi.fn(({ queue, onUpdate, className }) => (
-		<div data-testid="work-pool-queue-menu">
-			<span>Queue: {queue.name}</span>
-			{onUpdate && <span>Has onUpdate</span>}
-			{className && <span>Class: {className}</span>}
-		</div>
-	)),
+	WorkPoolQueueMenu: vi.fn(
+		({
+			queue,
+			onUpdate,
+			className,
+		}: {
+			queue: { name: string };
+			onUpdate?: () => void;
+			className?: string;
+		}) => (
+			<div data-testid="work-pool-queue-menu">
+				<span>Queue: {queue.name}</span>
+				{onUpdate && <span>Has onUpdate</span>}
+				{className && <span>Class: {className}</span>}
+			</div>
+		),
+	),
 }));
 
 describe("WorkPoolQueueRowActions", () => {

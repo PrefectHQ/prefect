@@ -96,18 +96,25 @@ describe("useWorkPoolQueueMenu", () => {
 		expect(deleteItem).toBeUndefined();
 	});
 
-	it("copies ID to clipboard and shows toast", async () => {
+	it("copies ID to clipboard and shows toast", () => {
+		// Mock clipboard API
+		const mockClipboard = {
+			writeText: vi.fn().mockResolvedValue(undefined),
+		};
+		Object.assign(navigator, { clipboard: mockClipboard });
 		const { result } = renderHook(() => useWorkPoolQueueMenu(defaultQueue));
 
 		const copyItem = result.current.menuItems.find(
 			(item) => item.label === "Copy ID",
 		);
 
-		await act(async () => {
-			copyItem?.action();
+		act(() => {
+			if (copyItem) {
+				copyItem.action();
+			}
 		});
 
-		expect(navigator.clipboard.writeText).toHaveBeenCalledWith("test-id");
+		expect(mockClipboard.writeText).toHaveBeenCalledWith("test-id");
 		expect(toast.success).toHaveBeenCalledWith("ID copied to clipboard");
 	});
 
@@ -136,8 +143,10 @@ describe("useWorkPoolQueueMenu", () => {
 			(item) => item.label === "Automate",
 		);
 
-		await act(async () => {
-			automateItem?.action();
+		act(() => {
+			if (automateItem) {
+				automateItem.action();
+			}
 		});
 
 		expect(mockNavigate).toHaveBeenCalledWith({
@@ -198,6 +207,12 @@ describe("useWorkPoolQueueMenu", () => {
 	});
 
 	it("handles different queue names correctly", () => {
+		// Mock clipboard API
+		const mockClipboard = {
+			writeText: vi.fn().mockResolvedValue(undefined),
+		};
+		Object.assign(navigator, { clipboard: mockClipboard });
+		
 		const customQueue = createFakeWorkPoolQueue({
 			id: "custom-id",
 			name: "my-custom-queue",
@@ -211,10 +226,12 @@ describe("useWorkPoolQueueMenu", () => {
 		);
 
 		act(() => {
-			copyItem?.action();
+			if (copyItem) {
+				copyItem.action();
+			}
 		});
 
-		expect(navigator.clipboard.writeText).toHaveBeenCalledWith("custom-id");
+		expect(mockClipboard.writeText).toHaveBeenCalledWith("custom-id");
 
 		const editItem = result.current.menuItems.find(
 			(item) => item.label === "Edit",

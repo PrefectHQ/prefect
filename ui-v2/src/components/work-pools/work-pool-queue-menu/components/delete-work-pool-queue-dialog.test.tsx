@@ -33,6 +33,15 @@ vi.mock("@/components/ui/delete-confirmation-dialog", () => ({
 			loadingText,
 			onConfirm,
 			onClose,
+		}: {
+			isOpen: boolean;
+			title: string;
+			description: string;
+			confirmText: string;
+			isLoading: boolean;
+			loadingText: string;
+			onConfirm: () => void;
+			onClose: () => void;
 		}) => (
 			<div data-testid="delete-confirmation-dialog">
 				{isOpen && (
@@ -40,10 +49,12 @@ vi.mock("@/components/ui/delete-confirmation-dialog", () => ({
 						<h2>{title}</h2>
 						<p>{description}</p>
 						<span>Confirm text: {confirmText}</span>
-						<button onClick={onConfirm} disabled={isLoading}>
+						<button type="button" onClick={onConfirm} disabled={isLoading}>
 							{isLoading ? loadingText : "Delete"}
 						</button>
-						<button onClick={onClose}>Cancel</button>
+						<button type="button" onClick={onClose}>
+							Cancel
+						</button>
 					</div>
 				)}
 			</div>
@@ -106,9 +117,14 @@ describe("DeleteWorkPoolQueueDialog", () => {
 	});
 
 	it("calls mutation with correct parameters on delete", async () => {
-		const mockMutate = vi.fn((params, callbacks) => {
-			callbacks.onSuccess();
-		});
+		const mockMutate = vi.fn(
+			(
+				_params: unknown,
+				callbacks: { onSuccess: () => void; onError: () => void },
+			) => {
+				callbacks.onSuccess();
+			},
+		);
 
 		// Mock the hook to return our mock mutate function
 		const workPoolQueuesModule = await import("@/api/work-pool-queues");
@@ -118,7 +134,9 @@ describe("DeleteWorkPoolQueueDialog", () => {
 			mutate: mockMutate,
 			isPending: false,
 			// Add other mutation properties as needed
-		} as any);
+		} as ReturnType<
+			typeof import("@/api/work-pool-queues").useDeleteWorkPoolQueueMutation
+		>);
 
 		renderWithClient(<DeleteWorkPoolQueueDialog {...defaultProps} />);
 
@@ -131,8 +149,8 @@ describe("DeleteWorkPoolQueueDialog", () => {
 				queueName: "test-queue",
 			},
 			{
-				onSuccess: expect.any(Function),
-				onError: expect.any(Function),
+				onSuccess: expect.any(Function) as () => void,
+				onError: expect.any(Function) as () => void,
 			},
 		);
 	});
@@ -140,9 +158,14 @@ describe("DeleteWorkPoolQueueDialog", () => {
 	it("shows success toast and calls callbacks on successful delete", async () => {
 		const onDeleted = vi.fn();
 		const onOpenChange = vi.fn();
-		const mockMutate = vi.fn((params, callbacks) => {
-			callbacks.onSuccess();
-		});
+		const mockMutate = vi.fn(
+			(
+				_params: unknown,
+				callbacks: { onSuccess: () => void; onError: () => void },
+			) => {
+				callbacks.onSuccess();
+			},
+		);
 
 		const workPoolQueuesModule = await import("@/api/work-pool-queues");
 		vi.mocked(
@@ -150,7 +173,9 @@ describe("DeleteWorkPoolQueueDialog", () => {
 		).mockReturnValue({
 			mutate: mockMutate,
 			isPending: false,
-		} as any);
+		} as ReturnType<
+			typeof import("@/api/work-pool-queues").useDeleteWorkPoolQueueMutation
+		>);
 
 		renderWithClient(
 			<DeleteWorkPoolQueueDialog
@@ -173,9 +198,14 @@ describe("DeleteWorkPoolQueueDialog", () => {
 	});
 
 	it("shows error toast on delete failure", async () => {
-		const mockMutate = vi.fn((params, callbacks) => {
-			callbacks.onError();
-		});
+		const mockMutate = vi.fn(
+			(
+				_params: unknown,
+				callbacks: { onSuccess: () => void; onError: () => void },
+			) => {
+				callbacks.onError();
+			},
+		);
 
 		const workPoolQueuesModule = await import("@/api/work-pool-queues");
 		vi.mocked(
@@ -183,7 +213,9 @@ describe("DeleteWorkPoolQueueDialog", () => {
 		).mockReturnValue({
 			mutate: mockMutate,
 			isPending: false,
-		} as any);
+		} as ReturnType<
+			typeof import("@/api/work-pool-queues").useDeleteWorkPoolQueueMutation
+		>);
 
 		renderWithClient(<DeleteWorkPoolQueueDialog {...defaultProps} />);
 
@@ -204,7 +236,9 @@ describe("DeleteWorkPoolQueueDialog", () => {
 		).mockReturnValue({
 			mutate: vi.fn(),
 			isPending: true,
-		} as any);
+		} as ReturnType<
+			typeof import("@/api/work-pool-queues").useDeleteWorkPoolQueueMutation
+		>);
 
 		renderWithClient(<DeleteWorkPoolQueueDialog {...defaultProps} />);
 
