@@ -178,7 +178,7 @@ create_block_type(self, block_type: 'BlockTypeCreate') -> 'BlockType'
 Create a block type in the Prefect API.
 
 
-#### `create_concurrency_limit` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_concurrency_limits/client.py#L464" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `create_concurrency_limit` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_concurrency_limits/client.py#L470" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 create_concurrency_limit(self, tag: str, concurrency_limit: int) -> 'UUID'
@@ -198,7 +198,7 @@ running tasks.
 - the ID of the concurrency limit in the backend
 
 
-#### `create_deployment` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_deployments/client.py#L709" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `create_deployment` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_deployments/client.py#L717" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 create_deployment(self, flow_id: UUID, name: str, version: str | None = None, version_info: 'VersionInfo | None' = None, schedules: list['DeploymentScheduleCreate'] | None = None, concurrency_limit: int | None = None, concurrency_options: 'ConcurrencyOptions | None' = None, parameters: dict[str, Any] | None = None, description: str | None = None, work_queue_name: str | None = None, work_pool_name: str | None = None, tags: list[str] | None = None, storage_document_id: UUID | None = None, path: str | None = None, entrypoint: str | None = None, infrastructure_document_id: UUID | None = None, parameter_openapi_schema: dict[str, Any] | None = None, paused: bool | None = None, pull_steps: list[dict[str, Any]] | None = None, enforce_parameter_schema: bool | None = None, job_variables: dict[str, Any] | None = None, branch: str | None = None, base: UUID | None = None, root: UUID | None = None) -> UUID
@@ -227,13 +227,13 @@ Both arguments are supported for backwards compatibility.
 - the ID of the deployment in the backend
 
 
-#### `create_deployment_branch` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_deployments/client.py#L1349" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `create_deployment_branch` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_deployments/client.py#L1368" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 create_deployment_branch(self, deployment_id: UUID, branch: str, options: 'DeploymentBranchingOptions | None' = None, overrides: 'DeploymentUpdate | None' = None) -> UUID
 ```
 
-#### `create_deployment_schedules` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_deployments/client.py#L1114" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `create_deployment_schedules` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_deployments/client.py#L1133" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 create_deployment_schedules(self, deployment_id: UUID, schedules: list[tuple['SCHEDULE_TYPES', bool]]) -> list['DeploymentSchedule']
@@ -318,7 +318,7 @@ run identifier in the parent flow
 - The flow run model
 
 
-#### `create_flow_run_from_deployment` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_deployments/client.py#L1270" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `create_flow_run_from_deployment` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_deployments/client.py#L1289" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 create_flow_run_from_deployment(self, deployment_id: UUID) -> 'FlowRun'
@@ -369,7 +369,7 @@ Creates a flow run input.
 - `sender`: The sender of the input.
 
 
-#### `create_global_concurrency_limit` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_concurrency_limits/client.py#L796" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `create_global_concurrency_limit` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_concurrency_limits/client.py#L802" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 create_global_concurrency_limit(self, concurrency_limit: 'GlobalConcurrencyLimitCreate') -> 'UUID'
@@ -412,7 +412,7 @@ addition to `task.tags`
 - The created task run.
 
 
-#### `create_variable` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_variables/client.py#L92" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `create_variable` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_variables/client.py#L100" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 create_variable(self, variable: 'VariableCreate') -> 'Variable'
@@ -421,7 +421,7 @@ create_variable(self, variable: 'VariableCreate') -> 'Variable'
 Creates a variable with the provided configuration.
 
 
-#### `create_work_pool` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_work_pools/client.py#L457" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `create_work_pool` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_work_pools/client.py#L460" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 create_work_pool(self, work_pool: 'WorkPoolCreate', overwrite: bool = False) -> 'WorkPool'
@@ -460,7 +460,7 @@ Create a work queue.
 - The created work queue
 
 
-#### `decrement_v1_concurrency_slots` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_concurrency_limits/client.py#L652" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `decrement_v1_concurrency_slots` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_concurrency_limits/client.py#L658" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 decrement_v1_concurrency_slots(self, names: list[str], task_run_id: 'UUID', occupancy_seconds: float) -> 'Response'
@@ -508,7 +508,7 @@ delete_block_type(self, block_type_id: 'UUID') -> None
 Delete a block type.
 
 
-#### `delete_concurrency_limit_by_tag` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_concurrency_limits/client.py#L602" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `delete_concurrency_limit_by_tag` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_concurrency_limits/client.py#L608" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 delete_concurrency_limit_by_tag(self, tag: str) -> None
@@ -524,7 +524,7 @@ Delete the concurrency limit set on a specific tag.
 - `httpx.RequestError`: If request fails
 
 
-#### `delete_deployment` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_deployments/client.py#L1089" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `delete_deployment` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_deployments/client.py#L1108" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 delete_deployment(self, deployment_id: UUID) -> None
@@ -540,7 +540,7 @@ Raises:
     RequestError: If requests fails
 
 
-#### `delete_deployment_schedule` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_deployments/client.py#L1221" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `delete_deployment_schedule` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_deployments/client.py#L1240" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 delete_deployment_schedule(self, deployment_id: UUID, schedule_id: UUID) -> None
@@ -601,7 +601,7 @@ Deletes a flow run input.
 - `key`: The input key.
 
 
-#### `delete_global_concurrency_limit_by_name` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_concurrency_limits/client.py#L825" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `delete_global_concurrency_limit_by_name` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_concurrency_limits/client.py#L838" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 delete_global_concurrency_limit_by_name(self, name: str) -> 'Response'
@@ -629,7 +629,7 @@ Raises:
     httpx.RequestError: If requests fails
 
 
-#### `delete_variable_by_name` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_variables/client.py#L145" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `delete_variable_by_name` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_variables/client.py#L161" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 delete_variable_by_name(self, name: str) -> None
@@ -638,7 +638,7 @@ delete_variable_by_name(self, name: str) -> None
 Deletes a variable by name.
 
 
-#### `delete_work_pool` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_work_pools/client.py#L534" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `delete_work_pool` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_work_pools/client.py#L537" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 delete_work_pool(self, work_pool_name: str) -> None
@@ -718,13 +718,13 @@ Defaults to now.
 - List[FlowRun]: a list of FlowRun objects read from the queue
 
 
-#### `get_scheduled_flow_runs_for_deployments` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_deployments/client.py#L1248" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get_scheduled_flow_runs_for_deployments` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_deployments/client.py#L1267" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_scheduled_flow_runs_for_deployments(self, deployment_ids: list[UUID], scheduled_before: 'datetime.datetime | None' = None, limit: int | None = None) -> list['FlowRun']
 ```
 
-#### `get_scheduled_flow_runs_for_work_pool` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_work_pools/client.py#L556" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get_scheduled_flow_runs_for_work_pool` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_work_pools/client.py#L559" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_scheduled_flow_runs_for_work_pool(self, work_pool_name: str, work_queue_names: list[str] | None = None, scheduled_before: datetime | None = None) -> list['WorkerFlowRunResponse']
@@ -754,7 +754,7 @@ hello(self) -> httpx.Response
 Send a GET request to /hello for testing purposes.
 
 
-#### `increment_concurrency_slots` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_concurrency_limits/client.py#L682" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `increment_concurrency_slots` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_concurrency_limits/client.py#L688" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 increment_concurrency_slots(self, names: list[str], slots: int, mode: Literal['concurrency', 'rate_limit']) -> 'Response'
@@ -768,7 +768,7 @@ Increment concurrency slots for the specified limits.
 - `mode`: The mode of the concurrency limits.
 
 
-#### `increment_concurrency_slots_with_lease` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_concurrency_limits/client.py#L706" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `increment_concurrency_slots_with_lease` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_concurrency_limits/client.py#L712" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 increment_concurrency_slots_with_lease(self, names: list[str], slots: int, mode: Literal['concurrency', 'rate_limit'], lease_duration: float) -> 'Response'
@@ -783,7 +783,7 @@ Increment concurrency slots for the specified limits with a lease.
 - `lease_duration`: The duration of the lease in seconds.
 
 
-#### `increment_v1_concurrency_slots` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_concurrency_limits/client.py#L629" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `increment_v1_concurrency_slots` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_concurrency_limits/client.py#L635" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 increment_v1_concurrency_slots(self, names: list[str], task_run_id: 'UUID') -> 'Response'
@@ -825,7 +825,7 @@ of the work queues
 pause_automation(self, automation_id: 'UUID') -> None
 ```
 
-#### `pause_deployment` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_deployments/client.py#L858" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `pause_deployment` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_deployments/client.py#L877" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 pause_deployment(self, deployment_id: Union[UUID, str]) -> None
@@ -1017,7 +1017,7 @@ Raises:
 - List of BlockTypes.
 
 
-#### `read_concurrency_limit_by_tag` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_concurrency_limits/client.py#L503" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `read_concurrency_limit_by_tag` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_concurrency_limits/client.py#L509" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_concurrency_limit_by_tag(self, tag: str) -> 'ConcurrencyLimit'
@@ -1036,7 +1036,7 @@ Read the concurrency limit set on a specific tag.
 - the concurrency limit set on a specific tag
 
 
-#### `read_concurrency_limits` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_concurrency_limits/client.py#L540" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `read_concurrency_limits` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_concurrency_limits/client.py#L546" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_concurrency_limits(self, limit: int, offset: int) -> list['ConcurrencyLimit']
@@ -1052,7 +1052,7 @@ Lists concurrency limits set on task run tags.
 - a list of concurrency limits
 
 
-#### `read_deployment` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_deployments/client.py#L953" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `read_deployment` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_deployments/client.py#L972" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_deployment(self, deployment_id: Union[UUID, str]) -> 'DeploymentResponse'
@@ -1067,7 +1067,7 @@ Query the Prefect API for a deployment by id.
 - a Deployment model representation of the deployment
 
 
-#### `read_deployment_by_name` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_deployments/client.py#L988" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `read_deployment_by_name` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_deployments/client.py#L1007" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_deployment_by_name(self, name: str) -> 'DeploymentResponse'
@@ -1086,7 +1086,7 @@ Query the Prefect API for a deployment by name.
 - a Deployment model representation of the deployment
 
 
-#### `read_deployment_schedules` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_deployments/client.py#L1153" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `read_deployment_schedules` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_deployments/client.py#L1172" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_deployment_schedules(self, deployment_id: UUID) -> list['DeploymentSchedule']
@@ -1101,7 +1101,7 @@ Query the Prefect API for a deployment's schedules.
 - a list of DeploymentSchedule model representations of the deployment schedules
 
 
-#### `read_deployments` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_deployments/client.py#L1029" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `read_deployments` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_deployments/client.py#L1048" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_deployments(self) -> list['DeploymentResponse']
@@ -1248,13 +1248,13 @@ be returned.
 - a list of Flow model representations of the flows
 
 
-#### `read_global_concurrency_limit_by_name` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_concurrency_limits/client.py#L839" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `read_global_concurrency_limit_by_name` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_concurrency_limits/client.py#L852" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_global_concurrency_limit_by_name(self, name: str) -> 'GlobalConcurrencyLimitResponse'
 ```
 
-#### `read_global_concurrency_limits` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_concurrency_limits/client.py#L888" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `read_global_concurrency_limits` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_concurrency_limits/client.py#L901" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_global_concurrency_limits(self, limit: int = 10, offset: int = 0) -> list['GlobalConcurrencyLimitResponse']
@@ -1334,7 +1334,7 @@ be returned.
 of the task runs
 
 
-#### `read_variable_by_name` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_variables/client.py#L102" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `read_variable_by_name` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_variables/client.py#L118" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_variable_by_name(self, name: str) -> 'Variable | None'
@@ -1343,7 +1343,7 @@ read_variable_by_name(self, name: str) -> 'Variable | None'
 Reads a variable by name. Returns None if no variable is found.
 
 
-#### `read_variables` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_variables/client.py#L119" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `read_variables` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_variables/client.py#L135" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_variables(self, limit: int | None = None) -> list['Variable']
@@ -1352,7 +1352,7 @@ read_variables(self, limit: int | None = None) -> list['Variable']
 Reads all variables.
 
 
-#### `read_work_pool` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_work_pools/client.py#L402" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `read_work_pool` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_work_pools/client.py#L405" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_work_pool(self, work_pool_name: str) -> 'WorkPool'
@@ -1368,7 +1368,7 @@ information.
 - Information about the requested work pool.
 
 
-#### `read_work_pools` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_work_pools/client.py#L428" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `read_work_pools` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_work_pools/client.py#L431" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_work_pools(self, limit: int | None = None, offset: int = 0, work_pool_filter: 'WorkPoolFilter | None' = None) -> list['WorkPool']
@@ -1471,7 +1471,7 @@ read_worker_metadata(self) -> dict[str, Any]
 Reads worker metadata stored in Prefect collection registry.
 
 
-#### `read_workers_for_work_pool` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_work_pools/client.py#L366" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `read_workers_for_work_pool` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_work_pools/client.py#L369" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_workers_for_work_pool(self, work_pool_name: str, worker_filter: 'WorkerFilter | None' = None, offset: int | None = None, limit: int | None = None) -> list['Worker']
@@ -1487,7 +1487,7 @@ member workers.
 - `offset`: Limit for the worker query.
 
 
-#### `release_concurrency_slots` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_concurrency_limits/client.py#L752" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `release_concurrency_slots` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_concurrency_limits/client.py#L758" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 release_concurrency_slots(self, names: list[str], slots: int, occupancy_seconds: float) -> 'Response'
@@ -1505,7 +1505,7 @@ were occupied.
 - "Response": The HTTP response from the server.
 
 
-#### `release_concurrency_slots_with_lease` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_concurrency_limits/client.py#L778" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `release_concurrency_slots_with_lease` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_concurrency_limits/client.py#L784" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 release_concurrency_slots_with_lease(self, lease_id: 'UUID') -> 'Response'
@@ -1517,7 +1517,7 @@ Release concurrency slots for the specified lease.
 - `lease_id`: The ID of the lease corresponding to the concurrency limits to release.
 
 
-#### `renew_concurrency_lease` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_concurrency_limits/client.py#L733" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `renew_concurrency_lease` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_concurrency_limits/client.py#L739" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 renew_concurrency_lease(self, lease_id: 'UUID', lease_duration: float) -> 'Response'
@@ -1530,7 +1530,7 @@ Renew a concurrency lease.
 - `lease_duration`: The new lease duration in seconds.
 
 
-#### `reset_concurrency_limit_by_tag` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_concurrency_limits/client.py#L566" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `reset_concurrency_limit_by_tag` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_concurrency_limits/client.py#L572" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 reset_concurrency_limit_by_tag(self, tag: str, slot_override: list['UUID | str'] | None = None) -> None
@@ -1556,7 +1556,7 @@ slots will never be released.
 resume_automation(self, automation_id: 'UUID') -> None
 ```
 
-#### `resume_deployment` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_deployments/client.py#L883" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `resume_deployment` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_deployments/client.py#L902" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 resume_deployment(self, deployment_id: Union[UUID, str]) -> None
@@ -1588,7 +1588,7 @@ Resumes a paused flow run.
 - an OrchestrationResult model representation of state orchestration output
 
 
-#### `send_worker_heartbeat` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_work_pools/client.py#L318" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `send_worker_heartbeat` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_work_pools/client.py#L321" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 send_worker_heartbeat(self, work_pool_name: str, worker_name: str, heartbeat_interval_seconds: float | None = None, get_worker_id: bool = False, worker_metadata: 'WorkerMetadata | None' = None) -> 'UUID | None'
@@ -1603,7 +1603,7 @@ Sends a worker heartbeat for a given work pool.
 - `worker_metadata`: Metadata about the worker to send to the server.
 
 
-#### `set_deployment_paused_state` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_deployments/client.py#L844" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `set_deployment_paused_state` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_deployments/client.py#L863" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 set_deployment_paused_state(self, deployment_id: UUID, paused: bool) -> None
@@ -1699,13 +1699,13 @@ update_block_type(self, block_type_id: 'UUID', block_type: 'BlockTypeUpdate') ->
 Update a block document in the Prefect API.
 
 
-#### `update_deployment` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_deployments/client.py#L908" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `update_deployment` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_deployments/client.py#L927" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 update_deployment(self, deployment_id: UUID, deployment: 'DeploymentUpdate') -> None
 ```
 
-#### `update_deployment_schedule` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_deployments/client.py#L1181" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `update_deployment_schedule` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_deployments/client.py#L1200" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 update_deployment_schedule(self, deployment_id: UUID, schedule_id: UUID, active: bool | None = None, schedule: 'SCHEDULE_TYPES | None' = None) -> None
@@ -1754,13 +1754,13 @@ update_flow_run_labels(self, flow_run_id: 'UUID', labels: 'KeyValueLabelsField')
 Updates the labels of a flow run.
 
 
-#### `update_global_concurrency_limit` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_concurrency_limits/client.py#L808" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `update_global_concurrency_limit` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_concurrency_limits/client.py#L821" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 update_global_concurrency_limit(self, name: str, concurrency_limit: 'GlobalConcurrencyLimitUpdate') -> 'Response'
 ```
 
-#### `update_variable` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_variables/client.py#L128" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `update_variable` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_variables/client.py#L144" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 update_variable(self, variable: 'VariableUpdate') -> None
@@ -1775,7 +1775,7 @@ Returns:
     Information about the updated variable.
 
 
-#### `update_work_pool` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_work_pools/client.py#L509" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `update_work_pool` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_work_pools/client.py#L512" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 update_work_pool(self, work_pool_name: str, work_pool: 'WorkPoolUpdate') -> None
@@ -1806,7 +1806,7 @@ Update properties of a work queue.
 - `httpx.RequestError`: if the request fails
 
 
-#### `upsert_global_concurrency_limit_by_name` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_concurrency_limits/client.py#L857" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `upsert_global_concurrency_limit_by_name` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_concurrency_limits/client.py#L870" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 upsert_global_concurrency_limit_by_name(self, name: str, limit: int) -> None
@@ -2013,13 +2013,13 @@ Both arguments are supported for backwards compatibility.
 - the ID of the deployment in the backend
 
 
-#### `create_deployment_branch` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_deployments/client.py#L685" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `create_deployment_branch` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_deployments/client.py#L693" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 create_deployment_branch(self, deployment_id: UUID, branch: str, options: 'DeploymentBranchingOptions | None' = None, overrides: 'DeploymentUpdate | None' = None) -> UUID
 ```
 
-#### `create_deployment_schedules` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_deployments/client.py#L450" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `create_deployment_schedules` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_deployments/client.py#L458" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 create_deployment_schedules(self, deployment_id: UUID, schedules: list[tuple['SCHEDULE_TYPES', bool]]) -> list['DeploymentSchedule']
@@ -2104,7 +2104,7 @@ run identifier in the parent flow
 - The flow run model
 
 
-#### `create_flow_run_from_deployment` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_deployments/client.py#L606" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `create_flow_run_from_deployment` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_deployments/client.py#L614" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 create_flow_run_from_deployment(self, deployment_id: UUID) -> 'FlowRun'
@@ -2289,7 +2289,7 @@ Delete the concurrency limit set on a specific tag.
 - `httpx.RequestError`: If request fails
 
 
-#### `delete_deployment` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_deployments/client.py#L425" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `delete_deployment` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_deployments/client.py#L433" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 delete_deployment(self, deployment_id: UUID) -> None
@@ -2305,7 +2305,7 @@ Raises:
     RequestError: If requests fails
 
 
-#### `delete_deployment_schedule` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_deployments/client.py#L557" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `delete_deployment_schedule` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_deployments/client.py#L565" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 delete_deployment_schedule(self, deployment_id: UUID, schedule_id: UUID) -> None
@@ -2366,7 +2366,7 @@ Deletes a flow run input.
 - `key`: The input key.
 
 
-#### `delete_global_concurrency_limit_by_name` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_concurrency_limits/client.py#L385" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `delete_global_concurrency_limit_by_name` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_concurrency_limits/client.py#L391" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 delete_global_concurrency_limit_by_name(self, name: str) -> 'Response'
@@ -2378,7 +2378,7 @@ delete_global_concurrency_limit_by_name(self, name: str) -> 'Response'
 delete_resource_owned_automations(self, resource_id: str) -> None
 ```
 
-#### `delete_variable_by_name` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_variables/client.py#L75" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `delete_variable_by_name` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_variables/client.py#L83" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 delete_variable_by_name(self, name: str) -> None
@@ -2387,7 +2387,7 @@ delete_variable_by_name(self, name: str) -> None
 Deletes a variable by name.
 
 
-#### `delete_work_pool` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_work_pools/client.py#L250" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `delete_work_pool` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_work_pools/client.py#L253" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 delete_work_pool(self, work_pool_name: str) -> None
@@ -2429,13 +2429,13 @@ Fetches the most recent block schema for a specified block type ID.
 - The most recent block schema or None.
 
 
-#### `get_scheduled_flow_runs_for_deployments` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_deployments/client.py#L584" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get_scheduled_flow_runs_for_deployments` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_deployments/client.py#L592" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_scheduled_flow_runs_for_deployments(self, deployment_ids: list[UUID], scheduled_before: 'datetime.datetime | None' = None, limit: int | None = None) -> list['FlowRunResponse']
 ```
 
-#### `get_scheduled_flow_runs_for_work_pool` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_work_pools/client.py#L272" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get_scheduled_flow_runs_for_work_pool` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_work_pools/client.py#L275" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_scheduled_flow_runs_for_work_pool(self, work_pool_name: str, work_queue_names: list[str] | None = None, scheduled_before: datetime | None = None) -> list['WorkerFlowRunResponse']
@@ -2513,7 +2513,7 @@ Increment concurrency limit slots for the specified limits.
 pause_automation(self, automation_id: 'UUID') -> None
 ```
 
-#### `pause_deployment` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_deployments/client.py#L195" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `pause_deployment` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_deployments/client.py#L203" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 pause_deployment(self, deployment_id: Union[UUID, str]) -> None
@@ -2740,7 +2740,7 @@ Lists concurrency limits set on task run tags.
 - a list of concurrency limits
 
 
-#### `read_deployment` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_deployments/client.py#L289" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `read_deployment` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_deployments/client.py#L297" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_deployment(self, deployment_id: Union[UUID, str]) -> 'DeploymentResponse'
@@ -2755,7 +2755,7 @@ Query the Prefect API for a deployment by id.
 - a Deployment model representation of the deployment
 
 
-#### `read_deployment_by_name` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_deployments/client.py#L324" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `read_deployment_by_name` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_deployments/client.py#L332" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_deployment_by_name(self, name: str) -> 'DeploymentResponse'
@@ -2774,7 +2774,7 @@ Query the Prefect API for a deployment by name.
 - a Deployment model representation of the deployment
 
 
-#### `read_deployment_schedules` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_deployments/client.py#L489" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `read_deployment_schedules` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_deployments/client.py#L497" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_deployment_schedules(self, deployment_id: UUID) -> list['DeploymentSchedule']
@@ -2789,7 +2789,7 @@ Query the Prefect API for a deployment's schedules.
 - a list of DeploymentSchedule model representations of the deployment schedules
 
 
-#### `read_deployments` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_deployments/client.py#L365" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `read_deployments` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_deployments/client.py#L373" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_deployments(self) -> list['DeploymentResponse']
@@ -2936,13 +2936,13 @@ be returned.
 - a list of Flow model representations of the flows
 
 
-#### `read_global_concurrency_limit_by_name` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_concurrency_limits/client.py#L399" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `read_global_concurrency_limit_by_name` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_concurrency_limits/client.py#L405" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_global_concurrency_limit_by_name(self, name: str) -> 'GlobalConcurrencyLimitResponse'
 ```
 
-#### `read_global_concurrency_limits` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_concurrency_limits/client.py#L446" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `read_global_concurrency_limits` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_concurrency_limits/client.py#L452" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_global_concurrency_limits(self, limit: int = 10, offset: int = 0) -> list['GlobalConcurrencyLimitResponse']
@@ -3022,7 +3022,7 @@ be returned.
 of the task runs
 
 
-#### `read_variable_by_name` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_variables/client.py#L38" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `read_variable_by_name` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_variables/client.py#L46" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_variable_by_name(self, name: str) -> 'Variable | None'
@@ -3031,7 +3031,7 @@ read_variable_by_name(self, name: str) -> 'Variable | None'
 Reads a variable by name. Returns None if no variable is found.
 
 
-#### `read_variables` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_variables/client.py#L53" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `read_variables` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_variables/client.py#L61" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_variables(self, limit: int | None = None) -> list['Variable']
@@ -3158,7 +3158,7 @@ slots will never be released.
 resume_automation(self, automation_id: 'UUID') -> None
 ```
 
-#### `resume_deployment` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_deployments/client.py#L220" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `resume_deployment` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_deployments/client.py#L228" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 resume_deployment(self, deployment_id: Union[UUID, str]) -> None
@@ -3205,7 +3205,7 @@ Sends a worker heartbeat for a given work pool.
 - `worker_metadata`: Metadata about the worker to send to the server.
 
 
-#### `set_deployment_paused_state` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_deployments/client.py#L183" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `set_deployment_paused_state` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_deployments/client.py#L191" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 set_deployment_paused_state(self, deployment_id: UUID, paused: bool) -> None
@@ -3301,13 +3301,13 @@ update_block_type(self, block_type_id: 'UUID', block_type: 'BlockTypeUpdate') ->
 Update a block document in the Prefect API.
 
 
-#### `update_deployment` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_deployments/client.py#L245" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `update_deployment` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_deployments/client.py#L253" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 update_deployment(self, deployment_id: UUID, deployment: 'DeploymentUpdate') -> None
 ```
 
-#### `update_deployment_schedule` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_deployments/client.py#L517" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `update_deployment_schedule` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_deployments/client.py#L525" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 update_deployment_schedule(self, deployment_id: UUID, schedule_id: UUID, active: bool | None = None, schedule: 'SCHEDULE_TYPES | None' = None) -> None
@@ -3356,13 +3356,13 @@ update_flow_run_labels(self, flow_run_id: 'UUID', labels: 'KeyValueLabelsField')
 Updates the labels of a flow run.
 
 
-#### `update_global_concurrency_limit` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_concurrency_limits/client.py#L368" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `update_global_concurrency_limit` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_concurrency_limits/client.py#L374" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 update_global_concurrency_limit(self, name: str, concurrency_limit: 'GlobalConcurrencyLimitUpdate') -> 'Response'
 ```
 
-#### `update_variable` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_variables/client.py#L60" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `update_variable` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_variables/client.py#L68" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 update_variable(self, variable: 'VariableUpdate') -> None
@@ -3377,7 +3377,7 @@ Returns:
     Information about the updated variable.
 
 
-#### `update_work_pool` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_work_pools/client.py#L225" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `update_work_pool` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_work_pools/client.py#L228" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 update_work_pool(self, work_pool_name: str, work_pool: 'WorkPoolUpdate') -> None
@@ -3390,7 +3390,7 @@ Updates a work pool.
 - `work_pool`: Fields to update in the work pool.
 
 
-#### `upsert_global_concurrency_limit_by_name` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_concurrency_limits/client.py#L417" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `upsert_global_concurrency_limit_by_name` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/client/orchestration/_concurrency_limits/client.py#L423" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 upsert_global_concurrency_limit_by_name(self, name: str, limit: int) -> None

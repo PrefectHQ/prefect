@@ -27,7 +27,7 @@ if TYPE_CHECKING:
     )
     from prefect.client.schemas.responses import WorkerFlowRunResponse
 
-from prefect.exceptions import ObjectAlreadyExists, ObjectNotFound
+from prefect.exceptions import ObjectAlreadyExists, ObjectNotFound, ObjectUnsupported
 
 
 class WorkPoolClient(BaseClient):
@@ -193,7 +193,10 @@ class WorkPoolClient(BaseClient):
                 "/work_pools/",
                 json=work_pool.model_dump(mode="json", exclude_unset=True),
             )
+            response.raise_for_status()
         except HTTPStatusError as e:
+            if e.response.status_code == 403 and "plan does not support" in str(e):
+                raise ObjectUnsupported(http_exc=e) from e
             if e.response.status_code == 409:
                 if overwrite:
                     existing_work_pool = self.read_work_pool(
