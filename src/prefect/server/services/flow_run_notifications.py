@@ -28,46 +28,81 @@ class FlowRunNotifications(LoopService):
     @inject_db
     async def run_once(self, db: PrefectDBInterface):
         while True:
-            async with db.session_context(begin_transaction=True) as session:
-                # Drain the queue one entry at a time, because if a transient
-                # database error happens while sending a notification, the whole
-                # transaction will be rolled back, which effectively re-queues any
-                # notifications that we pulled here.  If we drain in batches larger
-                # than 1, we risk double-sending earlier notifications when a
-                # transient error occurs.
-                notifications = await db.get_flow_run_notifications_from_queue(
-                    session=session,
-                    limit=1,
-                )
-                self.logger.debug(f"Got {len(notifications)} notifications from queue.")
+            # Retry logic for SQLite database lock errors
+            max_retries = 5
+            notifications = None
 
-                # if no notifications were found, exit the tight loop and sleep
-                if not notifications:
+            for attempt in range(max_retries):
+                try:
+                    async with db.session_context(begin_transaction=True) as session:
+                        # Drain the queue one entry at a time, because if a transient
+                        # database error happens while sending a notification, the whole
+                        # transaction will be rolled back, which effectively re-queues any
+                        # notifications that we pulled here.  If we drain in batches larger
+                        # than 1, we risk double-sending earlier notifications when a
+                        # transient error occurs.
+                        notifications = await db.get_flow_run_notifications_from_queue(
+                            session=session,
+                            limit=1,
+                        )
+                        self.logger.debug(
+                            f"Got {len(notifications)} notifications from queue."
+                        )
+
+                        # if no notifications were found, exit the tight loop and sleep
+                        if not notifications:
+                            break
+
+                        # all retrieved notifications are deleted, assert that we only got one
+                        # since we only send the first notification returned
+                        assert (
+                            len(notifications) == 1
+                        ), "Expected one notification; query limit not respected."
+
+                        try:
+                            await self.send_flow_run_notification(
+                                session=session, db=db, notification=notifications[0]
+                            )
+                        finally:
+                            connection = await session.connection()
+                            if connection.invalidated:
+                                # If the connection was invalidated due to an error that we
+                                # handled in _send_flow_run_notification, we'll need to
+                                # rollback the session in order to synchronize it with the
+                                # reality of the underlying connection before we can proceed
+                                # with more iterations of the loop.  This may happen due to
+                                # transient database connection errors, but will _not_
+                                # happen due to an calling a third-party service to send a
+                                # notification.
+                                await session.rollback()
+                                assert not connection.invalidated
+
+                    # If we get here, the transaction succeeded
                     break
 
-                # all retrieved notifications are deleted, assert that we only got one
-                # since we only send the first notification returned
-                assert (
-                    len(notifications) == 1
-                ), "Expected one notification; query limit not respected."
+                except Exception as e:
+                    is_lock_error = "database is locked" in str(
+                        e
+                    ) or "OperationalError" in str(type(e))
+                    should_retry = is_lock_error and attempt < max_retries - 1
 
-                try:
-                    await self.send_flow_run_notification(
-                        session=session, db=db, notification=notifications[0]
-                    )
-                finally:
-                    connection = await session.connection()
-                    if connection.invalidated:
-                        # If the connection was invalidated due to an error that we
-                        # handled in _send_flow_run_notification, we'll need to
-                        # rollback the session in order to synchronize it with the
-                        # reality of the underlying connection before we can proceed
-                        # with more iterations of the loop.  This may happen due to
-                        # transient database connection errors, but will _not_
-                        # happen due to an calling a third-party service to send a
-                        # notification.
-                        await session.rollback()
-                        assert not connection.invalidated
+                    if should_retry:
+                        # Wait a bit and retry with exponential backoff
+                        import asyncio
+
+                        wait_time = 0.05 * (2**attempt)  # 50ms, 100ms, 200ms, 400ms
+                        self.logger.debug(
+                            f"Database lock detected, retrying after {wait_time}s..."
+                        )
+                        await asyncio.sleep(wait_time)
+                        continue
+                    else:
+                        # Not a retryable error or max retries reached
+                        raise
+
+            # If no notifications were found, exit the tight loop and sleep
+            if not notifications:
+                break
 
     @inject_db
     async def send_flow_run_notification(
