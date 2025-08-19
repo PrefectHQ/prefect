@@ -9,10 +9,10 @@ import {
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
-interface WorkPoolQueueStatusBadgeProps {
+type WorkPoolQueueStatusBadgeProps = {
 	status: WorkPoolQueueStatus;
 	className?: string;
-}
+};
 
 const statusConfig = {
 	READY: {

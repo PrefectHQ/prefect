@@ -3,7 +3,7 @@ import type { WorkPoolQueue } from "@/api/work-pool-queues";
 import { useDeleteWorkPoolQueueMutation } from "@/api/work-pool-queues";
 import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog";
 
-interface DeleteWorkPoolQueueDialogProps {
+type DeleteWorkPoolQueueDialogProps = {
 	queue: WorkPoolQueue;
 	open: boolean;
 	onOpenChange: (open: boolean) => void;

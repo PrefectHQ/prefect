@@ -12,10 +12,10 @@ import { workPoolQueuesTableColumns } from "./components/work-pool-queues-table-
 import { WorkPoolQueuesTableEmptyState } from "./components/work-pool-queues-table-empty-state";
 import { WorkPoolQueuesTableToolbar } from "./components/work-pool-queues-table-toolbar";
 
-interface WorkPoolQueuesTableProps {
+type WorkPoolQueuesTableProps = {
 	workPoolName: string;
 	className?: string;
-}
+};
 
 export const WorkPoolQueuesTable = ({
 	workPoolName,

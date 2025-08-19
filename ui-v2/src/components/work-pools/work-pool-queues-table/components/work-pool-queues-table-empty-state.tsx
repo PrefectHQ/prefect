@@ -1,10 +1,10 @@
 import { Plus, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-interface WorkPoolQueuesTableEmptyStateProps {
+type WorkPoolQueuesTableEmptyStateProps = {
 	hasSearchQuery: boolean;
 	workPoolName: string;
-}
+};
 
 export const WorkPoolQueuesTableEmptyState = ({
 	hasSearchQuery,

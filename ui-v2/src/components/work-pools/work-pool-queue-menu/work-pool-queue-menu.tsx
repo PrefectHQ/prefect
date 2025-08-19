@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
 import { DeleteWorkPoolQueueDialog } from "./components/delete-work-pool-queue-dialog";
 import { useWorkPoolQueueMenu } from "./hooks/use-work-pool-queue-menu";
 
-interface WorkPoolQueueMenuProps {
+type WorkPoolQueueMenuProps = {
 	queue: WorkPoolQueue;
 	onUpdate?: () => void;
 	className?: string;

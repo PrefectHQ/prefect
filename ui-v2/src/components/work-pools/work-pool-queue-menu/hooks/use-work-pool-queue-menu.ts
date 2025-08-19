@@ -38,7 +38,7 @@ export const useWorkPoolQueueMenu = (queue: WorkPoolQueue) => {
 			label: "Edit",
 			icon: Edit,
 			action: handleEdit,
-			show: true, // TODO: Check queue.can?.update when permissions are available
+			show: true,
 		},
 		{
 			label: "Delete",

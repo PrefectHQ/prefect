@@ -9,7 +9,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useWorkPoolQueueToggle } from "./hooks/use-work-pool-queue-toggle";
 
-interface WorkPoolQueueToggleProps {
+type WorkPoolQueueToggleProps = {
 	queue: WorkPoolQueue;
 	onUpdate?: () => void;
 	disabled?: boolean;

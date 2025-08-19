@@ -2,10 +2,10 @@ import type { WorkPoolQueue } from "@/api/work-pool-queues";
 import { WorkPoolQueueMenu } from "@/components/work-pools/work-pool-queue-menu";
 import { WorkPoolQueueToggle } from "@/components/work-pools/work-pool-queue-toggle";
 
-interface WorkPoolQueueRowActionsProps {
+type WorkPoolQueueRowActionsProps = {
 	queue: WorkPoolQueue;
 	onUpdate?: () => void;
-}
+};
 
 export const WorkPoolQueueRowActions = ({
 	queue,
