@@ -42,16 +42,23 @@ async def clear_lease_storage():
 async def concurrency_limit():
     async with prefect.get_client() as client:
         name = f"test-{uuid.uuid4()}"
+        print(f"Creating concurrency limit with name: {name}", flush=True)
         await client.create_global_concurrency_limit(
             concurrency_limit=GlobalConcurrencyLimitCreate(name=name, limit=1)
         )
         limit = await client.read_global_concurrency_limit_by_name(name=name)
+        print(
+            f"Created concurrency limit: {limit.id} with name: {limit.name}", flush=True
+        )
         return limit
 
 
 async def function_that_uses_async_concurrency_and_goes_belly_up(
     concurrency_limit_name: str,
 ):
+    print(
+        f"Async function starting with limit name: {concurrency_limit_name}", flush=True
+    )
     original_sleep = asyncio.sleep
 
     # Mock sleep so that the lease is renewed more quickly
@@ -60,9 +67,15 @@ async def function_that_uses_async_concurrency_and_goes_belly_up(
 
     with mock.patch("asyncio.sleep", mock_sleep):
         try:
+            print(f"Acquiring concurrency for {concurrency_limit_name}...", flush=True)
             async with concurrency(
-                concurrency_limit_name, occupy=1, lease_duration=60, strict=True
+                concurrency_limit_name,
+                occupy=1,
+                lease_duration=60,
+                strict=True,
+                timeout_seconds=30,
             ):
+                print("Concurrency acquired, sleeping for 120s...", flush=True)
                 await original_sleep(120)
         except Exception as e:
             # Log and re-raise to ensure process exits properly
@@ -75,6 +88,9 @@ async def function_that_uses_async_concurrency_and_goes_belly_up(
 def function_that_uses_sync_concurrency_and_goes_belly_up(
     concurrency_limit_name: str,
 ):
+    print(
+        f"Sync function starting with limit name: {concurrency_limit_name}", flush=True
+    )
     original_sleep = asyncio.sleep
 
     # Mock sleep so that the lease is renewed more quickly
@@ -83,15 +99,24 @@ def function_that_uses_sync_concurrency_and_goes_belly_up(
 
     with mock.patch("asyncio.sleep", mock_sleep):
         try:
+            print(
+                f"Acquiring sync concurrency for {concurrency_limit_name}...",
+                flush=True,
+            )
             with sync_concurrency(
-                concurrency_limit_name, occupy=1, lease_duration=60, strict=True
+                concurrency_limit_name,
+                occupy=1,
+                lease_duration=60,
+                strict=True,
+                timeout_seconds=30,
             ):
+                print("Sync concurrency acquired, sleeping for 120x1s...", flush=True)
                 # Use a bunch a little sleeps to make this easier to interrupt
                 for _ in range(120):
                     time.sleep(1)
         except Exception as e:
             # Log and re-raise to ensure process exits properly
-            print(f"Process caught exception: {type(e).__name__}: {e}", flush=True)
+            print(f"Sync process caught exception: {type(e).__name__}: {e}", flush=True)
             raise
 
 
@@ -150,6 +175,13 @@ async def test_async_concurrency_with_leases(concurrency_limit: GlobalConcurrenc
                     flush=True,
                 )
                 break
+            elif lease:
+                print(
+                    f"  Lease {lease_id} has resource_ids {lease.resource_ids}, expected [{concurrency_limit.id}]",
+                    flush=True,
+                )
+            else:
+                print(f"  Lease {lease_id} is None", flush=True)
 
         # Check for timeout
         if (datetime.now() - start_time).total_seconds() > timeout_seconds:
@@ -272,10 +304,21 @@ async def test_async_concurrency_with_lease_renewal_failure(
         )
         for lease_id in active_lease_ids:
             lease = await lease_storage.read_lease(lease_id)
+            print(
+                f"  Checking lease {lease_id}: lease={lease}, resource_ids={lease.resource_ids if lease else 'None'}",
+                flush=True,
+            )
             if lease and lease.resource_ids == [concurrency_limit.id]:
                 active_lease = lease
                 print(f"Found target lease: {lease.id}", flush=True)
                 break
+            elif lease:
+                print(
+                    f"  Lease {lease_id} has resource_ids {lease.resource_ids}, expected [{concurrency_limit.id}]",
+                    flush=True,
+                )
+            else:
+                print(f"  Lease {lease_id} is None", flush=True)
 
         # Check for timeout
         if (datetime.now() - start_time).total_seconds() > timeout_seconds:
@@ -363,6 +406,13 @@ async def test_sync_concurrency_with_leases(concurrency_limit: GlobalConcurrency
                     flush=True,
                 )
                 break
+            elif lease:
+                print(
+                    f"  Lease {lease_id} has resource_ids {lease.resource_ids}, expected [{concurrency_limit.id}]",
+                    flush=True,
+                )
+            else:
+                print(f"  Lease {lease_id} is None", flush=True)
 
         # Check for timeout
         if (datetime.now() - start_time).total_seconds() > timeout_seconds:
@@ -476,10 +526,21 @@ async def test_sync_concurrency_with_lease_renewal_failure(
         )
         for lease_id in active_lease_ids:
             lease = await lease_storage.read_lease(lease_id)
+            print(
+                f"  Checking lease {lease_id}: lease={lease}, resource_ids={lease.resource_ids if lease else 'None'}",
+                flush=True,
+            )
             if lease and lease.resource_ids == [concurrency_limit.id]:
                 active_lease = lease
                 print(f"Found target lease: {lease.id}", flush=True)
                 break
+            elif lease:
+                print(
+                    f"  Lease {lease_id} has resource_ids {lease.resource_ids}, expected [{concurrency_limit.id}]",
+                    flush=True,
+                )
+            else:
+                print(f"  Lease {lease_id} is None", flush=True)
 
         # Check for timeout
         if (datetime.now() - start_time).total_seconds() > timeout_seconds:
