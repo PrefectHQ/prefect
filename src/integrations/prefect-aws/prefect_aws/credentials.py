@@ -235,7 +235,7 @@ class MinIOCredentials(CredentialsBlock):
                 hash(self.minio_root_user),
                 hash(self.minio_root_password),
                 hash(self.region_name),
-                hash(frozenset(self.aws_client_parameters.model_dump().items())),
+                hash(self.aws_client_parameters),
             )
         )
 
