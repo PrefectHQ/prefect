@@ -29,8 +29,8 @@ docker pull prefecthq/prefect-aws:latest
 
 #### Available Tags
 
-Images are tagged with clear version information:
-- `prefecthq/prefect-aws:latest` - Latest stable release (Python 3.12)
+Image tags have the following format:
+- `prefecthq/prefect-aws:latest` - Latest stable release with Python 3.12
 - `prefecthq/prefect-aws:latest-python3.11` - Latest stable with Python 3.11
 - `prefecthq/prefect-aws:0.5.9-python3.12` - Specific prefect-aws version with Python 3.12
 - `prefecthq/prefect-aws:0.5.9-python3.12-prefect3.4.9` - Full version specification
