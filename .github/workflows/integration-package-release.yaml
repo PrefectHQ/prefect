@@ -92,6 +92,8 @@ jobs:
         run: |
           PREFECT_VERSION=$(gh api repos/${{ github.repository }}/releases/latest --jq '.tag_name')
           echo "PREFECT_VERSION=$PREFECT_VERSION" >> $GITHUB_OUTPUT
+        env:
+          GH_TOKEN: ${{ github.token }}
 
   trigger-docker-build:
     name: Build prefect-aws Docker images
