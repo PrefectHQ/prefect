@@ -11,52 +11,52 @@ license = { text = "Apache License 2.0" }
 keywords = ["prefect"]
 authors = [{ name = "Prefect Technologies, Inc.", email = "help@prefect.io" }]
 classifiers = [
-  "Natural Language :: English",
-  "Intended Audience :: Developers",
-  "Intended Audience :: System Administrators",
-  "License :: OSI Approved :: Apache Software License",
-  "Programming Language :: Python :: 3 :: Only",
-  "Programming Language :: Python :: 3.9",
-  "Programming Language :: Python :: 3.10",
-  "Programming Language :: Python :: 3.11",
-  "Programming Language :: Python :: 3.12",
-  "Programming Language :: Python :: 3.13",
-  "Topic :: Software Development :: Libraries",
+    "Natural Language :: English",
+    "Intended Audience :: Developers",
+    "Intended Audience :: System Administrators",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Libraries",
 ]
 dependencies = [
-  "aiobotocore>=2.23.2",
-  "boto3>=1.24.53",
-  "botocore>=1.27.53",
-  "mypy_boto3_s3>=1.24.94",
-  "mypy_boto3_secretsmanager>=1.26.49",
-  "prefect>=3.4.7",
-  "pyparsing>=3.1.1",
-  "tenacity>=8.0.0",
+    "aiobotocore>=2.23.2",
+    "boto3>=1.24.53",
+    "botocore>=1.27.53",
+    "mypy_boto3_s3>=1.24.94",
+    "mypy_boto3_secretsmanager>=1.26.49",
+    "prefect>=3.4.7",
+    "pyparsing>=3.1.1",
+    "tenacity>=8.0.0",
 ]
 dynamic = ["version"]
 
 [dependency-groups]
 dev = [
-  "boto3-stubs[essential] >= 1.24.39",
-  "types-aiobotocore[essential,ecs] >= 1.24.39",
-  "coverage",
-  "interrogate",
-  "isort",
-  "mkdocs",
-  "mkdocs-gen-files",
-  "mkdocs-material",
-  "mkdocstrings-python-legacy",
-  # moto 4.2.5 broke something fairly deep in our test suite https://github.com/PrefectHQ/prefect-aws/issues/318
-  "moto >= 3.1.16, < 4.2.5",
-  "mypy",
-  "pillow",
-  "pytest >= 8.3",
-  "pytest-asyncio",
-  "pytest-cov",
-  "pytest-env",
-  "pytest-xdist",
-  "types-boto3 >= 1.0.2",
-  "ruff>=0.12.8",
+    "boto3-stubs[essential] >= 1.24.39",
+    "types-aiobotocore[essential,ecs] >= 1.24.39",
+    "coverage",
+    "interrogate",
+    "isort",
+    "mkdocs",
+    "mkdocs-gen-files",
+    "mkdocs-material",
+    "mkdocstrings-python-legacy",
+    # moto 4.2.5 broke something fairly deep in our test suite https://github.com/PrefectHQ/prefect-aws/issues/318
+    "moto >= 3.1.16, < 4.2.5",
+    "mypy",
+    "pillow",
+    "pytest >= 8.3",
+    "pytest-asyncio",
+    "pytest-cov",
+    "pytest-env",
+    "pytest-xdist",
+    "types-boto3 >= 1.0.2",
+    "ruff>=0.12.8",
 ]
 
 [project.urls]
@@ -64,6 +64,9 @@ Homepage = "https://github.com/PrefectHQ/prefect/tree/main/src/integrations/pref
 
 [project.entry-points."prefect.collections"]
 prefect_aws = "prefect_aws"
+
+[tool.setuptools]
+packages = ["prefect_aws"]
 
 [tool.setuptools_scm]
 version_file = "prefect_aws/_version.py"
@@ -87,6 +90,7 @@ fail_under = 80
 show_missing = true
 
 [tool.pytest.ini_options]
+testpaths = ["tests"]
 asyncio_default_fixture_loop_scope = "session"
 asyncio_mode = "auto"
 env = ["PREFECT_TEST_MODE=1"]
