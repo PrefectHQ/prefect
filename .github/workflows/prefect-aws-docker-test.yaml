@@ -66,3 +66,22 @@ jobs:
           pull: true
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          tags: prefect-aws-test:latest
+          load: true
+
+      - name: Test prefect-aws version in image
+        run: |
+          # Run the image and get the installed prefect-aws version
+          INSTALLED_VERSION=$(docker run --rm prefect-aws-test:latest python -c "import prefect_aws; print(prefect_aws.__version__)")
+          echo "Expected prefect-aws version: ${{ needs.get-versions.outputs.PREFECT_AWS_VERSION }}"
+          echo "Installed prefect-aws version: $INSTALLED_VERSION"
+          
+          # Compare versions
+          if [ "$INSTALLED_VERSION" != "${{ needs.get-versions.outputs.PREFECT_AWS_VERSION }}" ]; then
+            echo "ERROR: Version mismatch!"
+            echo "Expected: ${{ needs.get-versions.outputs.PREFECT_AWS_VERSION }}"
+            echo "Found: $INSTALLED_VERSION"
+            exit 1
+          fi
+          
+          echo "✅ prefect-aws version matches expected version"
