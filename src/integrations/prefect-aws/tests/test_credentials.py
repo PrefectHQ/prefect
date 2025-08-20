@@ -199,3 +199,36 @@ def test_aws_credentials_nested_client_parameters_are_hashable():
     _client = creds.get_client("s3")
 
     assert client is _client
+
+
+def test_minio_credentials_nested_client_parameters_are_hashable():
+    """
+    Test to ensure that MinIOCredentials with nested client parameters are hashable.
+    Regression test for issue #18748.
+    """
+
+    creds = MinIOCredentials(
+        minio_root_user="test_user",
+        minio_root_password="test_password",
+        region_name="us-east-1",
+        aws_client_parameters=dict(
+            config=dict(
+                request_checksum_calculation="when_required",
+                connect_timeout=5,
+                read_timeout=5,
+                retries=dict(max_attempts=10, mode="standard"),
+            )
+        ),
+    )
+
+    # This should not raise TypeError: unhashable type: 'dict'
+    assert hash(creds) is not None
+
+    # Test that caching works properly
+    _get_client_cached.cache_clear()
+
+    client = creds.get_client("s3")
+    _client = creds.get_client("s3")
+
+    assert client is _client
+    assert _get_client_cached.cache_info().hits == 1
