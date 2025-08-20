@@ -63,8 +63,6 @@ jobs:
             PREFECT_AWS_VERSION=${{ needs.get-versions.outputs.PREFECT_AWS_VERSION }}
           push: false
           pull: true
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
           tags: prefect-aws-test:latest
           load: true
 
