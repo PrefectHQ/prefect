@@ -25,7 +25,7 @@ import { ActionsStep } from "./actions-step";
 const ActionStepFormContainer = () => {
 	const form = useForm({
 		resolver: zodResolver(AutomationWizardSchema),
-		defaultValues: { actions: [{ type: undefined }] },
+		defaultValues: { actions: [{ type: "cancel-flow-run" }] },
 	});
 
 	return (
