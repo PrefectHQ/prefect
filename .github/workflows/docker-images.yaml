@@ -132,3 +132,33 @@ jobs:
           push: true
           pull: true
           provenance: false
+
+  get-prefect-aws-version:
+    name: Get latest prefect-aws version
+    needs: publish-docker-images
+    runs-on: ubuntu-latest
+    # Only trigger on actual releases (not workflow_dispatch)
+    if: github.event_name == 'release'
+    outputs:
+      PREFECT_AWS_VERSION: ${{ steps.get_version.outputs.PREFECT_AWS_VERSION }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Get latest prefect-aws version from tags
+        id: get_version
+        run: |
+          PREFECT_AWS_VERSION=$(git tag --list 'prefect-aws-*' --sort=-version:refname | head -1 | sed 's/^prefect-aws-//')
+          echo "PREFECT_AWS_VERSION=$PREFECT_AWS_VERSION" >> $GITHUB_OUTPUT
+
+  trigger-prefect-aws-build:
+    name: Build prefect-aws Docker images
+    needs: [publish-docker-images, get-prefect-aws-version]
+    if: github.event_name == 'release' && needs.get-prefect-aws-version.outputs.PREFECT_AWS_VERSION != ''
+    uses: ./.github/workflows/prefect-aws-docker-images.yaml
+    with:
+      prefect_version: ${{ github.ref_name }}
+      prefect_aws_version: ${{ needs.get-prefect-aws-version.outputs.PREFECT_AWS_VERSION }}
+    secrets: inherit

@@ -11,6 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       PACKAGE_NAME: ${{ steps.package_name.outputs.PACKAGE_NAME }}
+      PACKAGE_VERSION: ${{ steps.package_version.outputs.PACKAGE_VERSION }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
@@ -25,6 +26,13 @@ jobs:
           TAG_NAME=${{ github.ref_name }}
           PACKAGE_NAME=$(echo $TAG_NAME | sed 's/-[0-9].*$//')
           echo "PACKAGE_NAME=$PACKAGE_NAME" >> $GITHUB_OUTPUT
+
+      - name: Extract package version
+        id: package_version
+        run: |
+          TAG_NAME=${{ github.ref_name }}
+          PACKAGE_VERSION=$(echo $TAG_NAME | sed -E 's/.*-([0-9][0-9A-Za-z\.\-]*)$/\1/')
+          echo "PACKAGE_VERSION=$PACKAGE_VERSION" >> $GITHUB_OUTPUT
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -69,3 +77,29 @@ jobs:
 
       - name: Publish distribution to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
+
+  get-prefect-version:
+    name: Get latest Prefect version
+    needs: [build-pypi-dists, publish-pypi-dists]
+    if: needs.build-pypi-dists.outputs.PACKAGE_NAME == 'prefect-aws'
+    runs-on: ubuntu-latest
+    outputs:
+      PREFECT_VERSION: ${{ steps.get_version.outputs.PREFECT_VERSION }}
+    steps:
+      - name: Get latest Prefect version
+        id: get_version
+        run: |
+          PREFECT_VERSION=$(gh api repos/${{ github.repository }}/releases/latest --jq '.tag_name')
+          echo "PREFECT_VERSION=$PREFECT_VERSION" >> $GITHUB_OUTPUT
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+  trigger-docker-build:
+    name: Build prefect-aws Docker images
+    needs: [build-pypi-dists, publish-pypi-dists, get-prefect-version]
+    if: needs.build-pypi-dists.outputs.PACKAGE_NAME == 'prefect-aws'
+    uses: ./.github/workflows/prefect-aws-docker-images.yaml
+    with:
+      prefect_version: ${{ needs.get-prefect-version.outputs.PREFECT_VERSION }}
+      prefect_aws_version: ${{ needs.build-pypi-dists.outputs.PACKAGE_VERSION }}
+    secrets: inherit
