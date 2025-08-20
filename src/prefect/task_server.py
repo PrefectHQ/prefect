@@ -255,6 +255,11 @@ class TaskServer:
 
         await self._exit_stack.enter_async_context(self._client)
         await self._exit_stack.enter_async_context(self.task_runner.start())
+
+        # Re-initialize the task group each time to avoid reuse issues
+        # with anyio >4.4.0.
+        self._runs_task_group = anyio.create_task_group()
+
         await self._runs_task_group.__aenter__()
 
         self.started = True

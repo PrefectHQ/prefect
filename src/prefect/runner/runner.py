@@ -1165,6 +1165,12 @@ class Runner:
         self._client = get_client()
         self._tmp_dir.mkdir(parents=True)
         await self._client.__aenter__()
+
+        # Re-initialize the task groups each time to avoid reuse issues
+        # with anyio >4.4.0.
+        self._runs_task_group = anyio.create_task_group()
+        self._loops_task_group = anyio.create_task_group()
+
         await self._runs_task_group.__aenter__()
 
         self.started = True

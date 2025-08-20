@@ -3,9 +3,11 @@ from importlib import reload
 from typing import Type
 from unittest.mock import call, patch
 
+import apprise
 import cloudpickle
 import pytest
 import respx
+from packaging import version
 
 import prefect
 from prefect.blocks.abstract import NotificationError
@@ -298,6 +300,28 @@ class TestDiscordWebhook:
 class TestOpsgenieWebhook:
     API_KEY = "api_key"
 
+    def _get_expected_opsgenie_url(self, targets="", params=None):
+        """Helper to get expected Opsgenie URL format based on apprise version."""
+
+        if params is None:
+            params = "action=map&region=us&priority=normal&batch=no"
+
+        apprise_version = version.parse(apprise.__version__)
+        if apprise_version >= version.parse("1.9.4"):
+            # New format: opsgenie://api_key/[targets]?params (no slash before ? when no targets)
+            if targets:
+                url_path = f"opsgenie://{self.API_KEY}/{targets}"
+            else:
+                url_path = f"opsgenie://{self.API_KEY}/"
+        else:
+            # Old format: opsgenie://api_key/[targets]/?params (always slash before ?)
+            if targets:
+                url_path = f"opsgenie://{self.API_KEY}/{targets}/"
+            else:
+                url_path = f"opsgenie://{self.API_KEY}//"
+
+        return f"{url_path}?{params}&%3Ainfo=note&%3Asuccess=close&%3Awarning=new&%3Afailure=new&format=text&overflow=upstream"
+
     async def test_notify_async(self):
         with patch("apprise.Apprise", autospec=True) as AppriseMock:
             reload_modules()
@@ -309,11 +333,8 @@ class TestOpsgenieWebhook:
             await block.notify("test")
 
             AppriseMock.assert_called_once()
-            apprise_instance_mock.add.assert_called_once_with(
-                f"opsgenie://{self.API_KEY}//?action=map&region=us&priority=normal&"
-                "batch=no&%3Ainfo=note&%3Asuccess=close&%3Awarning=new&%3Afailure="
-                "new&format=text&overflow=upstream"
-            )
+            expected_url = self._get_expected_opsgenie_url()
+            apprise_instance_mock.add.assert_called_once_with(expected_url)
 
             apprise_instance_mock.async_notify.assert_awaited_once_with(
                 body="test", title=None, notify_type=PREFECT_NOTIFY_TYPE_DEFAULT
@@ -323,9 +344,6 @@ class TestOpsgenieWebhook:
         with patch("apprise.Apprise", autospec=True) as AppriseMock:
             reload_modules()
 
-            if params is None:
-                params = "action=map&region=us&priority=normal&batch=no"
-
             apprise_instance_mock = AppriseMock.return_value
             apprise_instance_mock.async_notify = AsyncMock()
 
@@ -333,10 +351,10 @@ class TestOpsgenieWebhook:
             block.notify("test")
 
             AppriseMock.assert_called_once()
-            apprise_instance_mock.add.assert_called_once_with(
-                f"opsgenie://{self.API_KEY}/{targets}/?{params}"
-                "&%3Ainfo=note&%3Asuccess=close&%3Awarning=new&%3Afailure=new&format=text&overflow=upstream"
+            expected_url = self._get_expected_opsgenie_url(
+                targets=targets, params=params
             )
+            apprise_instance_mock.add.assert_called_once_with(expected_url)
 
             apprise_instance_mock.async_notify.assert_awaited_once_with(
                 body="test", title=None, notify_type=PREFECT_NOTIFY_TYPE_DEFAULT

@@ -41,7 +41,15 @@ class AbstractAppriseNotificationBlock(NotificationBlock, ABC):
         import apprise
 
         if PREFECT_NOTIFY_TYPE_DEFAULT not in apprise.NOTIFY_TYPES:
-            apprise.NOTIFY_TYPES += (PREFECT_NOTIFY_TYPE_DEFAULT,)
+            # Handle both tuple (apprise < 1.9.4) and frozenset (apprise >= 1.9.4)
+            if isinstance(apprise.NOTIFY_TYPES, frozenset):
+                # For frozenset, we need to create a new frozenset with the added type
+                apprise.NOTIFY_TYPES = frozenset(
+                    apprise.NOTIFY_TYPES | {PREFECT_NOTIFY_TYPE_DEFAULT}
+                )
+            else:
+                # For tuple, use the original approach
+                apprise.NOTIFY_TYPES += (PREFECT_NOTIFY_TYPE_DEFAULT,)
 
         super().__init__(*args, **kwargs)
 
