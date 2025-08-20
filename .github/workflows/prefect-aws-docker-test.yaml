@@ -25,7 +25,6 @@ jobs:
         run: |
           PREFECT_VERSION=$(gh api repos/${{ github.repository }}/releases/latest --jq '.tag_name')
           echo "PREFECT_VERSION=$PREFECT_VERSION" >> $GITHUB_OUTPUT
-          gh: To use GitHub CLI in a GitHub Actions workflow, set the GH_TOKEN environment variable. Example:
         env:
           GH_TOKEN: ${{ github.token }}
 
@@ -75,7 +74,7 @@ jobs:
           INSTALLED_VERSION=$(docker run --rm prefect-aws-test:latest python -c "import prefect_aws; print(prefect_aws.__version__)")
           echo "Expected prefect-aws version: ${{ needs.get-versions.outputs.PREFECT_AWS_VERSION }}"
           echo "Installed prefect-aws version: $INSTALLED_VERSION"
-          
+
           # Compare versions
           if [ "$INSTALLED_VERSION" != "${{ needs.get-versions.outputs.PREFECT_AWS_VERSION }}" ]; then
             echo "ERROR: Version mismatch!"
@@ -83,5 +82,5 @@ jobs:
             echo "Found: $INSTALLED_VERSION"
             exit 1
           fi
-          
+
           echo "✅ prefect-aws version matches expected version"
