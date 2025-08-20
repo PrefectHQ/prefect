@@ -56,6 +56,8 @@ jobs:
     environment: "prod"
     needs: build-pypi-dists
     runs-on: ubuntu-latest
+    outputs:
+      PACKAGE_VERSION: ${{ steps.extract_version.outputs.PACKAGE_VERSION }}
     permissions:
       # this permission is mandatory for trusted publishing
       id-token: write
@@ -67,5 +69,36 @@ jobs:
           name: ${{ needs.build-pypi-dists.outputs.PACKAGE_NAME}}-pypi-dists
           path: "./dist"
 
+      - name: Extract package version
+        id: extract_version
+        run: |
+          TAG_NAME=${{ github.ref_name }}
+          PACKAGE_VERSION=$(echo $TAG_NAME | sed 's/^prefect-[^-]*-//')
+          echo "PACKAGE_VERSION=$PACKAGE_VERSION" >> $GITHUB_OUTPUT
+
       - name: Publish distribution to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
+
+  get-prefect-version:
+    name: Get latest Prefect version
+    needs: [build-pypi-dists, publish-pypi-dists]
+    if: needs.build-pypi-dists.outputs.PACKAGE_NAME == 'prefect-aws'
+    runs-on: ubuntu-latest
+    outputs:
+      PREFECT_VERSION: ${{ steps.get_version.outputs.PREFECT_VERSION }}
+    steps:
+      - name: Get latest Prefect version
+        id: get_version
+        run: |
+          PREFECT_VERSION=$(gh api repos/${{ github.repository }}/releases/latest --jq '.tag_name')
+          echo "PREFECT_VERSION=$PREFECT_VERSION" >> $GITHUB_OUTPUT
+
+  trigger-docker-build:
+    name: Build prefect-aws Docker images
+    needs: [build-pypi-dists, publish-pypi-dists, get-prefect-version]
+    if: needs.build-pypi-dists.outputs.PACKAGE_NAME == 'prefect-aws'
+    uses: ./.github/workflows/prefect-aws-docker-images.yaml
+    with:
+      prefect_version: ${{ needs.get-prefect-version.outputs.PREFECT_VERSION }}
+      prefect_aws_version: ${{ needs.publish-pypi-dists.outputs.PACKAGE_VERSION }}
+    secrets: inherit

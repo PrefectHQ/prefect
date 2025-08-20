@@ -18,3 +18,39 @@ To start using `prefect-aws`:
 ```bash
 pip install prefect-aws
 ```
+
+### Docker Images
+
+Pre-built Docker images with `prefect-aws` are available for simplified deployment:
+
+```bash
+docker pull prefecthq/prefect-aws:latest
+```
+
+#### Available Tags
+
+Images are tagged with clear version information:
+- `prefecthq/prefect-aws:latest` - Latest stable release (Python 3.12)
+- `prefecthq/prefect-aws:latest-python3.11` - Latest stable with Python 3.11
+- `prefecthq/prefect-aws:0.5.9-python3.12` - Specific prefect-aws version with Python 3.12
+- `prefecthq/prefect-aws:0.5.9-python3.12-prefect3.4.9` - Full version specification
+
+#### Usage Examples
+
+**Running an ECS worker:**
+```bash
+docker run -d \
+  --name prefect-ecs-worker \
+  -e PREFECT_API_URL=https://api.prefect.cloud/api/accounts/your-account/workspaces/your-workspace \
+  -e PREFECT_API_KEY=your-api-key \
+  prefecthq/prefect-aws:latest \
+  prefect worker start --pool ecs-pool
+```
+
+**Local development:**
+```bash
+docker run -it --rm \
+  -v $(pwd):/opt/prefect \
+  prefecthq/prefect-aws:latest \
+  python your_flow.py
+```
