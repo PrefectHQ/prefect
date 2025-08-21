@@ -7,7 +7,7 @@ sidebarTitle: clients
 
 ## Classes
 
-### `EventsClient` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/events/clients.py#L37" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `EventsClient` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/clients.py#L37" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 The abstract interface for a Prefect Events client
@@ -15,13 +15,13 @@ The abstract interface for a Prefect Events client
 
 **Methods:**
 
-#### `emit` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/events/clients.py#L41" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `emit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/clients.py#L41" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 emit(self, event: Event) -> Optional[Event]
 ```
 
-### `NullEventsClient` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/events/clients.py#L55" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `NullEventsClient` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/clients.py#L55" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 A no-op implementation of the Prefect Events client for testing
@@ -29,19 +29,19 @@ A no-op implementation of the Prefect Events client for testing
 
 **Methods:**
 
-#### `client_name` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/events/clients.py#L154" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `client_name` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/clients.py#L154" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 client_name(self) -> str
 ```
 
-#### `emit` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/events/clients.py#L58" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `emit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/clients.py#L58" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 emit(self, event: Event) -> None
 ```
 
-#### `emit` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/events/clients.py#L157" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `emit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/clients.py#L157" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 emit(self, event: Event) -> None
@@ -50,7 +50,7 @@ emit(self, event: Event) -> None
 Emit a single event
 
 
-### `AssertingEventsClient` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/events/clients.py#L62" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `AssertingEventsClient` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/clients.py#L62" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 An implementation of the Prefect Events client that records all events sent
@@ -59,7 +59,7 @@ to it for inspection during tests.
 
 **Methods:**
 
-#### `assert_emitted_event_count` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/events/clients.py#L112" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `assert_emitted_event_count` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/clients.py#L112" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 assert_emitted_event_count(cls, count: int) -> None
@@ -68,7 +68,7 @@ assert_emitted_event_count(cls, count: int) -> None
 Assert that the given number of events were emitted.
 
 
-#### `assert_emitted_event_with` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/events/clients.py#L120" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `assert_emitted_event_with` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/clients.py#L120" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 assert_emitted_event_with(cls, event: Optional[str] = None, resource: Optional[Dict[str, LabelValue]] = None, related: Optional[List[Dict[str, LabelValue]]] = None, payload: Optional[Dict[str, Any]] = None) -> None
@@ -77,25 +77,25 @@ assert_emitted_event_with(cls, event: Optional[str] = None, resource: Optional[D
 Assert that an event was emitted containing the given properties.
 
 
-#### `assert_no_emitted_event_with` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/events/clients.py#L199" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `assert_no_emitted_event_with` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/clients.py#L199" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 assert_no_emitted_event_with(cls, event: Optional[str] = None, resource: Optional[Dict[str, LabelValue]] = None, related: Optional[List[Dict[str, LabelValue]]] = None, payload: Optional[Dict[str, Any]] = None) -> None
 ```
 
-#### `client_name` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/events/clients.py#L154" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `client_name` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/clients.py#L154" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 client_name(self) -> str
 ```
 
-#### `emit` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/events/clients.py#L85" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `emit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/clients.py#L85" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 emit(self, event: Event) -> Event
 ```
 
-#### `emit` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/events/clients.py#L157" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `emit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/clients.py#L157" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 emit(self, event: Event) -> None
@@ -104,13 +104,13 @@ emit(self, event: Event) -> None
 Emit a single event
 
 
-#### `emitted_events_count` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/events/clients.py#L108" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `emitted_events_count` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/clients.py#L108" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 emitted_events_count(cls) -> int
 ```
 
-#### `reset` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/events/clients.py#L80" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `reset` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/clients.py#L80" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 reset(cls) -> None
@@ -119,23 +119,23 @@ reset(cls) -> None
 Reset all captured instances and their events.  For use this between tests
 
 
-### `PrefectServerEventsClient` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/events/clients.py#L214" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `PrefectServerEventsClient` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/clients.py#L214" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 **Methods:**
 
-#### `client_name` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/events/clients.py#L154" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `client_name` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/clients.py#L154" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 client_name(self) -> str
 ```
 
-#### `emit` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/events/clients.py#L232" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `emit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/clients.py#L232" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 emit(self, event: Event) -> ReceivedEvent
 ```
 
-#### `emit` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/events/clients.py#L157" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `emit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/clients.py#L157" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 emit(self, event: Event) -> None
@@ -144,17 +144,17 @@ emit(self, event: Event) -> None
 Emit a single event
 
 
-### `PrefectServerEventsAPIClient` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/events/clients.py#L244" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `PrefectServerEventsAPIClient` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/clients.py#L244" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 **Methods:**
 
-#### `pause_automation` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/events/clients.py#L269" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `pause_automation` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/clients.py#L269" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 pause_automation(self, automation_id: UUID) -> httpx.Response
 ```
 
-#### `resume_automation` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/events/clients.py#L274" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `resume_automation` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/clients.py#L274" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 resume_automation(self, automation_id: UUID) -> httpx.Response

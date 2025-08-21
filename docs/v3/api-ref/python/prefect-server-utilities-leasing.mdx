@@ -7,13 +7,13 @@ sidebarTitle: leasing
 
 ## Classes
 
-### `ResourceLease` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/utilities/leasing.py#L13" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `ResourceLease` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/leasing.py#L13" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
-### `LeaseStorage` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/utilities/leasing.py#L21" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `LeaseStorage` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/leasing.py#L21" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 **Methods:**
 
-#### `create_lease` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/utilities/leasing.py#L22" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `create_lease` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/leasing.py#L22" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 create_lease(self, resource_ids: list[UUID], ttl: timedelta, metadata: T | None = None) -> ResourceLease[T]
@@ -30,7 +30,7 @@ Create a new resource lease.
 - A ResourceLease object representing the lease.
 
 
-#### `read_expired_lease_ids` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/utilities/leasing.py#L69" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `read_expired_lease_ids` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/leasing.py#L69" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_expired_lease_ids(self, limit: int = 100) -> list[UUID]
@@ -45,7 +45,7 @@ Read the IDs of expired leases.
 - A list of UUIDs representing the expired leases.
 
 
-#### `read_lease` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/utilities/leasing.py#L38" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `read_lease` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/leasing.py#L38" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_lease(self, lease_id: UUID) -> ResourceLease[T] | None
@@ -60,7 +60,7 @@ Read a resource lease.
 - A ResourceLease object representing the lease, or None if not found.
 
 
-#### `renew_lease` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/utilities/leasing.py#L50" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `renew_lease` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/leasing.py#L50" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 renew_lease(self, lease_id: UUID, ttl: timedelta) -> None
@@ -73,7 +73,7 @@ Renew a resource lease.
 - `ttl`: The new amount of time the lease should be held for.
 
 
-#### `revoke_lease` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/utilities/leasing.py#L60" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `revoke_lease` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/leasing.py#L60" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 revoke_lease(self, lease_id: UUID) -> None

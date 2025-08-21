@@ -12,7 +12,7 @@ Routes for interacting with block schema objects.
 
 ## Functions
 
-### `create_block_schema` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/api/block_schemas.py#L28" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `create_block_schema` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/block_schemas.py#L28" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 create_block_schema(block_schema: schemas.actions.BlockSchemaCreate, response: Response, db: PrefectDBInterface = Depends(provide_database_interface)) -> schemas.core.BlockSchema
@@ -24,7 +24,7 @@ Create a block schema.
 For more information, see https://docs.prefect.io/v3/develop/blocks.
 
 
-### `delete_block_schema` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/api/block_schemas.py#L73" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `delete_block_schema` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/block_schemas.py#L73" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 delete_block_schema(block_schema_id: UUID = Path(..., description='The block schema id', alias='id'), db: PrefectDBInterface = Depends(provide_database_interface), api_version: str = Depends(dependencies.provide_request_api_version)) -> None
@@ -34,7 +34,7 @@ delete_block_schema(block_schema_id: UUID = Path(..., description='The block sch
 Delete a block schema by id.
 
 
-### `read_block_schemas` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/api/block_schemas.py#L102" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `read_block_schemas` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/block_schemas.py#L102" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_block_schemas(block_schemas: Optional[schemas.filters.BlockSchemaFilter] = None, limit: int = dependencies.LimitBody(), offset: int = Body(0, ge=0), db: PrefectDBInterface = Depends(provide_database_interface)) -> List[schemas.core.BlockSchema]
@@ -44,7 +44,7 @@ read_block_schemas(block_schemas: Optional[schemas.filters.BlockSchemaFilter] = 
 Read all block schemas, optionally filtered by type
 
 
-### `read_block_schema_by_id` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/api/block_schemas.py#L122" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `read_block_schema_by_id` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/block_schemas.py#L122" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_block_schema_by_id(block_schema_id: UUID = Path(..., description='The block schema id', alias='id'), db: PrefectDBInterface = Depends(provide_database_interface)) -> schemas.core.BlockSchema
@@ -54,7 +54,7 @@ read_block_schema_by_id(block_schema_id: UUID = Path(..., description='The block
 Get a block schema by id.
 
 
-### `read_block_schema_by_checksum` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/api/block_schemas.py#L139" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `read_block_schema_by_checksum` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/block_schemas.py#L139" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_block_schema_by_checksum(block_schema_checksum: str = Path(..., description='The block schema checksum', alias='checksum'), db: PrefectDBInterface = Depends(provide_database_interface), version: Optional[str] = Query(None, description='Version of block schema. If not provided the most recently created block schema with the matching checksum will be returned.')) -> schemas.core.BlockSchema

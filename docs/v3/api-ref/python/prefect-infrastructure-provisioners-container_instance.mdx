@@ -21,7 +21,7 @@ Classes:
 
 ## Classes
 
-### `AzureCLI` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/infrastructure/provisioners/container_instance.py#L47" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `AzureCLI` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/infrastructure/provisioners/container_instance.py#L47" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 A class for executing Azure CLI commands and handling their output.
@@ -32,7 +32,7 @@ A class for executing Azure CLI commands and handling their output.
 
 **Methods:**
 
-#### `run_command` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/infrastructure/provisioners/container_instance.py#L62" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `run_command` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/infrastructure/provisioners/container_instance.py#L62" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 run_command(self, command: str, success_message: Optional[str] = None, failure_message: Optional[str] = None, ignore_if_exists: bool = False, return_json: bool = False) -> str | dict[str, Any] | None
@@ -57,7 +57,7 @@ Runs an Azure CLI command and processes the output.
 - `json.JSONDecodeError`: If output cannot be decoded as JSON when return_json is True.
 
 
-### `ContainerInstancePushProvisioner` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/infrastructure/provisioners/container_instance.py#L130" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `ContainerInstancePushProvisioner` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/infrastructure/provisioners/container_instance.py#L130" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 A class responsible for provisioning Azure resources and setting up a push work pool.
@@ -65,19 +65,19 @@ A class responsible for provisioning Azure resources and setting up a push work 
 
 **Methods:**
 
-#### `console` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/infrastructure/provisioners/container_instance.py#L168" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `console` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/infrastructure/provisioners/container_instance.py#L168" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 console(self) -> Console
 ```
 
-#### `console` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/infrastructure/provisioners/container_instance.py#L172" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `console` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/infrastructure/provisioners/container_instance.py#L172" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 console(self, value: Console) -> None
 ```
 
-#### `provision` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/infrastructure/provisioners/container_instance.py#L857" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `provision` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/infrastructure/provisioners/container_instance.py#L857" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 provision(self, work_pool_name: str, base_job_template: Dict[str, Any], client: Optional['PrefectClient'] = None) -> Dict[str, Any]
@@ -97,7 +97,7 @@ Orchestrates the provisioning of Azure resources and setup for the push work poo
 - `RuntimeError`: If client injection fails or the Azure CLI command execution fails.
 
 
-#### `set_location` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/infrastructure/provisioners/container_instance.py#L175" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `set_location` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/infrastructure/provisioners/container_instance.py#L175" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 set_location(self) -> None
