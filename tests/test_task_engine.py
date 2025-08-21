@@ -1752,6 +1752,52 @@ class TestTaskTimeTracking:
         assert run.expected_start_time
         assert run.expected_start_time == pending.timestamp
 
+    async def test_sync_tasks_have_correct_total_run_time_with_retries(
+        self, prefect_client: PrefectClient, events_pipeline
+    ):
+        """
+        Regression test for https://github.com/PrefectHQ/prefect/issues/18751
+        """
+        attempts = 0
+
+        @task(retries=1)
+        async def foo():
+            time.sleep(1)
+            nonlocal attempts
+            if attempts < 1:
+                attempts += 1
+                raise RuntimeError()
+            return TaskRunContext.get().task_run.id
+
+        task_run_id = await foo()
+        await events_pipeline.process_events()
+        run = await prefect_client.read_task_run(task_run_id)
+
+        assert run.total_run_time > timedelta(seconds=2)
+
+    async def test_async_tasks_have_correct_total_run_time_with_retries(
+        self, prefect_client: PrefectClient, events_pipeline
+    ):
+        """
+        Regression test for https://github.com/PrefectHQ/prefect/issues/18751
+        """
+        attempts = 0
+
+        @task(retries=1)
+        def foo():
+            time.sleep(1)
+            nonlocal attempts
+            if attempts < 1:
+                attempts += 1
+                raise RuntimeError()
+            return TaskRunContext.get().task_run.id
+
+        task_run_id = foo()
+        await events_pipeline.process_events()
+        run = await prefect_client.read_task_run(task_run_id)
+
+        assert run.total_run_time > timedelta(seconds=2)
+
 
 class TestRunCountTracking:
     @pytest.fixture
