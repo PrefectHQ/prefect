@@ -6,6 +6,7 @@ from typing import Optional
 
 import click
 import typer
+from rich.table import Table
 from typing_extensions import Annotated
 
 from .utils import (
@@ -386,19 +387,40 @@ def stack_status(
     # Display stack information
     console.print(f"[bold cyan]Stack: {stack_info['StackName']}[/bold cyan]")
     console.print(f"Status: {stack_info['StackStatus']}")
-    console.print(f"Created: {stack_info['CreationTime']}")
+
+    # Format creation time in a human-friendly way
+    created_time = stack_info["CreationTime"]
+    if hasattr(created_time, "strftime"):
+        created_formatted = created_time.strftime("%B %d, %Y at %I:%M %p UTC")
+    else:
+        created_formatted = str(created_time)
+    console.print(f"Created: {created_formatted}", highlight=False)
+
+    # Format update time if available
     if "LastUpdatedTime" in stack_info:
-        console.print(f"Updated: {stack_info['LastUpdatedTime']}")
+        updated_time = stack_info["LastUpdatedTime"]
+        if hasattr(updated_time, "strftime"):
+            updated_formatted = updated_time.strftime("%B %d, %Y at %I:%M %p UTC")
+        else:
+            updated_formatted = str(updated_time)
+        console.print(f"Updated: {updated_formatted}", highlight=False)
 
     # Show outputs if available
     if "Outputs" in stack_info:
-        console.print("\n[bold]Outputs:[/bold]")
+        console.print("\n[bold]Stack Outputs:[/bold]")
+
+        outputs_table = Table(show_header=True, header_style="bold magenta")
+        outputs_table.add_column("Output Key", style="cyan", overflow="ellipsis")
+        outputs_table.add_column("Value", style="green", overflow="fold")
+        outputs_table.add_column("Description", style="yellow", overflow="fold")
+
         for output in stack_info["Outputs"]:
-            console.print(
-                f"  {output['OutputKey']}: {output['OutputValue']}", markup=False
+            description = output.get("Description", "")
+            outputs_table.add_row(
+                output["OutputKey"], output["OutputValue"], description
             )
-            if "Description" in output:
-                console.print(f"    Description: {output['Description']}", markup=False)
+
+        console.print(outputs_table)
 
 
 @ecs_worker_app.command("delete")
