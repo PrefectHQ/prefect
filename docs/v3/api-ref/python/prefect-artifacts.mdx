@@ -12,7 +12,7 @@ Interface for creating and reading artifacts.
 
 ## Functions
 
-### `acreate_link_artifact` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/artifacts.py#L365" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `acreate_link_artifact` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/artifacts.py#L365" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 acreate_link_artifact(link: str, link_text: str | None = None, key: str | None = None, description: str | None = None, client: 'PrefectClient | None' = None) -> UUID
@@ -33,7 +33,7 @@ The key must only contain lowercase letters, numbers, and dashes.
 - The table artifact ID.
 
 
-### `create_link_artifact` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/artifacts.py#L399" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `create_link_artifact` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/artifacts.py#L399" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 create_link_artifact(link: str, link_text: str | None = None, key: str | None = None, description: str | None = None, client: 'PrefectClient | None' = None) -> UUID
@@ -54,7 +54,7 @@ The key must only contain lowercase letters, numbers, and dashes.
 - The table artifact ID.
 
 
-### `acreate_markdown_artifact` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/artifacts.py#L449" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `acreate_markdown_artifact` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/artifacts.py#L449" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 acreate_markdown_artifact(markdown: str, key: str | None = None, description: str | None = None) -> UUID
@@ -74,7 +74,7 @@ The key must only contain lowercase letters, numbers, and dashes.
 - The table artifact ID.
 
 
-### `create_markdown_artifact` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/artifacts.py#L478" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `create_markdown_artifact` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/artifacts.py#L478" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 create_markdown_artifact(markdown: str, key: str | None = None, description: str | None = None) -> UUID
@@ -94,7 +94,7 @@ The key must only contain lowercase letters, numbers, and dashes.
 - The table artifact ID.
 
 
-### `acreate_table_artifact` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/artifacts.py#L522" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `acreate_table_artifact` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/artifacts.py#L522" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 acreate_table_artifact(table: dict[str, list[Any]] | list[dict[str, Any]] | list[list[Any]], key: str | None = None, description: str | None = None) -> UUID
@@ -114,7 +114,7 @@ The key must only contain lowercase letters, numbers, and dashes.
 - The table artifact ID.
 
 
-### `create_table_artifact` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/artifacts.py#L552" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `create_table_artifact` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/artifacts.py#L552" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 create_table_artifact(table: dict[str, list[Any]] | list[dict[str, Any]] | list[list[Any]], key: str | None = None, description: str | None = None) -> UUID
@@ -134,7 +134,7 @@ The key must only contain lowercase letters, numbers, and dashes.
 - The table artifact ID.
 
 
-### `acreate_progress_artifact` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/artifacts.py#L597" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `acreate_progress_artifact` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/artifacts.py#L597" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 acreate_progress_artifact(progress: float, key: str | None = None, description: str | None = None) -> UUID
@@ -154,7 +154,7 @@ The key must only contain lowercase letters, numbers, and dashes.
 - The progress artifact ID.
 
 
-### `create_progress_artifact` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/artifacts.py#L627" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `create_progress_artifact` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/artifacts.py#L627" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 create_progress_artifact(progress: float, key: str | None = None, description: str | None = None) -> UUID
@@ -174,7 +174,7 @@ The key must only contain lowercase letters, numbers, and dashes.
 - The progress artifact ID.
 
 
-### `aupdate_progress_artifact` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/artifacts.py#L656" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `aupdate_progress_artifact` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/artifacts.py#L656" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 aupdate_progress_artifact(artifact_id: UUID, progress: float, description: str | None = None, client: 'PrefectClient | None' = None) -> UUID
@@ -192,7 +192,7 @@ Update a progress artifact asynchronously.
 - The progress artifact ID.
 
 
-### `update_progress_artifact` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/artifacts.py#L698" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `update_progress_artifact` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/artifacts.py#L698" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 update_progress_artifact(artifact_id: UUID, progress: float, description: str | None = None, client: 'PrefectClient | None' = None) -> UUID
@@ -210,7 +210,7 @@ Update a progress artifact.
 - The progress artifact ID.
 
 
-### `acreate_image_artifact` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/artifacts.py#L739" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `acreate_image_artifact` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/artifacts.py#L739" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 acreate_image_artifact(image_url: str, key: str | None = None, description: str | None = None) -> UUID
@@ -230,7 +230,7 @@ The key must only contain lowercase letters, numbers, and dashes.
 - The image artifact ID.
 
 
-### `create_image_artifact` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/artifacts.py#L769" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `create_image_artifact` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/artifacts.py#L769" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 create_image_artifact(image_url: str, key: str | None = None, description: str | None = None) -> UUID
@@ -252,7 +252,7 @@ The key must only contain lowercase letters, numbers, and dashes.
 
 ## Classes
 
-### `Artifact` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/artifacts.py#L34" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `Artifact` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/artifacts.py#L34" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 An artifact is a piece of data that is created by a flow or task run.
@@ -268,7 +268,7 @@ The key must only contain lowercase letters, numbers, and dashes.
 
 **Methods:**
 
-#### `acreate` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/artifacts.py#L47" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `acreate` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/artifacts.py#L47" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 acreate(self, client: 'PrefectClient | None' = None) -> 'ArtifactResponse'
@@ -283,13 +283,13 @@ An async method to create an artifact.
 - The created artifact.
 
 
-#### `aformat` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/artifacts.py#L245" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `aformat` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/artifacts.py#L245" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 aformat(self) -> str | float | int | dict[str, Any]
 ```
 
-#### `aget` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/artifacts.py#L123" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `aget` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/artifacts.py#L123" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 aget(cls, key: str | None = None, client: 'PrefectClient | None' = None) -> 'ArtifactResponse | None'
@@ -305,7 +305,7 @@ A async method to get an artifact.
 - The artifact (if found).
 
 
-#### `aget_or_create` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/artifacts.py#L181" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `aget_or_create` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/artifacts.py#L181" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 aget_or_create(cls, key: str | None = None, description: str | None = None, data: dict[str, Any] | Any | None = None, client: 'PrefectClient | None' = None, **kwargs: Any) -> tuple['ArtifactResponse', bool]
@@ -324,7 +324,7 @@ A async method to get or create an artifact.
 - The artifact, either retrieved or created.
 
 
-#### `create` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/artifacts.py#L85" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `create` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/artifacts.py#L85" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 create(self: Self, client: 'PrefectClient | None' = None) -> 'ArtifactResponse'
@@ -339,13 +339,13 @@ A method to create an artifact.
 - The created artifact.
 
 
-#### `format` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/artifacts.py#L249" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `format` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/artifacts.py#L249" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 format(self) -> str | float | int | dict[str, Any]
 ```
 
-#### `get` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/artifacts.py#L153" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/artifacts.py#L153" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get(cls, key: str | None = None, client: 'PrefectClient | None' = None) -> 'ArtifactResponse | None'
@@ -361,7 +361,7 @@ A method to get an artifact.
 - The artifact (if found).
 
 
-#### `get_or_create` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/artifacts.py#L212" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get_or_create` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/artifacts.py#L212" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_or_create(cls, key: str | None = None, description: str | None = None, data: dict[str, Any] | Any | None = None, client: 'PrefectClient | None' = None, **kwargs: Any) -> tuple['ArtifactResponse', bool]
@@ -380,11 +380,11 @@ A method to get or create an artifact.
 - The artifact, either retrieved or created.
 
 
-### `LinkArtifact` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/artifacts.py#L253" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `LinkArtifact` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/artifacts.py#L253" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 **Methods:**
 
-#### `acreate` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/artifacts.py#L47" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `acreate` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/artifacts.py#L47" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 acreate(self, client: 'PrefectClient | None' = None) -> 'ArtifactResponse'
@@ -399,19 +399,19 @@ An async method to create an artifact.
 - The created artifact.
 
 
-#### `aformat` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/artifacts.py#L265" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `aformat` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/artifacts.py#L265" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 aformat(self) -> str
 ```
 
-#### `aformat` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/artifacts.py#L245" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `aformat` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/artifacts.py#L245" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 aformat(self) -> str | float | int | dict[str, Any]
 ```
 
-#### `aget` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/artifacts.py#L123" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `aget` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/artifacts.py#L123" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 aget(cls, key: str | None = None, client: 'PrefectClient | None' = None) -> 'ArtifactResponse | None'
@@ -427,7 +427,7 @@ A async method to get an artifact.
 - The artifact (if found).
 
 
-#### `aget_or_create` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/artifacts.py#L181" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `aget_or_create` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/artifacts.py#L181" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 aget_or_create(cls, key: str | None = None, description: str | None = None, data: dict[str, Any] | Any | None = None, client: 'PrefectClient | None' = None, **kwargs: Any) -> tuple['ArtifactResponse', bool]
@@ -446,7 +446,7 @@ A async method to get or create an artifact.
 - The artifact, either retrieved or created.
 
 
-#### `create` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/artifacts.py#L85" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `create` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/artifacts.py#L85" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 create(self: Self, client: 'PrefectClient | None' = None) -> 'ArtifactResponse'
@@ -461,19 +461,19 @@ A method to create an artifact.
 - The created artifact.
 
 
-#### `format` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/artifacts.py#L269" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `format` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/artifacts.py#L269" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 format(self) -> str
 ```
 
-#### `format` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/artifacts.py#L249" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `format` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/artifacts.py#L249" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 format(self) -> str | float | int | dict[str, Any]
 ```
 
-#### `get` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/artifacts.py#L153" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/artifacts.py#L153" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get(cls, key: str | None = None, client: 'PrefectClient | None' = None) -> 'ArtifactResponse | None'
@@ -489,7 +489,7 @@ A method to get an artifact.
 - The artifact (if found).
 
 
-#### `get_or_create` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/artifacts.py#L212" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get_or_create` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/artifacts.py#L212" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_or_create(cls, key: str | None = None, description: str | None = None, data: dict[str, Any] | Any | None = None, client: 'PrefectClient | None' = None, **kwargs: Any) -> tuple['ArtifactResponse', bool]
@@ -508,11 +508,11 @@ A method to get or create an artifact.
 - The artifact, either retrieved or created.
 
 
-### `MarkdownArtifact` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/artifacts.py#L273" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `MarkdownArtifact` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/artifacts.py#L273" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 **Methods:**
 
-#### `acreate` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/artifacts.py#L47" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `acreate` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/artifacts.py#L47" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 acreate(self, client: 'PrefectClient | None' = None) -> 'ArtifactResponse'
@@ -527,19 +527,19 @@ An async method to create an artifact.
 - The created artifact.
 
 
-#### `aformat` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/artifacts.py#L277" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `aformat` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/artifacts.py#L277" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 aformat(self) -> str
 ```
 
-#### `aformat` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/artifacts.py#L245" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `aformat` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/artifacts.py#L245" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 aformat(self) -> str | float | int | dict[str, Any]
 ```
 
-#### `aget` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/artifacts.py#L123" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `aget` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/artifacts.py#L123" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 aget(cls, key: str | None = None, client: 'PrefectClient | None' = None) -> 'ArtifactResponse | None'
@@ -555,7 +555,7 @@ A async method to get an artifact.
 - The artifact (if found).
 
 
-#### `aget_or_create` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/artifacts.py#L181" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `aget_or_create` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/artifacts.py#L181" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 aget_or_create(cls, key: str | None = None, description: str | None = None, data: dict[str, Any] | Any | None = None, client: 'PrefectClient | None' = None, **kwargs: Any) -> tuple['ArtifactResponse', bool]
@@ -574,7 +574,7 @@ A async method to get or create an artifact.
 - The artifact, either retrieved or created.
 
 
-#### `create` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/artifacts.py#L85" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `create` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/artifacts.py#L85" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 create(self: Self, client: 'PrefectClient | None' = None) -> 'ArtifactResponse'
@@ -589,19 +589,19 @@ A method to create an artifact.
 - The created artifact.
 
 
-#### `format` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/artifacts.py#L281" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `format` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/artifacts.py#L281" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 format(self) -> str
 ```
 
-#### `format` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/artifacts.py#L249" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `format` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/artifacts.py#L249" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 format(self) -> str | float | int | dict[str, Any]
 ```
 
-#### `get` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/artifacts.py#L153" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/artifacts.py#L153" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get(cls, key: str | None = None, client: 'PrefectClient | None' = None) -> 'ArtifactResponse | None'
@@ -617,7 +617,7 @@ A method to get an artifact.
 - The artifact (if found).
 
 
-#### `get_or_create` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/artifacts.py#L212" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get_or_create` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/artifacts.py#L212" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_or_create(cls, key: str | None = None, description: str | None = None, data: dict[str, Any] | Any | None = None, client: 'PrefectClient | None' = None, **kwargs: Any) -> tuple['ArtifactResponse', bool]
@@ -636,11 +636,11 @@ A method to get or create an artifact.
 - The artifact, either retrieved or created.
 
 
-### `TableArtifact` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/artifacts.py#L285" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `TableArtifact` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/artifacts.py#L285" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 **Methods:**
 
-#### `acreate` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/artifacts.py#L47" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `acreate` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/artifacts.py#L47" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 acreate(self, client: 'PrefectClient | None' = None) -> 'ArtifactResponse'
@@ -655,19 +655,19 @@ An async method to create an artifact.
 - The created artifact.
 
 
-#### `aformat` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/artifacts.py#L306" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `aformat` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/artifacts.py#L306" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 aformat(self) -> str
 ```
 
-#### `aformat` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/artifacts.py#L245" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `aformat` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/artifacts.py#L245" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 aformat(self) -> str | float | int | dict[str, Any]
 ```
 
-#### `aget` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/artifacts.py#L123" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `aget` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/artifacts.py#L123" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 aget(cls, key: str | None = None, client: 'PrefectClient | None' = None) -> 'ArtifactResponse | None'
@@ -683,7 +683,7 @@ A async method to get an artifact.
 - The artifact (if found).
 
 
-#### `aget_or_create` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/artifacts.py#L181" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `aget_or_create` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/artifacts.py#L181" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 aget_or_create(cls, key: str | None = None, description: str | None = None, data: dict[str, Any] | Any | None = None, client: 'PrefectClient | None' = None, **kwargs: Any) -> tuple['ArtifactResponse', bool]
@@ -702,7 +702,7 @@ A async method to get or create an artifact.
 - The artifact, either retrieved or created.
 
 
-#### `create` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/artifacts.py#L85" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `create` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/artifacts.py#L85" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 create(self: Self, client: 'PrefectClient | None' = None) -> 'ArtifactResponse'
@@ -717,19 +717,19 @@ A method to create an artifact.
 - The created artifact.
 
 
-#### `format` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/artifacts.py#L310" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `format` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/artifacts.py#L310" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 format(self) -> str
 ```
 
-#### `format` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/artifacts.py#L249" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `format` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/artifacts.py#L249" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 format(self) -> str | float | int | dict[str, Any]
 ```
 
-#### `get` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/artifacts.py#L153" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/artifacts.py#L153" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get(cls, key: str | None = None, client: 'PrefectClient | None' = None) -> 'ArtifactResponse | None'
@@ -745,7 +745,7 @@ A method to get an artifact.
 - The artifact (if found).
 
 
-#### `get_or_create` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/artifacts.py#L212" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get_or_create` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/artifacts.py#L212" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_or_create(cls, key: str | None = None, description: str | None = None, data: dict[str, Any] | Any | None = None, client: 'PrefectClient | None' = None, **kwargs: Any) -> tuple['ArtifactResponse', bool]
@@ -764,11 +764,11 @@ A method to get or create an artifact.
 - The artifact, either retrieved or created.
 
 
-### `ProgressArtifact` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/artifacts.py#L314" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `ProgressArtifact` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/artifacts.py#L314" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 **Methods:**
 
-#### `acreate` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/artifacts.py#L47" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `acreate` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/artifacts.py#L47" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 acreate(self, client: 'PrefectClient | None' = None) -> 'ArtifactResponse'
@@ -783,19 +783,19 @@ An async method to create an artifact.
 - The created artifact.
 
 
-#### `aformat` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/artifacts.py#L331" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `aformat` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/artifacts.py#L331" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 aformat(self) -> float
 ```
 
-#### `aformat` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/artifacts.py#L245" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `aformat` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/artifacts.py#L245" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 aformat(self) -> str | float | int | dict[str, Any]
 ```
 
-#### `aget` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/artifacts.py#L123" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `aget` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/artifacts.py#L123" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 aget(cls, key: str | None = None, client: 'PrefectClient | None' = None) -> 'ArtifactResponse | None'
@@ -811,7 +811,7 @@ A async method to get an artifact.
 - The artifact (if found).
 
 
-#### `aget_or_create` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/artifacts.py#L181" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `aget_or_create` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/artifacts.py#L181" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 aget_or_create(cls, key: str | None = None, description: str | None = None, data: dict[str, Any] | Any | None = None, client: 'PrefectClient | None' = None, **kwargs: Any) -> tuple['ArtifactResponse', bool]
@@ -830,7 +830,7 @@ A async method to get or create an artifact.
 - The artifact, either retrieved or created.
 
 
-#### `create` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/artifacts.py#L85" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `create` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/artifacts.py#L85" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 create(self: Self, client: 'PrefectClient | None' = None) -> 'ArtifactResponse'
@@ -845,19 +845,19 @@ A method to create an artifact.
 - The created artifact.
 
 
-#### `format` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/artifacts.py#L335" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `format` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/artifacts.py#L335" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 format(self) -> float
 ```
 
-#### `format` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/artifacts.py#L249" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `format` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/artifacts.py#L249" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 format(self) -> str | float | int | dict[str, Any]
 ```
 
-#### `get` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/artifacts.py#L153" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/artifacts.py#L153" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get(cls, key: str | None = None, client: 'PrefectClient | None' = None) -> 'ArtifactResponse | None'
@@ -873,7 +873,7 @@ A method to get an artifact.
 - The artifact (if found).
 
 
-#### `get_or_create` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/artifacts.py#L212" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get_or_create` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/artifacts.py#L212" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_or_create(cls, key: str | None = None, description: str | None = None, data: dict[str, Any] | Any | None = None, client: 'PrefectClient | None' = None, **kwargs: Any) -> tuple['ArtifactResponse', bool]
@@ -892,7 +892,7 @@ A method to get or create an artifact.
 - The artifact, either retrieved or created.
 
 
-### `ImageArtifact` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/artifacts.py#L339" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `ImageArtifact` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/artifacts.py#L339" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 An artifact that will display an image from a publicly accessible URL in the UI.
@@ -903,7 +903,7 @@ An artifact that will display an image from a publicly accessible URL in the UI.
 
 **Methods:**
 
-#### `acreate` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/artifacts.py#L47" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `acreate` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/artifacts.py#L47" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 acreate(self, client: 'PrefectClient | None' = None) -> 'ArtifactResponse'
@@ -918,19 +918,19 @@ An async method to create an artifact.
 - The created artifact.
 
 
-#### `aformat` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/artifacts.py#L350" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `aformat` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/artifacts.py#L350" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 aformat(self) -> str
 ```
 
-#### `aformat` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/artifacts.py#L245" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `aformat` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/artifacts.py#L245" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 aformat(self) -> str | float | int | dict[str, Any]
 ```
 
-#### `aget` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/artifacts.py#L123" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `aget` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/artifacts.py#L123" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 aget(cls, key: str | None = None, client: 'PrefectClient | None' = None) -> 'ArtifactResponse | None'
@@ -946,7 +946,7 @@ A async method to get an artifact.
 - The artifact (if found).
 
 
-#### `aget_or_create` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/artifacts.py#L181" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `aget_or_create` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/artifacts.py#L181" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 aget_or_create(cls, key: str | None = None, description: str | None = None, data: dict[str, Any] | Any | None = None, client: 'PrefectClient | None' = None, **kwargs: Any) -> tuple['ArtifactResponse', bool]
@@ -965,7 +965,7 @@ A async method to get or create an artifact.
 - The artifact, either retrieved or created.
 
 
-#### `create` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/artifacts.py#L85" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `create` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/artifacts.py#L85" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 create(self: Self, client: 'PrefectClient | None' = None) -> 'ArtifactResponse'
@@ -980,7 +980,7 @@ A method to create an artifact.
 - The created artifact.
 
 
-#### `format` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/artifacts.py#L354" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `format` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/artifacts.py#L354" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 format(self) -> str
@@ -993,13 +993,13 @@ to the API when the .create() method is called.
 - The image URL.
 
 
-#### `format` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/artifacts.py#L249" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `format` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/artifacts.py#L249" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 format(self) -> str | float | int | dict[str, Any]
 ```
 
-#### `get` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/artifacts.py#L153" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/artifacts.py#L153" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get(cls, key: str | None = None, client: 'PrefectClient | None' = None) -> 'ArtifactResponse | None'
@@ -1015,7 +1015,7 @@ A method to get an artifact.
 - The artifact (if found).
 
 
-#### `get_or_create` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/artifacts.py#L212" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get_or_create` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/artifacts.py#L212" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_or_create(cls, key: str | None = None, description: str | None = None, data: dict[str, Any] | Any | None = None, client: 'PrefectClient | None' = None, **kwargs: Any) -> tuple['ArtifactResponse', bool]

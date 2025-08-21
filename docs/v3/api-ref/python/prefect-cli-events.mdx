@@ -7,7 +7,7 @@ sidebarTitle: events
 
 ## Functions
 
-### `stream` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/cli/events.py#L28" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `stream` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/events.py#L28" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 stream(format: StreamFormat = typer.Option(StreamFormat.json, '--format', help='Output format (json or text)'), output_file: str = typer.Option(None, '--output-file', help='File to write events to'), account: bool = typer.Option(False, '--account', help='Stream events for entire account, including audit logs'), run_once: bool = typer.Option(False, '--run-once', help='Stream only one event'))
@@ -19,13 +19,13 @@ as it is received. By default, events are printed as JSON, but can be
 printed as text by passing `--format text`.
 
 
-### `handle_event` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/cli/events.py#L63" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `handle_event` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/events.py#L63" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 handle_event(event: Event, format: StreamFormat, output_file: str) -> None
 ```
 
-### `handle_error` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/cli/events.py#L77" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `handle_error` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/events.py#L77" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 handle_error(exc: Exception) -> None
@@ -33,4 +33,4 @@ handle_error(exc: Exception) -> None
 
 ## Classes
 
-### `StreamFormat` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/cli/events.py#L22" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `StreamFormat` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/events.py#L22" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>

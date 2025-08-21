@@ -12,13 +12,13 @@ Encryption utilities
 
 ## Functions
 
-### `encrypt_fernet` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/utilities/encryption.py#L40" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `encrypt_fernet` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/encryption.py#L40" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 encrypt_fernet(session: AsyncSession, data: Mapping[str, Any]) -> str
 ```
 
-### `decrypt_fernet` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/utilities/encryption.py#L46" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `decrypt_fernet` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/encryption.py#L46" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 decrypt_fernet(session: AsyncSession, data: str) -> dict[str, Any]

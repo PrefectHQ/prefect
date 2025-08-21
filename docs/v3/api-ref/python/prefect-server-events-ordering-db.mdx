@@ -7,17 +7,17 @@ sidebarTitle: db
 
 ## Classes
 
-### `CausalOrdering` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/events/ordering/db.py#L35" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `CausalOrdering` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/ordering/db.py#L35" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 **Methods:**
 
-#### `event_has_been_seen` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/events/ordering/db.py#L45" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `event_has_been_seen` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/ordering/db.py#L45" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 event_has_been_seen(self, event: Union[UUID, Event]) -> bool
 ```
 
-#### `forget_follower` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/events/ordering/db.py#L71" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `forget_follower` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/ordering/db.py#L71" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 forget_follower(self, db: PrefectDBInterface, follower: ReceivedEvent) -> None
@@ -26,7 +26,7 @@ forget_follower(self, db: PrefectDBInterface, follower: ReceivedEvent) -> None
 Forget that this event is waiting on another event to arrive
 
 
-#### `get_followers` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/events/ordering/db.py#L86" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get_followers` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/ordering/db.py#L86" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_followers(self, db: PrefectDBInterface, leader: ReceivedEvent) -> List[ReceivedEvent]
@@ -35,7 +35,7 @@ get_followers(self, db: PrefectDBInterface, leader: ReceivedEvent) -> List[Recei
 Returns events that were waiting on this leader event to arrive
 
 
-#### `get_lost_followers` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/events/ordering/db.py#L100" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get_lost_followers` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/ordering/db.py#L100" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_lost_followers(self, db: PrefectDBInterface) -> List[ReceivedEvent]
@@ -44,7 +44,7 @@ get_lost_followers(self, db: PrefectDBInterface) -> List[ReceivedEvent]
 Returns events that were waiting on a leader event that never arrived
 
 
-#### `preceding_event_confirmed` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/events/ordering/db.py#L124" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `preceding_event_confirmed` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/ordering/db.py#L124" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 preceding_event_confirmed(self, handler: event_handler, event: ReceivedEvent, depth: int = 0)
@@ -68,13 +68,13 @@ depth (int, optional): The current recursion depth, used to prevent infinite rec
 Raises EventArrivedEarly if the current event shouldn't be processed yet.
 
 
-#### `record_event_as_seen` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/events/ordering/db.py#L49" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `record_event_as_seen` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/ordering/db.py#L49" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 record_event_as_seen(self, event: ReceivedEvent) -> None
 ```
 
-#### `record_follower` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/events/ordering/db.py#L53" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `record_follower` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/ordering/db.py#L53" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 record_follower(self, db: PrefectDBInterface, event: ReceivedEvent) -> None

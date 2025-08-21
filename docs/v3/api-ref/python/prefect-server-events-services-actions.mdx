@@ -7,7 +7,7 @@ sidebarTitle: actions
 
 ## Classes
 
-### `Actions` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/events/services/actions.py#L22" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `Actions` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/services/actions.py#L22" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Runs the actions triggered by automations
@@ -15,7 +15,7 @@ Runs the actions triggered by automations
 
 **Methods:**
 
-#### `all_services` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/services/base.py#L92" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `all_services` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/base.py#L92" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 all_services(cls) -> Sequence[type[Self]]
@@ -24,7 +24,7 @@ all_services(cls) -> Sequence[type[Self]]
 Get list of all service classes
 
 
-#### `enabled` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/services/base.py#L87" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `enabled` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/base.py#L87" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 enabled(cls) -> bool
@@ -33,7 +33,7 @@ enabled(cls) -> bool
 Whether the service is enabled
 
 
-#### `enabled_services` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/services/base.py#L106" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `enabled_services` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/base.py#L106" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 enabled_services(cls) -> list[type[Self]]
@@ -42,13 +42,13 @@ enabled_services(cls) -> list[type[Self]]
 Get list of enabled service classes
 
 
-#### `environment_variable_name` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/services/base.py#L83" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `environment_variable_name` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/base.py#L83" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 environment_variable_name(cls) -> str
 ```
 
-#### `run_services` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/services/base.py#L127" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `run_services` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/base.py#L127" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 run_services(cls) -> NoReturn
@@ -57,7 +57,7 @@ run_services(cls) -> NoReturn
 Run enabled services until cancelled.
 
 
-#### `running` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/services/base.py#L112" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `running` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/base.py#L112" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 running(cls) -> AsyncGenerator[None, None]
@@ -67,13 +67,13 @@ A context manager that runs enabled services on entry and stops them on
 exit.
 
 
-#### `service_settings` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/events/services/actions.py#L28" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `service_settings` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/services/actions.py#L28" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 service_settings(cls) -> ServicesBaseSetting
 ```
 
-#### `service_settings` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/services/base.py#L78" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `service_settings` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/base.py#L78" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 service_settings(cls) -> ServicesBaseSetting
@@ -82,13 +82,13 @@ service_settings(cls) -> ServicesBaseSetting
 The Prefect setting that controls whether the service is enabled
 
 
-#### `start` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/events/services/actions.py#L31" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `start` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/services/actions.py#L31" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 start(self) -> NoReturn
 ```
 
-#### `start` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/services/base.py#L137" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `start` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/base.py#L137" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 start(self) -> NoReturn
@@ -97,13 +97,13 @@ start(self) -> NoReturn
 Start running the service, which may run indefinitely
 
 
-#### `stop` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/events/services/actions.py#L46" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `stop` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/services/actions.py#L46" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 stop(self) -> None
 ```
 
-#### `stop` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/services/base.py#L142" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `stop` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/base.py#L142" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 stop(self) -> None

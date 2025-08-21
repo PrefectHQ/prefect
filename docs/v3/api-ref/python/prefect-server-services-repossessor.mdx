@@ -7,7 +7,7 @@ sidebarTitle: repossessor
 
 ## Classes
 
-### `Repossessor` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/services/repossessor.py#L14" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `Repossessor` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/repossessor.py#L14" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Handles the reconciliation of expired leases; no tow truck dependency.
@@ -15,13 +15,13 @@ Handles the reconciliation of expired leases; no tow truck dependency.
 
 **Methods:**
 
-#### `run_once` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/services/repossessor.py#L31" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `run_once` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/repossessor.py#L31" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 run_once(self) -> None
 ```
 
-#### `run_once` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/services/base.py#L329" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `run_once` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/base.py#L329" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 run_once(self) -> None
@@ -36,13 +36,13 @@ instead of `LoopService().run_once()`, because this method will not invoke setup
 and teardown methods properly.
 
 
-#### `service_settings` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/services/repossessor.py#L28" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `service_settings` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/repossessor.py#L28" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 service_settings(cls) -> ServicesBaseSetting
 ```
 
-#### `start` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/services/base.py#L211" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `start` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/base.py#L211" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 start(self, loops: None = None) -> NoReturn
@@ -51,7 +51,7 @@ start(self, loops: None = None) -> NoReturn
 Run the service indefinitely.
 
 
-#### `stop` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/services/base.py#L291" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `stop` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/base.py#L291" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 stop(self, block: bool = True) -> None

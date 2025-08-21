@@ -12,7 +12,7 @@ Log messaging for streaming logs through the messaging system.
 
 ## Functions
 
-### `create_log_publisher` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/logs/messaging.py#L22" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `create_log_publisher` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/logs/messaging.py#L22" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 create_log_publisher() -> AsyncGenerator[messaging.Publisher, None]
@@ -25,7 +25,7 @@ Creates a publisher for sending logs to the messaging system.
 - A messaging publisher configured for the "logs" topic
 
 
-### `publish_logs` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/logs/messaging.py#L33" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `publish_logs` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/logs/messaging.py#L33" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 publish_logs(logs: list[Log]) -> None
