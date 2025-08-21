@@ -53,16 +53,16 @@ prepare-release VERSION:
     #!/usr/bin/env bash
     set -e
     echo "Preparing release notes for version {{VERSION}}..."
-    
+
     # Run the script to fetch from draft and generate docs
     uv run scripts/prepare_release_notes.py {{VERSION}}
-    
+
     # Open the generated file in the user's editor
     if [ -n "$EDITOR" ]; then
         # Determine the minor version for the file path
         MINOR=$(echo {{VERSION}} | cut -d. -f1-2)
         FILE="docs/v3/release-notes/oss/version-${MINOR//./-}.mdx"
-        
+
         if [ -f "$FILE" ]; then
             echo "Opening $FILE in $EDITOR..."
             $EDITOR "$FILE"
@@ -72,9 +72,39 @@ prepare-release VERSION:
     else
         echo "No EDITOR environment variable set. Please review the generated files manually."
     fi
-    
+
     echo ""
     echo "After review, commit the changes and create a PR."
+
+# Prepare release notes for integration packages
+# Usage: just prepare-integration-release PACKAGE
+prepare-integration-release PACKAGE:
+    #!/usr/bin/env bash
+    set -e
+    echo "Preparing release notes for {{PACKAGE}}..."
+
+    # Run the script to generate integration release notes
+    uv run scripts/prepare_integration_release_notes.py {{PACKAGE}}
+
+    # Open the generated file in the user's editor
+    if [ -n "$EDITOR" ]; then
+        FILE="docs/v3/release-notes/integrations/{{PACKAGE}}.mdx"
+
+        if [ -f "$FILE" ]; then
+            echo "Opening $FILE in $EDITOR..."
+            $EDITOR "$FILE"
+        else
+            echo "Generated file not found: $FILE"
+        fi
+    else
+        echo "No EDITOR environment variable set. Please review the generated files manually."
+    fi
+
+    echo ""
+    echo "Release notes generated successfully!"
+    echo "Next steps:"
+    echo "  1. Review the generated release notes"
+    echo "  2. Open a PR to add the release notes to the docs"
 
 # TODO: consider these for GHA (https://just.systems/man/en/github-actions.html)
 
