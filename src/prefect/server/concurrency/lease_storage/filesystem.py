@@ -83,7 +83,7 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
     def _serialize_lease(
         self, lease: ResourceLease[ConcurrencyLimitLeaseMetadata]
     ) -> _LeaseFile:
-        metadata_dict = None
+        metadata_dict: dict[str, Any] | None = None
         if lease.metadata:
             metadata_dict = {"slots": lease.metadata.slots}
             if lease.metadata.principal:
