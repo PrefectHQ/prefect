@@ -67,7 +67,13 @@ class TestECSWorkerCLI:
         )
 
         assert result.exit_code == 1
-        assert "Invalid AWS credentials" in result.stdout
+        # Check both stdout and stderr as behavior varies across Typer versions
+        output = result.stdout
+        try:
+            output += result.stderr
+        except (ValueError, AttributeError):
+            pass  # stderr not separately captured
+        assert "Invalid AWS credentials" in output
 
     @patch("prefect_aws.cli.ecs_worker.validate_aws_credentials")
     @patch("prefect_aws.cli.ecs_worker.get_aws_client")
@@ -287,7 +293,13 @@ class TestECSWorkerCLI:
         result = self.runner.invoke(app, ["ecs-worker", "status", "test-stack"])
 
         assert result.exit_code == 1
-        assert "not deployed by prefect-aws CLI" in result.stdout
+        # Check both stdout and stderr as behavior varies across Typer versions
+        output = result.stdout
+        try:
+            output += result.stderr
+        except (ValueError, AttributeError):
+            pass  # stderr not separately captured
+        assert "not deployed by prefect-aws CLI" in output
 
     @patch("prefect_aws.cli.ecs_worker.validate_aws_credentials")
     @patch("prefect_aws.cli.ecs_worker.get_aws_client")
