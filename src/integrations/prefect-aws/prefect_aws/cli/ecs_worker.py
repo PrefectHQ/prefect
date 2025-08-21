@@ -32,15 +32,21 @@ ecs_worker_app = typer.Typer(
 @ecs_worker_app.command("deploy-service")
 def deploy_service(
     work_pool_name: Annotated[
-        Optional[str], typer.Option(help="Name of the Prefect work pool")
-    ] = None,
+        str, typer.Option(help="Name of the Prefect work pool", prompt=True)
+    ],
     stack_name: Annotated[
-        Optional[str], typer.Option(help="CloudFormation stack name")
-    ] = None,
+        str, typer.Option(help="CloudFormation stack name", prompt=True)
+    ],
+    # ECS Configuration
+    existing_cluster_identifier: Annotated[
+        str, typer.Option(help="ECS cluster name or ARN", prompt=True)
+    ],
+    existing_vpc_id: Annotated[str, typer.Option(help="VPC ID", prompt=True)],
+    existing_subnet_ids: Annotated[
+        Optional[str], typer.Option(help="Comma-separated subnet IDs", prompt=True)
+    ],
     # Prefect Configuration
-    prefect_api_url: Annotated[
-        Optional[str], typer.Option(help="Prefect API URL")
-    ] = None,
+    prefect_api_url: Annotated[str, typer.Option(help="Prefect API URL", prompt=True)],
     prefect_api_key_secret_arn: Annotated[
         str, typer.Option(help="ARN of existing Prefect API key secret")
     ] = "",
@@ -63,14 +69,6 @@ def deploy_service(
             hide_input=True,
         ),
     ] = "",
-    # ECS Configuration
-    existing_cluster_identifier: Annotated[
-        Optional[str], typer.Option(help="ECS cluster name or ARN")
-    ] = None,
-    existing_vpc_id: Annotated[Optional[str], typer.Option(help="VPC ID")] = None,
-    existing_subnet_ids: Annotated[
-        Optional[str], typer.Option(help="Comma-separated subnet IDs")
-    ] = None,
     # Worker Configuration
     docker_image: Annotated[
         str, typer.Option(help="Docker image for worker")
@@ -111,19 +109,6 @@ def deploy_service(
         typer.echo("Error: Invalid AWS credentials", err=True)
         raise typer.Exit(1)
 
-    # Get required parameters interactively if not provided
-    if not work_pool_name:
-        work_pool_name = typer.prompt("Work pool name", default="ecs-work-pool")
-
-    if not stack_name:
-        stack_name = typer.prompt("Stack name", default=f"{work_pool_name}-workers")
-
-    # Handle Prefect API URL and authentication
-    if not prefect_api_url:
-        prefect_api_url = typer.prompt(
-            "Prefect API URL", default="https://api.prefect.cloud/api"
-        )
-
     # Check if this is Prefect Cloud (requires API key)
     is_prefect_cloud = "api.prefect.cloud" in prefect_api_url.lower()
 
@@ -143,17 +128,6 @@ def deploy_service(
                 prefect_auth_string = typer.prompt(
                     "Prefect auth string (username:password format)", hide_input=True
                 )
-
-    if not existing_cluster_identifier:
-        existing_cluster_identifier = typer.prompt(
-            "ECS cluster identifier (name or ARN)"
-        )
-
-    if not existing_vpc_id:
-        existing_vpc_id = typer.prompt("VPC ID")
-
-    if not existing_subnet_ids:
-        existing_subnet_ids = typer.prompt("Subnet IDs (comma-separated)")
 
     # Parse subnet IDs
     subnet_id_list = [s.strip() for s in existing_subnet_ids.split(",")]
@@ -246,14 +220,14 @@ def deploy_service(
 @ecs_worker_app.command("deploy-events")
 def deploy_events(
     work_pool_name: Annotated[
-        Optional[str], typer.Option(help="Name of the Prefect work pool")
-    ] = None,
+        str, typer.Option(help="Name of the Prefect work pool", prompt=True)
+    ],
     stack_name: Annotated[
-        Optional[str], typer.Option(help="CloudFormation stack name")
-    ] = None,
+        str, typer.Option(help="CloudFormation stack name", prompt=True)
+    ],
     existing_cluster_arn: Annotated[
-        Optional[str], typer.Option(help="ECS cluster ARN")
-    ] = None,
+        str, typer.Option(help="ECS cluster ARN", prompt=True)
+    ],
     # AWS Configuration
     region: Annotated[Optional[str], typer.Option(help="AWS region")] = None,
     profile: Annotated[Optional[str], typer.Option(help="AWS profile")] = None,
@@ -269,16 +243,6 @@ def deploy_events(
     if not validate_aws_credentials(region, profile):
         typer.echo("Error: Invalid AWS credentials", err=True)
         raise typer.Exit(1)
-
-    # Get required parameters interactively if not provided
-    if not work_pool_name:
-        work_pool_name = typer.prompt("Work pool name", default="ecs-work-pool")
-
-    if not stack_name:
-        stack_name = typer.prompt("Stack name", default=f"{work_pool_name}-events")
-
-    if not existing_cluster_arn:
-        existing_cluster_arn = typer.prompt("ECS cluster ARN")
 
     # Get AWS clients
     cf_client = get_aws_client("cloudformation", region, profile)
