@@ -60,7 +60,6 @@ from typing import (
     NamedTuple,
     Optional,
     Tuple,
-    Union,
     cast,
 )
 from uuid import UUID
@@ -83,7 +82,7 @@ from prefect.workers.base import (
     BaseWorker,
     BaseWorkerResult,
 )
-from prefect_aws.credentials import AwsCredentials, ClientType
+from prefect_aws.credentials import AwsCredentials
 from prefect_aws.observers.ecs import start_observer, stop_observer
 
 if TYPE_CHECKING:
@@ -286,9 +285,21 @@ class ECSJobConfiguration(BaseJobConfiguration):
     cloudwatch_logs_options: Dict[str, str] = Field(default_factory=dict)
     cloudwatch_logs_prefix: Optional[str] = Field(default=None)
     network_configuration: Dict[str, Any] = Field(default_factory=dict)
-    stream_output: Optional[bool] = Field(default=None)
-    task_start_timeout_seconds: int = Field(default=300)
-    task_watch_poll_interval: float = Field(default=5.0)
+    stream_output: Optional[bool] = Field(
+        default=None,
+        json_schema_extra=dict(template=False),
+        deprecated="This field is no longer used and will be removed in a future release.",
+    )
+    task_start_timeout_seconds: int = Field(
+        default=300,
+        json_schema_extra=dict(template=0),
+        deprecated="This field is no longer used and will be removed in a future release.",
+    )
+    task_watch_poll_interval: float = Field(
+        default=5.0,
+        json_schema_extra=dict(template=0),
+        deprecated="This field is no longer used and will be removed in a future release.",
+    )
     auto_deregister_task_definition: bool = Field(default=False)
     vpc_id: Optional[str] = Field(default=None)
     container_name: Optional[str] = Field(default=None)
@@ -307,6 +318,33 @@ class ECSJobConfiguration(BaseJobConfiguration):
             "provided to capture logs from the container."
         ),
     )
+
+    @classmethod
+    def json_template(cls) -> dict[str, Any]:
+        """Returns a dict with job configuration as keys and the corresponding templates as values
+
+        Defaults to using the job configuration parameter name as the template variable name.
+
+        e.g.
+        ```python
+        {
+            key1: '{{ key1 }}',     # default variable template
+            key2: '{{ template2 }}', # `template2` specifically provide as template
+        }
+        ```
+        """
+        # This is overridden because the base class was incorrectly handling `False`
+        # TODO: Update the base class, remove this override, and bump the minimum `prefect` version
+        configuration: dict[str, Any] = {}
+        properties = cls.model_json_schema()["properties"]
+        for k, v in properties.items():
+            if v.get("template") is not None:
+                template = v["template"]
+            else:
+                template = "{{ " + k + " }}"
+            configuration[k] = template
+
+        return configuration
 
     def prepare_for_flow_run(
         self,
@@ -355,19 +393,6 @@ class ECSJobConfiguration(BaseJobConfiguration):
             # definition arn. In that case, we'll perform similar logic later to find
             # the name to treat as the "orchestration" container.
 
-        return self
-
-    @model_validator(mode="after")
-    def set_default_configure_cloudwatch_logs(self) -> Self:
-        """
-        Streaming output generally requires CloudWatch logs to be configured.
-
-        To avoid entangled arguments in the simple case, `configure_cloudwatch_logs`
-        defaults to matching the value of `stream_output`.
-        """
-        configure_cloudwatch_logs = self.configure_cloudwatch_logs
-        if configure_cloudwatch_logs is None:
-            self.configure_cloudwatch_logs = self.stream_output
         return self
 
     @model_validator(mode="after")
@@ -573,8 +598,7 @@ class ECSVariables(BaseVariables):
             "If enabled, the Prefect container will be configured to send its output "
             "to the AWS CloudWatch logs service. This functionality requires an "
             "execution role with logs:CreateLogStream, logs:CreateLogGroup, and "
-            "logs:PutLogEvents permissions. The default for this field is `False` "
-            "unless `stream_output` is set."
+            "logs:PutLogEvents permissions. The default for this field is `False`."
         ),
     )
     cloudwatch_logs_options: Dict[str, str] = Field(
@@ -605,31 +629,6 @@ class ECSVariables(BaseVariables):
             "awsvpcConfiguration that defined in the ECS task executing your workload. "
             "See the [AWS documentation](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-properties-ecs-service-awsvpcconfiguration.html)"  # noqa
             " for available options."
-        ),
-    )
-
-    stream_output: Optional[bool] = Field(
-        default=None,
-        description=(
-            "If enabled, logs will be streamed from the Prefect container to the local "
-            "console. Unless you have configured AWS CloudWatch logs manually on your "
-            "task definition, this requires the same prerequisites outlined in "
-            "`configure_cloudwatch_logs`."
-        ),
-    )
-    task_start_timeout_seconds: int = Field(
-        default=300,
-        description=(
-            "The amount of time to watch for the start of the ECS task "
-            "before marking it as failed. The task must enter a RUNNING state to be "
-            "considered started."
-        ),
-    )
-    task_watch_poll_interval: float = Field(
-        default=5.0,
-        description=(
-            "The amount of time to wait between AWS API calls while monitoring the "
-            "state of an ECS task."
         ),
     )
     auto_deregister_task_definition: bool = Field(
@@ -684,7 +683,7 @@ class ECSWorker(BaseWorker[ECSJobConfiguration, ECSVariables, ECSWorkerResult]):
         Initiates a flow run on AWS ECS. This method does not wait for the flow run to complete.
         """
         ecs_client = await run_sync_in_worker_thread(
-            self._get_client, configuration, "ecs"
+            configuration.aws_credentials.get_client, "ecs"
         )
 
         logger = cast(logging.Logger, self.get_flow_run_logger(flow_run))
@@ -707,7 +706,7 @@ class ECSWorker(BaseWorker[ECSJobConfiguration, ECSVariables, ECSWorkerResult]):
         Runs a given flow run on the current worker.
         """
         ecs_client = await run_sync_in_worker_thread(
-            self._get_client, configuration, "ecs"
+            configuration.aws_credentials.get_client, "ecs"
         )
 
         logger = cast(logging.Logger, self.get_flow_run_logger(flow_run))
@@ -742,14 +741,6 @@ class ECSWorker(BaseWorker[ECSJobConfiguration, ECSVariables, ECSWorkerResult]):
             # was created successfully
             status_code=0,
         )
-
-    def _get_client(
-        self, configuration: ECSJobConfiguration, client_type: Union[str, ClientType]
-    ) -> "ECSClient":
-        """
-        Get a boto3 client of client_type. Will use a cached client if one exists.
-        """
-        return configuration.aws_credentials.get_client(client_type)
 
     def _prepare_and_create_task(
         self,
@@ -1205,7 +1196,7 @@ class ECSWorker(BaseWorker[ECSJobConfiguration, ECSVariables, ECSWorkerResult]):
         Load settings from a specific VPC or the default VPC and generate a task
         run request's network configuration.
         """
-        ec2_client = self._get_client(configuration, "ec2")
+        ec2_client = configuration.aws_credentials.get_client("ec2")
         vpc_message = "the default VPC" if not vpc_id else f"VPC with ID {vpc_id}"
 
         if not vpc_id:
@@ -1254,7 +1245,7 @@ class ECSWorker(BaseWorker[ECSJobConfiguration, ECSVariables, ECSWorkerResult]):
         Load settings from a specific VPC or the default VPC and generate a task
         run request's network configuration.
         """
-        ec2_client = self._get_client(configuration, "ec2")
+        ec2_client = configuration.aws_credentials.get_client("ec2")
         vpc_message = f"VPC with ID {vpc_id}"
 
         vpcs = ec2_client.describe_vpcs(VpcIds=[vpc_id]).get("Vpcs")
