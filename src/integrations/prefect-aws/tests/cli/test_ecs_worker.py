@@ -910,8 +910,12 @@ class TestExportTemplate:
         json_file = tmp_path / "test-service.json"
         assert json_file.exists()
 
-    def test_export_template_interactive_prompts(self, tmp_path):
+    @patch("prefect_aws._cli.ecs_worker.load_template")
+    def test_export_template_interactive_prompts(self, mock_load_template, tmp_path):
         """Test interactive prompts when required parameters not provided."""
+        mock_template = {"AWSTemplateFormatVersion": "2010-09-09"}
+        mock_load_template.return_value = mock_template
+
         output_file = tmp_path / "interactive-test.json"
 
         runner = CliRunner()
@@ -922,8 +926,14 @@ class TestExportTemplate:
         assert result.exit_code == 0
         assert output_file.exists()
 
-    def test_export_template_creates_output_directory(self, tmp_path):
+    @patch("prefect_aws._cli.ecs_worker.load_template")
+    def test_export_template_creates_output_directory(
+        self, mock_load_template, tmp_path
+    ):
         """Test that output directories are created if they don't exist."""
+        mock_template = {"AWSTemplateFormatVersion": "2010-09-09"}
+        mock_load_template.return_value = mock_template
+
         output_dir = tmp_path / "nested" / "directory"
         output_file = output_dir / "template.json"
 
@@ -965,8 +975,14 @@ class TestExportTemplate:
         assert result.exit_code == 1
         assert "Error exporting template" in result.stdout
 
-    def test_export_template_includes_usage_instructions(self, tmp_path):
+    @patch("prefect_aws._cli.ecs_worker.load_template")
+    def test_export_template_includes_usage_instructions(
+        self, mock_load_template, tmp_path
+    ):
         """Test that successful export includes helpful usage instructions."""
+        mock_template = {"AWSTemplateFormatVersion": "2010-09-09"}
+        mock_load_template.return_value = mock_template
+
         output_file = tmp_path / "template.json"
 
         runner = CliRunner()
