@@ -85,6 +85,42 @@ class TestECSWorkerCLI:
         assert "DRY RUN" in result.stdout
         assert "test-stack" in result.stdout
 
+    @patch("prefect_aws.cli.ecs_worker.load_template")
+    def test_deploy_service_no_wait(
+        self, mock_load_template, aws_credentials, mock_aws_resources
+    ):
+        """Test deploy-service command with --no-wait flag."""
+        mock_load_template.return_value = {
+            "AWSTemplateFormatVersion": "2010-09-09",
+            "Resources": {},
+        }
+
+        result = self.runner.invoke(
+            app,
+            [
+                "ecs-worker",
+                "deploy-service",
+                "--work-pool-name",
+                "test-pool",
+                "--stack-name",
+                "test-stack",
+                "--prefect-api-url",
+                "https://api.prefect.cloud/api",
+                "--existing-cluster-identifier",
+                mock_aws_resources["cluster_name"],
+                "--existing-vpc-id",
+                mock_aws_resources["vpc_id"],
+                "--existing-subnet-ids",
+                ",".join(mock_aws_resources["subnet_ids"]),
+                "--prefect-api-key",
+                "test-key",
+                "--no-wait",
+            ],
+        )
+
+        assert result.exit_code == 0
+        assert "Check status with:" in result.stdout
+
     @patch("prefect_aws.cli.ecs_worker.validate_aws_credentials")
     def test_deploy_service_invalid_credentials(self, mock_validate_creds):
         """Test deploy-service command with invalid credentials."""
@@ -335,6 +371,27 @@ class TestECSWorkerCLI:
             except cf.exceptions.ClientError as e:
                 # Stack should not exist anymore
                 assert "does not exist" in str(e) or "DELETE_COMPLETE" in str(e)
+
+    def test_delete_stack_no_wait(self, aws_credentials):
+        """Test delete stack command with --no-wait flag."""
+        with mock_cloudformation(), mock_sts():
+            # Create a test stack with CLI tags
+            cf = boto3.client("cloudformation", region_name="us-east-1")
+            cf.create_stack(
+                StackName="test-stack",
+                TemplateBody='{"AWSTemplateFormatVersion": "2010-09-09", "Resources": {}}',
+                Tags=[
+                    {"Key": "ManagedBy", "Value": "prefect-aws-cli"},
+                    {"Key": "DeploymentType", "Value": "ecs-worker"},
+                ],
+            )
+
+            result = self.runner.invoke(
+                app, ["ecs-worker", "delete", "test-stack", "--force", "--no-wait"]
+            )
+
+            assert result.exit_code == 0
+            assert "Check status with:" in result.stdout
 
 
 class TestECSWorkerUtils:
