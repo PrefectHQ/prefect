@@ -57,6 +57,7 @@ dev = [
     "pytest-xdist",
     "types-boto3 >= 1.0.2",
     "ruff>=0.12.8",
+    "aws-cdk-lib>=2.212.0",
 ]
 
 [project.urls]
