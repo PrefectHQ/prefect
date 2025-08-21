@@ -87,11 +87,8 @@ def create_bundle_for_flow_run(
     """
     context = context or serialize_context()
 
-    return {
-        "function": _serialize_bundle_object(flow),
-        "context": _serialize_bundle_object(context),
-        "flow_run": flow_run.model_dump(mode="json"),
-        "dependencies": subprocess.check_output(
+    dependencies = (
+        subprocess.check_output(
             [
                 _get_uv_path(),
                 "pip",
@@ -101,7 +98,33 @@ def create_bundle_for_flow_run(
             ]
         )
         .decode()
-        .strip(),
+        .strip()
+    )
+
+    # Remove dependencies installed from a local file path because we won't be able
+    # to install them in the execution environment. The user will be responsible for
+    # making sure they are available in the execution environment
+    filtered_dependencies: list[str] = []
+    file_dependencies: list[str] = []
+    for line in dependencies.split("\n"):
+        if "file://" in line:
+            file_dependencies.append(line)
+        else:
+            filtered_dependencies.append(line)
+    dependencies = "\n".join(filtered_dependencies)
+    if file_dependencies:
+        logger.warning(
+            "The following dependencies were installed from a local file path and will not be "
+            "automatically installed in the execution environment: %s. If these dependencies "
+            "are not available in the execution environment, your flow run may fail.",
+            "\n".join(file_dependencies),
+        )
+
+    return {
+        "function": _serialize_bundle_object(flow),
+        "context": _serialize_bundle_object(context),
+        "flow_run": flow_run.model_dump(mode="json"),
+        "dependencies": dependencies,
     }
 
 
