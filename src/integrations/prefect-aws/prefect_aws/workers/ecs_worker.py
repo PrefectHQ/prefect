@@ -45,13 +45,6 @@ may result in variables that are templated into the task definition payload bein
 ignored.
 """
 
-# TODO: Figure out how to handle deregistration
-# if deregister_task_definition:
-#     ecs_client.deregister_task_definition(
-#         taskDefinition=task["taskDefinitionArn"]
-#     )
-#
-
 from __future__ import annotations
 
 import copy
@@ -1440,7 +1433,9 @@ class ECSWorker(BaseWorker[ECSJobConfiguration, ECSVariables, ECSWorkerResult]):
             new_task_definition_registered
             and configuration.auto_deregister_task_definition
         ):
-            tags.append({"prefect.io/degregister-task-definition": "true"})
+            tags.append(
+                {"key": "prefect.io/degregister-task-definition", "value": "true"}
+            )
 
         if tags:
             task_run_request["tags"] = tags

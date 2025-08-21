@@ -1597,8 +1597,13 @@ async def test_deregister_task_definition(
     ecs_client = session.client("ecs")
 
     task = describe_task(ecs_client, task_arn)
-    task_definition = describe_task_definition(ecs_client, task)
-    assert task_definition["status"] == "INACTIVE"
+    tags = task.get("tags", {})
+    # Will mark for deregistration and the observer will handle deregistration
+    assert any(
+        tag["key"] == "prefect.io/degregister-task-definition"
+        and tag["value"] == "true"
+        for tag in tags
+    )
 
 
 @pytest.mark.usefixtures("ecs_mocks")
