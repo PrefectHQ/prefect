@@ -101,6 +101,7 @@ You will need the following to successfully complete this guide:
 - An AWS account with permissions to create:
   - IAM roles
   - IAM policies
+  - Secrets in [AWS Secrets Manager](https://docs.aws.amazon.com/secretsmanager/latest/userguide/intro.html) or [Systems Manager Parameter Store](https://docs.aws.amazon.com/systems-manager/latest/userguide/systems-manager-parameter-store.html)
   - ECS task definitions
   - ECS services
 - The AWS CLI installed on your local machine. You can [download it from the AWS website](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html).
@@ -153,6 +154,70 @@ If doing so from the CLI, be sure to [authenticate with Prefect Cloud](/v3/how-t
 <Info>
 Because this guide uses Fargate as the capacity provider, this step requires no further action.
 </Info>
+
+## Create a Secret for the Prefect API key
+<Info>
+    If you are using a Prefect self-hosted server and have authentication disabled, you can skip this step.
+</Info>
+
+The Prefect worker needs to authenticate with your Prefect server to poll the work pool for flow runs. For authentication, you must provide a Bearer token (`PREFECT_API_KEY`) or Basic Auth string (`PREFECT_API_AUTH_STRING`) to the Prefect API. As a security best practice, we recommend you store your Prefect API key in [AWS Secrets Manager](https://docs.aws.amazon.com/secretsmanager/latest/userguide/intro.html) or [Systems Manager Parameter Store](https://docs.aws.amazon.com/systems-manager/latest/userguide/systems-manager-paramstore.html).
+
+<Steps>
+    <Step title={"Find your secret"}>
+        You can find your Prefect API key several ways:
+        
+        <AccordionGroup>
+            <Accordion title={"Prefect Cloud - Paid Plans"}>
+                If you are on a paid plan you can create a [service account](/v3/how-to-guides/cloud/manage-users/service-accounts) for the worker.
+            </Accordion>
+            <Accordion title={"Prefect Cloud - Free Plans"}>
+                If you are on a free plan, you can use a user's API key.
+                
+                To find your API key, use the Prefect CLI:
+                
+                ```bash wrap
+                # If not already authenticated, log in first
+                prefect cloud login
+                
+                prefect config view --show-secrets
+                ```
+            </Accordion>
+            <Accordion title={"Self-hosted Prefect server"}>
+                There is no concept of a `PREFECT_API_KEY` in a self-hosted Prefect server.
+                
+                Instead, you use the `PREFECT_API_AUTH_STRING` containing your basic auth credentials (if your server uses [basic authentication](/v3/advanced/security-settings#basic-authentication)).
+                
+                You can find this information on the Settings page for your Prefect server.
+            </Accordion>
+        </AccordionGroup>
+    </Step>
+    <Step title={"Create a secret"}>
+        Choose between AWS Secrets Manager or Systems Manager Parameter Store to store your Prefect API key. Both services allow you to securely store and manage sensitive information such as API keys, passwords, and other secrets.
+        
+        <Tabs>
+            <Tab title={"Secrets Manager"}>
+                To create a Secret in AWS Secrets Manager, use the [`aws secretsmanager create-secret`](https://docs.aws.amazon.com/cli/latest/reference/secretsmanager/create-secret.html) command:
+                
+                ```bash wrap
+                aws secretsmanager create-secret --name PrefectECSWorkerAPIKey --secret-string '<your-prefect-api-key>'
+                ```
+                
+                Make a note of the Amazon Resource Name (ARN) of the secret that is returned in the command output. You will need it later when configuring the ECS worker task definition.
+            </Tab>
+            <Tab title={"Systems Manager Parameter Store"}>
+                To create a SecureString parameter in AWS Systems Manager Parameter Store, use the [`aws ssm put-parameter`](https://docs.aws.amazon.com/cli/latest/reference/ssm/put-parameter.html) command:
+                
+                ```bash wrap
+                aws ssm put-parameter --name "/prefect/my-ecs-pool/api/key" --value "<your-prefect-api-key>" --type "SecureString"
+                ```
+                
+                You may customize the parameter hierarchy and name to suit your needs. In this example we've used, `/prefect/my-ecs-pool/api/key` but any parameter name works. Your ECS task execution role will need to be able to read this value.
+                
+                Make a note of the name you specified for the parameter, as you will need it later when configuring the ECS worker.
+            </Tab>
+        </Tabs>
+    </Step>
+</Steps>
 
 ## Create the AWS IAM resources
 
@@ -215,13 +280,118 @@ The ECS task execution role will be used to start the ECS worker task. We will a
         
         Make a note of the ARN (Amazon Resource Name) of the role that is returned in the command output. You will need it later when creating the ECS task definition.
     </Step>
-    <Step title={"Attach the Policy"}>
+    <Step title={"Create the Secret Policy"}>
+        <Tabs>
+            <Tab title={"Secrets Manager"}>
+                The following is a minimal policy that grants the necessary permissions for ECS to obtain the current value of the secret and inject it into the ECS task. Save this policy to a file, such as `secret-policy.json`:        
+                
+                ```json
+                {
+                    "Version": "2012-10-17",
+                    "Statement": [
+                        {
+                            "Action": [
+                                "secretsmanager:GetSecretValue",
+                            ],
+                            "Effect": "Allow",
+                            "Resource": "arn:aws:secretsmanager:<region>:<account-id>:secret:PrefectECSWorkerAPIKey"
+                        }
+                    ]
+                }
+                ```
+                
+                Alternately, you can download this file using the following command:
+                
+                <CodeGroup>
+                    
+                    ```bash curl wrap
+                    curl -O https://raw.githubusercontent.com/PrefectHQ/prefect/refs/heads/main/docs/integrations/prefect-aws/ecs/iam/secrets/secrets-manager/secret-policy.json
+                    ```
+                    
+                    ```bash wget wrap
+                    wget https://raw.githubusercontent.com/PrefectHQ/prefect/refs/heads/main/docs/integrations/prefect-aws/ecs/iam/secrets/secrets-manager/secret-policy.json
+                    ```
+                </CodeGroup>
+            </Tab>
+            <Tab title={"Systems Manager Parameter Store"}>
+                The following is a minimal policy that grants the necessary permissions for ECS to obtain the current value of the parameter and inject it into the ECS task. Save this policy to a file, such as `secret-policy.json`:        
+
+                ```json
+                {
+                    "Version": "2012-10-17",
+                    "Statement": [
+                        {
+                            "Action": [
+                                "ssm:GetParameters"
+                            ],
+                            "Effect": "Allow",
+                            "Resource": "arn:aws:ssm:<region>:<account-id>:parameter/prefect/my-ecs-pool/api/key"
+                        }
+                    ]
+                }
+                ```
+                
+                Alternately, you can download this file using the following command:
+                
+                <CodeGroup>
+                    
+                    ```bash curl wrap
+                    curl -O https://raw.githubusercontent.com/PrefectHQ/prefect/refs/heads/main/docs/integrations/prefect-aws/ecs/iam/secrets/ssm-parameter-store/secret-policy.json
+                    ```
+                    
+                    ```bash wget wrap
+                    wget https://raw.githubusercontent.com/PrefectHQ/prefect/refs/heads/main/docs/integrations/prefect-aws/ecs/iam/secrets/ssm-parameter-store/secret-policy.json
+                    ```
+                </CodeGroup>
+            </Tab>
+        </Tabs>
+        
+        <Accordion title={"Using a customer-managed key (CMK)?"} icon={"lock"}>
+        If your secret is encrypted with a customer-managed key (CMK) in AWS Key Management Service (KMS), you will also need to add the `kms:Decrypt` permission to the policy. For example:
+        
+        ```json focus={11-17}
+        {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+                "Action": [
+                    "secretsmanager:GetSecretValue",
+                ],
+                "Effect": "Allow",
+                "Resource": "arn:aws:secretsmanager:<region>:<account-id>:secret:PrefectECSWorkerAPIKey"
+            },
+            {
+               "Action": [
+                    "kms:Decrypt"
+                ],
+                "Effect": "Allow",
+                "Resource": "arn:aws:kms:<region>:<account-id>:key/<your-kms-key-id>"
+            }
+          ]
+        }
+        ```
+        </Accordion>
+    </Step>
+    <Step title={"Register the policy"}>
+        Create a new IAM policy named `ecsTaskExecutionPolicy` using the policy document you just created.
+        
+        ```bash wrap
+        aws iam create-policy --policy-name ecsTaskExecutionPolicy --policy-document file://secret-policy.json
+        ```
+    </Step>
+    <Step title={"Attach the Policies"}>
         The `AmazonECSTaskExecutionRolePolicy` managed policy grants the minimum permissions necessary for starting ECS tasks. [See here](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task_execution_IAM_role.html) for other common execution role permissions. 
         
         Attach this policy to your task execution role using the [`aws iam attach-role-policy`](https://docs.aws.amazon.com/cli/latest/reference/iam/attach-role-policy.html):
 
         ```bash wrap
         aws iam attach-role-policy --role-name ecsTaskExecutionRole --policy-arn arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
+        ```
+        
+        Attach the custom policy you created in the previous step so that the ECS task can access the Prefect API key stored in AWS Secrets Manager or Systems Manager Parameter Store:
+
+        ```bash wrap
+        aws iam put-role-policy --role-name ecsTaskExecutionRole --policy-name PrefectECSWorkerSecretPolicy --policy-document file://secret-policy.json
         ```
     </Step>
 </Steps>
@@ -419,72 +589,27 @@ Now that all the AWS IAM roles have been created, we can deploy the Prefect work
                 </Accordion>
             </AccordionGroup>
         </Accordion>
-        * `<prefect-api-key>` with your Prefect API key.
-        <Accordion title={"Finding your PREFECT_API_KEY"} icon={"circle-question"}>
-            You can find your Prefect API key several ways:
+        * `<aws-arn-of-secret>` with the ARN of the resource from Secrets Manager or Systems Manager Parameter Store.
+        <Accordion title={"Finding your Secret ARN"} icon={"circle-question"}>
+            Your secret ARN is based on the service you are using:
             
             <AccordionGroup>
-                <Accordion title={"Prefect Cloud - Paid Plans"}>
-                    If you are on a paid plan you can create a [service account](/v3/how-to-guides/cloud/manage-users/service-accounts) for the worker.
-                </Accordion>
-                <Accordion title={"Prefect Cloud - Free Plans"}>
-                    If you are on a free plan, you can use a user's API key.
-                    
-                    To find your API key, use the Prefect CLI:
+                <Accordion title={"Secrets Manager"}>
+                    You can find the ARN of your secret using the following command:
                     
                     ```bash wrap
-                    # If not already authenticated, log in first
-                    prefect cloud login
+                    aws secretsmanager describe-secret --secret-id PrefectECSWorkerAPIKey --query 'ARN' --output text
+                    ```
+                </Accordion>
+                <Accordion title={"Systems Manager Parameter Store"}>
+                    You can find the ARN of your parameter using the following command:
                     
-                    prefect config view --show-secrets
+                    ```bash wrap
+                    aws ssm get-parameter --name "/prefect/my-ecs-pool/api/key" --query 'Parameter.ARN' --output text
                     ```
                 </Accordion>
                 <Accordion title={"Self-hosted Prefect server"}>
-                    There is no concept of a `PREFECT_API_KEY` in a self-hosted Prefect server.
-                    
-                    You should either:
-                    1. Remove the `PREFECT_API_KEY` environment variable from your task definition (if your server has no authentication)
-                    
-                    ```json focus={24-31}
-                    {
-                        "family": "prefect-worker-task",
-                        "networkMode": "awsvpc",
-                        "requiresCompatibilities": [
-                            "FARGATE"
-                        ],
-                        "cpu": "512",
-                        "memory": "1024",
-                        "executionRoleArn": "<ecs-task-execution-role-arn>",
-                        "taskRoleArn": "<ecs-task-role-arn>",
-                        "containerDefinitions": [
-                            {
-                                "name": "prefect-worker",
-                                "image": "prefecthq/prefect:3-latest",
-                                "cpu": 512,
-                                "memory": 1024,
-                                "essential": true,
-                                "command": [
-                                    "/bin/sh",
-                                    "-c",
-                                    "pip install prefect-aws && prefect worker start --pool my-ecs-pool --type ecs"
-                                ],
-                                "environment": [
-                                    {
-                                        "name": "PREFECT_API_URL",
-                                        "value": "<prefect-api-url>"
-                                    },
-                                    { // [!code --:4]
-                                        "name": "PREFECT_API_KEY",
-                                        "value": "<prefect-api-key>"
-                                    }
-                                ]
-                            }
-                        ]
-                    }
-                    ```
-                    
-                    2. Replace it with `PREFECT_API_AUTH_STRING` containing your basic auth credentials (if your server uses [basic authentication](/v3/advanced/security-settings#basic-authentication))
-                    
+                    As `PREFECT_API_KEY` is not used with a self-hosted Prefect server, you will need to replace the `PREFECT_API_KEY` environment variable in the task definition secrets with `PREFECT_API_AUTH_STRING`.
                     
                     ```json focus={28-35}
                     {
@@ -513,14 +638,13 @@ Now that all the AWS IAM roles have been created, we can deploy the Prefect work
                                     {
                                         "name": "PREFECT_API_URL",
                                         "value": "prefect-api-url>"
-                                    },
-                                    { // [!code --:4]
-                                        "name": "PREFECT_API_KEY",
-                                        "value": "<prefect-api-key>"
-                                    },
-                                    { // [!code ++:4]
-                                        "name": "PREFECT_API_AUTH_STRING",
-                                        "value": "admin:yourpassword"
+                                    }
+                                ],
+                                "secrets": [
+                                    {
+                                        "name": "PREFECT_API_KEY", // [!code --]
+                                        "name": "PREFECT_API_AUTH_STRING", // [!code ++]
+                                        "value": "<aws-arn-of-secret>"
                                     }
                                 ]
                             }
@@ -559,11 +683,13 @@ Now that all the AWS IAM roles have been created, we can deploy the Prefect work
                     "environment": [
                         {
                             "name": "PREFECT_API_URL",
-                            "value": "prefect-api-url>"
-                        },
+                            "value": "<prefect-api-url>"
+                        }
+                    ],
+                    "secrets": [
                         {
                             "name": "PREFECT_API_KEY",
-                            "value": "<prefect-api-key>"
+                            "valueFrom": "<aws-arn-of-secret>"
                         }
                     ]
                 }
@@ -747,6 +873,7 @@ If your worker does not appear in the Prefect UI, check the following:
 - Check the ECS service logs in CloudWatch to see if there are any errors.
 - Verify that the IAM roles have the correct permissions.
 - Ensure that the `PREFECT_API_URL` and `PREFECT_API_KEY` environment variables are set correctly in the task definition.
+- For self-hosted Prefect servers, ensure that you replaced `PREFECT_API_KEY` from the example with `PREFECT_API_AUTH_STRING` in the task definition.
 - Ensure your Prefect ECS worker has network connectivity to the Prefect API. If you are using a private VPC, ensure that there is a NAT gateway or internet gateway configured to allow outbound traffic to the Prefect API.
 
 ## Next steps

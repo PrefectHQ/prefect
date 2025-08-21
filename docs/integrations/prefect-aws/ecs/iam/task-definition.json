@@ -23,11 +23,13 @@
             "environment": [
                 {
                     "name": "PREFECT_API_URL",
-                    "value": "prefect-api-url>"
-                },
+                    "value": "<prefect-api-url>"
+                }
+            ],
+            "secrets": [
                 {
                     "name": "PREFECT_API_KEY",
-                    "value": "<prefect-api-key>"
+                    "valueFrom": "<aws-arn-of-secret>"
                 }
             ]
         }
