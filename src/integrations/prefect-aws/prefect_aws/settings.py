@@ -12,8 +12,8 @@ class EcsObserverSqsSettings(PrefectBaseSettings):
         ("integrations", "aws", "ecs", "observer", "sqs")
     )
 
-    queue_name: Optional[str] = Field(
-        default=None,
+    queue_name: str = Field(
+        default="prefect-ecs-tasks-events",
         description="The name of the SQS queue to watch for Prefect-submitted ECS tasks.",
     )
 
