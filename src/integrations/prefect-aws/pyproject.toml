@@ -47,7 +47,7 @@ dev = [
     "mkdocs-material",
     "mkdocstrings-python-legacy",
     # moto 4.2.5 broke something fairly deep in our test suite https://github.com/PrefectHQ/prefect-aws/issues/318
-    "moto >= 3.1.16, < 4.2.5",
+    "moto[cloudformation]>=3.1.16,<4.2.5",
     "mypy",
     "pillow",
     "pytest >= 8.3",
@@ -65,6 +65,9 @@ Homepage = "https://github.com/PrefectHQ/prefect/tree/main/src/integrations/pref
 
 [project.entry-points."prefect.collections"]
 prefect_aws = "prefect_aws"
+
+[project.scripts]
+prefect-aws = "prefect_aws.cli.main:app"
 
 [tool.setuptools]
 packages = ["prefect_aws"]
