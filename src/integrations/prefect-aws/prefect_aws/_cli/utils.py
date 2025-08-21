@@ -42,7 +42,7 @@ def get_template_path(template_name: str) -> str:
     """Get the path to a CloudFormation template.
 
     Args:
-        template_name: Name of the template file (e.g., 'service-only.json')
+        template_name: Name of the template file (e.g., 'service.json')
 
     Returns:
         Path to the template file
