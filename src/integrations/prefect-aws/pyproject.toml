@@ -71,8 +71,8 @@ prefect_aws = "prefect_aws"
 [project.scripts]
 prefect-aws = "prefect_aws._cli.main:app"
 
-[tool.setuptools.packages.find]
-include = ["prefect_aws*"]
+[tool.setuptools]
+packages = ["prefect_aws"]
 
 [tool.setuptools.package-data]
 prefect_aws = ["templates/**/*.json"]
