@@ -113,12 +113,11 @@ AwsSecret(
 
 Deploy and scale your Prefect workflows on [AWS ECS](https://aws.amazon.com/ecs/) for production workloads. `prefect-aws` provides:
 
-- **ECS push work pools**: Serverless execution that submits runs directly to ECS without requiring persistent workers
 - **ECS workers**: Long-running workers for hybrid deployments with full control over execution environment
 - **Auto-scaling**: Dynamic resource allocation based on workflow demands
 - **Cost optimization**: Pay only for compute resources when workflows are running
 
-Prefect Cloud offers [ECS push work pools](/v3/how-to-guides/deployment_infra/serverless) for the simplest serverless experience, while [ECS workers](/integrations/prefect-aws/ecs_guide) provide more control for complex deployment scenarios.
+See the [ECS worker deployment guide](/integrations/prefect-aws/ecs_guide) for a step-by-step walkthrough of deploying production-ready workers to your ECS cluster.
 
 ## Supported AWS services
 
