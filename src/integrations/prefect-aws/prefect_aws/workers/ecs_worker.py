@@ -95,6 +95,7 @@ from prefect_aws.observers.ecs import start_observer, stop_observer
 
 if TYPE_CHECKING:
     from mypy_boto3_ecs import ECSClient
+    from mypy_boto3_ecs.type_defs import TaskDefinitionTypeDef
 
     from prefect.client.schemas.objects import APIFlow, DeploymentResponse, WorkPool
 
@@ -721,8 +722,6 @@ class ECSWorker(BaseWorker[ECSJobConfiguration, ECSVariables, ECSWorkerResult]):
         (
             task_arn,
             cluster_arn,
-            task_definition,
-            is_new_task_definition,
         ) = await run_sync_in_worker_thread(
             self._prepare_and_create_task,
             logger,
@@ -748,7 +747,7 @@ class ECSWorker(BaseWorker[ECSJobConfiguration, ECSVariables, ECSWorkerResult]):
             identifier=identifier,
             # The observer will handle crash detection, so we can always return 1 if the task
             # was created successfully
-            status_code=1,
+            status_code=0,
         )
 
     def _get_client(
@@ -830,6 +829,7 @@ class ECSWorker(BaseWorker[ECSJobConfiguration, ECSVariables, ECSWorkerResult]):
             configuration,
             task_definition,
             task_definition_arn,
+            new_task_definition_registered,
         )
 
         logger.info("Creating ECS task run...")
@@ -846,7 +846,7 @@ class ECSWorker(BaseWorker[ECSJobConfiguration, ECSVariables, ECSWorkerResult]):
             self._report_task_run_creation_failure(configuration, task_run_request, exc)
             raise
 
-        return task_arn, cluster_arn, task_definition, new_task_definition_registered
+        return task_arn, cluster_arn
 
     def _report_task_run_creation_failure(
         self, configuration: ECSJobConfiguration, task_run: dict, exc: Exception
@@ -1298,8 +1298,9 @@ class ECSWorker(BaseWorker[ECSJobConfiguration, ECSVariables, ECSWorkerResult]):
     def _prepare_task_run_request(
         self,
         configuration: ECSJobConfiguration,
-        task_definition: dict,
+        task_definition: dict[str, Any] | TaskDefinitionTypeDef,
         task_definition_arn: str,
+        new_task_definition_registered: bool,
     ) -> dict:
         """
         Prepare a task run request payload.
@@ -1435,6 +1436,11 @@ class ECSWorker(BaseWorker[ECSJobConfiguration, ECSVariables, ECSWorkerResult]):
             }
             for item in tags
         ]
+        if (
+            new_task_definition_registered
+            and configuration.auto_deregister_task_definition
+        ):
+            tags.append({"prefect.io/degregister-task-definition": "true"})
 
         if tags:
             task_run_request["tags"] = tags

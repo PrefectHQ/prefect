@@ -30,6 +30,9 @@ from slugify import slugify
 import prefect
 from prefect.events.clients import get_events_client
 from prefect.events.schemas.events import Event, RelatedResource, Resource
+from prefect.exceptions import ObjectNotFound
+from prefect.states import Crashed
+from prefect.utilities.engine import propose_state
 
 if TYPE_CHECKING:
     from mypy_boto3_sqs.type_defs import MessageTypeDef
@@ -41,6 +44,8 @@ logger.setLevel(logging.INFO)
 
 _last_event_cache: LRUCache[uuid.UUID, Event] = LRUCache(maxsize=1000)
 
+_ECS_DEFAULT_CONTAINER_NAME = "prefect"
+
 _ECS_EVENT_DETAIL_MAP: dict[
     str, Literal["task", "container-instance", "deployment"]
 ] = {
@@ -48,6 +53,18 @@ _ECS_EVENT_DETAIL_MAP: dict[
     "ECS Container Instance State Change": "container-instance",
     "ECS Deployment": "deployment",
 }
+
+EcsTaskLastStatus = Literal[
+    "PROVISIONING",
+    "PENDING",
+    "ACTIVATING",
+    "RUNNING",
+    "DEACTIVATING",
+    "STOPPING",
+    "DEPROVISIONING",
+    "STOPPED",
+    "DELETED",
+]
 
 
 class FilterCase(enum.Enum):
@@ -77,6 +94,7 @@ class AsyncEcsEventHandler(Protocol):
 
 class EventHandlerFilters(TypedDict):
     tags: TagsFilter
+    last_status: LastStatusFilter
 
 
 class TagsFilter:
@@ -92,6 +110,14 @@ class TagsFilter:
             or tag_value == tags.get(tag_name)
             for tag_name, tag_value in self.tags.items()
         )
+
+
+class LastStatusFilter:
+    def __init__(self, *statuses: EcsTaskLastStatus):
+        self.statuses = statuses
+
+    def is_match(self, last_status: EcsTaskLastStatus) -> bool:
+        return not self.statuses or last_status in self.statuses
 
 
 HandlerWithFilters = NamedTuple(
@@ -166,10 +192,13 @@ class SqsSubscriber:
                     == "AWS.SimpleQueueService.NonExistentQueue"
                 ):
                     logger.warning(
-                        f"SQS queue '{self.queue_name}' does not exist in region '{self.queue_region or 'default'}'. "
-                        "To enable ECS event replication, deploy an SQS queue using the prefect-aws CLI and "
+                        "SQS queue '%s' does not exist in region '%s'. The work will be able to submit ECS tasks, "
+                        "but event replication and crash detection will not work.\n"
+                        "To enable ECS event replication and crash detection, deploy an SQS queue using the prefect-aws CLI and "
                         "configure the PREFECT_INTEGRATIONS_AWS_ECS_OBSERVER_SQS_QUEUE_NAME environment variable "
-                        "on your worker to point to the deployed queue."
+                        "on your worker to point to the deployed queue.",
+                        self.queue_name,
+                        self.queue_region or "default",
                     )
                     return
                 raise
@@ -250,9 +279,12 @@ class EcsObserver:
                     logger.debug("Unknown event type: %s. Skipping.", detail_type)
                     continue
 
+                last_status = body.get("detail", {}).get("lastStatus")
                 event_type = _ECS_EVENT_DETAIL_MAP[detail_type]
                 for handler, filters in self.event_handlers[event_type]:
-                    if filters["tags"].is_match(tags):
+                    if filters["tags"].is_match(tags) and filters[
+                        "last_status"
+                    ].is_match(last_status):
                         logger.debug(
                             "Running handler %s for message",
                             handler.__name__,
@@ -270,12 +302,16 @@ class EcsObserver:
         event_type: Literal["task", "container-instance", "deployment"],
         /,
         tags: dict[str, str | FilterCase] | None = None,
+        statuses: list[EcsTaskLastStatus] | None = None,
     ):
         def decorator(fn: EcsEventHandler | AsyncEcsEventHandler):
             self.event_handlers[event_type].append(
                 HandlerWithFilters(
                     handler=fn,
-                    filters={"tags": TagsFilter(**(tags or {}))},
+                    filters={
+                        "tags": TagsFilter(**(tags or {})),
+                        "last_status": LastStatusFilter(*(statuses or [])),
+                    },
                 )
             )
             return fn
@@ -412,6 +448,80 @@ async def replicate_ecs_event(event: dict[str, Any], tags: dict[str, str]):
             _last_event_cache[event_id] = prefect_event
         except Exception:
             handler_logger.exception("Error emitting event %s", event_id)
+
+
+@ecs_observer.on_event(
+    "task", tags={"prefect.io/flow-run-id": FilterCase.PRESENT}, statuses=["STOPPED"]
+)
+async def mark_runs_as_crashed(event: dict[str, Any], tags: dict[str, str]):
+    handler_logger = logger.getChild("mark_runs_as_crashed")
+
+    task_arn = event.get("detail", {}).get("taskArn")
+    if not task_arn:
+        handler_logger.debug("No task ARN in event. Skipping.")
+        return
+
+    flow_run_id = tags.get("prefect.io/flow-run-id")
+
+    async with prefect.get_client() as orchestration_client:
+        try:
+            flow_run = await orchestration_client.read_flow_run(
+                flow_run_id=uuid.UUID(flow_run_id)
+            )
+        except ObjectNotFound:
+            logger.debug(f"Flow run {flow_run_id} not found, skipping")
+            return
+
+        assert flow_run.state is not None, "Expected flow run state to be set"
+
+        # Exit early for final or scheduled states
+        if flow_run.state.is_final() or flow_run.state.is_scheduled():
+            logger.debug(
+                f"Flow run {flow_run_id} is in final or scheduled state, skipping"
+            )
+            return
+
+        containers = event.get("detail", {}).get("containers", [])
+
+        containers_with_non_zero_exit_codes = [
+            container
+            for container in containers
+            if container.get("exitCode") is None or container.get("exitCode") != 0
+        ]
+
+        if any(containers_with_non_zero_exit_codes):
+            container_identifiers = [
+                c.get("name") or c.get("containerArn") for c in containers
+            ]
+            handler_logger.info(
+                "The following containers stopped with a non-zero exit code: %s. Marking flow run %s as crashed",
+                container_identifiers,
+                flow_run_id,
+            )
+            await propose_state(
+                client=orchestration_client,
+                state=Crashed(message="No active or succeeded pods found for any job"),
+                flow_run_id=uuid.UUID(flow_run_id),
+            )
+
+
+@ecs_observer.on_event(
+    "task",
+    tags={"prefect.io/degregister-task-definition": "true"},
+    statuses=["STOPPED"],
+)
+async def deregister_task_definition(event: dict[str, Any], tags: dict[str, str]):
+    handler_logger = logger.getChild("deregister_task_definition")
+
+    if not (task_definition_arn := event.get("detail", {}).get("taskDefinitionArn")):
+        handler_logger.debug("No task definition ARN in event. Skipping.")
+        return
+
+    async with aiobotocore.session.get_session().create_client("ecs") as ecs_client:
+        await ecs_client.deregister_task_definition(taskDefinition=task_definition_arn)
+        handler_logger.info(
+            "Task definition %s successfully deregistered", task_definition_arn
+        )
 
 
 _observer_task: asyncio.Task[None] | None = None
