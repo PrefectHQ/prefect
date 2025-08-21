@@ -192,11 +192,15 @@ class SqsSubscriber:
                     == "AWS.SimpleQueueService.NonExistentQueue"
                 ):
                     logger.warning(
-                        "SQS queue '%s' does not exist in region '%s'. The work will be able to submit ECS tasks, "
-                        "but event replication and crash detection will not work.\n"
-                        "To enable ECS event replication and crash detection, deploy an SQS queue using the prefect-aws CLI and "
-                        "configure the PREFECT_INTEGRATIONS_AWS_ECS_OBSERVER_SQS_QUEUE_NAME environment variable "
-                        "on your worker to point to the deployed queue.",
+                        (
+                            "SQS queue '%s' does not exist in region '%s'. "
+                            "This worker will continue to submit ECS tasks, but event replication "
+                            "and crash detection will not work. To enable ECS event replication and "
+                            "crash detection, deploy an SQS queue using "
+                            "`prefect-aws ecs-worker deploy-events` and configure the "
+                            "PREFECT_INTEGRATIONS_AWS_ECS_OBSERVER_SQS_QUEUE_NAME environment "
+                            "variable on your worker to point to the deployed queue."
+                        ),
                         self.queue_name,
                         self.queue_region or "default",
                     )
@@ -369,7 +373,7 @@ def _related_resources_from_tags(tags: dict[str, str]) -> list[RelatedResource]:
                     "prefect.resource.id": f"prefect.worker.ecs.{slugify(worker_name)}",
                     "prefect.resource.role": "worker",
                     "prefect.resource.name": worker_name,
-                    "prefect.worker-type": "kubernetes",
+                    "prefect.worker-type": "ecs",
                     "prefect.version": prefect.__version__,
                 }
             )
