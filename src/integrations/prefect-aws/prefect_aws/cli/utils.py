@@ -208,6 +208,7 @@ def deploy_stack(
     parameters: List[Dict[str, str]],
     tags: List[Dict[str, str]],
     capabilities: Optional[List[str]] = None,
+    wait: bool = True,
 ) -> None:
     """Deploy or update a CloudFormation stack.
 
@@ -218,6 +219,7 @@ def deploy_stack(
         parameters: List of parameter dictionaries
         tags: List of tag dictionaries
         capabilities: IAM capabilities if required
+        wait: Whether to wait for the stack operation to complete
     """
     if capabilities is None:
         capabilities = ["CAPABILITY_NAMED_IAM"]
@@ -271,22 +273,29 @@ def deploy_stack(
                     Capabilities=capabilities,
                 )
 
-            # Wait for operation to complete
-            waiter_name = f"stack_{operation}_complete"
-            waiter = cf_client.get_waiter(waiter_name)
+            if wait:
+                # Wait for operation to complete
+                waiter_name = f"stack_{operation}_complete"
+                waiter = cf_client.get_waiter(waiter_name)
 
-            progress.update(
-                task, description=f"[yellow]Waiting for {operation} to complete..."
-            )
-            waiter.wait(
-                StackName=stack_name, WaiterConfig={"Delay": 10, "MaxAttempts": 120}
-            )
+                progress.update(
+                    task, description=f"[yellow]Waiting for {operation} to complete..."
+                )
+                waiter.wait(
+                    StackName=stack_name, WaiterConfig={"Delay": 10, "MaxAttempts": 120}
+                )
 
-            progress.update(
-                task,
-                description=f"[green]Stack {stack_name} {operation}d successfully!",
-            )
-            time.sleep(1)
+                progress.update(
+                    task,
+                    description=f"[green]Stack {stack_name} {operation}d successfully!",
+                )
+                time.sleep(1)
+            else:
+                progress.update(
+                    task,
+                    description=f"[green]Stack {stack_name} {operation} initiated. Check status with: prefect-aws ecs-worker status {stack_name}",
+                )
+                time.sleep(0.5)
 
     except ClientError as e:
         error_msg = e.response["Error"]["Message"]
@@ -294,12 +303,13 @@ def deploy_stack(
         raise typer.Exit(1)
 
 
-def delete_stack(cf_client, stack_name: str) -> None:
+def delete_stack(cf_client, stack_name: str, wait: bool = True) -> None:
     """Delete a CloudFormation stack.
 
     Args:
         cf_client: CloudFormation client
         stack_name: Name of the stack
+        wait: Whether to wait for the stack deletion to complete
     """
     try:
         # Validate stack is CLI-managed
@@ -319,19 +329,26 @@ def delete_stack(cf_client, stack_name: str) -> None:
 
             cf_client.delete_stack(StackName=stack_name)
 
-            # Wait for deletion to complete
-            waiter = cf_client.get_waiter("stack_delete_complete")
-            progress.update(
-                task, description="[yellow]Waiting for deletion to complete..."
-            )
-            waiter.wait(
-                StackName=stack_name, WaiterConfig={"Delay": 10, "MaxAttempts": 120}
-            )
+            if wait:
+                # Wait for deletion to complete
+                waiter = cf_client.get_waiter("stack_delete_complete")
+                progress.update(
+                    task, description="[yellow]Waiting for deletion to complete..."
+                )
+                waiter.wait(
+                    StackName=stack_name, WaiterConfig={"Delay": 10, "MaxAttempts": 120}
+                )
 
-            progress.update(
-                task, description=f"[green]Stack {stack_name} deleted successfully!"
-            )
-            time.sleep(1)
+                progress.update(
+                    task, description=f"[green]Stack {stack_name} deleted successfully!"
+                )
+                time.sleep(1)
+            else:
+                progress.update(
+                    task,
+                    description=f"[green]Stack {stack_name} deletion initiated. Check status with: prefect-aws ecs-worker status {stack_name}",
+                )
+                time.sleep(0.5)
 
     except ClientError as e:
         if e.response["Error"]["Code"] == "ValidationError":

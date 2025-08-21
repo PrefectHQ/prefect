@@ -107,6 +107,10 @@ def deploy_service(
         bool,
         typer.Option("--dry-run", help="Show what would be deployed without deploying"),
     ] = False,
+    wait: Annotated[
+        bool,
+        typer.Option("--wait/--no-wait", help="Wait for stack deployment to complete"),
+    ] = True,
 ):
     """Deploy an ECS service stack with worker and event infrastructure."""
 
@@ -218,6 +222,7 @@ def deploy_service(
         template_body=json.dumps(template),
         parameters=parameters,
         tags=tags,
+        wait=wait,
     )
 
     console.print(f"[green]Successfully deployed ECS service stack: {stack_name}")
@@ -242,6 +247,10 @@ def deploy_events(
         bool,
         typer.Option("--dry-run", help="Show what would be deployed without deploying"),
     ] = False,
+    wait: Annotated[
+        bool,
+        typer.Option("--wait/--no-wait", help="Wait for stack deployment to complete"),
+    ] = True,
 ):
     """Deploy an events-only stack for monitoring existing ECS infrastructure."""
 
@@ -289,6 +298,7 @@ def deploy_events(
         template_body=json.dumps(template),
         parameters=parameters,
         tags=tags,
+        wait=wait,
     )
 
     console.print(f"[green]Successfully deployed ECS events stack: {stack_name}")
@@ -366,9 +376,11 @@ def stack_status(
     if "Outputs" in stack_info:
         console.print("\n[bold]Outputs:[/bold]")
         for output in stack_info["Outputs"]:
-            console.print(f"  {output['OutputKey']}: {output['OutputValue']}")
+            console.print(
+                f"  {output['OutputKey']}: {output['OutputValue']}", markup=False
+            )
             if "Description" in output:
-                console.print(f"    Description: {output['Description']}")
+                console.print(f"    Description: {output['Description']}", markup=False)
 
 
 @ecs_worker_app.command("delete")
@@ -379,6 +391,10 @@ def delete_stack_cmd(
     force: Annotated[
         bool, typer.Option("--force", help="Skip confirmation prompt")
     ] = False,
+    wait: Annotated[
+        bool,
+        typer.Option("--wait/--no-wait", help="Wait for stack deletion to complete"),
+    ] = True,
 ):
     """Delete a stack deployed by prefect-aws CLI."""
 
@@ -396,4 +412,4 @@ def delete_stack_cmd(
             return
 
     cf_client = get_aws_client("cloudformation", region, profile)
-    delete_stack(cf_client, stack_name)
+    delete_stack(cf_client, stack_name, wait=wait)
