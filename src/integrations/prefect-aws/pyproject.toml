@@ -67,7 +67,7 @@ Homepage = "https://github.com/PrefectHQ/prefect/tree/main/src/integrations/pref
 prefect_aws = "prefect_aws"
 
 [project.scripts]
-prefect-aws = "prefect_aws.cli.main:app"
+prefect-aws = "prefect_aws._cli.main:app"
 
 [tool.setuptools]
 packages = ["prefect_aws"]

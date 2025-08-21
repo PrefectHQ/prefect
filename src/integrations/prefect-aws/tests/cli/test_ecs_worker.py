@@ -6,7 +6,7 @@ from unittest.mock import Mock, patch
 import boto3
 import pytest
 from moto import mock_cloudformation, mock_ec2, mock_ecs, mock_sts
-from prefect_aws.cli.main import app
+from prefect_aws._cli.main import app
 from typer.testing import CliRunner
 
 
@@ -51,7 +51,7 @@ class TestECSWorkerCLI:
     def setup_method(self):
         self.runner = CliRunner()
 
-    @patch("prefect_aws.cli.ecs_worker.load_template")
+    @patch("prefect_aws._cli.ecs_worker.load_template")
     def test_deploy_service_dry_run(
         self, mock_load_template, aws_credentials, mock_aws_resources
     ):
@@ -85,7 +85,7 @@ class TestECSWorkerCLI:
         assert "DRY RUN" in result.stdout
         assert "test-stack" in result.stdout
 
-    @patch("prefect_aws.cli.ecs_worker.load_template")
+    @patch("prefect_aws._cli.ecs_worker.load_template")
     def test_deploy_service_no_wait(
         self, mock_load_template, aws_credentials, mock_aws_resources
     ):
@@ -121,7 +121,7 @@ class TestECSWorkerCLI:
         assert result.exit_code == 0
         assert "Check status with:" in result.stdout
 
-    @patch("prefect_aws.cli.ecs_worker.validate_aws_credentials")
+    @patch("prefect_aws._cli.ecs_worker.validate_aws_credentials")
     def test_deploy_service_invalid_credentials(self, mock_validate_creds):
         """Test deploy-service command with invalid credentials."""
         mock_validate_creds.return_value = False
@@ -157,7 +157,7 @@ class TestECSWorkerCLI:
             pass  # stderr not separately captured
         assert "Invalid AWS credentials" in output
 
-    @patch("prefect_aws.cli.ecs_worker.load_template")
+    @patch("prefect_aws._cli.ecs_worker.load_template")
     @patch("typer.confirm")
     def test_deploy_service_self_hosted_server(
         self, mock_confirm, mock_load_template, aws_credentials, mock_aws_resources
@@ -191,7 +191,7 @@ class TestECSWorkerCLI:
         assert "DRY RUN" in result.stdout
         assert "test-stack" in result.stdout
 
-    @patch("prefect_aws.cli.ecs_worker.load_template")
+    @patch("prefect_aws._cli.ecs_worker.load_template")
     def test_deploy_service_with_auth_string_parameters(
         self, mock_load_template, aws_credentials, mock_aws_resources
     ):
@@ -225,7 +225,7 @@ class TestECSWorkerCLI:
         assert "DRY RUN" in result.stdout
         assert "test-stack" in result.stdout
 
-    @patch("prefect_aws.cli.ecs_worker.load_template")
+    @patch("prefect_aws._cli.ecs_worker.load_template")
     def test_deploy_events_dry_run(
         self, mock_load_template, aws_credentials, mock_aws_resources
     ):
@@ -399,7 +399,7 @@ class TestECSWorkerUtils:
 
     def test_cli_tags_generation(self):
         """Test that CLI tags are generated correctly."""
-        from prefect_aws.cli.utils import add_cli_tags
+        from prefect_aws._cli.utils import add_cli_tags
 
         tags = add_cli_tags({}, "test-pool", "service")
 
@@ -411,10 +411,10 @@ class TestECSWorkerUtils:
         assert tag_dict["WorkPoolName"] == "test-pool"
         assert "CreatedAt" in tag_dict
 
-    @patch("prefect_aws.cli.utils.boto3.Session")
+    @patch("prefect_aws._cli.utils.boto3.Session")
     def test_get_aws_client(self, mock_session):
         """Test AWS client creation."""
-        from prefect_aws.cli.utils import get_aws_client
+        from prefect_aws._cli.utils import get_aws_client
 
         mock_client = Mock()
         mock_session_instance = Mock()
@@ -431,11 +431,11 @@ class TestECSWorkerUtils:
 
     def test_load_template_success(self):
         """Test successful template loading."""
-        from prefect_aws.cli.utils import load_template
+        from prefect_aws._cli.utils import load_template
 
         # This test requires the actual template files to exist
         # In a real test environment, you might want to mock this
-        with patch("prefect_aws.cli.utils.files") as mock_files:
+        with patch("prefect_aws._cli.utils.files") as mock_files:
             mock_template_files = Mock()
             mock_template_file = Mock()
             mock_template_file.read_text.return_value = '{"test": "template"}'

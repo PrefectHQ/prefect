@@ -52,7 +52,9 @@ def deploy_service(
         ),
     ],
     # Prefect Configuration
-    prefect_api_url: Annotated[str, typer.Option(help="Prefect API URL", prompt=True)],
+    prefect_api_url: Annotated[
+        str, typer.Option(help="Prefect API URL", prompt="Prefect API URL")
+    ],
     prefect_api_key_secret_arn: Annotated[
         str, typer.Option(help="ARN of existing Prefect API key secret")
     ] = "",
