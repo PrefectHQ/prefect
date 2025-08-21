@@ -1,0 +1,440 @@
+"""Utility functions for AWS operations and CLI helpers."""
+
+import json
+import time
+from datetime import datetime, timezone
+from typing import Any, Dict, List, Optional, Tuple
+
+import boto3
+import typer
+from botocore.exceptions import ClientError, NoCredentialsError
+from rich.console import Console
+from rich.progress import Progress, SpinnerColumn, TextColumn
+from rich.table import Table
+
+try:
+    from importlib.resources import files
+except ImportError:
+    # Python < 3.9 fallback
+    from importlib_resources import files
+
+console = Console()
+
+# Tags that identify stacks deployed by this CLI
+CLI_TAGS = {
+    "ManagedBy": "prefect-aws-cli",
+    "DeploymentType": "ecs-worker",
+}
+
+
+def get_template_path(template_name: str) -> str:
+    """Get the path to a CloudFormation template.
+
+    Args:
+        template_name: Name of the template file (e.g., 'service-only.json')
+
+    Returns:
+        Path to the template file
+    """
+    try:
+        template_files = files("prefect_aws.templates.ecs")
+        template_path = template_files / template_name
+        return str(template_path)
+    except (ImportError, FileNotFoundError) as e:
+        typer.echo(f"Error: Could not find template {template_name}: {e}", err=True)
+        raise typer.Exit(1)
+
+
+def load_template(template_name: str) -> Dict[str, Any]:
+    """Load a CloudFormation template from the templates directory.
+
+    Args:
+        template_name: Name of the template file
+
+    Returns:
+        Template content as a dictionary
+    """
+    try:
+        template_files = files("prefect_aws.templates.ecs")
+        template_content = (template_files / template_name).read_text()
+        return json.loads(template_content)
+    except (ImportError, FileNotFoundError, json.JSONDecodeError) as e:
+        typer.echo(f"Error loading template {template_name}: {e}", err=True)
+        raise typer.Exit(1)
+
+
+def get_aws_client(
+    service: str, region: Optional[str] = None, profile: Optional[str] = None
+):
+    """Get an AWS client with error handling.
+
+    Args:
+        service: AWS service name (e.g., 'cloudformation', 'ecs')
+        region: AWS region
+        profile: AWS profile name
+
+    Returns:
+        Boto3 client
+    """
+    try:
+        session = boto3.Session(profile_name=profile, region_name=region)
+        return session.client(service)
+    except NoCredentialsError:
+        typer.echo(
+            "Error: AWS credentials not found. Please configure your credentials.",
+            err=True,
+        )
+        raise typer.Exit(1)
+    except Exception as e:
+        typer.echo(f"Error creating AWS client: {e}", err=True)
+        raise typer.Exit(1)
+
+
+def validate_aws_credentials(
+    region: Optional[str] = None, profile: Optional[str] = None
+) -> bool:
+    """Validate that AWS credentials are available and working.
+
+    Args:
+        region: AWS region
+        profile: AWS profile name
+
+    Returns:
+        True if credentials are valid
+    """
+    try:
+        sts = get_aws_client("sts", region, profile)
+        sts.get_caller_identity()
+        return True
+    except Exception:
+        return False
+
+
+def add_cli_tags(
+    parameters: Dict[str, Any], work_pool_name: str, stack_type: str
+) -> List[Dict[str, str]]:
+    """Add CLI-specific tags to a CloudFormation stack.
+
+    Args:
+        parameters: CloudFormation parameters
+        work_pool_name: Name of the work pool
+        stack_type: Type of stack ('service' or 'events')
+
+    Returns:
+        List of tags for CloudFormation
+    """
+    tags = [{"Key": k, "Value": v} for k, v in CLI_TAGS.items()]
+    tags.extend(
+        [
+            {"Key": "StackType", "Value": stack_type},
+            {"Key": "WorkPoolName", "Value": work_pool_name},
+            {"Key": "CreatedAt", "Value": datetime.now(timezone.utc).isoformat()},
+        ]
+    )
+    return tags
+
+
+def list_cli_deployed_stacks(cf_client) -> List[Dict[str, Any]]:
+    """List all stacks deployed by this CLI.
+
+    Args:
+        cf_client: CloudFormation client
+
+    Returns:
+        List of stack information dictionaries
+    """
+    try:
+        paginator = cf_client.get_paginator("describe_stacks")
+        cli_stacks = []
+
+        for page in paginator.paginate():
+            for stack in page["Stacks"]:
+                if stack["StackStatus"] in ["DELETE_COMPLETE"]:
+                    continue
+
+                tags = {tag["Key"]: tag["Value"] for tag in stack.get("Tags", [])}
+
+                # Check if stack was deployed by CLI
+                if (
+                    tags.get("ManagedBy") == CLI_TAGS["ManagedBy"]
+                    and tags.get("DeploymentType") == CLI_TAGS["DeploymentType"]
+                ):
+                    stack_info = {
+                        "StackName": stack["StackName"],
+                        "StackStatus": stack["StackStatus"],
+                        "CreationTime": stack["CreationTime"],
+                        "WorkPoolName": tags.get("WorkPoolName", "Unknown"),
+                        "StackType": tags.get("StackType", "Unknown"),
+                        "Description": stack.get("Description", ""),
+                    }
+                    if "LastUpdatedTime" in stack:
+                        stack_info["LastUpdatedTime"] = stack["LastUpdatedTime"]
+
+                    cli_stacks.append(stack_info)
+
+        return cli_stacks
+    except ClientError as e:
+        typer.echo(f"Error listing stacks: {e}", err=True)
+        raise typer.Exit(1)
+
+
+def validate_stack_is_cli_managed(cf_client, stack_name: str) -> bool:
+    """Validate that a stack was deployed by this CLI.
+
+    Args:
+        cf_client: CloudFormation client
+        stack_name: Name of the stack
+
+    Returns:
+        True if stack was deployed by CLI
+    """
+    try:
+        response = cf_client.describe_stacks(StackName=stack_name)
+        stack = response["Stacks"][0]
+        tags = {tag["Key"]: tag["Value"] for tag in stack.get("Tags", [])}
+
+        return (
+            tags.get("ManagedBy") == CLI_TAGS["ManagedBy"]
+            and tags.get("DeploymentType") == CLI_TAGS["DeploymentType"]
+        )
+    except ClientError:
+        return False
+
+
+def deploy_stack(
+    cf_client,
+    stack_name: str,
+    template_body: str,
+    parameters: List[Dict[str, str]],
+    tags: List[Dict[str, str]],
+    capabilities: Optional[List[str]] = None,
+) -> None:
+    """Deploy or update a CloudFormation stack.
+
+    Args:
+        cf_client: CloudFormation client
+        stack_name: Name of the stack
+        template_body: CloudFormation template as JSON string
+        parameters: List of parameter dictionaries
+        tags: List of tag dictionaries
+        capabilities: IAM capabilities if required
+    """
+    if capabilities is None:
+        capabilities = ["CAPABILITY_NAMED_IAM"]
+
+    try:
+        # Check if stack exists
+        try:
+            cf_client.describe_stacks(StackName=stack_name)
+            stack_exists = True
+        except ClientError as e:
+            if e.response["Error"]["Code"] == "ValidationError":
+                stack_exists = False
+            else:
+                raise
+
+        operation = "update" if stack_exists else "create"
+
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            console=console,
+        ) as progress:
+            task = progress.add_task(
+                f"[cyan]{operation.capitalize()}ing stack {stack_name}..."
+            )
+
+            if stack_exists:
+                try:
+                    cf_client.update_stack(
+                        StackName=stack_name,
+                        TemplateBody=template_body,
+                        Parameters=parameters,
+                        Tags=tags,
+                        Capabilities=capabilities,
+                    )
+                except ClientError as e:
+                    if "No updates are to be performed" in str(e):
+                        progress.update(
+                            task,
+                            description=f"[green]Stack {stack_name} is already up to date",
+                        )
+                        time.sleep(1)
+                        return
+                    raise
+            else:
+                cf_client.create_stack(
+                    StackName=stack_name,
+                    TemplateBody=template_body,
+                    Parameters=parameters,
+                    Tags=tags,
+                    Capabilities=capabilities,
+                )
+
+            # Wait for operation to complete
+            waiter_name = f"stack_{operation}_complete"
+            waiter = cf_client.get_waiter(waiter_name)
+
+            progress.update(
+                task, description=f"[yellow]Waiting for {operation} to complete..."
+            )
+            waiter.wait(
+                StackName=stack_name, WaiterConfig={"Delay": 10, "MaxAttempts": 120}
+            )
+
+            progress.update(
+                task,
+                description=f"[green]Stack {stack_name} {operation}d successfully!",
+            )
+            time.sleep(1)
+
+    except ClientError as e:
+        error_msg = e.response["Error"]["Message"]
+        typer.echo(f"Error {operation}ing stack: {error_msg}", err=True)
+        raise typer.Exit(1)
+
+
+def delete_stack(cf_client, stack_name: str) -> None:
+    """Delete a CloudFormation stack.
+
+    Args:
+        cf_client: CloudFormation client
+        stack_name: Name of the stack
+    """
+    try:
+        # Validate stack is CLI-managed
+        if not validate_stack_is_cli_managed(cf_client, stack_name):
+            typer.echo(
+                f"Error: Stack '{stack_name}' was not deployed by prefect-aws CLI",
+                err=True,
+            )
+            raise typer.Exit(1)
+
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            console=console,
+        ) as progress:
+            task = progress.add_task(f"[red]Deleting stack {stack_name}...")
+
+            cf_client.delete_stack(StackName=stack_name)
+
+            # Wait for deletion to complete
+            waiter = cf_client.get_waiter("stack_delete_complete")
+            progress.update(
+                task, description="[yellow]Waiting for deletion to complete..."
+            )
+            waiter.wait(
+                StackName=stack_name, WaiterConfig={"Delay": 10, "MaxAttempts": 120}
+            )
+
+            progress.update(
+                task, description=f"[green]Stack {stack_name} deleted successfully!"
+            )
+            time.sleep(1)
+
+    except ClientError as e:
+        if e.response["Error"]["Code"] == "ValidationError":
+            typer.echo(f"Error: Stack '{stack_name}' not found", err=True)
+        else:
+            typer.echo(
+                f"Error deleting stack: {e.response['Error']['Message']}", err=True
+            )
+        raise typer.Exit(1)
+
+
+def get_stack_status(cf_client, stack_name: str) -> Optional[Dict[str, Any]]:
+    """Get the status of a CloudFormation stack.
+
+    Args:
+        cf_client: CloudFormation client
+        stack_name: Name of the stack
+
+    Returns:
+        Stack information or None if not found
+    """
+    try:
+        response = cf_client.describe_stacks(StackName=stack_name)
+        return response["Stacks"][0]
+    except ClientError as e:
+        if e.response["Error"]["Code"] == "ValidationError":
+            return None
+        raise
+
+
+def display_stacks_table(stacks: List[Dict[str, Any]]) -> None:
+    """Display stacks in a formatted table.
+
+    Args:
+        stacks: List of stack information dictionaries
+    """
+    if not stacks:
+        typer.echo("No stacks found deployed by prefect-aws CLI")
+        return
+
+    table = Table(title="ECS Worker Stacks")
+    table.add_column("Stack Name", style="cyan")
+    table.add_column("Work Pool", style="green")
+    table.add_column("Type", style="yellow")
+    table.add_column("Status", style="magenta")
+    table.add_column("Created", style="blue")
+
+    for stack in stacks:
+        created_time = stack["CreationTime"].strftime("%Y-%m-%d %H:%M:%S")
+        table.add_row(
+            stack["StackName"],
+            stack["WorkPoolName"],
+            stack["StackType"],
+            stack["StackStatus"],
+            created_time,
+        )
+
+    console.print(table)
+
+
+def validate_ecs_cluster(ecs_client, cluster_identifier: str) -> bool:
+    """Validate that an ECS cluster exists.
+
+    Args:
+        ecs_client: ECS client
+        cluster_identifier: Cluster name or ARN
+
+    Returns:
+        True if cluster exists
+    """
+    try:
+        response = ecs_client.describe_clusters(clusters=[cluster_identifier])
+        clusters = response["clusters"]
+        return len(clusters) > 0 and clusters[0]["status"] == "ACTIVE"
+    except ClientError:
+        return False
+
+
+def validate_vpc_and_subnets(
+    ec2_client, vpc_id: str, subnet_ids: List[str]
+) -> Tuple[bool, str]:
+    """Validate VPC and subnets exist and are compatible.
+
+    Args:
+        ec2_client: EC2 client
+        vpc_id: VPC ID
+        subnet_ids: List of subnet IDs
+
+    Returns:
+        Tuple of (is_valid, error_message)
+    """
+    try:
+        # Validate VPC exists
+        vpc_response = ec2_client.describe_vpcs(VpcIds=[vpc_id])
+        if not vpc_response["Vpcs"]:
+            return False, f"VPC {vpc_id} not found"
+
+        # Validate subnets exist and belong to VPC
+        subnet_response = ec2_client.describe_subnets(SubnetIds=subnet_ids)
+        for subnet in subnet_response["Subnets"]:
+            if subnet["VpcId"] != vpc_id:
+                return False, f"Subnet {subnet['SubnetId']} is not in VPC {vpc_id}"
+
+        return True, ""
+    except ClientError as e:
+        return False, str(e)
