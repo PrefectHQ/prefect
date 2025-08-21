@@ -661,6 +661,8 @@ class TestWorkPoolDefaults:
                     "subnet-1,subnet-2",
                     "--region",
                     "us-east-1",
+                    "--prefect-auth-string",
+                    "this-is-a-test-auth-string",
                     "--wait",  # This should trigger work pool update
                 ],
             )
@@ -736,6 +738,8 @@ class TestWorkPoolDefaults:
                     "subnet-1,subnet-2",
                     "--region",
                     "us-east-1",
+                    "--prefect-auth-string",
+                    "this-is-a-test-auth-string",
                     "--no-wait",  # This should skip work pool update
                 ],
             )
