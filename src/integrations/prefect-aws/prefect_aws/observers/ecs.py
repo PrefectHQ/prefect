@@ -327,12 +327,10 @@ def _related_resources_from_tags(tags: dict[str, str]) -> list[RelatedResource]:
     return related
 
 
-_DEFAULT_ECS_OBSERVER = EcsObserver()
+ecs_observer = EcsObserver()
 
 
-@_DEFAULT_ECS_OBSERVER.on_event(
-    "task", tags={"prefect.io/flow-run-id": FilterCase.PRESENT}
-)
+@ecs_observer.on_event("task", tags={"prefect.io/flow-run-id": FilterCase.PRESENT})
 async def replicate_ecs_event(event: dict[str, Any], tags: dict[str, str]):
     handler_logger = logger.getChild("replicate_ecs_event")
     event_id = event.get("id")
@@ -414,7 +412,7 @@ async def start_observer():
 
     _observer_started_event = asyncio.Event()
     _observer_task = asyncio.create_task(
-        _DEFAULT_ECS_OBSERVER.run(started_event=_observer_started_event)
+        ecs_observer.run(started_event=_observer_started_event)
     )
     await _observer_started_event.wait()
     logger.debug("ECS observer started")

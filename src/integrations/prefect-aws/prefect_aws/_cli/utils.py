@@ -1,7 +1,6 @@
 """Utility functions for AWS operations and CLI helpers."""
 
 import json
-import time
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -11,6 +10,9 @@ from botocore.exceptions import ClientError, NoCredentialsError
 from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich.table import Table
+
+from prefect.client.orchestration import get_client
+from prefect.client.schemas.actions import WorkPoolUpdate
 
 try:
     from importlib.resources import files
@@ -261,7 +263,6 @@ def deploy_stack(
                             task,
                             description=f"[green]Stack {stack_name} is already up to date",
                         )
-                        time.sleep(1)
                         return
                     raise
             else:
@@ -289,13 +290,11 @@ def deploy_stack(
                     task,
                     description=f"[green]Stack {stack_name} {operation}d successfully!",
                 )
-                time.sleep(1)
             else:
                 progress.update(
                     task,
                     description=f"[green]Stack {stack_name} {operation} initiated. Check status with: prefect-aws ecs-worker status {stack_name}",
                 )
-                time.sleep(0.5)
 
     except ClientError as e:
         error_msg = e.response["Error"]["Message"]
@@ -342,13 +341,11 @@ def delete_stack(cf_client, stack_name: str, wait: bool = True) -> None:
                 progress.update(
                     task, description=f"[green]Stack {stack_name} deleted successfully!"
                 )
-                time.sleep(1)
             else:
                 progress.update(
                     task,
                     description=f"[green]Stack {stack_name} deletion initiated. Check status with: prefect-aws ecs-worker status {stack_name}",
                 )
-                time.sleep(0.5)
 
     except ClientError as e:
         if e.response["Error"]["Code"] == "ValidationError":
@@ -455,3 +452,99 @@ def validate_vpc_and_subnets(
         return True, ""
     except ClientError as e:
         return False, str(e)
+
+
+def update_work_pool_defaults(
+    work_pool_name: str,
+    stack_outputs: Dict[str, str],
+) -> None:
+    """Update work pool base job template defaults with stack deployment values.
+
+    Only updates fields that are currently empty/null to preserve user customizations.
+
+    Args:
+        work_pool_name: Name of the work pool to update
+        stack_outputs: CloudFormation stack outputs containing infrastructure values
+    """
+    try:
+        with get_client(sync_client=True) as client:
+            # Get current work pool
+            try:
+                work_pool = client.read_work_pool(work_pool_name)
+            except Exception:
+                return
+
+            # Get current base job template
+            base_template = work_pool.base_job_template
+            if not base_template or "variables" not in base_template:
+                return
+
+            variables = base_template["variables"]
+            properties = variables.get("properties", {})
+
+            # Update VPC ID default if not set (treat None as empty)
+            vpc_id_prop = properties.get("vpc_id", {})
+            current_default = vpc_id_prop.get("default")
+            if (
+                current_default is None or not current_default
+            ) and "VpcId" in stack_outputs:
+                vpc_id_prop["default"] = stack_outputs["VpcId"]
+                properties["vpc_id"] = vpc_id_prop
+
+            # Update cluster default if not set (treat None as empty)
+            cluster_prop = properties.get("cluster", {})
+            current_default = cluster_prop.get("default")
+            if (
+                current_default is None or not current_default
+            ) and "ClusterArn" in stack_outputs:
+                cluster_prop["default"] = stack_outputs["ClusterArn"]
+                properties["cluster"] = cluster_prop
+
+            # Update Prefect API key secret ARN default if not set and we created one (treat None as empty)
+            api_key_secret_prop = properties.get("prefect_api_key_secret_arn", {})
+            current_default = api_key_secret_prop.get("default")
+            if (
+                current_default is None or not current_default
+            ) and "PrefectApiKeySecretArnOutput" in stack_outputs:
+                api_key_secret_prop["default"] = stack_outputs[
+                    "PrefectApiKeySecretArnOutput"
+                ]
+                properties["prefect_api_key_secret_arn"] = api_key_secret_prop
+
+            # Update execution role ARN default if not set (treat None as empty)
+            execution_role_prop = properties.get("execution_role_arn", {})
+            current_default = execution_role_prop.get("default")
+            if (
+                current_default is None or not current_default
+            ) and "TaskExecutionRoleArn" in stack_outputs:
+                execution_role_prop["default"] = stack_outputs["TaskExecutionRoleArn"]
+                properties["execution_role_arn"] = execution_role_prop
+
+            # Update network configuration subnets default if not set
+            network_config_prop = properties.get("network_configuration", {})
+            network_config_props = network_config_prop.get("properties", {})
+            awsvpc_config_prop = network_config_props.get("awsvpcConfiguration", {})
+            awsvpc_config_props = awsvpc_config_prop.get("properties", {})
+            subnets_prop = awsvpc_config_props.get("subnets", {})
+
+            current_subnets_default = subnets_prop.get("default")
+            if (
+                current_subnets_default is None or not current_subnets_default
+            ) and "SubnetIds" in stack_outputs:
+                subnet_list = stack_outputs["SubnetIds"].split(",")
+                subnets_prop["default"] = subnet_list
+                awsvpc_config_props["subnets"] = subnets_prop
+                awsvpc_config_prop["properties"] = awsvpc_config_props
+                network_config_props["awsvpcConfiguration"] = awsvpc_config_prop
+                network_config_prop["properties"] = network_config_props
+                properties["network_configuration"] = network_config_prop
+
+            variables["properties"] = properties
+
+            # Update the work pool
+            update_data = WorkPoolUpdate(base_job_template=base_template)
+            client.update_work_pool(work_pool_name, update_data)
+
+    except Exception:
+        # Don't fail the deployment if work pool update fails
+        pass

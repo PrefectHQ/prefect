@@ -1,13 +1,18 @@
 """Tests for ECS worker CLI commands."""
 
 import json
+import uuid
 from unittest.mock import Mock, patch
 
 import boto3
 import pytest
 from moto import mock_cloudformation, mock_ec2, mock_ecs, mock_sts
 from prefect_aws._cli.main import app
+from prefect_aws.workers import ECSWorker
 from typer.testing import CliRunner
+
+import prefect
+from prefect.client.schemas.actions import WorkPoolCreate
 
 
 @pytest.fixture
@@ -445,3 +450,300 @@ class TestECSWorkerUtils:
 
             template = load_template("service-only.json")
             assert template == {"test": "template"}
+
+
+class TestWorkPoolDefaults:
+    """Test work pool defaults update functionality."""
+
+    @pytest.fixture
+    async def test_work_pool(self):
+        """Create a test work pool with ECS base template."""
+        async with prefect.get_client() as client:
+            work_pool = await client.create_work_pool(
+                WorkPoolCreate(
+                    name=f"test-ecs-pool-{uuid.uuid4()}",
+                    base_job_template=ECSWorker.get_default_base_job_template(),
+                )
+            )
+            try:
+                yield work_pool
+            finally:
+                await client.delete_work_pool(work_pool.name)
+
+    async def test_update_work_pool_defaults_success(self, test_work_pool):
+        """Test successful work pool defaults update."""
+        from prefect_aws._cli.utils import update_work_pool_defaults
+
+        stack_outputs = {
+            "VpcId": "vpc-123456",
+            "ClusterArn": "arn:aws:ecs:us-east-1:123456789012:cluster/test-cluster",
+            "PrefectApiKeySecretArnOutput": "arn:aws:secretsmanager:us-east-1:123456789012:secret:test-key",
+            "TaskExecutionRoleArn": "arn:aws:iam::123456789012:role/test-execution-role",
+            "SubnetIds": "subnet-1,subnet-2",
+        }
+
+        # Update the work pool defaults
+        update_work_pool_defaults(test_work_pool.name, stack_outputs)
+
+        # Verify the updates were applied
+        async with prefect.get_client() as client:
+            updated_work_pool = await client.read_work_pool(test_work_pool.name)
+            properties = updated_work_pool.base_job_template["variables"]["properties"]
+
+            assert properties["vpc_id"]["default"] == "vpc-123456"
+            assert (
+                properties["cluster"]["default"]
+                == "arn:aws:ecs:us-east-1:123456789012:cluster/test-cluster"
+            )
+            assert (
+                properties["prefect_api_key_secret_arn"]["default"]
+                == "arn:aws:secretsmanager:us-east-1:123456789012:secret:test-key"
+            )
+            assert (
+                properties["execution_role_arn"]["default"]
+                == "arn:aws:iam::123456789012:role/test-execution-role"
+            )
+
+            # Check network configuration subnets
+            network_config = properties["network_configuration"]["properties"]
+            subnets = network_config["awsvpcConfiguration"]["properties"]["subnets"]
+            assert subnets["default"] == ["subnet-1", "subnet-2"]
+
+    async def test_update_work_pool_defaults_preserves_existing(self, test_work_pool):
+        """Test that existing defaults are preserved."""
+        from prefect_aws._cli.utils import update_work_pool_defaults
+
+        # First, set some existing defaults
+        async with prefect.get_client() as client:
+            work_pool = await client.read_work_pool(test_work_pool.name)
+            base_template = work_pool.base_job_template
+            base_template["variables"]["properties"]["vpc_id"]["default"] = (
+                "existing-vpc"
+            )
+            base_template["variables"]["properties"]["execution_role_arn"][
+                "default"
+            ] = "existing-role"
+
+            from prefect.client.schemas.actions import WorkPoolUpdate
+
+            await client.update_work_pool(
+                test_work_pool.name, WorkPoolUpdate(base_job_template=base_template)
+            )
+
+        stack_outputs = {
+            "VpcId": "vpc-123456",
+            "ClusterArn": "arn:aws:ecs:us-east-1:123456789012:cluster/test-cluster",
+            "TaskExecutionRoleArn": "arn:aws:iam::123456789012:role/test-execution-role",
+        }
+
+        # Update with new stack outputs
+        update_work_pool_defaults(test_work_pool.name, stack_outputs)
+
+        # Verify existing defaults were preserved and only empty ones updated
+        async with prefect.get_client() as client:
+            updated_work_pool = await client.read_work_pool(test_work_pool.name)
+            properties = updated_work_pool.base_job_template["variables"]["properties"]
+
+            # Existing defaults should be preserved
+            assert properties["vpc_id"]["default"] == "existing-vpc"
+            assert properties["execution_role_arn"]["default"] == "existing-role"
+
+            # Empty defaults should be updated
+            assert (
+                properties["cluster"]["default"]
+                == "arn:aws:ecs:us-east-1:123456789012:cluster/test-cluster"
+            )
+
+    async def test_update_work_pool_defaults_handles_missing_outputs(
+        self, test_work_pool
+    ):
+        """Test handling of missing stack outputs."""
+        from prefect_aws._cli.utils import update_work_pool_defaults
+
+        # Only provide some outputs
+        stack_outputs = {
+            "VpcId": "vpc-123456",
+            # Missing ClusterArn, TaskExecutionRoleArn, etc.
+        }
+
+        update_work_pool_defaults(test_work_pool.name, stack_outputs)
+
+        # Should still update available outputs
+        async with prefect.get_client() as client:
+            updated_work_pool = await client.read_work_pool(test_work_pool.name)
+            properties = updated_work_pool.base_job_template["variables"]["properties"]
+
+            assert properties["vpc_id"]["default"] == "vpc-123456"
+            # cluster should still have its original default since ClusterArn wasn't provided
+            assert properties["cluster"]["default"] is None
+
+    async def test_update_work_pool_defaults_handles_nonexistent_pool(self):
+        """Test that errors for nonexistent work pools are handled gracefully."""
+        from prefect_aws._cli.utils import update_work_pool_defaults
+
+        stack_outputs = {"VpcId": "vpc-123456"}
+
+        # Should not raise an exception for nonexistent work pool
+        update_work_pool_defaults("nonexistent-pool", stack_outputs)
+
+    async def test_deploy_service_updates_work_pool_when_wait_true(
+        self, test_work_pool
+    ):
+        """Test that deploy-service updates work pool defaults when --wait is True."""
+
+        def mock_deploy_and_get_status(cf_client, stack_name, **kwargs):
+            """Mock deploy_stack that simulates successful deployment"""
+            pass
+
+        def mock_get_status(cf_client, stack_name):
+            """Mock get_stack_status that returns outputs"""
+            return {
+                "StackName": stack_name,
+                "StackStatus": "CREATE_COMPLETE",
+                "Outputs": [
+                    {"OutputKey": "VpcId", "OutputValue": "vpc-deployed"},
+                    {
+                        "OutputKey": "ClusterArn",
+                        "OutputValue": "arn:aws:ecs:us-east-1:123456789012:cluster/deployed-cluster",
+                    },
+                    {
+                        "OutputKey": "TaskExecutionRoleArn",
+                        "OutputValue": "arn:aws:iam::123456789012:role/deployed-role",
+                    },
+                    {
+                        "OutputKey": "SubnetIds",
+                        "OutputValue": "subnet-deployed-1,subnet-deployed-2",
+                    },
+                ],
+            }
+
+        with (
+            patch(
+                "prefect_aws._cli.ecs_worker.deploy_stack",
+                side_effect=mock_deploy_and_get_status,
+            ),
+            patch(
+                "prefect_aws._cli.ecs_worker.get_stack_status",
+                side_effect=mock_get_status,
+            ),
+            patch("prefect_aws._cli.ecs_worker.load_template") as mock_load_template,
+            patch(
+                "prefect_aws._cli.ecs_worker.validate_aws_credentials",
+                return_value=True,
+            ),
+            patch(
+                "prefect_aws._cli.ecs_worker.validate_ecs_cluster", return_value=True
+            ),
+            patch(
+                "prefect_aws._cli.ecs_worker.validate_vpc_and_subnets",
+                return_value=(True, ""),
+            ),
+        ):
+            mock_load_template.return_value = {"AWSTemplateFormatVersion": "2010-09-09"}
+
+            runner = CliRunner()
+            result = runner.invoke(
+                app,
+                [
+                    "ecs-worker",
+                    "deploy-service",
+                    "--work-pool-name",
+                    test_work_pool.name,
+                    "--stack-name",
+                    "test-stack",
+                    "--prefect-api-url",
+                    "http://localhost:4200/api",
+                    "--existing-cluster-identifier",
+                    "test-cluster",
+                    "--existing-vpc-id",
+                    "vpc-12345",
+                    "--existing-subnet-ids",
+                    "subnet-1,subnet-2",
+                    "--wait",  # This should trigger work pool update
+                ],
+            )
+
+            assert result.exit_code == 0
+
+        # Verify the work pool was updated with deployment values
+        async with prefect.get_client() as client:
+            updated_work_pool = await client.read_work_pool(test_work_pool.name)
+            properties = updated_work_pool.base_job_template["variables"]["properties"]
+
+            assert properties["vpc_id"]["default"] == "vpc-deployed"
+            assert (
+                properties["cluster"]["default"]
+                == "arn:aws:ecs:us-east-1:123456789012:cluster/deployed-cluster"
+            )
+            assert (
+                properties["execution_role_arn"]["default"]
+                == "arn:aws:iam::123456789012:role/deployed-role"
+            )
+
+            # Check subnets
+            network_config = properties["network_configuration"]["properties"]
+            subnets = network_config["awsvpcConfiguration"]["properties"]["subnets"]
+            assert subnets["default"] == ["subnet-deployed-1", "subnet-deployed-2"]
+
+    async def test_deploy_service_skips_work_pool_update_when_no_wait(
+        self, test_work_pool
+    ):
+        """Test that deploy-service skips work pool update when --no-wait is used."""
+
+        def mock_deploy_no_wait(cf_client, stack_name, **kwargs):
+            # Should not call get_stack_status when wait=False
+            pass
+
+        with (
+            patch(
+                "prefect_aws._cli.ecs_worker.deploy_stack",
+                side_effect=mock_deploy_no_wait,
+            ),
+            patch("prefect_aws._cli.ecs_worker.load_template") as mock_load_template,
+            patch(
+                "prefect_aws._cli.ecs_worker.validate_aws_credentials",
+                return_value=True,
+            ),
+            patch(
+                "prefect_aws._cli.ecs_worker.validate_ecs_cluster", return_value=True
+            ),
+            patch(
+                "prefect_aws._cli.ecs_worker.validate_vpc_and_subnets",
+                return_value=(True, ""),
+            ),
+        ):
+            mock_load_template.return_value = {"AWSTemplateFormatVersion": "2010-09-09"}
+
+            runner = CliRunner()
+            result = runner.invoke(
+                app,
+                [
+                    "ecs-worker",
+                    "deploy-service",
+                    "--work-pool-name",
+                    test_work_pool.name,
+                    "--stack-name",
+                    "test-stack",
+                    "--prefect-api-url",
+                    "http://localhost:4200/api",
+                    "--existing-cluster-identifier",
+                    "test-cluster",
+                    "--existing-vpc-id",
+                    "vpc-12345",
+                    "--existing-subnet-ids",
+                    "subnet-1,subnet-2",
+                    "--no-wait",  # This should skip work pool update
+                ],
+            )
+
+            assert result.exit_code == 0
+
+        # Verify the work pool was NOT updated (should still have original defaults)
+        async with prefect.get_client() as client:
+            work_pool = await client.read_work_pool(test_work_pool.name)
+            properties = work_pool.base_job_template["variables"]["properties"]
+
+            # Should still have original None defaults, not updated values
+            assert properties["vpc_id"]["default"] is None
+            assert properties["cluster"]["default"] is None
+            assert properties["execution_role_arn"]["default"] is None

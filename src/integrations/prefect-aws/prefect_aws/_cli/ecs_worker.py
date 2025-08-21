@@ -16,6 +16,7 @@ from .utils import (
     get_stack_status,
     list_cli_deployed_stacks,
     load_template,
+    update_work_pool_defaults,
     validate_aws_credentials,
     validate_ecs_cluster,
     validate_stack_is_cli_managed,
@@ -226,6 +227,19 @@ def deploy_service(
         tags=tags,
         wait=wait,
     )
+
+    # Update work pool defaults with deployed infrastructure values if deployment completed
+    if wait:
+        try:
+            stack_info = get_stack_status(cf_client, stack_name)
+            if stack_info and "Outputs" in stack_info:
+                outputs = {
+                    output["OutputKey"]: output["OutputValue"]
+                    for output in stack_info["Outputs"]
+                }
+                update_work_pool_defaults(work_pool_name, outputs)
+        except Exception:
+            pass
 
     console.print(f"[green]Successfully deployed ECS service stack: {stack_name}")
 
