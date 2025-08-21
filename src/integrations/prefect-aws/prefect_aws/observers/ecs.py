@@ -22,6 +22,7 @@ from typing import (
 
 import aiobotocore.session
 import anyio
+from botocore.exceptions import ClientError
 from cachetools import LRUCache
 from mypy_boto3_sqs.type_defs import MessageTypeDef
 from prefect_aws.settings import EcsObserverSettings
@@ -155,9 +156,24 @@ class SqsSubscriber:
         async with session.create_client(
             "sqs", region_name=self.queue_region
         ) as sqs_client:
-            queue_url = (await sqs_client.get_queue_url(QueueName=self.queue_name))[
-                "QueueUrl"
-            ]
+            try:
+                queue_url = (await sqs_client.get_queue_url(QueueName=self.queue_name))[
+                    "QueueUrl"
+                ]
+            except ClientError as e:
+                if (
+                    e.response["Error"]["Code"]
+                    == "AWS.SimpleQueueService.NonExistentQueue"
+                ):
+                    logger.warning(
+                        f"SQS queue '{self.queue_name}' does not exist in region '{self.queue_region or 'default'}'. "
+                        "To enable ECS event replication, deploy an SQS queue using the prefect-aws CLI and "
+                        "configure the PREFECT_INTEGRATIONS_AWS_ECS_OBSERVER_SQS_QUEUE_NAME environment variable "
+                        "on your worker to point to the deployed queue."
+                    )
+                    return
+                raise
+
             while True:
                 messages = await sqs_client.receive_message(
                     QueueUrl=queue_url,
