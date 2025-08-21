@@ -1,8 +1,10 @@
 """ECS worker deployment commands."""
 
 import json
+import pathlib
 from typing import Optional
 
+import click
 import typer
 from typing_extensions import Annotated
 
@@ -429,3 +431,70 @@ def delete_stack_cmd(
 
     cf_client = get_aws_client("cloudformation", region, profile)
     delete_stack(cf_client, stack_name, wait=wait)
+
+
+@ecs_worker_app.command("export-template")
+def export_template(
+    template_type: Annotated[
+        str,
+        typer.Option(
+            help="Template type: 'service' or 'events-only'",
+            click_type=click.Choice(["service", "events-only"]),
+            prompt=True,
+        ),
+    ],
+    output_path: Annotated[
+        pathlib.Path,
+        typer.Option(help="Output file path for the template", prompt=True),
+    ],
+    format: Annotated[
+        str,
+        typer.Option(
+            help="Output format: 'json' or 'yaml'",
+            click_type=click.Choice(["json", "yaml"]),
+        ),
+    ] = "json",
+):
+    """Export CloudFormation templates to files for direct use or customization."""
+    try:
+        # Load the template
+        console.print(f"[cyan]Loading template '{template_type}'...")
+        template = load_template(f"{template_type}.json")
+
+        # Prepare content based on format
+        if format == "json":
+            content = json.dumps(template, indent=2)
+        elif format == "yaml":
+            try:
+                import yaml
+
+                content = yaml.dump(template, default_flow_style=False, sort_keys=False)
+            except ImportError:
+                console.print(
+                    "[yellow]Warning: PyYAML not available, falling back to JSON format"
+                )
+                content = json.dumps(template, indent=2)
+                output_path = (
+                    pathlib.Path(str(output_path).rsplit(".", 1)[0] + ".json")
+                    if "." in str(output_path)
+                    else pathlib.Path(str(output_path) + ".json")
+                )
+
+        # Write to file
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+
+        with open(output_path, "w") as f:
+            f.write(content)
+
+        console.print(f"[green]✓ Template exported to: {output_path}")
+        console.print("\n[bold]Next steps:[/bold]")
+        console.print("1. Review and customize the template as needed")
+        console.print("2. Deploy using AWS CLI:")
+        console.print(
+            f"   [cyan]aws cloudformation deploy --template-file {output_path} --stack-name YOUR_STACK_NAME --parameter-overrides ParameterKey=Value[/cyan]"
+        )
+        console.print("3. Or use the template with other infrastructure tools")
+
+    except Exception as e:
+        typer.echo(f"Error exporting template: {e}", err=True)
+        raise typer.Exit(1)

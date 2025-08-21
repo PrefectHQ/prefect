@@ -32,6 +32,8 @@ dependencies = [
     "prefect>=3.4.7",
     "pyparsing>=3.1.1",
     "tenacity>=8.0.0",
+    "typer>=0.9.0",
+    "rich>=10.0.0",
 ]
 dynamic = ["version"]
 
@@ -69,8 +71,11 @@ prefect_aws = "prefect_aws"
 [project.scripts]
 prefect-aws = "prefect_aws._cli.main:app"
 
-[tool.setuptools]
-packages = ["prefect_aws"]
+[tool.setuptools.packages.find]
+include = ["prefect_aws*"]
+
+[tool.setuptools.package-data]
+prefect_aws = ["templates/**/*.json"]
 
 [tool.setuptools_scm]
 version_file = "prefect_aws/_version.py"

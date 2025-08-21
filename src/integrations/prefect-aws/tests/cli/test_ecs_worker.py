@@ -448,7 +448,7 @@ class TestECSWorkerUtils:
             mock_template_files.__truediv__ = Mock(return_value=mock_template_file)
             mock_files.return_value = mock_template_files
 
-            template = load_template("service-only.json")
+            template = load_template("service.json")
             assert template == {"test": "template"}
 
 
@@ -755,3 +755,234 @@ class TestWorkPoolDefaults:
             assert properties["vpc_id"]["default"] is None
             assert properties["cluster"]["default"] is None
             assert properties["execution_role_arn"]["default"] is None
+
+
+class TestExportTemplate:
+    """Test export-template command functionality."""
+
+    @patch("prefect_aws._cli.ecs_worker.load_template")
+    def test_export_template_service_json(self, mock_load_template, tmp_path):
+        """Test exporting service template as JSON."""
+        mock_template = {
+            "AWSTemplateFormatVersion": "2010-09-09",
+            "Resources": {"TestResource": {"Type": "AWS::S3::Bucket"}},
+        }
+        mock_load_template.return_value = mock_template
+
+        output_file = tmp_path / "test-service.json"
+        runner = CliRunner()
+        result = runner.invoke(
+            app,
+            [
+                "ecs-worker",
+                "export-template",
+                "--template-type",
+                "service",
+                "--output-path",
+                str(output_file),
+                "--format",
+                "json",
+            ],
+        )
+
+        assert result.exit_code == 0, result.stdout
+        assert "Template exported to" in result.stdout
+        assert output_file.exists()
+
+        # Verify file content
+        with open(output_file) as f:
+            exported_content = json.loads(f.read())
+
+        assert exported_content == mock_template
+        mock_load_template.assert_called_once_with("service.json")
+
+    @patch("prefect_aws._cli.ecs_worker.load_template")
+    def test_export_template_events_json(self, mock_load_template, tmp_path):
+        """Test exporting events-only template as JSON."""
+        mock_template = {
+            "AWSTemplateFormatVersion": "2010-09-09",
+            "Resources": {"TestQueue": {"Type": "AWS::SQS::Queue"}},
+        }
+        mock_load_template.return_value = mock_template
+
+        output_file = tmp_path / "test-events.json"
+        runner = CliRunner()
+        result = runner.invoke(
+            app,
+            [
+                "ecs-worker",
+                "export-template",
+                "--template-type",
+                "events-only",
+                "--output-path",
+                str(output_file),
+            ],
+        )
+
+        assert result.exit_code == 0
+        assert output_file.exists()
+
+        # Verify file content
+        with open(output_file) as f:
+            exported_content = json.loads(f.read())
+
+        assert exported_content == mock_template
+        mock_load_template.assert_called_once_with("events-only.json")
+
+    @patch("prefect_aws._cli.ecs_worker.load_template")
+    def test_export_template_yaml_format(self, mock_load_template, tmp_path):
+        """Test exporting template as YAML format."""
+        mock_template = {
+            "AWSTemplateFormatVersion": "2010-09-09",
+            "Resources": {"TestResource": {"Type": "AWS::S3::Bucket"}},
+        }
+        mock_load_template.return_value = mock_template
+
+        output_file = tmp_path / "test-service.yaml"
+        runner = CliRunner()
+        result = runner.invoke(
+            app,
+            [
+                "ecs-worker",
+                "export-template",
+                "--template-type",
+                "service",
+                "--output-path",
+                str(output_file),
+                "--format",
+                "yaml",
+            ],
+        )
+
+        assert result.exit_code == 0
+        assert output_file.exists()
+
+        # Verify file content (either YAML or JSON fallback)
+        with open(output_file, "r") as f:
+            content = f.read()
+
+        # Content should be YAML if pyyaml is available, otherwise JSON
+        if "AWSTemplateFormatVersion:" in content:
+            # YAML format
+            import yaml
+
+            yaml_content = yaml.safe_load(content)
+            assert yaml_content == mock_template
+        else:
+            # JSON fallback
+            json_content = json.loads(content)
+            assert json_content == mock_template
+
+    @patch("prefect_aws._cli.ecs_worker.load_template")
+    def test_export_template_yaml_fallback_to_json(
+        self, mock_load_template, tmp_path, monkeypatch
+    ):
+        """Test YAML format falls back to JSON when PyYAML not available."""
+        # Mock yaml import in the specific function context
+        import sys
+
+        if "yaml" in sys.modules:
+            monkeypatch.setitem(sys.modules, "yaml", None)
+
+        mock_template = {"AWSTemplateFormatVersion": "2010-09-09"}
+        mock_load_template.return_value = mock_template
+
+        output_file = tmp_path / "test-service.yaml"
+        runner = CliRunner()
+        result = runner.invoke(
+            app,
+            [
+                "ecs-worker",
+                "export-template",
+                "--template-type",
+                "service",
+                "--output-path",
+                str(output_file),
+                "--format",
+                "yaml",
+            ],
+        )
+
+        assert result.exit_code == 0, result.stdout
+        assert "Warning: PyYAML not available" in result.stdout
+
+        # Should create .json file due to fallback
+        json_file = tmp_path / "test-service.json"
+        assert json_file.exists()
+
+    def test_export_template_interactive_prompts(self, tmp_path):
+        """Test interactive prompts when required parameters not provided."""
+        output_file = tmp_path / "interactive-test.json"
+
+        runner = CliRunner()
+        result = runner.invoke(
+            app, ["ecs-worker", "export-template"], input=f"service\n{output_file}\n"
+        )
+
+        assert result.exit_code == 0
+        assert output_file.exists()
+
+    def test_export_template_creates_output_directory(self, tmp_path):
+        """Test that output directories are created if they don't exist."""
+        output_dir = tmp_path / "nested" / "directory"
+        output_file = output_dir / "template.json"
+
+        runner = CliRunner()
+        result = runner.invoke(
+            app,
+            [
+                "ecs-worker",
+                "export-template",
+                "--template-type",
+                "service",
+                "--output-path",
+                str(output_file),
+            ],
+        )
+
+        assert result.exit_code == 0
+        assert output_file.exists()
+        assert output_dir.exists()
+
+    @patch("prefect_aws._cli.ecs_worker.load_template")
+    def test_export_template_load_error(self, mock_load_template):
+        """Test handling of template loading errors."""
+        mock_load_template.side_effect = Exception("Template not found")
+
+        runner = CliRunner()
+        result = runner.invoke(
+            app,
+            [
+                "ecs-worker",
+                "export-template",
+                "--template-type",
+                "service",
+                "--output-path",
+                "/tmp/test.json",
+            ],
+        )
+
+        assert result.exit_code == 1
+        assert "Error exporting template" in result.stdout
+
+    def test_export_template_includes_usage_instructions(self, tmp_path):
+        """Test that successful export includes helpful usage instructions."""
+        output_file = tmp_path / "template.json"
+
+        runner = CliRunner()
+        result = runner.invoke(
+            app,
+            [
+                "ecs-worker",
+                "export-template",
+                "--template-type",
+                "events-only",
+                "--output-path",
+                str(output_file),
+            ],
+        )
+
+        assert result.exit_code == 0
+        assert "Next steps:" in result.stdout
+        assert "aws cloudformation deploy" in result.stdout
+        assert "Review and customize" in result.stdout
