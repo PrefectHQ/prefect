@@ -6,7 +6,11 @@ title: prefect-aws
 
 _Released on August 26, 2025_
 
-This release introduces significant improvements to ECS worker management and observability. The new `prefect-aws` CLI simplifies ECS worker deployment with commands to deploy and manage ECS workers using CloudFormation templates. Additionally, event replication capabilities have been added to the ECS worker, enabling real-time monitoring of ECS task state changes through SQS and EventBridge. This creates a foundation for more stateless ECS worker operations and ensures events aren't lost if workers go down during flow execution.
+This release introduces significant improvements to ECS worker management and observability. The new `prefect-aws` CLI simplifies ECS worker deployment with commands to deploy and manage ECS workers using CloudFormation templates.
+
+Additionally, event replication capabilities have been added to the ECS worker, enabling real-time monitoring of ECS task state changes through SQS and EventBridge. This creates a foundation for more stateless ECS worker operations and ensures events aren't lost if workers go down during flow execution.
+
+See the [ECS worker documentation](/integrations/prefect-aws/ecs-worker#with-the-prefect-aws-cli) for CLI usage examples and deployment guides.
 
 **Features**
 
