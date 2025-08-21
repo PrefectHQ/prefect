@@ -180,7 +180,12 @@ export const createWorkPoolQueuesTableColumns = ({
 	return columns;
 };
 
+// Basic version for backward compatibility
 export const workPoolQueuesTableColumns: ColumnDef<WorkPoolQueue>[] =
+	createWorkPoolQueuesTableColumns();
+
+// Enhanced version with all features enabled (replaces enhancedWorkPoolQueuesTableColumns)
+export const enhancedWorkPoolQueuesTableColumns: ColumnDef<WorkPoolQueue>[] =
 	createWorkPoolQueuesTableColumns({
 		enableSelection: true,
 		enableLateIndicator: true,
