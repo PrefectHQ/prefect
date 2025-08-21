@@ -305,8 +305,8 @@
                   {
                     "group": "ECS Worker",
                     "pages": [
-                      "integrations/prefect-aws/ecs_worker/index.mdx",
-                      "integrations/prefect-aws/ecs_worker/ecs_manual_guide.mdx"
+                      "integrations/prefect-aws/ecs-worker/index",
+                      "integrations/prefect-aws/ecs-worker/manual-deployment"
                     ]
                   }
                 ]
