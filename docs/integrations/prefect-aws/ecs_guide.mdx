@@ -105,6 +105,8 @@ You will need the following to successfully complete this guide:
   - ECS services
 - The AWS CLI installed on your local machine. You can [download it from the AWS website](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html).
 - An existing [ECS Cluster](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/clusters.html)
+- An existing [VPC](https://docs.aws.amazon.com/vpc/latest/userguide/what-is-amazon-vpc.html) - this guide assumes the use the default VPC.
+
 <Accordion title={"What if I don't have an ECS cluster?"} icon={"boxes-stacked"}>
     You can create an ECS cluster using the AWS CLI or the AWS Management Console.
     
@@ -118,7 +120,6 @@ You will need the following to successfully complete this guide:
     No further configuration is required for this guide, as we will use the Fargate launch type and the default VPC.
     </Info>
 </Accordion>
-- An existing [VPC](https://docs.aws.amazon.com/vpc/latest/userguide/what-is-amazon-vpc.html) - this guide assumes the use the default VPC.
 
 <Tip>
     For production deployments, it is recommended that you create your own VPC with appropriate security policies based on your organization's recommendations.
