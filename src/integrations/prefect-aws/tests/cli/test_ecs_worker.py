@@ -9,7 +9,7 @@ from typer.testing import CliRunner
 
 class TestECSWorkerCLI:
     def setup_method(self):
-        self.runner = CliRunner()
+        self.runner = CliRunner(mix_stderr=False)
 
     @patch("prefect_aws.cli.ecs_worker.validate_aws_credentials")
     @patch("prefect_aws.cli.ecs_worker.get_aws_client")
@@ -67,15 +67,17 @@ class TestECSWorkerCLI:
         )
 
         assert result.exit_code == 1
-        assert "Invalid AWS credentials" in result.stdout
+        assert "Invalid AWS credentials" in result.stderr
 
     @patch("prefect_aws.cli.ecs_worker.validate_aws_credentials")
     @patch("prefect_aws.cli.ecs_worker.get_aws_client")
     @patch("prefect_aws.cli.ecs_worker.load_template")
     @patch("prefect_aws.cli.ecs_worker.validate_ecs_cluster")
     @patch("prefect_aws.cli.ecs_worker.validate_vpc_and_subnets")
+    @patch("typer.confirm")
     def test_deploy_service_self_hosted_server(
         self,
+        mock_confirm,
         mock_validate_vpc,
         mock_validate_cluster,
         mock_load_template,
@@ -87,6 +89,7 @@ class TestECSWorkerCLI:
         mock_validate_cluster.return_value = True
         mock_validate_vpc.return_value = (True, "")
         mock_load_template.return_value = {"AWSTemplateFormatVersion": "2010-09-09"}
+        mock_confirm.return_value = False  # No authentication needed
 
         result = self.runner.invoke(
             app,
@@ -284,7 +287,7 @@ class TestECSWorkerCLI:
         result = self.runner.invoke(app, ["ecs-worker", "status", "test-stack"])
 
         assert result.exit_code == 1
-        assert "not deployed by prefect-aws CLI" in result.stdout
+        assert "not deployed by prefect-aws CLI" in result.stderr
 
     @patch("prefect_aws.cli.ecs_worker.validate_aws_credentials")
     @patch("prefect_aws.cli.ecs_worker.get_aws_client")
