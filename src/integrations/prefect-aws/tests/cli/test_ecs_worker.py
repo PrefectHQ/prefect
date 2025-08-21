@@ -9,7 +9,7 @@ from typer.testing import CliRunner
 
 class TestECSWorkerCLI:
     def setup_method(self):
-        self.runner = CliRunner(mix_stderr=False)
+        self.runner = CliRunner()
 
     @patch("prefect_aws.cli.ecs_worker.validate_aws_credentials")
     @patch("prefect_aws.cli.ecs_worker.get_aws_client")
@@ -67,7 +67,7 @@ class TestECSWorkerCLI:
         )
 
         assert result.exit_code == 1
-        assert "Invalid AWS credentials" in result.stderr
+        assert "Invalid AWS credentials" in result.stdout
 
     @patch("prefect_aws.cli.ecs_worker.validate_aws_credentials")
     @patch("prefect_aws.cli.ecs_worker.get_aws_client")
@@ -287,7 +287,7 @@ class TestECSWorkerCLI:
         result = self.runner.invoke(app, ["ecs-worker", "status", "test-stack"])
 
         assert result.exit_code == 1
-        assert "not deployed by prefect-aws CLI" in result.stderr
+        assert "not deployed by prefect-aws CLI" in result.stdout
 
     @patch("prefect_aws.cli.ecs_worker.validate_aws_credentials")
     @patch("prefect_aws.cli.ecs_worker.get_aws_client")
