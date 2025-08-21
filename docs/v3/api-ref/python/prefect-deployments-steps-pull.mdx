@@ -12,7 +12,7 @@ Core set of steps for specifying a Prefect project pull step.
 
 ## Functions
 
-### `set_working_directory` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/deployments/steps/pull.py#L24" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `set_working_directory` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/deployments/steps/pull.py#L24" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 set_working_directory(directory: str) -> dict[str, str]
@@ -29,7 +29,7 @@ Sets the working directory; works with both absolute and relative paths.
 directory that was set
 
 
-### `agit_clone` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/deployments/steps/pull.py#L50" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `agit_clone` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/deployments/steps/pull.py#L50" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 agit_clone(repository: str, branch: Optional[str] = None, commit_sha: Optional[str] = None, include_submodules: bool = False, access_token: Optional[str] = None, credentials: Optional['Block'] = None, directories: Optional[list[str]] = None) -> dict[str, str]
@@ -55,7 +55,7 @@ credentials to use for cloning the repository.
 - `subprocess.CalledProcessError`: if the git clone command fails for any reason
 
 
-### `git_clone` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/deployments/steps/pull.py#L100" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `git_clone` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/deployments/steps/pull.py#L100" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 git_clone(repository: str, branch: Optional[str] = None, commit_sha: Optional[str] = None, include_submodules: bool = False, access_token: Optional[str] = None, credentials: Optional['Block'] = None, directories: Optional[list[str]] = None) -> dict[str, str]
@@ -142,7 +142,7 @@ pull:
 ```
 
 
-### `pull_from_remote_storage` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/deployments/steps/pull.py#L209" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `pull_from_remote_storage` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/deployments/steps/pull.py#L209" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 pull_from_remote_storage(url: str, **settings: Any) -> dict[str, Any]
@@ -182,7 +182,7 @@ pull:
 ```
 
 
-### `pull_with_block` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/deployments/steps/pull.py#L251" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `pull_with_block` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/deployments/steps/pull.py#L251" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 pull_with_block(block_document_name: str, block_type_slug: str) -> dict[str, Any]

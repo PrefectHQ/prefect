@@ -7,25 +7,25 @@ sidebarTitle: task_workers
 
 ## Functions
 
-### `observe_worker` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/models/task_workers.py#L86" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `observe_worker` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/task_workers.py#L86" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 observe_worker(task_keys: List[TaskKey], worker_id: WorkerId) -> None
 ```
 
-### `forget_worker` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/models/task_workers.py#L93" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `forget_worker` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/task_workers.py#L93" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 forget_worker(worker_id: WorkerId) -> None
 ```
 
-### `get_workers_for_task_keys` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/models/task_workers.py#L99" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `get_workers_for_task_keys` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/task_workers.py#L99" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_workers_for_task_keys(task_keys: List[TaskKey]) -> List[TaskWorkerResponse]
 ```
 
-### `get_all_workers` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/models/task_workers.py#L105" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `get_all_workers` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/task_workers.py#L105" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_all_workers() -> List[TaskWorkerResponse]
@@ -33,37 +33,37 @@ get_all_workers() -> List[TaskWorkerResponse]
 
 ## Classes
 
-### `TaskWorkerResponse` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/models/task_workers.py#L16" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `TaskWorkerResponse` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/task_workers.py#L16" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
-### `InMemoryTaskWorkerTracker` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/models/task_workers.py#L22" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `InMemoryTaskWorkerTracker` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/task_workers.py#L22" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 **Methods:**
 
-#### `forget_worker` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/models/task_workers.py#L39" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `forget_worker` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/task_workers.py#L39" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 forget_worker(self, worker_id: WorkerId) -> None
 ```
 
-#### `get_all_workers` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/models/task_workers.py#L60" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get_all_workers` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/task_workers.py#L60" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_all_workers(self) -> List[TaskWorkerResponse]
 ```
 
-#### `get_workers_for_task_keys` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/models/task_workers.py#L51" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get_workers_for_task_keys` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/task_workers.py#L51" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_workers_for_task_keys(self, task_keys: List[TaskKey]) -> List[TaskWorkerResponse]
 ```
 
-#### `observe_worker` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/models/task_workers.py#L28" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `observe_worker` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/task_workers.py#L28" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 observe_worker(self, task_keys: List[TaskKey], worker_id: WorkerId) -> None
 ```
 
-#### `reset` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/models/task_workers.py#L74" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `reset` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/task_workers.py#L74" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 reset(self) -> None

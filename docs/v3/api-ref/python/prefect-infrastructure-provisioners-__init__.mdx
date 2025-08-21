@@ -7,7 +7,7 @@ sidebarTitle: __init__
 
 ## Functions
 
-### `get_infrastructure_provisioner_for_work_pool_type` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/infrastructure/provisioners/__init__.py#L38" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `get_infrastructure_provisioner_for_work_pool_type` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/infrastructure/provisioners/__init__.py#L38" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_infrastructure_provisioner_for_work_pool_type(work_pool_type: str) -> Type[Provisioner]
@@ -28,23 +28,23 @@ Retrieve an instance of the infrastructure provisioner for the given work pool t
 
 ## Classes
 
-### `Provisioner` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/infrastructure/provisioners/__init__.py#L23" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `Provisioner` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/infrastructure/provisioners/__init__.py#L23" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 **Methods:**
 
-#### `console` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/infrastructure/provisioners/__init__.py#L25" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `console` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/infrastructure/provisioners/__init__.py#L25" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 console(self) -> rich.console.Console
 ```
 
-#### `console` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/infrastructure/provisioners/__init__.py#L28" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `console` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/infrastructure/provisioners/__init__.py#L28" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 console(self, value: rich.console.Console) -> None
 ```
 
-#### `provision` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/infrastructure/provisioners/__init__.py#L30" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `provision` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/infrastructure/provisioners/__init__.py#L30" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 provision(self, work_pool_name: str, base_job_template: Dict[str, Any], client: Optional['PrefectClient'] = None) -> Dict[str, Any]
