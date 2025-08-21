@@ -959,7 +959,7 @@ class TestExportTemplate:
         """Test handling of template loading errors."""
         mock_load_template.side_effect = Exception("Template not found")
 
-        runner = CliRunner(mix_stderr=False)
+        runner = CliRunner()
         result = runner.invoke(
             app,
             [
@@ -973,7 +973,13 @@ class TestExportTemplate:
         )
 
         assert result.exit_code == 1
-        assert "Error exporting template" in result.stderr
+        # Check both stdout and stderr as behavior varies across Typer versions
+        output = result.stdout
+        try:
+            output += result.stderr
+        except (ValueError, AttributeError):
+            pass  # stderr not separately captured
+        assert "Error exporting template" in output
 
     @patch("prefect_aws._cli.ecs_worker.load_template")
     def test_export_template_includes_usage_instructions(
