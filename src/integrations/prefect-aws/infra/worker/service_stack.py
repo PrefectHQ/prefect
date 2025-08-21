@@ -78,6 +78,24 @@ class EcsServiceStack(Stack):
             no_echo=True,
         )
 
+        # Auth string parameters (alternative to API key for self-hosted servers)
+        self.prefect_auth_string_secret_arn = CfnParameter(
+            self,
+            "PrefectAuthStringSecretArn",
+            type="String",
+            description="ARN of existing AWS Secrets Manager secret containing Prefect auth string for self-hosted servers (leave empty to create new)",
+            default="",
+        )
+
+        self.prefect_auth_string = CfnParameter(
+            self,
+            "PrefectAuthString",
+            type="String",
+            description="Prefect auth string for self-hosted servers in format 'username:password' (only used if PrefectAuthStringSecretArn is empty)",
+            default="",
+            no_echo=True,
+        )
+
         self.work_queues = CfnParameter(
             self,
             "WorkQueues",
@@ -160,12 +178,57 @@ class EcsServiceStack(Stack):
             default=10,
         )
 
-        # Condition to check if we should create a new secret
-        self.create_new_secret_condition = CfnCondition(
+        # Conditions for auth method selection
+        self.use_api_key_condition = CfnCondition(
             self,
-            "CreateNewSecret",
-            expression=Fn.condition_equals(
-                self.prefect_api_key_secret_arn.value_as_string, ""
+            "UseApiKey",
+            expression=Fn.condition_or(
+                Fn.condition_not(
+                    Fn.condition_equals(
+                        self.prefect_api_key_secret_arn.value_as_string, ""
+                    )
+                ),
+                Fn.condition_not(
+                    Fn.condition_equals(self.prefect_api_key.value_as_string, "")
+                ),
+            ),
+        )
+
+        self.use_auth_string_condition = CfnCondition(
+            self,
+            "UseAuthString",
+            expression=Fn.condition_or(
+                Fn.condition_not(
+                    Fn.condition_equals(
+                        self.prefect_auth_string_secret_arn.value_as_string, ""
+                    )
+                ),
+                Fn.condition_not(
+                    Fn.condition_equals(self.prefect_auth_string.value_as_string, "")
+                ),
+            ),
+        )
+
+        # Conditions to check if we should create new secrets
+        self.create_new_api_key_secret_condition = CfnCondition(
+            self,
+            "CreateNewApiKeySecret",
+            expression=Fn.condition_and(
+                self.use_api_key_condition,
+                Fn.condition_equals(
+                    self.prefect_api_key_secret_arn.value_as_string, ""
+                ),
+            ),
+        )
+
+        self.create_new_auth_string_secret_condition = CfnCondition(
+            self,
+            "CreateNewAuthStringSecret",
+            expression=Fn.condition_and(
+                self.use_auth_string_condition,
+                Fn.condition_equals(
+                    self.prefect_auth_string_secret_arn.value_as_string, ""
+                ),
             ),
         )
 
@@ -199,8 +262,9 @@ class EcsServiceStack(Stack):
             ),
         )
 
-        # Create the secret if needed
+        # Create the secrets if needed
         self.api_key_secret = self._create_api_key_secret()
+        self.auth_string_secret = self._create_auth_string_secret()
 
         # Get existing resources
         self.vpc = self._get_existing_vpc()
@@ -374,7 +438,24 @@ class EcsServiceStack(Stack):
 
         # Apply condition so it's only created when needed
         secret.node.default_child.cfn_options.condition = (
-            self.create_new_secret_condition
+            self.create_new_api_key_secret_condition
+        )
+
+        return secret
+
+    def _create_auth_string_secret(self) -> secretsmanager.Secret:
+        """Create Secrets Manager secret for Prefect auth string if needed."""
+        secret = secretsmanager.Secret(
+            self,
+            "PrefectAuthStringSecret",
+            secret_name=f"{self.work_pool_name.value_as_string}-prefect-auth-string",
+            description="Prefect auth string for ECS worker (self-hosted servers)",
+            secret_string_value=SecretValue.cfn_parameter(self.prefect_auth_string),
+        )
+
+        # Apply condition so it's only created when needed
+        secret.node.default_child.cfn_options.condition = (
+            self.create_new_auth_string_secret_condition
         )
 
         return secret
@@ -382,9 +463,25 @@ class EcsServiceStack(Stack):
     def get_api_key_secret_arn(self) -> str:
         """Get the ARN of the API key secret (either existing or newly created)."""
         return Fn.condition_if(
-            self.create_new_secret_condition.logical_id,
+            self.create_new_api_key_secret_condition.logical_id,
             self.api_key_secret.secret_arn,
             self.prefect_api_key_secret_arn.value_as_string,
+        ).to_string()
+
+    def get_auth_string_secret_arn(self) -> str:
+        """Get the ARN of the auth string secret (either existing or newly created)."""
+        return Fn.condition_if(
+            self.create_new_auth_string_secret_condition.logical_id,
+            self.auth_string_secret.secret_arn,
+            self.prefect_auth_string_secret_arn.value_as_string,
+        ).to_string()
+
+    def get_active_secret_arn(self) -> str:
+        """Get the ARN of whichever auth method is being used."""
+        return Fn.condition_if(
+            self.use_api_key_condition.logical_id,
+            self.get_api_key_secret_arn(),
+            self.get_auth_string_secret_arn(),
         ).to_string()
 
     def create_sqs_infrastructure(self) -> tuple[sqs.Queue, sqs.Queue]:
@@ -437,7 +534,6 @@ class EcsServiceStack(Stack):
                 source=["aws.ecs"],
                 detail_type=["ECS Task State Change"],
                 detail={
-                    "lastStatus": ["RUNNING", "STOPPED"],
                     "clusterArn": [cluster_arn],
                 },
             )
@@ -445,9 +541,7 @@ class EcsServiceStack(Stack):
             event_pattern = events.EventPattern(
                 source=["aws.ecs"],
                 detail_type=["ECS Task State Change"],
-                detail={
-                    "lastStatus": ["RUNNING", "STOPPED"],
-                },
+                detail={},
             )
 
         rule = events.Rule(
@@ -485,14 +579,14 @@ class EcsServiceStack(Stack):
             ],
         )
 
-        # Grant access to Prefect API key secret
+        # Grant access to the appropriate Prefect auth secret
         role.add_to_policy(
             iam.PolicyStatement(
                 effect=iam.Effect.ALLOW,
                 actions=[
                     "secretsmanager:GetSecretValue",
                 ],
-                resources=[self.get_api_key_secret_arn()],
+                resources=[self.get_active_secret_arn()],
             )
         )
 
@@ -551,46 +645,83 @@ class EcsServiceStack(Stack):
 
         return role
 
-    def create_log_group(self) -> logs.LogGroup:
-        """Create CloudWatch log group for worker tasks."""
-        # Use existing log group name if provided, otherwise generate one
-        log_group_name = Fn.condition_if(
-            self.use_existing_log_group_condition.logical_id,
-            self.existing_log_group_name.value_as_string,
-            f"/ecs/{self.work_pool_name.value_as_string}",
-        ).to_string()
+    def create_log_group(self) -> logs.ILogGroup:
+        """Create or reference CloudWatch log group for worker tasks."""
+        # Generate unique suffix for log group name to prevent collisions
+        # Extract first 8 chars of UUID from stack ID for true uniqueness across deployments
+        unique_suffix = Fn.select(
+            0, Fn.split("-", Fn.select(2, Fn.split("/", Stack.of(self).stack_id)))
+        )
 
-        log_group = logs.LogGroup(
+        # Create log group with unique name (will only be created when condition is true)
+        new_log_group = logs.LogGroup(
             self,
             "WorkerLogGroup",
-            log_group_name=log_group_name,
+            log_group_name=Fn.join(
+                "/", ["", "ecs", self.work_pool_name.value_as_string, unique_suffix]
+            ),
             retention=logs.RetentionDays.ONE_MONTH,  # Default, will be overridden by parameter
             removal_policy=RemovalPolicy.RETAIN,  # Preserve logs when stack is deleted
         )
 
-        # Configure the underlying CloudFormation resource with proper retention
-        cfn_log_group = log_group.node.default_child
+        # Store the generated log group name for use in task definition
+        self._generated_log_group_name = Fn.join(
+            "/", ["", "ecs", self.work_pool_name.value_as_string, unique_suffix]
+        )
+
+        # Configure the underlying CloudFormation resource
+        cfn_log_group = new_log_group.node.default_child
         cfn_log_group.add_property_override(
             "RetentionInDays", self.log_retention_days.value_as_number
         )
 
+        # Only create this log group resource when NOT using existing log group
+        create_new_log_group_condition = CfnCondition(
+            self,
+            "CreateNewLogGroup",
+            expression=Fn.condition_not(self.use_existing_log_group_condition),
+        )
+        cfn_log_group.cfn_options.condition = create_new_log_group_condition
+
+        # Output the log group name conditionally
         CfnOutput(
             self,
             "LogGroupName",
-            value=log_group.log_group_name,
+            value=Fn.condition_if(
+                self.use_existing_log_group_condition.logical_id,
+                self.existing_log_group_name.value_as_string,
+                self._generated_log_group_name,
+            ).to_string(),
             description="CloudWatch log group for worker tasks",
         )
 
-        # Also output the created secret ARN if we created one
+        # Output the created secret ARNs if we created them
         CfnOutput(
             self,
             "PrefectApiKeySecretArnOutput",
             value=self.get_api_key_secret_arn(),
             description="ARN of the Prefect API key secret",
-            condition=self.create_new_secret_condition,
+            condition=self.create_new_api_key_secret_condition,
         )
 
-        return log_group
+        CfnOutput(
+            self,
+            "PrefectAuthStringSecretArnOutput",
+            value=self.get_auth_string_secret_arn(),
+            description="ARN of the Prefect auth string secret",
+            condition=self.create_new_auth_string_secret_condition,
+        )
+
+        # Return the new log group (CDK will handle the conditional logic in CloudFormation)
+        return new_log_group
+
+    def get_log_group_for_task_definition(self) -> str:
+        """Get the appropriate log group name for the task definition."""
+        return Fn.condition_if(
+            self.use_existing_log_group_condition.logical_id,
+            self.existing_log_group_name.value_as_string,
+            self._generated_log_group_name,
+        ).to_string()
 
     def create_task_definition(
         self,
@@ -668,20 +799,14 @@ class EcsServiceStack(Stack):
                 queue.queue_name
             )
 
-        # Add container
+        # Add container (we'll handle auth method selection by post-processing the CloudFormation)
         task_definition.add_container(
             "worker",
             container_name="prefect-worker",
             image=ecs.ContainerImage.from_registry(self.docker_image.value_as_string),
             command=command_args,
             environment=environment_vars,
-            secrets={
-                "PREFECT_API_KEY": ecs.Secret.from_secrets_manager(self.api_key_secret),
-            },
-            logging=ecs.LogDrivers.aws_logs(
-                stream_prefix="ecs",
-                log_group=log_group,
-            ),
+            # Logging will be configured via CloudFormation override below
             health_check=ecs.HealthCheck(
                 command=[
                     "CMD-SHELL",
@@ -699,6 +824,51 @@ class EcsServiceStack(Stack):
                     name="health",
                 )
             ],
+        )
+
+        # Manually configure the secrets in the CloudFormation template since CDK doesn't support conditional secrets
+        cfn_task_definition = task_definition.node.default_child
+
+        # Get the container definition and add conditional secrets
+        # API key takes precedence - if provided, use it exclusively
+        # Auth string is only used if NO API key is provided
+        cfn_task_definition.add_property_override(
+            "ContainerDefinitions.0.Secrets",
+            Fn.condition_if(
+                self.use_api_key_condition.logical_id,
+                # If using API key, only include API key secret
+                [
+                    {
+                        "Name": "PREFECT_API_KEY",
+                        "ValueFrom": self.get_api_key_secret_arn(),
+                    }
+                ],
+                Fn.condition_if(
+                    self.use_auth_string_condition.logical_id,
+                    # If not using API key but using auth string, only include auth string
+                    [
+                        {
+                            "Name": "PREFECT_AUTH_STRING",
+                            "ValueFrom": self.get_auth_string_secret_arn(),
+                        }
+                    ],
+                    # If using neither, omit the Secrets property entirely
+                    Fn.ref("AWS::NoValue"),
+                ),
+            ),
+        )
+
+        # Configure logging to use the appropriate log group (existing or new)
+        cfn_task_definition.add_property_override(
+            "ContainerDefinitions.0.LogConfiguration",
+            {
+                "LogDriver": "awslogs",
+                "Options": {
+                    "awslogs-group": self.get_log_group_for_task_definition(),
+                    "awslogs-region": {"Ref": "AWS::Region"},
+                    "awslogs-stream-prefix": "ecs",
+                },
+            },
         )
 
         CfnOutput(

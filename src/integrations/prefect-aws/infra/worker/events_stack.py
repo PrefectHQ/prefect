@@ -107,7 +107,6 @@ class EcsEventsStack(Stack):
                 source=["aws.ecs"],
                 detail_type=["ECS Task State Change"],
                 detail={
-                    "lastStatus": ["RUNNING", "STOPPED"],
                     "clusterArn": [cluster_arn],
                 },
             )
@@ -115,9 +114,7 @@ class EcsEventsStack(Stack):
             event_pattern = events.EventPattern(
                 source=["aws.ecs"],
                 detail_type=["ECS Task State Change"],
-                detail={
-                    "lastStatus": ["RUNNING", "STOPPED"],
-                },
+                detail={},
             )
 
         rule = events.Rule(

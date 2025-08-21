@@ -61,19 +61,39 @@ def test_all_stacks_have_outputs():
 
 
 def test_conditional_secret_creation():
-    """Test that API key secret is created conditionally."""
+    """Test that secrets are created conditionally based on auth method."""
     app = core.App()
     stack = EcsServiceStack(app, "TestServiceStack")
     template = assertions.Template.from_stack(stack)
 
-    # Should have conditional secret
+    # Should have conditional API key secret creation
     template.has_condition(
-        "CreateNewSecret", {"Fn::Equals": [{"Ref": "PrefectApiKeySecretArn"}, ""]}
+        "CreateNewApiKeySecret",
+        {
+            "Fn::And": [
+                {"Condition": "UseApiKey"},
+                {"Fn::Equals": [{"Ref": "PrefectApiKeySecretArn"}, ""]},
+            ]
+        },
     )
 
-    # Should have secret with condition
+    # Should have conditional auth string secret creation
+    template.has_condition(
+        "CreateNewAuthStringSecret",
+        {
+            "Fn::And": [
+                {"Condition": "UseAuthString"},
+                {"Fn::Equals": [{"Ref": "PrefectAuthStringSecretArn"}, ""]},
+            ]
+        },
+    )
+
+    # Should have both secrets with their respective conditions
     template.has_resource(
-        "AWS::SecretsManager::Secret", {"Condition": "CreateNewSecret"}
+        "AWS::SecretsManager::Secret", {"Condition": "CreateNewApiKeySecret"}
+    )
+    template.has_resource(
+        "AWS::SecretsManager::Secret", {"Condition": "CreateNewAuthStringSecret"}
     )
 
 
@@ -90,6 +110,59 @@ def test_work_queues_parameter():
     template.has_condition(
         "HasWorkQueues",
         {"Fn::Not": [{"Fn::Equals": [{"Fn::Select": [0, {"Ref": "WorkQueues"}]}, ""]}]},
+    )
+
+
+def test_auth_conditions():
+    """Test CloudFormation conditions for auth method selection."""
+    app = core.App()
+    stack = EcsServiceStack(app, "TestServiceStack")
+    template = assertions.Template.from_stack(stack)
+
+    # Should have conditions for auth method selection
+    template.has_condition(
+        "UseApiKey",
+        {
+            "Fn::Or": [
+                {"Fn::Not": [{"Fn::Equals": [{"Ref": "PrefectApiKeySecretArn"}, ""]}]},
+                {"Fn::Not": [{"Fn::Equals": [{"Ref": "PrefectApiKey"}, ""]}]},
+            ]
+        },
+    )
+
+    template.has_condition(
+        "UseAuthString",
+        {
+            "Fn::Or": [
+                {
+                    "Fn::Not": [
+                        {"Fn::Equals": [{"Ref": "PrefectAuthStringSecretArn"}, ""]}
+                    ]
+                },
+                {"Fn::Not": [{"Fn::Equals": [{"Ref": "PrefectAuthString"}, ""]}]},
+            ]
+        },
+    )
+
+    # Should have conditions for secret creation
+    template.has_condition(
+        "CreateNewApiKeySecret",
+        {
+            "Fn::And": [
+                {"Condition": "UseApiKey"},
+                {"Fn::Equals": [{"Ref": "PrefectApiKeySecretArn"}, ""]},
+            ]
+        },
+    )
+
+    template.has_condition(
+        "CreateNewAuthStringSecret",
+        {
+            "Fn::And": [
+                {"Condition": "UseAuthString"},
+                {"Fn::Equals": [{"Ref": "PrefectAuthStringSecretArn"}, ""]},
+            ]
+        },
     )
 
 
@@ -167,7 +240,6 @@ def test_eventbridge_rule_patterns():
                 "source": ["aws.ecs"],
                 "detail-type": ["ECS Task State Change"],
                 "detail": {
-                    "lastStatus": ["RUNNING", "STOPPED"],
                     "clusterArn": assertions.Match.any_value(),  # Dynamic based on cluster identifier
                 },
             }
@@ -186,7 +258,6 @@ def test_eventbridge_rule_patterns():
                 "source": ["aws.ecs"],
                 "detail-type": ["ECS Task State Change"],
                 "detail": {
-                    "lastStatus": ["RUNNING", "STOPPED"],
                     "clusterArn": [{"Ref": "ExistingClusterArn"}],
                 },
             }
@@ -259,6 +330,14 @@ def test_parameter_validation():
     service_template.has_parameter("DockerImage", {"Type": "String"})
     service_template.has_parameter("WorkQueues", {"Type": "CommaDelimitedList"})
     service_template.has_parameter("LogRetentionDays", {"Type": "Number"})
+
+    # Auth parameters (both API key and auth string)
+    service_template.has_parameter("PrefectApiKeySecretArn", {"Type": "String"})
+    service_template.has_parameter("PrefectApiKey", {"Type": "String", "NoEcho": True})
+    service_template.has_parameter("PrefectAuthStringSecretArn", {"Type": "String"})
+    service_template.has_parameter(
+        "PrefectAuthString", {"Type": "String", "NoEcho": True}
+    )
 
     # Service-specific parameters
     service_template.has_parameter(
@@ -348,18 +427,27 @@ def test_conditional_log_group():
         {"Fn::Not": [{"Fn::Equals": [{"Ref": "ExistingLogGroupName"}, ""]}]},
     )
 
-    # Log group name should be conditional
-    template.has_resource_properties(
+    # Log group should only be created when NOT using existing log group
+    template.has_resource(
         "AWS::Logs::LogGroup",
         {
-            "LogGroupName": {
-                "Fn::If": [
-                    "UseExistingLogGroup",
-                    {"Ref": "ExistingLogGroupName"},
-                    {"Fn::Join": ["", ["/ecs/", {"Ref": "WorkPoolName"}]]},
-                ]
-            }
+            "Condition": "CreateNewLogGroup",
+            "Properties": {
+                "LogGroupName": {
+                    "Fn::Join": [
+                        "/",
+                        ["/ecs", {"Ref": "WorkPoolName"}, assertions.Match.any_value()],
+                    ]
+                },
+                "RetentionInDays": {"Ref": "LogRetentionDays"},
+            },
         },
+    )
+
+    # Should have condition for creating new log group
+    template.has_condition(
+        "CreateNewLogGroup",
+        {"Fn::Not": [{"Condition": "UseExistingLogGroup"}]},
     )
 
 
