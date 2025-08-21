@@ -38,6 +38,11 @@ jobs:
           - "3.13"
 
     steps:
+      - name: Set version environment variables
+        run: |
+          echo "PREFECT_VERSION=${{ inputs.prefect_version || github.event.inputs.prefect_version }}" >> $GITHUB_ENV
+          echo "PREFECT_AWS_VERSION=${{ inputs.prefect_aws_version || github.event.inputs.prefect_aws_version }}" >> $GITHUB_ENV
+      
       - name: Checkout
         uses: actions/checkout@v5
 
@@ -62,15 +67,15 @@ jobs:
           images: prefecthq/prefect-aws
           tags: |
             # Full version tag: prefect-aws-version-python-version-prefect-version
-            type=raw,value=${{ github.event.inputs.prefect_aws_version }}-python${{ matrix.python-version }}-prefect${{ github.event.inputs.prefect_version }}
+            type=raw,value=${{ env.PREFECT_AWS_VERSION }}-python${{ matrix.python-version }}-prefect${{ env.PREFECT_VERSION }}
             # Version with Python: prefect-aws-version-python-version
-            type=raw,value=${{ github.event.inputs.prefect_aws_version }}-python${{ matrix.python-version }}
+            type=raw,value=${{ env.PREFECT_AWS_VERSION }}-python${{ matrix.python-version }}
             # Minor version with Python (only for stable releases, not rc)
-            type=pep440,pattern={{major}}.{{minor}}-python${{ matrix.python-version }},value=${{ github.event.inputs.prefect_aws_version }},enable=${{ !contains(github.event.inputs.prefect_aws_version, 'rc') }}
+            type=pep440,pattern={{major}}.{{minor}}-python${{ matrix.python-version }},value=${{ env.PREFECT_AWS_VERSION }},enable=${{ !contains(env.PREFECT_AWS_VERSION, 'rc') }}
             # Latest with Python version (only for stable releases, not rc)
-            type=raw,value=latest-python${{ matrix.python-version }},enable=${{ !contains(github.event.inputs.prefect_aws_version, 'rc') }}
+            type=raw,value=latest-python${{ matrix.python-version }},enable=${{ !contains(env.PREFECT_AWS_VERSION, 'rc') }}
             # Latest tag (only for Python 3.12 and stable releases, not rc)
-            type=raw,value=latest,enable=${{ matrix.python-version == '3.12' && !contains(github.event.inputs.prefect_aws_version, 'rc') }}
+            type=raw,value=latest,enable=${{ matrix.python-version == '3.12' && !contains(env.PREFECT_AWS_VERSION, 'rc') }}
           flavor: |
             latest=false
 
@@ -81,8 +86,8 @@ jobs:
           platforms: linux/amd64,linux/arm64
           build-args: |
             PYTHON_VERSION=${{ matrix.python-version }}
-            PREFECT_VERSION=${{ github.event.inputs.prefect_version }}
-            PREFECT_AWS_VERSION=${{ github.event.inputs.prefect_aws_version }}
+            PREFECT_VERSION=${{ env.PREFECT_VERSION }}
+            PREFECT_AWS_VERSION=${{ env.PREFECT_AWS_VERSION }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           push: true
