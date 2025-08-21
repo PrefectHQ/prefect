@@ -301,8 +301,14 @@
                 "group": "AWS",
                 "pages": [
                   "integrations/prefect-aws/index",
-                  "integrations/prefect-aws/ecs_guide",
-                  "integrations/prefect-aws/sdk"
+                  "integrations/prefect-aws/sdk",
+                  {
+                    "group": "ECS Worker",
+                    "pages": [
+                      "integrations/prefect-aws/ecs_worker/index.mdx",
+                      "integrations/prefect-aws/ecs_worker/ecs_manual_guide.mdx"
+                    ]
+                  }
                 ]
               },
               {
@@ -444,9 +450,7 @@
                   "v3/api-ref/rest-api/index",
                   {
                     "group": "Cloud API",
-                    "pages": [
-                      "v3/api-ref/rest-api/cloud/index"
-                    ]
+                    "pages": ["v3/api-ref/rest-api/cloud/index"]
                   },
                   {
                     "group": "Server API",
