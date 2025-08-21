@@ -40,7 +40,7 @@ pip install "prefect[aws]"
 
 ### Credentials
 
-Most AWS services requires an authenticated session.
+Most AWS services require an authenticated session.
 Prefect makes it simple to provide credentials via AWS Credentials blocks.
 
 Steps:
