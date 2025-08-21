@@ -12,7 +12,7 @@ import { useCallback, useState } from "react";
 import type { WorkPoolQueue } from "@/api/work-pool-queues";
 import { DataTable } from "@/components/ui/data-table";
 import { cn } from "@/lib/utils";
-import { enhancedWorkPoolQueuesTableColumns } from "./components/enhanced-work-pool-queues-table-columns";
+import { enhancedWorkPoolQueuesTableColumns } from "./components/work-pool-queues-table-columns";
 import { WorkPoolQueuesTableEmptyState } from "./components/work-pool-queues-table-empty-state";
 import { WorkPoolQueuesTableToolbar } from "./components/work-pool-queues-table-toolbar";
 
