@@ -215,9 +215,7 @@ class EcsObserver:
             "deployment": [],
         }
 
-    async def run(self, started_event: asyncio.Event | None = None):
-        if started_event:
-            started_event.set()
+    async def run(self):
         async with AsyncExitStack() as stack:
             task_group = await stack.enter_async_context(anyio.create_task_group())
             await stack.enter_async_context(self.ecs_tags_reader)
@@ -417,32 +415,24 @@ async def replicate_ecs_event(event: dict[str, Any], tags: dict[str, str]):
 
 
 _observer_task: asyncio.Task[None] | None = None
-_observer_started_event: asyncio.Event | None = None
 
 
 async def start_observer():
     global _observer_task
-    global _observer_started_event
     if _observer_task:
         return
 
-    _observer_started_event = asyncio.Event()
-    _observer_task = asyncio.create_task(
-        ecs_observer.run(started_event=_observer_started_event)
-    )
-    await _observer_started_event.wait()
+    _observer_task = asyncio.create_task(ecs_observer.run())
     logger.debug("ECS observer started")
 
 
 async def stop_observer():
     global _observer_task
-    global _observer_started_event
     if not _observer_task:
         return
 
     task = _observer_task
     _observer_task = None
-    _observer_started_event = None
 
     task.cancel()
     try:
