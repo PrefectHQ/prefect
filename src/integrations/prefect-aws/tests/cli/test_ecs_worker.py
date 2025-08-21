@@ -117,6 +117,52 @@ class TestECSWorkerCLI:
     @patch("prefect_aws.cli.ecs_worker.get_aws_client")
     @patch("prefect_aws.cli.ecs_worker.load_template")
     @patch("prefect_aws.cli.ecs_worker.validate_ecs_cluster")
+    @patch("prefect_aws.cli.ecs_worker.validate_vpc_and_subnets")
+    def test_deploy_service_with_auth_string_parameters(
+        self,
+        mock_validate_vpc,
+        mock_validate_cluster,
+        mock_load_template,
+        mock_get_client,
+        mock_validate_creds,
+    ):
+        """Test deploy-service command with auth string parameters."""
+        mock_validate_creds.return_value = True
+        mock_validate_cluster.return_value = True
+        mock_validate_vpc.return_value = (True, "")
+        mock_load_template.return_value = {"AWSTemplateFormatVersion": "2010-09-09"}
+
+        result = self.runner.invoke(
+            app,
+            [
+                "ecs-worker",
+                "deploy-service",
+                "--work-pool-name",
+                "test-pool",
+                "--stack-name",
+                "test-stack",
+                "--prefect-api-url",
+                "http://localhost:4200/api",
+                "--existing-cluster-identifier",
+                "test-cluster",
+                "--existing-vpc-id",
+                "vpc-12345",
+                "--existing-subnet-ids",
+                "subnet-1,subnet-2",
+                "--prefect-auth-string",
+                "user:pass",
+                "--dry-run",
+            ],
+        )
+
+        assert result.exit_code == 0
+        assert "DRY RUN" in result.stdout
+        assert "test-stack" in result.stdout
+
+    @patch("prefect_aws.cli.ecs_worker.validate_aws_credentials")
+    @patch("prefect_aws.cli.ecs_worker.get_aws_client")
+    @patch("prefect_aws.cli.ecs_worker.load_template")
+    @patch("prefect_aws.cli.ecs_worker.validate_ecs_cluster")
     def test_deploy_events_dry_run(
         self,
         mock_validate_cluster,
@@ -138,12 +184,8 @@ class TestECSWorkerCLI:
                 "test-pool",
                 "--stack-name",
                 "test-events",
-                "--prefect-api-url",
-                "https://api.prefect.cloud/api",
                 "--existing-cluster-arn",
                 "arn:aws:ecs:us-east-1:123456789012:cluster/test",
-                "--prefect-api-key",
-                "test-key",
                 "--dry-run",
             ],
         )
