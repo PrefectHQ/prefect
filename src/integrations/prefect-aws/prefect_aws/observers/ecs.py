@@ -37,7 +37,7 @@ if TYPE_CHECKING:
 
 
 logger: logging.Logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.INFO)
 
 _last_event_cache: LRUCache[uuid.UUID, Event] = LRUCache(maxsize=1000)
 
