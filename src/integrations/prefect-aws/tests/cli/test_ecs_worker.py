@@ -3,31 +3,59 @@
 import json
 from unittest.mock import Mock, patch
 
+import boto3
+import pytest
+from moto import mock_cloudformation, mock_ec2, mock_ecs, mock_sts
 from prefect_aws.cli.main import app
 from typer.testing import CliRunner
+
+
+@pytest.fixture
+def aws_credentials(monkeypatch):
+    """Set up AWS credentials for moto testing."""
+    monkeypatch.setenv("AWS_ACCESS_KEY_ID", "test")
+    monkeypatch.setenv("AWS_SECRET_ACCESS_KEY", "test")
+    monkeypatch.setenv("AWS_SESSION_TOKEN", "test")
+    monkeypatch.setenv("AWS_DEFAULT_REGION", "us-east-1")
+
+
+@pytest.fixture
+def mock_aws_resources():
+    """Create common AWS resources for testing."""
+    with mock_ecs(), mock_ec2(), mock_cloudformation(), mock_sts():
+        # Create VPC
+        ec2 = boto3.client("ec2", region_name="us-east-1")
+        vpc_response = ec2.create_vpc(CidrBlock="10.0.0.0/16")
+        vpc_id = vpc_response["Vpc"]["VpcId"]
+
+        # Create subnets
+        subnet1 = ec2.create_subnet(VpcId=vpc_id, CidrBlock="10.0.1.0/24")
+        subnet2 = ec2.create_subnet(VpcId=vpc_id, CidrBlock="10.0.2.0/24")
+
+        # Create ECS cluster
+        ecs = boto3.client("ecs", region_name="us-east-1")
+        cluster_response = ecs.create_cluster(clusterName="test-cluster")
+
+        yield {
+            "vpc_id": vpc_id,
+            "subnet_ids": [
+                subnet1["Subnet"]["SubnetId"],
+                subnet2["Subnet"]["SubnetId"],
+            ],
+            "cluster_name": "test-cluster",
+            "cluster_arn": cluster_response["cluster"]["clusterArn"],
+        }
 
 
 class TestECSWorkerCLI:
     def setup_method(self):
         self.runner = CliRunner()
 
-    @patch("prefect_aws.cli.ecs_worker.validate_aws_credentials")
-    @patch("prefect_aws.cli.ecs_worker.get_aws_client")
     @patch("prefect_aws.cli.ecs_worker.load_template")
-    @patch("prefect_aws.cli.ecs_worker.validate_ecs_cluster")
-    @patch("prefect_aws.cli.ecs_worker.validate_vpc_and_subnets")
     def test_deploy_service_dry_run(
-        self,
-        mock_validate_vpc,
-        mock_validate_cluster,
-        mock_load_template,
-        mock_get_client,
-        mock_validate_creds,
+        self, mock_load_template, aws_credentials, mock_aws_resources
     ):
         """Test deploy-service command with dry-run."""
-        mock_validate_creds.return_value = True
-        mock_validate_cluster.return_value = True
-        mock_validate_vpc.return_value = (True, "")
         mock_load_template.return_value = {"AWSTemplateFormatVersion": "2010-09-09"}
 
         result = self.runner.invoke(
@@ -42,11 +70,11 @@ class TestECSWorkerCLI:
                 "--prefect-api-url",
                 "https://api.prefect.cloud/api",
                 "--existing-cluster-identifier",
-                "test-cluster",
+                mock_aws_resources["cluster_name"],
                 "--existing-vpc-id",
-                "vpc-12345",
+                mock_aws_resources["vpc_id"],
                 "--existing-subnet-ids",
-                "subnet-1,subnet-2",
+                ",".join(mock_aws_resources["subnet_ids"]),
                 "--prefect-api-key",
                 "test-key",
                 "--dry-run",
@@ -57,10 +85,13 @@ class TestECSWorkerCLI:
         assert "DRY RUN" in result.stdout
         assert "test-stack" in result.stdout
 
-    @patch("prefect_aws.cli.ecs_worker.validate_aws_credentials")
-    def test_deploy_service_invalid_credentials(self, mock_validate_creds):
+    def test_deploy_service_invalid_credentials(self, monkeypatch):
         """Test deploy-service command with invalid credentials."""
-        mock_validate_creds.return_value = False
+        # Remove AWS credentials to simulate invalid credentials
+        monkeypatch.delenv("AWS_ACCESS_KEY_ID", raising=False)
+        monkeypatch.delenv("AWS_SECRET_ACCESS_KEY", raising=False)
+        monkeypatch.delenv("AWS_SESSION_TOKEN", raising=False)
+        monkeypatch.delenv("AWS_DEFAULT_REGION", raising=False)
 
         result = self.runner.invoke(
             app, ["ecs-worker", "deploy-service", "--work-pool-name", "test-pool"]
@@ -75,25 +106,12 @@ class TestECSWorkerCLI:
             pass  # stderr not separately captured
         assert "Invalid AWS credentials" in output
 
-    @patch("prefect_aws.cli.ecs_worker.validate_aws_credentials")
-    @patch("prefect_aws.cli.ecs_worker.get_aws_client")
     @patch("prefect_aws.cli.ecs_worker.load_template")
-    @patch("prefect_aws.cli.ecs_worker.validate_ecs_cluster")
-    @patch("prefect_aws.cli.ecs_worker.validate_vpc_and_subnets")
     @patch("typer.confirm")
     def test_deploy_service_self_hosted_server(
-        self,
-        mock_confirm,
-        mock_validate_vpc,
-        mock_validate_cluster,
-        mock_load_template,
-        mock_get_client,
-        mock_validate_creds,
+        self, mock_confirm, mock_load_template, aws_credentials, mock_aws_resources
     ):
         """Test deploy-service command with self-hosted Prefect server."""
-        mock_validate_creds.return_value = True
-        mock_validate_cluster.return_value = True
-        mock_validate_vpc.return_value = (True, "")
         mock_load_template.return_value = {"AWSTemplateFormatVersion": "2010-09-09"}
         mock_confirm.return_value = False  # No authentication needed
 
@@ -109,11 +127,11 @@ class TestECSWorkerCLI:
                 "--prefect-api-url",
                 "http://localhost:4200/api",
                 "--existing-cluster-identifier",
-                "test-cluster",
+                mock_aws_resources["cluster_name"],
                 "--existing-vpc-id",
-                "vpc-12345",
+                mock_aws_resources["vpc_id"],
                 "--existing-subnet-ids",
-                "subnet-1,subnet-2",
+                ",".join(mock_aws_resources["subnet_ids"]),
                 "--dry-run",
             ],
         )
@@ -122,23 +140,11 @@ class TestECSWorkerCLI:
         assert "DRY RUN" in result.stdout
         assert "test-stack" in result.stdout
 
-    @patch("prefect_aws.cli.ecs_worker.validate_aws_credentials")
-    @patch("prefect_aws.cli.ecs_worker.get_aws_client")
     @patch("prefect_aws.cli.ecs_worker.load_template")
-    @patch("prefect_aws.cli.ecs_worker.validate_ecs_cluster")
-    @patch("prefect_aws.cli.ecs_worker.validate_vpc_and_subnets")
     def test_deploy_service_with_auth_string_parameters(
-        self,
-        mock_validate_vpc,
-        mock_validate_cluster,
-        mock_load_template,
-        mock_get_client,
-        mock_validate_creds,
+        self, mock_load_template, aws_credentials, mock_aws_resources
     ):
         """Test deploy-service command with auth string parameters."""
-        mock_validate_creds.return_value = True
-        mock_validate_cluster.return_value = True
-        mock_validate_vpc.return_value = (True, "")
         mock_load_template.return_value = {"AWSTemplateFormatVersion": "2010-09-09"}
 
         result = self.runner.invoke(
@@ -153,11 +159,11 @@ class TestECSWorkerCLI:
                 "--prefect-api-url",
                 "http://localhost:4200/api",
                 "--existing-cluster-identifier",
-                "test-cluster",
+                mock_aws_resources["cluster_name"],
                 "--existing-vpc-id",
-                "vpc-12345",
+                mock_aws_resources["vpc_id"],
                 "--existing-subnet-ids",
-                "subnet-1,subnet-2",
+                ",".join(mock_aws_resources["subnet_ids"]),
                 "--prefect-auth-string",
                 "user:pass",
                 "--dry-run",
@@ -168,20 +174,11 @@ class TestECSWorkerCLI:
         assert "DRY RUN" in result.stdout
         assert "test-stack" in result.stdout
 
-    @patch("prefect_aws.cli.ecs_worker.validate_aws_credentials")
-    @patch("prefect_aws.cli.ecs_worker.get_aws_client")
     @patch("prefect_aws.cli.ecs_worker.load_template")
-    @patch("prefect_aws.cli.ecs_worker.validate_ecs_cluster")
     def test_deploy_events_dry_run(
-        self,
-        mock_validate_cluster,
-        mock_load_template,
-        mock_get_client,
-        mock_validate_creds,
+        self, mock_load_template, aws_credentials, mock_aws_resources
     ):
         """Test deploy-events command with dry-run."""
-        mock_validate_creds.return_value = True
-        mock_validate_cluster.return_value = True
         mock_load_template.return_value = {"AWSTemplateFormatVersion": "2010-09-09"}
 
         result = self.runner.invoke(
@@ -194,7 +191,7 @@ class TestECSWorkerCLI:
                 "--stack-name",
                 "test-events",
                 "--existing-cluster-arn",
-                "arn:aws:ecs:us-east-1:123456789012:cluster/test",
+                mock_aws_resources["cluster_arn"],
                 "--dry-run",
             ],
         )
@@ -203,119 +200,126 @@ class TestECSWorkerCLI:
         assert "DRY RUN" in result.stdout
         assert "test-events" in result.stdout
 
-    @patch("prefect_aws.cli.ecs_worker.validate_aws_credentials")
-    @patch("prefect_aws.cli.ecs_worker.get_aws_client")
-    @patch("prefect_aws.cli.ecs_worker.list_cli_deployed_stacks")
-    def test_list_stacks(self, mock_list_stacks, mock_get_client, mock_validate_creds):
+    def test_list_stacks(self, aws_credentials):
         """Test list stacks command."""
-        from datetime import datetime
+        with mock_cloudformation(), mock_sts():
+            # Create a test stack with CLI tags
+            cf = boto3.client("cloudformation", region_name="us-east-1")
+            cf.create_stack(
+                StackName="test-stack",
+                TemplateBody='{"AWSTemplateFormatVersion": "2010-09-09", "Resources": {}}',
+                Tags=[
+                    {"Key": "ManagedBy", "Value": "prefect-aws-cli"},
+                    {"Key": "DeploymentType", "Value": "ecs-worker"},
+                    {"Key": "StackType", "Value": "service"},
+                    {"Key": "WorkPoolName", "Value": "test-pool"},
+                    {"Key": "CreatedAt", "Value": "2023-01-01T00:00:00Z"},
+                ],
+            )
 
-        mock_validate_creds.return_value = True
-        mock_list_stacks.return_value = [
-            {
-                "StackName": "test-stack",
-                "StackStatus": "CREATE_COMPLETE",
-                "CreationTime": datetime(2023, 1, 1),
-                "WorkPoolName": "test-pool",
-                "StackType": "service",
-                "Description": "Test stack",
-            }
-        ]
+            result = self.runner.invoke(app, ["ecs-worker", "list"])
 
-        result = self.runner.invoke(app, ["ecs-worker", "list"])
+            assert result.exit_code == 0
+            # Output should contain stack information
+            assert "test-stack" in result.stdout
 
-        assert result.exit_code == 0
-        # Output should contain stack information
-
-    @patch("prefect_aws.cli.ecs_worker.validate_aws_credentials")
-    @patch("prefect_aws.cli.ecs_worker.get_aws_client")
-    @patch("prefect_aws.cli.ecs_worker.list_cli_deployed_stacks")
-    def test_list_stacks_json_format(
-        self, mock_list_stacks, mock_get_client, mock_validate_creds
-    ):
+    def test_list_stacks_json_format(self, aws_credentials):
         """Test list stacks command with JSON output."""
-        from datetime import datetime
+        with mock_cloudformation(), mock_sts():
+            # Create a test stack with CLI tags
+            cf = boto3.client("cloudformation", region_name="us-east-1")
+            cf.create_stack(
+                StackName="test-stack",
+                TemplateBody='{"AWSTemplateFormatVersion": "2010-09-09", "Resources": {}}',
+                Tags=[
+                    {"Key": "ManagedBy", "Value": "prefect-aws-cli"},
+                    {"Key": "DeploymentType", "Value": "ecs-worker"},
+                    {"Key": "StackType", "Value": "service"},
+                    {"Key": "WorkPoolName", "Value": "test-pool"},
+                    {"Key": "CreatedAt", "Value": "2023-01-01T00:00:00Z"},
+                ],
+            )
 
-        mock_validate_creds.return_value = True
-        mock_list_stacks.return_value = [
-            {
-                "StackName": "test-stack",
-                "StackStatus": "CREATE_COMPLETE",
-                "CreationTime": datetime(2023, 1, 1),
-                "WorkPoolName": "test-pool",
-                "StackType": "service",
-                "Description": "Test stack",
-            }
-        ]
+            result = self.runner.invoke(app, ["ecs-worker", "list", "--format", "json"])
 
-        result = self.runner.invoke(app, ["ecs-worker", "list", "--format", "json"])
+            assert result.exit_code == 0
+            # Should be valid JSON
+            json.loads(result.stdout)
 
-        assert result.exit_code == 0
-        # Should be valid JSON
-        json.loads(result.stdout)
-
-    @patch("prefect_aws.cli.ecs_worker.validate_aws_credentials")
-    @patch("prefect_aws.cli.ecs_worker.get_aws_client")
-    @patch("prefect_aws.cli.ecs_worker.validate_stack_is_cli_managed")
-    @patch("prefect_aws.cli.ecs_worker.get_stack_status")
-    def test_stack_status(
-        self,
-        mock_get_status,
-        mock_validate_managed,
-        mock_get_client,
-        mock_validate_creds,
-    ):
+    def test_stack_status(self, aws_credentials):
         """Test stack status command."""
-        mock_validate_creds.return_value = True
-        mock_validate_managed.return_value = True
-        mock_get_status.return_value = {
-            "StackName": "test-stack",
-            "StackStatus": "CREATE_COMPLETE",
-            "CreationTime": "2023-01-01T00:00:00Z",
-        }
+        with mock_cloudformation(), mock_sts():
+            # Create a test stack with CLI tags
+            cf = boto3.client("cloudformation", region_name="us-east-1")
+            cf.create_stack(
+                StackName="test-stack",
+                TemplateBody='{"AWSTemplateFormatVersion": "2010-09-09", "Resources": {}}',
+                Tags=[
+                    {"Key": "ManagedBy", "Value": "prefect-aws-cli"},
+                    {"Key": "DeploymentType", "Value": "ecs-worker"},
+                    {"Key": "StackType", "Value": "service"},
+                    {"Key": "WorkPoolName", "Value": "test-pool"},
+                ],
+            )
 
-        result = self.runner.invoke(app, ["ecs-worker", "status", "test-stack"])
+            result = self.runner.invoke(app, ["ecs-worker", "status", "test-stack"])
 
-        assert result.exit_code == 0
-        assert "test-stack" in result.stdout
-        assert "CREATE_COMPLETE" in result.stdout
+            assert result.exit_code == 0
+            assert "test-stack" in result.stdout
+            assert "CREATE_COMPLETE" in result.stdout
 
-    @patch("prefect_aws.cli.ecs_worker.validate_aws_credentials")
-    @patch("prefect_aws.cli.ecs_worker.get_aws_client")
-    @patch("prefect_aws.cli.ecs_worker.validate_stack_is_cli_managed")
-    def test_stack_status_not_cli_managed(
-        self, mock_validate_managed, mock_get_client, mock_validate_creds
-    ):
+    def test_stack_status_not_cli_managed(self, aws_credentials):
         """Test stack status command for non-CLI managed stack."""
-        mock_validate_creds.return_value = True
-        mock_validate_managed.return_value = False
+        with mock_cloudformation(), mock_sts():
+            # Create a test stack without CLI tags
+            cf = boto3.client("cloudformation", region_name="us-east-1")
+            cf.create_stack(
+                StackName="test-stack",
+                TemplateBody='{"AWSTemplateFormatVersion": "2010-09-09", "Resources": {}}',
+                Tags=[
+                    {"Key": "Owner", "Value": "someone-else"},
+                ],
+            )
 
-        result = self.runner.invoke(app, ["ecs-worker", "status", "test-stack"])
+            result = self.runner.invoke(app, ["ecs-worker", "status", "test-stack"])
 
-        assert result.exit_code == 1
-        # Check both stdout and stderr as behavior varies across Typer versions
-        output = result.stdout
-        try:
-            output += result.stderr
-        except (ValueError, AttributeError):
-            pass  # stderr not separately captured
-        assert "not deployed by prefect-aws CLI" in output
+            assert result.exit_code == 1
+            # Check both stdout and stderr as behavior varies across Typer versions
+            output = result.stdout
+            try:
+                output += result.stderr
+            except (ValueError, AttributeError):
+                pass  # stderr not separately captured
+            assert "not deployed by prefect-aws CLI" in output
 
-    @patch("prefect_aws.cli.ecs_worker.validate_aws_credentials")
-    @patch("prefect_aws.cli.ecs_worker.get_aws_client")
-    @patch("prefect_aws.cli.ecs_worker.delete_stack")
-    def test_delete_stack_force(
-        self, mock_delete_stack, mock_get_client, mock_validate_creds
-    ):
+    def test_delete_stack_force(self, aws_credentials):
         """Test delete stack command with force flag."""
-        mock_validate_creds.return_value = True
+        with mock_cloudformation(), mock_sts():
+            # Create a test stack with CLI tags
+            cf = boto3.client("cloudformation", region_name="us-east-1")
+            cf.create_stack(
+                StackName="test-stack",
+                TemplateBody='{"AWSTemplateFormatVersion": "2010-09-09", "Resources": {}}',
+                Tags=[
+                    {"Key": "ManagedBy", "Value": "prefect-aws-cli"},
+                    {"Key": "DeploymentType", "Value": "ecs-worker"},
+                ],
+            )
 
-        result = self.runner.invoke(
-            app, ["ecs-worker", "delete", "test-stack", "--force"]
-        )
+            result = self.runner.invoke(
+                app, ["ecs-worker", "delete", "test-stack", "--force"]
+            )
 
-        assert result.exit_code == 0
-        mock_delete_stack.assert_called_once()
+            assert result.exit_code == 0
+
+            # Verify the stack was deleted
+            try:
+                cf.describe_stacks(StackName="test-stack")
+                # If we get here, the stack wasn't deleted
+                assert False, "Stack should have been deleted"
+            except cf.exceptions.ClientError as e:
+                # Stack should not exist anymore
+                assert "does not exist" in str(e) or "DELETE_COMPLETE" in str(e)
 
 
 class TestECSWorkerUtils:
