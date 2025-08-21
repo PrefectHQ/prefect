@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import datetime
 import inspect
 import logging
 import threading
@@ -34,6 +35,7 @@ from opentelemetry import trace
 from typing_extensions import ParamSpec, Self
 
 import prefect.types._datetime
+from prefect._internal.compatibility import deprecated
 from prefect.cache_policies import CachePolicy
 from prefect.client.orchestration import PrefectClient, SyncPrefectClient, get_client
 from prefect.client.schemas import TaskRun
@@ -237,6 +239,11 @@ class BaseTaskRunEngine(Generic[P, R]):
             context={"current_task_run": self.task_run, "current_task": self.task},
         )
 
+    @deprecated.deprecated_callable(
+        start_date=datetime.datetime(2025, 8, 21),
+        end_date=datetime.datetime(2025, 11, 21),
+        help="This method is no longer used and will be removed in a future version.",
+    )
     def record_terminal_state_timing(self, state: State) -> None:
         if self.task_run and self.task_run.start_time and not self.task_run.end_time:
             self.task_run.end_time = state.timestamp
@@ -443,11 +450,20 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         self.task_run.state_id = new_state.id
         self.task_run.state_type = new_state.type
         self.task_run.state_name = new_state.name
+        if last_state.is_running():
+            self.task_run.total_run_time += new_state.timestamp - last_state.timestamp
 
         if new_state.is_running():
             self.task_run.run_count += 1
 
         if new_state.is_final():
+            if (
+                self.task_run
+                and self.task_run.start_time
+                and not self.task_run.end_time
+            ):
+                self.task_run.end_time = new_state.timestamp
+
             if isinstance(state.data, ResultRecord):
                 result = state.data.result
             else:
@@ -515,7 +531,6 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         if transaction.is_committed():
             terminal_state.name = "Cached"
 
-        self.record_terminal_state_timing(terminal_state)
         self.set_state(terminal_state)
         self._return_value = result
 
@@ -585,7 +600,6 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                     write_result=True,
                 )
             )
-            self.record_terminal_state_timing(state)
             self.set_state(state)
             self._raised = exc
             self._telemetry.end_span_on_failure(state.message if state else None)
@@ -602,7 +616,6 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                 message=message,
                 name="TimedOut",
             )
-            self.record_terminal_state_timing(state)
             self.set_state(state)
             self._raised = exc
 
@@ -610,7 +623,6 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         state = run_coro_as_sync(exception_to_crashed_state(exc))
         self.logger.error(f"Crash detected! {state.message}")
         self.logger.debug("Crash details:", exc_info=exc)
-        self.record_terminal_state_timing(state)
         self.set_state(state, force=True)
         self._raised = exc
         self._telemetry.record_exception(exc)
@@ -1029,10 +1041,20 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         self.task_run.state_type = new_state.type
         self.task_run.state_name = new_state.name
 
+        if last_state.is_running():
+            self.task_run.total_run_time += new_state.timestamp - last_state.timestamp
+
         if new_state.is_running():
             self.task_run.run_count += 1
 
         if new_state.is_final():
+            if (
+                self.task_run
+                and self.task_run.start_time
+                and not self.task_run.end_time
+            ):
+                self.task_run.end_time = new_state.timestamp
+
             if isinstance(new_state.data, ResultRecord):
                 result = new_state.data.result
             else:
@@ -1097,7 +1119,6 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         if transaction.is_committed():
             terminal_state.name = "Cached"
 
-        self.record_terminal_state_timing(terminal_state)
         await self.set_state(terminal_state)
         self._return_value = result
         self._telemetry.end_span_on_success()
@@ -1166,7 +1187,6 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                 message="Task run encountered an exception",
                 result_store=get_result_store(),
             )
-            self.record_terminal_state_timing(state)
             await self.set_state(state)
             self._raised = exc
 
@@ -1185,7 +1205,6 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                 message=message,
                 name="TimedOut",
             )
-            self.record_terminal_state_timing(state)
             await self.set_state(state)
             self._raised = exc
             self._telemetry.end_span_on_failure(state.message)
@@ -1194,7 +1213,6 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         state = await exception_to_crashed_state(exc)
         self.logger.error(f"Crash detected! {state.message}")
         self.logger.debug("Crash details:", exc_info=exc)
-        self.record_terminal_state_timing(state)
         await self.set_state(state, force=True)
         self._raised = exc
 
