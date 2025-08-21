@@ -1,6 +1,7 @@
 """ECS worker service stack - deploys to existing cluster with event infrastructure."""
 
 from aws_cdk import (
+    CfnCondition,
     CfnOutput,
     CfnParameter,
     Duration,
@@ -24,25 +25,29 @@ class EcsServiceStack(EcsWorkerBase):
         super().__init__(scope, construct_id, **kwargs)
 
         # Additional parameters for service-only deployment
-        self.existing_cluster_arn = CfnParameter(
+        self.existing_cluster_identifier = CfnParameter(
             self,
-            "ExistingClusterArn",
+            "ExistingClusterIdentifier",
             type="String",
-            description="ARN of existing ECS cluster to deploy to",
+            description="ECS cluster name or ARN. You can provide either the cluster name (e.g., 'my-cluster') or the full ARN (e.g., 'arn:aws:ecs:us-east-1:123456789012:cluster/my-cluster'). Find available clusters in the ECS console.",
+            allowed_pattern=r"^(arn:aws:ecs:[a-z0-9-]+:\d{12}:cluster/.+|[a-zA-Z][a-zA-Z0-9_-]{0,254})$",
+            constraint_description="Must be either a valid cluster name (1-255 characters) or a complete ECS cluster ARN",
         )
 
         self.existing_vpc_id = CfnParameter(
             self,
             "ExistingVpcId",
             type="String",
-            description="VPC ID where the existing cluster is located",
+            description="VPC ID where the existing cluster is located (e.g., vpc-12345678). Find this in the EC2 console or run 'aws ec2 describe-vpcs'.",
+            allowed_pattern=r"^vpc-[0-9a-f]{8,17}$",
+            constraint_description="Must be a valid VPC ID in the format: vpc-xxxxxxxx",
         )
 
         self.existing_subnet_ids = CfnParameter(
             self,
             "ExistingSubnetIds",
             type="CommaDelimitedList",
-            description="Comma-separated list of subnet IDs for the service",
+            description="Comma-separated list of subnet IDs for the service (e.g., subnet-12345678,subnet-87654321). Use private subnets for better security. Find these in the VPC console or run 'aws ec2 describe-subnets --filters Name=vpc-id,Values=YOUR_VPC_ID'.",
         )
 
         self.desired_count = CfnParameter(
@@ -69,29 +74,34 @@ class EcsServiceStack(EcsWorkerBase):
             default=10,
         )
 
-        self.assign_public_ip = CfnParameter(
+        # Condition to check if cluster identifier is an ARN
+        self.is_cluster_arn_condition = CfnCondition(
             self,
-            "AssignPublicIp",
-            type="String",
-            description="Whether to assign public IP addresses to tasks",
-            allowed_values=["true", "false"],
-            default="false",
+            "IsClusterArn",
+            expression=Fn.condition_equals(
+                Fn.select(
+                    0, Fn.split(":", self.existing_cluster_identifier.value_as_string)
+                ),
+                "arn",
+            ),
         )
 
         # Get existing resources
         self.vpc = self._get_existing_vpc()
+        # Convert cluster identifier to ARN if needed
+        self.cluster_arn = self._get_cluster_arn()
         self.cluster = self._get_existing_cluster()
 
         # Create infrastructure
         self.queue, self.dlq = self.create_sqs_infrastructure()
         self.eventbridge_rule = self.create_eventbridge_rule(
-            self.queue, cluster_arn=self.existing_cluster_arn.value_as_string
+            self.queue, cluster_arn=self.cluster_arn
         )
         self.execution_role = self.create_task_execution_role()
         self.task_role = self.create_task_role(self.queue)
         self.log_group = self.create_log_group()
         self.task_definition = self.create_task_definition(
-            self.execution_role, self.task_role, self.log_group
+            self.execution_role, self.task_role, self.log_group, self.queue
         )
         self.service = self._create_service()
         self._setup_autoscaling()
@@ -110,18 +120,36 @@ class EcsServiceStack(EcsWorkerBase):
             ],  # Will be overridden at deployment
         )
 
+    def _get_cluster_arn(self) -> str:
+        """Convert cluster identifier to ARN if it's just a name."""
+        cluster_identifier = self.existing_cluster_identifier.value_as_string
+        # If it already looks like an ARN, use it as-is
+        # Otherwise, construct ARN from cluster name
+        return Fn.condition_if(
+            self.is_cluster_arn_condition.logical_id,
+            cluster_identifier,
+            Fn.sub(
+                "arn:aws:ecs:${AWS::Region}:${AWS::AccountId}:cluster/${ClusterName}",
+                {"ClusterName": cluster_identifier},
+            ),
+        ).to_string()
+
     def _get_existing_cluster(self) -> ecs.ICluster:
         """Import existing ECS cluster."""
-        # Extract cluster name from ARN (format: arn:aws:ecs:region:account:cluster/cluster-name)
-        cluster_name = Fn.select(
-            5, Fn.split("/", self.existing_cluster_arn.value_as_string)
-        )
+        # Extract cluster name from ARN or use the identifier if it's already a name
+        cluster_name = Fn.condition_if(
+            self.is_cluster_arn_condition.logical_id,
+            Fn.select(
+                1, Fn.split("/", self.existing_cluster_identifier.value_as_string)
+            ),
+            self.existing_cluster_identifier.value_as_string,
+        ).to_string()
 
         return ecs.Cluster.from_cluster_attributes(
             self,
             "ExistingCluster",
             cluster_name=cluster_name,
-            cluster_arn=self.existing_cluster_arn.value_as_string,
+            cluster_arn=self.cluster_arn,
             vpc=self.vpc,
             security_groups=[],
         )
@@ -168,7 +196,7 @@ class EcsServiceStack(EcsWorkerBase):
             desired_count=self.desired_count.value_as_number,
             security_groups=[security_group],
             vpc_subnets=ec2.SubnetSelection(subnets=subnets),
-            assign_public_ip=True,  # Default to true for synthesis, can be overridden at deployment
+            assign_public_ip=False,
             capacity_provider_strategies=[
                 ecs.CapacityProviderStrategy(
                     capacity_provider="FARGATE",

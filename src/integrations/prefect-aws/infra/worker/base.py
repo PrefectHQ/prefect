@@ -6,6 +6,7 @@ from aws_cdk import (
     CfnParameter,
     Duration,
     Fn,
+    RemovalPolicy,
     SecretValue,
     Stack,
 )
@@ -98,6 +99,14 @@ class EcsWorkerBase(Stack):
             default=30,
         )
 
+        self.existing_log_group_name = CfnParameter(
+            self,
+            "ExistingLogGroupName",
+            type="String",
+            description="Name of existing CloudWatch log group to use (leave empty to create new). Format: /ecs/your-work-pool-name",
+            default="",
+        )
+
         # Condition to check if we should create a new secret
         self.create_new_secret_condition = CfnCondition(
             self,
@@ -113,6 +122,15 @@ class EcsWorkerBase(Stack):
             "HasWorkQueues",
             expression=Fn.condition_not(
                 Fn.condition_equals(Fn.select(0, self.work_queues.value_as_list), "")
+            ),
+        )
+
+        # Condition to check if we should use existing log group
+        self.use_existing_log_group_condition = CfnCondition(
+            self,
+            "UseExistingLogGroup",
+            expression=Fn.condition_not(
+                Fn.condition_equals(self.existing_log_group_name.value_as_string, "")
             ),
         )
 
@@ -279,15 +297,30 @@ class EcsWorkerBase(Stack):
                     "ecs:StopTask",
                     "ecs:DescribeClusters",
                     "ecs:ListClusters",
+                    "ecs:RegisterTaskDefinition",
+                    "ecs:DeregisterTaskDefinition",
+                    "ecs:ListTaskDefinitions",
+                    "ecs:TagResource",
                     "ec2:DescribeNetworkInterfaces",
                     "ec2:DescribeSubnets",
+                    "ec2:DescribeVpcs",
                     "ec2:DescribeSecurityGroups",
                     "logs:CreateLogGroup",
                     "logs:CreateLogStream",
                     "logs:PutLogEvents",
+                    "logs:GetLogEvents",
                     "logs:DescribeLogStreams",
                 ],
                 resources=["*"],
+            )
+        )
+
+        # Grant IAM PassRole permission for any role (required for dynamic task definitions)
+        role.add_to_policy(
+            iam.PolicyStatement(
+                effect=iam.Effect.ALLOW,
+                actions=["iam:PassRole"],
+                resources=["arn:aws:iam::*:role/*"],
             )
         )
 
@@ -295,11 +328,25 @@ class EcsWorkerBase(Stack):
 
     def create_log_group(self) -> logs.LogGroup:
         """Create CloudWatch log group for worker tasks."""
+        # Use existing log group name if provided, otherwise generate one
+        log_group_name = Fn.condition_if(
+            self.use_existing_log_group_condition.logical_id,
+            self.existing_log_group_name.value_as_string,
+            f"/ecs/{self.work_pool_name.value_as_string}",
+        ).to_string()
+
         log_group = logs.LogGroup(
             self,
             "WorkerLogGroup",
-            log_group_name=f"/ecs/{self.work_pool_name.value_as_string}",
+            log_group_name=log_group_name,
             retention=logs.RetentionDays.ONE_MONTH,  # Default, will be overridden by parameter
+            removal_policy=RemovalPolicy.RETAIN,  # Preserve logs when stack is deleted
+        )
+
+        # Configure the underlying CloudFormation resource with proper retention
+        cfn_log_group = log_group.node.default_child
+        cfn_log_group.add_property_override(
+            "RetentionInDays", self.log_retention_days.value_as_number
         )
 
         CfnOutput(
@@ -325,6 +372,7 @@ class EcsWorkerBase(Stack):
         execution_role: iam.Role,
         task_role: iam.Role,
         log_group: logs.LogGroup,
+        queue: sqs.Queue = None,
     ) -> ecs.TaskDefinition:
         """Create ECS task definition for the worker."""
         cpu_param = CfnParameter(
@@ -355,33 +403,31 @@ class EcsWorkerBase(Stack):
         )
 
         # Build worker start command using shell to handle multiple --work-queue flags
-        # Base command parts
-        base_cmd_parts = [
-            "prefect worker start",
-            "--type ecs",
-            f"--pool {self.work_pool_name.value_as_string}",
-            "--with-healthcheck",
-        ]
+        # Create base command template for substitution
+        base_cmd_template = (
+            "prefect worker start --type ecs --pool ${WorkPoolName} --with-healthcheck"
+        )
 
         # Build the command with conditional work queues
         command_with_queues = Fn.condition_if(
             self.has_work_queues_condition.logical_id,
             # If work queues specified, add multiple --work-queue flags
             Fn.sub(
-                " ".join(base_cmd_parts) + " ${WorkQueueFlags}",
+                base_cmd_template + " --work-queue ${WorkQueueList}",
                 {
-                    "WorkQueueFlags": Fn.sub(
-                        "--work-queue ${InnerItem}",
-                        {
-                            "InnerItem": Fn.join(
-                                " --work-queue ", self.work_queues.value_as_list
-                            )
-                        },
-                    )
+                    "WorkPoolName": self.work_pool_name.value_as_string,
+                    "WorkQueueList": Fn.join(
+                        " --work-queue ", self.work_queues.value_as_list
+                    ),
                 },
             ),
             # If no work queues, just the base command
-            " ".join(base_cmd_parts),
+            Fn.sub(
+                base_cmd_template,
+                {
+                    "WorkPoolName": self.work_pool_name.value_as_string,
+                },
+            ),
         ).to_string()
 
         command_args = ["sh", "-c", command_with_queues]
@@ -390,6 +436,12 @@ class EcsWorkerBase(Stack):
             "PREFECT_API_URL": self.prefect_api_url.value_as_string,
             "PREFECT_INTEGRATIONS_AWS_ECS_OBSERVER_ENABLED": "true",
         }
+
+        # Add SQS queue name if provided
+        if queue:
+            environment_vars["PREFECT_INTEGRATIONS_AWS_ECS_OBSERVER_SQS_QUEUE_NAME"] = (
+                queue.queue_name
+            )
 
         # Add container
         task_definition.add_container(
@@ -406,7 +458,10 @@ class EcsWorkerBase(Stack):
                 log_group=log_group,
             ),
             health_check=ecs.HealthCheck(
-                command=["CMD-SHELL", "curl -f http://localhost:8080/health || exit 1"],
+                command=[
+                    "CMD-SHELL",
+                    "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8080/health', timeout=5)\"",
+                ],
                 interval=Duration.seconds(30),
                 timeout=Duration.seconds(5),
                 retries=3,

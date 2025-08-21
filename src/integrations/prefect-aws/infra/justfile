@@ -16,5 +16,14 @@ clean:
 # Generate templates with clean first
 generate-clean: clean generate-cfn
 
+# Validate generated CloudFormation templates
+validate-cfn:
+    @echo "Validating CloudFormation templates..."
+    aws cloudformation validate-template --template-body file://cdk.out/PrefectEcsServiceStack.template.json
+    aws cloudformation validate-template --template-body file://cdk.out/PrefectEcsEventsStack.template.json
+    @echo "CloudFormation templates validated successfully!"
+
+
+# Run tests for CDK stacks
 test:
     uv run pytest
