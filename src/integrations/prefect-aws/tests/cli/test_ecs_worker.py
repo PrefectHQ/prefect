@@ -659,6 +659,8 @@ class TestWorkPoolDefaults:
                     "vpc-12345",
                     "--existing-subnet-ids",
                     "subnet-1,subnet-2",
+                    "--region",
+                    "us-east-1",
                     "--wait",  # This should trigger work pool update
                 ],
             )
@@ -732,6 +734,8 @@ class TestWorkPoolDefaults:
                     "vpc-12345",
                     "--existing-subnet-ids",
                     "subnet-1,subnet-2",
+                    "--region",
+                    "us-east-1",
                     "--no-wait",  # This should skip work pool update
                 ],
             )
