@@ -50,6 +50,19 @@ def deploy_service(
             help="Prefect API key (if not using existing secret)", hide_input=True
         ),
     ] = "",
+    prefect_auth_string_secret_arn: Annotated[
+        str,
+        typer.Option(
+            help="ARN of existing Prefect auth string secret for self-hosted servers"
+        ),
+    ] = "",
+    prefect_auth_string: Annotated[
+        str,
+        typer.Option(
+            help="Prefect auth string for self-hosted servers (if not using existing secret)",
+            hide_input=True,
+        ),
+    ] = "",
     # ECS Configuration
     existing_cluster_identifier: Annotated[
         Optional[str], typer.Option(help="ECS cluster name or ARN")
@@ -122,13 +135,13 @@ def deploy_service(
             )
     else:
         # Self-hosted Prefect server - auth is optional
-        if not prefect_api_key_secret_arn and not prefect_api_key:
+        if not prefect_auth_string_secret_arn and not prefect_auth_string:
             auth_needed = typer.confirm(
                 "Does your Prefect server require authentication?", default=False
             )
             if auth_needed:
-                prefect_api_key = typer.prompt(
-                    "Prefect auth string (optional)", default="", hide_input=True
+                prefect_auth_string = typer.prompt(
+                    "Prefect auth string (username:password format)", hide_input=True
                 )
 
     if not existing_cluster_identifier:
@@ -179,6 +192,11 @@ def deploy_service(
             "ParameterValue": prefect_api_key_secret_arn,
         },
         {"ParameterKey": "PrefectApiKey", "ParameterValue": prefect_api_key},
+        {
+            "ParameterKey": "PrefectAuthStringSecretArn",
+            "ParameterValue": prefect_auth_string_secret_arn,
+        },
+        {"ParameterKey": "PrefectAuthString", "ParameterValue": prefect_auth_string},
         {
             "ParameterKey": "ExistingClusterIdentifier",
             "ParameterValue": existing_cluster_identifier,
@@ -233,35 +251,9 @@ def deploy_events(
     stack_name: Annotated[
         Optional[str], typer.Option(help="CloudFormation stack name")
     ] = None,
-    # Prefect Configuration
-    prefect_api_url: Annotated[
-        Optional[str], typer.Option(help="Prefect API URL")
-    ] = None,
-    prefect_api_key_secret_arn: Annotated[
-        str, typer.Option(help="ARN of existing Prefect API key secret")
-    ] = "",
-    prefect_api_key: Annotated[
-        str,
-        typer.Option(
-            help="Prefect API key (if not using existing secret)", hide_input=True
-        ),
-    ] = "",
-    # ECS Configuration
     existing_cluster_arn: Annotated[
         Optional[str], typer.Option(help="ECS cluster ARN")
     ] = None,
-    # Worker Configuration
-    docker_image: Annotated[
-        str, typer.Option(help="Docker image for worker")
-    ] = "prefecthq/prefect-aws:latest",
-    work_queues: Annotated[str, typer.Option(help="Comma-separated work queues")] = "",
-    # Logging Configuration
-    log_retention_days: Annotated[
-        int, typer.Option(help="CloudWatch log retention days")
-    ] = 30,
-    existing_log_group_name: Annotated[
-        str, typer.Option(help="Existing log group name")
-    ] = "",
     # AWS Configuration
     region: Annotated[Optional[str], typer.Option(help="AWS region")] = None,
     profile: Annotated[Optional[str], typer.Option(help="AWS profile")] = None,
@@ -285,32 +277,6 @@ def deploy_events(
     if not stack_name:
         stack_name = typer.prompt("Stack name", default=f"{work_pool_name}-events")
 
-    # Handle Prefect API URL and authentication
-    if not prefect_api_url:
-        prefect_api_url = typer.prompt(
-            "Prefect API URL", default="https://api.prefect.cloud/api"
-        )
-
-    # Check if this is Prefect Cloud (requires API key)
-    is_prefect_cloud = "api.prefect.cloud" in prefect_api_url.lower()
-
-    if is_prefect_cloud:
-        # Prefect Cloud requires API key
-        if not prefect_api_key_secret_arn and not prefect_api_key:
-            prefect_api_key = typer.prompt(
-                "Prefect API key (required for Prefect Cloud)", hide_input=True
-            )
-    else:
-        # Self-hosted Prefect server - auth is optional
-        if not prefect_api_key_secret_arn and not prefect_api_key:
-            auth_needed = typer.confirm(
-                "Does your Prefect server require authentication?", default=False
-            )
-            if auth_needed:
-                prefect_api_key = typer.prompt(
-                    "Prefect auth string (optional)", default="", hide_input=True
-                )
-
     if not existing_cluster_arn:
         existing_cluster_arn = typer.prompt("ECS cluster ARN")
 
@@ -333,20 +299,7 @@ def deploy_events(
     # Prepare parameters
     parameters = [
         {"ParameterKey": "WorkPoolName", "ParameterValue": work_pool_name},
-        {"ParameterKey": "PrefectApiUrl", "ParameterValue": prefect_api_url},
-        {
-            "ParameterKey": "PrefectApiKeySecretArn",
-            "ParameterValue": prefect_api_key_secret_arn,
-        },
-        {"ParameterKey": "PrefectApiKey", "ParameterValue": prefect_api_key},
         {"ParameterKey": "ExistingClusterArn", "ParameterValue": existing_cluster_arn},
-        {"ParameterKey": "DockerImage", "ParameterValue": docker_image},
-        {"ParameterKey": "WorkQueues", "ParameterValue": work_queues},
-        {"ParameterKey": "LogRetentionDays", "ParameterValue": str(log_retention_days)},
-        {
-            "ParameterKey": "ExistingLogGroupName",
-            "ParameterValue": existing_log_group_name,
-        },
     ]
 
     # Prepare tags
@@ -357,7 +310,6 @@ def deploy_events(
         console.print(f"Stack Name: {stack_name}")
         console.print(f"Work Pool: {work_pool_name}")
         console.print(f"Cluster ARN: {existing_cluster_arn}")
-        console.print(f"Docker Image: {docker_image}")
         return
 
     # Deploy stack
