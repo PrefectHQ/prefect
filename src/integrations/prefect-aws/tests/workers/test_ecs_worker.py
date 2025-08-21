@@ -1,5 +1,6 @@
 import json
 import logging
+from functools import partial
 from itertools import product
 from unittest.mock import ANY, AsyncMock, MagicMock
 from unittest.mock import patch as mock_patch
@@ -7,9 +8,9 @@ from uuid import uuid4
 
 import botocore
 import pytest
-import yaml
 from exceptiongroup import ExceptionGroup, catch
 from moto import mock_aws
+from moto.backends import get_backend
 from moto.ec2.utils import generate_instance_identity_document
 from moto.moto_api import state_manager
 from prefect_aws.workers.ecs_worker import (
@@ -36,16 +37,17 @@ from prefect.settings.context import temporary_settings
 from prefect.utilities.slugify import slugify
 from prefect.utilities.templating import find_placeholders
 
-TEST_TASK_DEFINITION_YAML = """
-containerDefinitions:
-- cpu: 1024
-  image: prefecthq/prefect:2.1.0-python3.9
-  memory: 2048
-  name: prefect
-family: prefect
-"""
-
-TEST_TASK_DEFINITION = yaml.safe_load(TEST_TASK_DEFINITION_YAML)
+TEST_TASK_DEFINITION = {
+    "containerDefinitions": [
+        {
+            "cpu": 1024,
+            "image": "prefecthq/prefect:3-latest",
+            "memory": 2048,
+            "name": "prefect",
+        },
+    ],
+    "family": "prefect",
+}
 
 state_manager.set_transition(
     model_name="ecs::task",
@@ -180,17 +182,39 @@ def describe_task_definition(ecs_client, task):
     )["taskDefinition"]
 
 
+def patch_calculate_task_resource_requirements(
+    _calculate_task_resource_requirements, task_definition
+):
+    """
+    Adds support for non-EC2 execution modes to moto's calculation of task definition.
+    """
+    for container_definition in task_definition.container_definitions:
+        container_definition.setdefault("memory", 0)
+    return _calculate_task_resource_requirements(task_definition)
+
+
 @pytest.fixture
 def ecs_mocks(aws_credentials: AwsCredentials):
     with mock_aws():
         session = aws_credentials.get_boto3_session()
+        ecs_client = session.client("ecs")
 
-        create_test_ecs_cluster(session.client("ecs"), "default")
+        create_test_ecs_cluster(ecs_client, "default")
 
         # NOTE: Even when using FARGATE, moto requires container instances to be
         #       registered. This differs from AWS behavior.
         add_ec2_instance_to_ecs_cluster(session, "default")
 
+        # This has the potential to break with moto upgrades since we're patching
+        # and internal method, but it was stable between 4 and 5 (so far)
+        ecs_backends = get_backend("ecs")
+        for account in ecs_backends:
+            for region in ecs_backends[account]:
+                backend = ecs_backends[account][region]
+                orig = backend._calculate_task_resource_requirements
+                backend._calculate_task_resource_requirements = partial(
+                    patch_calculate_task_resource_requirements, orig
+                )
         yield
 
 
@@ -255,6 +279,7 @@ async def test_default(aws_credentials: AwsCredentials, flow_run: FlowRun):
             {
                 "containerArn": ANY,
                 "cpu": 0,
+                "memory": 0,
                 "healthStatus": "HEALTHY",
                 "exitCode": 0,
                 "image": ANY,
@@ -286,6 +311,7 @@ async def test_default(aws_credentials: AwsCredentials, flow_run: FlowRun):
             "name": ECS_DEFAULT_CONTAINER_NAME,
             "image": get_prefect_image_name(),
             "cpu": 0,
+            "memory": 0,
             "portMappings": [],
             "essential": True,
             "environment": [],
@@ -318,6 +344,7 @@ async def test_image(aws_credentials: AwsCredentials, flow_run: FlowRun):
             "name": ECS_DEFAULT_CONTAINER_NAME,
             "image": "prefecthq/prefect-dev:main-python3.9",
             "cpu": 0,
+            "memory": 0,
             "portMappings": [],
             "essential": True,
             "environment": [],
