@@ -216,11 +216,11 @@ class EcsObserver:
         }
 
     async def run(self, started_event: asyncio.Event | None = None):
+        if started_event:
+            started_event.set()
         async with AsyncExitStack() as stack:
             task_group = await stack.enter_async_context(anyio.create_task_group())
             await stack.enter_async_context(self.ecs_tags_reader)
-            if started_event:
-                started_event.set()
 
             async for message in self.sqs_subscriber.stream_messages():
                 if not (body := message.get("Body")):
