@@ -253,13 +253,12 @@ def test_parameter_validation():
     service_template = assertions.Template.from_stack(service_stack)
     events_template = assertions.Template.from_stack(events_stack)
 
-    # Common parameters
-    for template in [service_template, events_template]:
-        template.has_parameter("WorkPoolName", {"Type": "String"})
-        template.has_parameter("PrefectApiUrl", {"Type": "String"})
-        template.has_parameter("DockerImage", {"Type": "String"})
-        template.has_parameter("WorkQueues", {"Type": "CommaDelimitedList"})
-        template.has_parameter("LogRetentionDays", {"Type": "Number"})
+    # Service stack parameters
+    service_template.has_parameter("WorkPoolName", {"Type": "String"})
+    service_template.has_parameter("PrefectApiUrl", {"Type": "String"})
+    service_template.has_parameter("DockerImage", {"Type": "String"})
+    service_template.has_parameter("WorkQueues", {"Type": "CommaDelimitedList"})
+    service_template.has_parameter("LogRetentionDays", {"Type": "Number"})
 
     # Service-specific parameters
     service_template.has_parameter(
@@ -274,8 +273,28 @@ def test_parameter_validation():
     )
     service_template.has_parameter("ExistingSubnetIds", {"Type": "CommaDelimitedList"})
 
-    # Events stack should require cluster ARN (no default)
+    # Events stack parameters (minimal set)
+    events_template.has_parameter("WorkPoolName", {"Type": "String"})
     events_template.has_parameter("ExistingClusterArn", {"Type": "String"})
+
+    # Events stack should NOT have these parameters (test that they raise AssertionError)
+    try:
+        events_template.has_parameter("PrefectApiUrl", {"Type": "String"})
+        assert False, "Expected AssertionError for PrefectApiUrl parameter"
+    except Exception as e:
+        assert "AssertionError" in str(e), f"Expected AssertionError, got: {e}"
+
+    try:
+        events_template.has_parameter("DockerImage", {"Type": "String"})
+        assert False, "Expected AssertionError for DockerImage parameter"
+    except Exception as e:
+        assert "AssertionError" in str(e), f"Expected AssertionError, got: {e}"
+
+    try:
+        events_template.has_parameter("WorkQueues", {"Type": "CommaDelimitedList"})
+        assert False, "Expected AssertionError for WorkQueues parameter"
+    except Exception as e:
+        assert "AssertionError" in str(e), f"Expected AssertionError, got: {e}"
 
 
 def test_resource_naming():
