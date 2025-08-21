@@ -28,7 +28,7 @@ export const LateFlowRunsIndicator = ({
 			<Tooltip>
 				<TooltipTrigger>
 					<Badge
-						variant="destructive"
+						variant="warning"
 						className={cn("flex items-center space-x-1", className)}
 					>
 						<Clock className="h-3 w-3" />
