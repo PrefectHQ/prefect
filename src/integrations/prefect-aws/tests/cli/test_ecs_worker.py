@@ -406,7 +406,7 @@ class TestECSWorkerUtils:
         """Test that CLI tags are generated correctly."""
         from prefect_aws._cli.utils import add_cli_tags
 
-        tags = add_cli_tags({}, "test-pool", "service")
+        tags = add_cli_tags("test-pool", "service")
 
         tag_dict = {tag["Key"]: tag["Value"] for tag in tags}
 
