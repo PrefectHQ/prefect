@@ -83,10 +83,21 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
     def _serialize_lease(
         self, lease: ResourceLease[ConcurrencyLimitLeaseMetadata]
     ) -> _LeaseFile:
+        metadata_dict = None
+        if lease.metadata:
+            metadata_dict = {"slots": lease.metadata.slots}
+            if lease.metadata.principal:
+                metadata_dict["principal"] = {
+                    "key": lease.metadata.principal.key,
+                    "kind": lease.metadata.principal.kind,
+                    "display": lease.metadata.principal.display,
+                    "meta": lease.metadata.principal.meta,
+                }
+
         return {
             "id": str(lease.id),
             "resource_ids": [str(rid) for rid in lease.resource_ids],
-            "metadata": {"slots": lease.metadata.slots} if lease.metadata else None,
+            "metadata": metadata_dict,
             "expiration": lease.expiration.isoformat(),
             "created_at": lease.created_at.isoformat(),
         }
@@ -94,13 +105,27 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
     def _deserialize_lease(
         self, data: _LeaseFile
     ) -> ResourceLease[ConcurrencyLimitLeaseMetadata]:
+        from prefect.server.concurrency.lease_storage import Principal
+
         lease_id = UUID(data["id"])
         resource_ids = [UUID(rid) for rid in data["resource_ids"]]
-        metadata = (
-            ConcurrencyLimitLeaseMetadata(slots=data["metadata"]["slots"])
-            if data["metadata"]
-            else None
-        )
+
+        metadata = None
+        if data["metadata"]:
+            principal = None
+            if "principal" in data["metadata"]:
+                p_data = data["metadata"]["principal"]
+                principal = Principal(
+                    key=p_data["key"],
+                    kind=p_data["kind"],
+                    display=p_data.get("display"),
+                    meta=p_data.get("meta"),
+                )
+
+            metadata = ConcurrencyLimitLeaseMetadata(
+                slots=data["metadata"]["slots"],
+                principal=principal,
+            )
         expiration = datetime.fromisoformat(data["expiration"])
         created_at = datetime.fromisoformat(data["created_at"])
         lease = ResourceLease(

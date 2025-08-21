@@ -6,7 +6,10 @@ from uuid import UUID, uuid4
 
 import pytest
 
-from prefect.server.concurrency.lease_storage import ConcurrencyLimitLeaseMetadata
+from prefect.server.concurrency.lease_storage import (
+    ConcurrencyLimitLeaseMetadata,
+    Principal,
+)
 from prefect.server.concurrency.lease_storage.filesystem import (
     ConcurrencyLeaseStorage,
 )
@@ -352,3 +355,65 @@ class TestFilesystemConcurrencyLeaseStorage:
             read_lease = await storage.read_lease(lease_id)
             assert read_lease is not None
             assert read_lease.resource_ids == sample_resource_ids
+
+    async def test_create_lease_with_principal(
+        self, storage: ConcurrencyLeaseStorage, sample_resource_ids: list[UUID]
+    ):
+        principal = Principal(
+            key="task_run:67890",
+            kind="task_run",
+            display="Filesystem Test Task",
+            meta={"source": "filesystem"},
+        )
+        metadata = ConcurrencyLimitLeaseMetadata(slots=4, principal=principal)
+        ttl = timedelta(minutes=5)
+
+        lease = await storage.create_lease(sample_resource_ids, ttl, metadata)
+
+        assert lease.metadata is not None
+        assert lease.metadata.slots == 4
+        assert lease.metadata.principal is not None
+        assert lease.metadata.principal.key == "task_run:67890"
+        assert lease.metadata.principal.kind == "task_run"
+        assert lease.metadata.principal.display == "Filesystem Test Task"
+        assert lease.metadata.principal.meta == {"source": "filesystem"}
+
+        # Verify serialization to file
+        lease_files = [
+            f
+            for f in storage.storage_path.glob("*.json")
+            if f.name != "expirations.json"
+        ]
+        assert len(lease_files) == 1
+
+        with open(lease_files[0], "r") as f:
+            data = json.load(f)
+
+        assert data["metadata"]["slots"] == 4
+        assert data["metadata"]["principal"]["key"] == "task_run:67890"
+        assert data["metadata"]["principal"]["kind"] == "task_run"
+        assert data["metadata"]["principal"]["display"] == "Filesystem Test Task"
+        assert data["metadata"]["principal"]["meta"] == {"source": "filesystem"}
+
+    async def test_read_lease_preserves_principal(
+        self, storage: ConcurrencyLeaseStorage, sample_resource_ids: list[UUID]
+    ):
+        principal = Principal(
+            key="deployment:test-deployment",
+            kind="deployment",
+            display="Test Deployment",
+            meta={"env": "test", "version": "2.0"},
+        )
+        metadata = ConcurrencyLimitLeaseMetadata(slots=1, principal=principal)
+        ttl = timedelta(minutes=5)
+
+        lease = await storage.create_lease(sample_resource_ids, ttl, metadata)
+        read_lease = await storage.read_lease(lease.id)
+
+        assert read_lease is not None
+        assert read_lease.metadata is not None
+        assert read_lease.metadata.principal is not None
+        assert read_lease.metadata.principal.key == "deployment:test-deployment"
+        assert read_lease.metadata.principal.kind == "deployment"
+        assert read_lease.metadata.principal.display == "Test Deployment"
+        assert read_lease.metadata.principal.meta == {"env": "test", "version": "2.0"}

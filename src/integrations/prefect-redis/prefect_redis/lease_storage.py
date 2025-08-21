@@ -44,12 +44,23 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
         self, lease: ResourceLease[ConcurrencyLimitLeaseMetadata]
     ) -> str:
         """Serialize a lease to JSON."""
+        metadata_dict = None
+        if lease.metadata:
+            metadata_dict = {"slots": lease.metadata.slots}
+            if lease.metadata.principal:
+                metadata_dict["principal"] = {
+                    "key": lease.metadata.principal.key,
+                    "kind": lease.metadata.principal.kind,
+                    "display": lease.metadata.principal.display,
+                    "meta": lease.metadata.principal.meta,
+                }
+
         data = {
             "id": str(lease.id),
             "resource_ids": [str(rid) for rid in lease.resource_ids],
             "expiration": lease.expiration.isoformat(),
             "created_at": lease.created_at.isoformat(),
-            "metadata": {"slots": lease.metadata.slots} if lease.metadata else None,
+            "metadata": metadata_dict,
         }
         return json.dumps(data)
 
@@ -57,11 +68,24 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
         self, data: str
     ) -> ResourceLease[ConcurrencyLimitLeaseMetadata]:
         """Deserialize a lease from JSON."""
+        from prefect.server.concurrency.lease_storage import Principal
+
         lease_data = json.loads(data)
         metadata = None
         if lease_data["metadata"]:
+            principal = None
+            if "principal" in lease_data["metadata"]:
+                p_data = lease_data["metadata"]["principal"]
+                principal = Principal(
+                    key=p_data["key"],
+                    kind=p_data["kind"],
+                    display=p_data.get("display"),
+                    meta=p_data.get("meta"),
+                )
+
             metadata = ConcurrencyLimitLeaseMetadata(
-                slots=lease_data["metadata"]["slots"]
+                slots=lease_data["metadata"]["slots"],
+                principal=principal,
             )
 
         return ResourceLease(

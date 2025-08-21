@@ -6,7 +6,10 @@ import pytest
 from prefect_redis.lease_storage import ConcurrencyLeaseStorage
 from redis.asyncio import Redis
 
-from prefect.server.concurrency.lease_storage import ConcurrencyLimitLeaseMetadata
+from prefect.server.concurrency.lease_storage import (
+    ConcurrencyLimitLeaseMetadata,
+    Principal,
+)
 from prefect.server.utilities.leasing import ResourceLease
 
 
@@ -291,3 +294,76 @@ class TestConcurrencyLeaseStorage:
         read_lease = await storage2.read_lease(lease.id)
         assert read_lease is not None
         assert read_lease.id == lease.id
+
+    async def test_create_lease_with_principal(self, storage: ConcurrencyLeaseStorage):
+        """Test creating a lease with Principal metadata."""
+        resource_ids = [uuid4(), uuid4()]
+        ttl = timedelta(seconds=300)
+        principal = Principal(
+            key="service:redis-test",
+            kind="service",
+            display="Redis Test Service",
+            meta={"backend": "redis", "test": True},
+        )
+        metadata = ConcurrencyLimitLeaseMetadata(slots=7, principal=principal)
+
+        lease = await storage.create_lease(resource_ids, ttl, metadata)
+
+        assert lease.metadata is not None
+        assert lease.metadata.slots == 7
+        assert lease.metadata.principal is not None
+        assert lease.metadata.principal.key == "service:redis-test"
+        assert lease.metadata.principal.kind == "service"
+        assert lease.metadata.principal.display == "Redis Test Service"
+        assert lease.metadata.principal.meta == {"backend": "redis", "test": True}
+
+    async def test_read_lease_preserves_principal(
+        self, storage: ConcurrencyLeaseStorage
+    ):
+        """Test that Principal data is preserved through Redis serialization."""
+        resource_ids = [uuid4()]
+        ttl = timedelta(seconds=300)
+        principal = Principal(
+            key="worker:redis-worker-001",
+            kind="worker",
+            display="Redis Worker 001",
+            meta={"pool": "redis-pool", "region": "us-east-1"},
+        )
+        metadata = ConcurrencyLimitLeaseMetadata(slots=3, principal=principal)
+
+        # Create and immediately read back
+        lease = await storage.create_lease(resource_ids, ttl, metadata)
+        read_lease = await storage.read_lease(lease.id)
+
+        assert read_lease is not None
+        assert read_lease.metadata is not None
+        assert read_lease.metadata.principal is not None
+        assert read_lease.metadata.principal.key == "worker:redis-worker-001"
+        assert read_lease.metadata.principal.kind == "worker"
+        assert read_lease.metadata.principal.display == "Redis Worker 001"
+        assert read_lease.metadata.principal.meta == {
+            "pool": "redis-pool",
+            "region": "us-east-1",
+        }
+
+    async def test_principal_serialization_edge_cases(
+        self, storage: ConcurrencyLeaseStorage
+    ):
+        """Test Principal serialization with edge cases like None values."""
+        resource_ids = [uuid4()]
+        ttl = timedelta(seconds=300)
+
+        # Test with minimal principal (only required fields)
+        principal = Principal(key="minimal:test", kind="test", display=None, meta=None)
+        metadata = ConcurrencyLimitLeaseMetadata(slots=1, principal=principal)
+
+        lease = await storage.create_lease(resource_ids, ttl, metadata)
+        read_lease = await storage.read_lease(lease.id)
+
+        assert read_lease is not None
+        assert read_lease.metadata is not None
+        assert read_lease.metadata.principal is not None
+        assert read_lease.metadata.principal.key == "minimal:test"
+        assert read_lease.metadata.principal.kind == "test"
+        assert read_lease.metadata.principal.display is None
+        assert read_lease.metadata.principal.meta is None

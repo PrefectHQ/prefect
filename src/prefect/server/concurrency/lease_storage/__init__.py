@@ -16,8 +16,19 @@ class ConcurrencyLeaseStorageModule(Protocol):
 
 
 @dataclass
+class Principal:
+    """Identity of an entity holding a concurrency lease."""
+
+    key: str  # e.g. "task_run:uuid" or "worker:name"
+    kind: str  # e.g. "task_run" or "worker"
+    display: str | None = None  # Human-readable name
+    meta: dict[str, object] | None = None  # Additional metadata
+
+
+@dataclass
 class ConcurrencyLimitLeaseMetadata:
     slots: int
+    principal: Principal | None = None
 
 
 class ConcurrencyLeaseStorage(LeaseStorage[ConcurrencyLimitLeaseMetadata]):

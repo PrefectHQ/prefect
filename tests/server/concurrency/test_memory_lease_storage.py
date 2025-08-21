@@ -3,7 +3,10 @@ from uuid import UUID, uuid4
 
 import pytest
 
-from prefect.server.concurrency.lease_storage import ConcurrencyLimitLeaseMetadata
+from prefect.server.concurrency.lease_storage import (
+    ConcurrencyLimitLeaseMetadata,
+    Principal,
+)
 from prefect.server.concurrency.lease_storage.memory import (
     ConcurrencyLeaseStorage,
 )
@@ -160,3 +163,48 @@ class TestMemoryConcurrencyLeaseStorage:
 
         expired_ids = await storage.read_expired_lease_ids()
         assert len(expired_ids) == 2
+
+    async def test_create_lease_with_principal(
+        self, storage: ConcurrencyLeaseStorage, sample_resource_ids: list[UUID]
+    ):
+        principal = Principal(
+            key="task_run:12345",
+            kind="task_run",
+            display="Test Task",
+            meta={"test": "value"},
+        )
+        metadata = ConcurrencyLimitLeaseMetadata(slots=3, principal=principal)
+        ttl = timedelta(minutes=5)
+
+        lease = await storage.create_lease(sample_resource_ids, ttl, metadata)
+
+        assert lease.metadata is not None
+        assert lease.metadata.slots == 3
+        assert lease.metadata.principal is not None
+        assert lease.metadata.principal.key == "task_run:12345"
+        assert lease.metadata.principal.kind == "task_run"
+        assert lease.metadata.principal.display == "Test Task"
+        assert lease.metadata.principal.meta == {"test": "value"}
+
+    async def test_read_lease_preserves_principal(
+        self, storage: ConcurrencyLeaseStorage, sample_resource_ids: list[UUID]
+    ):
+        principal = Principal(
+            key="worker:my-worker",
+            kind="worker",
+            display="My Worker",
+            meta={"version": "1.0"},
+        )
+        metadata = ConcurrencyLimitLeaseMetadata(slots=2, principal=principal)
+        ttl = timedelta(minutes=5)
+
+        lease = await storage.create_lease(sample_resource_ids, ttl, metadata)
+        read_lease = await storage.read_lease(lease.id)
+
+        assert read_lease is not None
+        assert read_lease.metadata is not None
+        assert read_lease.metadata.principal is not None
+        assert read_lease.metadata.principal.key == "worker:my-worker"
+        assert read_lease.metadata.principal.kind == "worker"
+        assert read_lease.metadata.principal.display == "My Worker"
+        assert read_lease.metadata.principal.meta == {"version": "1.0"}
