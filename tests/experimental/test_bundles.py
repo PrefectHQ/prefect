@@ -284,6 +284,40 @@ class TestExecuteBundleInSubprocess:
         assert flow_run.state is not None
         assert flow_run.state.is_running()
 
+    async def test_filters_local_file_dependencies(
+        self,
+        prefect_client: PrefectClient,
+        engine_type: Literal["sync", "async"],
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        mock_dependencies_output = b"package1==1.0.0\nfile:///path/to/local/package\npackage2==2.0.0\n-e file:///path/to/another/local\npackage3==3.0.0"
+        mock_subprocess_check_output = MagicMock(return_value=mock_dependencies_output)
+        monkeypatch.setattr(subprocess, "check_output", mock_subprocess_check_output)
+
+        if engine_type == "sync":
+
+            @flow(
+                name="TestExecuteBundleInSubprocess.test_filters_local_file_dependencies[sync]"
+            )
+            def simple_flow():
+                return "test"
+        else:
+
+            @flow(
+                name="TestExecuteBundleInSubprocess.test_filters_local_file_dependencies[async]"
+            )
+            async def simple_flow():
+                return "test"
+
+        flow_run = await prefect_client.create_flow_run(flow=simple_flow)
+        bundle = create_bundle_for_flow_run(simple_flow, flow_run)
+
+        # Verify that local file dependencies are filtered out
+        assert (
+            bundle["dependencies"]
+            == "package1==1.0.0\npackage2==2.0.0\npackage3==3.0.0"
+        )
+
 
 class TestConvertStepToCommand:
     def test_basic(self):
