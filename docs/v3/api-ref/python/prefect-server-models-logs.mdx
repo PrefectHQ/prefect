@@ -13,13 +13,13 @@ Intended for internal use by the Prefect REST API.
 
 ## Functions
 
-### `split_logs_into_batches` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/models/logs.py#L33" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `split_logs_into_batches` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/logs.py#L33" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 split_logs_into_batches(logs: Sequence[schemas.actions.LogCreate]) -> Generator[Tuple[LogCreate, ...], None, None]
 ```
 
-### `create_logs` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/models/logs.py#L41" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `create_logs` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/logs.py#L41" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 create_logs(db: PrefectDBInterface, session: AsyncSession, logs: Sequence[LogCreate]) -> None
@@ -36,7 +36,7 @@ Creates new logs
 - None
 
 
-### `read_logs` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/models/logs.py#L74" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `read_logs` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/logs.py#L74" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_logs(db: PrefectDBInterface, session: AsyncSession, log_filter: Optional[schemas.filters.LogFilter], offset: Optional[int] = None, limit: Optional[int] = None, sort: schemas.sorting.LogSort = schemas.sorting.LogSort.TIMESTAMP_ASC) -> Sequence[orm_models.Log]
@@ -57,7 +57,7 @@ Read logs.
 - List[orm_models.Log]: the matching logs
 
 
-### `delete_logs` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/models/logs.py#L106" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `delete_logs` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/logs.py#L106" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 delete_logs(db: PrefectDBInterface, session: AsyncSession, log_filter: schemas.filters.LogFilter) -> int

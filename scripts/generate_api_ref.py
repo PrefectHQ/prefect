@@ -25,6 +25,8 @@ def main() -> None:
         "--exclude",
         "prefect.agent",
         "--include-inheritance",
+        "--repo-url",
+        "https://github.com/PrefectHQ/prefect",
     ]
 
     result = subprocess.run(cmd, capture_output=True, text=True)

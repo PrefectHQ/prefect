@@ -7,7 +7,7 @@ sidebarTitle: __init__
 
 ## Functions
 
-### `create_cache` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/utilities/messaging/__init__.py#L158" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `create_cache` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/messaging/__init__.py#L158" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 create_cache() -> Cache
@@ -20,7 +20,7 @@ Creates a new cache with the applications default settings.
 - a new Cache instance
 
 
-### `create_publisher` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/utilities/messaging/__init__.py#L184" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `create_publisher` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/messaging/__init__.py#L184" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 create_publisher(topic: str, cache: Optional[Cache] = None, deduplicate_by: Optional[str] = None) -> Publisher
@@ -34,7 +34,7 @@ Returns:
     a new Consumer instance
 
 
-### `ephemeral_subscription` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/utilities/messaging/__init__.py#L202" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `ephemeral_subscription` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/messaging/__init__.py#L202" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 ephemeral_subscription(topic: str) -> AsyncGenerator[Mapping[str, Any], Any]
@@ -45,7 +45,7 @@ Creates an ephemeral subscription to the given source, removing it when the cont
 exits.
 
 
-### `create_consumer` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/utilities/messaging/__init__.py#L213" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `create_consumer` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/messaging/__init__.py#L213" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 create_consumer(topic: str, **kwargs: Any) -> Consumer
@@ -61,7 +61,7 @@ Returns:
 
 ## Classes
 
-### `Message` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/utilities/messaging/__init__.py#L32" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `Message` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/messaging/__init__.py#L32" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 A protocol representing a message sent to a message broker.
@@ -69,75 +69,75 @@ A protocol representing a message sent to a message broker.
 
 **Methods:**
 
-#### `attributes` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/utilities/messaging/__init__.py#L41" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `attributes` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/messaging/__init__.py#L41" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 attributes(self) -> Mapping[str, Any]
 ```
 
-#### `data` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/utilities/messaging/__init__.py#L38" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `data` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/messaging/__init__.py#L38" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 data(self) -> Union[str, bytes]
 ```
 
-### `Cache` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/utilities/messaging/__init__.py#L44" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `Cache` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/messaging/__init__.py#L44" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 **Methods:**
 
-#### `clear_recently_seen_messages` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/utilities/messaging/__init__.py#L46" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `clear_recently_seen_messages` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/messaging/__init__.py#L46" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 clear_recently_seen_messages(self) -> None
 ```
 
-#### `forget_duplicates` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/utilities/messaging/__init__.py#L54" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `forget_duplicates` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/messaging/__init__.py#L54" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 forget_duplicates(self, attribute: str, messages: Iterable[Message]) -> None
 ```
 
-#### `without_duplicates` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/utilities/messaging/__init__.py#L49" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `without_duplicates` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/messaging/__init__.py#L49" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 without_duplicates(self, attribute: str, messages: Iterable[M]) -> list[M]
 ```
 
-### `Publisher` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/utilities/messaging/__init__.py#L59" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `Publisher` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/messaging/__init__.py#L59" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 **Methods:**
 
-#### `publish_data` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/utilities/messaging/__init__.py#L68" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `publish_data` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/messaging/__init__.py#L68" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 publish_data(self, data: bytes, attributes: Mapping[str, str]) -> None
 ```
 
-### `CapturedMessage` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/utilities/messaging/__init__.py#L85" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `CapturedMessage` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/messaging/__init__.py#L85" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
-### `CapturingPublisher` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/utilities/messaging/__init__.py#L90" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `CapturingPublisher` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/messaging/__init__.py#L90" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 **Methods:**
 
-#### `publish_data` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/utilities/messaging/__init__.py#L115" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `publish_data` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/messaging/__init__.py#L115" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 publish_data(self, data: bytes, attributes: Mapping[str, str]) -> None
 ```
 
-#### `publish_data` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/utilities/messaging/__init__.py#L68" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `publish_data` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/messaging/__init__.py#L68" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 publish_data(self, data: bytes, attributes: Mapping[str, str]) -> None
 ```
 
-### `StopConsumer` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/utilities/messaging/__init__.py#L129" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `StopConsumer` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/messaging/__init__.py#L129" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Exception to raise to stop a consumer.
 
 
-### `Consumer` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/utilities/messaging/__init__.py#L138" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `Consumer` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/messaging/__init__.py#L138" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Abstract base class for consumers that receive messages from a message broker and
@@ -146,7 +146,7 @@ call a handler function for each message received.
 
 **Methods:**
 
-#### `run` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/utilities/messaging/__init__.py#L148" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/messaging/__init__.py#L148" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 run(self, handler: MessageHandler) -> None
@@ -155,6 +155,6 @@ run(self, handler: MessageHandler) -> None
 Runs the consumer (indefinitely)
 
 
-### `CacheModule` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/utilities/messaging/__init__.py#L154" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `CacheModule` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/messaging/__init__.py#L154" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
-### `BrokerModule` <sup><a href="https://github.com/prefecthq/prefect/blob/main/src/prefect/server/utilities/messaging/__init__.py#L172" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `BrokerModule` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/messaging/__init__.py#L172" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>

@@ -1336,12 +1336,7 @@
                     "group": "prefect.telemetry",
                     "pages": [
                       "v3/api-ref/python/prefect-telemetry-__init__",
-                      "v3/api-ref/python/prefect-telemetry-bootstrap",
-                      "v3/api-ref/python/prefect-telemetry-instrumentation",
-                      "v3/api-ref/python/prefect-telemetry-logging",
-                      "v3/api-ref/python/prefect-telemetry-processors",
-                      "v3/api-ref/python/prefect-telemetry-run_telemetry",
-                      "v3/api-ref/python/prefect-telemetry-services"
+                      "v3/api-ref/python/prefect-telemetry-run_telemetry"
                     ]
                   },
                   {
