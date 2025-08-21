@@ -39,11 +39,17 @@ def deploy_service(
     ],
     # ECS Configuration
     existing_cluster_identifier: Annotated[
-        str, typer.Option(help="ECS cluster name or ARN", prompt=True)
+        str,
+        typer.Option(
+            help="ECS cluster name or ARN", prompt="ECS clust identifier (name or ARN)"
+        ),
     ],
-    existing_vpc_id: Annotated[str, typer.Option(help="VPC ID", prompt=True)],
+    existing_vpc_id: Annotated[str, typer.Option(help="VPC ID", prompt="VPC ID")],
     existing_subnet_ids: Annotated[
-        Optional[str], typer.Option(help="Comma-separated subnet IDs", prompt=True)
+        str,
+        typer.Option(
+            help="Comma-separated subnet IDs", prompt="Subnet IDs (comma-separated)"
+        ),
     ],
     # Prefect Configuration
     prefect_api_url: Annotated[str, typer.Option(help="Prefect API URL", prompt=True)],
@@ -226,7 +232,7 @@ def deploy_events(
         str, typer.Option(help="CloudFormation stack name", prompt=True)
     ],
     existing_cluster_arn: Annotated[
-        str, typer.Option(help="ECS cluster ARN", prompt=True)
+        str, typer.Option(help="ECS cluster ARN", prompt="ECS cluster ARN")
     ],
     # AWS Configuration
     region: Annotated[Optional[str], typer.Option(help="AWS region")] = None,

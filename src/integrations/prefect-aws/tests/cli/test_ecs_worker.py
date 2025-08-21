@@ -85,16 +85,31 @@ class TestECSWorkerCLI:
         assert "DRY RUN" in result.stdout
         assert "test-stack" in result.stdout
 
-    def test_deploy_service_invalid_credentials(self, monkeypatch):
+    @patch("prefect_aws.cli.ecs_worker.validate_aws_credentials")
+    def test_deploy_service_invalid_credentials(self, mock_validate_creds):
         """Test deploy-service command with invalid credentials."""
-        # Remove AWS credentials to simulate invalid credentials
-        monkeypatch.delenv("AWS_ACCESS_KEY_ID", raising=False)
-        monkeypatch.delenv("AWS_SECRET_ACCESS_KEY", raising=False)
-        monkeypatch.delenv("AWS_SESSION_TOKEN", raising=False)
-        monkeypatch.delenv("AWS_DEFAULT_REGION", raising=False)
+        mock_validate_creds.return_value = False
 
         result = self.runner.invoke(
-            app, ["ecs-worker", "deploy-service", "--work-pool-name", "test-pool"]
+            app,
+            [
+                "ecs-worker",
+                "deploy-service",
+                "--work-pool-name",
+                "test-pool",
+                "--stack-name",
+                "test-stack",
+                "--prefect-api-url",
+                "https://api.prefect.cloud/api",
+                "--prefect-api-key",
+                "test-key",
+                "--existing-cluster-identifier",
+                "test-cluster",
+                "--existing-vpc-id",
+                "vpc-12345",
+                "--existing-subnet-ids",
+                "subnet-1,subnet-2",
+            ],
         )
 
         assert result.exit_code == 1
