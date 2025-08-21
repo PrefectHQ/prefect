@@ -959,7 +959,7 @@ class TestExportTemplate:
         """Test handling of template loading errors."""
         mock_load_template.side_effect = Exception("Template not found")
 
-        runner = CliRunner()
+        runner = CliRunner(mix_stderr=False)
         result = runner.invoke(
             app,
             [
@@ -973,7 +973,7 @@ class TestExportTemplate:
         )
 
         assert result.exit_code == 1
-        assert "Error exporting template" in result.stdout
+        assert "Error exporting template" in result.stderr
 
     @patch("prefect_aws._cli.ecs_worker.load_template")
     def test_export_template_includes_usage_instructions(

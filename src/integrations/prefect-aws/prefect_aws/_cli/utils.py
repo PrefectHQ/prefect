@@ -394,7 +394,7 @@ def display_stacks_table(stacks: List[Dict[str, Any]]) -> None:
     table.add_column("Created", style="blue")
 
     for stack in stacks:
-        created_time = stack["CreationTime"].strftime("%Y-%m-%d %H:%M:%S")
+        created_time = stack["CreationTime"].strftime("%B %d, %Y at %I:%M %p UTC")
         table.add_row(
             stack["StackName"],
             stack["WorkPoolName"],
