@@ -663,7 +663,7 @@ class TestWorkPoolDefaults:
                 ],
             )
 
-            assert result.exit_code == 0, result.stderr
+            assert result.exit_code == 0, result.stdout
 
         # Verify the work pool was updated with deployment values
         async with prefect.get_client() as client:
@@ -736,7 +736,7 @@ class TestWorkPoolDefaults:
                 ],
             )
 
-            assert result.exit_code == 0, result.stderr
+            assert result.exit_code == 0, result.stdout
 
         # Verify the work pool was NOT updated (should still have original defaults)
         async with prefect.get_client() as client:
