@@ -1,15 +1,22 @@
 """Utility functions for AWS operations and CLI helpers."""
 
+from __future__ import annotations
+
 import json
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Literal
 
 import boto3
 import typer
 from botocore.exceptions import ClientError, NoCredentialsError
+from mypy_boto3_cloudformation.client import CloudFormationClient
+from mypy_boto3_ec2.client import EC2Client
+from mypy_boto3_ecs.client import ECSClient
+from mypy_boto3_sts.client import STSClient
 from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich.table import Table
+from typing_extensions import overload
 
 from prefect.client.orchestration import get_client
 from prefect.client.schemas.actions import WorkPoolUpdate
@@ -19,6 +26,7 @@ try:
 except ImportError:
     # Python < 3.9 fallback
     from importlib_resources import files
+
 
 console = Console()
 
@@ -47,7 +55,7 @@ def get_template_path(template_name: str) -> str:
         raise typer.Exit(1)
 
 
-def load_template(template_name: str) -> Dict[str, Any]:
+def load_template(template_name: str) -> dict[str, Any]:
     """Load a CloudFormation template from the templates directory.
 
     Args:
@@ -65,8 +73,46 @@ def load_template(template_name: str) -> Dict[str, Any]:
         raise typer.Exit(1)
 
 
+@overload
 def get_aws_client(
-    service: str, region: Optional[str] = None, profile: Optional[str] = None
+    service: Literal["sts"],
+    region: str | None = None,
+    profile: str | None = None,
+) -> STSClient:
+    pass
+
+
+@overload
+def get_aws_client(
+    service: Literal["ecs"],
+    region: str | None = None,
+    profile: str | None = None,
+) -> ECSClient:
+    pass
+
+
+@overload
+def get_aws_client(
+    service: Literal["cloudformation"],
+    region: str | None = None,
+    profile: str | None = None,
+) -> CloudFormationClient:
+    pass
+
+
+@overload
+def get_aws_client(
+    service: Literal["ec2"],
+    region: str | None = None,
+    profile: str | None = None,
+) -> EC2Client:
+    pass
+
+
+def get_aws_client(
+    service: Literal["sts", "ecs", "cloudformation", "ec2"],
+    region: str | None = None,
+    profile: str | None = None,
 ):
     """Get an AWS client with error handling.
 
@@ -93,7 +139,7 @@ def get_aws_client(
 
 
 def validate_aws_credentials(
-    region: Optional[str] = None, profile: Optional[str] = None
+    region: str | None = None, profile: str | None = None
 ) -> bool:
     """Validate that AWS credentials are available and working.
 
@@ -112,13 +158,10 @@ def validate_aws_credentials(
         return False
 
 
-def add_cli_tags(
-    parameters: Dict[str, Any], work_pool_name: str, stack_type: str
-) -> List[Dict[str, str]]:
+def add_cli_tags(work_pool_name: str, stack_type: str) -> list[dict[str, str]]:
     """Add CLI-specific tags to a CloudFormation stack.
 
     Args:
-        parameters: CloudFormation parameters
         work_pool_name: Name of the work pool
         stack_type: Type of stack ('service' or 'events')
 
@@ -136,7 +179,7 @@ def add_cli_tags(
     return tags
 
 
-def list_cli_deployed_stacks(cf_client) -> List[Dict[str, Any]]:
+def list_cli_deployed_stacks(cf_client) -> list[dict[str, Any]]:
     """List all stacks deployed by this CLI.
 
     Args:
@@ -207,9 +250,9 @@ def deploy_stack(
     cf_client,
     stack_name: str,
     template_body: str,
-    parameters: List[Dict[str, str]],
-    tags: List[Dict[str, str]],
-    capabilities: Optional[List[str]] = None,
+    parameters: list[dict[str, str]],
+    tags: list[dict[str, str]],
+    capabilities: list[str] | None = None,
     wait: bool = True,
 ) -> None:
     """Deploy or update a CloudFormation stack.
@@ -226,18 +269,19 @@ def deploy_stack(
     if capabilities is None:
         capabilities = ["CAPABILITY_NAMED_IAM"]
 
+    operation = "create"
     try:
         # Check if stack exists
         try:
             cf_client.describe_stacks(StackName=stack_name)
             stack_exists = True
         except ClientError as e:
-            if e.response["Error"]["Code"] == "ValidationError":
+            if e.response.get("Error", {}).get("Code") == "ValidationError":
                 stack_exists = False
             else:
                 raise
 
-        operation = "update" if stack_exists else "create"
+        operation = "update" if stack_exists else operation
 
         with Progress(
             SpinnerColumn(),
@@ -297,8 +341,10 @@ def deploy_stack(
                 )
 
     except ClientError as e:
-        error_msg = e.response["Error"]["Message"]
-        typer.echo(f"Error {operation}ing stack: {error_msg}", err=True)
+        error_msg = e.response.get("Error", {}).get("Message")
+        typer.echo(
+            f"Error performing {operation} action for stack: {error_msg}", err=True
+        )
         raise typer.Exit(1)
 
 
@@ -348,16 +394,14 @@ def delete_stack(cf_client, stack_name: str, wait: bool = True) -> None:
                 )
 
     except ClientError as e:
-        if e.response["Error"]["Code"] == "ValidationError":
+        if (code := e.response.get("Error", {}).get("Code")) == "ValidationError":
             typer.echo(f"Error: Stack '{stack_name}' not found", err=True)
         else:
-            typer.echo(
-                f"Error deleting stack: {e.response['Error']['Message']}", err=True
-            )
+            typer.echo(f"Error deleting stack: {code}", err=True)
         raise typer.Exit(1)
 
 
-def get_stack_status(cf_client, stack_name: str) -> Optional[Dict[str, Any]]:
+def get_stack_status(cf_client, stack_name: str) -> dict[str, Any] | None:
     """Get the status of a CloudFormation stack.
 
     Args:
@@ -371,12 +415,12 @@ def get_stack_status(cf_client, stack_name: str) -> Optional[Dict[str, Any]]:
         response = cf_client.describe_stacks(StackName=stack_name)
         return response["Stacks"][0]
     except ClientError as e:
-        if e.response["Error"]["Code"] == "ValidationError":
+        if e.response.get("Error", {}).get("Code") == "ValidationError":
             return None
         raise
 
 
-def display_stacks_table(stacks: List[Dict[str, Any]]) -> None:
+def display_stacks_table(stacks: list[dict[str, Any]]) -> None:
     """Display stacks in a formatted table.
 
     Args:
@@ -425,8 +469,8 @@ def validate_ecs_cluster(ecs_client, cluster_identifier: str) -> bool:
 
 
 def validate_vpc_and_subnets(
-    ec2_client, vpc_id: str, subnet_ids: List[str]
-) -> Tuple[bool, str]:
+    ec2_client, vpc_id: str, subnet_ids: list[str]
+) -> tuple[bool, str]:
     """Validate VPC and subnets exist and are compatible.
 
     Args:
@@ -456,7 +500,7 @@ def validate_vpc_and_subnets(
 
 def update_work_pool_defaults(
     work_pool_name: str,
-    stack_outputs: Dict[str, str],
+    stack_outputs: dict[str, str],
 ) -> None:
     """Update work pool base job template defaults with stack deployment values.
 

@@ -208,7 +208,7 @@ def deploy_service(
     ]
 
     # Prepare tags
-    tags = add_cli_tags(parameters, work_pool_name, "service")
+    tags = add_cli_tags(work_pool_name, "service")
 
     if dry_run:
         console.print("[yellow]DRY RUN - Would deploy the following:")
@@ -301,7 +301,7 @@ def deploy_events(
     ]
 
     # Prepare tags
-    tags = add_cli_tags(parameters, work_pool_name, "events")
+    tags = add_cli_tags(work_pool_name, "events")
 
     if dry_run:
         console.print("[yellow]DRY RUN - Would deploy the following:")
@@ -483,6 +483,7 @@ def export_template(
         console.print(f"[cyan]Loading template '{template_type}'...")
         template = load_template(f"{template_type}.json")
 
+        content = ""
         # Prepare content based on format
         if format == "json":
             content = json.dumps(template, indent=2)

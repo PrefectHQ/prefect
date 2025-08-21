@@ -1,7 +1,6 @@
 """Main CLI entry point for prefect-aws."""
 
 import typer
-from typing_extensions import Annotated
 
 from .ecs_worker import ecs_worker_app
 

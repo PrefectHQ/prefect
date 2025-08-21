@@ -162,7 +162,7 @@ class SqsSubscriber:
                 ]
             except ClientError as e:
                 if (
-                    e.response["Error"]["Code"]
+                    e.response.get("Error", {}).get("Code")
                     == "AWS.SimpleQueueService.NonExistentQueue"
                 ):
                     logger.warning(
