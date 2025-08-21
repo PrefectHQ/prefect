@@ -47,9 +47,13 @@ description: Cancels flows running longer than 5 minutes
 enabled: true
 trigger:
   type: event
-  posture: Reactive
-  match_state_name: RUNNING
-  match_state_duration_s: 300  # 5 minutes
+  posture: Proactive
+  expect:
+    - prefect.flow-run.Completed
+  threshold: 1
+  within: 300  # 5 minutes
+  for_each:
+    - prefect.resource.id
 actions:
   - type: cancel-flow-run
 ```
