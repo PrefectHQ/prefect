@@ -891,7 +891,14 @@ def use_profile(
             if key in _get_settings_fields(Settings):
                 profile_settings.pop(_get_settings_fields(Settings)[key], None)
 
-    new_settings = settings.copy_with_update(updates=profile_settings)
+    # Filter out custom logging settings (string keys) from profile_settings
+    # as copy_with_update expects only Setting objects. Custom logging settings
+    # are handled separately via Settings.to_environment_variables()
+    settings_for_update = {
+        k: v for k, v in profile_settings.items() if not isinstance(k, str)
+    }
+
+    new_settings = settings.copy_with_update(updates=settings_for_update)
 
     with SettingsContext(profile=profile, settings=new_settings) as ctx:
         yield ctx

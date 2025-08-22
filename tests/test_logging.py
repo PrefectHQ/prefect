@@ -171,6 +171,64 @@ def test_setup_logging_uses_settings_path_if_exists(
     dictConfigMock.assert_called_once_with(expected_config)
 
 
+def test_setup_logging_uses_profile_overrides(
+    tmp_path: Path, dictConfigMock: MagicMock, monkeypatch: pytest.MonkeyPatch
+):
+    """Test that logging configuration loads custom settings from profile."""
+    from prefect.context import SettingsContext
+    from prefect.settings.profiles import Profile
+
+    # Create a profile with custom logging settings
+    # Test with handlers which have simpler key mapping
+    profile = Profile(
+        name="test",
+        settings={
+            "PREFECT_LOGGING_HANDLERS_CONSOLE_LEVEL": "WARNING",
+            "PREFECT_LOGGING_HANDLERS_API_LEVEL": "ERROR",
+        },
+    )
+
+    with temporary_settings(
+        {PREFECT_LOGGING_SETTINGS_PATH: tmp_path.joinpath("does-not-exist.yaml")}
+    ):
+        # Use the profile context
+        with SettingsContext(profile=profile, settings=prefect.settings.Settings()):
+            config = load_logging_config(DEFAULT_LOGGING_SETTINGS_PATH)
+
+            # Check that profile settings were applied
+            assert config["handlers"]["console"]["level"] == "WARNING"
+            assert config["handlers"]["api"]["level"] == "ERROR"
+
+
+def test_setup_logging_env_overrides_profile(
+    tmp_path: Path, dictConfigMock: MagicMock, monkeypatch: pytest.MonkeyPatch
+):
+    """Test that environment variables override profile settings."""
+    from prefect.context import SettingsContext
+    from prefect.settings.profiles import Profile
+
+    # Create a profile with custom logging settings
+    profile = Profile(
+        name="test",
+        settings={
+            "PREFECT_LOGGING_HANDLERS_CONSOLE_LEVEL": "WARNING",
+        },
+    )
+
+    # Set an environment variable that should override the profile
+    monkeypatch.setenv("PREFECT_LOGGING_HANDLERS_CONSOLE_LEVEL", "DEBUG")
+
+    with temporary_settings(
+        {PREFECT_LOGGING_SETTINGS_PATH: tmp_path.joinpath("does-not-exist.yaml")}
+    ):
+        # Use the profile context
+        with SettingsContext(profile=profile, settings=prefect.settings.Settings()):
+            config = load_logging_config(DEFAULT_LOGGING_SETTINGS_PATH)
+
+            # Check that environment variable overrode profile setting
+            assert config["handlers"]["console"]["level"] == "DEBUG"
+
+
 def test_setup_logging_uses_env_var_overrides(
     tmp_path: Path, dictConfigMock: MagicMock, monkeypatch: pytest.MonkeyPatch
 ):
@@ -2016,3 +2074,62 @@ def test_prepare_truncates_oversized_log():
 
     # Message should not be empty (except the truncation text)
     assert log["message"].strip() != ""
+
+
+def test_custom_logging_settings_from_profile_in_environment_variables(tmp_path):
+    """Test that custom logging settings from profiles are included in environment variables."""
+    from prefect.context import use_profile
+    from prefect.settings import get_current_settings
+    from prefect.settings.profiles import Profile
+
+    # Create a profile with custom logging settings
+    profile = Profile(
+        name="test-logging",
+        settings={
+            "PREFECT_LOGGING_HANDLERS_API_LEVEL": "ERROR",
+            "PREFECT_LOGGING_HANDLERS_CONSOLE_LEVEL": "WARNING",
+            "PREFECT_LOGGING_LOGGERS_PREFECT_FLOW_RUNS_LEVEL": "DEBUG",
+        },
+    )
+
+    # Use the profile and check that custom settings are included
+    with use_profile(profile):
+        settings = get_current_settings()
+        env_vars = settings.to_environment_variables(include_aliases=True)
+
+        # Check that custom logging settings are present
+        assert "PREFECT_LOGGING_HANDLERS_API_LEVEL" in env_vars
+        assert env_vars["PREFECT_LOGGING_HANDLERS_API_LEVEL"] == "ERROR"
+
+        assert "PREFECT_LOGGING_HANDLERS_CONSOLE_LEVEL" in env_vars
+        assert env_vars["PREFECT_LOGGING_HANDLERS_CONSOLE_LEVEL"] == "WARNING"
+
+        assert "PREFECT_LOGGING_LOGGERS_PREFECT_FLOW_RUNS_LEVEL" in env_vars
+        assert env_vars["PREFECT_LOGGING_LOGGERS_PREFECT_FLOW_RUNS_LEVEL"] == "DEBUG"
+
+
+def test_custom_logging_settings_applied_in_config(tmp_path):
+    """Test that custom logging settings from profiles are applied in logging configuration."""
+    from prefect.context import use_profile
+    from prefect.logging.configuration import (
+        DEFAULT_LOGGING_SETTINGS_PATH,
+        load_logging_config,
+    )
+    from prefect.settings.profiles import Profile
+
+    # Create a profile with custom logging settings
+    profile = Profile(
+        name="test-logging-config",
+        settings={
+            "PREFECT_LOGGING_HANDLERS_API_LEVEL": "ERROR",
+            "PREFECT_LOGGING_HANDLERS_CONSOLE_LEVEL": "WARNING",
+        },
+    )
+
+    # Use the profile and load logging config
+    with use_profile(profile):
+        config = load_logging_config(DEFAULT_LOGGING_SETTINGS_PATH)
+
+        # Check that custom settings are applied
+        assert config["handlers"]["api"]["level"] == "ERROR"
+        assert config["handlers"]["console"]["level"] == "WARNING"
