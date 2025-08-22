@@ -175,7 +175,7 @@ def start_client_metrics_server() -> None:
 
 
 def stop_client_metrics_server() -> None:
-    """Start the process-wide Prometheus metrics server for client metrics, if it has
+    """Stop the process-wide Prometheus metrics server for client metrics, if it has
     previously been started"""
     global _metrics_server
     if _metrics_server:
