@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import abc
-import asyncio
 import concurrent.futures
 import threading
 import uuid
@@ -316,25 +315,13 @@ class PrefectDistributedFuture(PrefectTaskRunFuture[R]):
                     if task_run.state and task_run.state.is_final():
                         self._final_state = task_run.state
                     else:
-                        # When timeout=None, we should not give up immediately due to 
-                        # eventual consistency issues. Try waiting a bit more.
-                        if timeout is None:
-                            # Short retry for eventual consistency
-                            logger.debug(
-                                "Task run %s state not final, retrying due to eventual consistency",
-                                self.task_run_id
-                            )
-                            await asyncio.sleep(0.1)  # Brief wait for consistency
-                            task_run = await client.read_task_run(task_run_id=self._task_run_id)
-                            if task_run.state and task_run.state.is_final():
-                                self._final_state = task_run.state
-                            else:
-                                raise TimeoutError(
-                                    f"Task run {self.task_run_id} did not complete"
-                                )
-                        else:
+                        if timeout is not None:
                             raise TimeoutError(
                                 f"Task run {self.task_run_id} did not complete within {timeout} seconds"
+                            )
+                        else:
+                            raise TimeoutError(
+                                f"Task run {self.task_run_id} did not complete"
                             )
 
         return await self._final_state.aresult(raise_on_failure=raise_on_failure)
