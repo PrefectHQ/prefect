@@ -97,11 +97,11 @@ EXAMPLE_TRIGGERS: List[TriggerTypes] = [
                 triggers=[
                     EventTrigger(posture=Posture.Reactive),
                     EventTrigger(posture=Posture.Proactive),
-                    DeploymentCompoundTrigger(
+                    CompoundTrigger(
                         require="all",
                         triggers=[
-                            DeploymentEventTrigger(posture=Posture.Reactive),
-                            DeploymentEventTrigger(posture=Posture.Proactive),
+                            EventTrigger(posture=Posture.Reactive),
+                            EventTrigger(posture=Posture.Proactive),
                         ],
                     ),
                 ]
@@ -123,11 +123,11 @@ EXAMPLE_TRIGGERS: List[TriggerTypes] = [
                 triggers=[
                     EventTrigger(posture=Posture.Reactive),
                     EventTrigger(posture=Posture.Proactive),
-                    DeploymentCompoundTrigger(
+                    CompoundTrigger(
                         require="all",
                         triggers=[
-                            DeploymentEventTrigger(posture=Posture.Reactive),
-                            DeploymentEventTrigger(posture=Posture.Proactive),
+                            EventTrigger(posture=Posture.Reactive),
+                            EventTrigger(posture=Posture.Proactive),
                         ],
                     ),
                 ]
@@ -242,11 +242,11 @@ EXAMPLE_DEPLOYMENT_TRIGGERS: List[DeploymentTriggerTypes] = [
                 triggers=[
                     EventTrigger(posture=Posture.Reactive),
                     EventTrigger(posture=Posture.Proactive),
-                    DeploymentCompoundTrigger(
+                    CompoundTrigger(
                         require="all",
                         triggers=[
-                            DeploymentEventTrigger(posture=Posture.Reactive),
-                            DeploymentEventTrigger(posture=Posture.Proactive),
+                            EventTrigger(posture=Posture.Reactive),
+                            EventTrigger(posture=Posture.Proactive),
                         ],
                     ),
                 ]
