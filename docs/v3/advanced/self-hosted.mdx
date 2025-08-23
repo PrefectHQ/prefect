@@ -302,14 +302,22 @@ services:
 
   migrate:
     image: prefecthq/prefect:latest
-    depends_on: [postgres]
+    depends_on:
+      postgres:
+        condition: service_healthy
     command: prefect server database upgrade -y
     environment:
       PREFECT_API_DATABASE_CONNECTION_URL: postgresql+asyncpg://prefect:prefect@postgres:5432/prefect
 
   prefect-api:
     image: prefecthq/prefect:latest
-    depends_on: [migrate, postgres, redis]
+    depends_on: 
+      migrate:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
     deploy:
       replicas: 3
     command: prefect server start --host 0.0.0.0 --no-services
@@ -326,7 +334,13 @@ services:
 
   prefect-background:
     image: prefecthq/prefect:latest
-    depends_on: [migrate, postgres, redis]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
     command: prefect server services start
     environment:
       PREFECT_API_DATABASE_CONNECTION_URL: postgresql+asyncpg://prefect:prefect@postgres:5432/prefect
