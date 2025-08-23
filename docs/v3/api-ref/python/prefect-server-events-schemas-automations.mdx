@@ -104,7 +104,7 @@ Requires some number of triggers to have fired within the given time period.
 
 **Methods:**
 
-#### `actions` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/schemas/automations.py#L63" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `actions` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/schemas/automations.py#L66" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 actions(self) -> List[ActionTypes]
@@ -116,7 +116,11 @@ actions(self) -> List[ActionTypes]
 all_triggers(self) -> Sequence[Trigger]
 ```
 
+<<<<<<< HEAD
 #### `as_automation` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/schemas/automations.py#L75" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+=======
+#### `as_automation` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/schemas/automations.py#L77" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+>>>>>>> e49fb92456 (Auto-generate documentation)
 
 ```python
 as_automation(self) -> 'AutomationCore'
@@ -138,7 +142,7 @@ Returns a ReceivedEvent for an automation state change
 into a triggered or resolved state.
 
 
-#### `describe_for_cli` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/schemas/automations.py#L49" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `describe_for_cli` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/schemas/automations.py#L52" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 describe_for_cli(self, indent: int = 0) -> str
@@ -153,7 +157,7 @@ Return a human-readable description of this trigger for the CLI
 num_expected_firings(self) -> int
 ```
 
-#### `owner_resource` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/schemas/automations.py#L60" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `owner_resource` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/schemas/automations.py#L63" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 owner_resource(self) -> Optional[str]
@@ -165,7 +169,7 @@ owner_resource(self) -> Optional[str]
 ready_to_fire(self, firings: Sequence['Firing']) -> bool
 ```
 
-#### `set_deployment_id` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/schemas/automations.py#L57" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `set_deployment_id` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/schemas/automations.py#L60" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 set_deployment_id(self, deployment_id: UUID) -> None
@@ -227,13 +231,17 @@ Base class for triggers that may filter by the labels of resources.
 
 **Methods:**
 
-#### `actions` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/schemas/automations.py#L63" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `actions` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/schemas/automations.py#L66" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 actions(self) -> List[ActionTypes]
 ```
 
+<<<<<<< HEAD
 #### `as_automation` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/schemas/automations.py#L75" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+=======
+#### `as_automation` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/schemas/automations.py#L77" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+>>>>>>> e49fb92456 (Auto-generate documentation)
 
 ```python
 as_automation(self) -> 'AutomationCore'
@@ -245,7 +253,7 @@ as_automation(self) -> 'AutomationCore'
 covers_resources(self, resource: Resource, related: Sequence[RelatedResource]) -> bool
 ```
 
-#### `describe_for_cli` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/schemas/automations.py#L49" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `describe_for_cli` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/schemas/automations.py#L52" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 describe_for_cli(self, indent: int = 0) -> str
@@ -254,13 +262,13 @@ describe_for_cli(self, indent: int = 0) -> str
 Return a human-readable description of this trigger for the CLI
 
 
-#### `owner_resource` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/schemas/automations.py#L60" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `owner_resource` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/schemas/automations.py#L63" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 owner_resource(self) -> Optional[str]
 ```
 
-#### `set_deployment_id` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/schemas/automations.py#L57" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `set_deployment_id` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/schemas/automations.py#L60" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 set_deployment_id(self, deployment_id: UUID) -> None
