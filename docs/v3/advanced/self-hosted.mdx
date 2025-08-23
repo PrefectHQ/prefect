@@ -124,6 +124,12 @@ For Redis instances that require an encrypted connection, you can enable SSL/TLS
 export PREFECT_REDIS_MESSAGING_SSL="true"
 ```
 
+For multi-server deployments with Redis, configure causal ordering to ensure proper task state synchronization:
+
+```bash
+export PREFECT_SERVER_EVENTS_CAUSAL_ORDERING="prefect_redis.ordering"
+```
+
 Each server instance automatically generates a unique consumer name to prevent message delivery conflicts.
 
 ### Service separation
@@ -309,6 +315,7 @@ services:
       PREFECT_MESSAGING_CACHE: prefect_redis.messaging
       PREFECT_REDIS_MESSAGING_HOST: redis
       PREFECT_REDIS_MESSAGING_PORT: "6379"
+      PREFECT_SERVER_EVENTS_CAUSAL_ORDERING: prefect_redis.ordering
     ports:
       - "4200-4202:4200"  # Maps to different ports for each replica
 
@@ -323,6 +330,7 @@ services:
       PREFECT_MESSAGING_CACHE: prefect_redis.messaging
       PREFECT_REDIS_MESSAGING_HOST: redis
       PREFECT_REDIS_MESSAGING_PORT: "6379"
+      PREFECT_SERVER_EVENTS_CAUSAL_ORDERING: prefect_redis.ordering
 
 volumes:
   postgres_data:
