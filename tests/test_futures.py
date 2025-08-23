@@ -493,6 +493,38 @@ class TestPrefectDistributedFuture:
         assert fresh_future._final_state is not None
         assert fresh_future._final_state.is_completed()
 
+    async def test_result_with_none_timeout_no_confusing_error_message(self, events_pipeline):
+        """Test that result() with timeout=None doesn't show confusing error message.
+        
+        This tests the fix for issue #18775 where result() would raise:
+        "Task run did not complete within None seconds"
+        """
+        
+        @task(persist_result=True)
+        def background_task():
+            return "completed"
+        
+        # Create a task run like delay() would
+        task_run = await background_task.create_run()
+        future = PrefectDistributedFuture(task_run_id=task_run.id)
+        
+        # Run the task to completion (simulating worker execution)
+        state = run_task_sync(
+            task=background_task,
+            task_run_id=future.task_run_id,
+            task_run=task_run,
+            parameters={},
+            return_type="state",
+        )
+        assert state.is_completed()
+        
+        # Process events
+        await events_pipeline.process_events()
+        
+        # This should work without showing "None seconds" in any error
+        result = future.result(timeout=None)
+        assert result == "completed"
+
 
 class TestPrefectFlowRunFuture:
     async def test_wait_with_timeout(self, prefect_client: PrefectClient):
