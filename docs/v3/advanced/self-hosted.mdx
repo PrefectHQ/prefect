@@ -301,7 +301,7 @@ services:
     image: redis:7
 
   migrate:
-    image: prefecthq/prefect:latest
+    image: prefecthq/prefect:3-latest
     depends_on:
       postgres:
         condition: service_healthy
@@ -310,7 +310,7 @@ services:
       PREFECT_API_DATABASE_CONNECTION_URL: postgresql+asyncpg://prefect:prefect@postgres:5432/prefect
 
   prefect-api:
-    image: prefecthq/prefect:latest
+    image: prefecthq/prefect:3-latest
     depends_on: 
       migrate:
         condition: service_completed_successfully
@@ -333,7 +333,7 @@ services:
       - "4200-4202:4200"  # Maps to different ports for each replica
 
   prefect-background:
-    image: prefecthq/prefect:latest
+    image: prefecthq/prefect:3-latest
     depends_on:
       migrate:
         condition: service_completed_successfully
