@@ -209,9 +209,14 @@ class PrefectConcurrentFuture(PrefectWrappedFuture[R, concurrent.futures.Future[
             try:
                 future_result = self._wrapped_future.result(timeout=timeout)
             except concurrent.futures.TimeoutError as exc:
-                raise TimeoutError(
-                    f"Task run {self.task_run_id} did not complete within {timeout} seconds"
-                ) from exc
+                if timeout is None:
+                    raise TimeoutError(
+                        f"Task run {self.task_run_id} did not complete"
+                    ) from exc
+                else:
+                    raise TimeoutError(
+                        f"Task run {self.task_run_id} did not complete within {timeout} seconds"
+                    ) from exc
 
             if isinstance(future_result, State):
                 self._final_state = future_result
@@ -315,9 +320,14 @@ class PrefectDistributedFuture(PrefectTaskRunFuture[R]):
                     if task_run.state and task_run.state.is_final():
                         self._final_state = task_run.state
                     else:
-                        raise TimeoutError(
-                            f"Task run {self.task_run_id} did not complete within {timeout} seconds"
-                        )
+                        if timeout is None:
+                            raise TimeoutError(
+                                f"Task run {self.task_run_id} did not complete"
+                            )
+                        else:
+                            raise TimeoutError(
+                                f"Task run {self.task_run_id} did not complete within {timeout} seconds"
+                            )
 
         return await self._final_state.aresult(raise_on_failure=raise_on_failure)
 
@@ -430,9 +440,12 @@ class PrefectFlowRunFuture(PrefectFuture[R]):
         if not self._final_state:
             await self.wait_async(timeout=timeout)
             if not self._final_state:
-                raise TimeoutError(
-                    f"Task run {self.task_run_id} did not complete within {timeout} seconds"
-                )
+                if timeout is None:
+                    raise TimeoutError(f"Flow run {self.flow_run_id} did not complete")
+                else:
+                    raise TimeoutError(
+                        f"Flow run {self.flow_run_id} did not complete within {timeout} seconds"
+                    )
 
         return await self._final_state.aresult(raise_on_failure=raise_on_failure)
 
