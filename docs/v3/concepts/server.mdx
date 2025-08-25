@@ -32,7 +32,7 @@ The Prefect database persists data to track the state of your flow runs and rela
 Prefect supports the following databases:
 
 - **SQLite** (default): Recommended for lightweight, single-server deployments. SQLite requires essentially no setup.
-- **PostgreSQL**: Best for production use, high availability, and multi-server deployments. Requires additional setup. Prefect uses the [`pg_trgm`](https://www.postgresql.org/docs/current/pgtrgm.html) extension, so it must be installed and enabled.
+- **PostgreSQL**: Best for production use, high availability, and multi-server deployments. Requires PostgreSQL 14.9 or higher. Prefect uses the [`pg_trgm`](https://www.postgresql.org/docs/current/pgtrgm.html) extension, so it must be installed and enabled.
 
 ## Database migrations
 

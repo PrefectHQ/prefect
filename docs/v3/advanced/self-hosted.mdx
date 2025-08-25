@@ -10,7 +10,7 @@ Running multiple Prefect server instances enables high availability and distribu
 
 Multi-server deployments require:
 
-- PostgreSQL database (SQLite does not support multi-server synchronization)
+- PostgreSQL database version 14.9 or higher (SQLite does not support multi-server synchronization)
 - Redis for event messaging
 - Load balancer for API traffic distribution
 
@@ -96,7 +96,7 @@ export PREFECT_API_DATABASE_CONNECTION_URL="postgresql+asyncpg://user:password@h
 ```
 
 <Warning>
-PostgreSQL is required for multi-server deployments. SQLite does not support the features needed for state synchronization across multiple servers.
+PostgreSQL version 14.9 or higher is required for multi-server deployments. SQLite does not support the features needed for state synchronization across multiple servers.
 </Warning>
 
 ### Redis setup
