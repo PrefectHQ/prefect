@@ -69,6 +69,7 @@ dask-worker-space/
 # Editors
 .idea/
 .vscode/
+.zed/
 !ui/.vscode/
 
 # Prefect files

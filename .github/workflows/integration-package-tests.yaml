@@ -72,7 +72,7 @@ jobs:
 
       - name: Build dev docker image
         if: matrix.package == 'prefect-docker'
-        run : uv run prefect dev build-image
+        run: uv run prefect dev build-image
 
       - name: Start redis
         if: matrix.package == 'prefect-redis'
@@ -89,7 +89,7 @@ jobs:
           PREFECT_API_DATABASE_CONNECTION_URL: "sqlite+aiosqlite:///./orion-tests.db"
         working-directory: src/integrations/${{ matrix.package }}
         run: >
-          uv run pytest tests
+          uv run pytest
           --numprocesses auto
           --maxprocesses 4
           --dist worksteal

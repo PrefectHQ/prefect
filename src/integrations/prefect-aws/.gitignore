@@ -1,0 +1,2 @@
+prefect_aws/templates/ecs/*.json
+infra/cdk.out
