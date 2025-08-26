@@ -41,6 +41,12 @@ jobs:
           cache: "pip"
           cache-dependency-path: "requirements*.txt"
 
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v6
+        if: ${{ steps.package_name.outputs.PACKAGE_NAME }} == 'prefect-aws'
+        with:
+          version: latest
+
       - name: Set up node
         uses: actions/setup-node@v4
         if: ${{ steps.package_name.outputs.PACKAGE_NAME }} == 'prefect-aws'
