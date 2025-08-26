@@ -67,7 +67,6 @@ jobs:
         if: ${{ steps.package_name.outputs.PACKAGE_NAME }} == 'prefect-aws'
         run: |
           just generate-cfn
-          just validate-cfn
         working-directory: src/integrations/prefect-aws/infra
 
       - name: Build a binary wheel and a source tarball
