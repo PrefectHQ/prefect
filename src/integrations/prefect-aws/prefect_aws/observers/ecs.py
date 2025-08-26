@@ -24,7 +24,6 @@ import aiobotocore.session
 import anyio
 from botocore.exceptions import ClientError
 from cachetools import LRUCache
-from mypy_boto3_sqs.type_defs import MessageTypeDef
 from prefect_aws.settings import EcsObserverSettings
 from slugify import slugify
 
@@ -33,6 +32,7 @@ from prefect.events.clients import get_events_client
 from prefect.events.schemas.events import Event, RelatedResource, Resource
 
 if TYPE_CHECKING:
+    from mypy_boto3_sqs.type_defs import MessageTypeDef
     from types_aiobotocore_ecs import ECSClient
 
 
@@ -151,7 +151,7 @@ class SqsSubscriber:
 
     async def stream_messages(
         self,
-    ) -> AsyncGenerator[MessageTypeDef, None]:
+    ) -> AsyncGenerator["MessageTypeDef", None]:
         session = aiobotocore.session.get_session()
         async with session.create_client(
             "sqs", region_name=self.queue_region
