@@ -32,12 +32,14 @@ dependencies = [
     "prefect>=3.4.7",
     "pyparsing>=3.1.1",
     "tenacity>=8.0.0",
+    "typer>=0.9.0",
+    "rich>=10.0.0",
 ]
 dynamic = ["version"]
 
 [dependency-groups]
 dev = [
-    "boto3-stubs[essential] >= 1.24.39",
+    "boto3-stubs[full] >= 1.24.39",
     "types-aiobotocore[essential,ecs] >= 1.24.39",
     "coverage",
     "interrogate",
@@ -47,7 +49,7 @@ dev = [
     "mkdocs-material",
     "mkdocstrings-python-legacy",
     # moto 4.2.5 broke something fairly deep in our test suite https://github.com/PrefectHQ/prefect-aws/issues/318
-    "moto >= 3.1.16, < 4.2.5",
+    "moto[cloudformation]>=3.1.16,<4.2.5",
     "mypy",
     "pillow",
     "pytest >= 8.3",
@@ -66,8 +68,14 @@ Homepage = "https://github.com/PrefectHQ/prefect/tree/main/src/integrations/pref
 [project.entry-points."prefect.collections"]
 prefect_aws = "prefect_aws"
 
+[project.scripts]
+prefect-aws = "prefect_aws._cli.main:app"
+
 [tool.setuptools]
 packages = ["prefect_aws"]
+
+[tool.setuptools.package-data]
+prefect_aws = ["templates/**/*.json"]
 
 [tool.setuptools_scm]
 version_file = "prefect_aws/_version.py"

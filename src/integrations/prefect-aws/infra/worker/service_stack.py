@@ -878,4 +878,33 @@ class EcsServiceStack(Stack):
             description="ARN of the ECS task definition for the worker",
         )
 
+        # Add outputs for work pool configuration
+        CfnOutput(
+            self,
+            "TaskExecutionRoleArn",
+            value=execution_role.role_arn,
+            description="ARN of the ECS task execution role",
+        )
+
+        CfnOutput(
+            self,
+            "ClusterArn",
+            value=self.cluster_arn,
+            description="ARN of the ECS cluster",
+        )
+
+        CfnOutput(
+            self,
+            "VpcId",
+            value=self.existing_vpc_id.value_as_string,
+            description="VPC ID where the worker is deployed",
+        )
+
+        CfnOutput(
+            self,
+            "SubnetIds",
+            value=Fn.join(",", self.existing_subnet_ids.value_as_list),
+            description="Comma-separated list of subnet IDs",
+        )
+
         return task_definition

@@ -41,11 +41,28 @@ jobs:
           cache: "pip"
           cache-dependency-path: "requirements*.txt"
 
+      - name: Set up node
+        uses: actions/setup-node@v4
+        if: ${{ steps.package_name.outputs.PACKAGE_NAME }} == 'prefect-aws'
+        with:
+          node-version-file: "src/integrations/prefect-aws/infra/.nvmrc"
+          cache-dependency-path: "src/integrations/prefect-aws/infra/package-lock.json"
+
+      - name: Set up just
+        uses: extractions/setup-just@v3
+
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install --upgrade build
         working-directory: src/integrations/${{ steps.package_name.outputs.PACKAGE_NAME }}
+
+      - name: Generate CloudFormation templates
+        if: ${{ steps.package_name.outputs.PACKAGE_NAME }} == 'prefect-aws'
+        run: |
+          just generate-cfn
+          just validate-cfn
+        working-directory: src/integrations/prefect-aws
 
       - name: Build a binary wheel and a source tarball
         run: |

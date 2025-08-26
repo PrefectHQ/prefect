@@ -3,7 +3,7 @@ generate-cfn:
     @echo "Synthesizing CDK stacks..."
     npx cdk synth --strict
     @echo "Copying CloudFormation templates to prefect_aws/templates/ecs/..."
-    cp cdk.out/PrefectEcsServiceStack.template.json ../prefect_aws/templates/ecs/service-only.json
+    cp cdk.out/PrefectEcsServiceStack.template.json ../prefect_aws/templates/ecs/service.json
     cp cdk.out/PrefectEcsEventsStack.template.json ../prefect_aws/templates/ecs/events-only.json
     @echo "CloudFormation templates generated and copied successfully!"
 
