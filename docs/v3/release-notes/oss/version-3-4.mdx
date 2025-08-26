@@ -2,6 +2,78 @@
 title: 3.4
 ---
 
+## 3.4.14 - Ctrl+C, Ctrl+V
+
+*Released on August 21, 2025*
+
+**New Features 🎉**
+
+* **Environment Migration with `prefect transfer`**
+  
+  Transfer your Prefect setup between backends with a single command! Idempotently migrate work pools, deployments, blocks, variables, and concurrency limits between self-hosted servers and Prefect Cloud. 
+  
+  [Check the Prefect dev log for more info!](https://dev-log.prefect.io/we-love-a-good-graph/)
+
+* **Parallel task execution with `ProcessPoolTaskRunner`**
+  
+  This new task runner executes tasks in separate subprocesses and while maintaining run context so you get full observability while running in parallel. A great choice if you need parallelism, but aren't ready to start using `dask` or `ray`.
+  
+  [Check the PR for more info!](https://github.com/PrefectHQ/prefect/pull/18724)
+
+**Enhancements ➕➕**
+
+* Add `count_flow_runs` to prefect client by [@hanhwanglim](https://github.com/hanhwanglim) in [#18713](https://github.com/PrefectHQ/prefect/pull/18713)
+* Update bundle creation to exclude dependencies installed from a local file path by [@desertaxle](https://github.com/desertaxle) in [#18743](https://github.com/PrefectHQ/prefect/pull/18743)
+
+**Bug Fixes 🐞**
+
+* Fix apprise notifications failing silently with `prefect_default` notification type by [@zzstoatzz](https://github.com/zzstoatzz) in [#18720](https://github.com/PrefectHQ/prefect/pull/18720)
+* Fix error log when using a concurrency limit with a lease in strict mode by [@desertaxle](https://github.com/desertaxle) in [#18725](https://github.com/PrefectHQ/prefect/pull/18725)
+* Fix total run time calculation for tasks by [@desertaxle](https://github.com/desertaxle) in [#18759](https://github.com/PrefectHQ/prefect/pull/18759)
+
+**Development & Tidiness 🧹**
+
+* Relax upper bound on `click` by [@desertaxle](https://github.com/desertaxle) in [#18731](https://github.com/PrefectHQ/prefect/pull/18731)
+* Avoid key collision in tests by [@zzstoatzz](https://github.com/zzstoatzz) in [#18733](https://github.com/PrefectHQ/prefect/pull/18733)
+* Run SDK API reference generation as `pre-push` hook by [@zzstoatzz](https://github.com/zzstoatzz) in [#18736](https://github.com/PrefectHQ/prefect/pull/18736)
+* Deflake concurrency limit integration tests by [@desertaxle](https://github.com/desertaxle) in [#18745](https://github.com/PrefectHQ/prefect/pull/18745)
+* Remove cloud telemetry sending infrastructure while preserving instrumentation by [@bunchesofdonald](https://github.com/bunchesofdonald) in [#18739](https://github.com/PrefectHQ/prefect/pull/18739)
+
+**Documentation 📓**
+
+* Add `ProcessPoolTaskRunner` docs and `ThreadPoolTaskRunner` examples by [@zzstoatzz](https://github.com/zzstoatzz) in [#18734](https://github.com/PrefectHQ/prefect/pull/18734)
+* Fix incorrect keys in automation by [@zzstoatzz](https://github.com/zzstoatzz) in [#18760](https://github.com/PrefectHQ/prefect/pull/18760)
+* Use a consistent repo URL when generating SDK reference docs by [@desertaxle](https://github.com/desertaxle) in [#18761](https://github.com/PrefectHQ/prefect/pull/18761)
+
+
+**Full Changelog**: https://github.com/PrefectHQ/prefect/compare/3.4.13...3.4.14
+
+
+---
+
+## 3.4.13 - No, Your Database Cannot Have a Little Lock, Even As a Treat
+
+*Released on August 14, 2025*
+
+**Bug Fixes 🐞**
+
+* Use server base path configuration when creating internal client by [@anton-daneyko-ultramarin](https://github.com/anton-daneyko-ultramarin) in [#18668](https://github.com/PrefectHQ/prefect/pull/18668)
+* Fix TypeError with apprise 1.9.4 when adding notify type by [@zzstoatzz](https://github.com/zzstoatzz) in [#18697](https://github.com/PrefectHQ/prefect/pull/18697)
+* Fix DB locks during DB clear with postgres by [@desertaxle](https://github.com/desertaxle) in [#18684](https://github.com/PrefectHQ/prefect/pull/18684)
+
+
+**Documentation 📓**
+
+* Add integration release notes section to documentation by [@zzstoatzz](https://github.com/zzstoatzz) in [#18711](https://github.com/PrefectHQ/prefect/pull/18711)
+* Update "Use integrations" to reflect reference `pyproject.toml` by [@alastairtree](https://github.com/alastairtree) in [#18689](https://github.com/PrefectHQ/prefect/pull/18689)
+* Add note on necessary GitHub PAT permissions by [@rcash](https://github.com/rcash) in [#18696](https://github.com/PrefectHQ/prefect/pull/18696)
+* Add devlog to community resources in README by [@zzstoatzz](https://github.com/zzstoatzz) in [#18698](https://github.com/PrefectHQ/prefect/pull/18698)
+
+**Full Changelog**: https://github.com/PrefectHQ/prefect/compare/3.4.12...3.4.13
+
+
+---
+
 ## 3.4.12 - 20k magic in the air
 
 *Released on August 08, 2025*

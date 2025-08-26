@@ -6,7 +6,7 @@ import json
 import sys
 from pathlib import Path
 from typing import Any, Optional
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 import typer
@@ -16,6 +16,12 @@ from prefect_aws.experimental.bundles.execute import (
     execute_bundle_from_s3,
 )
 from prefect_aws.experimental.bundles.upload import upload_bundle_to_s3
+
+
+@pytest.fixture(autouse=True)
+def mock_start_observer(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setattr("prefect_aws.workers.ecs_worker.start_observer", AsyncMock())
+    monkeypatch.setattr("prefect_aws.workers.ecs_worker.stop_observer", AsyncMock())
 
 
 @pytest.fixture

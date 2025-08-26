@@ -24,7 +24,14 @@ export { createFakeState } from "./create-fake-state";
 export { createFakeTaskRunConcurrencyLimit } from "./create-fake-take-run-concurrency-limit";
 export { createFakeTaskRun } from "./create-fake-task-run";
 export { createFakeVersion } from "./create-fake-version";
-export { createFakeWorkPool } from "./create-fake-work-pool";
+export {
+	createFakeWorkPool,
+	createFakeWorkPoolWithJobTemplate,
+} from "./create-fake-work-pool";
+export {
+	createFakeWorkPoolQueue,
+	createFakeWorkPoolQueues,
+} from "./create-fake-work-pool-queue";
 export {
 	createFakeWorkPoolWorker,
 	createFakeWorkPoolWorkers,

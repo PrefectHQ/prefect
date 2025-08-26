@@ -266,13 +266,7 @@ reset() -> None
 Resets the in-memory state of the service
 
 
-### `causal_ordering` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/triggers.py#L1002" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
-
-```python
-causal_ordering() -> CausalOrdering
-```
-
-### `listen_for_automation_changes` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/triggers.py#L1006" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `listen_for_automation_changes` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/triggers.py#L1002" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 listen_for_automation_changes() -> None
@@ -283,7 +277,7 @@ Listens for any changes to automations via PostgreSQL NOTIFY/LISTEN,
 and applies those changes to the set of loaded automations.
 
 
-### `consumer` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/triggers.py#L1075" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `consumer` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/triggers.py#L1071" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 consumer(periodic_granularity: timedelta = timedelta(seconds=5)) -> AsyncGenerator[MessageHandler, None]
@@ -295,7 +289,7 @@ determine if they meet the automation criteria, queuing up a corresponding
 `TriggeredAction` for the `actions` service if the automation criteria is met.
 
 
-### `proactive_evaluation` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/triggers.py#L1134" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `proactive_evaluation` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/triggers.py#L1130" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 proactive_evaluation(trigger: EventTrigger, as_of: prefect.types._datetime.DateTime) -> prefect.types._datetime.DateTime
@@ -305,7 +299,7 @@ proactive_evaluation(trigger: EventTrigger, as_of: prefect.types._datetime.DateT
 The core proactive evaluation operation for a single Automation
 
 
-### `evaluate_proactive_triggers` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/triggers.py#L1186" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `evaluate_proactive_triggers` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/triggers.py#L1182" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 evaluate_proactive_triggers() -> None

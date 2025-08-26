@@ -1,0 +1,23 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Action": [
+        "ec2:DescribeSubnets",
+        "ec2:DescribeVpcs",
+        "ecs:DeregisterTaskDefinition",
+        "ecs:DescribeTaskDefinition",
+        "ecs:DescribeTasks",
+        "ecs:RegisterTaskDefinition",
+        "ecs:RunTask",
+        "ecs:StopTask",
+        "ecs:TagResource",
+        "iam:PassRole",
+        "logs:GetLogEvents",
+        "logs:PutLogEvents"
+      ],
+      "Effect": "Allow",
+      "Resource": "*"
+    }
+  ]
+}

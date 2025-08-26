@@ -1,0 +1,95 @@
+name: Prefect AWS Docker Images
+
+on:
+  workflow_dispatch:
+    inputs:
+      prefect_version:
+        description: 'Prefect version to use'
+        required: true
+        type: string
+      prefect_aws_version:
+        description: 'Prefect AWS version to use'
+        required: true
+        type: string
+  workflow_call:
+    inputs:
+      prefect_version:
+        description: 'Prefect version to use'
+        required: true
+        type: string
+      prefect_aws_version:
+        description: 'Prefect AWS version to use'
+        required: true
+        type: string
+
+jobs:
+  build-and-push:
+    name: Build and push prefect-aws Docker images
+    runs-on: ubuntu-latest
+    environment: prod
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version:
+          - "3.9"
+          - "3.10"
+          - "3.11"
+          - "3.12"
+          - "3.13"
+
+    steps:
+      - name: Set version environment variables
+        run: |
+          echo "PREFECT_VERSION=${{ inputs.prefect_version || github.event.inputs.prefect_version }}" >> $GITHUB_ENV
+          echo "PREFECT_AWS_VERSION=${{ inputs.prefect_aws_version || github.event.inputs.prefect_aws_version }}" >> $GITHUB_ENV
+      
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+          driver-opts: image=moby/buildkit:v0.12.5
+
+      - name: Login to DockerHub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Generate Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: prefecthq/prefect-aws
+          tags: |
+            # Full version tag: prefect-aws-version-python-version-prefect-version
+            type=raw,value=${{ env.PREFECT_AWS_VERSION }}-python${{ matrix.python-version }}-prefect${{ env.PREFECT_VERSION }}
+            # Version with Python: prefect-aws-version-python-version
+            type=raw,value=${{ env.PREFECT_AWS_VERSION }}-python${{ matrix.python-version }}
+            # Minor version with Python (only for stable releases, not rc)
+            type=pep440,pattern={{major}}.{{minor}}-python${{ matrix.python-version }},value=${{ env.PREFECT_AWS_VERSION }},enable=${{ !contains(env.PREFECT_AWS_VERSION, 'rc') }}
+            # Latest with Python version (only for stable releases, not rc)
+            type=raw,value=latest-python${{ matrix.python-version }},enable=${{ !contains(env.PREFECT_AWS_VERSION, 'rc') }}
+            # Latest tag (only for Python 3.12 and stable releases, not rc)
+            type=raw,value=latest,enable=${{ matrix.python-version == '3.12' && !contains(env.PREFECT_AWS_VERSION, 'rc') }}
+          flavor: |
+            latest=false
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: src/integrations/prefect-aws
+          platforms: linux/amd64,linux/arm64
+          build-args: |
+            PYTHON_VERSION=${{ matrix.python-version }}
+            PREFECT_VERSION=${{ env.PREFECT_VERSION }}
+            PREFECT_AWS_VERSION=${{ env.PREFECT_AWS_VERSION }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          push: true
+          pull: true
+          provenance: false

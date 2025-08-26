@@ -2,6 +2,7 @@ from uuid import uuid4
 
 import pytest
 
+from prefect.client.orchestration import get_client
 from prefect.client.schemas import filters
 from prefect.server import models, schemas
 from prefect.server.schemas import actions
@@ -141,3 +142,140 @@ class TestReadFlowRuns:
         response = await prefect_client.read_flow_runs(flow_run_filter=subflow_filter)
 
         assert len(response) == 0
+
+
+class TestCountFlowRuns:
+    """Test the count_flow_runs client method with various filter combinations."""
+
+    @pytest.fixture
+    async def flow_runs(self, flow, session):
+        flow_2 = await models.flows.create_flow(
+            session=session,
+            flow=actions.FlowCreate(name="flow-2", tags=["db"]),
+        )
+
+        flow_runs = []
+
+        # Flow 1 runs
+        flow_runs.append(
+            await models.flow_runs.create_flow_run(
+                session=session,
+                flow_run=schemas.core.FlowRun(
+                    flow_id=flow.id,
+                    name="flow-1-1",
+                    tags=["db", "blue"],
+                    state=schemas.states.Completed(),
+                ),
+            )
+        )
+        flow_runs.append(
+            await models.flow_runs.create_flow_run(
+                session=session,
+                flow_run=schemas.core.FlowRun(
+                    flow_id=flow.id,
+                    name="flow-1-2",
+                    tags=["db", "red"],
+                    state=schemas.states.Failed(),
+                ),
+            )
+        )
+        flow_runs.append(
+            await models.flow_runs.create_flow_run(
+                session=session,
+                flow_run=schemas.core.FlowRun(
+                    flow_id=flow.id,
+                    name="flow-1-3",
+                    tags=["blue"],
+                    state=schemas.states.Running(),
+                ),
+            )
+        )
+
+        # Flow 2 runs
+        flow_runs.append(
+            await models.flow_runs.create_flow_run(
+                session=session,
+                flow_run=schemas.core.FlowRun(
+                    flow_id=flow_2.id,
+                    name="flow-2-1",
+                    tags=["db"],
+                    state=schemas.states.Completed(),
+                ),
+            )
+        )
+        flow_runs.append(
+            await models.flow_runs.create_flow_run(
+                session=session,
+                flow_run=schemas.core.FlowRun(
+                    flow_id=flow_2.id,
+                    name="flow-2-2",
+                    state=schemas.states.Scheduled(),
+                ),
+            )
+        )
+
+        await session.commit()
+        return flow_runs
+
+    # Test parameters: [filter_kwargs, expected_count]
+    count_test_params = [
+        # No filters - should return all flow runs
+        ({}, 5),
+        # Flow filters
+        ({"flow_filter": filters.FlowFilter(name={"any_": ["flow-2"]})}, 2),
+        ({"flow_filter": filters.FlowFilter(tags={"all_": ["db"]})}, 2),
+        # Flow run filters
+        ({"flow_run_filter": filters.FlowRunFilter(name={"like_": "flow-2"})}, 2),
+        ({"flow_run_filter": filters.FlowRunFilter(tags={"all_": ["db", "red"]})}, 1),
+        ({"flow_run_filter": filters.FlowRunFilter(tags={"is_null_": True})}, 1),
+        # State filters
+        (
+            {
+                "flow_run_filter": filters.FlowRunFilter(
+                    state={"type": {"any_": ["COMPLETED"]}}
+                )
+            },
+            2,
+        ),
+        (
+            {
+                "flow_run_filter": filters.FlowRunFilter(
+                    state={"type": {"any_": ["FAILED"]}}
+                )
+            },
+            1,
+        ),
+        # Combined filters
+        (
+            {
+                "flow_filter": filters.FlowFilter(tags={"all_": ["db"]}),
+                "flow_run_filter": filters.FlowRunFilter(tags={"all_": ["db"]}),
+            },
+            1,
+        ),
+        (
+            {
+                "flow_filter": filters.FlowFilter(name={"like_": "my-flow"}),
+                "flow_run_filter": filters.FlowRunFilter(
+                    state={"type": {"any_": ["COMPLETED"]}}
+                ),
+            },
+            1,
+        ),
+        # Filters that should return nothing
+        ({"flow_filter": filters.FlowFilter(name={"any_": ["nonexistent-flow"]})}, 0),
+    ]
+
+    @pytest.mark.parametrize("filter_kwargs,expected_count", count_test_params)
+    async def test_async_count_flow_runs(
+        self, flow_runs, filter_kwargs, expected_count
+    ):
+        async with get_client() as client:
+            count = await client.count_flow_runs(**filter_kwargs)
+            assert count == expected_count
+
+    @pytest.mark.parametrize("filter_kwargs,expected_count", count_test_params)
+    def test_sync_count_flow_runs(self, flow_runs, filter_kwargs, expected_count):
+        with get_client(sync_client=True) as client:
+            count = client.count_flow_runs(**filter_kwargs)
+            assert count == expected_count
