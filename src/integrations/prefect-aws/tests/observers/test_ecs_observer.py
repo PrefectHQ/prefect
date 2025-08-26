@@ -712,7 +712,7 @@ class TestReplicateEcsEvent:
 
 
 class TestObserverManagement:
-    @patch("prefect_aws.observers.ecs._DEFAULT_ECS_OBSERVER")
+    @patch("prefect_aws.observers.ecs.ecs_observer")
     async def test_start_and_stop_observer(self, mock_observer):
         mock_observer.run = AsyncMock(
             side_effect=lambda started_event: started_event.set()
