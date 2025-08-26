@@ -62,7 +62,7 @@ jobs:
         run: |
           just generate-cfn
           just validate-cfn
-        working-directory: src/integrations/prefect-aws
+        working-directory: src/integrations/prefect-aws/infra
 
       - name: Build a binary wheel and a source tarball
         run: |
