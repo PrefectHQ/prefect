@@ -165,7 +165,7 @@ describe("WorkPoolQueuesTableToolbar", () => {
 		);
 
 		const wrapper = container.firstChild as HTMLElement;
-		expect(wrapper).toHaveClass("flex", "items-center", "justify-between");
+		expect(wrapper).toHaveClass("space-y-4");
 	});
 
 	it("search input has correct styling", () => {

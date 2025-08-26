@@ -23,6 +23,9 @@ export type FlowRunsFilter =
 export type FlowRunsPaginateFilter =
 	components["schemas"]["Body_paginate_flow_runs_flow_runs_paginate_post"];
 
+export type FlowRunsCountFilter =
+	components["schemas"]["Body_count_flow_runs_flow_runs_count_post"];
+
 export type CreateNewFlowRun = components["schemas"]["DeploymentFlowRunCreate"];
 
 /**
@@ -64,6 +67,9 @@ export const queryKeyFactory = {
 		[...queryKeyFactory.lists(), "filter", filter] as const,
 	paginate: (filter: FlowRunsPaginateFilter) =>
 		[...queryKeyFactory.lists(), "paginate", filter] as const,
+	counts: () => [...queryKeyFactory.all(), "count"] as const,
+	count: (filter: FlowRunsCountFilter) =>
+		[...queryKeyFactory.counts(), filter] as const,
 	details: () => [...queryKeyFactory.all(), "details"] as const,
 	detail: (id: string) => [...queryKeyFactory.details(), id] as const,
 };
@@ -168,6 +174,37 @@ export const buildGetFlowRunDetailsQuery = (id: string) => {
 		},
 	});
 };
+
+/**
+ * Builds a query configuration for counting flow runs
+ *
+ * @param filter - Filter parameters for the flow runs count query.
+ * @param refetchInterval - Interval for refetching the count (default 60 seconds for late runs)
+ * @returns Query configuration object for use with TanStack Query
+ *
+ * @example
+ * ```ts
+ * const { data: lateRunsCount } = useSuspenseQuery(buildCountFlowRunsQuery({
+ *   flow_runs: {
+ *     state: { type: { any_: ["LATE"] } }
+ *   }
+ * }));
+ * ```
+ */
+export const buildCountFlowRunsQuery = (
+	filter: FlowRunsCountFilter = {},
+	refetchInterval = 60000, // Check every minute for late runs
+) =>
+	queryOptions({
+		queryKey: queryKeyFactory.count(filter),
+		queryFn: async () => {
+			const res = await getQueryService().POST("/flow_runs/count", {
+				body: filter,
+			});
+			return res.data ?? 0;
+		},
+		refetchInterval,
+	});
 
 // ----- ✍🏼 Mutations 🗄️
 // ----------------------------
