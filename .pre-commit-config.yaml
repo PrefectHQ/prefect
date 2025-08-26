@@ -9,7 +9,7 @@ repos:
       - id: no-commit-to-branch
         args: [--branch, main]
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.12.8
+    rev: v0.12.10
     hooks:
       - id: ruff
         language_version: python3
@@ -74,7 +74,7 @@ repos:
         files: |
           (?x)^(
               .pre-commit-config.yaml|
-              examples/.*| 
+              examples/.*|
               scripts/generate_example_pages.py
           )$
         stages:
