@@ -1,0 +1,28 @@
+---
+title: prefect-aws
+---
+
+## 0.5.14
+
+_Released on August 26, 2025_
+
+This release introduces significant improvements to ECS worker management and observability. The new `prefect-aws` CLI simplifies ECS worker deployment with commands to deploy and manage ECS workers using CloudFormation templates.
+
+Additionally, event replication capabilities have been added to the ECS worker, enabling real-time monitoring of ECS task state changes through SQS and EventBridge. This creates a foundation for more stateless ECS worker operations and ensures events aren't lost if workers go down during flow execution.
+
+See the [ECS worker documentation](/integrations/prefect-aws/ecs-worker#with-the-prefect-aws-cli) for CLI usage examples and deployment guides.
+
+**Features**
+
+- Add event replication to `ECSWorker` [#18681](https://github.com/PrefectHQ/prefect/pull/18681) by [@desertaxle](https://github.com/desertaxle)
+- Add `prefect-aws` Docker images [#18750](https://github.com/PrefectHQ/prefect/pull/18750) by [@desertaxle](https://github.com/desertaxle)
+- Add CDK stacks for ECS worker infrastructure [#18755](https://github.com/PrefectHQ/prefect/pull/18755) by [@desertaxle](https://github.com/desertaxle)
+- Add `prefect-aws` CLI for ECS worker management [#18771](https://github.com/PrefectHQ/prefect/pull/18771) by [@desertaxle](https://github.com/desertaxle)
+
+**Bug Fixes**
+
+- Fix MinIOCredentials hashing with nested config dictionaries [#18752](https://github.com/PrefectHQ/prefect/pull/18752) by [@zzstoatzz](https://github.com/zzstoatzz)
+
+**Documentation**
+
+- Add SQS queue and EventBridge setup to ECS worker manual deployment guide [#18789](https://github.com/PrefectHQ/prefect/pull/18789) by [@desertaxle](https://github.com/desertaxle)
