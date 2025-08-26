@@ -45,7 +45,7 @@ export const createFakeWorkPoolQueues = (
 ): WorkPoolQueue[] => {
 	const queues: WorkPoolQueue[] = [];
 
-	// Always create a default queue first
+	// Always create a default queue first (not deletable)
 	queues.push(
 		createFakeWorkPoolQueue({
 			name: "default",
@@ -56,12 +56,13 @@ export const createFakeWorkPoolQueues = (
 		}),
 	);
 
-	// Create additional queues
+	// Create additional queues (all deletable)
 	for (let i = 1; i < count; i++) {
 		const queueOverrides = overrides?.[i] || {};
 		queues.push(
 			createFakeWorkPoolQueue({
 				work_pool_name: workPoolName,
+				name: `queue-${i}`,
 				...queueOverrides,
 			}),
 		);
@@ -69,3 +70,29 @@ export const createFakeWorkPoolQueues = (
 
 	return queues;
 };
+
+export const createFakeWorkPoolQueuesWithPermissions = (
+	workPoolName: string,
+	count = 5,
+): WorkPoolQueue[] => {
+	const queues = createFakeWorkPoolQueues(workPoolName, count);
+
+	// Add some variety to the queues for testing
+	if (queues.length > 1) {
+		// Make second queue paused
+		queues[1] = { ...queues[1], is_paused: true, status: "PAUSED" };
+	}
+	if (queues.length > 2) {
+		// Make third queue have high concurrency
+		queues[2] = { ...queues[2], concurrency_limit: 50 };
+	}
+	if (queues.length > 3) {
+		// Make fourth queue have high priority
+		queues[3] = { ...queues[3], priority: 10 };
+	}
+
+	return queues;
+};
+
+// Mock count for late flow runs - this would be returned by the count endpoint
+export const mockLateFlowRunsCount = 3;
