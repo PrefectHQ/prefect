@@ -1,4 +1,4 @@
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any
 from uuid import uuid4
 
@@ -586,3 +586,83 @@ async def test_deployment_action_accepts_job_variables():
         }
     )
     assert action.job_variables == job_vars
+
+
+async def test_action_can_omit_schedule_after_field():
+    """Test that the schedule_after field defaults to timedelta(0)"""
+    action = actions.RunDeployment.model_validate(
+        {
+            "type": "run-deployment",
+            "source": "inferred",
+        }
+    )
+    assert action.schedule_after == timedelta(0)
+
+
+async def test_action_accepts_schedule_after_field():
+    """Test that the schedule_after field accepts various timedelta values"""
+    action = actions.RunDeployment.model_validate(
+        {
+            "type": "run-deployment",
+            "source": "inferred",
+            "schedule_after": 3600,  # seconds
+        }
+    )
+    assert action.schedule_after == timedelta(hours=1)
+
+    action = actions.RunDeployment.model_validate(
+        {
+            "type": "run-deployment",
+            "source": "inferred",
+            "schedule_after": "PT2H",  # ISO 8601 duration
+        }
+    )
+    assert action.schedule_after == timedelta(hours=2)
+
+
+async def test_action_rejects_negative_schedule_after():
+    """Test that negative schedule_after values are rejected"""
+    with pytest.raises(ValidationError, match="schedule_after must be non-negative"):
+        actions.RunDeployment.model_validate(
+            {
+                "type": "run-deployment",
+                "source": "inferred",
+                "schedule_after": -3600,
+            }
+        )
+
+
+async def test_running_deployment_with_delay(
+    snap_that_naughty_woodchuck: TriggeredAction,
+    take_a_picture: Deployment,
+    session: AsyncSession,
+):
+    """Test that the schedule_after field correctly schedules the deployment for later"""
+    action = snap_that_naughty_woodchuck.action
+
+    assert isinstance(action, actions.RunDeployment)
+    # Set a 2-hour delay
+    action.schedule_after = timedelta(hours=2)
+
+    start_time = datetime.now(timezone.utc)
+
+    await action.act(snap_that_naughty_woodchuck)
+
+    runs = await flow_runs.read_flow_runs(session)
+    assert len(runs) == 1
+    run = runs[0]
+
+    assert run.state
+    assert run.state.name == "Scheduled"
+    assert run.state.state_details
+    assert run.state.state_details.scheduled_time
+
+    # Verify the scheduled time is approximately 2 hours from start_time
+    scheduled_time = run.state.state_details.scheduled_time
+    expected_time = start_time + timedelta(hours=2)
+
+    # Allow 10 second tolerance for test execution time
+    time_diff = abs((scheduled_time - expected_time).total_seconds())
+    assert time_diff < 10, (
+        f"Scheduled time {scheduled_time} not close enough to expected {expected_time}"
+    )

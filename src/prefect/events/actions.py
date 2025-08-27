@@ -1,4 +1,5 @@
 import abc
+from datetime import timedelta
 from typing import Any, Dict, Optional, Union
 from uuid import UUID
 
@@ -7,6 +8,7 @@ from typing_extensions import Literal, Self, TypeAlias
 
 from prefect._internal.schemas.bases import PrefectBaseModel
 from prefect.client.schemas.objects import StateType
+from prefect.types import NonNegativeTimeDelta
 
 
 class Action(PrefectBaseModel, abc.ABC):
@@ -72,6 +74,13 @@ class RunDeployment(DeploymentAction):
         description=(
             "The job variables to pass to the created flow run, or None "
             "to use the deployment's default job variables"
+        ),
+    )
+    schedule_after: NonNegativeTimeDelta = Field(
+        default_factory=lambda: timedelta(0),
+        description=(
+            "The amount of time to wait before running the deployment. "
+            "Defaults to running the deployment immediately."
         ),
     )
 

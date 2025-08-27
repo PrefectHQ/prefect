@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import timedelta
 from functools import partial
 from typing import Annotated, Any, Optional, TypeVar, Union
 from typing_extensions import Literal
@@ -18,6 +19,7 @@ from .names import (
     ValidAssetKey,
 )
 from pydantic import (
+    AfterValidator,
     BeforeValidator,
     Field,
     StrictBool,
@@ -35,6 +37,18 @@ MAX_VARIABLE_VALUE_LENGTH = 5000
 NonNegativeInteger = Annotated[int, Field(ge=0)]
 PositiveInteger = Annotated[int, Field(gt=0)]
 NonNegativeFloat = Annotated[float, Field(ge=0.0)]
+
+
+def _validate_non_negative_timedelta(v: timedelta) -> timedelta:
+    """Validate that a timedelta is non-negative."""
+    if v.total_seconds() < 0:
+        raise ValueError("schedule_after must be non-negative")
+    return v
+
+
+NonNegativeTimeDelta = Annotated[
+    timedelta, AfterValidator(_validate_non_negative_timedelta)
+]
 
 TimeZone = Annotated[
     str,
@@ -214,6 +228,7 @@ __all__ = [
     "PositiveInteger",
     "ListOfNonEmptyStrings",
     "NonNegativeFloat",
+    "NonNegativeTimeDelta",
     "Name",
     "NameOrEmpty",
     "NonEmptyishName",
