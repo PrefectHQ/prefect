@@ -21546,6 +21546,11 @@
                         ],
                         "title": "Job Variables",
                         "description": "The job variables to pass to the created flow run, or None to use the deployment's default job variables"
+                    },
+                    "schedule_after": {
+                        "type": "number",
+                        "title": "Schedule After",
+                        "description": "The amount of time to wait before running the deployment. Defaults to running the deployment immediately."
                     }
                 },
                 "type": "object",

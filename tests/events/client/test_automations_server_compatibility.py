@@ -263,6 +263,7 @@ def test_trigger_serialization(deployment_trigger: DeploymentTriggerTypes):
     # Remove action fields
     serialized.pop("parameters", None)
     serialized.pop("job_variables", None)
+    serialized.pop("schedule_after", None)
 
     trigger_type: Type[Trigger] = deployment_trigger.trigger_type
     trigger = trigger_type.model_validate(serialized)

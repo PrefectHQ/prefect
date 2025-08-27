@@ -450,7 +450,9 @@
                   "v3/api-ref/rest-api/index",
                   {
                     "group": "Cloud API",
-                    "pages": ["v3/api-ref/rest-api/cloud/index"]
+                    "pages": [
+                      "v3/api-ref/rest-api/cloud/index"
+                    ]
                   },
                   {
                     "group": "Server API",
