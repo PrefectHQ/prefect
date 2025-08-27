@@ -3,11 +3,12 @@ from datetime import timedelta
 from typing import Any, Dict, Optional, Union
 from uuid import UUID
 
-from pydantic import Field, field_validator, model_validator
+from pydantic import Field, model_validator
 from typing_extensions import Literal, Self, TypeAlias
 
 from prefect._internal.schemas.bases import PrefectBaseModel
 from prefect.client.schemas.objects import StateType
+from prefect.types import NonNegativeTimeDelta
 
 
 class Action(PrefectBaseModel, abc.ABC):
@@ -75,20 +76,13 @@ class RunDeployment(DeploymentAction):
             "to use the deployment's default job variables"
         ),
     )
-    schedule_after: timedelta = Field(
-        default=timedelta(0),
+    schedule_after: NonNegativeTimeDelta = Field(
+        default_factory=lambda: timedelta(0),
         description=(
             "The amount of time to wait before running the deployment. "
             "Defaults to running the deployment immediately."
         ),
     )
-
-    @field_validator("schedule_after")
-    @classmethod
-    def validate_schedule_after(cls, v: timedelta) -> timedelta:
-        if v.total_seconds() < 0:
-            raise ValueError("schedule_after must be non-negative")
-        return v
 
 
 class PauseDeployment(DeploymentAction):

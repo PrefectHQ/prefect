@@ -82,7 +82,7 @@ from prefect.server.utilities.user_templates import (
     render_user_template,
     validate_user_template,
 )
-from prefect.types import DateTime, StrictVariableValue
+from prefect.types import DateTime, NonNegativeTimeDelta, StrictVariableValue
 from prefect.types._datetime import now, parse_datetime
 from prefect.utilities.schema_tools.hydration import (
     HydrationContext,
@@ -737,20 +737,13 @@ class RunDeployment(JinjaTemplateAction, DeploymentCommandAction):
             "to use the deployment's default job variables"
         ),
     )
-    schedule_after: timedelta = Field(
-        default=timedelta(0),
+    schedule_after: NonNegativeTimeDelta = Field(
+        default_factory=lambda: timedelta(0),
         description=(
             "The amount of time to wait before running the deployment. "
             "Defaults to running the deployment immediately."
         ),
     )
-
-    @field_validator("schedule_after")
-    @classmethod
-    def validate_schedule_after(cls, v: timedelta) -> timedelta:
-        if v.total_seconds() < 0:
-            raise ValueError("schedule_after must be non-negative")
-        return v
 
     _action_description: ClassVar[str] = "Running deployment"
 
