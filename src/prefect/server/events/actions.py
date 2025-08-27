@@ -10,6 +10,7 @@ import asyncio
 import copy
 from base64 import b64encode
 from contextlib import asynccontextmanager
+from datetime import datetime, timedelta, timezone
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -81,7 +82,7 @@ from prefect.server.utilities.user_templates import (
     render_user_template,
     validate_user_template,
 )
-from prefect.types import DateTime, StrictVariableValue
+from prefect.types import DateTime, NonNegativeTimeDelta, StrictVariableValue
 from prefect.types._datetime import now, parse_datetime
 from prefect.utilities.schema_tools.hydration import (
     HydrationContext,
@@ -736,6 +737,13 @@ class RunDeployment(JinjaTemplateAction, DeploymentCommandAction):
             "to use the deployment's default job variables"
         ),
     )
+    schedule_after: NonNegativeTimeDelta = Field(
+        default_factory=lambda: timedelta(0),
+        description=(
+            "The amount of time to wait before running the deployment. "
+            "Defaults to running the deployment immediately."
+        ),
+    )
 
     _action_description: ClassVar[str] = "Running deployment"
 
@@ -745,7 +753,9 @@ class RunDeployment(JinjaTemplateAction, DeploymentCommandAction):
         deployment_id: UUID,
         triggered_action: "TriggeredAction",
     ) -> Response:
-        state = Scheduled()
+        # Calculate when to schedule the deployment
+        scheduled_time = datetime.now(timezone.utc) + self.schedule_after
+        state = Scheduled(scheduled_time=scheduled_time)
 
         try:
             flow_run_create = DeploymentFlowRunCreate(  # type: ignore

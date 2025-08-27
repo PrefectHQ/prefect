@@ -68,6 +68,7 @@ class Trigger(PrefectBaseModel, abc.ABC, extra="ignore"):  # type: ignore[call-a
                 deployment_id=self._deployment_id,
                 parameters=getattr(self, "parameters", None),
                 job_variables=getattr(self, "job_variables", None),
+                schedule_after=getattr(self, "schedule_after", timedelta(0)),
             )
         ]
 

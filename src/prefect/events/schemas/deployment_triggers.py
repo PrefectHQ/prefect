@@ -10,6 +10,7 @@ create them from YAML.
 """
 
 import abc
+from datetime import timedelta
 from typing import (
     Any,
     ClassVar,
@@ -23,6 +24,7 @@ from pydantic import Field
 from typing_extensions import TypeAlias
 
 from prefect._internal.schemas.bases import PrefectBaseModel
+from prefect.types import NonNegativeTimeDelta
 
 from .automations import (
     CompoundTrigger,
@@ -66,6 +68,13 @@ class BaseDeploymentTrigger(PrefectBaseModel, abc.ABC, extra="ignore"):  # type:
         description=(
             "Job variables to pass to the deployment, or None to use the "
             "deployment's default job variables"
+        ),
+    )
+    schedule_after: NonNegativeTimeDelta = Field(
+        default_factory=lambda: timedelta(0),
+        description=(
+            "The amount of time to wait before running the deployment. "
+            "Defaults to running the deployment immediately."
         ),
     )
 
