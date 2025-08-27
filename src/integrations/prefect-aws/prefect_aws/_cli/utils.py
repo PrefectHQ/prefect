@@ -4,15 +4,11 @@ from __future__ import annotations
 
 import json
 from datetime import datetime, timezone
-from typing import Any, Literal
+from typing import TYPE_CHECKING, Any, Literal
 
 import boto3
 import typer
 from botocore.exceptions import ClientError, NoCredentialsError
-from mypy_boto3_cloudformation.client import CloudFormationClient
-from mypy_boto3_ec2.client import EC2Client
-from mypy_boto3_ecs.client import ECSClient
-from mypy_boto3_sts.client import STSClient
 from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich.table import Table
@@ -27,6 +23,11 @@ except ImportError:
     # Python < 3.9 fallback
     from importlib_resources import files
 
+if TYPE_CHECKING:
+    from mypy_boto3_cloudformation.client import CloudFormationClient
+    from mypy_boto3_ec2.client import EC2Client
+    from mypy_boto3_ecs.client import ECSClient
+    from mypy_boto3_sts.client import STSClient
 
 console = Console()
 
@@ -41,7 +42,7 @@ def get_template_path(template_name: str) -> str:
     """Get the path to a CloudFormation template.
 
     Args:
-        template_name: Name of the template file (e.g., 'service-only.json')
+        template_name: Name of the template file (e.g., 'service.json')
 
     Returns:
         Path to the template file

@@ -171,7 +171,7 @@ def deploy_service(
         raise typer.Exit(1)
 
     # Load template
-    template = load_template("service-only.json")
+    template = load_template("service.json")
 
     # Prepare parameters
     parameters = [
