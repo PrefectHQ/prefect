@@ -10,6 +10,7 @@ import asyncio
 import copy
 from base64 import b64encode
 from contextlib import asynccontextmanager
+from datetime import datetime, timedelta, timezone
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -736,6 +737,20 @@ class RunDeployment(JinjaTemplateAction, DeploymentCommandAction):
             "to use the deployment's default job variables"
         ),
     )
+    schedule_after: timedelta = Field(
+        default=timedelta(0),
+        description=(
+            "The amount of time to wait before running the deployment. "
+            "Defaults to running the deployment immediately."
+        ),
+    )
+
+    @field_validator("schedule_after")
+    @classmethod
+    def validate_schedule_after(cls, v: timedelta) -> timedelta:
+        if v.total_seconds() < 0:
+            raise ValueError("schedule_after must be non-negative")
+        return v
 
     _action_description: ClassVar[str] = "Running deployment"
 
@@ -745,7 +760,9 @@ class RunDeployment(JinjaTemplateAction, DeploymentCommandAction):
         deployment_id: UUID,
         triggered_action: "TriggeredAction",
     ) -> Response:
-        state = Scheduled()
+        # Calculate when to schedule the deployment
+        scheduled_time = datetime.now(timezone.utc) + self.schedule_after
+        state = Scheduled(scheduled_time=scheduled_time)
 
         try:
             flow_run_create = DeploymentFlowRunCreate(  # type: ignore

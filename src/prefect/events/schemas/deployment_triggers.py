@@ -10,6 +10,7 @@ create them from YAML.
 """
 
 import abc
+from datetime import timedelta
 from typing import (
     Any,
     ClassVar,
@@ -19,7 +20,7 @@ from typing import (
     Union,
 )
 
-from pydantic import Field
+from pydantic import Field, field_validator
 from typing_extensions import TypeAlias
 
 from prefect._internal.schemas.bases import PrefectBaseModel
@@ -68,6 +69,20 @@ class BaseDeploymentTrigger(PrefectBaseModel, abc.ABC, extra="ignore"):  # type:
             "deployment's default job variables"
         ),
     )
+    schedule_after: timedelta = Field(
+        default=timedelta(0),
+        description=(
+            "The amount of time to wait before running the deployment. "
+            "Defaults to running the deployment immediately."
+        ),
+    )
+
+    @field_validator("schedule_after")
+    @classmethod
+    def validate_schedule_after(cls, v: timedelta) -> timedelta:
+        if v.total_seconds() < 0:
+            raise ValueError("schedule_after must be non-negative")
+        return v
 
 
 class DeploymentEventTrigger(BaseDeploymentTrigger, EventTrigger):
