@@ -21550,8 +21550,7 @@
                     "schedule_after": {
                         "type": "number",
                         "title": "Schedule After",
-                        "description": "The amount of time to wait before running the deployment. Defaults to running the deployment immediately.",
-                        "default": 0.0
+                        "description": "The amount of time to wait before running the deployment. Defaults to running the deployment immediately."
                     }
                 },
                 "type": "object",

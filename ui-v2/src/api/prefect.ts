@@ -8228,9 +8228,8 @@ export interface components {
             /**
              * Schedule After
              * @description The amount of time to wait before running the deployment. Defaults to running the deployment immediately.
-             * @default 0
              */
-            schedule_after: number;
+            schedule_after?: number;
         };
         /**
          * SavedSearch

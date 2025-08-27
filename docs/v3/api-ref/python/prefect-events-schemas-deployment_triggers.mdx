@@ -19,7 +19,7 @@ create them from YAML.
 
 ## Classes
 
-### `BaseDeploymentTrigger` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/schemas/deployment_triggers.py#L37" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `BaseDeploymentTrigger` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/schemas/deployment_triggers.py#L38" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Base class describing a set of criteria that must be satisfied in order to trigger
@@ -46,13 +46,7 @@ Reset the fields of the model that are in the `_reset_fields` set.
 - A new instance of the model with the reset fields.
 
 
-#### `validate_schedule_after` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/schemas/deployment_triggers.py#L82" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
-
-```python
-validate_schedule_after(cls, v: timedelta) -> timedelta
-```
-
-### `DeploymentEventTrigger` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/schemas/deployment_triggers.py#L88" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `DeploymentEventTrigger` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/schemas/deployment_triggers.py#L82" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 A trigger that fires based on the presence or absence of events within a given
@@ -76,13 +70,7 @@ Return a human-readable description of this trigger for the CLI
 enforce_minimum_within_for_proactive_triggers(cls, data: Dict[str, Any]) -> Dict[str, Any]
 ```
 
-#### `validate_schedule_after` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/schemas/deployment_triggers.py#L82" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
-
-```python
-validate_schedule_after(cls, v: timedelta) -> timedelta
-```
-
-### `DeploymentMetricTrigger` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/schemas/deployment_triggers.py#L97" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `DeploymentMetricTrigger` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/schemas/deployment_triggers.py#L91" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 A trigger that fires based on the results of a metric query.
@@ -99,13 +87,7 @@ describe_for_cli(self, indent: int = 0) -> str
 Return a human-readable description of this trigger for the CLI
 
 
-#### `validate_schedule_after` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/schemas/deployment_triggers.py#L82" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
-
-```python
-validate_schedule_after(cls, v: timedelta) -> timedelta
-```
-
-### `DeploymentCompoundTrigger` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/schemas/deployment_triggers.py#L105" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `DeploymentCompoundTrigger` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/schemas/deployment_triggers.py#L99" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 A composite trigger that requires some number of triggers to have
@@ -129,13 +111,7 @@ Return a human-readable description of this trigger for the CLI
 validate_require(self) -> Self
 ```
 
-#### `validate_schedule_after` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/schemas/deployment_triggers.py#L82" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
-
-```python
-validate_schedule_after(cls, v: timedelta) -> timedelta
-```
-
-### `DeploymentSequenceTrigger` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/schemas/deployment_triggers.py#L112" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `DeploymentSequenceTrigger` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/schemas/deployment_triggers.py#L106" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 A composite trigger that requires some number of triggers to have fired
@@ -152,9 +128,3 @@ describe_for_cli(self, indent: int = 0) -> str
 
 Return a human-readable description of this trigger for the CLI
 
-
-#### `validate_schedule_after` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/schemas/deployment_triggers.py#L82" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
-
-```python
-validate_schedule_after(cls, v: timedelta) -> timedelta
-```
