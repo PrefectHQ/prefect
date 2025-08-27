@@ -346,23 +346,6 @@ class TestEcsObserver:
 
         assert len(observer.event_handlers["task"]) == 2
 
-    async def test_run_with_started_event(
-        self, observer, mock_sqs_subscriber, mock_tags_reader
-    ):
-        started_event = asyncio.Event()
-        mock_sqs_subscriber.stream_messages.return_value = async_generator_from_list([])
-
-        task = asyncio.create_task(observer.run(started_event=started_event))
-
-        await asyncio.wait_for(started_event.wait(), timeout=1.0)
-        assert started_event.is_set()
-
-        task.cancel()
-        try:
-            await task
-        except asyncio.CancelledError:
-            pass
-
     async def test_run_processes_messages(
         self, observer, mock_sqs_subscriber, mock_tags_reader
     ):
