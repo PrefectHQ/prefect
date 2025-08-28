@@ -5,6 +5,7 @@ import textwrap
 from datetime import timedelta
 from enum import Enum
 from typing import (
+    Annotated,
     Any,
     Dict,
     List,
@@ -17,8 +18,10 @@ from typing import (
 from uuid import UUID
 
 from pydantic import (
+    Discriminator,
     Field,
     PrivateAttr,
+    Tag,
     field_validator,
     model_validator,
 )
@@ -396,8 +399,33 @@ class SequenceTrigger(CompositeTrigger):
         )
 
 
-TriggerTypes: TypeAlias = Union[
-    EventTrigger, MetricTrigger, CompoundTrigger, SequenceTrigger
+def trigger_discriminator(value: Any) -> str:
+    """Discriminator for triggers that defaults to 'event' if no type is specified."""
+    if isinstance(value, dict):
+        # Check for explicit type first
+        if "type" in value:
+            return value["type"]
+        # Check for compound/sequence specific fields
+        if "triggers" in value and "require" in value:
+            return "compound"
+        if "triggers" in value and "require" not in value:
+            return "sequence"
+        # Check for metric-specific posture
+        if value.get("posture") == "Metric":
+            return "metric"
+        # Default to event
+        return "event"
+    return getattr(value, "type", "event")
+
+
+TriggerTypes: TypeAlias = Annotated[
+    Union[
+        Annotated[EventTrigger, Tag("event")],
+        Annotated[MetricTrigger, Tag("metric")],
+        Annotated[CompoundTrigger, Tag("compound")],
+        Annotated[SequenceTrigger, Tag("sequence")],
+    ],
+    Discriminator(trigger_discriminator),
 ]
 """The union of all concrete trigger types that a user may actually create"""
 
