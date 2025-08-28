@@ -248,3 +248,75 @@ async def test_emit_event_invalid_json_payload():
             "Payload must be valid JSON",
         ],
     )
+
+
+async def test_emit_event_key_value_syntax():
+    await run_sync_in_worker_thread(
+        invoke_and_assert,
+        [
+            "events",
+            "emit",
+            "database.migrated",
+            "--resource",
+            "prefect.resource.id=db-prod-01",
+        ],
+        expected_code=0,
+        expected_output_contains=[
+            "Successfully emitted event 'database.migrated'",
+        ],
+    )
+
+
+async def test_emit_event_resource_not_dict():
+    await run_sync_in_worker_thread(
+        invoke_and_assert,
+        [
+            "events",
+            "emit",
+            "test.event",
+            "--resource",
+            '["not", "a", "dict"]',
+        ],
+        expected_code=1,
+        expected_output_contains=[
+            "Resource must be a JSON object, not an array or string",
+        ],
+    )
+
+
+async def test_emit_event_payload_not_dict():
+    await run_sync_in_worker_thread(
+        invoke_and_assert,
+        [
+            "events",
+            "emit",
+            "test.event",
+            "--resource-id",
+            "test-123",
+            "--payload",
+            '"just a string"',
+        ],
+        expected_code=1,
+        expected_output_contains=[
+            "Payload must be a JSON object",
+        ],
+    )
+
+
+async def test_emit_event_related_single_object():
+    await run_sync_in_worker_thread(
+        invoke_and_assert,
+        [
+            "events",
+            "emit",
+            "item.purchased",
+            "--resource-id",
+            "item-789",
+            "--related",
+            '{"prefect.resource.id": "user-456", "prefect.resource.role": "buyer"}',
+        ],
+        expected_code=0,
+        expected_output_contains=[
+            "Successfully emitted event 'item.purchased'",
+        ],
+    )

@@ -11,9 +11,10 @@ from anyio import open_file
 from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import exit_with_error
 from prefect.cli.root import app
-from prefect.events import Event, emit_event
+from prefect.events import Event
 from prefect.events.clients import (
     PrefectCloudAccountEventSubscriber,
+    get_events_client,
     get_events_subscriber,
 )
 
@@ -129,7 +130,12 @@ async def emit(
 
     if resource:
         try:
-            resource_dict = json.loads(resource)
+            parsed = json.loads(resource)
+            if not isinstance(parsed, dict):
+                exit_with_error(
+                    "Resource must be a JSON object, not an array or string"
+                )
+            resource_dict = parsed
         except json.JSONDecodeError:
             if "=" in resource:
                 key, value = resource.split("=", 1)
@@ -146,27 +152,34 @@ async def emit(
     related_list = None
     if related:
         try:
-            related_list = json.loads(related)
+            parsed_related = json.loads(related)
+            if isinstance(parsed_related, dict):
+                related_list = [parsed_related]
+            elif isinstance(parsed_related, list):
+                related_list = parsed_related
+            else:
+                exit_with_error("Related resources must be a JSON object or array")
         except json.JSONDecodeError:
             exit_with_error("Related resources must be valid JSON")
 
     payload_dict = None
     if payload:
         try:
-            payload_dict = json.loads(payload)
+            parsed_payload = json.loads(payload)
+            if not isinstance(parsed_payload, dict):
+                exit_with_error("Payload must be a JSON object")
+            payload_dict = parsed_payload
         except json.JSONDecodeError:
             exit_with_error("Payload must be valid JSON")
 
-    emitted_event = emit_event(
+    event_obj = Event(
         event=event,
         resource=resource_dict,
-        related=related_list,
-        payload=payload_dict,
+        related=related_list or [],
+        payload=payload_dict or {},
     )
 
-    if emitted_event:
-        app.console.print(
-            f"Successfully emitted event '{event}' with ID {emitted_event.id}"
-        )
-    else:
-        exit_with_error("Failed to emit event")
+    async with get_events_client() as events_client:
+        await events_client.emit(event_obj)
+
+    app.console.print(f"Successfully emitted event '{event}' with ID {event_obj.id}")
