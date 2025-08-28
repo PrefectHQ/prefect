@@ -6,7 +6,7 @@ import uuid
 from textwrap import dedent
 from typing import Literal, Optional
 from unittest import mock
-from unittest.mock import MagicMock
+from unittest.mock import ANY, MagicMock
 from uuid import UUID
 
 import anyio
@@ -2252,7 +2252,9 @@ class TestLeaseRenewal:
 
         run_flow(foo, flow_run)
 
-        mock_maintain_concurrency_lease.assert_called_once()
+        mock_maintain_concurrency_lease.assert_called_once_with(
+            ANY, 300, raise_on_lease_renewal_failure=True
+        )
 
     async def test_lease_renewal_async(
         self, prefect_client: PrefectClient, monkeypatch: pytest.MonkeyPatch
@@ -2285,4 +2287,6 @@ class TestLeaseRenewal:
 
         await run_flow(foo, flow_run)
 
-        mock_maintain_concurrency_lease.assert_called_once()
+        mock_maintain_concurrency_lease.assert_called_once_with(
+            ANY, 300, raise_on_lease_renewal_failure=True
+        )
