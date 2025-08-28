@@ -73,7 +73,7 @@
                             "type": "null"
                         }
                     ],
-                    "default": "/usr/lib/ssl/cert.pem",
+                    "default": null,
                     "description": "This configuration settings option specifies the path to an SSL certificate file.",
                     "supported_environment_variables": [
                         "PREFECT_API_SSL_CERT_FILE"

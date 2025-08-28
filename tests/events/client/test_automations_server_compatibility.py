@@ -1,7 +1,7 @@
 """Tests that the client automations schemas are compatible with the server."""
 
 from datetime import timedelta
-from typing import List, Set, Type
+from typing import List, Set, Type, get_args
 from uuid import uuid4
 
 import pytest
@@ -52,7 +52,14 @@ def enable_triggers():
         yield
 
 
-CLIENT_TRIGGER_TYPES: List[Type[Trigger]] = list(TriggerTypes.__args__)  # type: ignore[attr-defined]
+# Extract the Union types from the Annotated TriggerTypes
+_trigger_union = (
+    get_args(TriggerTypes)[0] if hasattr(TriggerTypes, "__metadata__") else TriggerTypes
+)
+# Each element in the union is now Annotated[Type, Tag], so we need to extract the actual type
+CLIENT_TRIGGER_TYPES: List[Type[Trigger]] = [
+    get_args(t)[0] for t in get_args(_trigger_union)
+]
 CLOUD_ONLY_TRIGGER_TYPES: Set[Type[Trigger]] = {MetricTrigger}
 
 EXAMPLE_TRIGGERS: List[TriggerTypes] = [
@@ -161,7 +168,16 @@ async def test_trigger_round_tripping(trigger: TriggerTypes, in_memory_prefect_c
     assert sent == returned
 
 
-DEPLOYMENT_TRIGGER_TYPES: List[Type[Trigger]] = list(DeploymentTriggerTypes.__args__)  # type: ignore[attr-defined]
+# Extract the Union types from the Annotated DeploymentTriggerTypes
+_deployment_trigger_union = (
+    get_args(DeploymentTriggerTypes)[0]
+    if hasattr(DeploymentTriggerTypes, "__metadata__")
+    else DeploymentTriggerTypes
+)
+# Each element in the union is now Annotated[Type, Tag], so we need to extract the actual type
+DEPLOYMENT_TRIGGER_TYPES: List[Type[Trigger]] = [
+    get_args(t)[0] for t in get_args(_deployment_trigger_union)
+]
 CLOUD_ONLY_DEPLOYMENT_TRIGGER_TYPES: Set[Type[Trigger]] = {DeploymentMetricTrigger}
 
 
