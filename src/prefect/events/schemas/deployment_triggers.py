@@ -12,6 +12,7 @@ create them from YAML.
 import abc
 from datetime import timedelta
 from typing import (
+    Annotated,
     Any,
     ClassVar,
     Dict,
@@ -20,7 +21,7 @@ from typing import (
     Union,
 )
 
-from pydantic import Field
+from pydantic import Discriminator, Field, Tag
 from typing_extensions import TypeAlias
 
 from prefect._internal.schemas.bases import PrefectBaseModel
@@ -110,10 +111,33 @@ class DeploymentSequenceTrigger(BaseDeploymentTrigger, SequenceTrigger):
     trigger_type: ClassVar[Type[TriggerTypes]] = SequenceTrigger
 
 
+def deployment_trigger_discriminator(value: Any) -> str:
+    """Custom discriminator for deployment triggers that defaults to 'event' if no type is specified."""
+    if isinstance(value, dict):
+        # Check for explicit type first
+        if "type" in value:
+            return value["type"]
+        # Infer from posture for backward compatibility
+        posture = value.get("posture")
+        if posture == "Metric":
+            return "metric"
+        # Check for compound/sequence specific fields
+        if "triggers" in value and "require" in value:
+            return "compound"
+        if "triggers" in value and "require" not in value:
+            return "sequence"
+        # Default to event
+        return "event"
+    return getattr(value, "type", "event")
+
+
 # Concrete deployment trigger types
-DeploymentTriggerTypes: TypeAlias = Union[
-    DeploymentEventTrigger,
-    DeploymentMetricTrigger,
-    DeploymentCompoundTrigger,
-    DeploymentSequenceTrigger,
+DeploymentTriggerTypes: TypeAlias = Annotated[
+    Union[
+        Annotated[DeploymentEventTrigger, Tag("event")],
+        Annotated[DeploymentMetricTrigger, Tag("metric")],
+        Annotated[DeploymentCompoundTrigger, Tag("compound")],
+        Annotated[DeploymentSequenceTrigger, Tag("sequence")],
+    ],
+    Discriminator(deployment_trigger_discriminator),
 ]
