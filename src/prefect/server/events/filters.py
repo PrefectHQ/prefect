@@ -359,6 +359,11 @@ class EventResourceFilter(EventDataFilter):
 
             if labels:
                 for _, (label, values) in enumerate(labels.items()):
+                    # Empty label value arrays should match nothing
+                    if not values:
+                        label_filters.append(sa.false())
+                        continue
+
                     label_ops = LabelOperations(values)
 
                     label_column = db.EventResource.resource[label].astext
@@ -451,6 +456,11 @@ class EventRelatedFilter(EventDataFilter):
 
             if labels:
                 for _, (label, values) in enumerate(labels.items()):
+                    # Empty label value arrays should match nothing
+                    if not values:
+                        label_filters.append(sa.false())
+                        continue
+
                     label_ops = LabelOperations(values)
 
                     label_column = db.EventResource.resource[label].astext
@@ -563,6 +573,11 @@ class EventAnyResourceFilter(EventDataFilter):
 
             if labels:
                 for _, (label, values) in enumerate(labels.items()):
+                    # Empty label value arrays should match nothing
+                    if not values:
+                        label_filters.append(sa.false())
+                        continue
+
                     label_ops = LabelOperations(values)
 
                     label_column = db.EventResource.resource[label].astext
