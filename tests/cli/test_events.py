@@ -161,3 +161,90 @@ async def test_stream_oss_events(
         assert parsed_event.event == example_event_1.event
     except ValueError as e:
         pytest.fail(f"Failed to parse event: {e}")
+
+
+async def test_emit_event_simple():
+    await run_sync_in_worker_thread(
+        invoke_and_assert,
+        [
+            "events",
+            "emit",
+            "user.action",
+            "--resource-id",
+            "user-123",
+        ],
+        expected_code=0,
+        expected_output_contains=[
+            "Successfully emitted event 'user.action'",
+        ],
+    )
+
+
+async def test_emit_event_with_payload():
+    await run_sync_in_worker_thread(
+        invoke_and_assert,
+        [
+            "events",
+            "emit",
+            "order.shipped",
+            "--resource-id",
+            "order-456",
+            "--payload",
+            '{"tracking": "ABC123", "carrier": "UPS"}',
+        ],
+        expected_code=0,
+        expected_output_contains=[
+            "Successfully emitted event 'order.shipped'",
+        ],
+    )
+
+
+async def test_emit_event_with_full_resource():
+    await run_sync_in_worker_thread(
+        invoke_and_assert,
+        [
+            "events",
+            "emit",
+            "customer.subscribed",
+            "--resource",
+            '{"prefect.resource.id": "customer-789", "prefect.resource.name": "ACME Corp", "tier": "premium"}',
+        ],
+        expected_code=0,
+        expected_output_contains=[
+            "Successfully emitted event 'customer.subscribed'",
+        ],
+    )
+
+
+async def test_emit_event_missing_resource_id():
+    await run_sync_in_worker_thread(
+        invoke_and_assert,
+        [
+            "events",
+            "emit",
+            "test.event",
+        ],
+        expected_code=1,
+        expected_output_contains=[
+            "Resource must include 'prefect.resource.id'",
+        ],
+    )
+
+
+async def test_emit_event_invalid_json_payload():
+    await run_sync_in_worker_thread(
+        invoke_and_assert,
+        [
+            "events",
+            "emit",
+            "test.event",
+            "--resource-id",
+            "test-123",
+            "--payload",
+            "{invalid json}",
+        ],
+        expected_code=1,
+        expected_output_contains=[
+            "Payload must be valid JSON",
+        ],
+    )

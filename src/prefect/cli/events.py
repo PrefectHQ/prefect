@@ -1,5 +1,7 @@
 import asyncio
+import json
 from enum import Enum
+from typing import Optional
 
 import orjson
 import typer
@@ -9,7 +11,7 @@ from anyio import open_file
 from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import exit_with_error
 from prefect.cli.root import app
-from prefect.events import Event
+from prefect.events import Event, emit_event
 from prefect.events.clients import (
     PrefectCloudAccountEventSubscriber,
     get_events_subscriber,
@@ -83,3 +85,88 @@ def handle_error(exc: Exception) -> None:
         exit_with_error(f"Error writing to file: {exc}")
     else:
         exit_with_error(f"An unexpected error occurred: {exc}")
+
+
+@events_app.command()
+async def emit(
+    event: str = typer.Argument(help="The name of the event"),
+    resource: str = typer.Option(
+        None,
+        "--resource",
+        "-r",
+        help="Resource specification as 'key=value' or JSON. Can be used multiple times.",
+    ),
+    resource_id: str = typer.Option(
+        None,
+        "--resource-id",
+        help="The resource ID (shorthand for --resource prefect.resource.id=<id>)",
+    ),
+    related: Optional[str] = typer.Option(
+        None,
+        "--related",
+        help="Related resources as JSON string",
+    ),
+    payload: Optional[str] = typer.Option(
+        None,
+        "--payload",
+        "-p",
+        help="Event payload as JSON string",
+    ),
+):
+    """Emit a single event to Prefect.
+
+    Examples:
+        # Simple event with resource ID
+        prefect event emit user.logged_in --resource-id user-123
+
+        # Event with payload
+        prefect event emit order.shipped --resource-id order-456 --payload '{"tracking": "ABC123"}'
+
+        # Event with full resource specification
+        prefect event emit customer.subscribed --resource '{"prefect.resource.id": "customer-789", "prefect.resource.name": "ACME Corp"}'
+    """
+    resource_dict = {}
+
+    if resource:
+        try:
+            resource_dict = json.loads(resource)
+        except json.JSONDecodeError:
+            if "=" in resource:
+                key, value = resource.split("=", 1)
+                resource_dict[key] = value
+            else:
+                exit_with_error("Resource must be JSON or 'key=value' format")
+
+    if resource_id:
+        resource_dict["prefect.resource.id"] = resource_id
+
+    if "prefect.resource.id" not in resource_dict:
+        exit_with_error("Resource must include 'prefect.resource.id'")
+
+    related_list = None
+    if related:
+        try:
+            related_list = json.loads(related)
+        except json.JSONDecodeError:
+            exit_with_error("Related resources must be valid JSON")
+
+    payload_dict = None
+    if payload:
+        try:
+            payload_dict = json.loads(payload)
+        except json.JSONDecodeError:
+            exit_with_error("Payload must be valid JSON")
+
+    emitted_event = emit_event(
+        event=event,
+        resource=resource_dict,
+        related=related_list,
+        payload=payload_dict,
+    )
+
+    if emitted_event:
+        app.console.print(
+            f"Successfully emitted event '{event}' with ID {emitted_event.id}"
+        )
+    else:
+        exit_with_error("Failed to emit event")
