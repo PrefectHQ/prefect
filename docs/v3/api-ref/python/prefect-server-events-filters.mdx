@@ -257,11 +257,11 @@ includes(self, event: Event) -> bool
 Does the given event match the criteria of this filter?
 
 
-### `EventRelatedFilter` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/filters.py#L387" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `EventRelatedFilter` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/filters.py#L392" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 **Methods:**
 
-#### `build_where_clauses` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/filters.py#L405" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `build_where_clauses` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/filters.py#L410" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 build_where_clauses(self, db: PrefectDBInterface) -> Sequence['ColumnExpressionArgument[bool]']
@@ -291,11 +291,11 @@ includes(self, event: Event) -> bool
 Does the given event match the criteria of this filter?
 
 
-### `EventAnyResourceFilter` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/filters.py#L486" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `EventAnyResourceFilter` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/filters.py#L496" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 **Methods:**
 
-#### `build_where_clauses` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/filters.py#L523" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `build_where_clauses` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/filters.py#L533" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 build_where_clauses(self, db: PrefectDBInterface) -> Sequence['ColumnExpressionArgument[bool]']
@@ -316,7 +316,7 @@ Would the given filter exclude this event?
 get_filters(self) -> list['EventDataFilter']
 ```
 
-#### `includes` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/filters.py#L501" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `includes` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/filters.py#L511" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 includes(self, event: Event) -> bool
@@ -331,11 +331,11 @@ includes(self, event: Event) -> bool
 Does the given event match the criteria of this filter?
 
 
-### `EventIDFilter` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/filters.py#L591" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `EventIDFilter` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/filters.py#L606" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 **Methods:**
 
-#### `build_where_clauses` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/filters.py#L604" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `build_where_clauses` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/filters.py#L619" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 build_where_clauses(self, db: PrefectDBInterface) -> Sequence['ColumnExpressionArgument[bool]']
@@ -356,7 +356,7 @@ Would the given filter exclude this event?
 get_filters(self) -> list['EventDataFilter']
 ```
 
-#### `includes` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/filters.py#L596" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `includes` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/filters.py#L611" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 includes(self, event: Event) -> bool
@@ -371,7 +371,7 @@ includes(self, event: Event) -> bool
 Does the given event match the criteria of this filter?
 
 
-### `EventOrder` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/filters.py#L615" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `EventOrder` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/filters.py#L630" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 **Methods:**
 
@@ -384,11 +384,11 @@ auto() -> str
 Exposes `enum.auto()` to avoid requiring a second import to use `AutoEnum`
 
 
-### `EventFilter` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/filters.py#L620" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `EventFilter` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/filters.py#L635" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 **Methods:**
 
-#### `build_where_clauses` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/filters.py#L653" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `build_where_clauses` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/filters.py#L668" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 build_where_clauses(self, db: PrefectDBInterface) -> Sequence['ColumnExpressionArgument[bool]']
@@ -418,7 +418,7 @@ includes(self, event: Event) -> bool
 Does the given event match the criteria of this filter?
 
 
-#### `logical_limit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/filters.py#L670" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `logical_limit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/filters.py#L685" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 logical_limit(self) -> int
