@@ -1502,3 +1502,59 @@ async def test_event_dates_always_have_timezones(
 async def test_corrupted_page_tokens_are_treated_as_noops(busted_token: str):
     with pytest.raises(ValueError):
         from_page_token(busted_token)
+
+
+async def test_resource_filter_empty_label_values(
+    events_query_session: AsyncSession,
+    full_occurred_range: EventOccurredFilter,
+) -> None:
+    """Test that resource labels with empty values array return no results."""
+
+    filter = EventFilter(
+        occurred=full_occurred_range,
+        resource=EventResourceFilter(labels={"hello": []}),  # Empty values = no matches
+    )
+
+    events, count, _ = await query_events(session=events_query_session, filter=filter)
+
+    # Empty label values should match nothing
+    assert count == 0
+    assert events == []
+
+
+async def test_related_filter_empty_label_values(
+    events_query_session: AsyncSession,
+    full_occurred_range: EventOccurredFilter,
+) -> None:
+    """Test that related resource labels with empty values array return no results."""
+
+    filter = EventFilter(
+        occurred=full_occurred_range,
+        related=EventRelatedFilter(labels={"hello": []}),  # Empty values = no matches
+    )
+
+    events, count, _ = await query_events(session=events_query_session, filter=filter)
+
+    # Empty label values should match nothing
+    assert count == 0
+    assert events == []
+
+
+async def test_any_resource_filter_empty_label_values(
+    events_query_session: AsyncSession,
+    full_occurred_range: EventOccurredFilter,
+) -> None:
+    """Test that any resource labels with empty values array return no results."""
+
+    filter = EventFilter(
+        occurred=full_occurred_range,
+        any_resource=EventAnyResourceFilter(
+            labels={"hello": []}
+        ),  # Empty values = no matches
+    )
+
+    events, count, _ = await query_events(session=events_query_session, filter=filter)
+
+    # Empty label values should match nothing
+    assert count == 0
+    assert events == []
