@@ -64,7 +64,7 @@ Use Docker's built-in health check functionality by including these lines in you
 ```dockerfile
 # Health check configuration
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-  CMD curl -f http://localhost:8080/health || exit 1
+  CMD python -c "import urllib.request as u; u.urlopen('http://localhost:8080/health', timeout=1)"
 
 # Start worker with healthcheck
 CMD ["prefect", "worker", "start", "--pool", "my-pool", "--with-healthcheck"]
@@ -100,7 +100,7 @@ services:
     image: my-prefect-worker:latest
     command: ["prefect", "worker", "start", "--pool", "my-pool", "--with-healthcheck"]
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      test: ["CMD", "python", "-c", "import urllib.request as u; u.urlopen('http://localhost:8080/health', timeout=1)"]
       interval: 30s
       timeout: 10s
       retries: 3
