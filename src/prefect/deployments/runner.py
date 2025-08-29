@@ -523,8 +523,7 @@ class RunnerDeployment(BaseModel):
                     self.schedules = [
                         DeploymentScheduleCreate(**schedule) for schedule in schedules
                     ]
-                deployment_id = await self._create(work_pool_name, image, version_info)
-                return deployment_id
+                return await self._create(work_pool_name, image, version_info)
             else:
                 if image:
                     self.job_variables["image"] = image
