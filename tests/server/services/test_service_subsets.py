@@ -41,9 +41,8 @@ def test_the_all_service_subset():
     }
 
 
-def test_run_in_all_servers():
-    """The following services should be enabled on background servers and web-only
-    API servers"""
+def test_run_in_ephemeral_servers():
+    """The following services should be enabled on ephemeral servers"""
     assert set(RunInEphemeralServers.all_services()) == {
         Telemetry,
         # Orchestration services
