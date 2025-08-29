@@ -217,6 +217,32 @@ async def evaluate(
                 "meets_threshold": meets_threshold,
             },
         )
+
+        # Special case of a proactive trigger for which the same event satisfies
+        # both `after` and `expect`.  For example, using flow run heartbeats for crash
+        # detection, after the first heartbeat we expect a subsequent heartbeat or
+        # terminal state within a given time.
+        #
+        # If we've already reached the proactive threshold, we need to remove the
+        # current bucket and start a new one for the latest event.
+        if (
+            triggering_event
+            and trigger.posture == Posture.Proactive
+            and not meets_threshold
+            and trigger.starts_after(triggering_event.event)
+            and trigger.expects(triggering_event.event)
+        ):
+            await remove_bucket(session, bucket)
+            return await start_new_bucket(
+                session,
+                trigger,
+                bucketing_key=bucket.bucketing_key,
+                start=triggering_event.occurred,
+                end=triggering_event.occurred + trigger.within,
+                count=0,
+                last_event=triggering_event,
+            )
+
         return bucket
     else:
         # Case #2 from the implementation notes above.
@@ -866,6 +892,7 @@ async def start_new_bucket(
     end: prefect.types._datetime.DateTime,
     count: int,
     triggered_at: Optional[prefect.types._datetime.DateTime] = None,
+    last_event: Optional[ReceivedEvent] = None,
 ) -> "ORMAutomationBucket":
     """Ensures that a bucket with the given start and end exists with the given count,
     returning the new bucket"""
@@ -882,6 +909,7 @@ async def start_new_bucket(
             count=count,
             last_operation="start_new_bucket[insert]",
             triggered_at=triggered_at,
+            last_event=last_event,
         )
         .on_conflict_do_update(
             index_elements=[
@@ -896,6 +924,7 @@ async def start_new_bucket(
                 last_operation="start_new_bucket[update]",
                 updated=prefect.types._datetime.now("UTC"),
                 triggered_at=triggered_at,
+                last_event=last_event,
             ),
         )
     )
