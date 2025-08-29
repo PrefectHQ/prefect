@@ -1,6 +1,7 @@
 import pytest
 
 from prefect.events import Event
+from prefect.events.clients import AssertingEventsClient
 from prefect.settings import (
     PREFECT_API_KEY,
     PREFECT_API_URL,
@@ -128,6 +129,16 @@ def oss_api_setup(events_api_url: str):
         yield
 
 
+@pytest.fixture
+def mock_events_client(monkeypatch: pytest.MonkeyPatch):
+    mock_client = AssertingEventsClient()
+    monkeypatch.setattr(
+        "prefect.cli.events.get_events_client",
+        lambda *args, **kwargs: mock_client,
+    )
+    return mock_client
+
+
 @pytest.mark.usefixtures("oss_api_setup")
 async def test_stream_oss_events(
     example_event_1: Event,
@@ -163,19 +174,12 @@ async def test_stream_oss_events(
         pytest.fail(f"Failed to parse event: {e}")
 
 
-# Test emit commands - these verify the CLI works correctly
-# Since the CLI runs in a subprocess with a real server, we can't easily mock
-# the events client to capture the actual events. However, we do verify:
-# 1. The command executes successfully
-# 2. The success message includes the event name
-# 3. Error cases are handled properly
-# The integration with the real events system is tested manually and in other tests.
+# Test emit commands - these emit events and verify their shape
 
 
-async def test_emit_event_simple():
-    result = await run_sync_in_worker_thread(
-        invoke_and_assert,
-        [
+def test_emit_event_simple(mock_events_client):
+    invoke_and_assert(
+        command=[
             "events",
             "emit",
             "user.action",
@@ -187,14 +191,17 @@ async def test_emit_event_simple():
             "Successfully emitted event 'user.action'",
         ],
     )
-    # Verify the output contains a UUID for the event ID
-    assert "with ID" in result.stdout
+
+    # Verify the event was emitted with correct shape
+    assert len(mock_events_client.events) == 1
+    event = mock_events_client.events[0]
+    assert event.event == "user.action"
+    assert event.resource["prefect.resource.id"] == "user-123"
 
 
-async def test_emit_event_with_payload():
-    result = await run_sync_in_worker_thread(
-        invoke_and_assert,
-        [
+def test_emit_event_with_payload(mock_events_client):
+    invoke_and_assert(
+        command=[
             "events",
             "emit",
             "order.shipped",
@@ -208,13 +215,18 @@ async def test_emit_event_with_payload():
             "Successfully emitted event 'order.shipped'",
         ],
     )
-    assert "with ID" in result.stdout
+
+    # Verify the event was emitted with correct shape
+    assert len(mock_events_client.events) == 1
+    event = mock_events_client.events[0]
+    assert event.event == "order.shipped"
+    assert event.resource["prefect.resource.id"] == "order-456"
+    assert event.payload == {"tracking": "ABC123", "carrier": "UPS"}
 
 
-async def test_emit_event_with_full_resource():
-    result = await run_sync_in_worker_thread(
-        invoke_and_assert,
-        [
+def test_emit_event_with_full_resource(mock_events_client):
+    invoke_and_assert(
+        command=[
             "events",
             "emit",
             "customer.subscribed",
@@ -226,7 +238,14 @@ async def test_emit_event_with_full_resource():
             "Successfully emitted event 'customer.subscribed'",
         ],
     )
-    assert "with ID" in result.stdout
+
+    # Verify the event was emitted with correct shape
+    assert len(mock_events_client.events) == 1
+    event = mock_events_client.events[0]
+    assert event.event == "customer.subscribed"
+    assert event.resource["prefect.resource.id"] == "customer-789"
+    assert event.resource["prefect.resource.name"] == "ACME Corp"
+    assert event.resource["tier"] == "premium"
 
 
 async def test_emit_event_missing_resource_id():
@@ -263,10 +282,9 @@ async def test_emit_event_invalid_json_payload():
     )
 
 
-async def test_emit_event_key_value_syntax():
-    result = await run_sync_in_worker_thread(
-        invoke_and_assert,
-        [
+def test_emit_event_key_value_syntax(mock_events_client):
+    invoke_and_assert(
+        command=[
             "events",
             "emit",
             "database.migrated",
@@ -278,7 +296,12 @@ async def test_emit_event_key_value_syntax():
             "Successfully emitted event 'database.migrated'",
         ],
     )
-    assert "with ID" in result.stdout
+
+    # Verify the event was emitted with correct shape
+    assert len(mock_events_client.events) == 1
+    event = mock_events_client.events[0]
+    assert event.event == "database.migrated"
+    assert event.resource["prefect.resource.id"] == "db-prod-01"
 
 
 async def test_emit_event_resource_not_dict():
@@ -317,10 +340,9 @@ async def test_emit_event_payload_not_dict():
     )
 
 
-async def test_emit_event_related_single_object():
-    result = await run_sync_in_worker_thread(
-        invoke_and_assert,
-        [
+def test_emit_event_related_single_object(mock_events_client):
+    invoke_and_assert(
+        command=[
             "events",
             "emit",
             "item.purchased",
@@ -334,13 +356,20 @@ async def test_emit_event_related_single_object():
             "Successfully emitted event 'item.purchased'",
         ],
     )
-    assert "with ID" in result.stdout
+
+    # Verify the event was emitted with correct shape
+    assert len(mock_events_client.events) == 1
+    event = mock_events_client.events[0]
+    assert event.event == "item.purchased"
+    assert event.resource["prefect.resource.id"] == "item-789"
+    assert len(event.related) == 1
+    assert event.related[0]["prefect.resource.id"] == "user-456"
+    assert event.related[0]["prefect.resource.role"] == "buyer"
 
 
-async def test_emit_event_related_array():
-    result = await run_sync_in_worker_thread(
-        invoke_and_assert,
-        [
+def test_emit_event_related_array(mock_events_client):
+    invoke_and_assert(
+        command=[
             "events",
             "emit",
             "team.formed",
@@ -354,4 +383,14 @@ async def test_emit_event_related_array():
             "Successfully emitted event 'team.formed'",
         ],
     )
-    assert "with ID" in result.stdout
+
+    # Verify the event was emitted with correct shape
+    assert len(mock_events_client.events) == 1
+    event = mock_events_client.events[0]
+    assert event.event == "team.formed"
+    assert event.resource["prefect.resource.id"] == "team-123"
+    assert len(event.related) == 2
+    assert event.related[0]["prefect.resource.id"] == "user-1"
+    assert event.related[0]["prefect.resource.role"] == "member"
+    assert event.related[1]["prefect.resource.id"] == "user-2"
+    assert event.related[1]["prefect.resource.role"] == "lead"
