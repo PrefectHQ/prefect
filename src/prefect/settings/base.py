@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import inspect
+import json
 from functools import partial
 from typing import Any
 
@@ -235,4 +236,6 @@ def _to_environment_variable_value(
 ) -> str:
     if isinstance(value, (list, set, tuple)):
         return ",".join(str(v) for v in value)
+    if isinstance(value, dict):
+        return json.dumps(value)
     return str(value)
