@@ -91,7 +91,7 @@ class ArtifactClient(BaseClient):
         emit_event(
             event="prefect.artifact.updated",
             resource=resource,
-            payload=payload or None,
+            payload=payload,
         )
         return None
 
@@ -172,7 +172,7 @@ class ArtifactAsyncClient(BaseAsyncClient):
         emit_event(
             event="prefect.artifact.created",
             resource=resource,
-            payload=payload or None,
+            payload=payload,
         )
 
         return created
