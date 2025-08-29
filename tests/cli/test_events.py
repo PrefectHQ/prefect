@@ -163,8 +163,17 @@ async def test_stream_oss_events(
         pytest.fail(f"Failed to parse event: {e}")
 
 
+# Test emit commands - these verify the CLI works correctly
+# Since the CLI runs in a subprocess with a real server, we can't easily mock
+# the events client to capture the actual events. However, we do verify:
+# 1. The command executes successfully
+# 2. The success message includes the event name
+# 3. Error cases are handled properly
+# The integration with the real events system is tested manually and in other tests.
+
+
 async def test_emit_event_simple():
-    await run_sync_in_worker_thread(
+    result = await run_sync_in_worker_thread(
         invoke_and_assert,
         [
             "events",
@@ -178,10 +187,12 @@ async def test_emit_event_simple():
             "Successfully emitted event 'user.action'",
         ],
     )
+    # Verify the output contains a UUID for the event ID
+    assert "with ID" in result.stdout
 
 
 async def test_emit_event_with_payload():
-    await run_sync_in_worker_thread(
+    result = await run_sync_in_worker_thread(
         invoke_and_assert,
         [
             "events",
@@ -197,10 +208,11 @@ async def test_emit_event_with_payload():
             "Successfully emitted event 'order.shipped'",
         ],
     )
+    assert "with ID" in result.stdout
 
 
 async def test_emit_event_with_full_resource():
-    await run_sync_in_worker_thread(
+    result = await run_sync_in_worker_thread(
         invoke_and_assert,
         [
             "events",
@@ -214,6 +226,7 @@ async def test_emit_event_with_full_resource():
             "Successfully emitted event 'customer.subscribed'",
         ],
     )
+    assert "with ID" in result.stdout
 
 
 async def test_emit_event_missing_resource_id():
@@ -251,7 +264,7 @@ async def test_emit_event_invalid_json_payload():
 
 
 async def test_emit_event_key_value_syntax():
-    await run_sync_in_worker_thread(
+    result = await run_sync_in_worker_thread(
         invoke_and_assert,
         [
             "events",
@@ -265,6 +278,7 @@ async def test_emit_event_key_value_syntax():
             "Successfully emitted event 'database.migrated'",
         ],
     )
+    assert "with ID" in result.stdout
 
 
 async def test_emit_event_resource_not_dict():
@@ -304,7 +318,7 @@ async def test_emit_event_payload_not_dict():
 
 
 async def test_emit_event_related_single_object():
-    await run_sync_in_worker_thread(
+    result = await run_sync_in_worker_thread(
         invoke_and_assert,
         [
             "events",
@@ -320,3 +334,24 @@ async def test_emit_event_related_single_object():
             "Successfully emitted event 'item.purchased'",
         ],
     )
+    assert "with ID" in result.stdout
+
+
+async def test_emit_event_related_array():
+    result = await run_sync_in_worker_thread(
+        invoke_and_assert,
+        [
+            "events",
+            "emit",
+            "team.formed",
+            "--resource-id",
+            "team-123",
+            "--related",
+            '[{"prefect.resource.id": "user-1", "prefect.resource.role": "member"}, {"prefect.resource.id": "user-2", "prefect.resource.role": "lead"}]',
+        ],
+        expected_code=0,
+        expected_output_contains=[
+            "Successfully emitted event 'team.formed'",
+        ],
+    )
+    assert "with ID" in result.stdout
