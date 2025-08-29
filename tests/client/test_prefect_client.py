@@ -2241,7 +2241,7 @@ class TestArtifacts:
         assert response.json()["description"] == artifact.description
 
         # Events: creation should emit a client-side event
-        asserting_events_worker.drain()
+        await asserting_events_worker.drain()
         evt = next(
             (
                 e
@@ -2280,7 +2280,7 @@ class TestArtifacts:
         )
         _ = await update_call if inspect.isawaitable(update_call) else update_call
 
-        asserting_events_worker.drain()
+        await asserting_events_worker.drain()
         evt = next(
             (
                 e
