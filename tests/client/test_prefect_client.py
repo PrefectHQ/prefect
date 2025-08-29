@@ -2179,7 +2179,7 @@ class TestArtifacts:
         return prefect_client if request.param else sync_prefect_client
 
     @pytest.fixture
-    async def artifacts(self, artifact_client):
+    async def artifacts(self, artifact_client, reset_worker_events):
         create1 = artifact_client.create_artifact(
             artifact=ArtifactCreate(
                 key="voltaic",
