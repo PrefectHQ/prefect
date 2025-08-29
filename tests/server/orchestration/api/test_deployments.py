@@ -3329,6 +3329,31 @@ class TestCreateFlowRunFromDeployment:
         )
         assert sorted(response.json()["tags"]) == sorted(["nope"] + deployment.tags)
 
+    async def test_create_flow_run_from_deployment_fails_with_null_work_queue(
+        self, deployment, client, session
+    ):
+        """Test that creating a flow run fails when deployment has no work_queue but work_queue_name is provided."""
+        # Set work_queue to None by removing the work_queue relationship
+        deployment_obj = await models.deployments.read_deployment(
+            session, deployment.id
+        )
+        deployment_obj.work_queue = None
+        session.add(deployment_obj)
+        await session.commit()
+
+        response = await client.post(
+            f"deployments/{deployment.id}/create_flow_run",
+            json=schemas.actions.DeploymentFlowRunCreate(
+                work_queue_name="test-queue"
+            ).model_dump(mode="json"),
+        )
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert (
+            "deployment has no associated work queue or work pool"
+            in response.json()["detail"]
+        )
+
     async def test_create_flow_run_enforces_parameter_schema(
         self,
         deployment_with_parameter_schema,
