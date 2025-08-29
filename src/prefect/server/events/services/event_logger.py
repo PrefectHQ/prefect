@@ -7,7 +7,7 @@ import rich
 
 from prefect.logging import get_logger
 from prefect.server.events.schemas.events import ReceivedEvent
-from prefect.server.services.base import RunInAllServers, Service
+from prefect.server.services.base import RunInEphemeralServers, Service
 from prefect.server.utilities.messaging import Consumer, Message, create_consumer
 from prefect.server.utilities.messaging._consumer_names import (
     generate_unique_consumer_name,
@@ -22,7 +22,7 @@ if TYPE_CHECKING:
 logger: "logging.Logger" = get_logger(__name__)
 
 
-class EventLogger(RunInAllServers, Service):
+class EventLogger(RunInEphemeralServers, Service):
     """A debugging service that logs events to the console as they arrive."""
 
     consumer_task: asyncio.Task[None] | None = None
