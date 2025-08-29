@@ -66,13 +66,12 @@ class ArtifactClient(BaseClient):
                 "type": created.type,
                 "description": created.description,
             }.items()
-            if v is not None
         }
 
         emit_event(
             event="prefect.artifact.created",
             resource=resource,
-            payload=payload or None,
+            payload=payload,
         )
 
         return created
