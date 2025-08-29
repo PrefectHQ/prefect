@@ -22,7 +22,7 @@ from prefect.server.events.ordering import (
 from prefect.server.events.schemas.events import ReceivedEvent
 from prefect.server.schemas.core import TaskRun
 from prefect.server.schemas.states import State
-from prefect.server.services.base import RunInAllServers, Service
+from prefect.server.services.base import RunInEphemeralServers, Service
 from prefect.server.utilities.messaging import (
     Consumer,
     Message,
@@ -240,7 +240,7 @@ async def consumer() -> AsyncGenerator[MessageHandler, None]:
             logger.info("Periodically process followers task cancelled successfully")
 
 
-class TaskRunRecorder(RunInAllServers, Service):
+class TaskRunRecorder(RunInEphemeralServers, Service):
     """Constructs task runs and states from client-emitted events"""
 
     consumer_task: asyncio.Task[None] | None = None

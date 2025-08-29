@@ -148,10 +148,9 @@ class Service(ABC):
         self.logger = get_logger(f"server.services.{self.name.lower()}")
 
 
-class RunInAllServers(Service, abc.ABC):
+class RunInEphemeralServers(Service, abc.ABC):
     """
-    A marker class for services that should run in all server processes, both the
-    web server and the standalone services process.
+    A marker class for services that should run even when running an ephemeral server
     """
 
     pass
