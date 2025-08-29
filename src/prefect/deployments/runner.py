@@ -69,7 +69,11 @@ from prefect._internal.schemas.validators import (
 from prefect._versioning import VersionType, get_inferred_version_info
 from prefect.client.base import ServerType
 from prefect.client.orchestration import PrefectClient, get_client
-from prefect.client.schemas.actions import DeploymentScheduleCreate, DeploymentUpdate
+from prefect.client.schemas.actions import (
+    DeploymentScheduleCreate,
+    DeploymentScheduleUpdate,
+    DeploymentUpdate,
+)
 from prefect.client.schemas.filters import WorkerFilter, WorkerFilterStatus
 from prefect.client.schemas.objects import (
     ConcurrencyLimitConfig,
@@ -174,7 +178,9 @@ class RunnerDeployment(BaseModel):
         default_factory=list,
         description="One of more tags to apply to this deployment.",
     )
-    schedules: Optional[List[DeploymentScheduleCreate]] = Field(
+    schedules: Optional[
+        List[Union[DeploymentScheduleCreate, DeploymentScheduleUpdate]]
+    ] = Field(
         default=None,
         description="The schedules that should cause this deployment to run.",
     )
@@ -434,6 +440,12 @@ class RunnerDeployment(BaseModel):
         else:
             update_payload["pull_steps"] = None
 
+        if self.schedules:
+            update_payload["schedules"] = [
+                schedule.model_dump(mode="json", exclude_unset=True)
+                for schedule in self.schedules
+            ]
+
         await client.update_deployment(
             deployment_id,
             deployment=DeploymentUpdate(
@@ -480,6 +492,7 @@ class RunnerDeployment(BaseModel):
     @sync_compatible
     async def apply(
         self,
+        schedules: Optional[List[dict[str, Any]]] = None,
         work_pool_name: Optional[str] = None,
         image: Optional[str] = None,
         version_info: Optional[VersionInfo] = None,
@@ -506,12 +519,21 @@ class RunnerDeployment(BaseModel):
             try:
                 deployment = await client.read_deployment_by_name(self.full_name)
             except ObjectNotFound:
-                return await self._create(work_pool_name, image, version_info)
+                if schedules:
+                    self.schedules = [
+                        DeploymentScheduleCreate(**schedule) for schedule in schedules
+                    ]
+                deployment_id = await self._create(work_pool_name, image, version_info)
+                return deployment_id
             else:
                 if image:
                     self.job_variables["image"] = image
                 if work_pool_name:
                     self.work_pool_name = work_pool_name
+                if schedules:
+                    self.schedules = [
+                        DeploymentScheduleUpdate(**schedule) for schedule in schedules
+                    ]
                 return await self._update(deployment.id, client, version_info)
 
     async def _create_slas(self, deployment_id: UUID, client: PrefectClient):
