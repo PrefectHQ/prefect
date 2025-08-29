@@ -2202,7 +2202,9 @@ class TestArtifacts:
 
         return [artifact1, artifact2, artifact3]
 
-    async def test_create_then_read_artifact(self, prefect_client, client, asserting_events_worker):
+    async def test_create_then_read_artifact(
+        self, prefect_client, client, asserting_events_worker
+    ):
         artifact_schema = ArtifactCreate(
             key="voltaic",
             data=1,
@@ -2219,7 +2221,11 @@ class TestArtifacts:
         await asserting_events_worker.drain()
         assert len(asserting_events_worker._client.events) >= 1
         evt = next(
-            (e for e in asserting_events_worker._client.events if e.event == "prefect.artifact.created"),
+            (
+                e
+                for e in asserting_events_worker._client.events
+                if e.event == "prefect.artifact.created"
+            ),
             None,
         )
         assert evt is not None
@@ -2237,7 +2243,12 @@ class TestArtifacts:
             ("lotus", 3),
         }
 
-    async def test_update_artifact_emits_event(self, prefect_client, artifacts, asserting_events_worker):
+    async def test_update_artifact_emits_event(
+        self,
+        prefect_client,
+        artifacts,
+        asserting_events_worker,
+    ):
         # Update the first artifact's description
         from prefect.client.schemas.actions import ArtifactUpdate
 
@@ -2248,7 +2259,11 @@ class TestArtifacts:
 
         await asserting_events_worker.drain()
         evt = next(
-            (e for e in asserting_events_worker._client.events if e.event == "prefect.artifact.updated"),
+            (
+                e
+                for e in asserting_events_worker._client.events
+                if e.event == "prefect.artifact.updated"
+            ),
             None,
         )
         assert evt is not None
