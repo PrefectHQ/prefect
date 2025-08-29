@@ -2626,3 +2626,15 @@ class TestClientCustomHeadersSetting:
         with temporary_settings({PREFECT_CLIENT_CUSTOM_HEADERS: mixed_case_headers}):
             settings = get_current_settings()
             assert settings.client.custom_headers == mixed_case_headers
+
+    def test_value_as_environment_variable_json_serializable(self):
+        from prefect.settings import get_current_settings
+
+        custom_headers = {"X-Test-Header": "test-value"}
+
+        with temporary_settings({PREFECT_CLIENT_CUSTOM_HEADERS: custom_headers}):
+            settings = get_current_settings()
+            env_value = settings.to_environment_variables()[
+                "PREFECT_CLIENT_CUSTOM_HEADERS"
+            ]
+            assert json.loads(env_value) == custom_headers
