@@ -721,3 +721,182 @@ async def test_reactive_automation_can_trigger_on_events_arriving_in_the_future(
     )
 
     act.assert_awaited_once()
+
+
+@pytest.fixture
+async def proactive_flow_run_automation(
+    cleared_buckets: None,
+    cleared_automations: None,
+    automations_session: AsyncSession,
+) -> Automation:
+    """Automation that mirrors real-world flow run monitoring with multiple after states."""
+    automation = await automations.create_automation(
+        automations_session,
+        Automation(
+            name="Monitor stuck flow runs",
+            trigger=EventTrigger(
+                match={"prefect.resource.id": "prefect.flow-run.*"},
+                match_related={},
+                after=[
+                    "prefect.flow-run.Retrying",
+                    "prefect.flow-run.AwaitingRetry",
+                    "prefect.flow-run.Resuming",
+                    "prefect.flow-run.Cancelling",
+                    "prefect.flow-run.Pending",
+                    "prefect.flow-run.AwaitingConcurrencySlot",
+                    "prefect.flow-run.Running",
+                ],
+                expect=["prefect.flow-run.*"],
+                for_each=["prefect.resource.id"],
+                posture=Posture.Proactive,
+                threshold=1,
+                within=timedelta(hours=2),
+            ),
+            actions=[actions.DoNothing()],
+        ),
+    )
+    triggers.load_automation(automation)
+    await automations_session.commit()
+    return automation
+
+
+async def test_proactive_flow_run_automation_includes_triggering_event(
+    act: mock.AsyncMock,
+    assert_acted_with: Callable[[Union[Firing, List[Firing]]], None],
+    frozen_time: DateTime,
+    proactive_flow_run_automation: Automation,
+):
+    """Test that proactive automations with same event in after and expect
+    correctly populate the triggering_event field when fired.
+
+    This ensures that when a proactive automation fires, it includes reference
+    to the event that started the trigger (the 'after' event), not just null.
+
+    This tests the special case where:
+    1. The same event (Running) is in both 'after' and 'expect' arrays
+    2. A Running event starts the trigger
+    3. Another Running event arrives within the window (triggering the special case)
+    4. When the window expires without completion, it fires with the triggering_event set
+    """
+    assert isinstance(proactive_flow_run_automation.trigger, EventTrigger)
+
+    flow_run_id = uuid4()
+
+    # Create the first Running event that should start the trigger
+    first_running_event = Event(
+        occurred=frozen_time,
+        event="prefect.flow-run.Running",
+        resource={"prefect.resource.id": f"prefect.flow-run.{flow_run_id}"},
+        related=[],
+        payload={},
+        id=uuid4(),
+    ).receive()
+
+    # Process the first Running event - this starts the trigger
+    await triggers.reactive_evaluation(first_running_event)
+
+    # Verify not fired yet
+    act.assert_not_awaited()
+
+    # Send another Running event within the window (e.g., a heartbeat)
+    # This should trigger the special case condition in event.py lines 189-195
+    second_running_event = Event(
+        occurred=frozen_time + timedelta(minutes=30),
+        event="prefect.flow-run.Running",
+        resource={"prefect.resource.id": f"prefect.flow-run.{flow_run_id}"},
+        related=[],
+        payload={},
+        id=uuid4(),
+    ).receive()
+
+    # Process the second Running event - this hits the special case
+    await triggers.reactive_evaluation(second_running_event)
+
+    # Still shouldn't fire yet (within window)
+    act.assert_not_awaited()
+
+    # After the 2-hour window from the SECOND event, should fire
+    await triggers.proactive_evaluation(
+        proactive_flow_run_automation.trigger,
+        frozen_time + timedelta(minutes=30) + timedelta(hours=2, minutes=1),
+    )
+
+    # Verify the automation fired with the correct triggering_event
+    # The triggering_event should be the second Running event (the one that restarted the bucket)
+    assert_acted_with(
+        Firing(
+            trigger=proactive_flow_run_automation.trigger,
+            trigger_states={TriggerState.Triggered},
+            triggered=frozen_time,  # type: ignore
+            triggering_labels={
+                "prefect.resource.id": f"prefect.flow-run.{flow_run_id}"
+            },
+            triggering_event=second_running_event,  # Should be the second Running event
+        )
+    )
+
+
+@pytest.fixture
+async def proactive_extended_expect_and_after_with_threshold_1(
+    cleared_buckets: None,
+    cleared_automations: None,
+    automations_session: AsyncSession,
+) -> Automation:
+    automation = await automations.create_automation(
+        automations_session,
+        Automation(
+            name="Both expect and after",
+            trigger=EventTrigger(
+                for_each=["prefect.resource.id"],
+                after=["some-event"],
+                expect=["some-event"],
+                posture=Posture.Proactive,
+                threshold=1,
+                within=timedelta(minutes=5),
+            ),
+            actions=[actions.DoNothing()],
+        ),
+    )
+    triggers.load_automation(automation)
+    await automations_session.commit()
+    return automation
+
+
+async def test_same_event_in_expect_and_after_proactively_fires_with_for_each_threshold_1(
+    act: mock.AsyncMock,
+    frozen_time: DateTime,
+    proactive_extended_expect_and_after_with_threshold_1: Automation,
+):
+    """
+    During the test, an event is emitted every minute starting at t=1.
+    Proactive automations are run every 5 minutes, starting at t=0
+    """
+    assert isinstance(
+        proactive_extended_expect_and_after_with_threshold_1.trigger, EventTrigger
+    )
+
+    evaluate_proactive_times = range(0, 15, 5)
+    heartbeat_times = range(1, 3)
+
+    for minute in range(0, 11):
+        if minute in evaluate_proactive_times:
+            act.reset_mock()
+            await triggers.proactive_evaluation(
+                proactive_extended_expect_and_after_with_threshold_1.trigger,
+                frozen_time + timedelta(minutes=minute),
+            )
+
+            if minute != 10:
+                act.assert_not_awaited()
+            else:
+                act.assert_awaited_once()
+
+        if minute in heartbeat_times:
+            await triggers.reactive_evaluation(
+                Event(
+                    occurred=frozen_time + timedelta(minutes=minute),
+                    event="some-event",
+                    resource={"prefect.resource.id": "some.resource"},
+                    id=uuid4(),
+                ).receive()
+            )
