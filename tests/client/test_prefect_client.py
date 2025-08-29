@@ -2202,7 +2202,7 @@ class TestArtifacts:
 
         return [artifact1, artifact2, artifact3]
 
-    async def test_create_then_read_artifact(self, prefect_client, client):
+    async def test_create_then_read_artifact(self, prefect_client, client, asserting_events_worker):
         artifact_schema = ArtifactCreate(
             key="voltaic",
             data=1,
@@ -2215,6 +2215,18 @@ class TestArtifacts:
         assert response.json()["key"] == artifact.key
         assert response.json()["description"] == artifact.description
 
+        # Events: creation should emit a client-side event
+        await asserting_events_worker.drain()
+        assert len(asserting_events_worker._client.events) >= 1
+        evt = next(
+            (e for e in asserting_events_worker._client.events if e.event == "prefect.artifact.created"),
+            None,
+        )
+        assert evt is not None
+        assert evt.resource.id == f"prefect.artifact.{artifact.id}"
+        # if key present include as resource name
+        assert evt.resource.get("prefect.resource.name") == artifact.key
+
     async def test_read_artifacts(self, prefect_client, artifacts):
         artifact_list = await prefect_client.read_artifacts()
         assert len(artifact_list) == 3
@@ -2224,6 +2236,23 @@ class TestArtifacts:
             ("voltaic", 2),
             ("lotus", 3),
         }
+
+    async def test_update_artifact_emits_event(self, prefect_client, artifacts, asserting_events_worker):
+        # Update the first artifact's description
+        from prefect.client.schemas.actions import ArtifactUpdate
+
+        await prefect_client.update_artifact(
+            artifact_id=artifacts[0].id,
+            artifact=ArtifactUpdate(description="updated desc"),
+        )
+
+        await asserting_events_worker.drain()
+        evt = next(
+            (e for e in asserting_events_worker._client.events if e.event == "prefect.artifact.updated"),
+            None,
+        )
+        assert evt is not None
+        assert evt.resource.id == f"prefect.artifact.{artifacts[0].id}"
 
     async def test_read_artifacts_with_latest_filter(self, prefect_client, artifacts):
         artifact_list = await prefect_client.read_latest_artifacts()
