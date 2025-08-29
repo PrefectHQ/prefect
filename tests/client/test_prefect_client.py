@@ -2212,6 +2212,7 @@ class TestArtifacts:
 
         return [artifact1, artifact2, artifact3]
 
+    @pytest.mark.usefixtures("reset_worker_events")
     async def test_create_then_read_artifact(
         self, artifact_client, client, sync_client, asserting_events_worker
     ):
@@ -2260,6 +2261,7 @@ class TestArtifacts:
             ("lotus", 3),
         }
 
+    @pytest.mark.usefixtures("reset_worker_events")
     async def test_update_artifact_emits_event(
         self,
         artifact_client,
