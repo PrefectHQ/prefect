@@ -5,8 +5,8 @@ from pydantic import Field
 from typing_extensions import TypedDict, Unpack
 
 from prefect.client.orchestration.base import BaseAsyncClient, BaseClient
-from prefect.exceptions import ObjectNotFound
 from prefect.events.utilities import emit_event
+from prefect.exceptions import ObjectNotFound
 
 if TYPE_CHECKING:
     from uuid import UUID
