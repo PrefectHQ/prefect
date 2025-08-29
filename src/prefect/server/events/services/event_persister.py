@@ -17,7 +17,7 @@ from prefect.logging import get_logger
 from prefect.server.database import provide_database_interface
 from prefect.server.events.schemas.events import ReceivedEvent
 from prefect.server.events.storage.database import write_events
-from prefect.server.services.base import RunInAllServers, Service
+from prefect.server.services.base import RunInEphemeralServers, Service
 from prefect.server.utilities.messaging import (
     Consumer,
     Message,
@@ -80,7 +80,7 @@ async def batch_delete(
     return total_deleted
 
 
-class EventPersister(RunInAllServers, Service):
+class EventPersister(RunInEphemeralServers, Service):
     """A service that persists events to the database as they arrive."""
 
     consumer_task: asyncio.Task[None] | None = None
