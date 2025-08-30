@@ -488,6 +488,7 @@ class TestRemoteFileSystem:
             await fs.put_directory(to_path=null_value, local_path=local_path)
         assert (local_path / "test").exists()
 
+@pytest.importorskip("fsspec_implementations.smb", reason="requires fsspec[smb]")
 class TestSMB:
     @pytest.fixture
     def smb_block(self):
