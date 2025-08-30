@@ -44,7 +44,9 @@ export const queryKeyFactory = {
 	count: (filter: WorkPoolsCountFilter) =>
 		[...queryKeyFactory.counts(), filter] as const,
 	details: () => [...queryKeyFactory.all(), "details"] as const,
-	detail: (name: string) => [...queryKeyFactory.counts(), name] as const,
+	detail: (name: string) => [...queryKeyFactory.details(), name] as const,
+	detailByName: (name: string) =>
+		[...queryKeyFactory.details(), "by-name", name] as const,
 	workersLists: () => [...queryKeyFactory.all(), "workers"] as const,
 	workersList: (workPoolName: string) =>
 		[...queryKeyFactory.workersLists(), workPoolName] as const,
@@ -155,6 +157,32 @@ export const buildWorkPoolDetailsQuery = (name: string) =>
 export const buildGetWorkPoolQuery = (name: string) =>
 	queryOptions({
 		queryKey: queryKeyFactory.detail(name),
+		queryFn: async () => {
+			const res = await getQueryService().GET("/work_pools/{name}", {
+				params: { path: { name } },
+			});
+			if (!res.data) {
+				throw new Error("'data' expected");
+			}
+			return res.data;
+		},
+	});
+
+/**
+ * Builds a query configuration for getting a work pool by name
+ * Uses a separate query key to differentiate from detail queries by ID
+ *
+ * @param name - Work pool name to get details of
+ * @returns Query configuration object for use with TanStack Query
+ *
+ * @example
+ * ```ts
+ * const query = useQuery(buildWorkPoolByNameQuery('my-work-pool'));
+ * ```
+ */
+export const buildWorkPoolByNameQuery = (name: string) =>
+	queryOptions({
+		queryKey: queryKeyFactory.detailByName(name),
 		queryFn: async () => {
 			const res = await getQueryService().GET("/work_pools/{name}", {
 				params: { path: { name } },

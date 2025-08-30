@@ -3,6 +3,7 @@ export {
 	buildFilterWorkPoolsQuery,
 	buildListWorkPoolWorkersQuery,
 	buildWorkPoolDetailsQuery,
+	buildWorkPoolByNameQuery,
 	useCreateWorkPool,
 	useDeleteWorker,
 	useDeleteWorkPool,
