@@ -790,7 +790,7 @@ async def create_flow_run_from_deployment(
             if deployment.work_queue is None or deployment.work_queue.work_pool is None:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="Cannot create flow run: deployment has no associated work queue or work pool",
+                    detail=f"Cannot create flow run in work queue {flow_run.work_queue} because deployment {deployment_id} is not associated with a work pool. Please remove work_pool_name and try again.",
                 )
 
             work_queue_id = await worker_lookups._get_work_queue_id_from_name(
