@@ -1,17 +1,16 @@
 import os
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import Generator, Tuple
-import fsspec
+from typing import Tuple
 from unittest.mock import patch
 
 import pytest
 
 import prefect
 from prefect.filesystems import (
+    SMB,
     LocalFileSystem,
     RemoteFileSystem,
-    SMB,
 )
 from prefect.testing.utilities import MagicMock
 from prefect.utilities.filesystem import tmpchdir
