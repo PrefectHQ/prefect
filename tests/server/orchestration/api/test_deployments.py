@@ -3350,7 +3350,7 @@ class TestCreateFlowRunFromDeployment:
 
         assert response.status_code == status.HTTP_400_BAD_REQUEST
         assert (
-            "deployment has no associated work queue or work pool"
+            "is not associated with a work pool"
             in response.json()["detail"]
         )
 
