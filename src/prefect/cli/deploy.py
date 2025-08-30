@@ -43,7 +43,6 @@ from prefect.cli._utilities import (
 from prefect.cli.root import app, is_interactive
 from prefect.client.base import ServerType
 from prefect.client.orchestration import get_client
-from prefect.client.schemas.actions import DeploymentScheduleCreate
 from prefect.client.schemas.filters import WorkerFilter
 from prefect.client.schemas.objects import ConcurrencyLimitConfig
 from prefect.client.schemas.schedules import (
@@ -754,7 +753,6 @@ async def _run_single_deploy(
         tags=deploy_config.get("tags"),
         concurrency_limit=deploy_config.get("concurrency_limit"),
         concurrency_options=deploy_config.get("concurrency_options"),
-        schedules=deploy_config.get("schedules"),
         paused=deploy_config.get("paused"),
         storage=_PullStepStorage(pull_steps),
         job_variables=get_from_dict(deploy_config, "work_pool.job_variables"),
@@ -769,7 +767,7 @@ async def _run_single_deploy(
             "enforce_parameter_schema"
         )
 
-    apply_coro = deployment.apply()
+    apply_coro = deployment.apply(schedules=deploy_config.get("schedules"))
     if TYPE_CHECKING:
         assert inspect.isawaitable(apply_coro)
 
@@ -904,7 +902,7 @@ async def _run_multi_deploy(
 def _construct_schedules(
     deploy_config: dict[str, Any],
     step_outputs: dict[str, Any],
-) -> list[DeploymentScheduleCreate]:
+) -> list[dict[str, Any]]:
     """
     Constructs a schedule from a deployment configuration.
 
@@ -914,7 +912,7 @@ def _construct_schedules(
     Returns:
         A list of schedule objects
     """
-    schedules: list[DeploymentScheduleCreate] = []  # Initialize with empty list
+    schedules: list[dict[str, Any]] = []  # Initialize with empty list
     schedule_configs = deploy_config.get("schedules", NotSet) or []
 
     if schedule_configs is not NotSet:
@@ -931,10 +929,10 @@ def _construct_schedules(
 
 def _schedule_config_to_deployment_schedule(
     schedule_config: dict[str, Any],
-) -> DeploymentScheduleCreate:
+) -> dict[str, Any]:
     anchor_date = schedule_config.get("anchor_date")
     timezone = schedule_config.get("timezone")
-    schedule_active = schedule_config.get("active", True)
+    schedule_active = schedule_config.get("active")
     parameters = schedule_config.get("parameters", {})
     slug = schedule_config.get("slug")
 
@@ -965,12 +963,15 @@ def _schedule_config_to_deployment_schedule(
             f"Unknown schedule type. Please provide a valid schedule. schedule={schedule_config}"
         )
 
-    return DeploymentScheduleCreate(
-        schedule=schedule,
-        active=schedule_active,
-        parameters=parameters,
-        slug=slug,
-    )
+    schedule = {"schedule": schedule}
+    if schedule_active is not None:
+        schedule["active"] = schedule_active
+    if parameters:
+        schedule["parameters"] = parameters
+    if slug:
+        schedule["slug"] = slug
+
+    return schedule
 
 
 def _merge_with_default_deploy_config(deploy_config: dict[str, Any]) -> dict[str, Any]:
