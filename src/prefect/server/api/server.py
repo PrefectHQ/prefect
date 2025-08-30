@@ -18,7 +18,7 @@ import sqlite3
 import subprocess
 import sys
 import time
-from contextlib import asynccontextmanager
+from contextlib import AsyncExitStack, asynccontextmanager
 from functools import wraps
 from hashlib import sha256
 from typing import TYPE_CHECKING, Any, AsyncGenerator, Awaitable, Callable, Optional
@@ -47,7 +47,7 @@ from prefect.client.constants import SERVER_API_VERSION
 from prefect.logging import get_logger
 from prefect.server.api.dependencies import EnforceMinimumAPIVersion
 from prefect.server.exceptions import ObjectNotFoundError
-from prefect.server.services.base import RunInAllServers, Service
+from prefect.server.services.base import RunInEphemeralServers, Service
 from prefect.server.utilities.database import get_dialect
 from prefect.settings import (
     PREFECT_API_DATABASE_CONNECTION_URL,
@@ -644,18 +644,21 @@ def create_app(
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
-        if app not in LIFESPAN_RAN_FOR_APP:
-            await run_migrations()
-            await add_block_types()
+        if app in LIFESPAN_RAN_FOR_APP:
+            yield
+            return
 
-            Services: type[Service] = Service
-            if ephemeral or webserver_only:
-                Services = RunInAllServers
+        await run_migrations()
+        await add_block_types()
 
-            async with Services.running():
-                LIFESPAN_RAN_FOR_APP.add(app)
-                yield
-        else:
+        Services: type[Service] | None = (
+            None if webserver_only else RunInEphemeralServers if ephemeral else Service
+        )
+
+        async with AsyncExitStack() as stack:
+            if Services:
+                await stack.enter_async_context(Services.running())
+            LIFESPAN_RAN_FOR_APP.add(app)
             yield
 
     def on_service_exit(service: Service, task: asyncio.Task[None]) -> None:
