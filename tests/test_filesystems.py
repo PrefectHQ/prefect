@@ -488,6 +488,7 @@ class TestRemoteFileSystem:
             await fs.put_directory(to_path=null_value, local_path=local_path)
         assert (local_path / "test").exists()
 
+
 @pytest.importorskip("fsspec_implementations.smb", reason="requires fsspec[smb]")
 class TestSMB:
     @pytest.fixture
@@ -502,9 +503,7 @@ class TestSMB:
         )
 
     @patch("fsspec.implementations.smb.smbclient")
-    async def test_write_path_constructs_good_unc_path(
-        self, mock_smbclient, smb_block
-    ):
+    async def test_write_path_constructs_good_unc_path(self, mock_smbclient, smb_block):
         """
         This test reproduces the issue where RemoteFileSystem passes a full URI
         to the underlying fsspec SMBFileSystem, causing a malformed UNC path
@@ -533,5 +532,7 @@ class TestSMB:
         # This is the core of the test. The bug causes the full URI to be passed
         # to fsspec, which then prepends the host again, creating a malformed path.
         # e.g. \\my.smb.server.edu\smb:\\my.smb.server.edu\prefect\storage\test-dir
-        assert unc_path.count(smb_block.smb_host) == 1, "The host name should not be duplicated"
+        assert unc_path.count(smb_block.smb_host) == 1, (
+            "The host name should not be duplicated"
+        )
         assert unc_path == r"\\my.smb.server.edu\prefect\storage\test-dir"
