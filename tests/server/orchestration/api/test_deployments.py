@@ -3349,10 +3349,7 @@ class TestCreateFlowRunFromDeployment:
         )
 
         assert response.status_code == status.HTTP_400_BAD_REQUEST
-        assert (
-            "is not associated with a work pool"
-            in response.json()["detail"]
-        )
+        assert "is not associated with a work pool" in response.json()["detail"]
 
     async def test_create_flow_run_enforces_parameter_schema(
         self,
