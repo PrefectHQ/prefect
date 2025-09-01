@@ -33,11 +33,28 @@ clean: check-uv
 
 # Generate API reference documentation for all modules
 api-ref-all:
-    uvx --with-editable . --refresh-package mdxify mdxify@latest --all --root-module prefect --output-dir docs/v3/api-ref/python --anchor-name "Python SDK Reference" --exclude prefect.agent --include-inheritance
+    uvx --with-editable . \
+        --refresh-package mdxify \
+        mdxify@latest \
+        --all \
+        --root-module prefect \
+        --output-dir docs/v3/api-ref/python \
+        --anchor-name "Python SDK Reference" \
+        --repo-url https://github.com/PrefectHQ/prefect \
+        --exclude prefect.agent \
+        --include-inheritance
 
 # Generate API reference for specific modules (e.g., just api-ref prefect.flows prefect.tasks)
 api-ref *MODULES:
-    uvx --with-editable . --refresh-package mdxify mdxify@latest {{MODULES}} --root-module prefect --output-dir docs/v3/api-ref/python --anchor-name "Python SDK Reference" --include-inheritance
+    uvx --with-editable . \
+        --refresh-package mdxify \
+        mdxify@latest \
+        {{MODULES}} \
+        --root-module prefect \
+        --output-dir docs/v3/api-ref/python \
+        --anchor-name "Python SDK Reference" \
+        --repo-url https://github.com/PrefectHQ/prefect \
+        --include-inheritance
 
 # Clean up API reference documentation
 api-ref-clean:
