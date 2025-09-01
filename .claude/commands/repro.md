@@ -1,6 +1,8 @@
 Use the github MCP (if available, use `gh` otherwise) to read and understand the following github issue: $1.
 
-Create a file named by issue number (ie. `1234.py`) in a locally gitignored (.git/info/exclude) `repros/` directory with a minimal reproducible example that reproduces the issue.
+Read the body and all comments in the issue.
+
+To reproduce, create a file named by issue number (ie. `1234.py`) in a locally gitignored (.git/info/exclude) `repros/` directory with a minimal reproducible example that reproduces the issue.
 
 If the reproduction requires external dependencies, use uv inline script dependencies to install them like this:
 
