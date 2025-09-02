@@ -4,7 +4,7 @@ import platform
 import sqlite3
 import sys
 from textwrap import dedent
-from unittest.mock import Mock
+from unittest.mock import AsyncMock, Mock
 
 import pydantic
 import pytest
@@ -140,8 +140,23 @@ def test_correct_output_ephemeral_postgres(monkeypatch: pytest.MonkeyPatch):
     profile = prefect.context.get_settings_context().profile
 
     dialect = Mock()
-    dialect().name = "postgres"
+    dialect().name = "postgresql"
     monkeypatch.setattr("prefect.server.utilities.database.get_dialect", dialect)
+
+    mock_result = Mock()
+    mock_result.scalar.return_value = "16.9 (Ubuntu 16.9-0ubuntu0.24.04.1)"
+    mock_session = AsyncMock()
+    mock_session.execute.return_value = mock_result
+    mock_context_manager = AsyncMock()
+    mock_context_manager.__aenter__.return_value = mock_session
+    mock_context_manager.__aexit__.return_value = None
+    mock_db = Mock()
+    mock_db.session_context.return_value = mock_context_manager
+
+    monkeypatch.setattr(
+        "prefect.server.database.dependencies.provide_database_interface",
+        lambda: mock_db,
+    )
 
     with temporary_settings(
         {
@@ -152,17 +167,18 @@ def test_correct_output_ephemeral_postgres(monkeypatch: pytest.MonkeyPatch):
             ["version"],
             expected_output=dedent(
                 f"""
-                Version:             {prefect.__version__}
-                API version:         {SERVER_API_VERSION}
-                Python version:      {platform.python_version()}
-                Git commit:          {version_info["full-revisionid"][:8]}
-                Built:               {built.strftime(DESIRED_DATE_FORMAT)}
-                OS/Arch:             {sys.platform}/{platform.machine()}
-                Profile:             {profile.name}
-                Server type:         ephemeral
-                Pydantic version:    {pydantic.__version__}
+                Version:              {prefect.__version__}
+                API version:          {SERVER_API_VERSION}
+                Python version:       {platform.python_version()}
+                Git commit:           {version_info["full-revisionid"][:8]}
+                Built:                {built.strftime(DESIRED_DATE_FORMAT)}
+                OS/Arch:              {sys.platform}/{platform.machine()}
+                Profile:              {profile.name}
+                Server type:          ephemeral
+                Pydantic version:     {pydantic.__version__}
                 Server:
-                  Database:          postgres
+                  Database:           postgresql
+                  PostgreSQL version: 16.9 (Ubuntu 16.9-0ubuntu0.24.04.1)
                 """,
             ),
         )
