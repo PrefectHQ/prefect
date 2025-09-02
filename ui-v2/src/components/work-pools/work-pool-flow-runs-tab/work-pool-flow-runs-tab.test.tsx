@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor } from "@testing-library/react";
+import { Suspense } from "react";
 import { describe, expect, it, vi } from "vitest";
 import * as flowRunsApi from "@/api/flow-runs";
 import { createMockFlowRun } from "@/mocks/flow-run";
@@ -36,7 +37,11 @@ const createWrapper = () => {
 		},
 	});
 	const Wrapper = ({ children }: { children: React.ReactNode }) => (
-		<QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+		<QueryClientProvider client={queryClient}>
+			<Suspense fallback={<div>Loading...</div>}>
+				{children}
+			</Suspense>
+		</QueryClientProvider>
 	);
 	Wrapper.displayName = "TestWrapper";
 	return Wrapper;
@@ -56,13 +61,18 @@ describe("WorkPoolFlowRunsTab", () => {
 		expect(screen.getByText("Test Run 2")).toBeInTheDocument();
 	});
 
-	it("applies custom className", () => {
-		const { container } = render(
+	it("applies custom className", async () => {
+		render(
 			<WorkPoolFlowRunsTab workPoolName="test-pool" className="custom-class" />,
 			{ wrapper: createWrapper() },
 		);
 
-		expect(container.firstChild).toHaveClass("custom-class");
+		await waitFor(() => {
+			expect(screen.getByTestId("flow-runs-list")).toBeInTheDocument();
+		});
+
+		const parentDiv = screen.getByTestId("flow-runs-list").parentElement;
+		expect(parentDiv).toHaveClass("custom-class");
 	});
 
 	it("passes correct filter to API", () => {
