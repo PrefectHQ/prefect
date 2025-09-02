@@ -226,7 +226,7 @@ pull:
 ```
 
 The bucket is populated with the provided value (which also could have been provided with the `--field` flag); note that the
-`folder` property of the `push` step is a template—the `pull_from_s3` step outputs both a `bucket` value as well as a `folder`
+`folder` property of the `pull` step is a template - the `push_to_s3` step outputs both a `bucket` value as well as a `folder`
 value for the template downstream steps. This helps you keep your steps consistent across edits.
 
 As discussed above, if you use [blocks](/v3/concepts/blocks/), you can template the credentials section with
