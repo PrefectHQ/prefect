@@ -75,9 +75,7 @@ const createWrapper = () => {
 	});
 	const Wrapper = ({ children }: { children: React.ReactNode }) => (
 		<QueryClientProvider client={queryClient}>
-			<Suspense fallback={<div>Loading...</div>}>
-				{children}
-			</Suspense>
+			<Suspense fallback={<div>Loading...</div>}>{children}</Suspense>
 		</QueryClientProvider>
 	);
 	Wrapper.displayName = "TestWrapper";
