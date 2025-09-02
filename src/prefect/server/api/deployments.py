@@ -787,6 +787,12 @@ async def create_flow_run_from_deployment(
 
         if flow_run.work_queue_name:
             # can't mutate the ORM model or else it will commit the changes back
+            if deployment.work_queue is None or deployment.work_queue.work_pool is None:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Cannot create flow run in work queue {flow_run.work_queue_name} because deployment {deployment_id} is not associated with a work pool. Please remove work_pool_name and try again.",
+                )
+
             work_queue_id = await worker_lookups._get_work_queue_id_from_name(
                 session=session,
                 work_pool_name=deployment.work_queue.work_pool.name,
