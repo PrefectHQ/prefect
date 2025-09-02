@@ -2,8 +2,8 @@ import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import {
 	LayoutWell,
-	LayoutWellHeader,
 	LayoutWellContent,
+	LayoutWellHeader,
 	LayoutWellSidebar,
 } from "./layout-well";
 

@@ -7,9 +7,7 @@ import {
 } from "@ngneat/falso";
 import type { FlowRun } from "@/api/flow-runs";
 
-export const createMockFlowRun = (
-	overrides?: Partial<FlowRun>,
-): FlowRun => ({
+export const createMockFlowRun = (overrides?: Partial<FlowRun>): FlowRun => ({
 	id: randUuid(),
 	created: randPastDate().toISOString(),
 	updated: randPastDate().toISOString(),

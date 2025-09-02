@@ -1,9 +1,9 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { WorkPoolFlowRunsTab } from "./work-pool-flow-runs-tab";
-import { createMockFlowRun } from "@/mocks/flow-run";
 import * as flowRunsApi from "@/api/flow-runs";
+import { createMockFlowRun } from "@/mocks/flow-run";
+import { WorkPoolFlowRunsTab } from "./work-pool-flow-runs-tab";
 
 const mockFlowRuns = [
 	createMockFlowRun({ id: "run-1", name: "Test Run 1" }),
@@ -51,7 +51,7 @@ describe("WorkPoolFlowRunsTab", () => {
 		await waitFor(() => {
 			expect(screen.getByTestId("flow-runs-list")).toBeInTheDocument();
 		});
-		
+
 		expect(screen.getByText("Test Run 1")).toBeInTheDocument();
 		expect(screen.getByText("Test Run 2")).toBeInTheDocument();
 	});
@@ -66,14 +66,16 @@ describe("WorkPoolFlowRunsTab", () => {
 	});
 
 	it("passes correct filter to API", () => {
-		const buildFilterFlowRunsQuery = vi.mocked(flowRunsApi.buildFilterFlowRunsQuery);
+		const buildFilterFlowRunsQuery = vi.mocked(
+			flowRunsApi.buildFilterFlowRunsQuery,
+		);
 
 		render(<WorkPoolFlowRunsTab workPoolName="my-work-pool" />, {
 			wrapper: createWrapper(),
 		});
 
 		expect(buildFilterFlowRunsQuery).toHaveBeenCalledWith({
-			work_pools: { 
+			work_pools: {
 				operator: "and_",
 				name: { any_: ["my-work-pool"] },
 			},

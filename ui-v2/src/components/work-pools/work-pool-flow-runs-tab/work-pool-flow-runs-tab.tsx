@@ -13,7 +13,7 @@ export const WorkPoolFlowRunsTab = ({
 }: WorkPoolFlowRunsTabProps) => {
 	const { data: flowRuns } = useSuspenseQuery(
 		buildFilterFlowRunsQuery({
-			work_pools: { 
+			work_pools: {
 				operator: "and_",
 				name: { any_: [workPoolName] },
 			},

@@ -1,9 +1,12 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
+import type {
+	ColumnFiltersState,
+	PaginationState,
+} from "@tanstack/react-table";
 import { useCallback, useMemo, useState } from "react";
-import type { ColumnFiltersState, PaginationState } from "@tanstack/react-table";
-import { 
-	buildPaginateDeploymentsQuery,
+import {
 	buildCountDeploymentsQuery,
+	buildPaginateDeploymentsQuery,
 	type DeploymentsPaginationFilter,
 } from "@/api/deployments";
 import { buildListFlowsQuery } from "@/api/flows";
@@ -23,34 +26,45 @@ export const WorkPoolDeploymentsTab = ({
 		pageIndex: 0,
 		pageSize: 50,
 	});
-	const [sort, setSort] = useState<components["schemas"]["DeploymentSort"]>("CREATED_DESC");
+	const [sort, setSort] =
+		useState<components["schemas"]["DeploymentSort"]>("CREATED_DESC");
 	const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
 
-	const filter: DeploymentsPaginationFilter = useMemo(() => ({
-		page: pagination.pageIndex + 1,
-		limit: pagination.pageSize,
-		sort,
-		deployments: {
-			operator: "and_",
-			work_pool_name: { any_: [workPoolName] },
-			flow_or_deployment_name: { 
-				like_: (columnFilters.find(f => f.id === "flowOrDeploymentName")?.value as string) ?? "",
+	const filter: DeploymentsPaginationFilter = useMemo(
+		() => ({
+			page: pagination.pageIndex + 1,
+			limit: pagination.pageSize,
+			sort,
+			deployments: {
+				operator: "and_",
+				work_pool_name: { any_: [workPoolName] },
+				flow_or_deployment_name: {
+					like_:
+						(columnFilters.find((f) => f.id === "flowOrDeploymentName")
+							?.value as string) ?? "",
+				},
+				tags: {
+					operator: "and_",
+					all_:
+						(columnFilters.find((f) => f.id === "tags")?.value as string[]) ??
+						[],
+				},
 			},
-			tags: { 
-				operator: "and_", 
-				all_: (columnFilters.find(f => f.id === "tags")?.value as string[]) ?? [],
-			},
-		},
-	}), [workPoolName, pagination, sort, columnFilters]);
+		}),
+		[workPoolName, pagination, sort, columnFilters],
+	);
 
-	const countFilter = useMemo(() => ({
-		offset: 0,
-		sort: "CREATED_DESC" as const,
-		deployments: {
-			operator: "and_" as const,
-			work_pool_name: { any_: [workPoolName] },
-		},
-	}), [workPoolName]);
+	const countFilter = useMemo(
+		() => ({
+			offset: 0,
+			sort: "CREATED_DESC" as const,
+			deployments: {
+				operator: "and_" as const,
+				work_pool_name: { any_: [workPoolName] },
+			},
+		}),
+		[workPoolName],
+	);
 
 	const { data: paginatedData } = useSuspenseQuery(
 		buildPaginateDeploymentsQuery(filter),
@@ -66,14 +80,17 @@ export const WorkPoolDeploymentsTab = ({
 	);
 
 	const { data: flows } = useSuspenseQuery(
-		buildListFlowsQuery({
-			flows: {
-				operator: "and_",
-				id: { any_: flowIds },
+		buildListFlowsQuery(
+			{
+				flows: {
+					operator: "and_",
+					id: { any_: flowIds },
+				},
+				offset: 0,
+				sort: "NAME_ASC",
 			},
-			offset: 0,
-			sort: "NAME_ASC",
-		}, { enabled: flowIds.length > 0 }),
+			{ enabled: flowIds.length > 0 },
+		),
 	);
 
 	const deploymentsWithFlows = useMemo(() => {
@@ -84,17 +101,26 @@ export const WorkPoolDeploymentsTab = ({
 		}));
 	}, [paginatedData.results, flows]);
 
-	const handlePaginationChange = useCallback((newPagination: PaginationState) => {
-		setPagination(newPagination);
-	}, []);
+	const handlePaginationChange = useCallback(
+		(newPagination: PaginationState) => {
+			setPagination(newPagination);
+		},
+		[],
+	);
 
-	const handleSortChange = useCallback((newSort: components["schemas"]["DeploymentSort"]) => {
-		setSort(newSort);
-	}, []);
+	const handleSortChange = useCallback(
+		(newSort: components["schemas"]["DeploymentSort"]) => {
+			setSort(newSort);
+		},
+		[],
+	);
 
-	const handleColumnFiltersChange = useCallback((newFilters: ColumnFiltersState) => {
-		setColumnFilters(newFilters);
-	}, []);
+	const handleColumnFiltersChange = useCallback(
+		(newFilters: ColumnFiltersState) => {
+			setColumnFilters(newFilters);
+		},
+		[],
+	);
 
 	return (
 		<div className={className}>

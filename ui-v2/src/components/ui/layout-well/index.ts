@@ -1,6 +1,6 @@
 export {
 	LayoutWell,
-	LayoutWellHeader,
 	LayoutWellContent,
+	LayoutWellHeader,
 	LayoutWellSidebar,
 } from "./layout-well";

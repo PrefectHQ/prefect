@@ -1,29 +1,35 @@
-import { useSuspenseQuery, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import type {
+	ColumnFiltersState,
+	PaginationState,
+	SortingState,
+} from "@tanstack/react-table";
 import { zodValidator } from "@tanstack/zod-adapter";
 import { useCallback, useMemo, useState } from "react";
 import { z } from "zod";
-import type { SortingState, ColumnFiltersState, PaginationState } from "@tanstack/react-table";
-import { buildWorkPoolByNameQuery } from "@/api/work-pools";
-import { buildListWorkPoolQueuesQuery } from "@/api/work-pool-queues";
-import { buildListWorkPoolWorkersQuery } from "@/api/work-pools/work-pools";
-import { buildFilterFlowRunsQuery } from "@/api/flow-runs";
 import { buildFilterDeploymentsQuery } from "@/api/deployments";
+import { buildFilterFlowRunsQuery } from "@/api/flow-runs";
+import { buildListWorkPoolQueuesQuery } from "@/api/work-pool-queues";
+import { buildWorkPoolByNameQuery } from "@/api/work-pools";
+import {
+	buildListWorkPoolWorkersQuery,
+	queryKeyFactory as workPoolsQueryKeyFactory,
+} from "@/api/work-pools/work-pools";
 import { CodeBanner } from "@/components/code-banner";
-import { WorkPoolPageHeader } from "@/components/work-pools/work-pool-page-header";
-import { WorkPoolDetails } from "@/components/work-pools/work-pool-details";
-import { WorkPoolQueuesTable } from "@/components/work-pools/work-pool-queues-table";
-import { WorkersTable } from "@/components/work-pools/workers-table";
-import { WorkPoolFlowRunsTab } from "@/components/work-pools/work-pool-flow-runs-tab";
-import { WorkPoolDeploymentsTab } from "@/components/work-pools/work-pool-deployments-tab";
 import {
 	LayoutWell,
-	LayoutWellHeader,
 	LayoutWellContent,
+	LayoutWellHeader,
 	LayoutWellSidebar,
 } from "@/components/ui/layout-well";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { queryKeyFactory as workPoolsQueryKeyFactory } from "@/api/work-pools/work-pools";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { WorkPoolDeploymentsTab } from "@/components/work-pools/work-pool-deployments-tab";
+import { WorkPoolDetails } from "@/components/work-pools/work-pool-details";
+import { WorkPoolFlowRunsTab } from "@/components/work-pools/work-pool-flow-runs-tab";
+import { WorkPoolPageHeader } from "@/components/work-pools/work-pool-page-header";
+import { WorkPoolQueuesTable } from "@/components/work-pools/work-pool-queues-table";
+import { WorkersTable } from "@/components/work-pools/workers-table";
 
 const workPoolSearchParams = z.object({
 	tab: z
@@ -53,7 +59,7 @@ export const Route = createFileRoute("/work-pools/work-pool/$workPoolName")({
 		// Prefetch filtered data for runs and deployments
 		void queryClient.prefetchQuery(
 			buildFilterFlowRunsQuery({
-				work_pools: { 
+				work_pools: {
 					operator: "and_",
 					name: { any_: [params.workPoolName] },
 				},
@@ -78,21 +84,25 @@ export const Route = createFileRoute("/work-pools/work-pool/$workPoolName")({
 });
 
 // Wrapper component for Work Pool Queues tab
-const WorkPoolQueuesTabWrapper = ({ workPoolName }: { workPoolName: string }) => {
+const WorkPoolQueuesTabWrapper = ({
+	workPoolName,
+}: {
+	workPoolName: string;
+}) => {
 	const [searchQuery, setSearchQuery] = useState("");
 	const [sortState, setSortState] = useState<SortingState>([]);
-	
+
 	const { data: queues = [] } = useSuspenseQuery(
 		buildListWorkPoolQueuesQuery(workPoolName),
 	);
-	
+
 	const filteredQueues = useMemo(() => {
 		if (!searchQuery) return queues;
 		return queues.filter((queue) =>
 			queue.name.toLowerCase().includes(searchQuery.toLowerCase()),
 		);
 	}, [queues, searchQuery]);
-	
+
 	return (
 		<WorkPoolQueuesTable
 			queues={filteredQueues}
@@ -113,11 +123,11 @@ const WorkersTabWrapper = ({ workPoolName }: { workPoolName: string }) => {
 		pageSize: 10,
 	});
 	const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
-	
+
 	const { data: workers = [] } = useSuspenseQuery(
 		buildListWorkPoolWorkersQuery(workPoolName),
 	);
-	
+
 	return (
 		<WorkersTable
 			workPoolName={workPoolName}

@@ -1,15 +1,23 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { WorkPoolDeploymentsTab } from "./work-pool-deployments-tab";
-import { createMockDeployment } from "@/mocks/deployment";
-import { createMockFlow } from "@/mocks/flow";
 import * as deploymentsApi from "@/api/deployments";
 import * as flowsApi from "@/api/flows";
+import { createMockDeployment } from "@/mocks/deployment";
+import { createMockFlow } from "@/mocks/flow";
+import { WorkPoolDeploymentsTab } from "./work-pool-deployments-tab";
 
 const mockDeployments = [
-	createMockDeployment({ id: "dep-1", name: "Deployment 1", flow_id: "flow-1" }),
-	createMockDeployment({ id: "dep-2", name: "Deployment 2", flow_id: "flow-2" }),
+	createMockDeployment({
+		id: "dep-1",
+		name: "Deployment 1",
+		flow_id: "flow-1",
+	}),
+	createMockDeployment({
+		id: "dep-2",
+		name: "Deployment 2",
+		flow_id: "flow-2",
+	}),
 ];
 
 const mockFlows = [
@@ -20,10 +28,11 @@ const mockFlows = [
 vi.mock("@/api/deployments", () => ({
 	buildPaginateDeploymentsQuery: vi.fn(() => ({
 		queryKey: ["deployments-paginate"],
-		queryFn: () => Promise.resolve({
-			results: mockDeployments,
-			pages: 1,
-		}),
+		queryFn: () =>
+			Promise.resolve({
+				results: mockDeployments,
+				pages: 1,
+			}),
 	})),
 	buildCountDeploymentsQuery: vi.fn(() => ({
 		queryKey: ["deployments-count"],
@@ -87,7 +96,10 @@ describe("WorkPoolDeploymentsTab", () => {
 
 	it("applies custom className", () => {
 		const { container } = render(
-			<WorkPoolDeploymentsTab workPoolName="test-pool" className="custom-class" />,
+			<WorkPoolDeploymentsTab
+				workPoolName="test-pool"
+				className="custom-class"
+			/>,
 			{ wrapper: createWrapper() },
 		);
 
@@ -95,7 +107,9 @@ describe("WorkPoolDeploymentsTab", () => {
 	});
 
 	it("filters deployments by work pool name", () => {
-		const buildPaginateDeploymentsQuery = vi.mocked(deploymentsApi.buildPaginateDeploymentsQuery);
+		const buildPaginateDeploymentsQuery = vi.mocked(
+			deploymentsApi.buildPaginateDeploymentsQuery,
+		);
 
 		render(<WorkPoolDeploymentsTab workPoolName="my-work-pool" />, {
 			wrapper: createWrapper(),

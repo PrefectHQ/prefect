@@ -36,9 +36,7 @@ export const LayoutWellHeader = ({
 	className,
 }: LayoutWellHeaderProps) => {
 	return (
-		<header className={cn("py-6 lg:py-8 w-full", className)}>
-			{children}
-		</header>
+		<header className={cn("py-6 lg:py-8 w-full", className)}>{children}</header>
 	);
 };
 
@@ -46,11 +44,7 @@ export const LayoutWellContent = ({
 	children,
 	className,
 }: LayoutWellContentProps) => {
-	return (
-		<div className={cn("flex-1 w-full", className)}>
-			{children}
-		</div>
-	);
+	return <div className={cn("flex-1 w-full", className)}>{children}</div>;
 };
 
 export const LayoutWellSidebar = ({
