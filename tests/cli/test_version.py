@@ -31,21 +31,21 @@ def test_version_ephemeral_server_type():
         }
     ):
         invoke_and_assert(
-            ["version"], expected_output_contains="Server type:         ephemeral"
+            ["version"], expected_output_contains="Server type:          ephemeral"
         )
 
 
 @pytest.mark.usefixtures("disable_hosted_api_server")
 def test_version_unconfigured_server_type():
     invoke_and_assert(
-        ["version"], expected_output_contains="Server type:         unconfigured"
+        ["version"], expected_output_contains="Server type:          unconfigured"
     )
 
 
 @pytest.mark.usefixtures("use_hosted_api_server")
 def test_version_server_server_type():
     invoke_and_assert(
-        ["version"], expected_output_contains="Server type:         server"
+        ["version"], expected_output_contains="Server type:          server"
     )
 
 
@@ -58,7 +58,7 @@ def test_version_cloud_server_type():
         }
     ):
         invoke_and_assert(
-            ["version"], expected_output_contains="Server type:         cloud"
+            ["version"], expected_output_contains="Server type:          cloud"
         )
 
 
@@ -115,18 +115,18 @@ def test_correct_output_ephemeral_sqlite(monkeypatch: pytest.MonkeyPatch):
             ["version"],
             expected_output=dedent(
                 f"""
-                Version:             {prefect.__version__}
-                API version:         {SERVER_API_VERSION}
-                Python version:      {platform.python_version()}
-                Git commit:          {version_info["full-revisionid"][:8]}
-                Built:               {built.strftime(DESIRED_DATE_FORMAT)}
-                OS/Arch:             {sys.platform}/{platform.machine()}
-                Profile:             {profile.name}
-                Server type:         ephemeral
-                Pydantic version:    {pydantic.__version__}
+                Version:              {prefect.__version__}
+                API version:          {SERVER_API_VERSION}
+                Python version:       {platform.python_version()}
+                Git commit:           {version_info["full-revisionid"][:8]}
+                Built:                {built.strftime(DESIRED_DATE_FORMAT)}
+                OS/Arch:              {sys.platform}/{platform.machine()}
+                Profile:              {profile.name}
+                Server type:          ephemeral
+                Pydantic version:     {pydantic.__version__}
                 Server:
-                  Database:          sqlite
-                  SQLite version:    {sqlite3.sqlite_version}
+                  Database:           sqlite
+                  SQLite version:     {sqlite3.sqlite_version}
                 """,
             ),
         )
@@ -193,14 +193,14 @@ def test_correct_output_non_ephemeral_server_type():
 
     invoke_and_assert(
         ["version"],
-        expected_output=f"""Version:             {prefect.__version__}
-API version:         {SERVER_API_VERSION}
-Python version:      {platform.python_version()}
-Git commit:          {version_info["full-revisionid"][:8]}
-Built:               {built.strftime(DESIRED_DATE_FORMAT)}
-OS/Arch:             {sys.platform}/{platform.machine()}
-Profile:             {profile.name}
-Server type:         server
-Pydantic version:    {pydantic.__version__}
+        expected_output=f"""Version:              {prefect.__version__}
+API version:          {SERVER_API_VERSION}
+Python version:       {platform.python_version()}
+Git commit:           {version_info["full-revisionid"][:8]}
+Built:                {built.strftime(DESIRED_DATE_FORMAT)}
+OS/Arch:              {sys.platform}/{platform.machine()}
+Profile:              {profile.name}
+Server type:          server
+Pydantic version:     {pydantic.__version__}
 """,
     )
