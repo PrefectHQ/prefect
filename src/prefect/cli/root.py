@@ -104,6 +104,9 @@ async def version(
     """Get the current Prefect version and integration information."""
     import sqlite3
 
+    import sqlalchemy as sa
+
+    from prefect.server.database.dependencies import provide_database_interface
     from prefect.server.utilities.database import get_dialect
     from prefect.settings import PREFECT_API_DATABASE_CONNECTION_URL
 
@@ -137,6 +140,16 @@ async def version(
         version_info["Server"] = {"Database": database}
         if database == "sqlite":
             version_info["Server"]["SQLite version"] = sqlite3.sqlite_version
+        elif database == "postgresql":
+            try:
+                db = provide_database_interface()
+                async with db.session_context() as session:
+                    result = await session.execute(sa.text("SHOW server_version"))
+                    if postgres_version := result.scalar():
+                        version_info["Server"]["PostgreSQL version"] = postgres_version
+            except Exception:
+                # If we can't get the PostgreSQL version, don't print anything
+                pass
 
     if not omit_integrations:
         integrations = get_prefect_integrations()
@@ -174,4 +187,4 @@ def display(object: dict[str, Any], nesting: int = 0) -> None:
             display(value, nesting + 2)
         else:
             prefix = " " * nesting
-            app.console.print(f"{prefix}{key.ljust(20 - len(prefix))} {value}")
+            app.console.print(f"{prefix}{key.ljust(21 - len(prefix))} {value}")
