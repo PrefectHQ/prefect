@@ -12,20 +12,17 @@ import {
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { WorkPoolQueueStatusBadge } from "@/components/work-pools/work-pool-queue-status-badge";
-import { WorkPoolQueueToggle } from "@/components/work-pools/work-pool-queue-toggle";
 import { QueueNameWithLateIndicator } from "./queue-name-with-late-indicator";
 import { WorkPoolQueueRowActions } from "./work-pool-queue-row-actions";
 
 type WorkPoolQueuesTableColumnsOptions = {
 	enableSelection?: boolean;
 	enableLateIndicator?: boolean;
-	enableToggle?: boolean;
 };
 
 export const createWorkPoolQueuesTableColumns = ({
 	enableSelection = false,
 	enableLateIndicator = false,
-	enableToggle = false,
 }: WorkPoolQueuesTableColumnsOptions = {}): ColumnDef<WorkPoolQueue>[] => {
 	const columns: ColumnDef<WorkPoolQueue>[] = [];
 
@@ -156,24 +153,11 @@ export const createWorkPoolQueuesTableColumns = ({
 		),
 	});
 
-	// Actions column with conditional toggle
+	// Actions column
 	columns.push({
 		id: "actions",
 		header: "",
-		cell: ({ row }) => {
-			if (enableToggle) {
-				return (
-					<div className="flex items-center space-x-2">
-						<WorkPoolQueueToggle
-							queue={row.original}
-							disabled={row.original.name === "default"}
-						/>
-						<WorkPoolQueueRowActions queue={row.original} />
-					</div>
-				);
-			}
-			return <WorkPoolQueueRowActions queue={row.original} />;
-		},
+		cell: ({ row }) => <WorkPoolQueueRowActions queue={row.original} />,
 		enableSorting: false,
 	});
 
@@ -189,5 +173,4 @@ export const enhancedWorkPoolQueuesTableColumns: ColumnDef<WorkPoolQueue>[] =
 	createWorkPoolQueuesTableColumns({
 		enableSelection: false,
 		enableLateIndicator: true,
-		enableToggle: true,
 	});
