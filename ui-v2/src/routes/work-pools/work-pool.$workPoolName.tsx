@@ -253,9 +253,11 @@ function RouteComponent() {
 				</Tabs>
 			</LayoutWellContent>
 
-			<LayoutWellSidebar>
-				<WorkPoolDetails workPool={workPool} alternate />
-			</LayoutWellSidebar>
+			{tab !== "Details" && (
+				<LayoutWellSidebar>
+					<WorkPoolDetails workPool={workPool} alternate />
+				</LayoutWellSidebar>
+			)}
 		</LayoutWell>
 	);
 }
