@@ -1335,7 +1335,7 @@ class TestTaskRetries:
         self,
         caplog: pytest.LogCaptureFixture,
         retries_configured: int,
-        expected_log_fragment: str | None,
+        expected_log_fragment: Optional[str],
     ):
         caplog.set_level(logging.ERROR, logger="prefect.task_engine")
         exc = ValueError("Test Exception")
