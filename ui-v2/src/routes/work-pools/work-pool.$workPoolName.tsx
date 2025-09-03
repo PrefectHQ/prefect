@@ -33,7 +33,7 @@ import { WorkersTable } from "@/components/work-pools/workers-table";
 const workPoolSearchParams = z.object({
 	tab: z
 		.enum(["Details", "Runs", "Work Queues", "Workers", "Deployments"])
-		.default("Details"),
+		.default("Runs"),
 });
 
 type WorkPoolSearchParams = z.infer<typeof workPoolSearchParams>;
