@@ -2,6 +2,7 @@ from unittest.mock import MagicMock
 
 import pytest
 from kubernetes_asyncio.config import ConfigException
+from prefect_kubernetes.utilities import _slugify_label_value
 
 FAKE_CLUSTER = "fake-cluster"
 
