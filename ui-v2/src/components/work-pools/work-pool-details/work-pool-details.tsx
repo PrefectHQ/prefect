@@ -129,7 +129,6 @@ function BasicInfoSection({ workPool }: { workPool: WorkPool }) {
 
 	return (
 		<div>
-			<h3 className="mb-4 text-lg font-semibold">Basic Information</h3>
 			<ul className="flex flex-col gap-3">
 				{fields.map(({ field, ComponentValue }) => (
 					<li key={field}>

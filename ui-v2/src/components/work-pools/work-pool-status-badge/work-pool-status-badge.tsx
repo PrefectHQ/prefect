@@ -1,5 +1,4 @@
 import { Badge } from "@/components/ui/badge";
-import { WorkPoolStatusIcon } from "@/components/work-pools/work-pool-status-icon";
 import { cn } from "@/lib/utils";
 import type { WorkPoolStatus } from "../types";
 
@@ -21,22 +20,30 @@ const getStatusLabel = (status: WorkPoolStatus): string => {
 	}
 };
 
+const getStatusColor = (status: WorkPoolStatus): string => {
+	switch (status) {
+		case "ready":
+			return "bg-green-500";
+		case "paused":
+			return "bg-yellow-500";
+		case "not_ready":
+			return "bg-red-500";
+	}
+};
+
 export const WorkPoolStatusBadge = ({
 	status,
 	className,
 }: WorkPoolStatusBadgeProps) => {
 	const label = getStatusLabel(status);
+	const colorClass = getStatusColor(status);
 
 	return (
 		<Badge
 			variant="secondary"
 			className={cn("flex items-center space-x-1", className)}
 		>
-			<WorkPoolStatusIcon
-				status={status}
-				showTooltip={false}
-				className="h-3 w-3"
-			/>
+			<div className={cn("h-2 w-2 rounded-full", colorClass)} />
 			<span>{label}</span>
 		</Badge>
 	);
