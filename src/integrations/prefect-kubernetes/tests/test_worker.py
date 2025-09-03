@@ -2429,6 +2429,8 @@ class TestKubernetesWorker:
             ("a" * 100, "a" * 63),
             # All invalid passes through
             ("$@*^$@", "$@*^$@"),
+            # Uppercase
+            ("VALUE-THAT-IS-UPPERCASE", "VALUE-THAT-IS-UPPERCASE"),
         ],
     )
     async def test_sanitizes_user_label_values(
