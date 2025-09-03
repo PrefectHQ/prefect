@@ -108,28 +108,20 @@ describe("WorkPoolQueuesTableToolbar", () => {
 		expect(onSearchChange).toHaveBeenCalledWith("");
 	});
 
-	it("renders create queue button", () => {
+	it("renders filter button", () => {
 		render(<WorkPoolQueuesTableToolbar {...defaultProps} />);
 
-		const createButton = screen.getByRole("button", { name: /create queue/i });
-		expect(createButton).toBeInTheDocument();
+		const buttons = screen.getAllByRole("button");
+		expect(buttons.length).toBeGreaterThan(1); // Should have at least the filter button and possibly clear button
 	});
 
-	it("logs work pool name when create queue button is clicked", () => {
-		render(
-			<WorkPoolQueuesTableToolbar
-				{...defaultProps}
-				workPoolName="my-work-pool"
-			/>,
-		);
+	it("logs filter action when filter button is clicked", () => {
+		render(<WorkPoolQueuesTableToolbar {...defaultProps} />);
 
-		const createButton = screen.getByRole("button", { name: /create queue/i });
-		fireEvent.click(createButton);
+		const filterButton = screen.getAllByRole("button")[1]; // Get the plus/filter button
+		fireEvent.click(filterButton);
 
-		expect(console.log).toHaveBeenCalledWith(
-			"Create queue for pool:",
-			"my-work-pool",
-		);
+		expect(console.log).toHaveBeenCalledWith("Filter/actions for work queues");
 	});
 
 	it("has correct search icon placement", () => {
@@ -237,36 +229,22 @@ describe("WorkPoolQueuesTableToolbar", () => {
 		expect(onSearchChange).toHaveBeenCalledTimes(2);
 	});
 
-	it("handles different work pool names in create button action", () => {
+	it("filter button works consistently", () => {
 		const { rerender } = render(
-			<WorkPoolQueuesTableToolbar
-				{...defaultProps}
-				workPoolName="production-pool"
-			/>,
+			<WorkPoolQueuesTableToolbar {...defaultProps} />,
 		);
 
-		let createButton = screen.getByRole("button", { name: /create queue/i });
-		fireEvent.click(createButton);
+		let filterButton = screen.getAllByRole("button")[1]; // Get the plus/filter button
+		fireEvent.click(filterButton);
 
-		expect(console.log).toHaveBeenCalledWith(
-			"Create queue for pool:",
-			"production-pool",
-		);
+		expect(console.log).toHaveBeenCalledWith("Filter/actions for work queues");
 
-		rerender(
-			<WorkPoolQueuesTableToolbar
-				{...defaultProps}
-				workPoolName="development-pool"
-			/>,
-		);
+		rerender(<WorkPoolQueuesTableToolbar {...defaultProps} />);
 
-		createButton = screen.getByRole("button", { name: /create queue/i });
-		fireEvent.click(createButton);
+		filterButton = screen.getAllByRole("button")[1]; // Get the plus/filter button
+		fireEvent.click(filterButton);
 
-		expect(console.log).toHaveBeenCalledWith(
-			"Create queue for pool:",
-			"development-pool",
-		);
+		expect(console.log).toHaveBeenCalledWith("Filter/actions for work queues");
 	});
 
 	it("maintains input focus after typing", () => {

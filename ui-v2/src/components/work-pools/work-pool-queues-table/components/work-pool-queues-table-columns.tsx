@@ -187,7 +187,7 @@ export const workPoolQueuesTableColumns: ColumnDef<WorkPoolQueue>[] =
 // Enhanced version with all features enabled (replaces enhancedWorkPoolQueuesTableColumns)
 export const enhancedWorkPoolQueuesTableColumns: ColumnDef<WorkPoolQueue>[] =
 	createWorkPoolQueuesTableColumns({
-		enableSelection: true,
+		enableSelection: false,
 		enableLateIndicator: true,
 		enableToggle: true,
 	});
