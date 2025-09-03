@@ -21,7 +21,6 @@ import {
 	LayoutWell,
 	LayoutWellContent,
 	LayoutWellHeader,
-	LayoutWellSidebar,
 } from "@/components/ui/layout-well";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { WorkPoolDeploymentsTab } from "@/components/work-pools/work-pool-deployments-tab";
@@ -227,44 +226,54 @@ function RouteComponent() {
 					)}
 				</LayoutWellHeader>
 
-				<Tabs value={tab} onValueChange={handleTabChange} className="space-y-6">
-					<TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4">
-						{tabs.map((tabItem) => (
-							<TabsTrigger
-								key={tabItem.id}
-								value={tabItem.id}
-								className={tabItem.hiddenOnDesktop ? "xl:hidden" : ""}
-							>
-								{tabItem.label}
-							</TabsTrigger>
-						))}
-					</TabsList>
+				<div className="flex flex-col xl:flex-row xl:gap-8">
+					<div className="flex-1">
+						<Tabs
+							value={tab}
+							onValueChange={handleTabChange}
+							className="space-y-6"
+						>
+							<TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4">
+								{tabs.map((tabItem) => (
+									<TabsTrigger
+										key={tabItem.id}
+										value={tabItem.id}
+										className={tabItem.hiddenOnDesktop ? "xl:hidden" : ""}
+									>
+										{tabItem.label}
+									</TabsTrigger>
+								))}
+							</TabsList>
 
-					<TabsContent value="Details" className="space-y-0">
-						<WorkPoolDetails workPool={workPool} />
-					</TabsContent>
+							<TabsContent value="Details" className="space-y-0">
+								<WorkPoolDetails workPool={workPool} />
+							</TabsContent>
 
-					<TabsContent value="Runs" className="space-y-0">
-						<WorkPoolFlowRunsTab workPoolName={workPoolName} />
-					</TabsContent>
+							<TabsContent value="Runs" className="space-y-0">
+								<WorkPoolFlowRunsTab workPoolName={workPoolName} />
+							</TabsContent>
 
-					<TabsContent value="Work Queues" className="space-y-0">
-						<WorkPoolQueuesTabWrapper workPoolName={workPoolName} />
-					</TabsContent>
+							<TabsContent value="Work Queues" className="space-y-0">
+								<WorkPoolQueuesTabWrapper workPoolName={workPoolName} />
+							</TabsContent>
 
-					<TabsContent value="Workers" className="space-y-0">
-						<WorkersTabWrapper workPoolName={workPoolName} />
-					</TabsContent>
+							<TabsContent value="Workers" className="space-y-0">
+								<WorkersTabWrapper workPoolName={workPoolName} />
+							</TabsContent>
 
-					<TabsContent value="Deployments" className="space-y-0">
-						<WorkPoolDeploymentsTab workPoolName={workPoolName} />
-					</TabsContent>
-				</Tabs>
+							<TabsContent value="Deployments" className="space-y-0">
+								<WorkPoolDeploymentsTab workPoolName={workPoolName} />
+							</TabsContent>
+						</Tabs>
+					</div>
+
+					<aside className="w-full xl:w-80 xl:shrink-0 hidden xl:block">
+						<div className="sticky top-8">
+							<WorkPoolDetails workPool={workPool} alternate />
+						</div>
+					</aside>
+				</div>
 			</LayoutWellContent>
-
-			<LayoutWellSidebar>
-				<WorkPoolDetails workPool={workPool} alternate />
-			</LayoutWellSidebar>
 		</LayoutWell>
 	);
 }
