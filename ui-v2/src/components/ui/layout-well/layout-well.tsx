@@ -24,7 +24,7 @@ type LayoutWellContentProps = {
 export const LayoutWell = ({ children, className }: LayoutWellProps) => {
 	return (
 		<div className={cn("min-h-screen bg-background", className)}>
-			<div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+			<div className="w-full">
 				<div className="flex flex-col lg:flex-row lg:gap-8">{children}</div>
 			</div>
 		</div>
@@ -36,7 +36,11 @@ export const LayoutWellHeader = ({
 	className,
 }: LayoutWellHeaderProps) => {
 	return (
-		<header className={cn("py-6 lg:py-8 w-full", className)}>{children}</header>
+		<header
+			className={cn("py-6 lg:py-8 w-full px-4 sm:px-6 lg:px-8", className)}
+		>
+			{children}
+		</header>
 	);
 };
 
@@ -44,7 +48,11 @@ export const LayoutWellContent = ({
 	children,
 	className,
 }: LayoutWellContentProps) => {
-	return <div className={cn("flex-1 w-full", className)}>{children}</div>;
+	return (
+		<div className={cn("flex-1 w-full px-4 sm:px-6 lg:px-8", className)}>
+			{children}
+		</div>
+	);
 };
 
 export const LayoutWellSidebar = ({
@@ -56,6 +64,7 @@ export const LayoutWellSidebar = ({
 			className={cn(
 				"w-full lg:w-80 xl:w-96 lg:shrink-0",
 				"lg:block hidden", // Hidden on mobile, shown on desktop
+				"px-4 sm:px-6 lg:px-8",
 				className,
 			)}
 		>
