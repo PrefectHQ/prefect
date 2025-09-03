@@ -574,15 +574,16 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             self.retries: int = self.retries + 1
             return True
         elif self.retries >= self.task.retries:
-            retry_message_suffix = (
-                "Retries are exhausted"
-                if self.task.retries > 0
-                else "No retries configured for this task."
-            )
-            self.logger.error(
-                f"Task run failed with {failure_type}: {exc_or_state!r} - {retry_message_suffix}",
-                exc_info=True,
-            )
+            if self.task.retries > 0:
+                self.logger.error(
+                    f"Task run failed with {failure_type}: {exc_or_state!r} - Retries are exhausted",
+                    exc_info=True,
+                )
+            else:
+                self.logger.error(
+                    f"Task run failed with {failure_type}: {exc_or_state!r}",
+                    exc_info=True,
+                )
             return False
 
         return False
@@ -1164,15 +1165,16 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             self.retries: int = self.retries + 1
             return True
         elif self.retries >= self.task.retries:
-            retry_message_suffix = (
-                "Retries are exhausted"
-                if self.task.retries > 0
-                else "No retries configured for this task."
-            )
-            self.logger.error(
-                f"Task run failed with {failure_type}: {exc_or_state!r} - {retry_message_suffix}",
-                exc_info=True,
-            )
+            if self.task.retries > 0:
+                self.logger.error(
+                    f"Task run failed with {failure_type}: {exc_or_state!r} - Retries are exhausted",
+                    exc_info=True,
+                )
+            else:
+                self.logger.error(
+                    f"Task run failed with {failure_type}: {exc_or_state!r}",
+                    exc_info=True,
+                )
             return False
 
         return False

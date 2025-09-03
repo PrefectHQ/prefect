@@ -1327,7 +1327,7 @@ class TestTaskRetries:
     @pytest.mark.parametrize(
         ("retries_configured", "expected_log_fragment"),
         [
-            (0, "No retries configured for this task"),
+            (0, None),  # No retry-specific message when no retries configured
             (1, "Retries are exhausted"),
         ],
     )
@@ -1335,7 +1335,7 @@ class TestTaskRetries:
         self,
         caplog: pytest.LogCaptureFixture,
         retries_configured: int,
-        expected_log_fragment: str,
+        expected_log_fragment: str | None,
     ):
         caplog.set_level(logging.ERROR, logger="prefect.task_engine")
         exc = ValueError("Test Exception")
@@ -1353,15 +1353,19 @@ class TestTaskRetries:
 
         test_flow()
 
-        found_message = False
+        found_error_message = False
         for record in caplog.records:
-            if expected_log_fragment in record.message and record.levelname == "ERROR":
-                assert str(exc) in record.message
-                found_message = True
+            if record.levelname == "ERROR" and str(exc) in record.message:
+                found_error_message = True
+                # Check for expected retry message only if retries are configured
+                if expected_log_fragment:
+                    assert expected_log_fragment in record.message
+                else:
+                    # When no retries configured, ensure no retry suffix is added
+                    assert "Retries are exhausted" not in record.message
+                    assert "No retries configured" not in record.message
                 break
-        assert found_message, (
-            f"Expected log fragment '{expected_log_fragment}' not found in ERROR logs."
-        )
+        assert found_error_message, "Expected error log message not found."
 
 
 class TestResultPersistence:
