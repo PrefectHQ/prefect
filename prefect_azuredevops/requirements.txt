@@ -1,0 +1,3 @@
+prefect>=3.3.5
+pydantic
+pytest
