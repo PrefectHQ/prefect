@@ -1,12 +1,13 @@
-import { Suspense } from "react";
+import { useSuspenseQuery } from "@tanstack/react-query";
+import { Suspense, useMemo } from "react";
 
 import type { WorkPool } from "@/api/work-pools";
+import { buildListWorkPoolWorkersQuery } from "@/api/work-pools";
 import {
 	SchemaDisplay,
 	type SchemaProperty,
 } from "@/components/schemas/schema-display";
 import { FormattedDate } from "@/components/ui/formatted-date";
-import { PollStatus } from "@/components/work-pools/poll-status";
 import { WorkPoolStatusBadge } from "@/components/work-pools/work-pool-status-badge";
 import { cn } from "@/lib/utils";
 import { titleCase } from "@/utils";
@@ -22,12 +23,31 @@ const None = () => <dd className="text-muted-foreground text-sm">None</dd>;
 const FieldLabel = ({ children }: { children: React.ReactNode }) => (
 	<dt className="text-sm text-muted-foreground">{children}</dt>
 );
-const FieldValue = ({ children }: { children: React.ReactNode }) => (
-	<dd className="text-sm">{children}</dd>
-);
+const FieldValue = ({
+	children,
+	className,
+}: {
+	children: React.ReactNode;
+	className?: string;
+}) => <dd className={cn("text-sm", className)}>{children}</dd>;
 
 // Basic Info Section Component
 function BasicInfoSection({ workPool }: { workPool: WorkPool }) {
+	const { data: workers = [] } = useSuspenseQuery(
+		buildListWorkPoolWorkersQuery(workPool.name),
+	);
+
+	const lastPolled = useMemo(() => {
+		if (workers.length === 0) return null;
+
+		const heartbeats = workers
+			.map((w) => w.last_heartbeat_time)
+			.filter((time): time is string => Boolean(time))
+			.sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
+
+		return heartbeats[0] || null;
+	}, [workers]);
+
 	const fields = [
 		{
 			field: "Status",
@@ -69,6 +89,19 @@ function BasicInfoSection({ workPool }: { workPool: WorkPool }) {
 						: "Unlimited"}
 				</FieldValue>
 			),
+		},
+		{
+			field: "Last Polled",
+			ComponentValue: () =>
+				lastPolled ? (
+					<FieldValue>
+						<FormattedDate date={lastPolled} />
+					</FieldValue>
+				) : workers.length === 0 ? null : (
+					<FieldValue className="text-muted-foreground">
+						No recent activity
+					</FieldValue>
+				),
 		},
 		{
 			field: "Created",
@@ -146,14 +179,14 @@ export function WorkPoolDetails({
 
 	return (
 		<div className={cn(spacing, className)}>
-			<BasicInfoSection workPool={workPool} />
-
 			<Suspense
 				fallback={
-					<div className="text-muted-foreground">Loading poll status...</div>
+					<div className="text-muted-foreground">
+						Loading work pool details...
+					</div>
 				}
 			>
-				<PollStatus workPoolName={workPool.name} />
+				<BasicInfoSection workPool={workPool} />
 			</Suspense>
 
 			{Boolean(workPool.base_job_template?.job_configuration) && (
