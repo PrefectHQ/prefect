@@ -163,26 +163,31 @@ function RouteComponent() {
 					id: "Details",
 					label: "Details",
 					hidden: false,
+					hiddenOnDesktop: true, // Hide on xl screens and above
 				},
 				{
 					id: "Runs",
 					label: "Runs",
 					hidden: false,
+					hiddenOnDesktop: false,
 				},
 				{
 					id: "Work Queues",
 					label: "Work Queues",
 					hidden: false,
+					hiddenOnDesktop: false,
 				},
 				{
 					id: "Workers",
 					label: "Workers",
 					hidden: isAgentWorkPool,
+					hiddenOnDesktop: false,
 				},
 				{
 					id: "Deployments",
 					label: "Deployments",
 					hidden: false,
+					hiddenOnDesktop: false,
 				},
 			].filter((tab) => !tab.hidden),
 		[isAgentWorkPool],
@@ -223,9 +228,13 @@ function RouteComponent() {
 				</LayoutWellHeader>
 
 				<Tabs value={tab} onValueChange={handleTabChange} className="space-y-6">
-					<TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 lg:grid-cols-5">
+					<TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4">
 						{tabs.map((tabItem) => (
-							<TabsTrigger key={tabItem.id} value={tabItem.id}>
+							<TabsTrigger
+								key={tabItem.id}
+								value={tabItem.id}
+								className={tabItem.hiddenOnDesktop ? "xl:hidden" : ""}
+							>
 								{tabItem.label}
 							</TabsTrigger>
 						))}
@@ -253,11 +262,9 @@ function RouteComponent() {
 				</Tabs>
 			</LayoutWellContent>
 
-			{tab !== "Details" && (
-				<LayoutWellSidebar>
-					<WorkPoolDetails workPool={workPool} alternate />
-				</LayoutWellSidebar>
-			)}
+			<LayoutWellSidebar>
+				<WorkPoolDetails workPool={workPool} alternate />
+			</LayoutWellSidebar>
 		</LayoutWell>
 	);
 }
