@@ -139,7 +139,12 @@ def _slugify_label_value(value: str, max_length: int = 63) -> str:
         The slugified value
     """  # noqa
     slug = (
-        slugify(value, lowercase=False, max_length=max_length, regex_pattern=r"[^a-zA-Z0-9-_\.]+").strip(
+        slugify(
+            value,
+            lowercase=False,
+            max_length=max_length,
+            regex_pattern=r"[^a-zA-Z0-9-_\.]+",
+        ).strip(
             "_-."  # Must start or end with alphanumeric characters
         )
         or value
