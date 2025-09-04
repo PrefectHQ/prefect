@@ -1,7 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import type { WorkPoolQueue } from "@/api/work-pool-queues";
 import { LateFlowRunsIndicator } from "@/components/flow-runs/late-flow-runs-indicator";
-import { Badge } from "@/components/ui/badge";
 
 type QueueNameWithLateIndicatorProps = {
 	queue: WorkPoolQueue;
@@ -10,8 +9,6 @@ type QueueNameWithLateIndicatorProps = {
 export const QueueNameWithLateIndicator = ({
 	queue,
 }: QueueNameWithLateIndicatorProps) => {
-	const isDefault = queue.name === "default";
-
 	// TODO: Implement proper late flow runs detection when API supports it
 	// For now, using a mock count to demonstrate the feature
 	const lateRunsCount =
@@ -29,11 +26,6 @@ export const QueueNameWithLateIndicator = ({
 			>
 				{queue.name}
 			</Link>
-			{isDefault && (
-				<Badge variant="secondary" className="text-xs">
-					Default
-				</Badge>
-			)}
 			<LateFlowRunsIndicator lateRunsCount={lateRunsCount} />
 		</div>
 	);

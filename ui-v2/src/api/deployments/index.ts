@@ -166,6 +166,7 @@ export const buildCountDeploymentsQuery = (
 			});
 			return res.data ?? 0;
 		},
+		placeholderData: keepPreviousData,
 	});
 
 /**
