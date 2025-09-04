@@ -1,10 +1,8 @@
 import { Link } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
-import { ArrowUpDown, HelpCircle } from "lucide-react";
+import { HelpCircle } from "lucide-react";
 import type { WorkPoolQueue } from "@/api/work-pool-queues";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
 	Tooltip,
 	TooltipContent,
@@ -12,50 +10,19 @@ import {
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { WorkPoolQueueStatusBadge } from "@/components/work-pools/work-pool-queue-status-badge";
-import { WorkPoolQueueToggle } from "@/components/work-pools/work-pool-queue-toggle";
+import { WorkPoolQueueMenu } from "../../work-pool-queue-menu";
+import { WorkPoolQueueToggle } from "../../work-pool-queue-toggle";
 import { QueueNameWithLateIndicator } from "./queue-name-with-late-indicator";
-import { WorkPoolQueueRowActions } from "./work-pool-queue-row-actions";
 
 type WorkPoolQueuesTableColumnsOptions = {
 	enableSelection?: boolean;
 	enableLateIndicator?: boolean;
-	enableToggle?: boolean;
 };
 
 export const createWorkPoolQueuesTableColumns = ({
-	enableSelection = false,
 	enableLateIndicator = false,
-	enableToggle = false,
 }: WorkPoolQueuesTableColumnsOptions = {}): ColumnDef<WorkPoolQueue>[] => {
 	const columns: ColumnDef<WorkPoolQueue>[] = [];
-
-	// Conditional checkbox column for selection
-	if (enableSelection) {
-		columns.push({
-			id: "select",
-			header: ({ table }) => (
-				<Checkbox
-					checked={
-						table.getIsAllPageRowsSelected() ||
-						(table.getIsSomePageRowsSelected() && "indeterminate")
-					}
-					onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
-					aria-label="Select all"
-				/>
-			),
-			cell: ({ row }) => (
-				<Checkbox
-					checked={row.getIsSelected()}
-					onCheckedChange={(value) => row.toggleSelected(!!value)}
-					aria-label="Select row"
-					disabled={!row.getCanSelect()}
-				/>
-			),
-			enableSorting: false,
-			enableHiding: false,
-		});
-	}
-
 	// Name column with conditional late indicator
 	columns.push({
 		accessorKey: "name",
@@ -66,7 +33,6 @@ export const createWorkPoolQueuesTableColumns = ({
 				className="h-auto p-0 font-semibold"
 			>
 				Name
-				<ArrowUpDown className="ml-2 h-4 w-4" />
 			</Button>
 		),
 		cell: ({ row }) => {
@@ -76,8 +42,7 @@ export const createWorkPoolQueuesTableColumns = ({
 				return <QueueNameWithLateIndicator queue={queue} />;
 			}
 
-			// Basic name cell with link and default badge
-			const isDefault = queue.name === "default";
+			// Basic name cell with link
 			return (
 				<div className="flex items-center space-x-2">
 					<Link
@@ -90,11 +55,6 @@ export const createWorkPoolQueuesTableColumns = ({
 					>
 						{queue.name}
 					</Link>
-					{isDefault && (
-						<Badge variant="secondary" className="text-xs">
-							Default
-						</Badge>
-					)}
 				</div>
 			);
 		},
@@ -110,7 +70,6 @@ export const createWorkPoolQueuesTableColumns = ({
 				className="h-auto p-0 font-semibold"
 			>
 				Concurrency Limit
-				<ArrowUpDown className="ml-2 h-4 w-4" />
 			</Button>
 		),
 		cell: ({ row }) => {
@@ -130,7 +89,6 @@ export const createWorkPoolQueuesTableColumns = ({
 					className="h-auto p-0 font-semibold"
 				>
 					Priority
-					<ArrowUpDown className="ml-2 h-4 w-4" />
 				</Button>
 				<TooltipProvider>
 					<Tooltip>
@@ -156,24 +114,16 @@ export const createWorkPoolQueuesTableColumns = ({
 		),
 	});
 
-	// Actions column with conditional toggle
+	// Actions column
 	columns.push({
 		id: "actions",
 		header: "",
-		cell: ({ row }) => {
-			if (enableToggle) {
-				return (
-					<div className="flex items-center space-x-2">
-						<WorkPoolQueueToggle
-							queue={row.original}
-							disabled={row.original.name === "default"}
-						/>
-						<WorkPoolQueueRowActions queue={row.original} />
-					</div>
-				);
-			}
-			return <WorkPoolQueueRowActions queue={row.original} />;
-		},
+		cell: ({ row }) => (
+			<div className="flex items-center justify-end gap-2">
+				<WorkPoolQueueToggle queue={row.original} />
+				<WorkPoolQueueMenu queue={row.original} />
+			</div>
+		),
 		enableSorting: false,
 	});
 
@@ -183,11 +133,3 @@ export const createWorkPoolQueuesTableColumns = ({
 // Basic version for backward compatibility
 export const workPoolQueuesTableColumns: ColumnDef<WorkPoolQueue>[] =
 	createWorkPoolQueuesTableColumns();
-
-// Enhanced version with all features enabled (replaces enhancedWorkPoolQueuesTableColumns)
-export const enhancedWorkPoolQueuesTableColumns: ColumnDef<WorkPoolQueue>[] =
-	createWorkPoolQueuesTableColumns({
-		enableSelection: true,
-		enableLateIndicator: true,
-		enableToggle: true,
-	});

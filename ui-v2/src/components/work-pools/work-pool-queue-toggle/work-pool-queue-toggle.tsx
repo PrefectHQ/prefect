@@ -24,10 +24,8 @@ export const WorkPoolQueueToggle = ({
 }: WorkPoolQueueToggleProps) => {
 	const { handleToggle, isLoading } = useWorkPoolQueueToggle(queue, onUpdate);
 	const isPaused = queue.status === "PAUSED";
-	const isDefaultQueue = queue.name === "default";
 
-	// Default queue cannot be paused
-	const isDisabled = disabled || isLoading || isDefaultQueue;
+	const isDisabled = disabled || isLoading;
 
 	return (
 		<TooltipProvider>
@@ -46,11 +44,7 @@ export const WorkPoolQueueToggle = ({
 					</div>
 				</TooltipTrigger>
 				<TooltipContent>
-					<p>
-						{isDefaultQueue
-							? "Default queue cannot be paused"
-							: "Pause or resume this work pool queue"}
-					</p>
+					<p>Pause or resume this work pool queue</p>
 				</TooltipContent>
 			</Tooltip>
 		</TooltipProvider>

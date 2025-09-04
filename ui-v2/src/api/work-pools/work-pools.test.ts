@@ -8,7 +8,6 @@ import {
 	buildCountWorkPoolsQuery,
 	buildFilterWorkPoolsQuery,
 	buildListWorkPoolWorkersQuery,
-	buildWorkPoolDetailsQuery,
 	queryKeyFactory,
 	useDeleteWorkPool,
 	usePauseWorkPool,
@@ -55,29 +54,6 @@ describe("work pools api", () => {
 			);
 			await waitFor(() => expect(result.current.isSuccess).toBe(true));
 			expect(result.current.data).toBe(1);
-		});
-	});
-
-	describe("buildWorkPoolDetailsQuery", () => {
-		const mockGetWorkPoolAPI = (workPool: WorkPool) => {
-			server.use(
-				http.get(buildApiUrl("/work_pools/:name"), () => {
-					return HttpResponse.json(workPool);
-				}),
-			);
-		};
-
-		it("fetches details about a work pool by name", async () => {
-			const MOCK_WORK_POOL = createFakeWorkPool({ name: "my-work-pool" });
-			mockGetWorkPoolAPI(MOCK_WORK_POOL);
-
-			const queryClient = new QueryClient();
-			const { result } = renderHook(
-				() => useSuspenseQuery(buildWorkPoolDetailsQuery(MOCK_WORK_POOL.name)),
-				{ wrapper: createWrapper({ queryClient }) },
-			);
-			await waitFor(() => expect(result.current.isSuccess).toBe(true));
-			expect(result.current.data).toEqual(MOCK_WORK_POOL);
 		});
 	});
 });
