@@ -157,23 +157,59 @@ function JobTemplateSection({ workPool }: { workPool: WorkPool }) {
 	// Check if work pool has base job template
 	const baseJobTemplate = workPool.base_job_template;
 
-	if (!baseJobTemplate?.job_configuration) {
+	if (!baseJobTemplate?.variables?.properties) {
 		return null;
 	}
 
-	// Convert job template to schema format
-	const schema = {
-		properties:
-			(baseJobTemplate.variables as Record<string, SchemaProperty>) ||
-			({} as Record<string, SchemaProperty>),
+	const properties = baseJobTemplate.variables.properties as Record<
+		string,
+		SchemaProperty
+	>;
+
+	// Helper function to format field names (from property title or key)
+	const formatFieldName = (key: string, property: SchemaProperty): string => {
+		return (
+			property.title ||
+			key
+				.split("_")
+				.map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+				.join(" ")
+		);
 	};
 
-	const data = baseJobTemplate.job_configuration as Record<string, unknown>;
+	// Helper function to format field values
+	const formatValue = (value: unknown): string => {
+		if (value === null || value === undefined) {
+			return "None";
+		}
+		if (typeof value === "boolean") {
+			return value.toString();
+		}
+		if (Array.isArray(value)) {
+			return value.length > 0 ? value.join(", ") : "None";
+		}
+		if (typeof value === "object") {
+			return JSON.stringify(value);
+		}
+		return String(value) || "None";
+	};
 
 	return (
 		<div>
-			<h3 className="mb-4 text-lg font-semibold">Base Job Template</h3>
-			<SchemaDisplay schema={schema} data={data} />
+			<h3 className="mb-4 text-lg font-semibold">Base Job Configuration</h3>
+			<ul className="flex flex-col gap-3">
+				{Object.entries(properties).map(([key, property]) => {
+					const value = property.default ?? null;
+					return (
+						<li key={key} className="flex flex-col gap-1 text-sm">
+							<span className="text-muted-foreground font-medium">
+								{formatFieldName(key, property)}
+							</span>
+							<span className="break-words">{formatValue(value)}</span>
+						</li>
+					);
+				})}
+			</ul>
 		</div>
 	);
 }
@@ -189,9 +225,11 @@ export function WorkPoolDetails({
 		<div className={cn(spacing, className)}>
 			<BasicInfoSection workPool={workPool} />
 
-			{Boolean(workPool.base_job_template?.job_configuration) && (
-				<JobTemplateSection workPool={workPool} />
-			)}
+			{Boolean(
+				workPool.base_job_template?.variables?.properties &&
+					Object.keys(workPool.base_job_template.variables.properties).length >
+						0,
+			) && <JobTemplateSection workPool={workPool} />}
 		</div>
 	);
 }

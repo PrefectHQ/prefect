@@ -1,3 +1,4 @@
+import { Pause } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import type { WorkPoolStatus } from "../types";
@@ -43,7 +44,11 @@ export const WorkPoolStatusBadge = ({
 			variant="secondary"
 			className={cn("flex items-center space-x-1", className)}
 		>
-			<div className={cn("h-2 w-2 rounded-full", colorClass)} />
+			{status === "paused" ? (
+				<Pause className="h-2 w-2 text-muted-foreground" />
+			) : (
+				<div className={cn("h-2 w-2 rounded-full", colorClass)} />
+			)}
 			<span>{label}</span>
 		</Badge>
 	);

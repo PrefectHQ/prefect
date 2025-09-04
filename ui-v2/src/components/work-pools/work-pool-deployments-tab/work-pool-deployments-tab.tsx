@@ -35,9 +35,12 @@ export const WorkPoolDeploymentsTab = ({
 			page: pagination.pageIndex + 1,
 			limit: pagination.pageSize,
 			sort,
+			work_pools: {
+				operator: "and_",
+				name: { any_: [workPoolName] },
+			},
 			deployments: {
 				operator: "and_",
-				work_pool_name: { any_: [workPoolName] },
 				flow_or_deployment_name: {
 					like_:
 						(columnFilters.find((f) => f.id === "flowOrDeploymentName")
@@ -58,19 +61,19 @@ export const WorkPoolDeploymentsTab = ({
 		() => ({
 			offset: 0,
 			sort: "CREATED_DESC" as const,
-			deployments: {
+			work_pools: {
 				operator: "and_" as const,
-				work_pool_name: { any_: [workPoolName] },
+				name: { any_: [workPoolName] },
 			},
 		}),
 		[workPoolName],
 	);
 
-	const { data: paginatedData, isLoading: isPaginatedLoading } = useQuery(
+	const { data: paginatedData } = useQuery(
 		buildPaginateDeploymentsQuery(filter),
 	);
 
-	const { data: totalCount, isLoading: isCountLoading } = useQuery(
+	const { data: totalCount } = useQuery(
 		buildCountDeploymentsQuery(countFilter),
 	);
 
@@ -79,7 +82,7 @@ export const WorkPoolDeploymentsTab = ({
 		[paginatedData?.results],
 	);
 
-	const { data: flows, isLoading: isFlowsLoading } = useQuery(
+	const { data: flows } = useQuery(
 		buildListFlowsQuery(
 			{
 				flows: {
@@ -123,9 +126,8 @@ export const WorkPoolDeploymentsTab = ({
 		[],
 	);
 
-	const isLoading = isPaginatedLoading || isCountLoading || isFlowsLoading;
-
-	if (isLoading || !paginatedData || totalCount === undefined) {
+	// Show loading only on initial load, not on sorting/pagination changes
+	if (!paginatedData || totalCount === undefined) {
 		return (
 			<div className={className}>
 				<div className="text-muted-foreground text-center py-8">

@@ -1,3 +1,4 @@
+import { Pause } from "lucide-react";
 import type { WorkPoolQueueStatus } from "@/api/work-pool-queues";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -47,7 +48,11 @@ export const WorkPoolQueueStatusBadge = ({
 						variant="secondary"
 						className={cn("flex items-center space-x-1 cursor-help", className)}
 					>
-						<div className={cn("h-2 w-2 rounded-full", config.color)} />
+						{status === "PAUSED" ? (
+							<Pause className="h-2 w-2 text-muted-foreground" />
+						) : (
+							<div className={cn("h-2 w-2 rounded-full", config.color)} />
+						)}
 						<span>{config.label}</span>
 					</Badge>
 				</TooltipTrigger>

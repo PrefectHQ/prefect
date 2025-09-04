@@ -12,11 +12,11 @@ import type {
 import { zodValidator } from "@tanstack/zod-adapter";
 import { Suspense, useCallback, useMemo, useState } from "react";
 import { z } from "zod";
-import { buildFilterDeploymentsQuery } from "@/api/deployments";
+import { buildPaginateDeploymentsQuery } from "@/api/deployments";
 import { buildFilterFlowRunsQuery } from "@/api/flow-runs";
 import { buildGetFlowRunsTaskRunsCountQuery } from "@/api/task-runs";
 import { buildListWorkPoolQueuesQuery } from "@/api/work-pool-queues";
-import { buildWorkPoolByNameQuery } from "@/api/work-pools";
+import { buildGetWorkPoolQuery } from "@/api/work-pools";
 import {
 	buildListWorkPoolWorkersQuery,
 	queryKeyFactory as workPoolsQueryKeyFactory,
@@ -35,6 +35,7 @@ import { WorkPoolFlowRunsTab } from "@/components/work-pools/work-pool-flow-runs
 import { WorkPoolPageHeader } from "@/components/work-pools/work-pool-page-header";
 import { WorkPoolQueuesTable } from "@/components/work-pools/work-pool-queues-table";
 import { WorkersTable } from "@/components/work-pools/workers-table";
+import { cn } from "@/lib/utils";
 
 const workPoolSearchParams = z.object({
 	tab: z
@@ -50,7 +51,7 @@ export const Route = createFileRoute("/work-pools/work-pool/$workPoolName")({
 	loader: async ({ params, context: { queryClient } }) => {
 		// Critical data - must await
 		const workPool = await queryClient.ensureQueryData(
-			buildWorkPoolByNameQuery(params.workPoolName),
+			buildGetWorkPoolQuery(params.workPoolName),
 		);
 
 		// Prefetch tab data for better UX
@@ -84,11 +85,13 @@ export const Route = createFileRoute("/work-pools/work-pool/$workPoolName")({
 				),
 			);
 		void queryClient.prefetchQuery(
-			buildFilterDeploymentsQuery({
-				offset: 0,
+			buildPaginateDeploymentsQuery({
+				page: 1,
+				limit: 50,
 				sort: "CREATED_DESC",
-				deployments: {
+				work_pools: {
 					operator: "and_",
+					name: { any_: [params.workPoolName] },
 				},
 			}),
 		);
@@ -170,7 +173,7 @@ function RouteComponent() {
 	const queryClient = useQueryClient();
 
 	const { data: workPool } = useSuspenseQuery(
-		buildWorkPoolByNameQuery(workPoolName),
+		buildGetWorkPoolQuery(workPoolName),
 	);
 
 	const showCodeBanner = workPool.status !== "READY";
@@ -237,13 +240,15 @@ function RouteComponent() {
 						onUpdate={handleWorkPoolUpdate}
 					/>
 					{showCodeBanner && (
-						<div className="w-full flex justify-center">
-							<CodeBanner
-								command={codeBannerCommand}
-								title="Your work pool is almost ready!"
-								subtitle="Run this command to start."
-								className="py-4 w-2xl"
-							/>
+						<div className="w-full bg-gray-50 py-6 px-4 rounded-lg mb-6">
+							<div className="max-w-4xl mx-auto">
+								<CodeBanner
+									command={codeBannerCommand}
+									title="Your work pool is almost ready!"
+									subtitle="Run this command to start."
+									className="py-0"
+								/>
+							</div>
 						</div>
 					)}
 				</LayoutWellHeader>
@@ -251,12 +256,15 @@ function RouteComponent() {
 				<div className="flex flex-col xl:flex-row xl:gap-8">
 					<div className="flex-1">
 						<Tabs value={tab} onValueChange={handleTabChange}>
-							<TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4">
+							<TabsList className="flex w-full overflow-x-auto scrollbar-none">
 								{tabs.map((tabItem) => (
 									<TabsTrigger
 										key={tabItem.id}
 										value={tabItem.id}
-										className={tabItem.hiddenOnDesktop ? "xl:hidden" : ""}
+										className={cn(
+											"whitespace-nowrap flex-shrink-0",
+											tabItem.hiddenOnDesktop ? "xl:hidden" : "",
+										)}
 									>
 										{tabItem.label}
 									</TabsTrigger>
