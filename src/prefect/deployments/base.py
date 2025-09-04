@@ -229,14 +229,15 @@ def _format_deployment_for_saving_to_prefect_file(
     if deployment.get("schedules"):
         schedules: list[dict[str, Any]] = []
         for deployment_schedule in deployment["schedules"]:
-            if isinstance(deployment_schedule.schedule, IntervalSchedule):
+            if isinstance(deployment_schedule["schedule"], IntervalSchedule):
                 schedule_config = _interval_schedule_to_dict(
-                    deployment_schedule.schedule
+                    deployment_schedule["schedule"]
                 )
             else:  # all valid SCHEDULE_TYPES are subclasses of BaseModel
-                schedule_config = deployment_schedule.schedule.model_dump()
+                schedule_config = deployment_schedule["schedule"].model_dump()
 
-            schedule_config["active"] = deployment_schedule.active
+            if "active" in deployment_schedule:
+                schedule_config["active"] = deployment_schedule["active"]
             schedules.append(schedule_config)
 
         deployment["schedules"] = schedules
