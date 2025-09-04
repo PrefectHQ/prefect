@@ -119,7 +119,9 @@ describe("WorkPoolDetails", () => {
 			expect(screen.getByText("A test work pool")).toBeInTheDocument();
 		});
 
-		expect(screen.queryByText("Base Job Configuration")).not.toBeInTheDocument();
+		expect(
+			screen.queryByText("Base Job Configuration"),
+		).not.toBeInTheDocument();
 	});
 
 	it("handles alternate layout properly", () => {
