@@ -485,15 +485,14 @@ class TestGitRepository:
         monkeypatch.setattr("pathlib.Path.exists", lambda x: False)
 
         with tmpchdir(str(tmp_path)):
-            with pytest.raises(RuntimeError):
+            with pytest.raises(RuntimeError) as exc:
+                # we uppercase the auth because this test definition does show up in the exception traceback
                 basic_auth_creds = "user:password".upper()
-                url = (
-                    "https://" + basic_auth_creds + "@github.com/prefecthq/prefect.git"
-                )
                 await GitRepository(
-                    url=url,
+                    url=f"https://{basic_auth_creds}@github.com/prefecthq/prefect.git",
                     branch="definitely-does-not-exist-123",
                 ).pull_code()
+            assert "user:password".upper() not in str(exc.getrepr()), exc.getrepr()
             console_output = capsys.readouterr()
             assert "user:password".upper() not in console_output.out
             assert "user:password".upper() not in console_output.err

@@ -391,7 +391,7 @@ class GitRepository:
                 else exc
             )
             raise RuntimeError(
-                f"Failed to clone repository {self._url!r} with exit code"
+                f"Failed to clone repository {_strip_auth_from_url(self._url)!r} with exit code"
                 f" {exc.returncode}."
             ) from exc_chain
 
