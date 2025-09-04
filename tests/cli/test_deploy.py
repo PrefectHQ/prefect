@@ -25,7 +25,11 @@ from prefect.cli.deploy import (
     _PullStepStorage,
 )
 from prefect.client.orchestration import PrefectClient, ServerType
-from prefect.client.schemas.actions import DeploymentScheduleCreate, WorkPoolCreate
+from prefect.client.schemas.actions import (
+    DeploymentScheduleCreate,
+    DeploymentScheduleUpdate,
+    WorkPoolCreate,
+)
 from prefect.client.schemas.objects import Worker, WorkerStatus, WorkPool
 from prefect.client.schemas.schedules import (
     CronSchedule,
@@ -3227,6 +3231,80 @@ class TestSchedules:
             "An important name/test-name"
         )
         assert deployment.schedules[0].active is schedule_is_active
+
+    @pytest.mark.usefixtures("project_dir")
+    async def test_redeploy_does_not_update_active_when_active_unset_in_yaml(
+        self, prefect_client: PrefectClient, work_pool: WorkPool
+    ):
+        prefect_file = Path("prefect.yaml")
+        with prefect_file.open(mode="r") as f:
+            deploy_config = yaml.safe_load(f)
+
+        # Create a deployment with a schedule that is not active
+        deploy_config["deployments"][0]["name"] = "test-name"
+        deploy_config["deployments"][0]["schedules"] = [
+            {
+                "cron": "0 4 * * *",
+                "timezone": "America/Chicago",
+                "slug": "test-yaml-slug",
+            }
+        ]
+
+        with prefect_file.open(mode="w") as f:
+            yaml.safe_dump(deploy_config, f)
+
+        result = await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=f"deploy ./flows/hello.py:my_flow -n test-name --pool {work_pool.name}",
+        )
+
+        assert result.exit_code == 0
+
+        # Check that the schedule is active
+        deployment = await prefect_client.read_deployment_by_name(
+            "An important name/test-name"
+        )
+
+        deployment_schedule = deployment.schedules[0]
+        assert deployment_schedule.active is True
+        assert deployment_schedule.schedule.cron == "0 4 * * *"
+        assert deployment_schedule.schedule.timezone == "America/Chicago"
+
+        # Update the schedule via the client and set the schedule to inactive
+        await prefect_client._client.patch(
+            f"/deployments/{deployment.id}/schedules/{deployment.schedules[0].id}",
+            json=DeploymentScheduleUpdate(
+                active=False,
+            ).model_dump(mode="json", exclude_unset=True),
+        )
+
+        # Check that the schedule is inactive
+        deployment = await prefect_client.read_deployment_by_name(
+            "An important name/test-name"
+        )
+
+        deployment_schedule = deployment.schedules[0]
+        assert deployment_schedule.active is False
+        assert deployment_schedule.schedule.cron == "0 4 * * *"
+        assert deployment_schedule.schedule.timezone == "America/Chicago"
+
+        # Redeploy the deployment
+        result = await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=f"deploy ./flows/hello.py:my_flow -n test-name --pool {work_pool.name}",
+        )
+
+        assert result.exit_code == 0
+
+        # Check that the schedule is still inactive
+        deployment = await prefect_client.read_deployment_by_name(
+            "An important name/test-name"
+        )
+
+        deployment_schedule = deployment.schedules[0]
+        assert deployment_schedule.active is False
+        assert deployment_schedule.schedule.cron == "0 4 * * *"
+        assert deployment_schedule.schedule.timezone == "America/Chicago"
 
 
 class TestMultiDeploy:

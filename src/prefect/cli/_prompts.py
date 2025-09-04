@@ -32,7 +32,6 @@ from prefect.cli._utilities import exit_with_error
 from prefect.client.collections import get_collections_metadata_client
 from prefect.client.schemas.actions import (
     BlockDocumentCreate,
-    DeploymentScheduleCreate,
     WorkPoolCreate,
 )
 from prefect.client.schemas.schedules import (
@@ -398,11 +397,11 @@ def prompt_schedule_type(console: Console) -> str:
     return selection["type"]
 
 
-def prompt_schedules(console: Console) -> list[DeploymentScheduleCreate]:
+def prompt_schedules(console: Console) -> list[dict[str, Any]]:
     """
     Prompt the user to configure schedules for a deployment.
     """
-    schedules: list[DeploymentScheduleCreate] = []
+    schedules: list[dict[str, Any]] = []
 
     if confirm(
         "Would you like to configure schedules for this deployment?", default=True
@@ -423,9 +422,7 @@ def prompt_schedules(console: Console) -> list[DeploymentScheduleCreate]:
                 "Would you like to activate this schedule?", default=True
             )
 
-            schedules.append(
-                DeploymentScheduleCreate(schedule=schedule, active=is_schedule_active)
-            )
+            schedules.append({"schedule": schedule, "active": is_schedule_active})
 
             add_schedule = confirm(
                 "Would you like to add another schedule?", default=False
