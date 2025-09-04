@@ -1,7 +1,9 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor } from "@testing-library/react";
+import { buildApiUrl, server } from "@tests/utils";
+import { HttpResponse, http } from "msw";
 import { Suspense } from "react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import * as flowRunsApi from "@/api/flow-runs";
 import { createMockFlowRun } from "@/mocks/flow-run";
 import { WorkPoolFlowRunsTab } from "./work-pool-flow-runs-tab";
@@ -11,12 +13,10 @@ const mockFlowRuns = [
 	createMockFlowRun({ id: "run-2", name: "Test Run 2" }),
 ];
 
-vi.mock("@/api/flow-runs", () => ({
-	buildFilterFlowRunsQuery: vi.fn(() => ({
-		queryKey: ["test-key"],
-		queryFn: () => Promise.resolve(mockFlowRuns),
-	})),
-}));
+// Set up mock handlers for this test
+afterEach(() => {
+	server.resetHandlers();
+});
 
 vi.mock("@/components/flow-runs/flow-runs-list", () => ({
 	FlowRunsList: ({ flowRuns }: { flowRuns: Array<{ name: string }> }) => (
@@ -47,6 +47,13 @@ const createWrapper = () => {
 
 describe("WorkPoolFlowRunsTab", () => {
 	it("renders flow runs list", async () => {
+		// Set up MSW handler for this test
+		server.use(
+			http.post(buildApiUrl("/flow_runs/filter"), () => {
+				return HttpResponse.json(mockFlowRuns);
+			}),
+		);
+
 		render(<WorkPoolFlowRunsTab workPoolName="test-pool" />, {
 			wrapper: createWrapper(),
 		});
@@ -60,6 +67,13 @@ describe("WorkPoolFlowRunsTab", () => {
 	});
 
 	it("applies custom className", async () => {
+		// Set up MSW handler for this test
+		server.use(
+			http.post(buildApiUrl("/flow_runs/filter"), () => {
+				return HttpResponse.json(mockFlowRuns);
+			}),
+		);
+
 		render(
 			<WorkPoolFlowRunsTab workPoolName="test-pool" className="custom-class" />,
 			{ wrapper: createWrapper() },
@@ -74,8 +88,16 @@ describe("WorkPoolFlowRunsTab", () => {
 	});
 
 	it("passes correct filter to API", () => {
-		const buildFilterFlowRunsQuery = vi.mocked(
-			flowRunsApi.buildFilterFlowRunsQuery,
+		// Set up MSW handler for this test
+		server.use(
+			http.post(buildApiUrl("/flow_runs/filter"), () => {
+				return HttpResponse.json(mockFlowRuns);
+			}),
+		);
+
+		const buildFilterFlowRunsQuery = vi.spyOn(
+			flowRunsApi,
+			"buildFilterFlowRunsQuery",
 		);
 
 		render(<WorkPoolFlowRunsTab workPoolName="my-work-pool" />, {
