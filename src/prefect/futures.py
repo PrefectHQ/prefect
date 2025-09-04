@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import abc
+import asyncio
 import concurrent.futures
 import threading
 import uuid
@@ -11,6 +12,7 @@ from typing import TYPE_CHECKING, Any, Callable, Generic
 
 from typing_extensions import NamedTuple, Self, TypeVar
 
+from prefect._internal.retries import exponential_backoff_with_jitter
 from prefect._waiters import FlowRunWaiter
 from prefect.client.orchestration import get_client
 from prefect.exceptions import ObjectNotFound
@@ -308,13 +310,37 @@ class PrefectDistributedFuture(PrefectTaskRunFuture[R]):
         if not self._final_state:
             await self.wait_async(timeout=timeout)
             if not self._final_state:
-                # If still no final state, try reading it directly as the
-                # state property does. This handles eventual consistency issues.
+                # If still no final state after wait, poll the API with retries
+                # to handle eventual consistency between events and API
+                max_attempts = 10
+                base_delay = 0.1  # Start with 100ms
+                max_delay = 2.0  # Cap at 2 seconds
+
                 async with get_client() as client:
-                    task_run = await client.read_task_run(task_run_id=self._task_run_id)
-                    if task_run.state and task_run.state.is_final():
-                        self._final_state = task_run.state
-                    else:
+                    for attempt in range(max_attempts):
+                        task_run = await client.read_task_run(
+                            task_run_id=self._task_run_id
+                        )
+                        if task_run.state and task_run.state.is_final():
+                            self._final_state = task_run.state
+                            break
+
+                        if attempt < max_attempts - 1:
+                            # Use existing exponential backoff with jitter
+                            delay = exponential_backoff_with_jitter(
+                                attempt, base_delay, max_delay
+                            )
+                            await asyncio.sleep(delay)
+                            logger.debug(
+                                "Task run %s state not yet final (attempt %d/%d, state: %s). Retrying in %.2fs...",
+                                self.task_run_id,
+                                attempt + 1,
+                                max_attempts,
+                                task_run.state.type if task_run.state else "Unknown",
+                                delay,
+                            )
+
+                    if not self._final_state:
                         raise TimeoutError(
                             f"Task run {self.task_run_id} did not complete within {timeout} seconds"
                         )
