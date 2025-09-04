@@ -1,7 +1,10 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor } from "@testing-library/react";
+import { buildApiUrl } from "@tests/utils/handlers";
+import { HttpResponse, http } from "msw";
+import { setupServer } from "msw/node";
 import { Suspense } from "react";
-import { describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import * as deploymentsApi from "@/api/deployments";
 import * as flowsApi from "@/api/flows";
 import { createMockDeployment } from "@/mocks/deployment";
@@ -26,27 +29,47 @@ const mockFlows = [
 	createMockFlow({ id: "flow-2", name: "Flow 2" }),
 ];
 
-vi.mock("@/api/deployments", () => ({
-	buildPaginateDeploymentsQuery: vi.fn(() => ({
-		queryKey: ["deployments-paginate"],
-		queryFn: () =>
-			Promise.resolve({
-				results: mockDeployments,
-				pages: 1,
-			}),
-	})),
-	buildCountDeploymentsQuery: vi.fn(() => ({
-		queryKey: ["deployments-count"],
-		queryFn: () => Promise.resolve(2),
-	})),
-}));
+const server = setupServer(
+	http.post(buildApiUrl("/deployments/paginate"), ({ request }) => {
+		console.log("MSW handling deployments/paginate request", request.url);
+		return HttpResponse.json({
+			results: mockDeployments,
+			pages: 1,
+		}, { status: 200 });
+	}),
+	http.post(buildApiUrl("/deployments/count"), ({ request }) => {
+		console.log("MSW handling deployments/count request", request.url);
+		return HttpResponse.json(2);
+	}),
+	http.post(buildApiUrl("/flows/filter"), ({ request }) => {
+		console.log("MSW handling flows/filter request", request.url);
+		return HttpResponse.json(mockFlows);
+	}),
+);
 
-vi.mock("@/api/flows", () => ({
-	buildListFlowsQuery: vi.fn(() => ({
-		queryKey: ["flows-list"],
-		queryFn: () => Promise.resolve(mockFlows),
-	})),
-}));
+console.log("MSW URLs configured:");
+console.log("Deployments paginate:", buildApiUrl("/deployments/paginate"));
+console.log("Deployments count:", buildApiUrl("/deployments/count"));
+console.log("Flows filter:", buildApiUrl("/flows/filter"));
+
+beforeAll(() => {
+	// Override the default MSW handlers with our test-specific handlers
+	server.listen({
+		onUnhandledRequest: (request, print) => {
+			// Ignore unhandled requests for debugging - we only care about our API calls
+			if (request.url.includes("/api/")) {
+				console.log("Unhandled API request:", request.method, request.url);
+				print.warning();
+			}
+		},
+	});
+});
+afterEach(() => {
+	server.resetHandlers();
+});
+afterAll(() => {
+	server.close();
+});
 
 vi.mock("@/components/deployments/data-table", () => ({
 	DeploymentsDataTable: ({
@@ -70,7 +93,14 @@ const createWrapper = () => {
 		defaultOptions: {
 			queries: {
 				retry: false,
+				staleTime: 0,
+				cacheTime: 0,
 			},
+		},
+		logger: {
+			log: console.log,
+			warn: console.warn,
+			error: console.error,
 		},
 	});
 	const Wrapper = ({ children }: { children: React.ReactNode }) => (
@@ -115,15 +145,16 @@ describe("WorkPoolDeploymentsTab", () => {
 	});
 
 	it("filters deployments by work pool name", () => {
-		const buildPaginateDeploymentsQuery = vi.mocked(
-			deploymentsApi.buildPaginateDeploymentsQuery,
+		const buildPaginateDeploymentsQuerySpy = vi.spyOn(
+			deploymentsApi,
+			"buildPaginateDeploymentsQuery",
 		);
 
 		render(<WorkPoolDeploymentsTab workPoolName="my-work-pool" />, {
 			wrapper: createWrapper(),
 		});
 
-		expect(buildPaginateDeploymentsQuery).toHaveBeenCalledWith(
+		expect(buildPaginateDeploymentsQuerySpy).toHaveBeenCalledWith(
 			expect.objectContaining({
 				work_pools: {
 					operator: "and_",
@@ -139,14 +170,14 @@ describe("WorkPoolDeploymentsTab", () => {
 	});
 
 	it("fetches flows for deployments", async () => {
-		const buildListFlowsQuery = vi.mocked(flowsApi.buildListFlowsQuery);
+		const buildListFlowsQuerySpy = vi.spyOn(flowsApi, "buildListFlowsQuery");
 
 		render(<WorkPoolDeploymentsTab workPoolName="test-pool" />, {
 			wrapper: createWrapper(),
 		});
 
 		await waitFor(() => {
-			expect(buildListFlowsQuery).toHaveBeenCalledWith(
+			expect(buildListFlowsQuerySpy).toHaveBeenCalledWith(
 				expect.objectContaining({
 					flows: {
 						operator: "and_",
