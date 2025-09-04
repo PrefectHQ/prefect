@@ -665,6 +665,49 @@ class TestTaskWorkerNestedTasks:
 
         assert await updated_task_run.state.result() == 42
 
+    async def test_nested_task_delay_serialization(
+        self, prefect_client, events_pipeline
+    ):
+        """
+        Test that calling task.delay() from within a task that was itself called with delay
+        works correctly. This tests the fix for the serialization issue where
+        TaskRunContext.serialize() with serialize_as_any=True would fail with:
+        TypeError: 'MockValSer' object cannot be converted to 'SchemaSerializer'
+
+        The error occurred when tasks were defined in separate modules, but we can
+        test the serialization path directly.
+        """
+
+        @task
+        def inner_task(value: str) -> str:
+            return f"processed: {value}"
+
+        @task
+        def outer_task(value: str) -> str:
+            # Calling delay from within a task that was itself delayed
+            # This would trigger the serialization error if TaskRunContext.serialize()
+            # uses serialize_as_any=True globally
+            inner_task.delay(value)
+            # Just return a marker that we successfully called delay
+            return f"scheduled_{value}"
+
+        # Create worker with both tasks
+        task_worker = TaskWorker(outer_task, inner_task)
+
+        # Submit outer task using apply_async (equivalent to delay)
+        future = outer_task.apply_async(("test_value",))
+        task_run = await prefect_client.read_task_run(future.task_run_id)
+
+        # Execute - this would fail with serialization error before fix
+        await task_worker.execute_task_run(task_run)
+        await events_pipeline.process_events()
+
+        # Verify it completed successfully
+        updated_task_run = await prefect_client.read_task_run(future.task_run_id)
+        assert updated_task_run.state.is_completed()
+        result = await updated_task_run.state.result()
+        assert result == "scheduled_test_value"
+
 
 class TestTaskWorkerLimit:
     @pytest.fixture(autouse=True)
