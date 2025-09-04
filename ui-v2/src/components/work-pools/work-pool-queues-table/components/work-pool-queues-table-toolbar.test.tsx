@@ -123,7 +123,9 @@ describe("WorkPoolQueuesTableToolbar", () => {
 		const plusButton = buttons.find((btn) => btn.querySelector(".lucide-plus"));
 		expect(plusButton).toBeDefined();
 
-		fireEvent.click(plusButton);
+		if (plusButton) {
+			fireEvent.click(plusButton);
+		}
 		expect(console.log).toHaveBeenCalledWith("Filter/actions for work queues");
 	});
 
@@ -241,7 +243,9 @@ describe("WorkPoolQueuesTableToolbar", () => {
 		const filterButton = filterButtons.find((btn) =>
 			btn.querySelector(".lucide-plus"),
 		);
-		fireEvent.click(filterButton);
+		if (filterButton) {
+			fireEvent.click(filterButton);
+		}
 
 		expect(console.log).toHaveBeenCalledWith("Filter/actions for work queues");
 
@@ -251,7 +255,9 @@ describe("WorkPoolQueuesTableToolbar", () => {
 		const rerenderedFilterButton = rerenderedFilterButtons.find((btn) =>
 			btn.querySelector(".lucide-plus"),
 		);
-		fireEvent.click(rerenderedFilterButton);
+		if (rerenderedFilterButton) {
+			fireEvent.click(rerenderedFilterButton);
+		}
 
 		expect(console.log).toHaveBeenCalledWith("Filter/actions for work queues");
 	});
