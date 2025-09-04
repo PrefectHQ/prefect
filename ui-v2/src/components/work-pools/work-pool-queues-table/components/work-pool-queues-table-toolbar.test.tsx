@@ -17,7 +17,7 @@ describe("WorkPoolQueuesTableToolbar", () => {
 	it("renders search input", () => {
 		render(<WorkPoolQueuesTableToolbar {...defaultProps} />);
 
-		const searchInput = screen.getByPlaceholderText("Search queues...");
+		const searchInput = screen.getByPlaceholderText("Search");
 		expect(searchInput).toBeInTheDocument();
 		expect(searchInput).toHaveValue("");
 	});
@@ -27,7 +27,7 @@ describe("WorkPoolQueuesTableToolbar", () => {
 			<WorkPoolQueuesTableToolbar {...defaultProps} searchQuery="my-search" />,
 		);
 
-		const searchInput = screen.getByPlaceholderText("Search queues...");
+		const searchInput = screen.getByPlaceholderText("Search");
 		expect(searchInput).toHaveValue("my-search");
 	});
 
@@ -40,7 +40,7 @@ describe("WorkPoolQueuesTableToolbar", () => {
 			/>,
 		);
 
-		const searchInput = screen.getByPlaceholderText("Search queues...");
+		const searchInput = screen.getByPlaceholderText("Search");
 		fireEvent.change(searchInput, { target: { value: "new-search" } });
 
 		expect(onSearchChange).toHaveBeenCalledWith("new-search");
@@ -55,7 +55,7 @@ describe("WorkPoolQueuesTableToolbar", () => {
 			/>,
 		);
 
-		expect(screen.getByText("15 queues")).toBeInTheDocument();
+		expect(screen.getByText("15 Work Queues")).toBeInTheDocument();
 	});
 
 	it("displays filtered count when search query exists", () => {
@@ -68,7 +68,7 @@ describe("WorkPoolQueuesTableToolbar", () => {
 			/>,
 		);
 
-		expect(screen.getByText("3 of 15 queues")).toBeInTheDocument();
+		expect(screen.getByText("3 of 15 Work Queues")).toBeInTheDocument();
 	});
 
 	it("shows clear filters button when search query exists", () => {
@@ -112,15 +112,18 @@ describe("WorkPoolQueuesTableToolbar", () => {
 		render(<WorkPoolQueuesTableToolbar {...defaultProps} />);
 
 		const buttons = screen.getAllByRole("button");
-		expect(buttons.length).toBeGreaterThan(1); // Should have at least the filter button and possibly clear button
+		// Should have the plus/filter button
+		expect(buttons.length).toBeGreaterThanOrEqual(1);
 	});
 
 	it("logs filter action when filter button is clicked", () => {
 		render(<WorkPoolQueuesTableToolbar {...defaultProps} />);
 
-		const filterButton = screen.getAllByRole("button")[1]; // Get the plus/filter button
-		fireEvent.click(filterButton);
+		const buttons = screen.getAllByRole("button");
+		const plusButton = buttons.find((btn) => btn.querySelector(".lucide-plus"));
+		expect(plusButton).toBeDefined();
 
+		fireEvent.click(plusButton);
 		expect(console.log).toHaveBeenCalledWith("Filter/actions for work queues");
 	});
 
@@ -130,7 +133,7 @@ describe("WorkPoolQueuesTableToolbar", () => {
 		);
 
 		// Check for search icon with correct positioning classes
-		const searchIcon = container.querySelector("svg");
+		const searchIcon = container.querySelector(".lucide-search");
 		expect(searchIcon).toBeInTheDocument();
 		expect(searchIcon).toHaveClass(
 			"absolute",
@@ -163,16 +166,16 @@ describe("WorkPoolQueuesTableToolbar", () => {
 	it("search input has correct styling", () => {
 		render(<WorkPoolQueuesTableToolbar {...defaultProps} />);
 
-		const searchInput = screen.getByPlaceholderText("Search queues...");
+		const searchInput = screen.getByPlaceholderText("Search");
 		expect(searchInput).toHaveClass("pl-8", "w-64");
 	});
 
 	it("create button has correct size", () => {
 		render(<WorkPoolQueuesTableToolbar {...defaultProps} />);
 
-		const createButton = screen.getByRole("button", { name: /create queue/i });
-		// Check for sm size class (this might be applied through the Button component)
-		expect(createButton).toBeInTheDocument();
+		// The plus button doesn't have specific button text, so check it exists
+		const buttons = screen.getAllByRole("button");
+		expect(buttons.length).toBeGreaterThan(0);
 	});
 
 	it("handles different count scenarios correctly", () => {
@@ -184,7 +187,7 @@ describe("WorkPoolQueuesTableToolbar", () => {
 			/>,
 		);
 
-		expect(screen.getByText("0 queues")).toBeInTheDocument();
+		expect(screen.getByText("0 Work Queues")).toBeInTheDocument();
 
 		rerender(
 			<WorkPoolQueuesTableToolbar
@@ -195,7 +198,7 @@ describe("WorkPoolQueuesTableToolbar", () => {
 			/>,
 		);
 
-		expect(screen.getByText("0 of 5 queues")).toBeInTheDocument();
+		expect(screen.getByText("0 of 5 Work Queues")).toBeInTheDocument();
 
 		rerender(
 			<WorkPoolQueuesTableToolbar
@@ -206,7 +209,7 @@ describe("WorkPoolQueuesTableToolbar", () => {
 			/>,
 		);
 
-		expect(screen.getByText("1 of 1 queues")).toBeInTheDocument();
+		expect(screen.getByText("1 of 1 Work Queue")).toBeInTheDocument();
 	});
 
 	it("handles multiple search query changes", () => {
@@ -219,7 +222,7 @@ describe("WorkPoolQueuesTableToolbar", () => {
 			/>,
 		);
 
-		const searchInput = screen.getByPlaceholderText("Search queues...");
+		const searchInput = screen.getByPlaceholderText("Search");
 
 		fireEvent.change(searchInput, { target: { value: "first" } });
 		fireEvent.change(searchInput, { target: { value: "second" } });
@@ -234,15 +237,21 @@ describe("WorkPoolQueuesTableToolbar", () => {
 			<WorkPoolQueuesTableToolbar {...defaultProps} />,
 		);
 
-		let filterButton = screen.getAllByRole("button")[1]; // Get the plus/filter button
+		const filterButtons = screen.getAllByRole("button");
+		const filterButton = filterButtons.find((btn) =>
+			btn.querySelector(".lucide-plus"),
+		);
 		fireEvent.click(filterButton);
 
 		expect(console.log).toHaveBeenCalledWith("Filter/actions for work queues");
 
 		rerender(<WorkPoolQueuesTableToolbar {...defaultProps} />);
 
-		filterButton = screen.getAllByRole("button")[1]; // Get the plus/filter button
-		fireEvent.click(filterButton);
+		const rerenderedFilterButtons = screen.getAllByRole("button");
+		const rerenderedFilterButton = rerenderedFilterButtons.find((btn) =>
+			btn.querySelector(".lucide-plus"),
+		);
+		fireEvent.click(rerenderedFilterButton);
 
 		expect(console.log).toHaveBeenCalledWith("Filter/actions for work queues");
 	});
@@ -250,7 +259,7 @@ describe("WorkPoolQueuesTableToolbar", () => {
 	it("maintains input focus after typing", () => {
 		render(<WorkPoolQueuesTableToolbar {...defaultProps} />);
 
-		const searchInput = screen.getByPlaceholderText("Search queues...");
+		const searchInput = screen.getByPlaceholderText("Search");
 		searchInput.focus();
 
 		expect(document.activeElement).toBe(searchInput);

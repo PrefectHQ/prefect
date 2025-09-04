@@ -87,7 +87,7 @@ describe("WorkPoolFlowRunsTab", () => {
 				operator: "and_",
 				name: { any_: ["my-work-pool"] },
 			},
-			limit: 100,
+			limit: 50,
 			offset: 0,
 			sort: "START_TIME_DESC",
 		});

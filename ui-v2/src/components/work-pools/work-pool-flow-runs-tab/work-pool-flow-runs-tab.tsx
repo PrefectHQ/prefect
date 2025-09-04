@@ -17,7 +17,7 @@ export const WorkPoolFlowRunsTab = ({
 				operator: "and_",
 				name: { any_: [workPoolName] },
 			},
-			limit: 100,
+			limit: 50,
 			offset: 0,
 			sort: "START_TIME_DESC",
 		}),

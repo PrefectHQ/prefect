@@ -1,5 +1,5 @@
-import { useSuspenseQuery } from "@tanstack/react-query";
-import { Suspense, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { useMemo } from "react";
 
 import type { WorkPool } from "@/api/work-pools";
 import { buildListWorkPoolWorkersQuery } from "@/api/work-pools";
@@ -33,11 +33,12 @@ const FieldValue = ({
 
 // Basic Info Section Component
 function BasicInfoSection({ workPool }: { workPool: WorkPool }) {
-	const { data: workers = [] } = useSuspenseQuery(
+	const { data: workers = [], isLoading } = useQuery(
 		buildListWorkPoolWorkersQuery(workPool.name),
 	);
 
 	const lastPolled = useMemo(() => {
+		if (isLoading) return null;
 		if (workers.length === 0) return null;
 
 		const heartbeats = workers
@@ -46,7 +47,7 @@ function BasicInfoSection({ workPool }: { workPool: WorkPool }) {
 			.sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
 
 		return heartbeats[0] || null;
-	}, [workers]);
+	}, [workers, isLoading]);
 
 	const fields = [
 		{
@@ -127,6 +128,14 @@ function BasicInfoSection({ workPool }: { workPool: WorkPool }) {
 		},
 	].filter(({ ComponentValue }) => ComponentValue() !== null);
 
+	if (isLoading) {
+		return (
+			<div className="text-muted-foreground text-sm">
+				Loading work pool details...
+			</div>
+		);
+	}
+
 	return (
 		<div>
 			<ul className="flex flex-col gap-3">
@@ -178,15 +187,7 @@ export function WorkPoolDetails({
 
 	return (
 		<div className={cn(spacing, className)}>
-			<Suspense
-				fallback={
-					<div className="text-muted-foreground">
-						Loading work pool details...
-					</div>
-				}
-			>
-				<BasicInfoSection workPool={workPool} />
-			</Suspense>
+			<BasicInfoSection workPool={workPool} />
 
 			{Boolean(workPool.base_job_template?.job_configuration) && (
 				<JobTemplateSection workPool={workPool} />

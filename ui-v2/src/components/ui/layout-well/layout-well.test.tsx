@@ -45,7 +45,7 @@ describe("LayoutWellHeader", () => {
 		);
 
 		expect(container.firstChild).toHaveClass("custom-header");
-		expect(container.firstChild).toHaveClass("py-6");
+		expect(container.firstChild).toHaveClass("w-full");
 	});
 });
 

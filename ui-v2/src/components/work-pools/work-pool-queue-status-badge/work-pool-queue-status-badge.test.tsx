@@ -39,29 +39,36 @@ describe("WorkPoolQueueStatusBadge", () => {
 		expect(badge).toBeInTheDocument();
 	});
 
-	it("renders with correct icon for ready status", () => {
+	it("renders with correct circle for ready status", () => {
 		const { container } = render(<WorkPoolQueueStatusBadge status="READY" />);
 
-		// Check for CheckCircle icon
+		// Check for green circle
 		expect(screen.getByText("Ready")).toBeInTheDocument();
-		expect(container.querySelector("svg")).toBeInTheDocument();
+		const circle = container.querySelector(
+			".h-2.w-2.rounded-full.bg-green-500",
+		);
+		expect(circle).toBeInTheDocument();
 	});
 
-	it("renders with correct icon for paused status", () => {
+	it("renders with correct circle for paused status", () => {
 		const { container } = render(<WorkPoolQueueStatusBadge status="PAUSED" />);
 
-		// Check for PauseCircle icon
+		// Check for yellow circle
 		expect(screen.getByText("Paused")).toBeInTheDocument();
-		expect(container.querySelector("svg")).toBeInTheDocument();
+		const circle = container.querySelector(
+			".h-2.w-2.rounded-full.bg-yellow-500",
+		);
+		expect(circle).toBeInTheDocument();
 	});
 
-	it("renders with correct icon for not_ready status", () => {
+	it("renders with correct circle for not_ready status", () => {
 		const { container } = render(
 			<WorkPoolQueueStatusBadge status="NOT_READY" />,
 		);
 
-		// Check for AlertCircle icon
+		// Check for red circle
 		expect(screen.getByText("Not Ready")).toBeInTheDocument();
-		expect(container.querySelector("svg")).toBeInTheDocument();
+		const circle = container.querySelector(".h-2.w-2.rounded-full.bg-red-500");
+		expect(circle).toBeInTheDocument();
 	});
 });

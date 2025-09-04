@@ -1,4 +1,4 @@
-import { useSuspenseQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import type {
 	ColumnFiltersState,
 	PaginationState,
@@ -66,20 +66,20 @@ export const WorkPoolDeploymentsTab = ({
 		[workPoolName],
 	);
 
-	const { data: paginatedData } = useSuspenseQuery(
+	const { data: paginatedData, isLoading: isPaginatedLoading } = useQuery(
 		buildPaginateDeploymentsQuery(filter),
 	);
 
-	const { data: totalCount } = useSuspenseQuery(
+	const { data: totalCount, isLoading: isCountLoading } = useQuery(
 		buildCountDeploymentsQuery(countFilter),
 	);
 
 	const flowIds = useMemo(
-		() => [...new Set(paginatedData.results.map((d) => d.flow_id))],
-		[paginatedData.results],
+		() => [...new Set((paginatedData?.results ?? []).map((d) => d.flow_id))],
+		[paginatedData?.results],
 	);
 
-	const { data: flows } = useSuspenseQuery(
+	const { data: flows, isLoading: isFlowsLoading } = useQuery(
 		buildListFlowsQuery(
 			{
 				flows: {
@@ -94,12 +94,13 @@ export const WorkPoolDeploymentsTab = ({
 	);
 
 	const deploymentsWithFlows = useMemo(() => {
+		if (!paginatedData?.results) return [];
 		const flowMap = new Map(flows?.map((flow) => [flow.id, flow]) ?? []);
 		return paginatedData.results.map((deployment) => ({
 			...deployment,
 			flow: flowMap.get(deployment.flow_id),
 		}));
-	}, [paginatedData.results, flows]);
+	}, [paginatedData?.results, flows]);
 
 	const handlePaginationChange = useCallback(
 		(newPagination: PaginationState) => {
@@ -121,6 +122,18 @@ export const WorkPoolDeploymentsTab = ({
 		},
 		[],
 	);
+
+	const isLoading = isPaginatedLoading || isCountLoading || isFlowsLoading;
+
+	if (isLoading || !paginatedData || totalCount === undefined) {
+		return (
+			<div className={className}>
+				<div className="text-muted-foreground text-center py-8">
+					Loading deployments...
+				</div>
+			</div>
+		);
+	}
 
 	return (
 		<div className={className}>
