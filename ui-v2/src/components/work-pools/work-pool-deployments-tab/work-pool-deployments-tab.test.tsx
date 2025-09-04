@@ -1,10 +1,9 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor } from "@testing-library/react";
-import { buildApiUrl } from "@tests/utils/handlers";
+import { buildApiUrl, server } from "@tests/utils";
 import { HttpResponse, http } from "msw";
-import { setupServer } from "msw/node";
 import { Suspense } from "react";
-import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import * as deploymentsApi from "@/api/deployments";
 import * as flowsApi from "@/api/flows";
 import { createMockDeployment } from "@/mocks/deployment";
@@ -29,46 +28,9 @@ const mockFlows = [
 	createMockFlow({ id: "flow-2", name: "Flow 2" }),
 ];
 
-const server = setupServer(
-	http.post(buildApiUrl("/deployments/paginate"), ({ request }) => {
-		console.log("MSW handling deployments/paginate request", request.url);
-		return HttpResponse.json({
-			results: mockDeployments,
-			pages: 1,
-		}, { status: 200 });
-	}),
-	http.post(buildApiUrl("/deployments/count"), ({ request }) => {
-		console.log("MSW handling deployments/count request", request.url);
-		return HttpResponse.json(2);
-	}),
-	http.post(buildApiUrl("/flows/filter"), ({ request }) => {
-		console.log("MSW handling flows/filter request", request.url);
-		return HttpResponse.json(mockFlows);
-	}),
-);
-
-console.log("MSW URLs configured:");
-console.log("Deployments paginate:", buildApiUrl("/deployments/paginate"));
-console.log("Deployments count:", buildApiUrl("/deployments/count"));
-console.log("Flows filter:", buildApiUrl("/flows/filter"));
-
-beforeAll(() => {
-	// Override the default MSW handlers with our test-specific handlers
-	server.listen({
-		onUnhandledRequest: (request, print) => {
-			// Ignore unhandled requests for debugging - we only care about our API calls
-			if (request.url.includes("/api/")) {
-				console.log("Unhandled API request:", request.method, request.url);
-				print.warning();
-			}
-		},
-	});
-});
+// Set up mock handlers for this test
 afterEach(() => {
 	server.resetHandlers();
-});
-afterAll(() => {
-	server.close();
 });
 
 vi.mock("@/components/deployments/data-table", () => ({
@@ -94,13 +56,8 @@ const createWrapper = () => {
 			queries: {
 				retry: false,
 				staleTime: 0,
-				cacheTime: 0,
+				gcTime: 0,
 			},
-		},
-		logger: {
-			log: console.log,
-			warn: console.warn,
-			error: console.error,
 		},
 	});
 	const Wrapper = ({ children }: { children: React.ReactNode }) => (
@@ -114,6 +71,22 @@ const createWrapper = () => {
 
 describe("WorkPoolDeploymentsTab", () => {
 	it("renders deployments data table", async () => {
+		// Set up handlers for this test
+		server.use(
+			http.post(buildApiUrl("/deployments/paginate"), () => {
+				return HttpResponse.json({
+					results: mockDeployments,
+					pages: 1,
+				});
+			}),
+			http.post(buildApiUrl("/deployments/count"), () => {
+				return HttpResponse.json(2);
+			}),
+			http.post(buildApiUrl("/flows/filter"), () => {
+				return HttpResponse.json(mockFlows);
+			}),
+		);
+
 		render(<WorkPoolDeploymentsTab workPoolName="test-pool" />, {
 			wrapper: createWrapper(),
 		});
@@ -128,6 +101,22 @@ describe("WorkPoolDeploymentsTab", () => {
 	});
 
 	it("applies custom className", async () => {
+		// Set up handlers for this test
+		server.use(
+			http.post(buildApiUrl("/deployments/paginate"), () => {
+				return HttpResponse.json({
+					results: mockDeployments,
+					pages: 1,
+				});
+			}),
+			http.post(buildApiUrl("/deployments/count"), () => {
+				return HttpResponse.json(2);
+			}),
+			http.post(buildApiUrl("/flows/filter"), () => {
+				return HttpResponse.json(mockFlows);
+			}),
+		);
+
 		render(
 			<WorkPoolDeploymentsTab
 				workPoolName="test-pool"
@@ -170,6 +159,22 @@ describe("WorkPoolDeploymentsTab", () => {
 	});
 
 	it("fetches flows for deployments", async () => {
+		// Set up handlers for this test
+		server.use(
+			http.post(buildApiUrl("/deployments/paginate"), () => {
+				return HttpResponse.json({
+					results: mockDeployments,
+					pages: 1,
+				});
+			}),
+			http.post(buildApiUrl("/deployments/count"), () => {
+				return HttpResponse.json(2);
+			}),
+			http.post(buildApiUrl("/flows/filter"), () => {
+				return HttpResponse.json(mockFlows);
+			}),
+		);
+
 		const buildListFlowsQuerySpy = vi.spyOn(flowsApi, "buildListFlowsQuery");
 
 		render(<WorkPoolDeploymentsTab workPoolName="test-pool" />, {
@@ -183,8 +188,12 @@ describe("WorkPoolDeploymentsTab", () => {
 						operator: "and_",
 						id: { any_: ["flow-1", "flow-2"] },
 					},
+					offset: 0,
+					sort: "NAME_ASC",
 				}),
-				expect.anything(),
+				expect.objectContaining({
+					enabled: true,
+				}),
 			);
 		});
 	});
