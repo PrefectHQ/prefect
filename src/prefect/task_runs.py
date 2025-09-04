@@ -4,7 +4,7 @@ import asyncio
 import atexit
 import threading
 import uuid
-from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, Union
+from typing import TYPE_CHECKING, Any, Callable, Dict, Optional
 
 import anyio
 from cachetools import TTLCache
@@ -77,7 +77,7 @@ class TaskRunWaiter:
         self.logger: "logging.Logger" = get_logger("TaskRunWaiter")
         self._consumer_task: "asyncio.Task[None] | None" = None
         self._observed_completed_task_runs: TTLCache[
-            uuid.UUID, Union[State[Any], bool]
+            uuid.UUID, Optional[State[Any]]
         ] = TTLCache(maxsize=10000, ttl=600)
         self._completion_events: Dict[uuid.UUID, asyncio.Event] = {}
         self._completion_callbacks: Dict[uuid.UUID, Callable[[], None]] = {}
@@ -136,23 +136,21 @@ class TaskRunWaiter:
                     )
 
                     # Extract the state from the event
-                    state_data = None
-                    if "validated_state" in event.payload:
-                        state_data = State.model_validate(
-                            {
-                                "id": event.id,
-                                "timestamp": event.occurred,
-                                **event.payload["validated_state"],
-                            }
-                        )
-                        state_data.state_details.task_run_id = task_run_id
+                    # All events should have validated_state since we don't support
+                    # new clients with old servers
+                    state_data = State.model_validate(
+                        {
+                            "id": event.id,
+                            "timestamp": event.occurred,
+                            **event.payload["validated_state"],
+                        }
+                    )
+                    state_data.state_details.task_run_id = task_run_id
 
                     with self._observed_completed_task_runs_lock:
                         # Cache the state for a short period of time to avoid
                         # unnecessary waits
-                        self._observed_completed_task_runs[task_run_id] = (
-                            state_data or True
-                        )
+                        self._observed_completed_task_runs[task_run_id] = state_data
                     with self._completion_events_lock:
                         # Set the event for the task run ID if it is in the cache
                         # so the waiter can wake up the waiting coroutine
@@ -195,9 +193,7 @@ class TaskRunWaiter:
         instance = cls.instance()
         with instance._observed_completed_task_runs_lock:
             if task_run_id in instance._observed_completed_task_runs:
-                cached_state = instance._observed_completed_task_runs[task_run_id]
-                # Return the state if we have it, None if we only have True
-                return cached_state if isinstance(cached_state, State) else None
+                return instance._observed_completed_task_runs[task_run_id]
 
         # Need to create event in loop thread to ensure it can be set
         # from the loop thread
@@ -214,8 +210,7 @@ class TaskRunWaiter:
             # wait on it, in case it came in while we were setting up the event above.
             with instance._observed_completed_task_runs_lock:
                 if task_run_id in instance._observed_completed_task_runs:
-                    cached_state = instance._observed_completed_task_runs[task_run_id]
-                    return cached_state if isinstance(cached_state, State) else None
+                    return instance._observed_completed_task_runs[task_run_id]
 
             with anyio.move_on_after(delay=timeout):
                 await from_async.wait_for_call_in_loop_thread(
@@ -224,11 +219,7 @@ class TaskRunWaiter:
 
             # After waiting, retrieve the state from the cache
             with instance._observed_completed_task_runs_lock:
-                if task_run_id in instance._observed_completed_task_runs:
-                    cached_state = instance._observed_completed_task_runs[task_run_id]
-                    return cached_state if isinstance(cached_state, State) else None
-
-            return None
+                return instance._observed_completed_task_runs.get(task_run_id)
         finally:
             with instance._completion_events_lock:
                 # Remove the event from the cache after it has been waited on

@@ -275,7 +275,7 @@ class PrefectDistributedFuture(PrefectTaskRunFuture[R]):
                 self._task_run_id, timeout=timeout
             )
 
-            if state_from_event and state_from_event.is_final():
+            if state_from_event:
                 # We got the final state directly from the event
                 self._final_state = state_from_event
                 logger.debug(
@@ -283,21 +283,6 @@ class PrefectDistributedFuture(PrefectTaskRunFuture[R]):
                     self.task_run_id,
                     state_from_event.type,
                 )
-            else:
-                # Fallback: read from API if we didn't get state from event
-                # This can happen if the event doesn't contain state data
-                task_run = await client.read_task_run(task_run_id=self._task_run_id)
-                if task_run.state and task_run.state.is_final():
-                    self._final_state = task_run.state
-                else:
-                    # Don't cache non-final states to avoid persisting stale data.
-                    # result_async() will handle reading the state again if needed.
-                    logger.debug(
-                        "Task run %s state not yet final after wait (state: %s). "
-                        "State will be re-read when needed.",
-                        self.task_run_id,
-                        task_run.state.type if task_run.state else "Unknown",
-                    )
             return
 
     def result(

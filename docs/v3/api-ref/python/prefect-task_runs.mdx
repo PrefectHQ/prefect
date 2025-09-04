@@ -58,7 +58,7 @@ if __name__ == "__main__":
 
 **Methods:**
 
-#### `add_done_callback` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_runs.py#L238" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `add_done_callback` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_runs.py#L229" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 add_done_callback(cls, task_run_id: uuid.UUID, callback: Callable[[], None]) -> None
@@ -71,7 +71,7 @@ Add a callback to be called when a task run finishes.
 - `callback`: The callback to call when the task run finishes.
 
 
-#### `instance` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_runs.py#L260" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `instance` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_runs.py#L251" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 instance(cls) -> Self
@@ -89,7 +89,7 @@ start(self) -> None
 Start the TaskRunWaiter service.
 
 
-#### `stop` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_runs.py#L166" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `stop` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_runs.py#L164" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 stop(self) -> None
@@ -98,7 +98,7 @@ stop(self) -> None
 Stop the TaskRunWaiter service.
 
 
-#### `wait_for_task_run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_runs.py#L178" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `wait_for_task_run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_runs.py#L176" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 wait_for_task_run(cls, task_run_id: uuid.UUID, timeout: Optional[float] = None) -> Optional[State[Any]]
