@@ -56,6 +56,7 @@ describe("work pools api", () => {
 			expect(result.current.data).toBe(1);
 		});
 	});
+});
 
 describe("work pool hooks", () => {
 	const MOCK_WORK_POOL_NAME = "test-pool";

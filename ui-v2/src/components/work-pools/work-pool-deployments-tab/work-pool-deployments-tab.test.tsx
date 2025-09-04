@@ -125,9 +125,12 @@ describe("WorkPoolDeploymentsTab", () => {
 
 		expect(buildPaginateDeploymentsQuery).toHaveBeenCalledWith(
 			expect.objectContaining({
+				work_pools: {
+					operator: "and_",
+					name: { any_: ["my-work-pool"] },
+				},
 				deployments: {
 					operator: "and_",
-					work_pool_name: { any_: ["my-work-pool"] },
 					flow_or_deployment_name: { like_: "" },
 					tags: { operator: "and_", all_: [] },
 				},

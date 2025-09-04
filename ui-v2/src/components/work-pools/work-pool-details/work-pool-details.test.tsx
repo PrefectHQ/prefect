@@ -38,11 +38,13 @@ const mockWorkPool: WorkPool = {
 			},
 		},
 		variables: {
-			image: {
-				type: "string",
-				default: "python:3.9",
-				title: "Docker Image",
-				description: "The Docker image to use",
+			properties: {
+				image: {
+					type: "string",
+					default: "python:3.9",
+					title: "Docker Image",
+					description: "The Docker image to use",
+				},
 			},
 		},
 	},
@@ -98,7 +100,7 @@ describe("WorkPoolDetails", () => {
 
 		// Wait for component to render
 		await waitFor(() => {
-			expect(screen.getByText("Base Job Template")).toBeInTheDocument();
+			expect(screen.getByText("Base Job Configuration")).toBeInTheDocument();
 		});
 	});
 
@@ -117,7 +119,7 @@ describe("WorkPoolDetails", () => {
 			expect(screen.getByText("A test work pool")).toBeInTheDocument();
 		});
 
-		expect(screen.queryByText("Base Job Template")).not.toBeInTheDocument();
+		expect(screen.queryByText("Base Job Configuration")).not.toBeInTheDocument();
 	});
 
 	it("handles alternate layout properly", () => {

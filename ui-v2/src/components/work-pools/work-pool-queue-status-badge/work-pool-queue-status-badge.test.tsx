@@ -50,15 +50,18 @@ describe("WorkPoolQueueStatusBadge", () => {
 		expect(circle).toBeInTheDocument();
 	});
 
-	it("renders with correct circle for paused status", () => {
+	it("renders with correct icon for paused status", () => {
 		const { container } = render(<WorkPoolQueueStatusBadge status="PAUSED" />);
 
-		// Check for yellow circle
+		// Check for pause icon instead of yellow circle
 		expect(screen.getByText("Paused")).toBeInTheDocument();
-		const circle = container.querySelector(
+		const pauseIcon = container.querySelector("svg");
+		expect(pauseIcon).toBeInTheDocument();
+		// Verify it's not looking for the old yellow circle
+		const yellowCircle = container.querySelector(
 			".h-2.w-2.rounded-full.bg-yellow-500",
 		);
-		expect(circle).toBeInTheDocument();
+		expect(yellowCircle).not.toBeInTheDocument();
 	});
 
 	it("renders with correct circle for not_ready status", () => {
