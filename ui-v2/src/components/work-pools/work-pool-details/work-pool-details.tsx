@@ -5,6 +5,7 @@ import type { WorkPool } from "@/api/work-pools";
 import { buildListWorkPoolWorkersQuery } from "@/api/work-pools";
 import type { SchemaProperty } from "@/components/schemas/schema-display";
 import { FormattedDate } from "@/components/ui/formatted-date";
+import { Separator } from "@/components/ui/separator";
 import { WorkPoolStatusBadge } from "@/components/work-pools/work-pool-status-badge";
 import { cn } from "@/lib/utils";
 import { titleCase } from "@/utils";
@@ -226,7 +227,12 @@ export function WorkPoolDetails({
         workPool.base_job_template?.variables?.properties &&
           Object.keys(workPool.base_job_template.variables.properties).length >
             0,
-      ) && <JobTemplateSection workPool={workPool} />}
+      ) && (
+        <>
+          <Separator />
+          <JobTemplateSection workPool={workPool} />
+        </>
+      )}
     </div>
   );
 }

@@ -8,7 +8,7 @@ import { useCallback } from "react";
 import type { WorkPoolQueue } from "@/api/work-pool-queues";
 import { DataTable } from "@/components/ui/data-table";
 import { cn } from "@/lib/utils";
-import { workPoolQueuesTableColumns } from "./components/work-pool-queues-table-columns";
+import { createWorkPoolQueuesTableColumns } from "./components/work-pool-queues-table-columns";
 import { WorkPoolQueuesTableEmptyState } from "./components/work-pool-queues-table-empty-state";
 import { WorkPoolQueuesTableToolbar } from "./components/work-pool-queues-table-toolbar";
 
@@ -46,10 +46,15 @@ export const WorkPoolQueuesTable = ({
 		[sortState, onSortingChange],
 	);
 
+	// Create columns with late indicator enabled
+	const columns = createWorkPoolQueuesTableColumns({
+		enableLateIndicator: true,
+	});
+
 	// Enhanced table configuration
 	const table = useReactTable({
 		data: queues,
-		columns: workPoolQueuesTableColumns,
+		columns,
 		// Core features
 		getCoreRowModel: getCoreRowModel(),
 		getSortedRowModel: getSortedRowModel(),
