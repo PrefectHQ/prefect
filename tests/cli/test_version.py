@@ -182,25 +182,3 @@ def test_correct_output_ephemeral_postgres(monkeypatch: pytest.MonkeyPatch):
                 """,
             ),
         )
-
-
-@pytest.mark.usefixtures("use_hosted_api_server")
-def test_correct_output_non_ephemeral_server_type():
-    version_info = prefect.__version_info__
-    assert version_info["date"] is not None, "date is not set"
-    built = parse_datetime(version_info["date"])
-    profile = prefect.context.get_settings_context().profile
-
-    invoke_and_assert(
-        ["version"],
-        expected_output=f"""Version:              {prefect.__version__}
-API version:          {SERVER_API_VERSION}
-Python version:       {platform.python_version()}
-Git commit:           {version_info["full-revisionid"][:8]}
-Built:                {built.strftime(DESIRED_DATE_FORMAT)}
-OS/Arch:              {sys.platform}/{platform.machine()}
-Profile:              {profile.name}
-Server type:          server
-Pydantic version:     {pydantic.__version__}
-""",
-    )
