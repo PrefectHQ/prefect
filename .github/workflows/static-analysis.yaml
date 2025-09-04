@@ -53,12 +53,16 @@ jobs:
       - name: Install mintlify-scrape
         run: npm install -g @mintlify/scraping
 
-      - name: Run pre-commit
+      - name: Run pre-commit hooks
         run: |
-          uv run pre-commit run --show-diff-on-failure --color=always --all-files
+          uv run pre-commit run --show-diff-on-failure --color=always --all-files --hook-stage pre-commit
         env:
           # Skip no-commit-to-branch check when running on main after merge
           SKIP: ${{ github.ref == 'refs/heads/main' && 'no-commit-to-branch' || '' }}
+
+      - name: Run pre-push hooks
+        run: |
+          uv run pre-commit run --show-diff-on-failure --color=always --all-files --hook-stage pre-push
 
   type-checks:
     name: Type Checks
