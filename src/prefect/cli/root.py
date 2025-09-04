@@ -18,7 +18,6 @@ from prefect.cli._types import PrefectTyper, SettingsOption
 from prefect.cli._utilities import with_cli_exception_handling
 from prefect.client.base import determine_server_type
 from prefect.client.constants import SERVER_API_VERSION
-from prefect.client.orchestration import ServerType
 from prefect.logging.configuration import setup_logging
 from prefect.settings import (
     PREFECT_CLI_WRAP_LINES,
@@ -135,8 +134,8 @@ async def version(
 
     version_info["Pydantic version"] = pydantic_version
 
-    if server_type == ServerType.EPHEMERAL.value:
-        database = get_dialect(PREFECT_API_DATABASE_CONNECTION_URL.value()).name
+    if connection_url := PREFECT_API_DATABASE_CONNECTION_URL.value():
+        database = get_dialect(connection_url).name
         version_info["Server"] = {"Database": database}
         if database == "sqlite":
             version_info["Server"]["SQLite version"] = sqlite3.sqlite_version
