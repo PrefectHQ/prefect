@@ -37,7 +37,7 @@ describe("WorkPoolQueueToggle", () => {
 		expect(screen.getByRole("switch")).not.toBeChecked();
 	});
 
-	it("disables toggle for default queue", () => {
+	it("enables toggle for default queue", () => {
 		const queue = createFakeWorkPoolQueue({
 			name: "default",
 			status: "READY",
@@ -45,7 +45,7 @@ describe("WorkPoolQueueToggle", () => {
 
 		render(<WorkPoolQueueToggle queue={queue} />);
 
-		expect(screen.getByRole("switch")).toBeDisabled();
+		expect(screen.getByRole("switch")).not.toBeDisabled();
 	});
 
 	it("disables toggle when disabled prop is true", () => {
@@ -72,7 +72,7 @@ describe("WorkPoolQueueToggle", () => {
 		await user.hover(screen.getByRole("switch"));
 
 		const tooltipTexts = await screen.findAllByText(
-			"Default queue cannot be paused",
+			"Pause or resume this work pool queue",
 		);
 		expect(tooltipTexts.length).toBeGreaterThan(0);
 	});

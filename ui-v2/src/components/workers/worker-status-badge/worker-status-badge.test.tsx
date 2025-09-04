@@ -8,7 +8,10 @@ describe("WorkerStatusBadge", () => {
 
 		expect(screen.getByText("Online")).toBeInTheDocument();
 		const badge = screen.getByText("Online").closest('[data-slot="badge"]');
-		expect(badge).toHaveClass("bg-green-100");
+		expect(badge).toHaveClass("bg-secondary");
+		// Check for the green circle indicator
+		const circle = badge?.querySelector(".bg-green-500");
+		expect(circle).toBeInTheDocument();
 	});
 
 	it("displays offline status correctly", () => {
@@ -16,7 +19,10 @@ describe("WorkerStatusBadge", () => {
 
 		expect(screen.getByText("Offline")).toBeInTheDocument();
 		const badge = screen.getByText("Offline").closest('[data-slot="badge"]');
-		expect(badge).toHaveClass("bg-gray-100");
+		expect(badge).toHaveClass("bg-secondary");
+		// Check for the red circle indicator
+		const circle = badge?.querySelector(".bg-red-500");
+		expect(circle).toBeInTheDocument();
 	});
 
 	it("applies custom className", () => {

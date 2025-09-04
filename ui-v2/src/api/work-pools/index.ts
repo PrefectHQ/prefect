@@ -1,8 +1,8 @@
 export {
 	buildCountWorkPoolsQuery,
 	buildFilterWorkPoolsQuery,
+	buildGetWorkPoolQuery,
 	buildListWorkPoolWorkersQuery,
-	buildWorkPoolDetailsQuery,
 	useCreateWorkPool,
 	useDeleteWorker,
 	useDeleteWorkPool,

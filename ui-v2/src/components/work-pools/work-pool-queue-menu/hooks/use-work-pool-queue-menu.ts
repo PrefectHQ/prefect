@@ -1,5 +1,5 @@
 import { useNavigate } from "@tanstack/react-router";
-import { Copy, Edit, MoreHorizontal, Trash2, Zap } from "lucide-react";
+import { Copy, Edit, MoreVertical, Trash2, Zap } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import type { WorkPoolQueue } from "@/api/work-pool-queues";
@@ -59,6 +59,6 @@ export const useWorkPoolQueueMenu = (queue: WorkPoolQueue) => {
 		menuItems,
 		showDeleteDialog,
 		setShowDeleteDialog,
-		triggerIcon: MoreHorizontal,
+		triggerIcon: MoreVertical,
 	};
 };

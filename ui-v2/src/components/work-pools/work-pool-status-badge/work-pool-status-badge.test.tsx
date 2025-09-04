@@ -31,12 +31,12 @@ describe("WorkPoolStatusBadge", () => {
 		expect(badge).toHaveClass("bg-secondary", "text-secondary-foreground");
 	});
 
-	it("includes status icon without tooltip", () => {
+	it("includes status circle without tooltip", () => {
 		render(<WorkPoolStatusBadge status="ready" />);
 
-		// Should have an icon but no tooltip trigger button
-		const svg = document.querySelector("svg[aria-hidden='true']");
-		expect(svg).toBeInTheDocument();
+		// Should have a colored circle but no tooltip trigger button
+		const circle = document.querySelector(".h-2.w-2.rounded-full");
+		expect(circle).toBeInTheDocument();
 		expect(screen.queryByRole("button")).not.toBeInTheDocument();
 	});
 
@@ -47,10 +47,10 @@ describe("WorkPoolStatusBadge", () => {
 		expect(badge).toHaveClass("custom-class");
 	});
 
-	it("displays icon with correct size", () => {
+	it("displays circle with correct color", () => {
 		render(<WorkPoolStatusBadge status="ready" />);
 
-		const icon = document.querySelector("svg[aria-hidden='true']");
-		expect(icon).toHaveClass("h-3", "w-3");
+		const circle = document.querySelector(".h-2.w-2.rounded-full");
+		expect(circle).toHaveClass("bg-green-500");
 	});
 });

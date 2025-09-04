@@ -33,12 +33,12 @@ export const WorkPoolQueueMenu = ({
 			<DropdownMenu>
 				<DropdownMenuTrigger asChild>
 					<Button
-						variant="ghost"
+						variant="outline"
 						size="icon"
-						className={cn("h-8 w-8", className)}
+						className={cn("size-8", className)}
 					>
 						<span className="sr-only">Open menu</span>
-						<TriggerIcon className="h-4 w-4" />
+						<TriggerIcon className="size-4" />
 					</Button>
 				</DropdownMenuTrigger>
 				<DropdownMenuContent align="end">
