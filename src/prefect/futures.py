@@ -271,23 +271,17 @@ class PrefectDistributedFuture(PrefectTaskRunFuture[R]):
                 "Waiting for completed event for task run %s...",
                 self.task_run_id,
             )
-            await TaskRunWaiter.wait_for_task_run(self._task_run_id, timeout=timeout)
+            state_from_event = await TaskRunWaiter.wait_for_task_run(
+                self._task_run_id, timeout=timeout
+            )
 
-            # After the waiter returns, we expect the task to be complete.
-            # However, there may be a small delay before the API reflects the final state
-            # due to eventual consistency between the event system and the API.
-            # We'll read the state and only cache it if it's final.
-            task_run = await client.read_task_run(task_run_id=self._task_run_id)
-            if task_run.state and task_run.state.is_final():
-                self._final_state = task_run.state
-            else:
-                # Don't cache non-final states to avoid persisting stale data.
-                # result_async() will handle reading the state again if needed.
+            if state_from_event:
+                # We got the final state directly from the event
+                self._final_state = state_from_event
                 logger.debug(
-                    "Task run %s state not yet final after wait (state: %s). "
-                    "State will be re-read when needed.",
+                    "Task run %s completed with state from event: %s",
                     self.task_run_id,
-                    task_run.state.type if task_run.state else "Unknown",
+                    state_from_event.type,
                 )
             return
 
@@ -308,8 +302,8 @@ class PrefectDistributedFuture(PrefectTaskRunFuture[R]):
         if not self._final_state:
             await self.wait_async(timeout=timeout)
             if not self._final_state:
-                # If still no final state, try reading it directly as the
-                # state property does. This handles eventual consistency issues.
+                # If still no final state after wait, try reading it once more.
+                # This should rarely happen since wait_async() now gets state from events.
                 async with get_client() as client:
                     task_run = await client.read_task_run(task_run_id=self._task_run_id)
                     if task_run.state and task_run.state.is_final():
