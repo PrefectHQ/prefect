@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import abc
-import asyncio
 import concurrent.futures
 import threading
 import uuid
@@ -12,7 +11,6 @@ from typing import TYPE_CHECKING, Any, Callable, Generic
 
 from typing_extensions import NamedTuple, Self, TypeVar
 
-from prefect._internal.retries import exponential_backoff_with_jitter
 from prefect._waiters import FlowRunWaiter
 from prefect.client.orchestration import get_client
 from prefect.exceptions import ObjectNotFound
@@ -273,24 +271,33 @@ class PrefectDistributedFuture(PrefectTaskRunFuture[R]):
                 "Waiting for completed event for task run %s...",
                 self.task_run_id,
             )
-            await TaskRunWaiter.wait_for_task_run(self._task_run_id, timeout=timeout)
+            state_from_event = await TaskRunWaiter.wait_for_task_run(
+                self._task_run_id, timeout=timeout
+            )
 
-            # After the waiter returns, we expect the task to be complete.
-            # However, there may be a small delay before the API reflects the final state
-            # due to eventual consistency between the event system and the API.
-            # We'll read the state and only cache it if it's final.
-            task_run = await client.read_task_run(task_run_id=self._task_run_id)
-            if task_run.state and task_run.state.is_final():
-                self._final_state = task_run.state
-            else:
-                # Don't cache non-final states to avoid persisting stale data.
-                # result_async() will handle reading the state again if needed.
+            if state_from_event and state_from_event.is_final():
+                # We got the final state directly from the event
+                self._final_state = state_from_event
                 logger.debug(
-                    "Task run %s state not yet final after wait (state: %s). "
-                    "State will be re-read when needed.",
+                    "Task run %s completed with state from event: %s",
                     self.task_run_id,
-                    task_run.state.type if task_run.state else "Unknown",
+                    state_from_event.type,
                 )
+            else:
+                # Fallback: read from API if we didn't get state from event
+                # This can happen if the event doesn't contain state data
+                task_run = await client.read_task_run(task_run_id=self._task_run_id)
+                if task_run.state and task_run.state.is_final():
+                    self._final_state = task_run.state
+                else:
+                    # Don't cache non-final states to avoid persisting stale data.
+                    # result_async() will handle reading the state again if needed.
+                    logger.debug(
+                        "Task run %s state not yet final after wait (state: %s). "
+                        "State will be re-read when needed.",
+                        self.task_run_id,
+                        task_run.state.type if task_run.state else "Unknown",
+                    )
             return
 
     def result(
@@ -310,37 +317,13 @@ class PrefectDistributedFuture(PrefectTaskRunFuture[R]):
         if not self._final_state:
             await self.wait_async(timeout=timeout)
             if not self._final_state:
-                # If still no final state after wait, poll the API with retries
-                # to handle eventual consistency between events and API
-                max_attempts = 10
-                base_delay = 0.1  # Start with 100ms
-                max_delay = 2.0  # Cap at 2 seconds
-
+                # If still no final state after wait, try reading it once more.
+                # This should rarely happen since wait_async() now gets state from events.
                 async with get_client() as client:
-                    for attempt in range(max_attempts):
-                        task_run = await client.read_task_run(
-                            task_run_id=self._task_run_id
-                        )
-                        if task_run.state and task_run.state.is_final():
-                            self._final_state = task_run.state
-                            break
-
-                        if attempt < max_attempts - 1:
-                            # Use existing exponential backoff with jitter
-                            delay = exponential_backoff_with_jitter(
-                                attempt, base_delay, max_delay
-                            )
-                            await asyncio.sleep(delay)
-                            logger.debug(
-                                "Task run %s state not yet final (attempt %d/%d, state: %s). Retrying in %.2fs...",
-                                self.task_run_id,
-                                attempt + 1,
-                                max_attempts,
-                                task_run.state.type if task_run.state else "Unknown",
-                                delay,
-                            )
-
-                    if not self._final_state:
+                    task_run = await client.read_task_run(task_run_id=self._task_run_id)
+                    if task_run.state and task_run.state.is_final():
+                        self._final_state = task_run.state
+                    else:
                         raise TimeoutError(
                             f"Task run {self.task_run_id} did not complete within {timeout} seconds"
                         )
