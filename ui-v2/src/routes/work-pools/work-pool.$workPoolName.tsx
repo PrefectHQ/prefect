@@ -1,8 +1,4 @@
-import {
-	useQuery,
-	useQueryClient,
-	useSuspenseQuery,
-} from "@tanstack/react-query";
+import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import type {
 	ColumnFiltersState,
@@ -142,17 +138,9 @@ const WorkersTabWrapper = ({ workPoolName }: { workPoolName: string }) => {
 	});
 	const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
 
-	const { data: workers = [], isLoading: isWorkersLoading } = useQuery(
+	const { data: workers } = useSuspenseQuery(
 		buildListWorkPoolWorkersQuery(workPoolName),
 	);
-
-	if (isWorkersLoading) {
-		return (
-			<div className="text-muted-foreground text-center py-8">
-				Loading workers...
-			</div>
-		);
-	}
 
 	return (
 		<WorkersTable
