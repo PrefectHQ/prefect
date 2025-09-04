@@ -12,8 +12,6 @@ def main() -> None:
         "uvx",
         "--with-editable",
         ".",
-        "--refresh-package",
-        "mdxify",
         "mdxify@latest",
         "--all",
         "--root-module",
