@@ -155,7 +155,12 @@ function JobTemplateSection({ workPool }: { workPool: WorkPool }) {
 	// Check if work pool has base job template
 	const baseJobTemplate = workPool.base_job_template;
 
-	if (!baseJobTemplate?.variables || typeof baseJobTemplate.variables !== 'object' || !('properties' in baseJobTemplate.variables) || !baseJobTemplate.variables.properties) {
+	if (
+		!baseJobTemplate?.variables ||
+		typeof baseJobTemplate.variables !== "object" ||
+		!("properties" in baseJobTemplate.variables) ||
+		!baseJobTemplate.variables.properties
+	) {
 		return null;
 	}
 
@@ -226,9 +231,9 @@ export function WorkPoolDetails({
 
 			{Boolean(
 				workPool.base_job_template?.variables &&
-				typeof workPool.base_job_template.variables === 'object' &&
-				'properties' in workPool.base_job_template.variables &&
-				workPool.base_job_template.variables.properties &&
+					typeof workPool.base_job_template.variables === "object" &&
+					"properties" in workPool.base_job_template.variables &&
+					workPool.base_job_template.variables.properties &&
 					Object.keys(
 						workPool.base_job_template.variables.properties as Record<
 							string,
