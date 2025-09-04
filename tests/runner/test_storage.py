@@ -476,6 +476,27 @@ class TestGitRepository:
             assert "super-secret-42".upper() not in console_output.out
             assert "super-secret-42".upper() not in console_output.err
 
+    async def test_git_clone_errors_obscure_basic_auth(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str],
+        tmp_path: Path,
+    ):
+        monkeypatch.setattr("pathlib.Path.exists", lambda x: False)
+
+        with tmpchdir(str(tmp_path)):
+            with pytest.raises(RuntimeError) as exc:
+                # we uppercase the auth because this test definition does show up in the exception traceback
+                basic_auth_creds = "user:password".upper()
+                await GitRepository(
+                    url=f"https://{basic_auth_creds}@github.com/prefecthq/prefect.git",
+                    branch="definitely-does-not-exist-123",
+                ).pull_code()
+            assert "user:password".upper() not in str(exc.getrepr()), exc.getrepr()
+            console_output = capsys.readouterr()
+            assert "user:password".upper() not in console_output.out
+            assert "user:password".upper() not in console_output.err
+
     class TestCredentialFormatting:
         async def test_credential_formatting_maintains_secrets(
             self, mock_run_process: AsyncMock
