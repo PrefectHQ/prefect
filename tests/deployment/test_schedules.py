@@ -11,7 +11,7 @@ from prefect.client.schemas.schedules import (
 )
 from prefect.deployments.schedules import (
     create_deployment_schedule_create,
-    normalize_to_deployment_schedule_create,
+    normalize_to_deployment_schedule,
 )
 from prefect.server.schemas.schedules import CronSchedule as ServerCronSchedule
 
@@ -29,11 +29,11 @@ def test_create_deployment_schedule_create(active: Optional[bool], expected: boo
 
 
 def test_normalize_none_returns_empty_list():
-    assert normalize_to_deployment_schedule_create(None) == []
+    assert normalize_to_deployment_schedule(None) == []
 
 
 def test_normalize_schedule_objects():
-    normalized = normalize_to_deployment_schedule_create(
+    normalized = normalize_to_deployment_schedule(
         schedules=[
             CronSchedule(cron="0 0 * * *"),
             IntervalSchedule(interval=datetime.timedelta(minutes=10)),
@@ -50,7 +50,7 @@ def test_normalize_schedule_objects():
 
 
 def test_normalize_dicts():
-    normalized = normalize_to_deployment_schedule_create(
+    normalized = normalize_to_deployment_schedule(
         schedules=[
             {"schedule": {"interval": datetime.timedelta(minutes=10)}},
             {"schedule": {"cron": "0 0 * * *"}, "active": False},
@@ -81,13 +81,13 @@ def test_normalize_minimal_deployment_schedules():
         ),
     ]
 
-    normalized = normalize_to_deployment_schedule_create(schedules=schedules)
+    normalized = normalize_to_deployment_schedule(schedules=schedules)
 
     assert normalized == schedules
 
 
 def test_normalize_mixed():
-    normalized = normalize_to_deployment_schedule_create(
+    normalized = normalize_to_deployment_schedule(
         schedules=[
             CronSchedule(cron="0 0 * * *"),
             {"schedule": {"interval": datetime.timedelta(minutes=10)}},
@@ -111,11 +111,11 @@ def test_normalize_mixed():
 
 def test_normalize_server_schema():
     with pytest.raises(ValueError, match="Server schema schedules are not supported"):
-        normalize_to_deployment_schedule_create(
+        normalize_to_deployment_schedule(
             schedules=[ServerCronSchedule(cron="0 0 * * *")]
         )
 
 
 def test_normalize_incompatible():
     with pytest.raises(ValueError, match="Invalid schedule provided"):
-        normalize_to_deployment_schedule_create(schedules=[1, 2, 3])
+        normalize_to_deployment_schedule(schedules=[1, 2, 3])
