@@ -145,6 +145,24 @@ deployments:
       name: local
 ```
 
+## Packaging custom steps
+
+You can package custom steps into your deployment environment. For example, if you're using Docker, you can include your custom step modules in the image. The default working directory for Prefect Docker images is `/opt/prefect`.
+
+Example with a packaged custom module:
+
+```yaml
+pull:
+  - retrieve_secrets.main:
+      id: get-access-token
+  - prefect.deployments.steps.git_clone:
+      repository: https://bitbucket.org/samples/deployments.git
+      branch: master
+      access_token: '{{ get-access-token.access_token }}'
+```
+
+In this example, `retrieve_secrets` is a custom Python module packaged into the Docker image, and `main` is the function entry point that returns a dictionary like `{"access_token": access_token}`.
+
 ## Best practices
 
 1. **Keep steps focused**: Each step should do one thing well
