@@ -8,7 +8,7 @@ import json
 import sys
 import textwrap
 import warnings
-from asyncio import iscoroutine
+from asyncio import gather, iscoroutine
 from datetime import datetime, timedelta, timezone
 from typing import TYPE_CHECKING, Any, Optional, TypedDict
 from uuid import UUID
@@ -554,21 +554,32 @@ async def _update_schedule_status(
             ):
                 return exit_with_error("Operation cancelled.")
 
-            updated_count = 0
+            # Collect all update tasks
+            update_tasks = []
+            deployment_names = []
             for deployment in deployments:
                 if deployment.schedules:
                     for schedule in deployment.schedules:
                         if schedule.active != active:  # Only update if needed
-                            await client.update_deployment_schedule(
-                                deployment.id, schedule.id, active=active
+                            update_tasks.append(
+                                client.update_deployment_schedule(
+                                    deployment.id, schedule.id, active=active
+                                )
                             )
-                            updated_count += 1
-                            app.console.print(
-                                f"{past_tense.capitalize()} schedule for deployment [cyan]{deployment.name}[/cyan]"
-                            )
+                            deployment_names.append(deployment.name)
+
+            # Execute all updates in parallel
+            if update_tasks:
+                await gather(*update_tasks)
+
+                # Display progress after all updates complete
+                for name in deployment_names:
+                    app.console.print(
+                        f"{past_tense.capitalize()} schedule for deployment [cyan]{name}[/cyan]"
+                    )
 
             exit_with_success(
-                f"{past_tense.capitalize()} {updated_count} deployment schedule(s)."
+                f"{past_tense.capitalize()} {len(update_tasks)} deployment schedule(s)."
             )
 
     else:
