@@ -138,6 +138,7 @@
               "v3/how-to-guides/deployments/create-deployments",
               "v3/how-to-guides/deployments/run-deployments",
               "v3/how-to-guides/deployments/create-schedules",
+              "v3/how-to-guides/deployments/manage-bulk-schedules",
               "v3/how-to-guides/deployments/deploy-via-python",
               "v3/how-to-guides/deployments/prefect-yaml",
               "v3/how-to-guides/deployments/store-flow-code",
