@@ -35,14 +35,14 @@ and executed in the engine. Tasks do not need to be within a flow run context to
 submitted. You must `.submit` the same task object that you pass to `serve`.
 
 **Args:**
-- `-`: A list of tasks to serve. When a scheduled task run is found for a
+- `- tasks`: A list of tasks to serve. When a scheduled task run is found for a
 given task, the task run will be submitted to the engine for execution.
-- `-`: The maximum number of tasks that can be run concurrently. Defaults to 10.
+- `- limit`: The maximum number of tasks that can be run concurrently. Defaults to 10.
 Pass `None` to remove the limit.
-- `-`: An optional port on which to start an HTTP server
+- `- status_server_port`: An optional port on which to start an HTTP server
 exposing status information about the task worker. If not provided, no
 status server will run.
-- `-`: If provided, the task worker will exit after the given number of
+- `- timeout`: If provided, the task worker will exit after the given number of
 seconds. Defaults to None, meaning the task worker will run indefinitely.
 
 
@@ -98,9 +98,9 @@ scheduled task run is submitted to the engine for execution with a minimal `Engi
 so that the task run can be governed by orchestration rules.
 
 **Args:**
-- `-`: A list of tasks to serve. These tasks will be submitted to the engine
+- `- tasks`: A list of tasks to serve. These tasks will be submitted to the engine
 when a scheduled task run is found.
-- `-`: The maximum number of tasks that can be run concurrently. Defaults to 10.
+- `- limit`: The maximum number of tasks that can be run concurrently. Defaults to 10.
 Pass `None` to remove the limit.
 
 

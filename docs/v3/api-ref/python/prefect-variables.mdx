@@ -31,8 +31,8 @@ Asynchronously get a variable's value by name.
 If the variable does not exist, return the default value.
 
 **Args:**
-- `-`: The name of the variable value to get.
-- `-`: The default value to return if the variable does not exist.
+- `- name`: The name of the variable value to get.
+- `- default`: The default value to return if the variable does not exist.
 
 
 #### `aset` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/variables.py#L38" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
@@ -46,10 +46,10 @@ Asynchronously sets a new variable. If one exists with the same name, must pass 
 Returns the newly set variable object.
 
 **Args:**
-- `-`: The name of the variable to set.
-- `-`: The value of the variable to set.
-- `-`: An optional list of strings to associate with the variable.
-- `-`: Whether to overwrite the variable if it already exists.
+- `- name`: The name of the variable to set.
+- `- value`: The value of the variable to set.
+- `- tags`: An optional list of strings to associate with the variable.
+- `- overwrite`: Whether to overwrite the variable if it already exists.
 
 
 #### `aunset` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/variables.py#L202" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
@@ -61,7 +61,7 @@ aunset(cls, name: str) -> bool
 Asynchronously unset a variable by name.
 
 **Args:**
-- `-`: The name of the variable to unset.
+- `- name`: The name of the variable to unset.
 
 Returns `True` if the variable was deleted, `False` if the variable did not exist.
 
@@ -77,8 +77,8 @@ Get a variable's value by name.
 If the variable does not exist, return the default value.
 
 **Args:**
-- `-`: The name of the variable value to get.
-- `-`: The default value to return if the variable does not exist.
+- `- name`: The name of the variable value to get.
+- `- default`: The default value to return if the variable does not exist.
 
 
 #### `set` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/variables.py#L91" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
@@ -92,10 +92,10 @@ Sets a new variable. If one exists with the same name, must pass `overwrite=True
 Returns the newly set variable object.
 
 **Args:**
-- `-`: The name of the variable to set.
-- `-`: The value of the variable to set.
-- `-`: An optional list of strings to associate with the variable.
-- `-`: Whether to overwrite the variable if it already exists.
+- `- name`: The name of the variable to set.
+- `- value`: The value of the variable to set.
+- `- tags`: An optional list of strings to associate with the variable.
+- `- overwrite`: Whether to overwrite the variable if it already exists.
 
 
 #### `unset` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/variables.py#L231" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
@@ -107,7 +107,7 @@ unset(cls, name: str) -> bool
 Unset a variable by name.
 
 **Args:**
-- `-`: The name of the variable to unset.
+- `- name`: The name of the variable to unset.
 
 Returns `True` if the variable was deleted, `False` if the variable did not exist.
 
