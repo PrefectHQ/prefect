@@ -1,0 +1,159 @@
+---
+title: How to create custom deployment steps
+sidebarTitle: Create custom deployment steps
+description: Learn how to write custom Python functions to use as deployment steps in prefect.yaml
+tags:
+  - deployments
+  - prefect.yaml
+  - custom steps
+---
+
+Deployment steps in `prefect.yaml` are just Python functions. This means you can write your own custom steps to extend deployment functionality beyond the built-in options.
+
+## Understanding deployment steps
+
+Each step in your `prefect.yaml` file's `build`, `push`, or `pull` sections is a fully qualified Python function name that Prefect imports and executes. For example:
+
+```yaml
+build:
+  - prefect_docker.deployments.steps.build_docker_image:
+      image_name: my-repo/my-image
+```
+
+This references the `build_docker_image` function from the `prefect_docker.deployments.steps` module. You can create and use your own functions the same way.
+
+## Writing a custom step
+
+A deployment step is any Python function that:
+1. Accepts keyword arguments from your `prefect.yaml` configuration
+2. Optionally returns a dictionary of outputs for downstream steps
+3. Can be imported from your Python environment
+
+### Basic example
+
+Here's a simple custom step:
+
+```python
+# custom_steps.py
+def hello_step(name: str = "World") -> dict[str, str]:
+    """A simple custom deployment step."""
+    message = f"Hello, {name}!"
+    print(message)
+    return {"message": message}
+```
+
+Use it in your `prefect.yaml`:
+
+```yaml
+# prefect.yaml
+build:
+  - custom_steps.hello_step:
+      name: "Prefect"
+```
+
+When you run `prefect deploy`, you'll see:
+```
+Running deployment build steps...
+ > Running hello_step step...
+Hello, Prefect!
+```
+
+## Passing data between steps
+
+Steps can pass data to downstream steps by returning a dictionary. Reference these outputs using the step's ID:
+
+```python
+# custom_steps.py
+def hello_step(name: str = "World") -> dict[str, str]:
+    """A simple custom deployment step."""
+    message = f"Hello, {name}!"
+    print(message)
+    return {"message": message}
+
+def use_message(prefix: str = "Got") -> dict[str, str]:
+    """Use output from previous step."""
+    print(f"{prefix}: using message from previous step")
+    return {"status": "done"}
+```
+
+Use in `prefect.yaml`:
+
+```yaml
+build:
+  - custom_steps.hello_step:
+      id: greeting
+      name: "Prefect"
+  - custom_steps.use_message:
+      prefix: "{{ greeting.message }}"
+```
+
+Output:
+```
+Running deployment build steps...
+ > Running hello_step step...
+Hello, Prefect!
+ > Running use_message step...
+Hello, Prefect!: using message from previous step
+```
+
+## Practical example: Loading environment variables
+
+Here's a more practical example that loads environment variables from a `.env` file:
+
+```python
+# custom_steps.py
+import os
+from pathlib import Path
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+def load_dotenv(env_file: str = ".env") -> dict[str, int]:
+    """Load environment variables from a .env file using Pydantic Settings.
+    
+    This step runs during the pull phase on the worker,
+    setting environment variables for the flow run process.
+    """
+    class EnvSettings(BaseSettings):
+        model_config = SettingsConfigDict(env_file=env_file, extra="allow")
+    
+    # Load the settings
+    settings = EnvSettings()
+    
+    # Get loaded vars, excluding None values
+    loaded_vars = settings.model_dump(exclude_none=True)
+    
+    # Actually set them in os.environ
+    for key, value in loaded_vars.items():
+        os.environ[key.upper()] = str(value)
+        print(f"  Set {key.upper()}")
+    
+    print(f"Loaded {len(loaded_vars)} environment variables from {env_file}")
+    return {"loaded_count": len(loaded_vars)}
+```
+
+Use in the `pull` step to load environment variables before running your flow:
+
+```yaml
+# prefect.yaml
+pull:
+  - custom_steps.load_dotenv:
+      env_file: .env
+
+deployments:
+  - name: my-deployment
+    entrypoint: flows.py:my_flow
+    work_pool:
+      name: local
+```
+
+## Best practices
+
+1. **Keep steps focused**: Each step should do one thing well
+2. **Return useful outputs**: Return data that downstream steps might need  
+3. **Use type hints**: Make your functions self-documenting
+4. **Handle errors gracefully**: Consider what happens if files or resources are missing
+5. **Test your steps**: You can test step functions like any Python function before using them in deployments
+
+## See also
+
+- [Define deployments with YAML](/v3/how-to-guides/deployments/prefect-yaml)
+- [Built-in deployment steps](https://github.com/PrefectHQ/prefect/tree/main/src/prefect/deployments/steps)
