@@ -47,7 +47,7 @@ from prefect.client.constants import SERVER_API_VERSION
 from prefect.logging import get_logger
 from prefect.server.api.dependencies import EnforceMinimumAPIVersion
 from prefect.server.exceptions import ObjectNotFoundError
-from prefect.server.services.base import RunInEphemeralServers, Service
+from prefect.server.services.base import RunInEphemeralServers, RunInWebservers, Service
 from prefect.server.utilities.database import get_dialect
 from prefect.settings import (
     PREFECT_API_DATABASE_CONNECTION_URL,
@@ -652,7 +652,11 @@ def create_app(
         await add_block_types()
 
         Services: type[Service] | None = (
-            None if webserver_only else RunInEphemeralServers if ephemeral else Service
+            RunInWebservers
+            if webserver_only
+            else RunInEphemeralServers
+            if ephemeral
+            else Service
         )
 
         async with AsyncExitStack() as stack:

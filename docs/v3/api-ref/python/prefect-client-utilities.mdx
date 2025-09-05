@@ -22,7 +22,7 @@ get_or_create_client(client: Optional['PrefectClient'] = None) -> tuple['Prefect
 Returns provided client, infers a client from context if available, or creates a new client.
 
 **Args:**
-- `-`: an optional client to use
+- `- client`: an optional client to use
 
 **Returns:**
 - - tuple: a tuple of the client and a boolean indicating if the client was inferred from context

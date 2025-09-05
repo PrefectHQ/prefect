@@ -156,6 +156,14 @@ class RunInEphemeralServers(Service, abc.ABC):
     pass
 
 
+class RunInWebservers(Service, abc.ABC):
+    """
+    A marker class for services that should run when running a webserver
+    """
+
+    pass
+
+
 class LoopService(Service, abc.ABC):
     """
     Loop services are relatively lightweight maintenance routines that need to run
