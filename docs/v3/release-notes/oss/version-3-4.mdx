@@ -2,6 +2,44 @@
 title: 3.4
 ---
 
+## 3.4.16 - Background Noise Reduction
+
+*Released on September 05, 2025*
+
+**Enhancements ➕➕**
+
+* Wait until determining deployment create or update to add deployment schedules by [@kevingrismore](https://github.com/kevingrismore) in [#18823](https://github.com/PrefectHQ/prefect/pull/18823)
+* Display postgresql version on prefect version by [@hanhwanglim](https://github.com/hanhwanglim) in [#18836](https://github.com/PrefectHQ/prefect/pull/18836)
+* More robust `write_path` method in `RemoteFileSystem` to handle SMB UNC paths.  by [@tom21100227](https://github.com/tom21100227) in [#18824](https://github.com/PrefectHQ/prefect/pull/18824)
+
+**Bug Fixes 🐞**
+
+* Fix nested `.delay()` serialization issue by [@zzstoatzz](https://github.com/zzstoatzz) in [#18849](https://github.com/PrefectHQ/prefect/pull/18849)
+* Fix `result_async` race condition using final state from waiter by [@zzstoatzz](https://github.com/zzstoatzz) in [#18850](https://github.com/PrefectHQ/prefect/pull/18850)
+* Improve multi-server scaling for triggers by [@desertaxle](https://github.com/desertaxle) in [#18820](https://github.com/PrefectHQ/prefect/pull/18820)
+* Fix AttributeError in create_flow_run_from_deployment (#18707) by [@eddiemaru-101](https://github.com/eddiemaru-101) in [#18807](https://github.com/PrefectHQ/prefect/pull/18807)
+* Kubernetes label disable lowercase by [@raniasev](https://github.com/raniasev) in [#18841](https://github.com/PrefectHQ/prefect/pull/18841)
+* Add an additional check to obscure basic auth credentials when `git clone` fails by [@desertaxle](https://github.com/desertaxle) in [#18845](https://github.com/PrefectHQ/prefect/pull/18845)
+* Preserve dev version info when generating docker image tag by [@desertaxle](https://github.com/desertaxle) in [#18854](https://github.com/PrefectHQ/prefect/pull/18854)
+
+**Development & Tidiness 🧹**
+
+* Remove unnecessary 'No retries configured' message from task failure logs by [@zzstoatzz](https://github.com/zzstoatzz) in [#18844](https://github.com/PrefectHQ/prefect/pull/18844)
+* Drop `--refresh-package` from `mdxify` use in api ref gen by [@zzstoatzz](https://github.com/zzstoatzz) in [#18851](https://github.com/PrefectHQ/prefect/pull/18851)
+* Claude prompts by [@zzstoatzz](https://github.com/zzstoatzz) in [#18833](https://github.com/PrefectHQ/prefect/pull/18833)
+* Add trigger to update the OSS testbed image on Docker image release by [@desertaxle](https://github.com/desertaxle) in [#18853](https://github.com/PrefectHQ/prefect/pull/18853)
+* Remove stale mdx files from api ref by [@zzstoatzz](https://github.com/zzstoatzz) in [#18828](https://github.com/PrefectHQ/prefect/pull/18828)
+
+**Documentation 📓**
+
+* Update incorrect push action description by [@mjarosie](https://github.com/mjarosie) in [#18834](https://github.com/PrefectHQ/prefect/pull/18834)
+
+
+**Full Changelog**: https://github.com/PrefectHQ/prefect/compare/3.4.15...3.4.16
+
+
+---
+
 ## 3.4.15 - Emit me maybe
 
 *Released on August 29, 2025*
