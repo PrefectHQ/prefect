@@ -90,6 +90,13 @@ def setup_logging(incremental: bool | None = None) -> dict[str, Any]:
     # Perform an incremental update if setup has already been run
     config.setdefault("incremental", incremental)
 
+    # Check if the root logger has been configured by the user
+    # If it has handlers, we should not override the root logger configuration
+    root_logger = logging.getLogger()
+    if root_logger.handlers and not incremental:
+        # User has configured the root logger, don't override it
+        config.pop("root", None)
+
     try:
         logging.config.dictConfig(config)
     except ValueError:

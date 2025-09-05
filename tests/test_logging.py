@@ -227,6 +227,58 @@ def test_setup_logging_uses_env_var_overrides(
     dictConfigMock.assert_called_once_with(expected_config)
 
 
+def test_setup_logging_preserves_existing_root_logger_configuration(
+    dictConfigMock: MagicMock,
+):
+    """
+    Test that setup_logging does not override the root logger configuration
+    if the user has already configured it.
+
+    This addresses issue #18872 where importing Prefect would overwrite
+    user-defined logging formats and handlers.
+    """
+    import logging
+
+    # Simulate user configuring the root logger before importing Prefect
+    root_logger = logging.getLogger()
+    handler = MagicMock()
+    root_logger.handlers = [handler]
+
+    # Run setup_logging (normally happens on import)
+    setup_logging()
+
+    # The config passed to dictConfig should not have a 'root' key
+    # since we detected existing root logger configuration
+    called_config = dictConfigMock.call_args[0][0]
+    assert "root" not in called_config
+
+    # Clean up
+    root_logger.handlers = []
+
+
+def test_setup_logging_applies_root_config_when_no_prior_configuration(
+    dictConfigMock: MagicMock,
+):
+    """
+    Test that setup_logging applies the root logger configuration
+    when the user hasn't configured logging beforehand.
+    """
+    import logging
+
+    # Ensure root logger has no handlers (fresh state)
+    root_logger = logging.getLogger()
+    root_logger.handlers = []
+
+    # Run setup_logging
+    setup_logging()
+
+    # The config should include root logger configuration
+    called_config = dictConfigMock.call_args[0][0]
+    assert "root" in called_config
+    assert called_config["root"]["level"] == "WARNING"
+    assert called_config["root"]["handlers"] == ["console"]
+
+
 def test_setting_aliases_respected_for_logging_config(tmp_path: Path):
     logging_config_content = """
 loggers:
