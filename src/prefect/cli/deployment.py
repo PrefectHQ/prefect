@@ -26,7 +26,12 @@ from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import exit_with_error, exit_with_success
 from prefect.cli.root import app, is_interactive
 from prefect.client.orchestration import get_client
-from prefect.client.schemas.filters import FlowFilter, FlowFilterId, FlowFilterName
+from prefect.client.schemas.filters import (
+    DeploymentFilter,
+    FlowFilter,
+    FlowFilterId,
+    FlowFilterName,
+)
 from prefect.client.schemas.objects import DeploymentSchedule
 from prefect.client.schemas.responses import DeploymentResponse
 from prefect.client.schemas.schedules import (
@@ -502,63 +507,163 @@ async def delete_schedule(
 
 
 @schedule_app.command("pause")
-async def pause_schedule(deployment_name: str, schedule_id: UUID):
+async def pause_schedule(
+    deployment_name: str | None = typer.Argument(None),
+    schedule_id: UUID | None = typer.Argument(None),
+    _all: bool = typer.Option(False, "--all", help="Pause all deployment schedules"),
+):
     """
-    Pause a deployment schedule.
+    Pause deployment schedules.
+
+    Examples:
+        Pause a specific schedule:
+            $ prefect deployment schedule pause my-flow/my-deployment abc123-...
+
+        Pause all schedules:
+            $ prefect deployment schedule pause --all
     """
-    assert_deployment_name_format(deployment_name)
-
-    async with get_client() as client:
-        try:
-            deployment = await client.read_deployment_by_name(deployment_name)
-        except ObjectNotFound:
-            return exit_with_error(f"Deployment {deployment_name!r} not found!")
-
-        try:
-            schedule = [s for s in deployment.schedules if s.id == schedule_id][0]
-        except IndexError:
-            return exit_with_error("Deployment schedule not found!")
-
-        if not schedule.active:
+    if _all:
+        if deployment_name is not None or schedule_id is not None:
             return exit_with_error(
-                f"Deployment schedule {schedule_id} is already inactive"
+                "Cannot specify deployment name or schedule ID with --all"
             )
 
-        await client.update_deployment_schedule(
-            deployment.id, schedule_id, active=False
-        )
-        exit_with_success(
-            f"Paused schedule {schedule.schedule} for deployment {deployment_name}"
-        )
+        async with get_client() as client:
+            deployments = await client.read_deployments(
+                deployment_filter=DeploymentFilter(), limit=200
+            )
+
+            if not deployments:
+                return exit_with_success("No deployments found.")
+
+            paused_count = 0
+            for deployment in deployments:
+                if deployment.schedules:
+                    for schedule in deployment.schedules:
+                        if schedule.active:
+                            await client.update_deployment_schedule(
+                                deployment.id, schedule.id, active=False
+                            )
+                            paused_count += 1
+                            app.console.print(
+                                f"Paused schedule for deployment [cyan]{deployment.name}[/cyan]"
+                            )
+
+            if paused_count == 0:
+                exit_with_success("No active schedules found to pause.")
+            else:
+                exit_with_success(f"Paused {paused_count} deployment schedule(s).")
+
+    else:
+        if deployment_name is None or schedule_id is None:
+            return exit_with_error(
+                "Must provide deployment name and schedule ID, or use --all"
+            )
+
+        assert_deployment_name_format(deployment_name)
+
+        async with get_client() as client:
+            try:
+                deployment = await client.read_deployment_by_name(deployment_name)
+            except ObjectNotFound:
+                return exit_with_error(f"Deployment {deployment_name!r} not found!")
+
+            try:
+                schedule = [s for s in deployment.schedules if s.id == schedule_id][0]
+            except IndexError:
+                return exit_with_error("Deployment schedule not found!")
+
+            if not schedule.active:
+                return exit_with_error(
+                    f"Deployment schedule {schedule_id} is already inactive"
+                )
+
+            await client.update_deployment_schedule(
+                deployment.id, schedule_id, active=False
+            )
+            exit_with_success(
+                f"Paused schedule {schedule.schedule} for deployment {deployment_name}"
+            )
 
 
 @schedule_app.command("resume")
-async def resume_schedule(deployment_name: str, schedule_id: UUID):
+async def resume_schedule(
+    deployment_name: str | None = typer.Argument(None),
+    schedule_id: UUID | None = typer.Argument(None),
+    _all: bool = typer.Option(False, "--all", help="Resume all deployment schedules"),
+):
     """
-    Resume a deployment schedule.
+    Resume deployment schedules.
+
+    Examples:
+        Resume a specific schedule:
+            $ prefect deployment schedule resume my-flow/my-deployment abc123-...
+
+        Resume all schedules:
+            $ prefect deployment schedule resume --all
     """
-    assert_deployment_name_format(deployment_name)
-
-    async with get_client() as client:
-        try:
-            deployment = await client.read_deployment_by_name(deployment_name)
-        except ObjectNotFound:
-            return exit_with_error(f"Deployment {deployment_name!r} not found!")
-
-        try:
-            schedule = [s for s in deployment.schedules if s.id == schedule_id][0]
-        except IndexError:
-            return exit_with_error("Deployment schedule not found!")
-
-        if schedule.active:
+    if _all:
+        if deployment_name is not None or schedule_id is not None:
             return exit_with_error(
-                f"Deployment schedule {schedule_id} is already active"
+                "Cannot specify deployment name or schedule ID with --all"
             )
 
-        await client.update_deployment_schedule(deployment.id, schedule_id, active=True)
-        exit_with_success(
-            f"Resumed schedule {schedule.schedule} for deployment {deployment_name}"
-        )
+        async with get_client() as client:
+            deployments = await client.read_deployments(
+                deployment_filter=DeploymentFilter(), limit=200
+            )
+
+            if not deployments:
+                return exit_with_success("No deployments found.")
+
+            resumed_count = 0
+            for deployment in deployments:
+                if deployment.schedules:
+                    for schedule in deployment.schedules:
+                        if not schedule.active:
+                            await client.update_deployment_schedule(
+                                deployment.id, schedule.id, active=True
+                            )
+                            resumed_count += 1
+                            app.console.print(
+                                f"Resumed schedule for deployment [cyan]{deployment.name}[/cyan]"
+                            )
+
+            if resumed_count == 0:
+                exit_with_success("No inactive schedules found to resume.")
+            else:
+                exit_with_success(f"Resumed {resumed_count} deployment schedule(s).")
+
+    else:
+        if deployment_name is None or schedule_id is None:
+            return exit_with_error(
+                "Must provide deployment name and schedule ID, or use --all"
+            )
+
+        assert_deployment_name_format(deployment_name)
+
+        async with get_client() as client:
+            try:
+                deployment = await client.read_deployment_by_name(deployment_name)
+            except ObjectNotFound:
+                return exit_with_error(f"Deployment {deployment_name!r} not found!")
+
+            try:
+                schedule = [s for s in deployment.schedules if s.id == schedule_id][0]
+            except IndexError:
+                return exit_with_error("Deployment schedule not found!")
+
+            if schedule.active:
+                return exit_with_error(
+                    f"Deployment schedule {schedule_id} is already active"
+                )
+
+            await client.update_deployment_schedule(
+                deployment.id, schedule_id, active=True
+            )
+            exit_with_success(
+                f"Resumed schedule {schedule.schedule} for deployment {deployment_name}"
+            )
 
 
 @schedule_app.command("ls")
