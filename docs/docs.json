@@ -1032,6 +1032,13 @@
                     ]
                   },
                   {
+                    "group": "prefect.retries",
+                    "pages": [
+                      "v3/api-ref/python/prefect-retries-__init__",
+                      "v3/api-ref/python/prefect-retries-stop_conditions"
+                    ]
+                  },
+                  {
                     "group": "prefect.runner",
                     "pages": [
                       "v3/api-ref/python/prefect-runner-__init__",
