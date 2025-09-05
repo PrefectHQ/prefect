@@ -35,13 +35,13 @@ minor level e.g. '3.9'.
 - `flavor`: An optional alternative image flavor to build, like 'conda'
 
 
-### `silence_docker_warnings` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/dockerutils.py#L87" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `silence_docker_warnings` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/dockerutils.py#L85" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 silence_docker_warnings() -> Generator[None, None, None]
 ```
 
-### `docker_client` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/dockerutils.py#L115" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `docker_client` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/dockerutils.py#L113" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 docker_client() -> Generator['DockerClient', None, None]
@@ -51,7 +51,7 @@ docker_client() -> Generator['DockerClient', None, None]
 Get the environmentally-configured Docker client
 
 
-### `build_image` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/dockerutils.py#L143" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `build_image` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/dockerutils.py#L141" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 build_image(context: Path, dockerfile: str = 'Dockerfile', tag: Optional[str] = None, pull: bool = False, platform: Optional[str] = None, stream_progress_to: Optional[TextIO] = None, **kwargs: Any) -> str
@@ -72,7 +72,7 @@ will collect the build output as it is reported by Docker
 - The image ID
 
 
-### `push_image` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/dockerutils.py#L413" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `push_image` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/dockerutils.py#L411" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 push_image(image_id: str, registry_url: str, name: str, tag: Optional[str] = None, stream_progress_to: Optional[TextIO] = None) -> str
@@ -98,7 +98,7 @@ will collect the build output as it is reported by Docker
 - A registry-qualified tag, like my-registry.example.com/my-image:abcdefg
 
 
-### `to_run_command` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/dockerutils.py#L470" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `to_run_command` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/dockerutils.py#L468" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 to_run_command(command: list[str]) -> str
@@ -109,7 +109,7 @@ Convert a process-style list of command arguments to a single Dockerfile RUN
 instruction.
 
 
-### `parse_image_tag` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/dockerutils.py#L494" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `parse_image_tag` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/dockerutils.py#L492" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 parse_image_tag(name: str) -> tuple[str, Optional[str]]
@@ -130,7 +130,7 @@ Parse Docker Image String
 - `name`: Name of Docker Image
 
 
-### `split_repository_path` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/dockerutils.py#L542" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `split_repository_path` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/dockerutils.py#L540" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 split_repository_path(repository_path: str) -> tuple[Optional[str], str]
@@ -148,7 +148,7 @@ Splits a Docker repository path into its namespace and repository components.
 - repository (Optionals[str]): The repository name.
 
 
-### `format_outlier_version_name` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/dockerutils.py#L573" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `format_outlier_version_name` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/dockerutils.py#L571" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 format_outlier_version_name(version: str) -> str
@@ -168,7 +168,7 @@ Formats outlier docker version names to pass `packaging.version.parse` validatio
 - value that can pass `packaging.version.parse` validation
 
 
-### `generate_default_dockerfile` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/dockerutils.py#L591" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `generate_default_dockerfile` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/dockerutils.py#L589" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 generate_default_dockerfile(context: Optional[Path] = None)
@@ -186,13 +186,13 @@ the current working directory.
 
 ## Classes
 
-### `BuildError` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/dockerutils.py#L132" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `BuildError` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/dockerutils.py#L130" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Raised when a Docker build fails
 
 
-### `ImageBuilder` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/dockerutils.py#L207" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `ImageBuilder` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/dockerutils.py#L205" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 An interface for preparing Docker build contexts and building images
@@ -200,7 +200,7 @@ An interface for preparing Docker build contexts and building images
 
 **Methods:**
 
-#### `add_line` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/dockerutils.py#L266" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `add_line` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/dockerutils.py#L264" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 add_line(self, line: str) -> None
@@ -209,7 +209,7 @@ add_line(self, line: str) -> None
 Add a line to this image's Dockerfile
 
 
-#### `add_lines` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/dockerutils.py#L270" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `add_lines` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/dockerutils.py#L268" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 add_lines(self, lines: Iterable[str]) -> None
@@ -218,7 +218,7 @@ add_lines(self, lines: Iterable[str]) -> None
 Add lines to this image's Dockerfile
 
 
-#### `assert_has_file` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/dockerutils.py#L399" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `assert_has_file` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/dockerutils.py#L397" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 assert_has_file(self, source: Path, container_path: PurePosixPath) -> None
@@ -228,7 +228,7 @@ Asserts that the given file or directory will be copied into the container
 at the given path
 
 
-#### `assert_has_line` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/dockerutils.py#L340" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `assert_has_line` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/dockerutils.py#L338" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 assert_has_line(self, line: str) -> None
@@ -237,7 +237,7 @@ assert_has_line(self, line: str) -> None
 Asserts that the given line is in the Dockerfile
 
 
-#### `assert_line_absent` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/dockerutils.py#L350" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `assert_line_absent` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/dockerutils.py#L348" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 assert_line_absent(self, line: str) -> None
@@ -246,7 +246,7 @@ assert_line_absent(self, line: str) -> None
 Asserts that the given line is absent from the Dockerfile
 
 
-#### `assert_line_after` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/dockerutils.py#L395" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `assert_line_after` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/dockerutils.py#L393" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 assert_line_after(self, second: str, first: str) -> None
@@ -255,7 +255,7 @@ assert_line_after(self, second: str, first: str) -> None
 Asserts that the second line appears after the first line
 
 
-#### `assert_line_before` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/dockerutils.py#L370" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `assert_line_before` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/dockerutils.py#L368" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 assert_line_before(self, first: str, second: str) -> None
@@ -264,7 +264,7 @@ assert_line_before(self, first: str, second: str) -> None
 Asserts that the first line appears before the second line
 
 
-#### `build` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/dockerutils.py#L311" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `build` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/dockerutils.py#L309" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 build(self, pull: bool = False, stream_progress_to: Optional[TextIO] = None) -> str
@@ -281,7 +281,7 @@ that will collect the build output as it is reported by Docker
 - The image ID
 
 
-#### `copy` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/dockerutils.py#L274" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `copy` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/dockerutils.py#L272" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 copy(self, source: Union[str, Path], destination: Union[str, PurePosixPath]) -> None
@@ -290,13 +290,13 @@ copy(self, source: Union[str, Path], destination: Union[str, PurePosixPath]) -> 
 Copy a file to this image
 
 
-#### `write_text` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/dockerutils.py#L300" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `write_text` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/dockerutils.py#L298" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 write_text(self, text: str, destination: Union[str, PurePosixPath]) -> None
 ```
 
-### `PushError` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/dockerutils.py#L408" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `PushError` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/dockerutils.py#L406" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Raised when a Docker image push fails
