@@ -1,20 +1,20 @@
 ---
-title: Manage schedules in bulk
-sidebarTitle: Bulk Schedule Management
-description: Learn how to pause and resume deployment schedules in bulk using the Prefect CLI.
+title: Manage deployment schedules
+sidebarTitle: Manage deployment schedules
+description: Learn how to pause and resume deployment schedules using the Prefect CLI.
 ---
 
-When managing multiple deployments with active schedules, you may need to pause or resume all schedules at once. 
+You can pause and resume deployment schedules individually or in bulk. 
 This can be useful for maintenance windows, migration scenarios, or organizational changes.
 
 ## Prerequisites
 
 To manage deployment schedules, you need:
-- An existing [Prefect server or Prefect Cloud](/v3/deploy/infrastructure-concepts/deploy-to-cloud) workspace
+- A Prefect server or [Prefect Cloud](/v3/get-started/quickstart) workspace
 - One or more [deployments](/v3/how-to-guides/deployments/create-deployments) with [schedules](/v3/how-to-guides/deployments/create-schedules)
-- The [Prefect CLI](/v3/install-prefect) installed
+- The Prefect CLI installed
 
-## Pause all deployment schedules
+## Pause schedules in bulk
 
 Use the `--all` flag with the `pause` command to pause all active schedules across all deployments:
 
@@ -45,7 +45,7 @@ To skip the interactive confirmation (useful for CI/CD pipelines or scripts), us
 prefect --no-prompt deployment schedule pause --all
 ```
 
-## Resume all deployment schedules
+## Resume schedules in bulk
 
 Similarly, use the `--all` flag with the `resume` command to resume all paused schedules:
 
@@ -115,9 +115,9 @@ else
 fi
 ```
 
-## Individual schedule management
+## Manage specific schedules
 
-You can still manage individual deployment schedules as before:
+To manage individual deployment schedules:
 
 ```bash
 # Pause a specific schedule
