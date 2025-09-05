@@ -508,8 +508,8 @@ async def delete_schedule(
 
 @schedule_app.command("pause")
 async def pause_schedule(
-    deployment_name: str | None = typer.Argument(None),
-    schedule_id: UUID | None = typer.Argument(None),
+    deployment_name: Optional[str] = typer.Argument(None),
+    schedule_id: Optional[UUID] = typer.Argument(None),
     _all: bool = typer.Option(False, "--all", help="Pause all deployment schedules"),
 ):
     """
@@ -588,8 +588,8 @@ async def pause_schedule(
 
 @schedule_app.command("resume")
 async def resume_schedule(
-    deployment_name: str | None = typer.Argument(None),
-    schedule_id: UUID | None = typer.Argument(None),
+    deployment_name: Optional[str] = typer.Argument(None),
+    schedule_id: Optional[UUID] = typer.Argument(None),
     _all: bool = typer.Option(False, "--all", help="Resume all deployment schedules"),
 ):
     """
