@@ -175,6 +175,7 @@ jobs:
           
           gh workflow run update-prefect-image-version.yaml \
             --repo PrefectHQ/ops-cluster-deployment \
+            --ref main \
             --field image_tag="$IMAGE_TAG"
         env:
           GH_TOKEN: ${{ secrets.OPS_CLUSTER_DEPLOYMENT_ACTIONS_RW }}
