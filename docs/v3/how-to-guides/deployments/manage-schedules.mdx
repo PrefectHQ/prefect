@@ -12,9 +12,37 @@ This can be useful for maintenance windows, migration scenarios, or organization
 To manage deployment schedules, you need:
 - A Prefect server or [Prefect Cloud](/v3/get-started/quickstart) workspace
 - One or more [deployments](/v3/how-to-guides/deployments/create-deployments) with [schedules](/v3/how-to-guides/deployments/create-schedules)
-- The Prefect CLI installed
+- [Prefect installed](/v3/get-started/install)
 
-## Pause schedules in bulk
+## Manage specific schedules
+
+To pause or resume individual deployment schedules, you need the deployment name and schedule ID.
+
+### List schedules for a deployment
+
+First, list the schedules to get the schedule ID:
+
+```bash
+prefect deployment schedule ls my-flow/my-deployment
+```
+
+### Pause a specific schedule
+
+```bash
+prefect deployment schedule pause my-flow/my-deployment <schedule-id>
+```
+
+### Resume a specific schedule
+
+```bash
+prefect deployment schedule resume my-flow/my-deployment <schedule-id>
+```
+
+## Manage schedules in bulk
+
+When you have many deployments with active schedules, you can pause or resume all of them at once using the `--all` flag.
+
+### Pause all schedules
 
 Use the `--all` flag with the `pause` command to pause all active schedules across all deployments:
 
@@ -37,15 +65,7 @@ Paused schedule for deployment ml-model/weekly-training
 Paused 3 deployment schedule(s).
 ```
 
-### Skip confirmation prompt
-
-To skip the interactive confirmation (useful for CI/CD pipelines or scripts), use the `--no-prompt` flag:
-
-```bash
-prefect --no-prompt deployment schedule pause --all
-```
-
-## Resume schedules in bulk
+### Resume all schedules
 
 Similarly, use the `--all` flag with the `resume` command to resume all paused schedules:
 
@@ -66,6 +86,15 @@ Resumed schedule for deployment my-flow/daily-sync
 Resumed schedule for deployment data-pipeline/hourly-update
 Resumed schedule for deployment ml-model/weekly-training
 Resumed 3 deployment schedule(s).
+```
+
+### Skip confirmation prompt
+
+To skip the interactive confirmation (useful for CI/CD pipelines or scripts), use the `--no-prompt` flag:
+
+```bash
+prefect --no-prompt deployment schedule pause --all
+prefect --no-prompt deployment schedule resume --all
 ```
 
 ## Use cases
@@ -96,40 +125,6 @@ prefect --profile dev deployment schedule pause --all
 prefect --profile dev deployment schedule resume --all
 ```
 
-### Scripted operations
-
-Use in automation scripts with the `--no-prompt` flag:
-
-```bash
-#!/bin/bash
-# pause_all_schedules.sh
-
-echo "Pausing all deployment schedules..."
-prefect --no-prompt deployment schedule pause --all
-
-if [ $? -eq 0 ]; then
-    echo "Successfully paused all schedules"
-else
-    echo "Failed to pause schedules"
-    exit 1
-fi
-```
-
-## Manage specific schedules
-
-To manage individual deployment schedules:
-
-```bash
-# Pause a specific schedule
-prefect deployment schedule pause my-flow/my-deployment <schedule-id>
-
-# Resume a specific schedule
-prefect deployment schedule resume my-flow/my-deployment <schedule-id>
-
-# List schedules for a deployment
-prefect deployment schedule ls my-flow/my-deployment
-```
-
 ## Important notes
 
 <Warning>
@@ -139,13 +134,6 @@ The `--all` flag affects all deployment schedules in your workspace.
 In interactive mode, you'll be prompted to confirm the operation showing the exact number of schedules that will be affected.
 Always verify you're in the correct workspace/profile before running bulk operations.
 </Warning>
-
-<Note>
-**Performance considerations**
-
-For workspaces with hundreds of deployments, bulk operations may take some time to complete.
-The CLI displays progress as it processes each deployment to keep you informed.
-</Note>
 
 ## See also
 
