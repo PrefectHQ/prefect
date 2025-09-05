@@ -510,6 +510,7 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
         self._cancelling_flow_run_ids: set[UUID] = set()
         self._scheduled_task_scopes: set[anyio.CancelScope] = set()
         self._worker_metadata_sent = False
+        self._active_run_tasks: int = 0
 
     @property
     def client(self) -> PrefectClient:
@@ -679,6 +680,16 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
                         )
                         healthcheck_thread.start()
                     printer(f"Worker {worker.name!r} started!")
+
+                # If running once, wait for submitted runs to finish before teardown
+                if run_once:
+                    # Drain any active run tasks before exiting the worker context
+                    while self._active_run_tasks > 0:
+                        self._logger.debug(
+                            "Waiting for %s active run task(s) to finish before shutdown...",
+                            self._active_run_tasks,
+                        )
+                        await anyio.sleep(0.1)
         finally:
             stop_client_metrics_server()
 
@@ -1264,6 +1275,8 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
         run_logger = self.get_flow_run_logger(flow_run)
 
         try:
+            # Track active run tasks to allow graceful shutdown in run-once mode
+            self._active_run_tasks += 1
             configuration = await self._get_configuration(flow_run)
             submitted_event = self._emit_flow_run_submitted_event(configuration)
             await self._give_worker_labels_to_flow_run(flow_run.id)
@@ -1292,6 +1305,7 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
             return exc
         finally:
             self._release_limit_slot(flow_run.id)
+            self._active_run_tasks -= 1
 
         if task_status and not getattr(task_status, "_future").done():
             run_logger.error(
