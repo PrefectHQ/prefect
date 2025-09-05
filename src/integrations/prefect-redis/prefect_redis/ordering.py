@@ -145,7 +145,6 @@ class CausalOrdering(_CausalOrdering):
         follower_ids = [
             i for i in await self.redis.smembers(self._key(f"followers:{leader.id}"))
         ]
-        logger.info(f"follower_ids: {follower_ids}")
         follower_ids = [UUID(i) for i in follower_ids]
         return await self.followers_by_id(follower_ids)
 
