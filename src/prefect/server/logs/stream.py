@@ -17,7 +17,7 @@ from typing import (
 from prefect.logging import get_logger
 from prefect.server.schemas.core import Log
 from prefect.server.schemas.filters import LogFilter
-from prefect.server.services.base import RunInEphemeralServers, Service
+from prefect.server.services.base import RunInEphemeralServers, RunInWebservers, Service
 from prefect.server.utilities import messaging
 from prefect.settings.context import get_current_settings
 from prefect.settings.models.server.services import ServicesBaseSetting
@@ -217,7 +217,7 @@ async def stop_distributor() -> None:
         pass
 
 
-class LogDistributor(RunInEphemeralServers, Service):
+class LogDistributor(RunInEphemeralServers, RunInWebservers, Service):
     """Service for distributing logs to websocket subscribers"""
 
     name: str = "LogDistributor"

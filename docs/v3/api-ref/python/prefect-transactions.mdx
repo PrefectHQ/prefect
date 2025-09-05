@@ -23,13 +23,13 @@ transaction(key: str | None = None, store: ResultStore | None = None, commit_mod
 A context manager for opening and managing a transaction.
 
 **Args:**
-- `-`: An identifier to use for the transaction
-- `-`: The store to use for persisting the transaction result. If not provided,
+- `- key`: An identifier to use for the transaction
+- `- store`: The store to use for persisting the transaction result. If not provided,
 a default store will be used based on the current run context.
-- `-`: The commit mode controlling when the transaction and
+- `- commit_mode`: The commit mode controlling when the transaction and
 child transactions are committed
-- `-`: Whether to overwrite an existing transaction record in the store
-- `-`: Whether to write the result to the store on commit. If not provided,
+- `- overwrite`: Whether to overwrite an existing transaction record in the store
+- `- write_on_commit`: Whether to write the result to the store on commit. If not provided,
 will default will be determined by the current run context. If no run context is
 available, the value of `PREFECT_RESULTS_PERSIST_BY_DEFAULT` will be used.
 
@@ -44,13 +44,13 @@ atransaction(key: str | None = None, store: ResultStore | None = None, commit_mo
 An asynchronous context manager for opening and managing an asynchronous transaction.
 
 **Args:**
-- `-`: An identifier to use for the transaction
-- `-`: The store to use for persisting the transaction result. If not provided,
+- `- key`: An identifier to use for the transaction
+- `- store`: The store to use for persisting the transaction result. If not provided,
 a default store will be used based on the current run context.
-- `-`: The commit mode controlling when the transaction and
+- `- commit_mode`: The commit mode controlling when the transaction and
 child transactions are committed
-- `-`: Whether to overwrite an existing transaction record in the store
-- `-`: Whether to write the result to the store on commit. If not provided,
+- `- overwrite`: Whether to overwrite an existing transaction record in the store
+- `- write_on_commit`: Whether to write the result to the store on commit. If not provided,
 the default will be determined by the current run context. If no run context is
 available, the value of `PREFECT_RESULTS_PERSIST_BY_DEFAULT` will be used.
 

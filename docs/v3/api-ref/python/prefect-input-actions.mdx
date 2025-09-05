@@ -30,9 +30,9 @@ Create a new flow run input. The given `value` will be serialized to JSON
 and stored as a flow run input value.
 
 **Args:**
-- `-`: the flow run input key
-- `-`: the flow run input value
-- `-`: the, optional, flow run ID. If not given will
+- `- key`: the flow run input key
+- `- value`: the flow run input value
+- `- flow_run_id`: the, optional, flow run ID. If not given will
 default to pulling the flow run ID from the current context.
 
 
@@ -52,8 +52,8 @@ read_flow_run_input(client: 'PrefectClient', key: str, flow_run_id: Optional[UUI
 Read a flow run input.
 
 **Args:**
-- `-`: the flow run input key
-- `-`: the flow run ID
+- `- key`: the flow run input key
+- `- flow_run_id`: the flow run ID
 
 
 ### `delete_flow_run_input` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/input/actions.py#L132" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
@@ -66,6 +66,6 @@ delete_flow_run_input(client: 'PrefectClient', key: str, flow_run_id: Optional[U
 Delete a flow run input.
 
 **Args:**
-- `-`: the flow run ID
-- `-`: the flow run input key
+- `- flow_run_id`: the flow run ID
+- `- key`: the flow run input key
 
