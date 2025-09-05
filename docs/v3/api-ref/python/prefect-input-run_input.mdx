@@ -80,7 +80,7 @@ keyset_from_paused_state(state: 'State') -> Keyset
 Get the keyset for the given Paused state.
 
 **Args:**
-- `-`: the state to get the keyset for
+- `- state`: the state to get the keyset for
 
 
 ### `keyset_from_base_key` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/input/run_input.py#L129" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
@@ -93,7 +93,7 @@ keyset_from_base_key(base_key: str) -> Keyset
 Get the keyset for the given base key.
 
 **Args:**
-- `-`: the base key to get the keyset for
+- `- base_key`: the base key to get the keyset for
 
 **Returns:**
 - - Dict[str, str]: the keyset
@@ -144,8 +144,8 @@ load(cls, keyset: Keyset, flow_run_id: Optional[UUID] = None) -> Self
 Load the run input response from the given key.
 
 **Args:**
-- `-`: the keyset to load the input for
-- `-`: the flow run ID to load the input for
+- `- keyset`: the keyset to load the input for
+- `- flow_run_id`: the flow run ID to load the input for
 
 
 #### `load_from_flow_run_input` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/input/run_input.py#L222" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
@@ -157,7 +157,7 @@ load_from_flow_run_input(cls, flow_run_input: 'FlowRunInput') -> Self
 Load the run input from a FlowRunInput object.
 
 **Args:**
-- `-`: the flow run input to load the input for
+- `- flow_run_input`: the flow run input to load the input for
 
 
 #### `metadata` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/input/run_input.py#L159" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
@@ -181,8 +181,8 @@ save(cls, keyset: Keyset, flow_run_id: Optional[UUID] = None)
 Save the run input response to the given key.
 
 **Args:**
-- `-`: the keyset to save the input for
-- `-`: the flow run ID to save the input for
+- `- keyset`: the keyset to save the input for
+- `- flow_run_id`: the flow run ID to save the input for
 
 
 #### `send_to` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/input/run_input.py#L285" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
@@ -201,9 +201,9 @@ Create a new `RunInput` subclass with the given initial data as field
 defaults.
 
 **Args:**
-- `-`: a description to show when resuming
+- `- description`: a description to show when resuming
 a flow run that requires input
-- `-`: the initial data to populate the subclass
+- `- kwargs`: the initial data to populate the subclass
 
 
 ### `RunInput` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/input/run_input.py#L299" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
@@ -225,8 +225,8 @@ load(cls, keyset: Keyset, flow_run_id: Optional[UUID] = None) -> Self
 Load the run input response from the given key.
 
 **Args:**
-- `-`: the keyset to load the input for
-- `-`: the flow run ID to load the input for
+- `- keyset`: the keyset to load the input for
+- `- flow_run_id`: the flow run ID to load the input for
 
 
 #### `load_from_flow_run_input` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/input/run_input.py#L222" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
@@ -238,7 +238,7 @@ load_from_flow_run_input(cls, flow_run_input: 'FlowRunInput') -> Self
 Load the run input from a FlowRunInput object.
 
 **Args:**
-- `-`: the flow run input to load the input for
+- `- flow_run_input`: the flow run input to load the input for
 
 
 #### `metadata` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/input/run_input.py#L159" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
@@ -268,8 +268,8 @@ save(cls, keyset: Keyset, flow_run_id: Optional[UUID] = None)
 Save the run input response to the given key.
 
 **Args:**
-- `-`: the keyset to save the input for
-- `-`: the flow run ID to save the input for
+- `- keyset`: the keyset to save the input for
+- `- flow_run_id`: the flow run ID to save the input for
 
 
 #### `send_to` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/input/run_input.py#L285" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
@@ -288,7 +288,7 @@ Create a new `RunInput` subclass from the given `pydantic.BaseModel`
 subclass.
 
 **Args:**
-- `-`: the class from which
+- `- model_cls`: the class from which
 to create the new `RunInput` subclass
 
 
@@ -302,9 +302,9 @@ Create a new `RunInput` subclass with the given initial data as field
 defaults.
 
 **Args:**
-- `-`: a description to show when resuming
+- `- description`: a description to show when resuming
 a flow run that requires input
-- `-`: the initial data to populate the subclass
+- `- kwargs`: the initial data to populate the subclass
 
 
 ### `AutomaticRunInput` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/input/run_input.py#L338" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
@@ -326,8 +326,8 @@ load(cls, keyset: Keyset, flow_run_id: Optional[UUID] = None) -> Self
 Load the run input response from the given key.
 
 **Args:**
-- `-`: the keyset to load the input for
-- `-`: the flow run ID to load the input for
+- `- keyset`: the keyset to load the input for
+- `- flow_run_id`: the flow run ID to load the input for
 
 
 #### `load` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/input/run_input.py#L202" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
@@ -339,8 +339,8 @@ load(cls, keyset: Keyset, flow_run_id: Optional[UUID] = None) -> Self
 Load the run input response from the given key.
 
 **Args:**
-- `-`: the keyset to load the input for
-- `-`: the flow run ID to load the input for
+- `- keyset`: the keyset to load the input for
+- `- flow_run_id`: the flow run ID to load the input for
 
 
 #### `load_from_flow_run_input` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/input/run_input.py#L222" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
@@ -352,7 +352,7 @@ load_from_flow_run_input(cls, flow_run_input: 'FlowRunInput') -> Self
 Load the run input from a FlowRunInput object.
 
 **Args:**
-- `-`: the flow run input to load the input for
+- `- flow_run_input`: the flow run input to load the input for
 
 
 #### `metadata` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/input/run_input.py#L159" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
@@ -382,8 +382,8 @@ save(cls, keyset: Keyset, flow_run_id: Optional[UUID] = None)
 Save the run input response to the given key.
 
 **Args:**
-- `-`: the keyset to save the input for
-- `-`: the flow run ID to save the input for
+- `- keyset`: the keyset to save the input for
+- `- flow_run_id`: the flow run ID to save the input for
 
 
 #### `send_to` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/input/run_input.py#L285" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
@@ -415,9 +415,9 @@ Create a new `RunInput` subclass with the given initial data as field
 defaults.
 
 **Args:**
-- `-`: a description to show when resuming
+- `- description`: a description to show when resuming
 a flow run that requires input
-- `-`: the initial data to populate the subclass
+- `- kwargs`: the initial data to populate the subclass
 
 
 ### `GetInputHandler` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/input/run_input.py#L440" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
