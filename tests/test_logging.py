@@ -395,6 +395,78 @@ def test_setup_logging_extra_loggers_does_not_modify_external_logger_level(
     )
 
 
+def test_user_logging_config_preserved():
+    """Test that user-configured logging is preserved when importing Prefect."""
+    import subprocess
+    import sys
+
+    # Run in subprocess to ensure clean state
+    code = """
+import logging
+import sys
+
+# Configure logging before importing Prefect
+logging.basicConfig(
+    format="CUSTOM_FORMAT: %(message)s",
+    stream=sys.stdout,
+    force=True
+)
+
+logger = logging.getLogger()
+logger.warning("Before import")
+
+# Import Prefect which triggers logging setup
+from prefect import flow
+
+logger.warning("After import")
+"""
+
+    result = subprocess.run(
+        [sys.executable, "-c", code], capture_output=True, text=True
+    )
+
+    lines = result.stdout.strip().split("\n")
+    # Filter to only our test messages
+    test_lines = [
+        line for line in lines if "Before import" in line or "After import" in line
+    ]
+    assert len(test_lines) == 2
+    assert test_lines[0] == "CUSTOM_FORMAT: Before import"
+    assert test_lines[1] == "CUSTOM_FORMAT: After import"
+
+
+def test_prefect_applies_root_config_when_no_user_config():
+    """Test that Prefect's root logger config is applied when no user config exists."""
+    import subprocess
+    import sys
+
+    # Run in subprocess to ensure clean state
+    code = """
+import logging
+
+# No user configuration - just get logger
+logger = logging.getLogger()
+
+# Import Prefect which should apply its config
+from prefect import flow
+
+# Root logger should now have Prefect's handler
+root = logging.getLogger()
+assert root.handlers, "Root logger should have handlers after Prefect import"
+assert any(
+    'PrefectConsoleHandler' in str(type(h)) 
+    for h in root.handlers
+), "Root logger should have PrefectConsoleHandler"
+print("SUCCESS")
+"""
+
+    result = subprocess.run(
+        [sys.executable, "-c", code], capture_output=True, text=True
+    )
+
+    assert "SUCCESS" in result.stdout
+
+
 @pytest.fixture
 def mock_log_worker(monkeypatch: pytest.MonkeyPatch):
     mock = MagicMock()
