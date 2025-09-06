@@ -1716,6 +1716,29 @@ class TestRunner:
         assert flow_run.state
         assert flow_run.state.is_completed()
 
+    async def test_runner_temp_dir_creation_is_idempotent(self):
+        """
+        Test that Runner temp directory creation is idempotent
+        and handles the case where the directory already exists.
+
+        This tests the fix for the race condition where multiple flow runs
+        could try to create the same temp directory when the runner is
+        entered as a context manager.
+        """
+        runner = Runner()
+
+        # Manually create the temp directory to simulate race condition
+        runner._tmp_dir.mkdir(parents=True, exist_ok=False)
+
+        # Now entering the runner context should not fail even though
+        # the directory already exists (with exist_ok=True fix)
+        async with runner:
+            assert runner.started
+            assert runner._tmp_dir.exists()
+
+        # Directory should be cleaned up after exiting context
+        assert not runner._tmp_dir.exists()
+
     class TestRunnerBundleExecution:
         @pytest.fixture(autouse=True)
         def mock_subprocess_check_call(self, monkeypatch: pytest.MonkeyPatch):
