@@ -38,9 +38,7 @@ describe("WorkPoolQueueCreateDialog", () => {
 
 		expect(screen.getByLabelText("Name")).toBeInTheDocument();
 		expect(screen.getByLabelText("Description")).toBeInTheDocument();
-		expect(
-			screen.getByLabelText("Flow Run Concurrency"),
-		).toBeInTheDocument();
+		expect(screen.getByLabelText("Flow Run Concurrency")).toBeInTheDocument();
 		expect(
 			screen.getByRole("spinbutton", { name: /Priority/i }),
 		).toBeInTheDocument();
