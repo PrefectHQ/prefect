@@ -37,9 +37,9 @@ describe("WorkPoolQueueCreateDialog", () => {
 		});
 
 		expect(screen.getByLabelText("Name")).toBeInTheDocument();
-		expect(screen.getByLabelText("Description (Optional)")).toBeInTheDocument();
+		expect(screen.getByLabelText("Description")).toBeInTheDocument();
 		expect(
-			screen.getByLabelText("Flow Run Concurrency (Optional)"),
+			screen.getByLabelText("Flow Run Concurrency"),
 		).toBeInTheDocument();
 		expect(
 			screen.getByRole("spinbutton", { name: /Priority/i }),
@@ -131,9 +131,7 @@ describe("WorkPoolQueueCreateDialog", () => {
 			wrapper: createWrapper(),
 		});
 
-		const concurrencyInput = screen.getByLabelText(
-			"Flow Run Concurrency (Optional)",
-		);
+		const concurrencyInput = screen.getByLabelText("Flow Run Concurrency");
 		await user.type(concurrencyInput, "5");
 
 		expect(concurrencyInput).toHaveValue(5);
