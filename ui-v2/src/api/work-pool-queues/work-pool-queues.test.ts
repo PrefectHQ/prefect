@@ -7,6 +7,7 @@ import { createFakeWorkPoolQueue } from "@/mocks";
 import {
 	buildListWorkPoolQueuesQuery,
 	buildWorkPoolQueueDetailsQuery,
+	useCreateWorkPoolQueueMutation,
 	useDeleteWorkPoolQueueMutation,
 	usePauseWorkPoolQueueMutation,
 	useResumeWorkPoolQueueMutation,
@@ -367,6 +368,86 @@ describe("work pool queue mutation hooks", () => {
 					MOCK_WORK_POOL_NAME,
 					MOCK_QUEUE_NAME,
 				),
+			});
+		});
+	});
+
+	describe("useCreateWorkPoolQueueMutation", () => {
+		it("calls POST API to create queue", async () => {
+			const queryClient = new QueryClient();
+			const mockWorkQueueData = {
+				name: "new-queue",
+				description: "Test queue",
+				is_paused: false,
+				concurrency_limit: 5,
+				priority: 10,
+			};
+
+			// Mock the API endpoint
+			server.use(
+				http.post(
+					buildApiUrl(`/work_pools/${MOCK_WORK_POOL_NAME}/queues`),
+					async ({ request }) => {
+						const body = await request.json();
+						expect(body).toEqual(mockWorkQueueData);
+						return HttpResponse.json({
+							id: "new-queue-id",
+							...mockWorkQueueData,
+						});
+					},
+				),
+			);
+
+			const { result } = renderHook(useCreateWorkPoolQueueMutation, {
+				wrapper: createWrapper({ queryClient }),
+			});
+
+			// Invoke mutation
+			act(() =>
+				result.current.mutate({
+					workPoolName: MOCK_WORK_POOL_NAME,
+					workQueueData: mockWorkQueueData,
+				}),
+			);
+
+			await waitFor(() => expect(result.current.isSuccess).toBe(true));
+		});
+
+		it("invalidates list cache on success", async () => {
+			const queryClient = new QueryClient();
+			const invalidateQueriesSpy = vi.spyOn(queryClient, "invalidateQueries");
+
+			// Mock the API endpoint
+			server.use(
+				http.post(
+					buildApiUrl(`/work_pools/${MOCK_WORK_POOL_NAME}/queues`),
+					() => {
+						return HttpResponse.json({ id: "new-queue-id", name: "new-queue" });
+					},
+				),
+			);
+
+			const { result } = renderHook(useCreateWorkPoolQueueMutation, {
+				wrapper: createWrapper({ queryClient }),
+			});
+
+			// Invoke mutation
+			act(() =>
+				result.current.mutate({
+					workPoolName: MOCK_WORK_POOL_NAME,
+					workQueueData: {
+						name: "new-queue",
+						description: null,
+						is_paused: false,
+					},
+				}),
+			);
+
+			await waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+			// Verify list cache is invalidated
+			expect(invalidateQueriesSpy).toHaveBeenCalledWith({
+				queryKey: workPoolQueuesQueryKeyFactory.list(MOCK_WORK_POOL_NAME),
 			});
 		});
 	});

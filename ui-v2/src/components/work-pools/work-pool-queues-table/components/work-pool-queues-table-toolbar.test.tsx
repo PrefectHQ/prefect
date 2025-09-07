@@ -1,4 +1,6 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { createWrapper } from "@tests/utils";
 import { describe, expect, it, vi } from "vitest";
 import { WorkPoolQueuesTableToolbar } from "./work-pool-queues-table-toolbar";
 
@@ -273,5 +275,50 @@ describe("WorkPoolQueuesTableToolbar", () => {
 		fireEvent.change(searchInput, { target: { value: "test" } });
 
 		expect(document.activeElement).toBe(searchInput);
+	});
+
+	it("renders plus button for creating work queues", () => {
+		render(<WorkPoolQueuesTableToolbar {...defaultProps} />, {
+			wrapper: createWrapper(),
+		});
+
+		const plusButton = screen.getByRole("button", { name: "" });
+		expect(plusButton).toBeInTheDocument();
+		expect(plusButton.querySelector("svg")).toBeInTheDocument(); // Plus icon
+	});
+
+	it("opens create dialog when plus button is clicked", async () => {
+		const user = userEvent.setup();
+		render(<WorkPoolQueuesTableToolbar {...defaultProps} />, {
+			wrapper: createWrapper(),
+		});
+
+		const plusButton = screen.getByRole("button", { name: "" });
+		await user.click(plusButton);
+
+		// Dialog should be open
+		expect(screen.getByRole("dialog")).toBeInTheDocument();
+		expect(screen.getByRole("heading", { name: "Create Work Queue" })).toBeInTheDocument();
+	});
+
+	it("closes create dialog when dialog onOpenChange is called", async () => {
+		const user = userEvent.setup();
+		render(<WorkPoolQueuesTableToolbar {...defaultProps} />, {
+			wrapper: createWrapper(),
+		});
+
+		// Open dialog first
+		const plusButton = screen.getByRole("button", { name: "" });
+		await user.click(plusButton);
+		expect(screen.getByRole("dialog")).toBeInTheDocument();
+
+		// Close dialog via cancel button
+		const cancelButton = screen.getByRole("button", { name: "Cancel" });
+		await user.click(cancelButton);
+
+		// Dialog should be closed
+		await waitFor(() => {
+			expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+		});
 	});
 });
