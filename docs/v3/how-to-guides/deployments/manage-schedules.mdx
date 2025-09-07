@@ -50,12 +50,7 @@ Use the `--all` flag with the `pause` command to pause all active schedules acro
 prefect deployment schedule pause --all
 ```
 
-This command will:
-1. Query all deployments in your workspace
-2. Count the number of active schedules
-3. Prompt for confirmation in interactive mode (bypass with `prefect --no-prompt`)
-4. Pause each active schedule
-5. Display progress as it pauses each deployment's schedules
+This command pauses all active schedules across deployments in the current workspace. In interactive mode, you'll be asked to confirm.
 
 Example output:
 ```
@@ -73,12 +68,7 @@ Similarly, use the `--all` flag with the `resume` command to resume all paused s
 prefect deployment schedule resume --all
 ```
 
-This command will:
-1. Query all deployments in your workspace
-2. Count the number of inactive schedules
-3. Prompt for confirmation in interactive mode
-4. Resume each paused schedule
-5. Display progress as it resumes each deployment's schedules
+This command resumes all paused schedules across deployments in the current workspace. In interactive mode, you'll be asked to confirm.
 
 Example output:
 ```

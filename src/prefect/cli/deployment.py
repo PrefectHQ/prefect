@@ -517,16 +517,34 @@ async def _update_schedule_status(
     past_tense = "paused" if not active else "resumed"
     present_tense = "pause" if not active else "resume"
 
-    if _all:
-        if deployment_name is not None or schedule_id is not None:
-            return exit_with_error(
-                "Cannot specify deployment name or schedule ID with --all"
-            )
+    # Early argument validation
+    if _all and (deployment_name is not None or schedule_id is not None):
+        return exit_with_error(
+            "Cannot specify deployment name or schedule ID with --all"
+        )
+    if not _all and (deployment_name is None or schedule_id is None):
+        return exit_with_error(
+            "Must provide deployment name and schedule ID, or use --all"
+        )
 
+    if _all:
         async with get_client() as client:
-            deployments = await client.read_deployments(
-                deployment_filter=DeploymentFilter(), limit=200
-            )
+            # Read all deployments with pagination to avoid truncation at default limits
+            deployments: list[DeploymentResponse] = []
+            page_limit = 200
+            offset = 0
+            while True:
+                page = await client.read_deployments(
+                    deployment_filter=DeploymentFilter(),
+                    limit=page_limit,
+                    offset=offset,
+                )
+                if not page:
+                    break
+                deployments.extend(page)
+                if len(page) < page_limit:
+                    break
+                offset += page_limit
 
             if not deployments:
                 return exit_with_success("No deployments found.")
@@ -561,16 +579,22 @@ async def _update_schedule_status(
                 if deployment.schedules:
                     for schedule in deployment.schedules:
                         if schedule.active != active:  # Only update if needed
-                            update_tasks.append(
-                                client.update_deployment_schedule(
-                                    deployment.id, schedule.id, active=active
-                                )
-                            )
+                            update_tasks.append((deployment.id, schedule.id))
                             deployment_names.append(deployment.name)
 
-            # Execute all updates in parallel
+            # Execute updates with a simple concurrency limiter to avoid overwhelming the server
             if update_tasks:
-                await gather(*update_tasks)
+                import asyncio
+
+                semaphore = asyncio.Semaphore(10)
+
+                async def limited_update(dep_id: UUID, sched_id: UUID):
+                    async with semaphore:
+                        await client.update_deployment_schedule(
+                            dep_id, sched_id, active=active
+                        )
+
+                await gather(*[limited_update(did, sid) for did, sid in update_tasks])
 
                 # Display progress after all updates complete
                 for name in deployment_names:
@@ -583,11 +607,6 @@ async def _update_schedule_status(
             )
 
     else:
-        if deployment_name is None or schedule_id is None:
-            return exit_with_error(
-                "Must provide deployment name and schedule ID, or use --all"
-            )
-
         assert_deployment_name_format(deployment_name)
 
         async with get_client() as client:
