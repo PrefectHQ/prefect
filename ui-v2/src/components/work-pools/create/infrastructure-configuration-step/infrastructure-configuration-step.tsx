@@ -9,8 +9,6 @@ export function InfrastructureConfigurationStep() {
 		"baseJobTemplate",
 	) as WorkerBaseJobTemplate;
 
-	console.log(baseJobTemplate);
-
 	return (
 		<div className="space-y-6">
 			<Card>

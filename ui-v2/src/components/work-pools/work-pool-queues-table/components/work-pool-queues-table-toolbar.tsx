@@ -1,13 +1,16 @@
 import { Plus, Search } from "lucide-react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { WorkPoolQueueCreateDialog } from "../../work-pool-queue-create-dialog";
 
 type WorkPoolQueuesTableToolbarProps = {
 	searchQuery: string;
 	onSearchChange: (query: string) => void;
 	resultsCount: number;
 	totalCount: number;
+	workPoolName: string;
 	className?: string;
 };
 
@@ -16,8 +19,10 @@ export const WorkPoolQueuesTableToolbar = ({
 	onSearchChange,
 	resultsCount,
 	totalCount,
+	workPoolName,
 	className,
 }: WorkPoolQueuesTableToolbarProps) => {
+	const [showCreateDialog, setShowCreateDialog] = useState(false);
 	const showClearFilters = searchQuery.length > 0;
 
 	return (
@@ -33,10 +38,7 @@ export const WorkPoolQueuesTableToolbar = ({
 					<Button
 						variant="ghost"
 						size="sm"
-						onClick={() => {
-							// TODO: Implement filter/actions menu
-							console.log("Filter/actions for work queues");
-						}}
+						onClick={() => setShowCreateDialog(true)}
 					>
 						<Plus className="h-4 w-4" />
 					</Button>
@@ -63,6 +65,13 @@ export const WorkPoolQueuesTableToolbar = ({
 					</div>
 				</div>
 			</div>
+
+			<WorkPoolQueueCreateDialog
+				workPoolName={workPoolName}
+				open={showCreateDialog}
+				onOpenChange={setShowCreateDialog}
+				onSubmit={() => setShowCreateDialog(false)}
+			/>
 		</div>
 	);
 };
