@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -24,7 +25,10 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 
-import { useCreateWorkPoolQueueForm } from "./use-create-work-pool-queue-form";
+import {
+  useCreateWorkPoolQueueForm,
+  DEFAULT_VALUES,
+} from "./use-create-work-pool-queue-form";
 
 type WorkPoolQueueCreateDialogProps = {
   workPoolName: string;
@@ -43,6 +47,12 @@ export const WorkPoolQueueCreateDialog = ({
     workPoolName,
     onSubmit,
   });
+
+  useEffect(() => {
+    if (open) {
+      form.reset(DEFAULT_VALUES);
+    }
+  }, [open, form]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
