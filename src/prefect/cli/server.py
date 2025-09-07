@@ -443,17 +443,35 @@ def _run_in_foreground(
         with temporary_settings(
             {getattr(prefect.settings, k): v for k, v in server_settings.items()}
         ):
-            uvicorn.run(
-                app=create_app(final=True, webserver_only=no_services),
-                app_dir=str(prefect.__module_path__.parent),
-                host=host,
-                port=port,
-                timeout_keep_alive=keep_alive_timeout,
-                log_level=server_settings.get(
-                    "PREFECT_SERVER_LOGGING_LEVEL", "info"
-                ).lower(),
-                workers=workers,
-            )
+            if workers == 1:
+                uvicorn.run(
+                    app=create_app(final=True, webserver_only=no_services),
+                    app_dir=str(prefect.__module_path__.parent),
+                    host=host,
+                    port=port,
+                    timeout_keep_alive=keep_alive_timeout,
+                    log_level=server_settings.get(
+                        "PREFECT_SERVER_LOGGING_LEVEL", "info"
+                    ).lower(),
+                    workers=workers,
+                )
+
+            else:
+                os.environ["PREFECT__SERVER_FINAL"] = "1"
+                os.environ["PREFECT__SERVER_WEBSERVER_ONLY"] = "1"
+
+                uvicorn.run(
+                    app="prefect.server.api.server:create_app",
+                    factory=True,
+                    host=host,
+                    port=port,
+                    timeout_keep_alive=keep_alive_timeout,
+                    log_level=server_settings.get(
+                        "PREFECT_SERVER_LOGGING_LEVEL", "info"
+                    ).lower(),
+                    workers=workers,
+                )
+
     finally:
         app.console.print("Server stopped!")
 
