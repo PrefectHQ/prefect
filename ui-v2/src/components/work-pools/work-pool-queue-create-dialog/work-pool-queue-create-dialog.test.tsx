@@ -18,7 +18,9 @@ describe("WorkPoolQueueCreateDialog", () => {
 		});
 
 		expect(screen.getByRole("dialog")).toBeInTheDocument();
-		expect(screen.getByRole("heading", { name: "Create Work Queue" })).toBeInTheDocument();
+		expect(
+			screen.getByRole("heading", { name: "Create Work Queue" }),
+		).toBeInTheDocument();
 	});
 
 	it("does not render when closed", () => {
@@ -128,7 +130,7 @@ describe("WorkPoolQueueCreateDialog", () => {
 		const submitButton = screen.getByRole("button", {
 			name: "Create Work Queue",
 		});
-		
+
 		expect(submitButton).not.toHaveAttribute("data-loading");
 
 		// We can't easily test the actual submission with the mocked hook

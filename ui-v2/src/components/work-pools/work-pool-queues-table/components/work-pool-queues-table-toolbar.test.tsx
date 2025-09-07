@@ -298,7 +298,9 @@ describe("WorkPoolQueuesTableToolbar", () => {
 
 		// Dialog should be open
 		expect(screen.getByRole("dialog")).toBeInTheDocument();
-		expect(screen.getByRole("heading", { name: "Create Work Queue" })).toBeInTheDocument();
+		expect(
+			screen.getByRole("heading", { name: "Create Work Queue" }),
+		).toBeInTheDocument();
 	});
 
 	it("closes create dialog when dialog onOpenChange is called", async () => {
