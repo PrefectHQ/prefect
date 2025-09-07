@@ -506,16 +506,15 @@ async def delete_schedule(
         exit_with_success(f"Deleted deployment schedule {schedule_id}")
 
 
-async def _update_schedule_status(
+async def _set_schedule_activation(
     deployment_name: Optional[str],
     schedule_id: Optional[UUID],
     _all: bool,
-    active: bool,
-    action: str,  # "pause" or "resume"
+    activate: bool,
 ) -> None:
-    """Shared logic for pausing and resuming deployment schedules."""
-    past_tense = "paused" if not active else "resumed"
-    present_tense = "pause" if not active else "resume"
+    """Enable or disable deployment schedules for one or all deployments."""
+    past_tense = "resumed" if activate else "paused"
+    present_tense = "resume" if activate else "pause"
 
     # Early argument validation
     if _all and (deployment_name is not None or schedule_id is not None):
@@ -549,40 +548,31 @@ async def _update_schedule_status(
             if not deployments:
                 return exit_with_success("No deployments found.")
 
-            # Count schedules that need updating
             schedules_to_update = sum(
-                1
-                for d in deployments
-                for s in d.schedules
-                if s and s.active != active  # Looking for opposite state
+                1 for d in deployments for s in d.schedules if s.active != activate
             )
 
             if schedules_to_update == 0:
-                # For pausing: looking for active schedules to pause
-                # For resuming: looking for inactive schedules to resume
-                state_msg = "inactive" if active else "active"
+                state_msg = "inactive" if activate else "active"
                 return exit_with_success(
                     f"No {state_msg} schedules found to {present_tense}."
                 )
 
-            # Confirm in interactive mode
             if is_interactive() and not typer.confirm(
                 f"Are you sure you want to {present_tense} {schedules_to_update} schedule(s) across all deployments?",
                 default=False,
             ):
                 return exit_with_error("Operation cancelled.")
 
-            # Collect all update tasks
             update_tasks = []
             deployment_names = []
             for deployment in deployments:
                 if deployment.schedules:
                     for schedule in deployment.schedules:
-                        if schedule.active != active:  # Only update if needed
+                        if schedule.active != activate:
                             update_tasks.append((deployment.id, schedule.id))
                             deployment_names.append(deployment.name)
 
-            # Execute updates with a simple concurrency limiter to avoid overwhelming the server
             if update_tasks:
                 import asyncio
 
@@ -591,7 +581,7 @@ async def _update_schedule_status(
                 async def limited_update(dep_id: UUID, sched_id: UUID):
                     async with semaphore:
                         await client.update_deployment_schedule(
-                            dep_id, sched_id, active=active
+                            dep_id, sched_id, active=activate
                         )
 
                 await gather(*[limited_update(did, sid) for did, sid in update_tasks])
@@ -615,19 +605,20 @@ async def _update_schedule_status(
             except ObjectNotFound:
                 return exit_with_error(f"Deployment {deployment_name!r} not found!")
 
-            try:
-                schedule = [s for s in deployment.schedules if s.id == schedule_id][0]
-            except IndexError:
+            schedule = next(
+                (s for s in deployment.schedules if s.id == schedule_id), None
+            )
+            if schedule is None:
                 return exit_with_error("Deployment schedule not found!")
 
-            if schedule.active == active:
-                state = "active" if active else "inactive"
+            if schedule.active == activate:
+                state = "active" if activate else "inactive"
                 return exit_with_error(
                     f"Deployment schedule {schedule_id} is already {state}"
                 )
 
             await client.update_deployment_schedule(
-                deployment.id, schedule_id, active=active
+                deployment.id, schedule_id, active=activate
             )
             exit_with_success(
                 f"{past_tense.capitalize()} schedule {schedule.schedule} for deployment {deployment_name}"
@@ -650,9 +641,7 @@ async def pause_schedule(
         Pause all schedules:
             $ prefect deployment schedule pause --all
     """
-    await _update_schedule_status(
-        deployment_name, schedule_id, _all, active=False, action="pause"
-    )
+    await _set_schedule_activation(deployment_name, schedule_id, _all, activate=False)
 
 
 @schedule_app.command("resume")
@@ -671,9 +660,7 @@ async def resume_schedule(
         Resume all schedules:
             $ prefect deployment schedule resume --all
     """
-    await _update_schedule_status(
-        deployment_name, schedule_id, _all, active=True, action="resume"
-    )
+    await _set_schedule_activation(deployment_name, schedule_id, _all, activate=True)
 
 
 @schedule_app.command("ls")
