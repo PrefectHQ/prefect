@@ -17,7 +17,9 @@ describe("WorkPoolQueuesTableToolbar", () => {
 	};
 
 	it("renders search input", () => {
-		render(<WorkPoolQueuesTableToolbar {...defaultProps} />);
+		render(<WorkPoolQueuesTableToolbar {...defaultProps} />, {
+			wrapper: createWrapper(),
+		});
 
 		const searchInput = screen.getByPlaceholderText("Search");
 		expect(searchInput).toBeInTheDocument();
@@ -27,6 +29,9 @@ describe("WorkPoolQueuesTableToolbar", () => {
 	it("renders search input with current search query", () => {
 		render(
 			<WorkPoolQueuesTableToolbar {...defaultProps} searchQuery="my-search" />,
+			{
+				wrapper: createWrapper(),
+			},
 		);
 
 		const searchInput = screen.getByPlaceholderText("Search");
@@ -40,6 +45,9 @@ describe("WorkPoolQueuesTableToolbar", () => {
 				{...defaultProps}
 				onSearchChange={onSearchChange}
 			/>,
+			{
+				wrapper: createWrapper(),
+			},
 		);
 
 		const searchInput = screen.getByPlaceholderText("Search");
@@ -55,6 +63,9 @@ describe("WorkPoolQueuesTableToolbar", () => {
 				searchQuery=""
 				totalCount={15}
 			/>,
+			{
+				wrapper: createWrapper(),
+			},
 		);
 
 		expect(screen.getByText("15 Work Queues")).toBeInTheDocument();
@@ -68,6 +79,9 @@ describe("WorkPoolQueuesTableToolbar", () => {
 				resultsCount={3}
 				totalCount={15}
 			/>,
+			{
+				wrapper: createWrapper(),
+			},
 		);
 
 		expect(screen.getByText("3 of 15 Work Queues")).toBeInTheDocument();
@@ -79,6 +93,9 @@ describe("WorkPoolQueuesTableToolbar", () => {
 				{...defaultProps}
 				searchQuery="search-term"
 			/>,
+			{
+				wrapper: createWrapper(),
+			},
 		);
 
 		const clearButton = screen.getByRole("button", { name: /clear filters/i });
@@ -86,7 +103,9 @@ describe("WorkPoolQueuesTableToolbar", () => {
 	});
 
 	it("does not show clear filters button when no search query", () => {
-		render(<WorkPoolQueuesTableToolbar {...defaultProps} searchQuery="" />);
+		render(<WorkPoolQueuesTableToolbar {...defaultProps} searchQuery="" />, {
+			wrapper: createWrapper(),
+		});
 
 		const clearButton = screen.queryByRole("button", {
 			name: /clear filters/i,
@@ -102,6 +121,9 @@ describe("WorkPoolQueuesTableToolbar", () => {
 				searchQuery="search-term"
 				onSearchChange={onSearchChange}
 			/>,
+			{
+				wrapper: createWrapper(),
+			},
 		);
 
 		const clearButton = screen.getByRole("button", { name: /clear filters/i });
@@ -111,15 +133,19 @@ describe("WorkPoolQueuesTableToolbar", () => {
 	});
 
 	it("renders filter button", () => {
-		render(<WorkPoolQueuesTableToolbar {...defaultProps} />);
+		render(<WorkPoolQueuesTableToolbar {...defaultProps} />, {
+			wrapper: createWrapper(),
+		});
 
 		const buttons = screen.getAllByRole("button");
 		// Should have the plus/filter button
 		expect(buttons.length).toBeGreaterThanOrEqual(1);
 	});
 
-	it("logs filter action when filter button is clicked", () => {
-		render(<WorkPoolQueuesTableToolbar {...defaultProps} />);
+	it("opens create dialog when plus button is clicked", () => {
+		render(<WorkPoolQueuesTableToolbar {...defaultProps} />, {
+			wrapper: createWrapper(),
+		});
 
 		const buttons = screen.getAllByRole("button");
 		const plusButton = buttons.find((btn) => btn.querySelector(".lucide-plus"));
@@ -128,12 +154,20 @@ describe("WorkPoolQueuesTableToolbar", () => {
 		if (plusButton) {
 			fireEvent.click(plusButton);
 		}
-		expect(console.log).toHaveBeenCalledWith("Filter/actions for work queues");
+
+		// Dialog should be open
+		expect(screen.getByRole("dialog")).toBeInTheDocument();
+		expect(
+			screen.getByRole("heading", { name: "Create Work Queue" }),
+		).toBeInTheDocument();
 	});
 
 	it("has correct search icon placement", () => {
 		const { container } = render(
 			<WorkPoolQueuesTableToolbar {...defaultProps} />,
+			{
+				wrapper: createWrapper(),
+			},
 		);
 
 		// Check for search icon with correct positioning classes
@@ -152,6 +186,9 @@ describe("WorkPoolQueuesTableToolbar", () => {
 	it("applies custom className when provided", () => {
 		const { container } = render(
 			<WorkPoolQueuesTableToolbar {...defaultProps} className="custom-class" />,
+			{
+				wrapper: createWrapper(),
+			},
 		);
 
 		const wrapper = container.firstChild as HTMLElement;
@@ -161,6 +198,9 @@ describe("WorkPoolQueuesTableToolbar", () => {
 	it("has correct default container classes", () => {
 		const { container } = render(
 			<WorkPoolQueuesTableToolbar {...defaultProps} />,
+			{
+				wrapper: createWrapper(),
+			},
 		);
 
 		const wrapper = container.firstChild as HTMLElement;
@@ -168,14 +208,18 @@ describe("WorkPoolQueuesTableToolbar", () => {
 	});
 
 	it("search input has correct styling", () => {
-		render(<WorkPoolQueuesTableToolbar {...defaultProps} />);
+		render(<WorkPoolQueuesTableToolbar {...defaultProps} />, {
+			wrapper: createWrapper(),
+		});
 
 		const searchInput = screen.getByPlaceholderText("Search");
 		expect(searchInput).toHaveClass("pl-8", "w-64");
 	});
 
 	it("create button has correct size", () => {
-		render(<WorkPoolQueuesTableToolbar {...defaultProps} />);
+		render(<WorkPoolQueuesTableToolbar {...defaultProps} />, {
+			wrapper: createWrapper(),
+		});
 
 		// The plus button doesn't have specific button text, so check it exists
 		const buttons = screen.getAllByRole("button");
@@ -189,6 +233,9 @@ describe("WorkPoolQueuesTableToolbar", () => {
 				searchQuery=""
 				totalCount={0}
 			/>,
+			{
+				wrapper: createWrapper(),
+			},
 		);
 
 		expect(screen.getByText("0 Work Queues")).toBeInTheDocument();
@@ -201,6 +248,8 @@ describe("WorkPoolQueuesTableToolbar", () => {
 				totalCount={5}
 			/>,
 		);
+
+		// Note: rerender doesn't need wrapper again
 
 		expect(screen.getByText("0 of 5 Work Queues")).toBeInTheDocument();
 
@@ -224,6 +273,9 @@ describe("WorkPoolQueuesTableToolbar", () => {
 				onSearchChange={onSearchChange}
 				searchQuery=""
 			/>,
+			{
+				wrapper: createWrapper(),
+			},
 		);
 
 		const searchInput = screen.getByPlaceholderText("Search");
@@ -236,9 +288,12 @@ describe("WorkPoolQueuesTableToolbar", () => {
 		expect(onSearchChange).toHaveBeenCalledTimes(2);
 	});
 
-	it("filter button works consistently", () => {
+	it("plus button works consistently across rerenders", () => {
 		const { rerender } = render(
 			<WorkPoolQueuesTableToolbar {...defaultProps} />,
+			{
+				wrapper: createWrapper(),
+			},
 		);
 
 		const filterButtons = screen.getAllByRole("button");
@@ -249,9 +304,16 @@ describe("WorkPoolQueuesTableToolbar", () => {
 			fireEvent.click(filterButton);
 		}
 
-		expect(console.log).toHaveBeenCalledWith("Filter/actions for work queues");
+		// Dialog should open
+		expect(screen.getByRole("dialog")).toBeInTheDocument();
+
+		// Close dialog first
+		const cancelButton = screen.getByRole("button", { name: "Cancel" });
+		fireEvent.click(cancelButton);
 
 		rerender(<WorkPoolQueuesTableToolbar {...defaultProps} />);
+
+		// Note: rerender doesn't need wrapper again
 
 		const rerenderedFilterButtons = screen.getAllByRole("button");
 		const rerenderedFilterButton = rerenderedFilterButtons.find((btn) =>
@@ -261,11 +323,14 @@ describe("WorkPoolQueuesTableToolbar", () => {
 			fireEvent.click(rerenderedFilterButton);
 		}
 
-		expect(console.log).toHaveBeenCalledWith("Filter/actions for work queues");
+		// Dialog should open again
+		expect(screen.getByRole("dialog")).toBeInTheDocument();
 	});
 
 	it("maintains input focus after typing", () => {
-		render(<WorkPoolQueuesTableToolbar {...defaultProps} />);
+		render(<WorkPoolQueuesTableToolbar {...defaultProps} />, {
+			wrapper: createWrapper(),
+		});
 
 		const searchInput = screen.getByPlaceholderText("Search");
 		searchInput.focus();
