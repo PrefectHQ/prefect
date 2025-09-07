@@ -15,8 +15,14 @@ import {
 	FormLabel,
 	FormMessage,
 } from "@/components/ui/form";
+import { Icon } from "@/components/ui/icons";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 import { useCreateWorkPoolQueueForm } from "./use-create-work-pool-queue-form";
 
@@ -95,7 +101,31 @@ export const WorkPoolQueueCreateDialog = ({
 							name="priority"
 							render={({ field }) => (
 								<FormItem>
-									<FormLabel>Priority</FormLabel>
+									<FormLabel className="flex items-center gap-2">
+										Priority
+										<Tooltip>
+											<TooltipTrigger asChild>
+												<button type="button" className="cursor-help">
+													<Icon id="Info" className="size-4" />
+												</button>
+											</TooltipTrigger>
+											<TooltipContent className="max-w-sm">
+												<p className="text-xs">
+													Priority specifies how Prefect prioritizes the
+													delivery of work — more precisely, execution of flow
+													runs among worker pools. Priority must be a unique,
+													positive integer. Lower numbers indicate higher pool
+													priorities. For example, 1 is the highest priority
+													queue and its flow run execution takes precedence over
+													any lower-priority pool. 10 is a lower priority queue
+													than 1, and 100 is lower priority than both 1 and 10.
+													If you specify a priority that already exists, the new
+													priority supersedes any previously set priority on a
+													worker pool.
+												</p>
+											</TooltipContent>
+										</Tooltip>
+									</FormLabel>
 									<FormControl>
 										<Input type="number" {...field} value={field.value || ""} />
 									</FormControl>

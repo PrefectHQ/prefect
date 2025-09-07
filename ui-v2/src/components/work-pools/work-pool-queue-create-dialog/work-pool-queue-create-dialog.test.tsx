@@ -41,7 +41,9 @@ describe("WorkPoolQueueCreateDialog", () => {
 		expect(
 			screen.getByLabelText("Flow Run Concurrency (Optional)"),
 		).toBeInTheDocument();
-		expect(screen.getByLabelText("Priority")).toBeInTheDocument();
+		expect(
+			screen.getByRole("spinbutton", { name: /Priority/i }),
+		).toBeInTheDocument();
 	});
 
 	it("shows validation error for empty name", async () => {
@@ -143,9 +145,20 @@ describe("WorkPoolQueueCreateDialog", () => {
 			wrapper: createWrapper(),
 		});
 
-		const priorityInput = screen.getByLabelText("Priority");
+		const priorityInput = screen.getByRole("spinbutton", { name: /Priority/i });
 		await user.type(priorityInput, "3");
 
 		expect(priorityInput).toHaveValue(3);
+	});
+
+	it("renders priority info tooltip button", async () => {
+		render(<WorkPoolQueueCreateDialog {...defaultProps} />, {
+			wrapper: createWrapper(),
+		});
+
+		// Check that the info button is rendered next to the Priority label
+		const infoButton = screen.getByRole("button", { name: "" });
+		expect(infoButton).toBeInTheDocument();
+		expect(infoButton).toHaveClass("cursor-help");
 	});
 });
