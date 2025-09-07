@@ -34,7 +34,7 @@ describe("useCreateWorkPoolQueueForm", () => {
 		});
 	});
 
-	it("validates required name field", async () => {
+	it("validates required name field", () => {
 		const { result } = renderHook(
 			() => useCreateWorkPoolQueueForm(defaultOptions),
 			{
@@ -49,7 +49,7 @@ describe("useCreateWorkPoolQueueForm", () => {
 		expect(form.formState.isValid).toBe(false);
 	});
 
-	it("validates name field format", async () => {
+	it("validates name field format", () => {
 		const { result } = renderHook(
 			() => useCreateWorkPoolQueueForm(defaultOptions),
 			{
@@ -130,7 +130,7 @@ describe("useCreateWorkPoolQueueForm", () => {
 		expect(form.formState.errors.priority).toBeUndefined();
 	});
 
-	it("handles positive numbers for concurrency limit", async () => {
+	it("handles positive numbers for concurrency limit", () => {
 		const { result } = renderHook(
 			() => useCreateWorkPoolQueueForm(defaultOptions),
 			{
@@ -145,7 +145,7 @@ describe("useCreateWorkPoolQueueForm", () => {
 		expect(form.getValues("concurrency_limit")).toBe("5");
 	});
 
-	it("handles positive numbers for priority", async () => {
+	it("handles positive numbers for priority", () => {
 		const { result } = renderHook(
 			() => useCreateWorkPoolQueueForm(defaultOptions),
 			{

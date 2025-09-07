@@ -151,7 +151,7 @@ describe("WorkPoolQueueCreateDialog", () => {
 		expect(priorityInput).toHaveValue(3);
 	});
 
-	it("renders priority info tooltip button", async () => {
+	it("renders priority info tooltip button", () => {
 		render(<WorkPoolQueueCreateDialog {...defaultProps} />, {
 			wrapper: createWrapper(),
 		});
