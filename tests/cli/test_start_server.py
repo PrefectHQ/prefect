@@ -1,3 +1,4 @@
+import asyncio
 import contextlib
 import os
 import signal
@@ -7,6 +8,7 @@ import tempfile
 from collections.abc import AsyncIterator
 from pathlib import Path
 from typing import Callable
+from unittest.mock import patch
 
 import anyio
 import httpx
@@ -33,11 +35,34 @@ from prefect.settings import (
 )
 from prefect.testing.cli import invoke_and_assert
 from prefect.testing.fixtures import is_port_in_use
+from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.processutils import open_process
 
 POLL_INTERVAL = 0.5
 STARTUP_TIMEOUT = 20
 SHUTDOWN_TIMEOUT = 20
+
+
+async def wait_for_server(api_url: str) -> None:
+    async with httpx.AsyncClient() as client:
+        with anyio.move_on_after(STARTUP_TIMEOUT):
+            response = None
+            while True:
+                try:
+                    response = await client.get(api_url + "/health")
+                except httpx.ConnectError:
+                    pass
+                else:
+                    if response.status_code == 200:
+                        await anyio.sleep(1)  # extra sleep for less flakiness
+                        break
+                await anyio.sleep(POLL_INTERVAL)
+        if response:
+            response.raise_for_status()
+        if not response:
+            raise RuntimeError(
+                "Timed out while attempting to connect to hosted test server."
+            )
 
 
 @contextlib.asynccontextmanager
@@ -81,31 +106,15 @@ async def start_server_process() -> AsyncIterator[Process]:
     ) as process:
         process.out = out
         api_url = f"http://localhost:{port}/api"
-
-        # Wait for the server to be ready
-        async with httpx.AsyncClient() as client:
-            with anyio.move_on_after(STARTUP_TIMEOUT):
-                response = None
-                while True:
-                    try:
-                        response = await client.get(api_url + "/health")
-                    except httpx.ConnectError:
-                        pass
-                    else:
-                        if response.status_code == 200:
-                            await anyio.sleep(1)  # extra sleep for less flakiness
-                            break
-                    await anyio.sleep(POLL_INTERVAL)
-            if response:
-                response.raise_for_status()
-            if not response:
-                raise RuntimeError(
-                    "Timed out while attempting to connect to hosted test server."
-                )
-
+        await wait_for_server(api_url)
         yield process
 
     out.close()
+
+
+async def fetch_pid(client, api_url):
+    r = await client.get(api_url + "/pid")
+    return r.json()["pid"]
 
 
 class TestMultipleWorkerServer:
@@ -185,6 +194,48 @@ class TestMultipleWorkerServer:
                 ],
                 expected_output_contains="Multi-worker mode (--workers > 1) is not supported with in-memory messaging.",
                 expected_code=1,
+            )
+
+    @patch("prefect.cli.server._validate_multi_worker")
+    async def test_multi_worker_in_background(
+        self, mock_validate_multi_worker, unused_tcp_port: int
+    ):
+        """Test starting the server with multiple workers in the background."""
+
+        try:
+            await run_sync_in_worker_thread(
+                invoke_and_assert,
+                command=[
+                    "server",
+                    "start",
+                    "--port",
+                    str(unused_tcp_port),
+                    "--workers",
+                    "2",
+                    "--no-services",
+                    "--background",
+                ],
+                expected_output_contains="Starting server with 2 worker processes.",
+                expected_code=0,
+            )
+
+            api_url = f"http://127.0.0.1:{unused_tcp_port}/api"
+            await wait_for_server(api_url)
+
+            async with httpx.AsyncClient() as client:
+                tasks = [fetch_pid(client, api_url) for _ in range(100)]
+                results = await asyncio.gather(*tasks)
+
+            pids = set(results)
+            assert len(pids) == 2  # two worker processes
+            assert mock_validate_multi_worker.called
+
+        finally:
+            await run_sync_in_worker_thread(
+                invoke_and_assert,
+                command=["server", "stop"],
+                expected_output_contains="Server stopped!",
+                expected_code=0,
             )
 
 
