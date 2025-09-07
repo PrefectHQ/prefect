@@ -18,8 +18,11 @@ from typer import Exit
 from prefect.cli.server import SERVER_PID_FILE_NAME
 from prefect.context import get_settings_context
 from prefect.settings import (
+    PREFECT_API_DATABASE_CONNECTION_URL,
     PREFECT_API_URL,
     PREFECT_HOME,
+    PREFECT_MESSAGING_BROKER,
+    PREFECT_MESSAGING_CACHE,
     PREFECT_PROFILES_PATH,
     Profile,
     ProfilesCollection,
@@ -103,6 +106,86 @@ async def start_server_process() -> AsyncIterator[Process]:
         yield process
 
     out.close()
+
+
+class TestMultipleWorkerServer:
+    @pytest.mark.parametrize("workers", [0, -1])
+    def test_number_of_workers(self, workers: int) -> None:
+        """Test that workers parameter is properly validated"""
+        invoke_and_assert(
+            command=[
+                "server",
+                "start",
+                "--workers",
+                str(workers),
+            ],
+            expected_output_contains="Invalid value for '--workers'",
+            expected_code=2,
+        )
+
+    def test_run_with_services(self) -> None:
+        """Test that services can be run with the server"""
+        invoke_and_assert(
+            command=[
+                "server",
+                "start",
+                "--workers",
+                "2",
+            ],
+            expected_output_contains="Workers can only be run with --no-services",
+            expected_code=1,
+        )
+
+    @pytest.mark.parametrize(
+        ["connection_url", "expected_output_contains"],
+        [
+            (
+                "sqlite+aiosqlite:///test.db",
+                "Multi-worker mode (--workers > 1) is not supported with SQLite database.",
+            ),
+            (
+                "invalid://connection/string",
+                "Unable to validate database configuration",
+            ),
+        ],
+    )
+    def test_database_validation(
+        self, connection_url: str, expected_output_contains: str
+    ) -> None:
+        """Test database validation"""
+        with temporary_settings({PREFECT_API_DATABASE_CONNECTION_URL: connection_url}):
+            invoke_and_assert(
+                command=[
+                    "server",
+                    "start",
+                    "--workers",
+                    "2",
+                    "--no-services",
+                ],
+                expected_output_contains=expected_output_contains,
+                expected_code=1,
+            )
+
+    def test_memory_messaging_cache_not_supported(self):
+        """Test that in-memory messaging cache is not supported with multiple workers"""
+        with temporary_settings(
+            {
+                PREFECT_API_DATABASE_CONNECTION_URL: "postgresql+asyncpg://user:pass@localhost:5432/prefect",
+                PREFECT_MESSAGING_CACHE: "prefect.server.utilities.messaging.memory",
+                PREFECT_MESSAGING_BROKER: "prefect.server.utilities.messaging.memory",
+            }
+        ):
+            invoke_and_assert(
+                command=[
+                    "server",
+                    "start",
+                    "--workers",
+                    "2",
+                    "--no-services",
+                ],
+                expected_output_contains="Multi-worker mode (--workers > 1) is not supported with in-memory messaging.",
+                expected_code=1,
+            )
 
 
 class TestBackgroundServer:
