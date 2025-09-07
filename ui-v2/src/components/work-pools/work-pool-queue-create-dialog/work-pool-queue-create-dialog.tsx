@@ -16,7 +16,6 @@ import {
 	FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 
 import { useCreateWorkPoolQueueForm } from "./use-create-work-pool-queue-form";
@@ -59,12 +58,7 @@ export const WorkPoolQueueCreateDialog = ({
 								<FormItem>
 									<FormLabel>Name</FormLabel>
 									<FormControl>
-										<Input
-											type="text"
-											autoComplete="off"
-											placeholder="my-work-queue"
-											{...field}
-										/>
+										<Input type="text" autoComplete="off" {...field} />
 									</FormControl>
 									<FormMessage />
 								</FormItem>
@@ -75,13 +69,9 @@ export const WorkPoolQueueCreateDialog = ({
 							name="description"
 							render={({ field }) => (
 								<FormItem>
-									<FormLabel>Description</FormLabel>
+									<FormLabel>Description (Optional)</FormLabel>
 									<FormControl>
-										<Textarea
-											placeholder="Optional description for the work queue"
-											{...field}
-											value={field.value || ""}
-										/>
+										<Textarea {...field} value={field.value || ""} />
 									</FormControl>
 									<FormMessage />
 								</FormItem>
@@ -92,14 +82,9 @@ export const WorkPoolQueueCreateDialog = ({
 							name="concurrency_limit"
 							render={({ field }) => (
 								<FormItem>
-									<FormLabel>Concurrency Limit</FormLabel>
+									<FormLabel>Flow Run Concurrency (Optional)</FormLabel>
 									<FormControl>
-										<Input
-											type="number"
-											placeholder="Leave empty for no limit"
-											{...field}
-											value={field.value || ""}
-										/>
+										<Input type="number" {...field} value={field.value || ""} />
 									</FormControl>
 									<FormMessage />
 								</FormItem>
@@ -112,29 +97,7 @@ export const WorkPoolQueueCreateDialog = ({
 								<FormItem>
 									<FormLabel>Priority</FormLabel>
 									<FormControl>
-										<Input
-											type="number"
-											placeholder="Lower values are higher priority"
-											{...field}
-											value={field.value || ""}
-										/>
-									</FormControl>
-									<FormMessage />
-								</FormItem>
-							)}
-						/>
-						<FormField
-							control={form.control}
-							name="is_paused"
-							render={({ field }) => (
-								<FormItem>
-									<FormLabel>Start Paused</FormLabel>
-									<FormControl>
-										<Switch
-											className="block"
-											checked={field.value}
-											onCheckedChange={field.onChange}
-										/>
+										<Input type="number" {...field} value={field.value || ""} />
 									</FormControl>
 									<FormMessage />
 								</FormItem>

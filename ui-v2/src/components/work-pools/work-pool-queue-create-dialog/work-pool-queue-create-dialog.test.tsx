@@ -37,27 +37,11 @@ describe("WorkPoolQueueCreateDialog", () => {
 		});
 
 		expect(screen.getByLabelText("Name")).toBeInTheDocument();
-		expect(screen.getByLabelText("Description")).toBeInTheDocument();
-		expect(screen.getByLabelText("Concurrency Limit")).toBeInTheDocument();
+		expect(screen.getByLabelText("Description (Optional)")).toBeInTheDocument();
+		expect(
+			screen.getByLabelText("Flow Run Concurrency (Optional)"),
+		).toBeInTheDocument();
 		expect(screen.getByLabelText("Priority")).toBeInTheDocument();
-		expect(screen.getByLabelText("Start Paused")).toBeInTheDocument();
-	});
-
-	it("has correct form field placeholders", () => {
-		render(<WorkPoolQueueCreateDialog {...defaultProps} />, {
-			wrapper: createWrapper(),
-		});
-
-		expect(screen.getByPlaceholderText("my-work-queue")).toBeInTheDocument();
-		expect(
-			screen.getByPlaceholderText("Optional description for the work queue"),
-		).toBeInTheDocument();
-		expect(
-			screen.getByPlaceholderText("Leave empty for no limit"),
-		).toBeInTheDocument();
-		expect(
-			screen.getByPlaceholderText("Lower values are higher priority"),
-		).toBeInTheDocument();
 	});
 
 	it("shows validation error for empty name", async () => {
@@ -145,7 +129,9 @@ describe("WorkPoolQueueCreateDialog", () => {
 			wrapper: createWrapper(),
 		});
 
-		const concurrencyInput = screen.getByLabelText("Concurrency Limit");
+		const concurrencyInput = screen.getByLabelText(
+			"Flow Run Concurrency (Optional)",
+		);
 		await user.type(concurrencyInput, "5");
 
 		expect(concurrencyInput).toHaveValue(5);
@@ -161,18 +147,5 @@ describe("WorkPoolQueueCreateDialog", () => {
 		await user.type(priorityInput, "3");
 
 		expect(priorityInput).toHaveValue(3);
-	});
-
-	it("toggles start paused switch correctly", async () => {
-		const user = userEvent.setup();
-		render(<WorkPoolQueueCreateDialog {...defaultProps} />, {
-			wrapper: createWrapper(),
-		});
-
-		const pausedSwitch = screen.getByRole("switch", { name: "Start Paused" });
-		expect(pausedSwitch).not.toBeChecked();
-
-		await user.click(pausedSwitch);
-		expect(pausedSwitch).toBeChecked();
 	});
 });

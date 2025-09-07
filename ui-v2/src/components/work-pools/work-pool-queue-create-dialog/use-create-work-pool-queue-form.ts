@@ -15,39 +15,41 @@ const formSchema = z.object({
 	description: z.string().nullable().optional(),
 	is_paused: z.boolean().default(false),
 	concurrency_limit: z
-		.number()
-		.positive({ message: "Concurrency limit must be greater than 0" })
+		.union([
+			z.string().transform((val) => {
+				if (val === "" || val === null || val === undefined) return null;
+				const num = Number(val);
+				if (Number.isNaN(num)) return null;
+				if (num <= 0)
+					throw new Error("Flow run concurrency must be greater than 0");
+				return num;
+			}),
+			z
+				.number()
+				.positive({ message: "Flow run concurrency must be greater than 0" })
+				.nullable(),
+		])
 		.nullable()
-		.optional()
-		.or(z.string())
-		.pipe(
-			z.union([
-				z.string().transform((val) => {
-					if (val === "" || val === null) return null;
-					const num = Number(val);
-					if (Number.isNaN(num)) return null;
-					return num;
-				}),
-				z.number().nullable(),
-			]),
-		),
+		.optional(),
 	priority: z
-		.number()
-		.positive({ message: "Priority must be greater than 0" })
+		.union([
+			z.string().transform((val) => {
+				if (val === "" || val === null || val === undefined) return null;
+				const num = Number(val);
+				if (Number.isNaN(num)) return null;
+				if (num <= 0) throw new Error("Priority must be greater than 0");
+				if (!Number.isInteger(num))
+					throw new Error("Priority must be a whole number");
+				return num;
+			}),
+			z
+				.number()
+				.int({ message: "Priority must be a whole number" })
+				.positive({ message: "Priority must be greater than 0" })
+				.nullable(),
+		])
 		.nullable()
-		.optional()
-		.or(z.string())
-		.pipe(
-			z.union([
-				z.string().transform((val) => {
-					if (val === "" || val === null) return null;
-					const num = Number(val);
-					if (Number.isNaN(num)) return null;
-					return num;
-				}),
-				z.number().nullable(),
-			]),
-		),
+		.optional(),
 });
 
 const DEFAULT_VALUES = {
