@@ -1,4 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
+import {
+	Breadcrumb,
+	BreadcrumbItem,
+	BreadcrumbList,
+} from "@/components/ui/breadcrumb";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
 	LayoutWell,
@@ -18,15 +23,13 @@ export function RouteComponent() {
 				<LayoutWellHeader>
 					<div className="flex flex-col space-y-4 md:space-y-0 md:flex-row md:items-center md:justify-between">
 						<div>
-							<nav className="flex" aria-label="Breadcrumb">
-								<ol className="inline-flex items-center space-x-1 md:space-x-3">
-									<li className="inline-flex items-center">
-										<span className="text-2xl font-bold text-foreground">
-											Dashboard
-										</span>
-									</li>
-								</ol>
-							</nav>
+							<Breadcrumb>
+								<BreadcrumbList>
+									<BreadcrumbItem className="text-2xl font-bold text-foreground">
+										Dashboard
+									</BreadcrumbItem>
+								</BreadcrumbList>
+							</Breadcrumb>
 						</div>
 						<div className="flex flex-col w-full max-w-full gap-2 md:w-auto md:inline-flex md:flex-row items-center">
 							{/* Placeholder for future filter controls */}
