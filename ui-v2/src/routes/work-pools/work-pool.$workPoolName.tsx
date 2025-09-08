@@ -11,7 +11,7 @@ import { z } from "zod";
 import { buildPaginateDeploymentsQuery } from "@/api/deployments";
 import {
 	buildCountFlowRunsQuery,
-	buildFilterFlowRunsQuery,
+	buildPaginateFlowRunsQuery,
 } from "@/api/flow-runs";
 import { buildGetFlowRunsTaskRunsCountQuery } from "@/api/task-runs";
 import { buildListWorkPoolQueuesQuery } from "@/api/work-pool-queues";
@@ -93,28 +93,38 @@ export const Route = createFileRoute("/work-pools/work-pool/$workPoolName")({
 				),
 			);
 
-		// Prefetch filtered data for runs and deployments
+		// Prefetch paginated flow runs data
 		void queryClient
 			.ensureQueryData(
-				buildFilterFlowRunsQuery({
+				buildPaginateFlowRunsQuery({
+					page: 1,
+					limit: 50,
+					sort: "START_TIME_DESC",
 					work_pools: {
 						operator: "and_",
 						name: { any_: [params.workPoolName] },
 					},
-					limit: 50,
-					offset: 0,
-					sort: "START_TIME_DESC",
 				}),
 			)
-			.then((flowRuns) =>
+			.then((paginatedData) =>
 				Promise.all(
-					flowRuns.map((flowRun) =>
+					(paginatedData.results ?? []).map((flowRun) =>
 						queryClient.prefetchQuery(
 							buildGetFlowRunsTaskRunsCountQuery([flowRun.id]),
 						),
 					),
 				),
 			);
+
+		// Prefetch flow runs count for pagination
+		void queryClient.prefetchQuery(
+			buildCountFlowRunsQuery({
+				work_pools: {
+					operator: "and_",
+					name: { any_: [params.workPoolName] },
+				},
+			}),
+		);
 		void queryClient.prefetchQuery(
 			buildPaginateDeploymentsQuery({
 				page: 1,
