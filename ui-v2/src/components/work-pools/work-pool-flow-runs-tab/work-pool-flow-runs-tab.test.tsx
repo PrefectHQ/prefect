@@ -25,7 +25,7 @@ const mockPaginatedResponse = {
 	results: mockFlowRuns,
 	pages: 1,
 	page: 1,
-	size: 50,
+	size: 10,
 };
 
 // Set up mock handlers for this test
@@ -275,7 +275,7 @@ describe("WorkPoolFlowRunsTab", () => {
 
 		expect(buildPaginateFlowRunsQuery).toHaveBeenCalledWith({
 			page: 1,
-			limit: 50,
+			limit: 10,
 			sort: "START_TIME_DESC",
 			work_pools: {
 				operator: "and_",

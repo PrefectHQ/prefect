@@ -98,7 +98,7 @@ export const Route = createFileRoute("/work-pools/work-pool/$workPoolName")({
 			.ensureQueryData(
 				buildPaginateFlowRunsQuery({
 					page: 1,
-					limit: 50,
+					limit: 10,
 					sort: "START_TIME_DESC",
 					work_pools: {
 						operator: "and_",

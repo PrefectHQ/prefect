@@ -28,7 +28,7 @@ export const WorkPoolFlowRunsTab = ({
 	className,
 }: WorkPoolFlowRunsTabProps) => {
 	const [pagination, setPagination] = useState<PaginationState>({
-		limit: 50,
+		limit: 10,
 		page: 1,
 	});
 	const [searchTerm, setSearchTerm] = useState("");
