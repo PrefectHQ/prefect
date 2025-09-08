@@ -47,7 +47,7 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
         metadata_dict = None
         if lease.metadata:
             metadata_dict = {"slots": lease.metadata.slots}
-            if lease.metadata.holder is not None:
+            if getattr(lease.metadata, "holder", None) is not None:
                 metadata_dict["holder"] = lease.metadata.holder
 
         data = {

@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta, timezone
-from typing import Any, List, Literal, Optional, Union
+from typing import List, Literal, Optional, TypedDict, Union
 from uuid import UUID
 
 from fastapi import Body, Depends, HTTPException, Path, status
@@ -20,6 +20,18 @@ from prefect.server.utilities.server import PrefectRouter
 router: PrefectRouter = PrefectRouter(
     prefix="/v2/concurrency_limits", tags=["Concurrency Limits V2"]
 )
+
+
+class ConcurrencyLeaseHolderBody(TypedDict):
+    """Typed body for holder information passed to the lease endpoint.
+
+    Using a TypedDict here avoids exposing a Pydantic model in the public API
+    signature, which keeps Pyright verifytypes happy while still enforcing
+    shape and types.
+    """
+
+    type: Literal["flow_run", "task_run", "deployment"]
+    id: UUID
 
 
 @router.post("/", status_code=status.HTTP_201_CREATED)
@@ -294,7 +306,7 @@ async def bulk_increment_active_slots_with_lease(
         le=60 * 60 * 24,  # 1 day
         description="The duration of the lease in seconds.",
     ),
-    holder: Optional[dict[str, Any]] = Body(
+    holder: Optional[ConcurrencyLeaseHolderBody] = Body(
         None,
         description="Optional holder information for tracking who holds the slots.",
     ),
@@ -313,7 +325,10 @@ async def bulk_increment_active_slots_with_lease(
         lease = await lease_storage.create_lease(
             resource_ids=[limit.id for limit in acquired_limits],
             ttl=timedelta(seconds=lease_duration),
-            metadata=ConcurrencyLimitLeaseMetadata(slots=slots, holder=holder),
+            metadata=ConcurrencyLimitLeaseMetadata(
+                slots=slots,
+                holder=holder,
+            ),
         )
         return ConcurrencyLimitWithLeaseResponse(
             lease_id=lease.id,

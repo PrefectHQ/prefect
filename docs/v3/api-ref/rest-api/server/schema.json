@@ -12335,14 +12335,12 @@
                     "holder": {
                         "anyOf": [
                             {
-                                "additionalProperties": true,
-                                "type": "object"
+                                "$ref": "#/components/schemas/ConcurrencyLimitLeaseHolder"
                             },
                             {
                                 "type": "null"
                             }
                         ],
-                        "title": "Holder",
                         "description": "Optional holder information for tracking who holds the slots."
                     }
                 },
@@ -14722,6 +14720,24 @@
                 ],
                 "title": "ConcurrencyLimitCreate",
                 "description": "Data used by the Prefect REST API to create a concurrency limit."
+            },
+            "ConcurrencyLimitLeaseHolder": {
+                "properties": {
+                    "type": {
+                        "type": "string",
+                        "title": "Type"
+                    },
+                    "id": {
+                        "type": "string",
+                        "title": "Id"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "type",
+                    "id"
+                ],
+                "title": "ConcurrencyLimitLeaseHolder"
             },
             "ConcurrencyLimitStrategy": {
                 "type": "string",

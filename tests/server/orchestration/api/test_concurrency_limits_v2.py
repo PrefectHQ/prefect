@@ -346,7 +346,6 @@ async def test_increment_concurrency_limit_with_lease_and_holder(
     holder_info = {
         "type": "task_run",
         "id": str(uuid.uuid4()),
-        "name": "test-task",
     }
     response = await client.post(
         "/v2/concurrency_limits/increment-with-lease",
