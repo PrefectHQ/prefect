@@ -4104,7 +4104,7 @@ export interface components {
              */
             lease_duration: number;
             /** @description Optional holder information for tracking who holds the slots. */
-            holder?: components["schemas"]["ConcurrencyLimitLeaseHolder"] | null;
+            holder?: components["schemas"]["ConcurrencyLeaseHolderBody"] | null;
         };
         /** Body_clear_database_admin_database_clear_post */
         Body_clear_database_admin_database_clear_post: {
@@ -5061,6 +5061,26 @@ export interface components {
             require: number | ("any" | "all");
         };
         /**
+         * ConcurrencyLeaseHolderBody
+         * @description Typed body for holder information passed to the lease endpoint.
+         *
+         *     Using a TypedDict here avoids exposing a Pydantic model in the public API
+         *     signature, which keeps Pyright verifytypes happy while still enforcing
+         *     shape and types.
+         */
+        ConcurrencyLeaseHolderBody: {
+            /**
+             * Type
+             * @enum {string}
+             */
+            type: "flow_run" | "task_run" | "deployment";
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+        };
+        /**
          * ConcurrencyLimit
          * @description An ORM representation of a concurrency limit.
          */
@@ -5105,13 +5125,6 @@ export interface components {
              * @description The concurrency limit.
              */
             concurrency_limit: number;
-        };
-        /** ConcurrencyLimitLeaseHolder */
-        ConcurrencyLimitLeaseHolder: {
-            /** Type */
-            type: string;
-            /** Id */
-            id: string;
         };
         /**
          * ConcurrencyLimitStrategy

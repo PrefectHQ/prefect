@@ -12335,7 +12335,7 @@
                     "holder": {
                         "anyOf": [
                             {
-                                "$ref": "#/components/schemas/ConcurrencyLimitLeaseHolder"
+                                "$ref": "#/components/schemas/ConcurrencyLeaseHolderBody"
                             },
                             {
                                 "type": "null"
@@ -14637,6 +14637,31 @@
                 "title": "CompoundTrigger",
                 "description": "A composite trigger that requires some number of triggers to have\nfired within the given time period"
             },
+            "ConcurrencyLeaseHolderBody": {
+                "properties": {
+                    "type": {
+                        "type": "string",
+                        "enum": [
+                            "flow_run",
+                            "task_run",
+                            "deployment"
+                        ],
+                        "title": "Type"
+                    },
+                    "id": {
+                        "type": "string",
+                        "format": "uuid",
+                        "title": "Id"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "type",
+                    "id"
+                ],
+                "title": "ConcurrencyLeaseHolderBody",
+                "description": "Typed body for holder information passed to the lease endpoint.\n\nUsing a TypedDict here avoids exposing a Pydantic model in the public API\nsignature, which keeps Pyright verifytypes happy while still enforcing\nshape and types."
+            },
             "ConcurrencyLimit": {
                 "properties": {
                     "id": {
@@ -14720,24 +14745,6 @@
                 ],
                 "title": "ConcurrencyLimitCreate",
                 "description": "Data used by the Prefect REST API to create a concurrency limit."
-            },
-            "ConcurrencyLimitLeaseHolder": {
-                "properties": {
-                    "type": {
-                        "type": "string",
-                        "title": "Type"
-                    },
-                    "id": {
-                        "type": "string",
-                        "title": "Id"
-                    }
-                },
-                "type": "object",
-                "required": [
-                    "type",
-                    "id"
-                ],
-                "title": "ConcurrencyLimitLeaseHolder"
             },
             "ConcurrencyLimitStrategy": {
                 "type": "string",
