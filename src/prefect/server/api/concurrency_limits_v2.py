@@ -1,9 +1,10 @@
 from datetime import datetime, timedelta, timezone
-from typing import List, Literal, Optional, TypedDict, Union
+from typing import List, Literal, Optional, Union
 from uuid import UUID
 
 from fastapi import Body, Depends, HTTPException, Path, status
 from sqlalchemy.ext.asyncio import AsyncSession
+from typing_extensions import TypedDict
 
 import prefect.server.models as models
 import prefect.server.schemas as schemas

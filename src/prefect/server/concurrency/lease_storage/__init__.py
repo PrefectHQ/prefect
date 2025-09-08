@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import timedelta
 import importlib
-from typing import Any, ClassVar, Literal, Protocol, runtime_checkable
+from typing import Any, ClassVar, Literal, Optional, Protocol, runtime_checkable
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict
@@ -31,7 +31,7 @@ class ConcurrencyLimitLeaseMetadata(BaseModel):
     model_config: ClassVar[ConfigDict] = ConfigDict(extra="forbid")
 
     slots: int
-    holder: dict[str, Any] | None = None
+    holder: Optional[dict[str, Any]] = None
 
 
 class ConcurrencyLeaseStorage(LeaseStorage[ConcurrencyLimitLeaseMetadata]):
