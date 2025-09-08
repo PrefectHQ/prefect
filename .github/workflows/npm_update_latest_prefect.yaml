@@ -29,7 +29,7 @@
           run: git checkout -b "prefect-package-${{ inputs.package_name }}-${{ inputs.package_version }}-update"
   
         - name: Setup NodeJS 
-          uses: actions/setup-node@v4
+          uses: actions/setup-node@v5
           with:
             node-version-file: ".nvmrc"
             cache-dependency-path: "**/package-lock.json"
