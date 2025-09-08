@@ -105,7 +105,7 @@ export const StateFilter = ({
 					<Icon id="ChevronDown" className="ml-2 size-4 shrink-0" />
 				</Button>
 			</DropdownMenuTrigger>
-			<DropdownMenuContent>
+			<DropdownMenuContent className="max-h-96 overflow-x-hidden overflow-y-auto">
 				<DropdownMenuItem
 					onSelect={(e) => {
 						e.preventDefault();
