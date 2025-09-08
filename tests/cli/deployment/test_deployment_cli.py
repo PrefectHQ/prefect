@@ -1024,6 +1024,164 @@ class TestDeploymentSchedules:
         assert "name" in output_data
         assert "flow_id" in output_data
 
+    @pytest.fixture
+    async def create_multiple_deployments_with_schedules(
+        self, prefect_client: PrefectClient
+    ):
+        """Create multiple deployments with active schedules for testing bulk operations."""
+
+        @flow
+        async def rence_griffith():
+            pass
+
+        flow_id = await prefect_client.create_flow(rence_griffith)
+        deployments = []
+
+        for i in range(3):
+            deployment_id = await prefect_client.create_deployment(
+                flow_id=flow_id,
+                name=f"test-bulk-{i}",
+                schedules=[
+                    DeploymentScheduleCreate(
+                        schedule=IntervalSchedule(interval=timedelta(seconds=3600)),
+                        active=True,
+                    )
+                ],
+            )
+            deployment = await prefect_client.read_deployment(deployment_id)
+            deployments.append(deployment)
+
+        return deployments
+
+    def test_pause_schedule_with_all_flag(
+        self, create_multiple_deployments_with_schedules
+    ):
+        """Test pausing all deployment schedules with --all flag."""
+        # First verify schedules are active
+        for deployment in create_multiple_deployments_with_schedules:
+            invoke_and_assert(
+                ["deployment", "inspect", f"rence-griffith/{deployment.name}"],
+                expected_output_contains=["'active': True"],
+            )
+
+        # Pause all schedules
+        invoke_and_assert(
+            ["deployment", "schedule", "pause", "--all"],
+            expected_code=0,
+            expected_output_contains=["Paused 3 deployment schedule(s)"],
+        )
+
+        # Verify all schedules are now inactive
+        for deployment in create_multiple_deployments_with_schedules:
+            invoke_and_assert(
+                ["deployment", "inspect", f"rence-griffith/{deployment.name}"],
+                expected_output_contains=["'active': False"],
+            )
+
+    def test_resume_schedule_with_all_flag(
+        self, create_multiple_deployments_with_schedules
+    ):
+        """Test resuming all deployment schedules with --all flag."""
+        # First pause all schedules
+        invoke_and_assert(
+            ["deployment", "schedule", "pause", "--all"],
+            expected_code=0,
+        )
+
+        # Verify schedules are inactive
+        for deployment in create_multiple_deployments_with_schedules:
+            invoke_and_assert(
+                ["deployment", "inspect", f"rence-griffith/{deployment.name}"],
+                expected_output_contains=["'active': False"],
+            )
+
+        # Resume all schedules
+        invoke_and_assert(
+            ["deployment", "schedule", "resume", "--all"],
+            expected_code=0,
+            expected_output_contains=["Resumed 3 deployment schedule(s)"],
+        )
+
+        # Verify all schedules are now active
+        for deployment in create_multiple_deployments_with_schedules:
+            invoke_and_assert(
+                ["deployment", "inspect", f"rence-griffith/{deployment.name}"],
+                expected_output_contains=["'active': True"],
+            )
+
+    def test_pause_all_with_no_active_schedules(self, prefect_client: PrefectClient):
+        """Test pausing all when there are no active schedules."""
+        invoke_and_assert(
+            ["deployment", "schedule", "pause", "--all"],
+            expected_code=0,
+            expected_output_contains=["No deployments found"],
+        )
+
+    def test_resume_all_with_no_inactive_schedules(
+        self, create_multiple_deployments_with_schedules
+    ):
+        """Test resuming all when all schedules are already active."""
+        # Ensure all schedules are active (they should be by default)
+        invoke_and_assert(
+            ["deployment", "schedule", "resume", "--all"],
+            expected_code=0,
+            expected_output_contains=["No inactive schedules found to resume"],
+        )
+
+    def test_pause_with_all_flag_and_deployment_name_raises(self):
+        """Test that providing both --all and deployment name raises an error."""
+        invoke_and_assert(
+            [
+                "deployment",
+                "schedule",
+                "pause",
+                "--all",
+                "some-flow/some-deployment",
+                "12345678-1234-1234-1234-123456789012",
+            ],
+            expected_code=1,
+            expected_output_contains=[
+                "Cannot specify deployment name or schedule ID with --all"
+            ],
+        )
+
+    def test_resume_with_all_flag_and_deployment_name_raises(self):
+        """Test that providing both --all and deployment name raises an error."""
+        invoke_and_assert(
+            [
+                "deployment",
+                "schedule",
+                "resume",
+                "--all",
+                "some-flow/some-deployment",
+                "12345678-1234-1234-1234-123456789012",
+            ],
+            expected_code=1,
+            expected_output_contains=[
+                "Cannot specify deployment name or schedule ID with --all"
+            ],
+        )
+
+    def test_pause_without_args_or_all_flag_raises(self):
+        """Test that pause without arguments or --all flag raises an error."""
+        invoke_and_assert(
+            ["deployment", "schedule", "pause"],
+            expected_code=1,
+            expected_output_contains=[
+                "Must provide deployment name and schedule ID, or use --all"
+            ],
+        )
+
+    def test_resume_without_args_or_all_flag_raises(self):
+        """Test that resume without arguments or --all flag raises an error."""
+        invoke_and_assert(
+            ["deployment", "schedule", "resume"],
+            expected_code=1,
+            expected_output_contains=[
+                "Must provide deployment name and schedule ID, or use --all"
+            ],
+        )
+
 
 class TestDeploymentRun:
     @pytest.fixture
