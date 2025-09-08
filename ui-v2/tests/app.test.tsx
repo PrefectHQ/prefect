@@ -19,7 +19,7 @@ describe("Navigation tests", () => {
 	])("can navigate to %s", async (path, text) => {
 		const user = userEvent.setup();
 		await waitFor(() => render(<App />));
-		await user.click(screen.getByText(text));
+		await user.click(screen.getByRole("link", { name: text }));
 		expect(router.state.location.pathname).toBe(path);
 	});
 });
