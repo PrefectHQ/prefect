@@ -216,11 +216,23 @@ class TestMultipleWorkerServer:
             api_url = f"http://127.0.0.1:{unused_tcp_port}/api"
             await wait_for_server(api_url)
 
-            async with httpx.AsyncClient() as client:
-                tasks = [fetch_pid(client, api_url) for _ in range(100)]
-                results = await asyncio.gather(*tasks)
+            if os.getenv("GITHUB_ACTIONS"):
+                await anyio.sleep(
+                    5
+                )  # Give workers extra time to start up in CI environments
 
-            pids = set(results)
+            pids = set()
+            for _ in range(5):
+                async with httpx.AsyncClient() as client:
+                    tasks = [fetch_pid(client, api_url) for _ in range(100)]
+                    results = await asyncio.gather(*tasks)
+
+                pids.update(results)
+                if len(pids) == 2:
+                    break
+
+                await anyio.sleep(1)  # Wait a bit more before retrying
+
             assert len(pids) == 2  # two worker processes
             assert mock_validate_multi_worker.called
 
