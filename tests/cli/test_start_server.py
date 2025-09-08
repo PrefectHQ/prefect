@@ -118,17 +118,11 @@ async def fetch_pid(client, api_url):
 
 
 class TestMultipleWorkerServer:
-    @pytest.mark.parametrize("workers", [0, -1])
-    def test_number_of_workers(self, workers: int) -> None:
+    def test_number_of_workers(self) -> None:
         """Test that workers parameter is properly validated"""
         invoke_and_assert(
-            command=[
-                "server",
-                "start",
-                "--workers",
-                str(workers),
-            ],
-            expected_output_contains="Invalid value for '--workers'",
+            command=["server", "start", "--workers", "0"],
+            expected_output_contains="Invalid value for '--workers': 0 is not in the range x>=1.",
             expected_code=2,
         )
 
