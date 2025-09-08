@@ -281,7 +281,7 @@ class ConcurrencyLimitClient(BaseClient):
             lease_duration: The duration of the lease in seconds.
             holder: Optional holder information for tracking who holds the slots.
         """
-        body = {
+        body: dict[str, Any] = {
             "names": names,
             "slots": slots,
             "mode": mode,
@@ -733,7 +733,7 @@ class ConcurrencyLimitAsyncClient(BaseAsyncClient):
             lease_duration: The duration of the lease in seconds.
             holder: Optional holder information for tracking who holds the slots.
         """
-        body = {
+        body: dict[str, Any] = {
             "names": names,
             "slots": slots,
             "mode": mode,
