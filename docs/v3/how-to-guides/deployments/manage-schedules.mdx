@@ -1,0 +1,132 @@
+---
+title: Manage Deployment schedules
+sidebarTitle: Manage Deployment schedules
+description: Learn how to pause and resume deployment schedules using the Prefect CLI.
+---
+
+You can pause and resume deployment schedules individually or in bulk. 
+This can be useful for maintenance windows, migration scenarios, or organizational changes.
+
+## Prerequisites
+
+To manage deployment schedules, you need:
+- A Prefect server or [Prefect Cloud](/v3/get-started/quickstart) workspace
+- One or more [deployments](/v3/how-to-guides/deployments/create-deployments) with [schedules](/v3/how-to-guides/deployments/create-schedules)
+- [Prefect installed](/v3/get-started/install)
+
+## Manage specific schedules
+
+To pause or resume individual deployment schedules, you need the deployment name and schedule ID.
+
+### List schedules for a deployment
+
+First, list the schedules to get the schedule ID:
+
+```bash
+prefect deployment schedule ls my-flow/my-deployment
+```
+
+### Pause a specific schedule
+
+```bash
+prefect deployment schedule pause my-flow/my-deployment <schedule-id>
+```
+
+### Resume a specific schedule
+
+```bash
+prefect deployment schedule resume my-flow/my-deployment <schedule-id>
+```
+
+## Manage schedules in bulk
+
+When you have many deployments with active schedules, you can pause or resume all of them at once using the `--all` flag.
+
+### Pause all schedules
+
+Use the `--all` flag with the `pause` command to pause all active schedules across all deployments:
+
+```bash
+prefect deployment schedule pause --all
+```
+
+This command pauses all active schedules across deployments in the current workspace. In interactive mode, you'll be asked to confirm.
+
+Example output:
+```
+Paused schedule for deployment my-flow/daily-sync
+Paused schedule for deployment data-pipeline/hourly-update
+Paused schedule for deployment ml-model/weekly-training
+Paused 3 deployment schedule(s).
+```
+
+### Resume all schedules
+
+Similarly, use the `--all` flag with the `resume` command to resume all paused schedules:
+
+```bash
+prefect deployment schedule resume --all
+```
+
+This command resumes all paused schedules across deployments in the current workspace. In interactive mode, you'll be asked to confirm.
+
+Example output:
+```
+Resumed schedule for deployment my-flow/daily-sync
+Resumed schedule for deployment data-pipeline/hourly-update
+Resumed schedule for deployment ml-model/weekly-training
+Resumed 3 deployment schedule(s).
+```
+
+### Skip confirmation prompt
+
+To skip the interactive confirmation (useful for CI/CD pipelines or scripts), use the `--no-prompt` flag:
+
+```bash
+prefect --no-prompt deployment schedule pause --all
+prefect --no-prompt deployment schedule resume --all
+```
+
+## Use cases
+
+### Maintenance windows
+
+Pause all schedules during system maintenance:
+
+```bash
+# Before maintenance
+prefect deployment schedule pause --all
+
+# Perform maintenance tasks...
+
+# After maintenance
+prefect deployment schedule resume --all
+```
+
+### Development environment management
+
+Quickly pause all schedules in a development environment:
+
+```bash
+# Pause all dev schedules
+prefect --profile dev deployment schedule pause --all
+
+# Resume when ready
+prefect --profile dev deployment schedule resume --all
+```
+
+## Important notes
+
+<Warning>
+**Use caution with bulk operations**
+
+The `--all` flag affects all deployment schedules in your workspace. 
+In interactive mode, you'll be prompted to confirm the operation showing the exact number of schedules that will be affected.
+Always verify you're in the correct workspace/profile before running bulk operations.
+</Warning>
+
+## See also
+
+- [Create schedules](/v3/how-to-guides/deployments/create-schedules) - Learn how to create schedules for your deployments
+- [Run deployments](/v3/how-to-guides/deployments/run-deployments) - Learn how to trigger deployment runs manually
+- [Deployment concepts](/v3/concepts/deployments) - Understand deployments and their schedules
