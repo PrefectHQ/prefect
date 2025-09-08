@@ -90,6 +90,21 @@ def setup_logging(incremental: bool | None = None) -> dict[str, Any]:
     # Perform an incremental update if setup has already been run
     config.setdefault("incremental", incremental)
 
+    root_logger = logging.getLogger()
+    if root_logger.handlers and not incremental:
+        from prefect.logging.handlers import PrefectConsoleHandler
+
+        has_user_handlers = any(
+            hasattr(handler, "formatter")
+            and handler.formatter is not None
+            and not isinstance(handler, PrefectConsoleHandler)
+            and not handler.__class__.__name__.startswith("_")
+            and not handler.__class__.__name__ == "LogCaptureHandler"
+            for handler in root_logger.handlers
+        )
+        if has_user_handlers:
+            config.pop("root", None)
+
     try:
         logging.config.dictConfig(config)
     except ValueError:
