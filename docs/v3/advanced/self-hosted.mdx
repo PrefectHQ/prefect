@@ -101,11 +101,13 @@ PostgreSQL version 14.9 or higher is required for multi-server deployments. SQLi
 
 ### Redis setup
 
-Configure Redis as your message broker:
+Configure Redis as your server's message broker, cache, and lease storage:
 
 ```bash
 export PREFECT_MESSAGING_BROKER="prefect_redis.messaging"
 export PREFECT_MESSAGING_CACHE="prefect_redis.messaging"
+export PREFECT_SERVER_EVENTS_CAUSAL_ORDERING="prefect_redis.ordering"
+export PREFECT_SERVER_CONCURRENCY_LEASE_STORAGE="prefect_redis.lease_storage"
 export PREFECT_REDIS_MESSAGING_HOST="redis-host"
 export PREFECT_REDIS_MESSAGING_PORT="6379"
 export PREFECT_REDIS_MESSAGING_DB="0"
@@ -123,14 +125,6 @@ For Redis instances that require an encrypted connection, you can enable SSL/TLS
 ```bash
 export PREFECT_REDIS_MESSAGING_SSL="true"
 ```
-
-For multi-server deployments with Redis, configure causal ordering to ensure proper task state synchronization:
-
-```bash
-export PREFECT_SERVER_EVENTS_CAUSAL_ORDERING="prefect_redis.ordering"
-```
-
-Each server instance automatically generates a unique consumer name to prevent message delivery conflicts.
 
 ### Service separation
 
