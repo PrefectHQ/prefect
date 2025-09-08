@@ -338,6 +338,36 @@ async def test_increment_concurrency_limit_with_lease_simple(
     assert lease.metadata == ConcurrencyLimitLeaseMetadata(slots=1)
 
 
+async def test_increment_concurrency_limit_with_lease_and_holder(
+    client: AsyncClient,
+    concurrency_limit: ConcurrencyLimitV2,
+):
+    assert concurrency_limit.active_slots == 0
+    holder_info = {
+        "type": "task_run",
+        "id": str(uuid.uuid4()),
+        "name": "test-task",
+    }
+    response = await client.post(
+        "/v2/concurrency_limits/increment-with-lease",
+        json={
+            "names": [concurrency_limit.name],
+            "slots": 2,
+            "mode": "concurrency",
+            "holder": holder_info,
+        },
+    )
+    assert response.status_code == 200
+    assert [limit["id"] for limit in response.json()["limits"]] == [
+        str(concurrency_limit.id)
+    ]
+    lease_storage = get_concurrency_lease_storage()
+    lease = await lease_storage.read_lease(uuid.UUID(response.json()["lease_id"]))
+    assert lease
+    assert lease.resource_ids == [concurrency_limit.id]
+    assert lease.metadata == ConcurrencyLimitLeaseMetadata(slots=2, holder=holder_info)
+
+
 async def test_increment_concurrency_limit_with_lease_ttl(
     client: AsyncClient,
     concurrency_limit: ConcurrencyLimitV2,

@@ -30,6 +30,13 @@ class TestFilesystemConcurrencyLeaseStorage:
     def sample_metadata(self) -> ConcurrencyLimitLeaseMetadata:
         return ConcurrencyLimitLeaseMetadata(slots=5)
 
+    @pytest.fixture
+    def sample_metadata_with_holder(self) -> ConcurrencyLimitLeaseMetadata:
+        return ConcurrencyLimitLeaseMetadata(
+            slots=3,
+            holder={"type": "task_run", "id": "task-run-123", "name": "test-task"},
+        )
+
     async def test_create_lease_without_metadata(
         self, storage: ConcurrencyLeaseStorage, sample_resource_ids: list[UUID]
     ):
@@ -73,6 +80,43 @@ class TestFilesystemConcurrencyLeaseStorage:
         assert data["metadata"]["slots"] == 5
         assert len(data["resource_ids"]) == 2
 
+    async def test_create_lease_with_holder(
+        self,
+        storage: ConcurrencyLeaseStorage,
+        sample_resource_ids: list[UUID],
+        sample_metadata_with_holder: ConcurrencyLimitLeaseMetadata,
+    ):
+        ttl = timedelta(minutes=5)
+        lease = await storage.create_lease(
+            sample_resource_ids, ttl, sample_metadata_with_holder
+        )
+
+        assert lease.resource_ids == sample_resource_ids
+        assert lease.metadata == sample_metadata_with_holder
+        assert lease.metadata.holder == {
+            "type": "task_run",
+            "id": "task-run-123",
+            "name": "test-task",
+        }
+
+        # Verify lease file was created with correct data
+        lease_files = [
+            f
+            for f in storage.storage_path.glob("*.json")
+            if f.name != "expirations.json"
+        ]
+        assert len(lease_files) == 1
+
+        with open(lease_files[0], "r") as f:
+            data = json.load(f)
+
+        assert data["metadata"]["slots"] == 3
+        assert data["metadata"]["holder"] == {
+            "type": "task_run",
+            "id": "task-run-123",
+            "name": "test-task",
+        }
+
     async def test_read_lease_existing(
         self, storage: ConcurrencyLeaseStorage, sample_resource_ids: list[UUID]
     ):
@@ -92,6 +136,28 @@ class TestFilesystemConcurrencyLeaseStorage:
         assert read_lease is not None
         assert read_lease.resource_ids == sample_resource_ids
         assert read_lease.metadata is None
+
+    async def test_read_lease_with_holder(
+        self,
+        storage: ConcurrencyLeaseStorage,
+        sample_resource_ids: list[UUID],
+        sample_metadata_with_holder: ConcurrencyLimitLeaseMetadata,
+    ):
+        ttl = timedelta(minutes=5)
+        created_lease = await storage.create_lease(
+            sample_resource_ids, ttl, sample_metadata_with_holder
+        )
+
+        read_lease = await storage.read_lease(created_lease.id)
+
+        assert read_lease is not None
+        assert read_lease.resource_ids == sample_resource_ids
+        assert read_lease.metadata.slots == 3
+        assert read_lease.metadata.holder == {
+            "type": "task_run",
+            "id": "task-run-123",
+            "name": "test-task",
+        }
 
     async def test_read_lease_non_existing(self, storage: ConcurrencyLeaseStorage):
         non_existing_id = uuid4()
