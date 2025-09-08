@@ -9,7 +9,10 @@ import { zodValidator } from "@tanstack/zod-adapter";
 import { Suspense, useCallback, useMemo, useState } from "react";
 import { z } from "zod";
 import { buildPaginateDeploymentsQuery } from "@/api/deployments";
-import { buildFilterFlowRunsQuery } from "@/api/flow-runs";
+import {
+	buildCountFlowRunsQuery,
+	buildFilterFlowRunsQuery,
+} from "@/api/flow-runs";
 import { buildGetFlowRunsTaskRunsCountQuery } from "@/api/task-runs";
 import { buildListWorkPoolQueuesQuery } from "@/api/work-pool-queues";
 import { buildGetWorkPoolQuery } from "@/api/work-pools";
@@ -57,6 +60,38 @@ export const Route = createFileRoute("/work-pools/work-pool/$workPoolName")({
 		void queryClient.prefetchQuery(
 			buildListWorkPoolWorkersQuery(params.workPoolName),
 		);
+
+		// Prefetch late runs count for each queue (non-blocking)
+		void queryClient
+			.ensureQueryData(buildListWorkPoolQueuesQuery(params.workPoolName))
+			.then((queues) =>
+				Promise.all(
+					queues.map((queue) =>
+						queryClient.prefetchQuery(
+							buildCountFlowRunsQuery(
+								{
+									work_pools: {
+										operator: "and_",
+										name: { any_: [params.workPoolName] },
+									},
+									work_pool_queues: {
+										operator: "and_",
+										name: { any_: [queue.name] },
+									},
+									flow_runs: {
+										operator: "and_",
+										state: {
+											operator: "and_",
+											name: { any_: ["Late"] },
+										},
+									},
+								},
+								30000,
+							),
+						),
+					),
+				),
+			);
 
 		// Prefetch filtered data for runs and deployments
 		void queryClient
