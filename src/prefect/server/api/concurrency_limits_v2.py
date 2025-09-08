@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta, timezone
-from typing import List, Literal, Optional, Union
+from typing import Any, List, Literal, Optional, Union
 from uuid import UUID
 
 from fastapi import Body, Depends, HTTPException, Path, status
@@ -294,6 +294,10 @@ async def bulk_increment_active_slots_with_lease(
         le=60 * 60 * 24,  # 1 day
         description="The duration of the lease in seconds.",
     ),
+    holder: Optional[dict[str, Any]] = Body(
+        None,
+        description="Optional holder information for tracking who holds the slots.",
+    ),
     db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> ConcurrencyLimitWithLeaseResponse:
     async with db.session_context(begin_transaction=True) as session:
@@ -309,7 +313,7 @@ async def bulk_increment_active_slots_with_lease(
         lease = await lease_storage.create_lease(
             resource_ids=[limit.id for limit in acquired_limits],
             ttl=timedelta(seconds=lease_duration),
-            metadata=ConcurrencyLimitLeaseMetadata(slots=slots),
+            metadata=ConcurrencyLimitLeaseMetadata(slots=slots, holder=holder),
         )
         return ConcurrencyLimitWithLeaseResponse(
             lease_id=lease.id,

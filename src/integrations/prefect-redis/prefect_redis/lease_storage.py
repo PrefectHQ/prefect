@@ -44,12 +44,18 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
         self, lease: ResourceLease[ConcurrencyLimitLeaseMetadata]
     ) -> str:
         """Serialize a lease to JSON."""
+        metadata_dict = None
+        if lease.metadata:
+            metadata_dict = {"slots": lease.metadata.slots}
+            if lease.metadata.holder is not None:
+                metadata_dict["holder"] = lease.metadata.holder
+
         data = {
             "id": str(lease.id),
             "resource_ids": [str(rid) for rid in lease.resource_ids],
             "expiration": lease.expiration.isoformat(),
             "created_at": lease.created_at.isoformat(),
-            "metadata": {"slots": lease.metadata.slots} if lease.metadata else None,
+            "metadata": metadata_dict,
         }
         return json.dumps(data)
 
@@ -61,7 +67,8 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
         metadata = None
         if lease_data["metadata"]:
             metadata = ConcurrencyLimitLeaseMetadata(
-                slots=lease_data["metadata"]["slots"]
+                slots=lease_data["metadata"]["slots"],
+                holder=lease_data["metadata"].get("holder"),
             )
 
         return ResourceLease(

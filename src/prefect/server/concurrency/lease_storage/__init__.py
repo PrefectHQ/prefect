@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import timedelta
 import importlib
-from typing import Protocol, runtime_checkable
+from typing import Any, Protocol, runtime_checkable
 from uuid import UUID
 
 from prefect.server.utilities.leasing import LeaseStorage, ResourceLease
@@ -18,6 +18,7 @@ class ConcurrencyLeaseStorageModule(Protocol):
 @dataclass
 class ConcurrencyLimitLeaseMetadata:
     slots: int
+    holder: dict[str, Any] | None = None
 
 
 class ConcurrencyLeaseStorage(LeaseStorage[ConcurrencyLimitLeaseMetadata]):
