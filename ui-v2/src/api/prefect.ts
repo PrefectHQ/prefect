@@ -4103,6 +4103,13 @@ export interface components {
              * @default 300
              */
             lease_duration: number;
+            /**
+             * Holder
+             * @description Optional holder information for tracking who holds the slots.
+             */
+            holder?: {
+                [key: string]: unknown;
+            } | null;
         };
         /** Body_clear_database_admin_database_clear_post */
         Body_clear_database_admin_database_clear_post: {

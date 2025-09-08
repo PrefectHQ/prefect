@@ -12331,6 +12331,19 @@
                         "title": "Lease Duration",
                         "description": "The duration of the lease in seconds.",
                         "default": 300
+                    },
+                    "holder": {
+                        "anyOf": [
+                            {
+                                "additionalProperties": true,
+                                "type": "object"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Holder",
+                        "description": "Optional holder information for tracking who holds the slots."
                     }
                 },
                 "type": "object",
