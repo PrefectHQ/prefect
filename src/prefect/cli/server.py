@@ -244,6 +244,12 @@ def _validate_multi_worker(workers: int, no_services: bool) -> None:
     """
     from prefect.server.utilities.database import get_dialect
 
+    if workers == 1:
+        return
+
+    if workers < 1:
+        exit_with_error("Number of workers must be >= 1")
+
     if not no_services:
         raise exit_with_error("Workers can only be run with --no-services")
 
@@ -293,7 +299,7 @@ def start(
         False, "--background", "-b", help="Run the server in the background"
     ),
     workers: int = typer.Option(
-        1, "--workers", min=1, help="Number of worker processes to run"
+        1, "--workers", help="Number of worker processes to run"
     ),
 ):
     """
@@ -306,8 +312,7 @@ def start(
         except Exception:
             pass
 
-    if workers > 1:
-        _validate_multi_worker(workers, no_services)
+    _validate_multi_worker(workers, no_services)
 
     server_settings = {
         "PREFECT_API_SERVICES_SCHEDULER_ENABLED": str(scheduler),

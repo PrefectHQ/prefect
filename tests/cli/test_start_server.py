@@ -122,8 +122,8 @@ class TestMultipleWorkerServer:
         """Test that workers parameter is properly validated"""
         invoke_and_assert(
             command=["server", "start", "--workers", "0"],
-            expected_output_contains="Invalid value for '--workers': 0 is not in the range x>=1.",
-            expected_code=2,
+            expected_output_contains="Number of workers must be >= 1",
+            expected_code=1,
         )
 
     def test_run_with_services(self) -> None:
