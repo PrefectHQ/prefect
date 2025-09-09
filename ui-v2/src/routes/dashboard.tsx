@@ -1,4 +1,14 @@
+import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
+import { zodValidator } from "@tanstack/zod-adapter";
+import { buildListFlowRunTagsQuery } from "@/api/flow-runs";
+import {
+	DateRangeSelect,
+	type DateRangeValue,
+	dashboardFilterSchema,
+	FlowRunTagsInput,
+	SubflowToggle,
+} from "@/components/dashboard/filters";
 import {
 	Breadcrumb,
 	BreadcrumbItem,
@@ -10,13 +20,113 @@ import {
 	LayoutWellContent,
 	LayoutWellHeader,
 } from "@/components/ui/layout-well";
-import { Skeleton } from "@/components/ui/skeleton";
 
 export const Route = createFileRoute("/dashboard")({
+	validateSearch: zodValidator(dashboardFilterSchema),
 	component: RouteComponent,
+	loader: ({ context: { queryClient } }) => {
+		// Prefetch available tags for the filter
+		void queryClient.prefetchQuery(buildListFlowRunTagsQuery());
+	},
 });
 
 export function RouteComponent() {
+	const search = Route.useSearch();
+	const navigate = Route.useNavigate();
+	const { data: availableTags = [] } = useSuspenseQuery(
+		buildListFlowRunTagsQuery(),
+	);
+
+	// Parse the date range from URL parameters
+	const dateRange: DateRangeValue = (() => {
+		if (!search.dateRangeType) return null;
+
+		if (
+			search.dateRangeType === "span" &&
+			search.dateRangeSeconds !== undefined
+		) {
+			return { type: "span", seconds: search.dateRangeSeconds };
+		}
+
+		if (
+			search.dateRangeType === "range" &&
+			search.dateRangeStart &&
+			search.dateRangeEnd
+		) {
+			return {
+				type: "range",
+				startDate: new Date(search.dateRangeStart),
+				endDate: new Date(search.dateRangeEnd),
+			};
+		}
+
+		return null;
+	})();
+
+	// Filter update handlers
+	const updateTags = (tags: string[]) => {
+		void navigate({
+			to: ".",
+			search: (prev) => ({
+				...prev,
+				tags: tags.length > 0 ? tags : undefined,
+			}),
+			replace: true,
+		});
+	};
+
+	const updateHideSubflows = (hideSubflows: boolean) => {
+		void navigate({
+			to: ".",
+			search: (prev) => ({
+				...prev,
+				hideSubflows: hideSubflows || undefined,
+			}),
+			replace: true,
+		});
+	};
+
+	const updateDateRange = (newDateRange: DateRangeValue) => {
+		void navigate({
+			to: ".",
+			search: (prev) => {
+				if (!newDateRange) {
+					const {
+						dateRangeType: _dateRangeType,
+						dateRangeSeconds: _dateRangeSeconds,
+						dateRangeStart: _dateRangeStart,
+						dateRangeEnd: _dateRangeEnd,
+						...rest
+					} = prev;
+					return rest;
+				}
+
+				if (newDateRange.type === "span") {
+					return {
+						...prev,
+						dateRangeType: "span" as const,
+						dateRangeSeconds: newDateRange.seconds,
+						dateRangeStart: undefined,
+						dateRangeEnd: undefined,
+					};
+				}
+
+				if (newDateRange.type === "range") {
+					return {
+						...prev,
+						dateRangeType: "range" as const,
+						dateRangeStart: newDateRange.startDate.toISOString(),
+						dateRangeEnd: newDateRange.endDate.toISOString(),
+						dateRangeSeconds: undefined,
+					};
+				}
+
+				return prev;
+			},
+			replace: true,
+		});
+	};
+
 	return (
 		<LayoutWell>
 			<LayoutWellContent>
@@ -32,11 +142,23 @@ export function RouteComponent() {
 							</Breadcrumb>
 						</div>
 						<div className="flex flex-col w-full max-w-full gap-2 md:w-auto md:inline-flex md:flex-row items-center">
-							{/* Placeholder for future filter controls */}
-							<div className="hidden md:flex items-center gap-2">
-								<Skeleton className="h-9 w-32" /> {/* Hide subflows toggle */}
-								<Skeleton className="h-9 w-40" /> {/* Tags filter */}
-								<Skeleton className="h-9 w-48" /> {/* Date range selector */}
+							{/* Dashboard filter controls */}
+							<div className="flex flex-col gap-2 md:flex-row md:items-center">
+								<SubflowToggle
+									value={search.hideSubflows}
+									onChange={updateHideSubflows}
+								/>
+								<FlowRunTagsInput
+									value={search.tags}
+									onChange={updateTags}
+									availableTags={availableTags}
+									placeholder="Filter by tags"
+								/>
+								<DateRangeSelect
+									value={dateRange}
+									onChange={updateDateRange}
+									placeholder="Select time range"
+								/>
 							</div>
 						</div>
 					</div>
