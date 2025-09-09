@@ -328,3 +328,50 @@ class TestConcurrencyLeaseStorage:
         holders_after = await storage.list_holders_for_limit(rid)
         assert {"type": holder["type"], "id": holder["id"]} not in holders_after
         assert await storage.find_lease_by_holder(rid, holder) is None
+
+    async def test_create_without_holder_does_not_index(
+        self, storage: ConcurrencyLeaseStorage
+    ):
+        rid = uuid4()
+        ttl = timedelta(seconds=60)
+        # No holder
+        lease = await storage.create_lease([rid], ttl)
+        assert lease is not None
+
+        holders = await storage.list_holders_for_limit(rid)
+        assert holders == []
+        assert (
+            await storage.find_lease_by_holder(
+                rid, {"type": "task_run", "id": str(uuid4())}
+            )
+            is None
+        )
+
+    async def test_multiple_resource_ids_index_all_and_cleanup(
+        self, storage: ConcurrencyLeaseStorage
+    ):
+        rid1, rid2 = uuid4(), uuid4()
+        ttl = timedelta(seconds=60)
+        holder = {"type": "task_run", "id": str(uuid4())}
+        meta = ConcurrencyLimitLeaseMetadata(slots=1)
+        setattr(meta, "holder", holder)
+
+        lease = await storage.create_lease([rid1, rid2], ttl, meta)
+        assert {
+            "type": holder["type"],
+            "id": holder["id"],
+        } in await storage.list_holders_for_limit(rid1)
+        assert {
+            "type": holder["type"],
+            "id": holder["id"],
+        } in await storage.list_holders_for_limit(rid2)
+
+        await storage.revoke_lease(lease.id)
+        assert {
+            "type": holder["type"],
+            "id": holder["id"],
+        } not in await storage.list_holders_for_limit(rid1)
+        assert {
+            "type": holder["type"],
+            "id": holder["id"],
+        } not in await storage.list_holders_for_limit(rid2)
