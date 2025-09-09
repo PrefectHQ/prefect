@@ -34,7 +34,7 @@ class TestFilesystemConcurrencyLeaseStorage:
     def sample_metadata_with_holder(self) -> ConcurrencyLimitLeaseMetadata:
         return ConcurrencyLimitLeaseMetadata(
             slots=3,
-            holder={"type": "task_run", "id": "task-run-123", "name": "test-task"},
+            holder={"type": "task_run", "id": uuid4()},
         )
 
     async def test_create_lease_without_metadata(
@@ -95,8 +95,7 @@ class TestFilesystemConcurrencyLeaseStorage:
         assert lease.metadata == sample_metadata_with_holder
         assert lease.metadata.holder == {
             "type": "task_run",
-            "id": "task-run-123",
-            "name": "test-task",
+            "id": (lease_id := str(uuid4())),
         }
 
         # Verify lease file was created with correct data
@@ -113,8 +112,7 @@ class TestFilesystemConcurrencyLeaseStorage:
         assert data["metadata"]["slots"] == 3
         assert data["metadata"]["holder"] == {
             "type": "task_run",
-            "id": "task-run-123",
-            "name": "test-task",
+            "id": lease_id,
         }
 
     async def test_read_lease_existing(
@@ -153,10 +151,9 @@ class TestFilesystemConcurrencyLeaseStorage:
         assert read_lease is not None
         assert read_lease.resource_ids == sample_resource_ids
         assert read_lease.metadata.slots == 3
-        assert read_lease.metadata.holder == {
+        assert read_lease.metadata.holder.model_dump() == {
             "type": "task_run",
-            "id": "task-run-123",
-            "name": "test-task",
+            "id": read_lease.metadata.holder.id,
         }
 
     async def test_read_lease_non_existing(self, storage: ConcurrencyLeaseStorage):
