@@ -40,6 +40,25 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
         """Generate Redis key for lease expiration."""
         return f"{self.expiration_prefix}{lease_id}"
 
+    @staticmethod
+    def _holder_key(holder: dict | None) -> str | None:
+        """Create a canonical holder key of form 'type:uuid'."""
+        if not holder:
+            return None
+        h_type = holder.get("type")
+        h_id = holder.get("id")
+        if not h_type or not h_id:
+            return None
+        return f"{h_type}:{h_id}"
+
+    @staticmethod
+    def _limit_holders_key(limit_id: UUID) -> str:
+        return f"prefect:concurrency:limit:{limit_id}:holders"
+
+    @staticmethod
+    def _holder_to_lease_key(limit_id: UUID, holder_key: str) -> str:
+        return f"prefect:concurrency:holder:{limit_id}:{holder_key}"
+
     def _serialize_lease(
         self, lease: ResourceLease[ConcurrencyLimitLeaseMetadata]
     ) -> str:
@@ -113,6 +132,19 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
                 self.expirations_key,
                 {str(lease.id): expiration.timestamp()},
             )
+
+            # Index holder per limit for fast lookups
+            holder = None
+            if metadata is not None:
+                holder = getattr(metadata, "holder", None)
+                if hasattr(holder, "model_dump"):
+                    holder = holder.model_dump(mode="json")  # type: ignore[attr-defined]
+            hk = self._holder_key(holder)
+            if hk:
+                for rid in resource_ids:
+                    pipe.sadd(self._limit_holders_key(rid), hk)
+                    pipe.set(self._holder_to_lease_key(rid, hk), str(lease.id))
+
             await pipe.execute()
 
             return lease
@@ -166,11 +198,28 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
     async def revoke_lease(self, lease_id: UUID) -> None:
         try:
             lease_key = self._lease_key(lease_id)
+            # Read lease to clean up indexes
+            data = await self.redis_client.get(lease_key)
+            holder_key: str | None = None
+            resource_ids: list[UUID] = []
+            if data is not None:
+                lease = self._deserialize_lease(data)
+                resource_ids = lease.resource_ids
+                holder = (
+                    getattr(lease.metadata, "holder", None) if lease.metadata else None
+                )
+                if hasattr(holder, "model_dump"):
+                    holder = holder.model_dump(mode="json")  # type: ignore[attr-defined]
+                holder_key = self._holder_key(holder)
 
             # Use pipeline for atomic operations
             pipe = self.redis_client.pipeline()
             pipe.delete(lease_key)
             pipe.zrem(self.expirations_key, str(lease_id))
+            if holder_key and resource_ids:
+                for rid in resource_ids:
+                    pipe.srem(self._limit_holders_key(rid), holder_key)
+                    pipe.delete(self._holder_to_lease_key(rid, holder_key))
             await pipe.execute()
         except RedisError as e:
             logger.error(f"Failed to revoke lease {lease_id}: {e}")
@@ -203,3 +252,34 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
         except RedisError as e:
             logger.error(f"Failed to read expired lease IDs: {e}")
             raise
+
+    async def list_holders_for_limit(self, limit_id: UUID) -> list[dict]:
+        try:
+            members = await self.redis_client.smembers(
+                self._limit_holders_key(limit_id)
+            )
+            result: list[dict] = []
+            for m in members:
+                if isinstance(m, bytes):
+                    m = m.decode()
+                if not isinstance(m, str) or ":" not in m:
+                    continue
+                h_type, h_id = m.split(":", 1)
+                result.append({"type": h_type, "id": h_id})
+            return result
+        except RedisError as e:
+            logger.error(f"Failed to list holders for limit {limit_id}: {e}")
+            raise
+
+    async def find_lease_by_holder(self, limit_id: UUID, holder: dict) -> UUID | None:
+        try:
+            hk = self._holder_key(holder)
+            if not hk:
+                return None
+            val = await self.redis_client.get(self._holder_to_lease_key(limit_id, hk))
+            return UUID(val) if val else None
+        except RedisError as e:
+            logger.error("Failed to find lease by holder for limit %s: %s", limit_id, e)
+            raise
+        except (ValueError, TypeError):
+            return None
