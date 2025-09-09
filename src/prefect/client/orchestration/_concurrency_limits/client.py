@@ -269,6 +269,7 @@ class ConcurrencyLimitClient(BaseClient):
         slots: int,
         mode: Literal["concurrency", "rate_limit"],
         lease_duration: float,
+        holder: dict[str, Any] | None = None,
     ) -> "Response":
         """
         Increment concurrency slots for the specified limits with a lease.
@@ -278,16 +279,21 @@ class ConcurrencyLimitClient(BaseClient):
             slots: The number of concurrency slots to occupy.
             mode: The mode of the concurrency limits.
             lease_duration: The duration of the lease in seconds.
+            holder: Optional holder information for tracking who holds the slots.
         """
+        body: dict[str, Any] = {
+            "names": names,
+            "slots": slots,
+            "mode": mode,
+            "lease_duration": lease_duration,
+        }
+        if holder is not None:
+            body["holder"] = holder
+
         return self.request(
             "POST",
             "/v2/concurrency_limits/increment-with-lease",
-            json={
-                "names": names,
-                "slots": slots,
-                "mode": mode,
-                "lease_duration": lease_duration,
-            },
+            json=body,
         )
 
     def renew_concurrency_lease(
@@ -715,6 +721,7 @@ class ConcurrencyLimitAsyncClient(BaseAsyncClient):
         slots: int,
         mode: Literal["concurrency", "rate_limit"],
         lease_duration: float,
+        holder: dict[str, Any] | None = None,
     ) -> "Response":
         """
         Increment concurrency slots for the specified limits with a lease.
@@ -724,16 +731,21 @@ class ConcurrencyLimitAsyncClient(BaseAsyncClient):
             slots: The number of concurrency slots to occupy.
             mode: The mode of the concurrency limits.
             lease_duration: The duration of the lease in seconds.
+            holder: Optional holder information for tracking who holds the slots.
         """
+        body: dict[str, Any] = {
+            "names": names,
+            "slots": slots,
+            "mode": mode,
+            "lease_duration": lease_duration,
+        }
+        if holder is not None:
+            body["holder"] = holder
+
         return await self.request(
             "POST",
             "/v2/concurrency_limits/increment-with-lease",
-            json={
-                "names": names,
-                "slots": slots,
-                "mode": mode,
-                "lease_duration": lease_duration,
-            },
+            json=body,
         )
 
     async def renew_concurrency_lease(

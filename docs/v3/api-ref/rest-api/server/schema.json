@@ -12331,6 +12331,17 @@
                         "title": "Lease Duration",
                         "description": "The duration of the lease in seconds.",
                         "default": 300
+                    },
+                    "holder": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/ConcurrencyLeaseHolder"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "description": "The holder of the lease with type (flow_run, task_run, or deployment) and id."
                     }
                 },
                 "type": "object",
@@ -14625,6 +14636,32 @@
                 ],
                 "title": "CompoundTrigger",
                 "description": "A composite trigger that requires some number of triggers to have\nfired within the given time period"
+            },
+            "ConcurrencyLeaseHolder": {
+                "properties": {
+                    "type": {
+                        "type": "string",
+                        "enum": [
+                            "flow_run",
+                            "task_run",
+                            "deployment"
+                        ],
+                        "title": "Type"
+                    },
+                    "id": {
+                        "type": "string",
+                        "format": "uuid",
+                        "title": "Id"
+                    }
+                },
+                "additionalProperties": false,
+                "type": "object",
+                "required": [
+                    "type",
+                    "id"
+                ],
+                "title": "ConcurrencyLeaseHolder",
+                "description": "Model for validating concurrency lease holder information."
             },
             "ConcurrencyLimit": {
                 "properties": {
