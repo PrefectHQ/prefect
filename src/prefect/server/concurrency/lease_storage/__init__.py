@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import timedelta
 import importlib
-from typing import Any, ClassVar, Literal, Optional, Protocol, runtime_checkable
+from typing import ClassVar, Literal, Optional, Protocol, runtime_checkable
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict
