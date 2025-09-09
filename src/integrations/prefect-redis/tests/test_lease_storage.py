@@ -307,3 +307,24 @@ class TestConcurrencyLeaseStorage:
 
         assert read_back is not None
         assert getattr(read_back.metadata, "holder", None) == holder
+
+    async def test_holder_indexes_and_lookup(self, storage: ConcurrencyLeaseStorage):
+        rid = uuid4()
+        ttl = timedelta(seconds=120)
+        holder = {"type": "task_run", "id": str(uuid4())}
+        meta = ConcurrencyLimitLeaseMetadata(slots=1)
+        setattr(meta, "holder", holder)
+
+        lease = await storage.create_lease([rid], ttl, meta)
+
+        holders = await storage.list_holders_for_limit(rid)
+        assert {"type": holder["type"], "id": holder["id"]} in holders
+
+        looked_up = await storage.find_lease_by_holder(rid, holder)
+        assert looked_up == lease.id
+
+        await storage.revoke_lease(lease.id)
+
+        holders_after = await storage.list_holders_for_limit(rid)
+        assert {"type": holder["type"], "id": holder["id"]} not in holders_after
+        assert await storage.find_lease_by_holder(rid, holder) is None
