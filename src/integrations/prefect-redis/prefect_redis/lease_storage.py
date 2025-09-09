@@ -48,7 +48,10 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
         if lease.metadata:
             metadata_dict = {"slots": lease.metadata.slots}
             if getattr(lease.metadata, "holder", None) is not None:
-                metadata_dict["holder"] = lease.metadata.holder
+                holder = lease.metadata.holder
+                if hasattr(holder, "model_dump"):
+                    holder = holder.model_dump(mode="json")  # type: ignore[attr-defined]
+                metadata_dict["holder"] = holder
 
         data = {
             "id": str(lease.id),
@@ -66,10 +69,19 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
         lease_data = json.loads(data)
         metadata = None
         if lease_data["metadata"]:
+            holder = lease_data["metadata"].get("holder")
             metadata = ConcurrencyLimitLeaseMetadata(
-                slots=lease_data["metadata"]["slots"],
-                holder=lease_data["metadata"].get("holder"),
+                slots=lease_data["metadata"]["slots"]
             )
+            if holder is not None:
+                try:
+                    setattr(metadata, "holder", holder)
+                except (AttributeError, TypeError):
+                    logger.debug(
+                        "Could not set holder on metadata type %s for lease %s",
+                        type(metadata).__name__,
+                        lease_data.get("id"),
+                    )
 
         return ResourceLease(
             id=UUID(lease_data["id"]),
