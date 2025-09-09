@@ -235,3 +235,76 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
                 continue
 
         return expired_leases
+
+    async def list_holders_for_limit(self, limit_id: UUID) -> list[dict[str, Any]]:
+        """List holder dicts for non-expired leases referencing the given limit.
+
+        Returns a list of {"type": str, "id": str} dicts. If a lease does not
+        include a holder, it is ignored.
+        """
+        now = datetime.now(timezone.utc)
+        holders: list[dict[str, Any]] = []
+        expiration_index = await self._load_expiration_index()
+        for lease_id_str, expiration_str in expiration_index.items():
+            try:
+                expiration = datetime.fromisoformat(expiration_str)
+                if expiration <= now:
+                    continue
+                lease_file = self.storage_path / f"{lease_id_str}.json"
+                if not lease_file.exists():
+                    continue
+                with open(lease_file, "r") as f:
+                    data: _LeaseFile = json.load(f)
+                # Filter by resource id
+                if str(limit_id) not in data.get("resource_ids", []):
+                    continue
+                md = data.get("metadata") or {}
+                holder = md.get("holder")
+                if not holder:
+                    continue
+                # Ensure JSON-friendly dict
+                if isinstance(holder, dict):
+                    h_type = holder.get("type")
+                    h_id = holder.get("id")
+                    if h_type and h_id:
+                        holders.append({"type": h_type, "id": str(h_id)})
+            except Exception:
+                # Ignore malformed entries
+                continue
+        return holders
+
+    async def find_lease_by_holder(
+        self, limit_id: UUID, holder: dict[str, Any]
+    ) -> UUID | None:
+        """Return the lease id for the given holder on a limit, if active.
+
+        Matches on holder type and id for non-expired leases that include the
+        given resource id.
+        """
+        now = datetime.now(timezone.utc)
+        h_type = holder.get("type")
+        h_id = holder.get("id")
+        if not h_type or not h_id:
+            return None
+        expiration_index = await self._load_expiration_index()
+        for lease_id_str, expiration_str in expiration_index.items():
+            try:
+                expiration = datetime.fromisoformat(expiration_str)
+                if expiration <= now:
+                    continue
+                lease_file = self.storage_path / f"{lease_id_str}.json"
+                if not lease_file.exists():
+                    continue
+                with open(lease_file, "r") as f:
+                    data: _LeaseFile = json.load(f)
+                if str(limit_id) not in data.get("resource_ids", []):
+                    continue
+                md = data.get("metadata") or {}
+                h = md.get("holder")
+                if not isinstance(h, dict):
+                    continue
+                if h.get("type") == h_type and str(h.get("id")) == str(h_id):
+                    return UUID(lease_id_str)
+            except Exception:
+                continue
+        return None

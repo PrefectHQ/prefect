@@ -376,6 +376,34 @@ class TestFilesystemConcurrencyLeaseStorage:
         # Corrupted file still exists (only cleaned up when accessed)
         assert corrupted_file.exists()
 
+    async def test_list_holders_for_limit_and_find_by_holder(
+        self, storage: ConcurrencyLeaseStorage
+    ):
+        rid1, rid2 = uuid4(), uuid4()
+        ttl = timedelta(minutes=5)
+
+        # Create without holder
+        await storage.create_lease([rid1], ttl)
+        assert await storage.list_holders_for_limit(rid1) == []
+
+        # Create with holder across two resource ids
+        holder = {"type": "task_run", "id": str(uuid4())}
+        md = ConcurrencyLimitLeaseMetadata(slots=1, holder=holder)
+        lease = await storage.create_lease([rid1, rid2], ttl, md)
+
+        holders1 = await storage.list_holders_for_limit(rid1)
+        holders2 = await storage.list_holders_for_limit(rid2)
+        assert {"type": holder["type"], "id": holder["id"]} in holders1
+        assert {"type": holder["type"], "id": holder["id"]} in holders2
+
+        # find by holder returns lease id
+        found = await storage.find_lease_by_holder(rid1, holder)
+        assert found == lease.id
+
+        # After revoke, no results
+        await storage.revoke_lease(lease.id)
+        assert await storage.find_lease_by_holder(rid1, holder) is None
+
     async def test_storage_path_creation(self, temp_dir: Path):
         # Test that storage path is created only when needed
         storage_path = temp_dir / "nested" / "path"
