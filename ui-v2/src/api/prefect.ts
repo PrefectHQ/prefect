@@ -4103,8 +4103,8 @@ export interface components {
              * @default 300
              */
             lease_duration: number;
-            /** @description Optional holder information for tracking who holds the slots. */
-            holder?: components["schemas"]["ConcurrencyLeaseHolderBody"] | null;
+            /** @description The holder of the lease with type (flow_run, task_run, or deployment) and id. */
+            holder?: components["schemas"]["ConcurrencyLeaseHolder"] | null;
         };
         /** Body_clear_database_admin_database_clear_post */
         Body_clear_database_admin_database_clear_post: {
@@ -5061,23 +5061,16 @@ export interface components {
             require: number | ("any" | "all");
         };
         /**
-         * ConcurrencyLeaseHolderBody
-         * @description Typed body for holder information passed to the lease endpoint.
-         *
-         *     Using a TypedDict here avoids exposing a Pydantic model in the public API
-         *     signature, which keeps Pyright verifytypes happy while still enforcing
-         *     shape and types.
+         * ConcurrencyLeaseHolder
+         * @description Model for validating concurrency lease holder information.
          */
-        ConcurrencyLeaseHolderBody: {
+        ConcurrencyLeaseHolder: {
             /**
              * Type
              * @enum {string}
              */
             type: "flow_run" | "task_run" | "deployment";
-            /**
-             * Id
-             * Format: uuid
-             */
+            /** Id */
             id: string;
         };
         /**

@@ -12335,13 +12335,13 @@
                     "holder": {
                         "anyOf": [
                             {
-                                "$ref": "#/components/schemas/ConcurrencyLeaseHolderBody"
+                                "$ref": "#/components/schemas/ConcurrencyLeaseHolder"
                             },
                             {
                                 "type": "null"
                             }
                         ],
-                        "description": "Optional holder information for tracking who holds the slots."
+                        "description": "The holder of the lease with type (flow_run, task_run, or deployment) and id."
                     }
                 },
                 "type": "object",
@@ -14637,7 +14637,7 @@
                 "title": "CompoundTrigger",
                 "description": "A composite trigger that requires some number of triggers to have\nfired within the given time period"
             },
-            "ConcurrencyLeaseHolderBody": {
+            "ConcurrencyLeaseHolder": {
                 "properties": {
                     "type": {
                         "type": "string",
@@ -14650,17 +14650,17 @@
                     },
                     "id": {
                         "type": "string",
-                        "format": "uuid",
                         "title": "Id"
                     }
                 },
+                "additionalProperties": false,
                 "type": "object",
                 "required": [
                     "type",
                     "id"
                 ],
-                "title": "ConcurrencyLeaseHolderBody",
-                "description": "Typed body for holder information passed to the lease endpoint.\n\nUsing a TypedDict here avoids exposing a Pydantic model in the public API\nsignature, which keeps Pyright verifytypes happy while still enforcing\nshape and types."
+                "title": "ConcurrencyLeaseHolder",
+                "description": "Model for validating concurrency lease holder information."
             },
             "ConcurrencyLimit": {
                 "properties": {
