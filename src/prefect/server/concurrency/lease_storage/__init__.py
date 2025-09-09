@@ -31,7 +31,7 @@ class ConcurrencyLimitLeaseMetadata(BaseModel):
     model_config: ClassVar[ConfigDict] = ConfigDict(extra="forbid")
 
     slots: int
-    holder: Optional[dict[str, Any]] = None
+    holder: Optional[ConcurrencyLeaseHolder] = None
 
 
 class ConcurrencyLeaseStorage(LeaseStorage[ConcurrencyLimitLeaseMetadata]):

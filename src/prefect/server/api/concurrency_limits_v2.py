@@ -25,7 +25,7 @@ class ConcurrencyLeaseHolder(BaseModel):
     model_config: ClassVar[ConfigDict] = ConfigDict(extra="forbid")
 
     type: Literal["flow_run", "task_run", "deployment"]
-    id: str
+    id: UUID
 
 
 router: PrefectRouter = PrefectRouter(
