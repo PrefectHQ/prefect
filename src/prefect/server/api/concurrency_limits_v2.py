@@ -1,9 +1,8 @@
 from datetime import datetime, timedelta, timezone
-from typing import ClassVar, List, Literal, Optional, Union
+from typing import List, Literal, Optional, Union
 from uuid import UUID
 
 from fastapi import Body, Depends, HTTPException, Path, status
-from pydantic import BaseModel, ConfigDict
 from sqlalchemy.ext.asyncio import AsyncSession
 
 import prefect.server.models as models
@@ -17,16 +16,7 @@ from prefect.server.database import PrefectDBInterface, provide_database_interfa
 from prefect.server.schemas import actions
 from prefect.server.utilities.schemas import PrefectBaseModel
 from prefect.server.utilities.server import PrefectRouter
-
-
-class ConcurrencyLeaseHolder(BaseModel):
-    """Model for validating concurrency lease holder information."""
-
-    model_config: ClassVar[ConfigDict] = ConfigDict(extra="forbid")
-
-    type: Literal["flow_run", "task_run", "deployment"]
-    id: UUID
-
+from prefect.types._concurrency import ConcurrencyLeaseHolder
 
 router: PrefectRouter = PrefectRouter(
     prefix="/v2/concurrency_limits", tags=["Concurrency Limits V2"]

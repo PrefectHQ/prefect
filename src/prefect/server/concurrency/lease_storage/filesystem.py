@@ -87,7 +87,7 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
         if lease.metadata:
             metadata_dict = {"slots": lease.metadata.slots}
             if lease.metadata.holder is not None:
-                metadata_dict["holder"] = lease.metadata.holder
+                metadata_dict["holder"] = lease.metadata.holder.model_dump(mode="json")
 
         return {
             "id": str(lease.id),

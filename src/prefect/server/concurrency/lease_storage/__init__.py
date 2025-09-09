@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import timedelta
 import importlib
-from typing import ClassVar, Literal, Optional, Protocol, runtime_checkable
+from typing import Any, ClassVar, Optional, Protocol, runtime_checkable
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict
@@ -10,19 +10,12 @@ from pydantic import BaseModel, ConfigDict
 from prefect.server.utilities.leasing import LeaseStorage, ResourceLease
 from prefect.settings.context import get_current_settings
 
+from prefect.types._concurrency import ConcurrencyLeaseHolder
+
 
 @runtime_checkable
 class ConcurrencyLeaseStorageModule(Protocol):
     ConcurrencyLeaseStorage: type[ConcurrencyLeaseStorage]
-
-
-class ConcurrencyLeaseHolder(BaseModel):
-    """Model for validating concurrency lease holder information."""
-
-    model_config: ClassVar[ConfigDict] = ConfigDict(extra="forbid")
-
-    type: Literal["flow_run", "task_run", "deployment"]
-    id: UUID
 
 
 class ConcurrencyLimitLeaseMetadata(BaseModel):
