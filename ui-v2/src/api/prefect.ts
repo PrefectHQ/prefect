@@ -5070,7 +5070,10 @@ export interface components {
              * @enum {string}
              */
             type: "flow_run" | "task_run" | "deployment";
-            /** Id */
+            /**
+             * Id
+             * Format: uuid
+             */
             id: string;
         };
         /**

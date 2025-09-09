@@ -14650,6 +14650,7 @@
                     },
                     "id": {
                         "type": "string",
+                        "format": "uuid",
                         "title": "Id"
                     }
                 },
