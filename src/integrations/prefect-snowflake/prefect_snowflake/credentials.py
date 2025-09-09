@@ -99,9 +99,18 @@ class SnowflakeCredentials(CredentialsBlock):
         "okta_endpoint",
         "oauth",
         "username_password_mfa",
+        "workload_identity",
     ] = Field(  # noqa
         default="snowflake",
         description=("The type of authenticator to use for initializing connection."),
+    )
+    workload_identity_provider: Optional[Literal["AWS", "AZURE", "GCP", "OIDC"]] = (
+        Field(
+            default=None,
+            description=(
+                "The workload identity provider to use for initializing connection."
+            ),
+        )
     )
     token: Optional[SecretStr] = Field(
         default=None,
@@ -190,6 +199,32 @@ class SnowflakeCredentials(CredentialsBlock):
                 "If authenticator is set to `okta_endpoint`, "
                 "`endpoint` must be provided"
             )
+        return values
+
+    @model_validator(mode="before")
+    def _validate_workload_identity_kwargs(cls, values):
+        """
+        Ensure an authorization value has been provided by the user.
+        """
+        authenticator = values.get("authenticator")
+        workload_identity_provider = values.get("workload_identity_provider")
+        if authenticator == "workload_identity" and not workload_identity_provider:
+            raise ValueError(
+                "If authenticator is set to `workload_identity`, "
+                "`workload_identity_provider` must be provided"
+            )
+
+        token = values.get("token")
+        if (
+            authenticator == "workload_identity"
+            and workload_identity_provider == "OIDC"
+            and not token
+        ):
+            raise ValueError(
+                "If workload_identity_provider is set to `OIDC`, `token` must be "
+                "provided"
+            )
+
         return values
 
     def resolve_private_key(self) -> Optional[bytes]:
