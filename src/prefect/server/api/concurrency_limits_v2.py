@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta, timezone
-from typing import List, Literal, Optional, Union
+from typing import ClassVar, List, Literal, Optional, Union
 from uuid import UUID
 
 from fastapi import Body, Depends, HTTPException, Path, status
@@ -22,7 +22,7 @@ from prefect.server.utilities.server import PrefectRouter
 class ConcurrencyLeaseHolder(BaseModel):
     """Model for validating concurrency lease holder information."""
 
-    model_config = ConfigDict(extra="forbid")
+    model_config: ClassVar[ConfigDict] = ConfigDict(extra="forbid")
 
     type: Literal["flow_run", "task_run", "deployment"]
     id: str
