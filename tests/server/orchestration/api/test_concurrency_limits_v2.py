@@ -365,7 +365,7 @@ async def test_increment_concurrency_limit_with_lease_and_holder(
     lease_storage = get_concurrency_lease_storage()
     lease = await lease_storage.read_lease(uuid.UUID(lease_id))
     assert lease
-    assert lease.metadata.holder == flow_run_holder
+    assert lease.metadata.holder.model_dump(mode="json") == flow_run_holder
 
 
 async def test_increment_concurrency_limit_with_different_holder_types(
