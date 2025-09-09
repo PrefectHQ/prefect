@@ -3,6 +3,7 @@ from typing import List, Literal, Optional, Union
 from uuid import UUID
 
 from fastapi import Body, Depends, HTTPException, Path, status
+from pydantic import BaseModel, ConfigDict
 from sqlalchemy.ext.asyncio import AsyncSession
 
 import prefect.server.models as models
@@ -18,10 +19,10 @@ from prefect.server.utilities.schemas import PrefectBaseModel
 from prefect.server.utilities.server import PrefectRouter
 
 
-class ConcurrencyLeaseHolder(PrefectBaseModel):
+class ConcurrencyLeaseHolder(BaseModel):
     """Model for validating concurrency lease holder information."""
 
-    model_config = {"extra": "forbid"}
+    model_config = ConfigDict(extra="forbid")
 
     type: Literal["flow_run", "task_run", "deployment"]
     id: str
