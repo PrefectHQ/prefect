@@ -83,10 +83,16 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
     def _serialize_lease(
         self, lease: ResourceLease[ConcurrencyLimitLeaseMetadata]
     ) -> _LeaseFile:
+        metadata_dict: dict[str, Any] | None = None
+        if lease.metadata:
+            metadata_dict = {"slots": lease.metadata.slots}
+            if lease.metadata.holder is not None:
+                metadata_dict["holder"] = lease.metadata.holder.model_dump(mode="json")
+
         return {
             "id": str(lease.id),
             "resource_ids": [str(rid) for rid in lease.resource_ids],
-            "metadata": {"slots": lease.metadata.slots} if lease.metadata else None,
+            "metadata": metadata_dict,
             "expiration": lease.expiration.isoformat(),
             "created_at": lease.created_at.isoformat(),
         }
@@ -96,11 +102,11 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
     ) -> ResourceLease[ConcurrencyLimitLeaseMetadata]:
         lease_id = UUID(data["id"])
         resource_ids = [UUID(rid) for rid in data["resource_ids"]]
-        metadata = (
-            ConcurrencyLimitLeaseMetadata(slots=data["metadata"]["slots"])
-            if data["metadata"]
-            else None
-        )
+        metadata = None
+        if data["metadata"]:
+            metadata = ConcurrencyLimitLeaseMetadata(
+                slots=data["metadata"]["slots"], holder=data["metadata"].get("holder")
+            )
         expiration = datetime.fromisoformat(data["expiration"])
         created_at = datetime.fromisoformat(data["created_at"])
         lease = ResourceLease(

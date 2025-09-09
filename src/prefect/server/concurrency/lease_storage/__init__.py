@@ -1,13 +1,16 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 from datetime import timedelta
 import importlib
-from typing import Protocol, runtime_checkable
+from typing import ClassVar, Optional, Protocol, runtime_checkable
 from uuid import UUID
+
+from pydantic import BaseModel, ConfigDict
 
 from prefect.server.utilities.leasing import LeaseStorage, ResourceLease
 from prefect.settings.context import get_current_settings
+
+from prefect.types._concurrency import ConcurrencyLeaseHolder
 
 
 @runtime_checkable
@@ -15,9 +18,13 @@ class ConcurrencyLeaseStorageModule(Protocol):
     ConcurrencyLeaseStorage: type[ConcurrencyLeaseStorage]
 
 
-@dataclass
-class ConcurrencyLimitLeaseMetadata:
+class ConcurrencyLimitLeaseMetadata(BaseModel):
+    """Model for validating concurrency limit lease metadata."""
+
+    model_config: ClassVar[ConfigDict] = ConfigDict(extra="forbid")
+
     slots: int
+    holder: Optional[ConcurrencyLeaseHolder] = None
 
 
 class ConcurrencyLeaseStorage(LeaseStorage[ConcurrencyLimitLeaseMetadata]):
