@@ -40,6 +40,13 @@ class TestMemoryConcurrencyLeaseStorage:
     def sample_metadata(self) -> ConcurrencyLimitLeaseMetadata:
         return ConcurrencyLimitLeaseMetadata(slots=5)
 
+    @pytest.fixture
+    def sample_metadata_with_holder(self) -> ConcurrencyLimitLeaseMetadata:
+        return ConcurrencyLimitLeaseMetadata(
+            slots=3,
+            holder={"type": "flow_run", "id": uuid4()},
+        )
+
     async def test_create_lease_without_metadata(
         self, storage: ConcurrencyLeaseStorage, sample_resource_ids: list[UUID]
     ):
@@ -65,6 +72,26 @@ class TestMemoryConcurrencyLeaseStorage:
         assert len(storage.leases) == 1
         assert len(storage.expirations) == 1
 
+    async def test_create_lease_with_holder(
+        self,
+        storage: ConcurrencyLeaseStorage,
+        sample_resource_ids: list[UUID],
+        sample_metadata_with_holder: ConcurrencyLimitLeaseMetadata,
+    ):
+        ttl = timedelta(minutes=5)
+        lease = await storage.create_lease(
+            sample_resource_ids, ttl, sample_metadata_with_holder
+        )
+
+        assert lease.resource_ids == sample_resource_ids
+        assert lease.metadata == sample_metadata_with_holder
+        assert lease.metadata.holder.model_dump() == {
+            "type": "flow_run",
+            "id": lease.metadata.holder.id,
+        }
+        assert len(storage.leases) == 1
+        assert len(storage.expirations) == 1
+
     async def test_read_lease_existing(
         self, storage: ConcurrencyLeaseStorage, sample_resource_ids: list[UUID]
     ):
@@ -77,6 +104,27 @@ class TestMemoryConcurrencyLeaseStorage:
         assert read_lease is not None
         assert read_lease.resource_ids == sample_resource_ids
         assert read_lease.metadata is None
+
+    async def test_read_lease_with_holder(
+        self,
+        storage: ConcurrencyLeaseStorage,
+        sample_resource_ids: list[UUID],
+        sample_metadata_with_holder: ConcurrencyLimitLeaseMetadata,
+    ):
+        ttl = timedelta(minutes=5)
+        created_lease = await storage.create_lease(
+            sample_resource_ids, ttl, sample_metadata_with_holder
+        )
+
+        read_lease = await storage.read_lease(created_lease.id)
+
+        assert read_lease is not None
+        assert read_lease.resource_ids == sample_resource_ids
+        assert read_lease.metadata.slots == 3
+        assert read_lease.metadata.holder.model_dump() == {
+            "type": "flow_run",
+            "id": read_lease.metadata.holder.id,
+        }
 
     async def test_read_lease_non_existing(self, storage: ConcurrencyLeaseStorage):
         non_existing_id = uuid4()
