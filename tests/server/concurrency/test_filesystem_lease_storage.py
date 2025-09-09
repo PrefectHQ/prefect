@@ -93,9 +93,9 @@ class TestFilesystemConcurrencyLeaseStorage:
 
         assert lease.resource_ids == sample_resource_ids
         assert lease.metadata == sample_metadata_with_holder
-        assert lease.metadata.holder == {
+        assert lease.metadata.holder.model_dump() == {
             "type": "task_run",
-            "id": (lease_id := str(uuid4())),
+            "id": lease.metadata.holder.id,
         }
 
         # Verify lease file was created with correct data
@@ -112,7 +112,7 @@ class TestFilesystemConcurrencyLeaseStorage:
         assert data["metadata"]["slots"] == 3
         assert data["metadata"]["holder"] == {
             "type": "task_run",
-            "id": lease_id,
+            "id": str(lease.metadata.holder.id),
         }
 
     async def test_read_lease_existing(

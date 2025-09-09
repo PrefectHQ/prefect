@@ -44,7 +44,7 @@ class TestMemoryConcurrencyLeaseStorage:
     def sample_metadata_with_holder(self) -> ConcurrencyLimitLeaseMetadata:
         return ConcurrencyLimitLeaseMetadata(
             slots=3,
-            holder={"type": "flow_run", "id": "flow-run-456", "name": "test-flow"},
+            holder={"type": "flow_run", "id": uuid4()},
         )
 
     async def test_create_lease_without_metadata(
@@ -85,10 +85,9 @@ class TestMemoryConcurrencyLeaseStorage:
 
         assert lease.resource_ids == sample_resource_ids
         assert lease.metadata == sample_metadata_with_holder
-        assert lease.metadata.holder == {
+        assert lease.metadata.holder.model_dump() == {
             "type": "flow_run",
-            "id": "flow-run-456",
-            "name": "test-flow",
+            "id": lease.metadata.holder.id,
         }
         assert len(storage.leases) == 1
         assert len(storage.expirations) == 1
@@ -122,10 +121,9 @@ class TestMemoryConcurrencyLeaseStorage:
         assert read_lease is not None
         assert read_lease.resource_ids == sample_resource_ids
         assert read_lease.metadata.slots == 3
-        assert read_lease.metadata.holder == {
+        assert read_lease.metadata.holder.model_dump() == {
             "type": "flow_run",
-            "id": "flow-run-456",
-            "name": "test-flow",
+            "id": read_lease.metadata.holder.id,
         }
 
     async def test_read_lease_non_existing(self, storage: ConcurrencyLeaseStorage):
