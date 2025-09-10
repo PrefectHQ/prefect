@@ -237,9 +237,9 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
         return expired_leases
 
     # Optional helper used by the API layer when present
-    async def list_holders_for_limit(self, limit_id: UUID) -> list[dict]:
+    async def list_holders_for_limit(self, limit_id: UUID) -> list[dict[str, Any]]:
         """Enumerate non-expired holders for a given limit by scanning lease files."""
-        result: list[dict] = []
+        result: list[dict[str, Any]] = []
         index = await self._load_expiration_index()
         now = datetime.now(timezone.utc)
         for lease_id_str, expiration_str in index.items():
