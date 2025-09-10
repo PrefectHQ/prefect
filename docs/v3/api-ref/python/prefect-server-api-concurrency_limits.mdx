@@ -69,25 +69,25 @@ currently using a concurrency slot for the specified tag.
 reset_concurrency_limit_by_tag(tag: str = Path(..., description='The tag name'), slot_override: Optional[List[UUID]] = Body(None, embed=True, description='Manual override for active concurrency limit slots.'), db: PrefectDBInterface = Depends(provide_database_interface)) -> None
 ```
 
-### `delete_concurrency_limit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/concurrency_limits.py#L413" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `delete_concurrency_limit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/concurrency_limits.py#L421" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 delete_concurrency_limit(concurrency_limit_id: UUID = Path(..., description='The concurrency limit id', alias='id'), db: PrefectDBInterface = Depends(provide_database_interface)) -> None
 ```
 
-### `delete_concurrency_limit_by_tag` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/concurrency_limits.py#L431" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `delete_concurrency_limit_by_tag` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/concurrency_limits.py#L439" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 delete_concurrency_limit_by_tag(tag: str = Path(..., description='The tag name'), db: PrefectDBInterface = Depends(provide_database_interface)) -> None
 ```
 
-### `increment_concurrency_limits_v1` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/concurrency_limits.py#L495" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `increment_concurrency_limits_v1` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/concurrency_limits.py#L503" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 increment_concurrency_limits_v1(names: List[str] = Body(..., description='The tags to acquire a slot for'), task_run_id: UUID = Body(..., description='The ID of the task run acquiring the slot'), db: PrefectDBInterface = Depends(provide_database_interface)) -> List[MinimalConcurrencyLimitResponse]
 ```
 
-### `decrement_concurrency_limits_v1` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/concurrency_limits.py#L631" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `decrement_concurrency_limits_v1` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/concurrency_limits.py#L643" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 decrement_concurrency_limits_v1(names: List[str] = Body(..., description='The tags to release a slot for'), task_run_id: UUID = Body(..., description='The ID of the task run releasing the slot'), db: PrefectDBInterface = Depends(provide_database_interface)) -> List[MinimalConcurrencyLimitResponse]
@@ -95,6 +95,6 @@ decrement_concurrency_limits_v1(names: List[str] = Body(..., description='The ta
 
 ## Classes
 
-### `Abort` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/concurrency_limits.py#L483" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `Abort` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/concurrency_limits.py#L491" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
-### `Delay` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/concurrency_limits.py#L488" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `Delay` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/concurrency_limits.py#L496" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
