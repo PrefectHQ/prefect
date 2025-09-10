@@ -1209,7 +1209,7 @@ async def proactive_evaluation(
 
 
 async def evaluate_proactive_triggers() -> None:
-    for trigger in triggers.values():
+    for trigger in list(triggers.values()):
         if trigger.posture != Posture.Proactive:
             continue
 
