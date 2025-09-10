@@ -206,7 +206,37 @@ async def read_concurrency_limit(
     The `active slots` field contains a list of TaskRun IDs currently using a
     concurrency slot for the specified tag.
     """
-    # Note: We don't adapter the ID-based read since V1 IDs won't match V2
+    if _adapter_enabled():
+        # Try V2 by id first; if it's a tag-based limit, convert to V1 shape
+        async with db.session_context() as session:
+            v2_limit = await cl_v2_models.read_concurrency_limit(
+                session=session, concurrency_limit_id=concurrency_limit_id
+            )
+
+            if v2_limit and v2_limit.name.startswith("tag:"):
+                active_slots = await _get_active_slots_from_leases(v2_limit.id)
+                return schemas.core.ConcurrencyLimit(
+                    id=v2_limit.id,
+                    tag=v2_limit.name.removeprefix("tag:"),
+                    concurrency_limit=v2_limit.limit,
+                    active_slots=active_slots,
+                    created=v2_limit.created,
+                    updated=v2_limit.updated,
+                )
+
+        # Fall back to V1 read
+        async with db.session_context() as session:
+            model = await models.concurrency_limits.read_concurrency_limit(
+                session=session, concurrency_limit_id=concurrency_limit_id
+            )
+        if not model:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Concurrency limit not found",
+            )
+        return model
+
+    # Original V1 implementation
     async with db.session_context() as session:
         model = await models.concurrency_limits.read_concurrency_limit(
             session=session, concurrency_limit_id=concurrency_limit_id
@@ -281,33 +311,44 @@ async def read_concurrency_limits(
     currently using a concurrency slot for the specified tag.
     """
     if _adapter_enabled():
-        # V1→V2 adapter: Read V2 limits with tag: prefix and convert
+        # V1→V2 adapter: Merge V1 limits and V2 tag: limits, dedupe by tag
         async with db.session_context() as session:
-            # Read V2 limits that have tag: prefix
-            v2_limits = await cl_v2_models.read_all_concurrency_limits(
-                session=session,
-                limit=limit,
-                offset=offset,
+            v1_all = await models.concurrency_limits.read_concurrency_limits(
+                session=session, limit=limit + offset, offset=0
+            )
+            v2_all = await cl_v2_models.read_all_concurrency_limits(
+                session=session, limit=limit + offset, offset=0
             )
 
-        v1_limits = []
-        for v2_limit in v2_limits:
-            if v2_limit.name.startswith("tag:"):
-                tag = v2_limit.name.removeprefix("tag:")
-                active_slots = await _get_active_slots_from_leases(v2_limit.id)
-
-                v1_limits.append(
-                    schemas.core.ConcurrencyLimit(
-                        id=v2_limit.id,
-                        tag=tag,
-                        concurrency_limit=v2_limit.limit,
-                        active_slots=active_slots,
-                        created=v2_limit.created,
-                        updated=v2_limit.updated,
-                    )
+        converted_v2: list[schemas.core.ConcurrencyLimit] = []
+        for v2_limit in v2_all:
+            if not v2_limit.name.startswith("tag:"):
+                continue
+            tag = v2_limit.name.removeprefix("tag:")
+            active_slots = await _get_active_slots_from_leases(v2_limit.id)
+            converted_v2.append(
+                schemas.core.ConcurrencyLimit(
+                    id=v2_limit.id,
+                    tag=tag,
+                    concurrency_limit=v2_limit.limit,
+                    active_slots=active_slots,
+                    created=v2_limit.created,
+                    updated=v2_limit.updated,
                 )
+            )
 
-        return v1_limits
+        combined: list[schemas.core.ConcurrencyLimit] = []
+        seen: set[str] = set()
+        for obj in v1_all:
+            if obj.tag not in seen:
+                seen.add(obj.tag)
+                combined.append(obj)
+        for obj in converted_v2:
+            if obj.tag not in seen:
+                seen.add(obj.tag)
+                combined.append(obj)
+
+        return combined[offset : offset + limit]
 
     # Original V1 implementation
     async with db.session_context() as session:
@@ -403,17 +444,15 @@ async def delete_concurrency_limit_by_tag(
     db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> None:
     if _adapter_enabled():
-        # V1→V2 adapter: Delete V2 limit and clean up leases
+        # V1→V2 adapter: Delete V2 limit and clean up leases; also delete any V1 record
         v2_name = f"tag:{tag}"
 
         async with db.session_context(begin_transaction=True) as session:
-            # First, get the limit to clean up leases
             model = await cl_v2_models.read_concurrency_limit(
                 session=session, name=v2_name
             )
 
             if model:
-                # Clean up all leases
                 lease_storage = get_concurrency_lease_storage()
                 active_leases = await lease_storage.read_active_lease_ids(limit=1000)
                 for lease_id in active_leases:
@@ -421,14 +460,20 @@ async def delete_concurrency_limit_by_tag(
                     if lease and model.id in lease.resource_ids:
                         await lease_storage.revoke_lease(lease_id)
 
-                # Delete the limit
-                result = await cl_v2_models.delete_concurrency_limit(
+                v2_deleted = await cl_v2_models.delete_concurrency_limit(
                     session=session, concurrency_limit_id=model.id
                 )
             else:
-                result = False
+                v2_deleted = False
 
-        if not result:
+        async with db.session_context(begin_transaction=True) as session:
+            v1_deleted = (
+                await models.concurrency_limits.delete_concurrency_limit_by_tag(
+                    session=session, tag=tag
+                )
+            )
+
+        if not (v2_deleted or v1_deleted):
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Concurrency limit not found",
