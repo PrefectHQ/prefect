@@ -320,7 +320,6 @@ class TestConcurrencyLeaseStorage:
         holders = await storage.list_holders_for_limit(rid)
         assert {"holder": holder, "slots": 1} in holders
 
-        # Nebula parity: no reverse holder->lease lookup; verify presence via list
 
         await storage.revoke_lease(lease.id)
 
