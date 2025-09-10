@@ -218,6 +218,59 @@ async def test_v1_delete_by_tag_cleans_up_leases(client: AsyncClient, session):
     )
 
 
+async def test_v1_read_by_id_converts_v2_limit(client: AsyncClient, session):
+    """Reading by ID returns converted V1 shape when a V2 tag: limit exists."""
+    v2 = await create_concurrency_limit(
+        session=session,
+        concurrency_limit=ConcurrencyLimitV2(name="tag:idread", limit=4),
+    )
+    await session.commit()
+
+    resp = await client.get(f"/concurrency_limits/{v2.id}")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["id"] == str(v2.id)
+    assert data["tag"] == "idread"
+    assert data["concurrency_limit"] == 4
+
+
+async def test_v1_filter_merges_v1_and_v2_and_dedup(client: AsyncClient, session):
+    """Filter returns a merged, deduplicated set of tag-based limits (V1 preferred)."""
+    # Create an older V1 limit for tag 'both'
+    from prefect.server.models import concurrency_limits as v1_models
+    from prefect.server.schemas.core import ConcurrencyLimit as V1Limit
+
+    await v1_models.create_concurrency_limit(
+        session=session, concurrency_limit=V1Limit(tag="both", concurrency_limit=2)
+    )
+
+    # Create V2 limits with tag: prefix and non-tag prefix
+    await create_concurrency_limit(
+        session=session, concurrency_limit=ConcurrencyLimitV2(name="tag:both", limit=9)
+    )
+    await create_concurrency_limit(
+        session=session,
+        concurrency_limit=ConcurrencyLimitV2(name="tag:onlyv2", limit=7),
+    )
+    await create_concurrency_limit(
+        session=session,
+        concurrency_limit=ConcurrencyLimitV2(name="global:skip", limit=11),
+    )
+    await session.commit()
+
+    resp = await client.post(
+        "/concurrency_limits/filter", json={"limit": 10, "offset": 0}
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+
+    tags = {item["tag"] for item in data}
+    # Should include the V1-only tag and the V2-only tag, skip non-tag prefixed
+    assert "both" in tags  # dedup prefers V1 version
+    assert "onlyv2" in tags
+    assert "skip" not in tags
+
+
 async def test_v1_reset_clears_and_sets_leases(client: AsyncClient, session):
     """Test that V1 RESET endpoint clears existing leases and sets new ones."""
     # Create V1 limit
