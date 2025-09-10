@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
+from typing import Any
 from uuid import UUID
 
 from prefect.server.concurrency.lease_storage import (
@@ -78,9 +79,9 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
         return expired_leases[:limit]
 
     # Optional helper used by the API layer when present
-    async def list_holders_for_limit(self, limit_id: UUID) -> list[dict]:
+    async def list_holders_for_limit(self, limit_id: UUID) -> list[dict[str, Any]]:
         now = datetime.now(timezone.utc)
-        out: list[dict] = []
+        out: list[dict[str, Any]] = []
         for lease_id, lease in self.leases.items():
             exp = self.expirations.get(lease_id)
             if not exp or exp <= now:
