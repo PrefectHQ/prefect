@@ -415,3 +415,36 @@ class TestFilesystemConcurrencyLeaseStorage:
             read_lease = await storage.read_lease(lease_id)
             assert read_lease is not None
             assert read_lease.resource_ids == sample_resource_ids
+
+    async def test_list_holders_for_limit_returns_holders(
+        self, storage: ConcurrencyLeaseStorage
+    ):
+        rid1, rid2 = uuid4(), uuid4()
+        ttl = timedelta(minutes=5)
+        holder = {"type": "task_run", "id": str(uuid4())}
+        meta = ConcurrencyLimitLeaseMetadata(slots=2, holder=holder)
+
+        await storage.create_lease([rid1, rid2], ttl, meta)
+
+        holders1 = await storage.list_holders_for_limit(rid1)
+        holders2 = await storage.list_holders_for_limit(rid2)
+
+        assert {"holder": holder, "slots": 2} in holders1
+        assert {"holder": holder, "slots": 2} in holders2
+
+    async def test_list_holders_for_limit_ignores_expired_and_missing(
+        self, storage: ConcurrencyLeaseStorage
+    ):
+        rid = uuid4()
+        # Expired lease should not appear
+        expired_meta = ConcurrencyLimitLeaseMetadata(
+            slots=1, holder={"type": "task_run", "id": str(uuid4())}
+        )
+        await storage.create_lease([rid], timedelta(seconds=-1), expired_meta)
+        # Lease without holder should not appear
+        await storage.create_lease(
+            [rid], timedelta(minutes=5), ConcurrencyLimitLeaseMetadata(slots=1)
+        )
+
+        holders = await storage.list_holders_for_limit(rid)
+        assert holders == []
