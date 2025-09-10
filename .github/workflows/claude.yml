@@ -46,7 +46,7 @@ jobs:
 
             IMPORTANT: Before committing any code changes, you MUST run `pre-commit run --all-files` to ensure all formatting, linting, and type checking passes. This prevents the Static Analysis workflow from failing.
 
-            The pre-commit hooks will automatically format code with ruff and check types with mypy. If the hooks modify any files, add them with `git add .` and commit again.
+            The pre-commit hooks will automatically format code with ruff and check types with pyright. If the hooks modify any files, add them with `git add .` and commit again.
 
             Never use `git commit --no-verify` or `git commit --amend` under any circumstances.
 
