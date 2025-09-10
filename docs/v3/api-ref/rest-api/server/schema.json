@@ -4145,7 +4145,10 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "type": "null",
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/MinimalConcurrencyLimitResponse"
+                                    },
                                     "title": "Response Decrement Concurrency Limits V1 Concurrency Limits Decrement Post"
                                 }
                             }

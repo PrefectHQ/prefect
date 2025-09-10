@@ -5,7 +5,7 @@ Routes for interacting with concurrency limit objects.
 from __future__ import annotations
 
 import os
-from datetime import datetime, timedelta, timezone
+from datetime import timedelta
 from typing import List, Optional, Sequence
 from uuid import UUID
 
@@ -14,6 +14,7 @@ from fastapi import Body, Depends, HTTPException, Path, Response, status
 import prefect.server.api.dependencies as dependencies
 import prefect.server.models as models
 import prefect.server.schemas as schemas
+from prefect.exceptions import PrefectHTTPStatusError
 from prefect.server.api.concurrency_limits_v2 import MinimalConcurrencyLimitResponse
 from prefect.server.concurrency.lease_storage import (
     ConcurrencyLimitLeaseMetadata,
@@ -22,7 +23,6 @@ from prefect.server.concurrency.lease_storage import (
 from prefect.server.database import PrefectDBInterface, provide_database_interface
 from prefect.server.models import concurrency_limits
 from prefect.server.models import concurrency_limits_v2 as cl_v2_models
-from prefect.server.utilities.leasing import ResourceLease
 from prefect.server.utilities.server import PrefectRouter
 from prefect.settings import PREFECT_TASK_RUN_TAG_CONCURRENCY_SLOT_WAIT_SECONDS
 from prefect.types._datetime import now
@@ -143,13 +143,15 @@ async def create_concurrency_limit(
 
             if existing:
                 # Update existing (V1 upsert behavior)
-                model = await cl_v2_models.update_concurrency_limit(
+                await cl_v2_models.update_concurrency_limit(
                     session=session,
                     concurrency_limit_id=existing.id,
                     concurrency_limit=schemas.actions.ConcurrencyLimitV2Update(
                         limit=concurrency_limit.concurrency_limit
                     ),
                 )
+                model = existing
+                model.limit = concurrency_limit.concurrency_limit
             else:
                 # Create new
                 model = await cl_v2_models.create_concurrency_limit(
@@ -160,12 +162,10 @@ async def create_concurrency_limit(
                         active=True,
                     ),
                 )
+                response.status_code = status.HTTP_201_CREATED
 
         # Get active slots from leases
         active_slots = await _get_active_slots_from_leases(model.id)
-
-        if model.created >= now("UTC"):
-            response.status_code = status.HTTP_201_CREATED
 
         # Convert to V1 response format
         return schemas.core.ConcurrencyLimit(
@@ -284,11 +284,10 @@ async def read_concurrency_limits(
         # V1→V2 adapter: Read V2 limits with tag: prefix and convert
         async with db.session_context() as session:
             # Read V2 limits that have tag: prefix
-            v2_limits = await cl_v2_models.read_concurrency_limits(
+            v2_limits = await cl_v2_models.read_all_concurrency_limits(
                 session=session,
                 limit=limit,
                 offset=offset,
-                # Filter to only tag: prefixed limits if possible
             )
 
         v1_limits = []
@@ -360,16 +359,13 @@ async def reset_concurrency_limit_by_tag(
                     holder = {
                         "type": "task_run",
                         "id": str(task_run_id),
-                        "reset_override": True,
                     }
 
-                    lease = ResourceLease(
+                    await lease_storage.create_lease(
                         resource_ids=[model.id],
-                        expiration=datetime.now(timezone.utc)
-                        + timedelta(days=36500),  # ~100 years
+                        ttl=timedelta(days=36500),  # ~100 years
                         metadata=ConcurrencyLimitLeaseMetadata(slots=1, holder=holder),
                     )
-                    await lease_storage.create_lease(lease)
         return
 
     # Original V1 implementation
@@ -479,37 +475,39 @@ async def increment_concurrency_limits_v1(
         holder = {
             "type": "task_run",
             "id": str(task_run_id),
-            "tags": names,  # Keep original tags for debugging
-            "v1_migration": True,
         }
 
         try:
-            # Use V2 increment with lease (~infinite TTL)
+            # Use V2 increment with lease (max allowed TTL)
             async with get_client() as client:
                 response = await client.increment_concurrency_slots_with_lease(
                     names=v2_names,
                     slots=1,
                     mode="concurrency",
-                    lease_duration=3650000000,  # ~100 years in seconds
+                    lease_duration=86400,  # Max allowed: 24 hours in seconds
                     holder=holder,
                 )
 
             # Convert response to V1 format
+            response_data = response.json()
             return [
                 MinimalConcurrencyLimitResponse(
-                    id=limit.id, name=limit.name.removeprefix("tag:"), limit=limit.limit
+                    id=limit["id"],
+                    name=limit["name"].removeprefix("tag:"),
+                    limit=limit["limit"],
                 )
-                for limit in response.limits
+                for limit in response_data.get("limits", [])
             ]
 
-        except HTTPException as exc:
-            if exc.status_code == status.HTTP_423_LOCKED:
+        except PrefectHTTPStatusError as exc:
+            if exc.response.status_code == status.HTTP_423_LOCKED:
                 # Handle concurrency limit reached
-                if "Retry-After" in exc.headers:
+                retry_after = exc.response.headers.get("Retry-After")
+                if retry_after:
                     raise HTTPException(
                         status_code=status.HTTP_423_LOCKED,
                         detail="Concurrency limit reached",
-                        headers={"Retry-After": exc.headers["Retry-After"]},
+                        headers={"Retry-After": retry_after},
                     )
                 else:
                     # Limit is 0 (disabled)
@@ -602,7 +600,7 @@ async def decrement_concurrency_limits_v1(
         ..., description="The ID of the task run releasing the slot"
     ),
     db: PrefectDBInterface = Depends(provide_database_interface),
-) -> None:
+) -> List[MinimalConcurrencyLimitResponse]:
     if _adapter_enabled():
         # V1→V2 adapter: Find and release the lease for this task run
         from prefect.client.orchestration import get_client
@@ -615,7 +613,7 @@ async def decrement_concurrency_limits_v1(
             async with get_client() as client:
                 await client.decrement_concurrency_slots_with_lease(lease_id=lease_id)
 
-        # Return current limits
+        # Return current limits (matching V1 behavior)
         v2_names = [f"tag:{tag}" for tag in names]
         limits = []
 
