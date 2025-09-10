@@ -3810,7 +3810,10 @@
                         "description": "Successful Response",
                         "content": {
                             "application/json": {
-                                "schema": {}
+                                "schema": {
+                                    "type": "null",
+                                    "title": "Response Delete Concurrency Limit Concurrency Limits  Id  Delete"
+                                }
                             }
                         }
                     },
@@ -3913,7 +3916,10 @@
                         "description": "Successful Response",
                         "content": {
                             "application/json": {
-                                "schema": {}
+                                "schema": {
+                                    "type": "null",
+                                    "title": "Response Delete Concurrency Limit By Tag Concurrency Limits Tag  Tag  Delete"
+                                }
                             }
                         }
                     },
@@ -4029,7 +4035,10 @@
                         "description": "Successful Response",
                         "content": {
                             "application/json": {
-                                "schema": {}
+                                "schema": {
+                                    "type": "null",
+                                    "title": "Response Reset Concurrency Limit By Tag Concurrency Limits Tag  Tag  Reset Post"
+                                }
                             }
                         }
                     },
@@ -4135,7 +4144,10 @@
                         "description": "Successful Response",
                         "content": {
                             "application/json": {
-                                "schema": {}
+                                "schema": {
+                                    "type": "null",
+                                    "title": "Response Decrement Concurrency Limits V1 Concurrency Limits Decrement Post"
+                                }
                             }
                         }
                     },
