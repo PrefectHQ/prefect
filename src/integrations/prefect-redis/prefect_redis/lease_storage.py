@@ -312,4 +312,3 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
         except RedisError as e:
             logger.error(f"Failed to list holders for limit {limit_id}: {e}")
             raise
-

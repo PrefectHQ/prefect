@@ -320,7 +320,6 @@ class TestConcurrencyLeaseStorage:
         holders = await storage.list_holders_for_limit(rid)
         assert {"holder": holder, "slots": 1} in holders
 
-
         await storage.revoke_lease(lease.id)
 
         holders_after = await storage.list_holders_for_limit(rid)
