@@ -4,7 +4,6 @@ Routes for interacting with concurrency limit objects.
 
 from __future__ import annotations
 
-import os
 from datetime import timedelta
 from typing import List, Optional, Sequence
 from uuid import UUID
@@ -25,6 +24,7 @@ from prefect.server.models import concurrency_limits
 from prefect.server.models import concurrency_limits_v2 as cl_v2_models
 from prefect.server.utilities.server import PrefectRouter
 from prefect.settings import PREFECT_TASK_RUN_TAG_CONCURRENCY_SLOT_WAIT_SECONDS
+from prefect.settings.context import get_current_settings
 from prefect.types._datetime import now
 
 router: PrefectRouter = PrefectRouter(
@@ -33,12 +33,8 @@ router: PrefectRouter = PrefectRouter(
 
 
 def _adapter_enabled() -> bool:
-    """Feature-gate for V1→V2 adapter without changing public API."""
-    return os.getenv("PREFECT_SERVER_V1_V2_CONCURRENCY_ADAPTER", "0") in {
-        "1",
-        "true",
-        "True",
-    }
+    """Feature-gate for V1→V2 adapter (internal setting)."""
+    return get_current_settings().internal.v1_v2_concurrency_adapter_enabled
 
 
 async def _get_active_slots_from_leases(limit_id: UUID) -> list[str]:
@@ -61,12 +57,13 @@ async def _get_active_slots_from_leases(limit_id: UUID) -> list[str]:
                 holders.append(lease.metadata.holder)
 
     for holder in holders:
-        if (
-            isinstance(holder, dict)
-            and holder.get("type") == "task_run"
-            and holder.get("id")
-        ):
-            active_holders.append(str(holder["id"]))
+        # Support both shapes:
+        # 1) {"type": "task_run", "id": "..."}
+        # 2) {"holder": {"type": "task_run", "id": "..."}, "slots": N}
+        if isinstance(holder, dict):
+            h = holder.get("holder") if "holder" in holder else holder
+            if isinstance(h, dict) and h.get("type") == "task_run" and h.get("id"):
+                active_holders.append(str(h["id"]))
 
     return active_holders
 

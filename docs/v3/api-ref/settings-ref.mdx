@@ -563,6 +563,18 @@ The default logging level for Prefect's internal machinery loggers.
 **Supported environment variables**:
 `PREFECT_INTERNAL_LOGGING_LEVEL`, `PREFECT_LOGGING_INTERNAL_LEVEL`
 
+### `v1_v2_concurrency_adapter_enabled`
+Enable the V1→V2 concurrency adapter for server endpoints. Intended for internal rollout control; subject to removal.
+
+**Type**: `boolean`
+
+**Default**: `False`
+
+**TOML dotted key path**: `internal.v1_v2_concurrency_adapter_enabled`
+
+**Supported environment variables**:
+`PREFECT_INTERNAL_V1_V2_CONCURRENCY_ADAPTER_ENABLED`
+
 ---
 ## LoggingSettings
 Settings for controlling logging behavior

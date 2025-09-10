@@ -19,3 +19,11 @@ class InternalSettings(PrefectBaseSettings):
             "prefect_logging_internal_level",
         ),
     )
+
+    v1_v2_concurrency_adapter_enabled: bool = Field(
+        default=False,
+        description=(
+            "Enable the V1→V2 concurrency adapter for server endpoints. "
+            "Intended for internal rollout control; subject to removal."
+        ),
+    )
