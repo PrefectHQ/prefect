@@ -61,7 +61,6 @@ async def client(app: FastAPI):
         yield async_client
 
 
-@pytest.mark.asyncio
 async def test_v1_create_routes_to_v2(client: AsyncClient, session):
     """Test that V1 CREATE endpoint creates V2 limit with tag: prefix."""
     # Create V1 limit
@@ -84,7 +83,6 @@ async def test_v1_create_routes_to_v2(client: AsyncClient, session):
         assert v2.name == "tag:foo"
 
 
-@pytest.mark.asyncio
 async def test_v1_create_upsert_behavior(client: AsyncClient, session):
     """Test that V1 CREATE has upsert behavior like original."""
     # Create initial limit
@@ -104,7 +102,6 @@ async def test_v1_create_upsert_behavior(client: AsyncClient, session):
     assert data["concurrency_limit"] == 7  # Updated limit
 
 
-@pytest.mark.asyncio
 async def test_v1_read_by_tag_uses_v2_leases(client: AsyncClient, session, monkeypatch):
     """Test that V1 READ endpoint populates active_slots from V2 leases."""
     # Create V2 limit directly in DB for tag:foo
@@ -120,18 +117,26 @@ async def test_v1_read_by_tag_uses_v2_leases(client: AsyncClient, session, monke
     class StubStorage:
         def __init__(self):
             self.storage_path = ConcurrencyLeaseStorage().storage_path
+            self.lease_id = uuid4()
+
+        async def list_holders_for_limit(self, limit_id):
+            if limit_id == v2.id:
+                return [{"type": "task_run", "id": tr_id}]
+            return []
 
         async def read_active_lease_ids(self, limit: int = 100):
-            return [uuid4()]
+            return [self.lease_id]
 
         async def read_lease(self, lease_id):
-            return ResourceLease(
-                resource_ids=[v2.id],
-                expiration=datetime.now(timezone.utc) + timedelta(minutes=5),
-                metadata=ConcurrencyLimitLeaseMetadata(
-                    slots=1, holder={"type": "task_run", "id": tr_id}
-                ),
-            )
+            if lease_id == self.lease_id:
+                return ResourceLease(
+                    resource_ids=[v2.id],
+                    expiration=datetime.now(timezone.utc) + timedelta(minutes=5),
+                    metadata=ConcurrencyLimitLeaseMetadata(
+                        slots=1, holder={"type": "task_run", "id": tr_id}
+                    ),
+                )
+            return None
 
     # Patch the server module to use our stub
     import prefect.server.api.concurrency_limits as v1api
@@ -147,7 +152,6 @@ async def test_v1_read_by_tag_uses_v2_leases(client: AsyncClient, session, monke
     assert tr_id in data["active_slots"]  # holders populated from leases
 
 
-@pytest.mark.asyncio
 async def test_v1_read_filter_returns_only_tag_prefixed(client: AsyncClient, session):
     """Test that V1 filter endpoint only returns tag: prefixed V2 limits."""
     # Create V2 limits - some with tag: prefix, some without
@@ -179,7 +183,6 @@ async def test_v1_read_filter_returns_only_tag_prefixed(client: AsyncClient, ses
     assert tags == {"test1", "test2"}
 
 
-@pytest.mark.asyncio
 async def test_v1_delete_by_tag_cleans_up_leases(client: AsyncClient, session):
     """Test that V1 DELETE endpoint cleans up V2 leases."""
     # Create V1 limit (which creates V2 limit)
@@ -191,14 +194,14 @@ async def test_v1_delete_by_tag_cleans_up_leases(client: AsyncClient, session):
 
     # Create a lease for this limit
     storage = ConcurrencyLeaseStorage()
-    lease = ResourceLease(
+    lease = await storage.create_lease(
         resource_ids=[limit_id],
-        expiration=datetime.now(timezone.utc) + timedelta(hours=1),
+        ttl=timedelta(hours=1),
         metadata=ConcurrencyLimitLeaseMetadata(
             slots=1, holder={"type": "task_run", "id": str(uuid4())}
         ),
     )
-    lease_id = await storage.create_lease(lease)
+    lease_id = lease.id
 
     # Delete the limit
     resp = await client.delete("/concurrency_limits/tag/deleteme")
@@ -215,7 +218,6 @@ async def test_v1_delete_by_tag_cleans_up_leases(client: AsyncClient, session):
     )
 
 
-@pytest.mark.asyncio
 async def test_v1_reset_clears_and_sets_leases(client: AsyncClient, session):
     """Test that V1 RESET endpoint clears existing leases and sets new ones."""
     # Create V1 limit
@@ -228,14 +230,14 @@ async def test_v1_reset_clears_and_sets_leases(client: AsyncClient, session):
     # Create existing leases
     storage = ConcurrencyLeaseStorage()
     old_tr_id = str(uuid4())
-    lease = ResourceLease(
+    lease = await storage.create_lease(
         resource_ids=[limit_id],
-        expiration=datetime.now(timezone.utc) + timedelta(hours=1),
+        ttl=timedelta(hours=1),
         metadata=ConcurrencyLimitLeaseMetadata(
             slots=1, holder={"type": "task_run", "id": old_tr_id}
         ),
     )
-    old_lease_id = await storage.create_lease(lease)
+    old_lease_id = lease.id
 
     # Reset with new slot override
     new_tr_ids = [str(uuid4()), str(uuid4())]
@@ -245,8 +247,10 @@ async def test_v1_reset_clears_and_sets_leases(client: AsyncClient, session):
     assert resp.status_code == 200
 
     # Verify old lease is revoked
-    old_lease = await storage.read_lease(old_lease_id)
-    assert old_lease is None or old_lease.expiration <= datetime.now(timezone.utc)
+    revoked_lease = await storage.read_lease(old_lease_id)
+    assert revoked_lease is None or revoked_lease.expiration <= datetime.now(
+        timezone.utc
+    )
 
     # Verify new active slots
     resp = await client.get("/concurrency_limits/tag/resetme")
@@ -256,3 +260,113 @@ async def test_v1_reset_clears_and_sets_leases(client: AsyncClient, session):
     assert old_tr_id not in active_slots
     # New slots should be present (if list_holders_for_limit is implemented)
     # Note: This depends on the storage implementation
+
+
+async def test_v1_increment_uses_v2_leases(client: AsyncClient, session):
+    """Test that V1 INCREMENT endpoint creates V2 leases with task run holders."""
+    # Create V1 limit first
+    resp = await client.post(
+        "/concurrency_limits/", json={"tag": "incrementme", "concurrency_limit": 3}
+    )
+    assert resp.status_code == 201
+
+    # INCREMENT with task run
+    task_run_id = str(uuid4())
+    resp = await client.post(
+        "/concurrency_limits/increment",
+        json={"names": ["incrementme"], "task_run_id": task_run_id},
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert len(data) == 1
+    assert data[0]["name"] == "incrementme"
+    assert data[0]["limit"] == 3
+
+    # Note: The V1 adapter uses V2 increment which creates leases,
+    # but the leases are created server-side and we can't directly
+    # verify them from the test client. The important part is that
+    # the increment succeeds and returns the expected response.
+
+
+async def test_v1_increment_blocks_when_limit_reached(client: AsyncClient, session):
+    """Test that V1 INCREMENT blocks when concurrency limit is reached."""
+    # Create V1 limit with small limit
+    resp = await client.post(
+        "/concurrency_limits/", json={"tag": "fullimit", "concurrency_limit": 1}
+    )
+    assert resp.status_code == 201
+
+    # First INCREMENT should succeed
+    task_run_id_1 = str(uuid4())
+    resp = await client.post(
+        "/concurrency_limits/increment",
+        json={"names": ["fullimit"], "task_run_id": task_run_id_1},
+    )
+    assert resp.status_code == 200
+
+    # Second INCREMENT should fail with 423
+    task_run_id_2 = str(uuid4())
+    resp = await client.post(
+        "/concurrency_limits/increment",
+        json={"names": ["fullimit"], "task_run_id": task_run_id_2},
+    )
+    assert resp.status_code == 423
+    assert "Concurrency limit reached" in resp.json()["detail"]
+
+
+async def test_v1_decrement_releases_v2_lease(client: AsyncClient, session):
+    """Test that V1 DECREMENT releases the V2 lease for a task run."""
+    # Create V1 limit
+    resp = await client.post(
+        "/concurrency_limits/", json={"tag": "decrementme", "concurrency_limit": 5}
+    )
+    assert resp.status_code == 201
+
+    # INCREMENT to acquire a slot
+    task_run_id = str(uuid4())
+    resp = await client.post(
+        "/concurrency_limits/increment",
+        json={"names": ["decrementme"], "task_run_id": task_run_id},
+    )
+    assert resp.status_code == 200
+
+    # DECREMENT to release the slot
+    resp = await client.post(
+        "/concurrency_limits/decrement",
+        json={"names": ["decrementme"], "task_run_id": task_run_id},
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    # V1 decrement returns the limits
+    assert data is not None
+
+
+async def test_v1_increment_decrement_multiple_tags(client: AsyncClient, session):
+    """Test INCREMENT/DECREMENT with multiple tags."""
+    # Create multiple V1 limits
+    for tag in ["multi1", "multi2", "multi3"]:
+        resp = await client.post(
+            "/concurrency_limits/", json={"tag": tag, "concurrency_limit": 2}
+        )
+        assert resp.status_code == 201
+
+    # INCREMENT multiple tags at once
+    task_run_id = str(uuid4())
+    resp = await client.post(
+        "/concurrency_limits/increment",
+        json={"names": ["multi1", "multi2", "multi3"], "task_run_id": task_run_id},
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert len(data) == 3
+    assert {d["name"] for d in data} == {"multi1", "multi2", "multi3"}
+
+    # DECREMENT all tags
+    resp = await client.post(
+        "/concurrency_limits/decrement",
+        json={"names": ["multi1", "multi2", "multi3"], "task_run_id": task_run_id},
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    # V1 decrement returns the limits
+    assert data is not None

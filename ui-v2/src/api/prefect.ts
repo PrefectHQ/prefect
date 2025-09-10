@@ -12707,7 +12707,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": null;
+                    "application/json": components["schemas"]["MinimalConcurrencyLimitResponse"][];
                 };
             };
             /** @description Validation Error */
