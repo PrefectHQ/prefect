@@ -76,3 +76,27 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
             if expiration < now
         ]
         return expired_leases[:limit]
+
+    # Optional helper used by the API layer when present
+    async def list_holders_for_limit(self, limit_id: UUID) -> list[dict]:
+        now = datetime.now(timezone.utc)
+        out: list[dict] = []
+        for lease_id, lease in self.leases.items():
+            exp = self.expirations.get(lease_id)
+            if not exp or exp <= now:
+                continue
+            if limit_id not in lease.resource_ids:
+                continue
+            holder = getattr(lease.metadata, "holder", None) if lease.metadata else None
+            if holder is not None and hasattr(holder, "model_dump"):
+                holder = holder.model_dump(mode="json")  # type: ignore[attr-defined]
+            if isinstance(holder, dict) and holder.get("type") and holder.get("id"):
+                out.append(
+                    {
+                        "holder": holder,
+                        "slots": getattr(lease.metadata, "slots", 1)
+                        if lease.metadata
+                        else 1,
+                    }
+                )
+        return out
