@@ -26,6 +26,7 @@ from prefect.server.utilities.server import PrefectRouter
 from prefect.settings import PREFECT_TASK_RUN_TAG_CONCURRENCY_SLOT_WAIT_SECONDS
 from prefect.settings.context import get_current_settings
 from prefect.types._datetime import now
+from prefect.utilities.collections import distinct
 
 router: PrefectRouter = PrefectRouter(
     prefix="/concurrency_limits", tags=["Concurrency Limits"]
@@ -334,17 +335,8 @@ async def read_concurrency_limits(
                 )
             )
 
-        combined: list[schemas.core.ConcurrencyLimit] = []
-        seen: set[str] = set()
-        for obj in v1_all:
-            if obj.tag not in seen:
-                seen.add(obj.tag)
-                combined.append(obj)
-        for obj in converted_v2:
-            if obj.tag not in seen:
-                seen.add(obj.tag)
-                combined.append(obj)
-
+        # Prefer V1 entries by placing them first, then dedupe by tag
+        combined = list(distinct(v1_all + converted_v2, key=lambda o: o.tag))
         return combined[offset : offset + limit]
 
     # Original V1 implementation
