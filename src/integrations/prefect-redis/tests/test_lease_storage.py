@@ -318,16 +318,15 @@ class TestConcurrencyLeaseStorage:
         lease = await storage.create_lease([rid], ttl, meta)
 
         holders = await storage.list_holders_for_limit(rid)
-        assert holder in holders
+        assert {"holder": holder, "slots": 1} in holders
 
-        looked_up = await storage.find_lease_by_holder(rid, holder)
-        assert looked_up == lease.id
+        # Nebula parity: no reverse holder->lease lookup; verify presence via list
 
         await storage.revoke_lease(lease.id)
 
         holders_after = await storage.list_holders_for_limit(rid)
-        assert holder not in holders_after
-        assert await storage.find_lease_by_holder(rid, holder) is None
+        assert {"holder": holder, "slots": 1} not in holders_after
+        # Reverse lookup removed; ensure holder entry is gone via list
 
     async def test_create_without_holder_does_not_index(
         self, storage: ConcurrencyLeaseStorage
@@ -340,12 +339,7 @@ class TestConcurrencyLeaseStorage:
 
         holders = await storage.list_holders_for_limit(rid)
         assert holders == []
-        assert (
-            await storage.find_lease_by_holder(
-                rid, {"type": "task_run", "id": str(uuid4())}
-            )
-            is None
-        )
+        # Reverse lookup removed; nothing to check here beyond empty list
 
     async def test_multiple_resource_ids_index_all_and_cleanup(
         self, storage: ConcurrencyLeaseStorage
@@ -357,9 +351,19 @@ class TestConcurrencyLeaseStorage:
         setattr(meta, "holder", holder)
 
         lease = await storage.create_lease([rid1, rid2], ttl, meta)
-        assert holder in await storage.list_holders_for_limit(rid1)
-        assert holder in await storage.list_holders_for_limit(rid2)
+        assert {"holder": holder, "slots": 1} in await storage.list_holders_for_limit(
+            rid1
+        )
+        assert {"holder": holder, "slots": 1} in await storage.list_holders_for_limit(
+            rid2
+        )
 
         await storage.revoke_lease(lease.id)
-        assert holder not in await storage.list_holders_for_limit(rid1)
-        assert holder not in await storage.list_holders_for_limit(rid2)
+        assert {
+            "holder": holder,
+            "slots": 1,
+        } not in await storage.list_holders_for_limit(rid1)
+        assert {
+            "holder": holder,
+            "slots": 1,
+        } not in await storage.list_holders_for_limit(rid2)
