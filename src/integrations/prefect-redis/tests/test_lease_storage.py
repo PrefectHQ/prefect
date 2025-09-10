@@ -318,7 +318,7 @@ class TestConcurrencyLeaseStorage:
         lease = await storage.create_lease([rid], ttl, meta)
 
         holders = await storage.list_holders_for_limit(rid)
-        assert {"type": holder["type"], "id": holder["id"]} in holders
+        assert holder in holders
 
         looked_up = await storage.find_lease_by_holder(rid, holder)
         assert looked_up == lease.id
@@ -326,7 +326,7 @@ class TestConcurrencyLeaseStorage:
         await storage.revoke_lease(lease.id)
 
         holders_after = await storage.list_holders_for_limit(rid)
-        assert {"type": holder["type"], "id": holder["id"]} not in holders_after
+        assert holder not in holders_after
         assert await storage.find_lease_by_holder(rid, holder) is None
 
     async def test_create_without_holder_does_not_index(
@@ -357,21 +357,9 @@ class TestConcurrencyLeaseStorage:
         setattr(meta, "holder", holder)
 
         lease = await storage.create_lease([rid1, rid2], ttl, meta)
-        assert {
-            "type": holder["type"],
-            "id": holder["id"],
-        } in await storage.list_holders_for_limit(rid1)
-        assert {
-            "type": holder["type"],
-            "id": holder["id"],
-        } in await storage.list_holders_for_limit(rid2)
+        assert holder in await storage.list_holders_for_limit(rid1)
+        assert holder in await storage.list_holders_for_limit(rid2)
 
         await storage.revoke_lease(lease.id)
-        assert {
-            "type": holder["type"],
-            "id": holder["id"],
-        } not in await storage.list_holders_for_limit(rid1)
-        assert {
-            "type": holder["type"],
-            "id": holder["id"],
-        } not in await storage.list_holders_for_limit(rid2)
+        assert holder not in await storage.list_holders_for_limit(rid1)
+        assert holder not in await storage.list_holders_for_limit(rid2)
