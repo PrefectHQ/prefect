@@ -54,8 +54,10 @@ class SnowflakeCredentials(CredentialsBlock):
             [Snowflake documentation](https://docs.snowflake.com/en/user-guide/python-connector-api.html#connect)
             for details, and note that `externalbrowser` will only
             work in an environment where a browser is available.
+        workload_identity_provider (str): The workload identity provider to use when
+            authenticator is set to `workload_identity`.
         token (SecretStr): The OAuth or JWT Token to provide when
-            authenticator is set to OAuth.
+            authenticator is set to OAuth, or workload_identity_provider is set to OIDC.
         endpoint (str): The Okta endpoint to use when authenticator is
             set to `okta_endpoint`, e.g. `https://<okta_account_name>.okta.com`.
         role (str): The name of the default role to use.
