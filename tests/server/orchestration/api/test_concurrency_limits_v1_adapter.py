@@ -20,15 +20,18 @@ from prefect.server.concurrency.lease_storage.filesystem import ConcurrencyLease
 from prefect.server.models.concurrency_limits_v2 import create_concurrency_limit
 from prefect.server.schemas.core import ConcurrencyLimitV2
 from prefect.server.utilities.leasing import ResourceLease
-from prefect.settings import PREFECT_SERVER_CONCURRENCY_LEASE_STORAGE
+from prefect.settings import (
+    PREFECT_INTERNAL_V1_V2_CONCURRENCY_ADAPTER_ENABLED,
+    PREFECT_SERVER_CONCURRENCY_LEASE_STORAGE,
+)
 from prefect.settings.context import temporary_settings
 
 
 @pytest.fixture(autouse=True)
-def adapter_env(monkeypatch):
-    """Enable V1→V2 adapter for all tests in this module."""
-    monkeypatch.setenv("PREFECT_SERVER_V1_V2_CONCURRENCY_ADAPTER", "1")
-    yield
+def adapter_env():
+    """Enable V1→V2 adapter for all tests in this module via internal setting."""
+    with temporary_settings({PREFECT_INTERNAL_V1_V2_CONCURRENCY_ADAPTER_ENABLED: True}):
+        yield
 
 
 @pytest.fixture
@@ -121,7 +124,8 @@ async def test_v1_read_by_tag_uses_v2_leases(client: AsyncClient, session, monke
 
         async def list_holders_for_limit(self, limit_id):
             if limit_id == v2.id:
-                return [{"type": "task_run", "id": tr_id}]
+                # Return nested holder structure to ensure API supports both shapes
+                return [{"holder": {"type": "task_run", "id": tr_id}, "slots": 1}]
             return []
 
         async def read_active_lease_ids(self, limit: int = 100):
