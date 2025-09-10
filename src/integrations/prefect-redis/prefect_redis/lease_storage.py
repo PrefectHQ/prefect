@@ -313,4 +313,3 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
             logger.error(f"Failed to list holders for limit {limit_id}: {e}")
             raise
 
-    # Nebula parity: no reverse holder->lease lookup; callers should list and filter.
