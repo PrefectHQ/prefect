@@ -24,7 +24,6 @@ from prefect.server.models import concurrency_limits
 from prefect.server.models import concurrency_limits_v2 as cl_v2_models
 from prefect.server.utilities.server import PrefectRouter
 from prefect.settings import PREFECT_TASK_RUN_TAG_CONCURRENCY_SLOT_WAIT_SECONDS
-from prefect.settings.context import get_current_settings
 from prefect.types._datetime import now
 from prefect.utilities.collections import distinct
 
@@ -34,8 +33,8 @@ router: PrefectRouter = PrefectRouter(
 
 
 def _adapter_enabled() -> bool:
-    """Feature-gate for V1→V2 adapter (internal setting)."""
-    return get_current_settings().internal.v1_v2_concurrency_adapter_enabled
+    """Adapter is always enabled in Server."""
+    return True
 
 
 async def _get_active_slots_from_leases(limit_id: UUID) -> list[str]:

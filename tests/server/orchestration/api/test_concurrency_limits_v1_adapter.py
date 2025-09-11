@@ -21,7 +21,6 @@ from prefect.server.models.concurrency_limits_v2 import create_concurrency_limit
 from prefect.server.schemas.core import ConcurrencyLimitV2
 from prefect.server.utilities.leasing import ResourceLease
 from prefect.settings import (
-    PREFECT_INTERNAL_V1_V2_CONCURRENCY_ADAPTER_ENABLED,
     PREFECT_SERVER_CONCURRENCY_LEASE_STORAGE,
 )
 from prefect.settings.context import temporary_settings
@@ -29,9 +28,8 @@ from prefect.settings.context import temporary_settings
 
 @pytest.fixture(autouse=True)
 def adapter_env():
-    """Enable V1→V2 adapter for all tests in this module via internal setting."""
-    with temporary_settings({PREFECT_INTERNAL_V1_V2_CONCURRENCY_ADAPTER_ENABLED: True}):
-        yield
+    """Adapter is always enabled; no-op fixture for consistency."""
+    yield
 
 
 @pytest.fixture
