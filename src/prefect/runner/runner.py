@@ -1488,7 +1488,8 @@ class Runner:
     async def __aenter__(self) -> Self:
         self._logger.debug("Starting runner...")
         self._client = get_client()
-        self._tmp_dir.mkdir(parents=True)
+        # Be tolerant to concurrent/duplicate initialization attempts
+        self._tmp_dir.mkdir(parents=True, exist_ok=True)
 
         self._limiter = anyio.CapacityLimiter(self.limit) if self.limit else None
 
@@ -1535,7 +1536,8 @@ class Runner:
 
         await self._exit_stack.__aexit__(*exc_info)
 
-        shutil.rmtree(str(self._tmp_dir))
+        # Be tolerant to already-removed temp directories
+        shutil.rmtree(str(self._tmp_dir), ignore_errors=True)
         del self._runs_task_group, self._loops_task_group
 
         if self._heartbeat_task:
