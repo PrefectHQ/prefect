@@ -42,7 +42,7 @@ WORKDIR /opt/prefect
 RUN apt-get update && \
     apt-get install --no-install-recommends -y \
     gpg \
-    git=1:2.* \
+    git>=1:2.47.3 \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Install UV from official image - pin to specific version for build caching
@@ -97,7 +97,7 @@ RUN apt-get update && \
     apt-get install --no-install-recommends -y \
     tini=0.19.* \
     build-essential \
-    git=1:2.* \
+    git>=1:2.47.3 \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Install UV from official image - pin to specific version for build caching
