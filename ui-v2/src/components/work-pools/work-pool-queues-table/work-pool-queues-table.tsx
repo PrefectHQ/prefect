@@ -76,6 +76,7 @@ export const WorkPoolQueuesTable = ({
 				onSearchChange={onSearchChange}
 				resultsCount={resultsCount}
 				totalCount={totalCount}
+				workPoolName={workPoolName}
 			/>
 			{resultsCount === 0 ? (
 				<WorkPoolQueuesTableEmptyState
