@@ -41,7 +41,14 @@ jobs:
             actions: read
 
           # Optional: Give a custom prompt to Claude. If this is not specified, Claude will perform the instructions specified in the comment that tagged it.
-          # prompt: 'Update the pull request description to include a summary of changes.'
+          prompt: |
+            Proceed with the task specified in the comment that tagged you.
+
+            IMPORTANT: Before committing any code changes, you MUST run `pre-commit run --all-files` to ensure all formatting, linting, and type checking passes. This prevents the Static Analysis workflow from failing.
+
+            The pre-commit hooks will automatically format code with ruff and check types with pyright. If the hooks modify any files, add them with `git add .` and commit again.
+
+            Never use `git commit --no-verify` or `git commit --amend` under any circumstances.
 
           # Optional: Add claude_args to customize behavior and configuration
           # See https://github.com/anthropics/claude-code-action/blob/main/docs/usage.md
