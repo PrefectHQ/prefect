@@ -437,15 +437,6 @@
                     ],
                     "title": "Logging Level",
                     "type": "string"
-                },
-                "v1_v2_concurrency_adapter_enabled": {
-                    "default": false,
-                    "description": "Enable the V1\u2192V2 concurrency adapter for server endpoints. Intended for internal rollout control; subject to removal.",
-                    "supported_environment_variables": [
-                        "PREFECT_INTERNAL_V1_V2_CONCURRENCY_ADAPTER_ENABLED"
-                    ],
-                    "title": "V1 V2 Concurrency Adapter Enabled",
-                    "type": "boolean"
                 }
             },
             "title": "InternalSettings",
