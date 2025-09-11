@@ -1358,9 +1358,12 @@ class TestRegisterBlockTypeAndSchema:
         assert umbrella_block_schema is not None
 
     @pytest.mark.skipif(
-        sys.version_info < (3, 10), reason="requires python3.10 or higher for `|` unions"
+        sys.version_info < (3, 10),
+        reason="requires python3.10 or higher for `|` unions",
     )
-    async def test_register_nested_block_union_pipe(self, prefect_client: PrefectClient):
+    async def test_register_nested_block_union_pipe(
+        self, prefect_client: PrefectClient
+    ):
         class A(Block):
             a: str
 
