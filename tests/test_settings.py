@@ -252,7 +252,6 @@ SUPPORTED_SETTINGS = {
     "PREFECT_FLOWS_DEFAULT_RETRY_DELAY_SECONDS": {"test_value": 10},
     "PREFECT_HOME": {"test_value": Path.home() / ".prefect" / "test"},
     "PREFECT_INTERNAL_LOGGING_LEVEL": {"test_value": "INFO"},
-    "PREFECT_INTERNAL_V1_V2_CONCURRENCY_ADAPTER_ENABLED": {"test_value": True},
     "PREFECT_LOCAL_STORAGE_PATH": {
         "test_value": Path("/path/to/storage"),
         "legacy": True,
