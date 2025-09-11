@@ -4,7 +4,7 @@ Routes for interacting with concurrency limit objects.
 
 from __future__ import annotations
 
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
 from typing import List, Optional, Sequence
 from uuid import UUID
 
@@ -90,14 +90,29 @@ async def _find_lease_for_task_run(
     if not limit_ids:
         return None
 
-    # Check if storage has find_lease_by_holder method
-    find_fn = getattr(lease_storage, "find_lease_by_holder", None)
-    if callable(find_fn):
-        holder = {"type": "task_run", "id": str(task_run_id)}
+    # Try direct per-limit holder search if storage exposes helpers; else scan
+    list_fn = getattr(lease_storage, "list_holders_for_limit", None)
+    if callable(list_fn):
+        desired = {"type": "task_run", "id": str(task_run_id)}
         for limit_id in limit_ids:
-            lease_id = await find_fn(limit_id, holder)  # type: ignore[misc]
-            if lease_id:
-                return lease_id
+            holders = await list_fn(limit_id)  # type: ignore[misc]
+            # holders may be shape 1) {"type","id"} or 2) {"holder": {...}, "slots": N}
+            for h in holders:
+                payload = h.get("holder", h) if isinstance(h, dict) else None
+                if isinstance(payload, dict) and payload == desired:
+                    # Read a lease id by scanning active leases for this limit
+                    for lid in await lease_storage.read_active_lease_ids(limit=1000):
+                        lease = await lease_storage.read_lease(lid)
+                        if lease and limit_id in lease.resource_ids:
+                            inner = (
+                                getattr(lease.metadata, "holder", None)
+                                if lease.metadata
+                                else None
+                            )
+                            if inner is not None and hasattr(inner, "model_dump"):
+                                inner = inner.model_dump(mode="json")  # type: ignore[attr-defined]
+                            if isinstance(inner, dict) and inner == desired:
+                                return lid
 
     # Fallback: scan active leases
     active_leases = await lease_storage.read_active_lease_ids(limit=1000)
@@ -106,6 +121,8 @@ async def _find_lease_for_task_run(
         lease = await lease_storage.read_lease(lease_id)
         if lease and lease.metadata and getattr(lease.metadata, "holder", None):
             holder = lease.metadata.holder
+            if holder is not None and hasattr(holder, "model_dump"):
+                holder = holder.model_dump(mode="json")  # type: ignore[attr-defined]
             if (
                 isinstance(holder, dict)
                 and holder.get("type") == "task_run"
@@ -649,15 +666,23 @@ async def decrement_concurrency_limits_v1(
 ) -> List[MinimalConcurrencyLimitResponse]:
     if _adapter_enabled():
         # V1→V2 adapter: Find and release the lease for this task run
-        from prefect.client.orchestration import get_client
-
-        # Find the lease for this task run
         lease_id = await _find_lease_for_task_run(task_run_id, names, db)
-
         if lease_id:
-            # Use V2 decrement with lease
-            async with get_client() as client:
-                await client.decrement_concurrency_slots_with_lease(lease_id=lease_id)
+            # Perform server-side decrement-by-lease
+            lease_storage = get_concurrency_lease_storage()
+            lease = await lease_storage.read_lease(lease_id)
+            if lease:
+                occupancy_seconds = (
+                    datetime.now(timezone.utc) - lease.created_at
+                ).total_seconds()
+                async with db.session_context(begin_transaction=True) as session:
+                    await cl_v2_models.bulk_decrement_active_slots(
+                        session=session,
+                        concurrency_limit_ids=lease.resource_ids,
+                        slots=lease.metadata.slots if lease.metadata else 0,
+                        occupancy_seconds=occupancy_seconds,
+                    )
+                await lease_storage.revoke_lease(lease_id)
 
         # Return current limits (matching V1 behavior)
         v2_names = [f"tag:{tag}" for tag in names]
