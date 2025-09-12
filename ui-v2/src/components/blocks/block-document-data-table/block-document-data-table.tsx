@@ -52,6 +52,7 @@ const createColumns = ({
 		),
 		enableSorting: false,
 		enableHiding: false,
+		maxSize: 20,
 	}),
 	columnHelper.display({
 		id: "block",

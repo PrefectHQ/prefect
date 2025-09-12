@@ -32,7 +32,7 @@ export const columns: ColumnDef<Flow>[] = [
 		),
 		enableSorting: false,
 		enableHiding: false,
-		maxSize: 10,
+		maxSize: 20,
 	},
 	{
 		accessorKey: "name",
