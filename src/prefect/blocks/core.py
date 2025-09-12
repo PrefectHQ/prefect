@@ -309,6 +309,8 @@ def schema_extra(schema: dict[str, Any], model: type["Block"]) -> None:
             collect_block_schema_references(name, field.annotation)
     schema["block_schema_references"] = refs
 
+    # Do not rewrite properties here; rely on Pydantic's $defs/$ref emission.
+
 
 @register_base_type
 class Block(BaseModel, ABC):
@@ -343,37 +345,28 @@ class Block(BaseModel, ABC):
     ) -> core_schema.CoreSchema:
         base_schema = handler(source)
 
+        # Do not modify the base abstract Block core schema; JSON schema generation
+        # relies on unmodified model schemas for correct $defs/$ref emission.
         if cls.__name__ == "Block":
-            # When validating `Block` directly, dispatch to the concrete
-            # subclass based on `block_type_slug` if present.
-            def after(value: Any) -> Any:
-                if isinstance(value, dict):
-                    slug = value.get("block_type_slug")
-                    if slug:
-                        sub = cls.get_block_class_from_key(slug)
-                        return sub.model_validate(value)
-                return value
+            return base_schema
 
-            return core_schema.no_info_after_validator_function(
-                after, core_schema.any_schema()
-            )
-
-        # For concrete subclasses, reject inputs whose block_type_slug
-        # points to a different concrete Block; this enables correct
-        # discriminated behavior in Unions of Block subclasses.
-        expected_slug = None
-        try:
-            expected_slug = cls.get_block_type_slug()
-        except Exception:
-            expected_slug = None
-
+        # For subclasses, reject inputs whose slug maps to a non-subclass to
+        # support Union[SiblingA, SiblingB] discrimination, and delegate to
+        # derived classes when validating a base subclass.
         def before(value: Any) -> Any:
             if isinstance(value, dict):
                 slug = value.get("block_type_slug")
-                if slug and expected_slug and slug != expected_slug:
-                    raise ValueError(
-                        f"block_type_slug '{slug}' does not match expected '{expected_slug}' for {cls.__name__}"
-                    )
+                if slug:
+                    try:
+                        target = Block.get_block_class_from_key(slug)
+                    except Exception:
+                        return value
+                    if target is not cls:
+                        if issubclass(target, cls):
+                            return target.model_validate(value)
+                        raise ValueError(
+                            f"block_type_slug '{slug}' does not map to subclass of {cls.__name__}"
+                        )
             return value
 
         return core_schema.no_info_before_validator_function(before, base_schema)
@@ -538,16 +531,16 @@ class Block(BaseModel, ABC):
             else block_schema_fields
         )
         fields_for_checksum = remove_nested_keys(["secret_fields"], block_schema_fields)
-        if fields_for_checksum.get("definitions"):
+        if "definitions" in fields_for_checksum:
+            defs = fields_for_checksum["definitions"] or {}
             non_block_definitions = _get_non_block_reference_definitions(
-                fields_for_checksum, fields_for_checksum["definitions"]
+                fields_for_checksum, defs
             )
             if non_block_definitions:
                 fields_for_checksum["definitions"] = non_block_definitions
             else:
-                # Pop off definitions entirely instead of empty dict for consistency
-                # with the OpenAPI specification
-                fields_for_checksum.pop("definitions")
+                # Remove empty or block-only definitions for stable checksums across contexts
+                fields_for_checksum.pop("definitions", None)
         checksum = hash_objects(fields_for_checksum, hash_algo=hashlib.sha256)
         if checksum is None:
             raise ValueError("Unable to compute checksum for block schema")
@@ -1598,9 +1591,14 @@ class Block(BaseModel, ABC):
         subclasses can confuse Pydantic and yield partially-initialized models.
         """
         block_type_slug = kwargs.pop("block_type_slug", None)
-        if block_type_slug and cls.__name__ == "Block":
-            subcls = cls.get_block_class_from_key(block_type_slug)
-            return super().__new__(subcls)
+        if block_type_slug:
+            if cls.__name__ == "Block":
+                subcls = cls.get_block_class_from_key(block_type_slug)
+                return super().__new__(subcls)
+            else:
+                # Preserve side-effect of collections loading expected by tests,
+                # but do not mutate the class for concrete subclasses here.
+                load_prefect_collections()
         return super().__new__(cls)
 
     def get_block_placeholder(self) -> str:
@@ -1641,8 +1639,105 @@ class Block(BaseModel, ABC):
         # ensure backwards compatibility by copying $defs into definitions
         if "$defs" in schema:
             schema["definitions"] = schema.pop("$defs")
+        # drop empty definitions for stable equality with server expectations
+        if schema.get("definitions") == {}:
+            schema.pop("definitions", None)
 
         schema = remove_nested_keys(["additionalProperties"], schema)
+
+        # Post-process: ensure nested block models appear under definitions and
+        # properties reference them via $ref. This recovers references when
+        # validators alter Pydantic's default ref behavior.
+        def ensure_ref(defs: dict[str, Any], entry: dict[str, Any]) -> dict[str, Any]:
+            title = entry.get("title")
+            slug = entry.get("block_type_slug")
+            # Prefer canonical schema from the registered Block class
+            if slug:
+                try:
+                    cls_for_slug = Block.get_block_class_from_key(slug)
+                    canonical = cls_for_slug.model_json_schema()
+                    title = canonical.get("title", title)
+                    # Hoist nested definitions from canonical into parent defs
+                    nested_defs = canonical.pop("definitions", {}) or {}
+                    defs.update({k: v for k, v in nested_defs.items() if k not in defs})
+                    defs[title] = canonical
+                    return {"$ref": f"#/definitions/{title}"}
+                except Exception:
+                    pass
+            if not title:
+                return entry
+            defs.setdefault(title, entry)
+            return {"$ref": f"#/definitions/{title}"}
+
+        def rewrite_property(
+            prop: dict[str, Any], defs: dict[str, Any]
+        ) -> dict[str, Any]:
+            if not isinstance(prop, dict):
+                return prop
+            # Union of entries
+            if isinstance(prop.get("anyOf"), list):
+                new_anyof: list[dict[str, Any]] = []
+                for opt in prop["anyOf"]:
+                    if isinstance(opt, dict) and opt.get("block_type_slug"):
+                        new_anyof.append(ensure_ref(defs, opt))
+                    else:
+                        new_anyof.append(opt)
+                prop["anyOf"] = new_anyof
+                return prop
+            # Single inlined block object
+            if prop.get("block_type_slug") and prop.get("title"):
+                return ensure_ref(defs, prop)
+            # Array of blocks
+            if prop.get("type") == "array" and isinstance(prop.get("items"), dict):
+                items = prop["items"]
+                if isinstance(items.get("anyOf"), list):
+                    new_anyof: list[dict[str, Any]] = []
+                    for opt in items["anyOf"]:
+                        if isinstance(opt, dict) and opt.get("block_type_slug"):
+                            new_anyof.append(ensure_ref(defs, opt))
+                        else:
+                            new_anyof.append(opt)
+                    prop["items"]["anyOf"] = new_anyof
+                elif items.get("block_type_slug") and items.get("title"):
+                    prop["items"] = ensure_ref(defs, items)
+                return prop
+            return prop
+
+        defs = schema.setdefault("definitions", {})
+        properties = schema.get("properties") or {}
+        if properties:
+            for k, v in list(properties.items()):
+                properties[k] = rewrite_property(v, defs)
+
+        # Recursively normalize definitions so nested block fields use $ref to
+        # top-level definitions and all nested block schemas are hoisted.
+        def process_definition(def_title: str) -> None:
+            d = defs.get(def_title)
+            if not isinstance(d, dict):
+                return
+            props = d.get("properties") or {}
+            for name, spec in list(props.items()):
+                props[name] = rewrite_property(spec, defs)
+
+        # Iterate until no new definitions are added
+        seen = set()
+        while True:
+            titles = list(defs.keys())
+            new = False
+            for t in titles:
+                if t in seen:
+                    continue
+                seen.add(t)
+                before = set(defs.keys())
+                process_definition(t)
+                after = set(defs.keys())
+                if after - before:
+                    new = True
+            if not new:
+                break
+        # final cleanup: drop empty definitions if present
+        if schema.get("definitions") == {}:
+            schema.pop("definitions", None)
         return schema
 
     @classmethod
@@ -1668,17 +1763,18 @@ class Block(BaseModel, ABC):
                     target_cls = None  # Unknown slug; fall through to super()
                 else:
                     if target_cls is not None and target_cls is not cls:
-                        # If validating the abstract Block, delegate directly to
-                        # the resolved concrete class. If validating a concrete
-                        # subclass (e.g., within a Union of subclasses), raise
-                        # to allow Pydantic to try the next Union candidate.
-                        if cls.__name__ == "Block":
+                        # If the resolved target is a subclass of the class we are
+                        # validating, delegate to it (supports validating abstract
+                        # base subclasses like WritableFileSystem with a concrete slug).
+                        if inspect.isclass(target_cls) and issubclass(target_cls, cls):
                             return target_cls.model_validate(
                                 obj,
                                 strict=strict,
                                 from_attributes=from_attributes,
                                 context=context,
                             )
+                        # Otherwise, we're likely in a Union of sibling subclasses;
+                        # raise to let Pydantic try the next candidate.
                         raise ValueError(
                             f"block_type_slug '{block_type_slug}' matches {target_cls.__name__}, not {cls.__name__}"
                         )
