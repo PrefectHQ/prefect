@@ -208,3 +208,37 @@ class TestMemoryConcurrencyLeaseStorage:
 
         expired_ids = await storage.read_expired_lease_ids()
         assert len(expired_ids) == 2
+
+    async def test_list_holders_for_limit_returns_holders(
+        self, storage: ConcurrencyLeaseStorage
+    ):
+        rid1, rid2 = uuid4(), uuid4()
+        ttl = timedelta(minutes=5)
+        holder = {"type": "flow_run", "id": str(uuid4())}
+        meta = ConcurrencyLimitLeaseMetadata(slots=1, holder=holder)
+
+        await storage.create_lease([rid1, rid2], ttl, meta)
+
+        holders1 = await storage.list_holders_for_limit(rid1)
+        holders2 = await storage.list_holders_for_limit(rid2)
+        assert {"holder": holder, "slots": 1} in holders1
+        assert {"holder": holder, "slots": 1} in holders2
+
+    async def test_list_holders_for_limit_excludes_expired_and_no_holder(
+        self, storage: ConcurrencyLeaseStorage
+    ):
+        rid = uuid4()
+        # Expired lease with holder
+        await storage.create_lease(
+            [rid],
+            timedelta(seconds=-1),
+            ConcurrencyLimitLeaseMetadata(
+                slots=1, holder={"type": "flow_run", "id": str(uuid4())}
+            ),
+        )
+        # Valid lease without holder
+        await storage.create_lease(
+            [rid], timedelta(minutes=1), ConcurrencyLimitLeaseMetadata(slots=1)
+        )
+        holders = await storage.list_holders_for_limit(rid)
+        assert holders == []

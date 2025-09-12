@@ -135,6 +135,13 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
 
         with open(lease_file, "w") as f:
             json.dump(lease_data, f)
+        # DEBUG: log created lease metadata holder
+        holder = getattr(metadata, "holder", None) if metadata else None
+        try:
+            dumped = holder.model_dump(mode="json") if holder else None  # type: ignore[attr-defined]
+        except Exception:
+            dumped = holder
+        print(f"DEBUG filesystem.create_lease holder={dumped}")
 
         # Update expiration index
         await self._update_expiration_index(lease.id, expiration)
@@ -235,3 +242,28 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
                 continue
 
         return expired_leases
+
+    # Optional helper used by the API layer when present
+    async def list_holders_for_limit(self, limit_id: UUID) -> list[dict[str, Any]]:
+        """Enumerate non-expired holders for a given limit by scanning lease files."""
+        result: list[dict[str, Any]] = []
+        index = await self._load_expiration_index()
+        now = datetime.now(timezone.utc)
+        for lease_id_str, expiration_str in index.items():
+            try:
+                lease_id = UUID(lease_id_str)
+                expiration = datetime.fromisoformat(expiration_str)
+            except Exception:
+                continue
+            if expiration <= now:
+                continue
+            lease = await self.read_lease(lease_id)
+            if not lease or limit_id not in lease.resource_ids:
+                continue
+            holder = getattr(lease.metadata, "holder", None) if lease.metadata else None
+            if holder is not None and hasattr(holder, "model_dump"):
+                holder = holder.model_dump(mode="json")  # type: ignore[attr-defined]
+            if isinstance(holder, dict) and holder.get("type") and holder.get("id"):
+                slots = getattr(lease.metadata, "slots", 1) if lease.metadata else 1
+                result.append({"holder": holder, "slots": slots})
+        return result
