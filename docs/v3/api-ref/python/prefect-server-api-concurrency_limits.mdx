@@ -24,7 +24,7 @@ Create a task run concurrency limit.
 For more information, see https://docs.prefect.io/v3/develop/task-run-limits.
 
 
-### `read_concurrency_limit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/concurrency_limits.py#L239" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `read_concurrency_limit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/concurrency_limits.py#L240" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_concurrency_limit(concurrency_limit_id: UUID = Path(..., description='The concurrency limit id', alias='id'), db: PrefectDBInterface = Depends(provide_database_interface)) -> schemas.core.ConcurrencyLimit
@@ -37,7 +37,7 @@ The `active slots` field contains a list of TaskRun IDs currently using a
 concurrency slot for the specified tag.
 
 
-### `read_concurrency_limit_by_tag` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/concurrency_limits.py#L294" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `read_concurrency_limit_by_tag` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/concurrency_limits.py#L295" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_concurrency_limit_by_tag(tag: str = Path(..., description='The tag name', alias='tag'), db: PrefectDBInterface = Depends(provide_database_interface)) -> schemas.core.ConcurrencyLimit
@@ -50,7 +50,7 @@ The `active slots` field contains a list of TaskRun IDs currently using a
 concurrency slot for the specified tag.
 
 
-### `read_concurrency_limits` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/concurrency_limits.py#L353" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `read_concurrency_limits` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/concurrency_limits.py#L354" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_concurrency_limits(limit: int = dependencies.LimitBody(), offset: int = Body(0, ge=0), db: PrefectDBInterface = Depends(provide_database_interface)) -> Sequence[schemas.core.ConcurrencyLimit]
@@ -63,31 +63,31 @@ For each concurrency limit the `active slots` field contains a list of TaskRun I
 currently using a concurrency slot for the specified tag.
 
 
-### `reset_concurrency_limit_by_tag` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/concurrency_limits.py#L405" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `reset_concurrency_limit_by_tag` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/concurrency_limits.py#L406" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 reset_concurrency_limit_by_tag(tag: str = Path(..., description='The tag name'), slot_override: Optional[List[UUID]] = Body(None, embed=True, description='Manual override for active concurrency limit slots.'), db: PrefectDBInterface = Depends(provide_database_interface)) -> None
 ```
 
-### `delete_concurrency_limit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/concurrency_limits.py#L474" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `delete_concurrency_limit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/concurrency_limits.py#L475" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 delete_concurrency_limit(concurrency_limit_id: UUID = Path(..., description='The concurrency limit id', alias='id'), db: PrefectDBInterface = Depends(provide_database_interface)) -> None
 ```
 
-### `delete_concurrency_limit_by_tag` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/concurrency_limits.py#L492" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `delete_concurrency_limit_by_tag` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/concurrency_limits.py#L493" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 delete_concurrency_limit_by_tag(tag: str = Path(..., description='The tag name'), db: PrefectDBInterface = Depends(provide_database_interface)) -> None
 ```
 
-### `increment_concurrency_limits_v1` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/concurrency_limits.py#L556" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `increment_concurrency_limits_v1` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/concurrency_limits.py#L557" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 increment_concurrency_limits_v1(names: List[str] = Body(..., description='The tags to acquire a slot for'), task_run_id: UUID = Body(..., description='The ID of the task run acquiring the slot'), db: PrefectDBInterface = Depends(provide_database_interface)) -> List[MinimalConcurrencyLimitResponse]
 ```
 
-### `decrement_concurrency_limits_v1` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/concurrency_limits.py#L727" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `decrement_concurrency_limits_v1` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/concurrency_limits.py#L731" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 decrement_concurrency_limits_v1(names: List[str] = Body(..., description='The tags to release a slot for'), task_run_id: UUID = Body(..., description='The ID of the task run releasing the slot'), db: PrefectDBInterface = Depends(provide_database_interface)) -> List[MinimalConcurrencyLimitResponse]
@@ -95,6 +95,6 @@ decrement_concurrency_limits_v1(names: List[str] = Body(..., description='The ta
 
 ## Classes
 
-### `Abort` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/concurrency_limits.py#L544" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `Abort` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/concurrency_limits.py#L545" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
-### `Delay` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/concurrency_limits.py#L549" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `Delay` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/concurrency_limits.py#L550" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
