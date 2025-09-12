@@ -54,9 +54,8 @@ def get_concurrency_lease_storage() -> ConcurrencyLeaseStorage:
 
     Will raise a ValueError if the configured module does not pass a type check.
     """
-    concurrency_lease_storage_module = importlib.import_module(
-        get_current_settings().server.concurrency.lease_storage
-    )
+    module_path = get_current_settings().server.concurrency.lease_storage
+    concurrency_lease_storage_module = importlib.import_module(module_path)
     if not isinstance(concurrency_lease_storage_module, ConcurrencyLeaseStorageModule):
         raise ValueError(
             f"The module {get_current_settings().server.concurrency.lease_storage} does not contain a ConcurrencyLeaseStorage class"

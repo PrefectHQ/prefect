@@ -13,7 +13,6 @@ from fastapi import Body, Depends, HTTPException, Path, Response, status
 import prefect.server.api.dependencies as dependencies
 import prefect.server.models as models
 import prefect.server.schemas as schemas
-from prefect.exceptions import PrefectHTTPStatusError
 from prefect.server.api.concurrency_limits_v2 import MinimalConcurrencyLimitResponse
 from prefect.server.concurrency.lease_storage import (
     ConcurrencyLimitLeaseMetadata,
@@ -47,25 +46,55 @@ async def _get_active_slots_from_leases(limit_id: UUID) -> list[str]:
     holders = []
     if callable(list_fn):
         holders = await list_fn(limit_id)  # type: ignore[misc]
-    else:
-        # Fallback: scan active leases
+    # If storage does not support holder listing or returned nothing, scan leases
+    if not holders:
         for lid in await lease_storage.read_active_lease_ids(limit=1024):
             lease = await lease_storage.read_lease(lid)
             if not lease or limit_id not in lease.resource_ids:
                 continue
             if lease.metadata and getattr(lease.metadata, "holder", None):
-                holders.append(lease.metadata.holder)
+                holder_obj = lease.metadata.holder
+                if isinstance(holder_obj, dict):
+                    holders.append(holder_obj)
+                else:
+                    # Try to normalize pydantic model or typed object
+                    dumped = None
+                    if hasattr(holder_obj, "model_dump"):
+                        try:
+                            dumped = holder_obj.model_dump()  # type: ignore[attr-defined]
+                        except Exception:
+                            dumped = None
+                    if isinstance(dumped, dict):
+                        holders.append(dumped)
+                    else:
+                        htype = getattr(holder_obj, "type", None)
+                        hid = getattr(holder_obj, "id", None)
+                        if htype and hid:
+                            holders.append({"type": str(htype), "id": str(hid)})
 
+    # Note: holders may be provided by storage helper or reconstructed by scanning leases
     for holder in holders:
         # Support both shapes:
         # 1) {"type": "task_run", "id": "..."}
         # 2) {"holder": {"type": "task_run", "id": "..."}, "slots": N}
+        # 3) typed objects with attribute `.holder` or attributes `.type`/`.id`
+        h: object
         if isinstance(holder, dict):
             h = holder.get("holder") if "holder" in holder else holder
-            if isinstance(h, dict) and h.get("type") == "task_run" and h.get("id"):
-                active_holders.append(str(h["id"]))
+        else:
+            h = getattr(holder, "holder", holder)
 
-    return active_holders
+        if isinstance(h, dict):
+            if h.get("type") == "task_run" and h.get("id"):
+                active_holders.append(str(h["id"]))
+        else:
+            htype = getattr(h, "type", None)
+            hid = getattr(h, "id", None)
+            if htype == "task_run" and hid:
+                active_holders.append(str(hid))
+
+    # Deduplicate
+    return list(dict.fromkeys(active_holders))
 
 
 async def _find_lease_for_task_run(
@@ -167,7 +196,7 @@ async def create_concurrency_limit(
                 model = existing
                 model.limit = concurrency_limit.concurrency_limit
             else:
-                # Create new
+                # Create new (V1 semantics expect 200 OK, not 201)
                 model = await cl_v2_models.create_concurrency_limit(
                     session=session,
                     concurrency_limit=schemas.core.ConcurrencyLimitV2(
@@ -176,7 +205,6 @@ async def create_concurrency_limit(
                         active=True,
                     ),
                 )
-                response.status_code = status.HTTP_201_CREATED
 
         # Get active slots from leases
         active_slots = await _get_active_slots_from_leases(model.id)
@@ -283,9 +311,18 @@ async def read_concurrency_limit_by_tag(
             )
 
         if not model:
-            raise HTTPException(
-                status.HTTP_404_NOT_FOUND, detail="Concurrency limit not found"
-            )
+            # Cloud parity: fall back to V1 read before returning 404
+            async with db.session_context() as session:
+                v1_model = (
+                    await models.concurrency_limits.read_concurrency_limit_by_tag(
+                        session=session, tag=tag
+                    )
+                )
+            if not v1_model:
+                raise HTTPException(
+                    status.HTTP_404_NOT_FOUND, detail="Concurrency limit not found"
+                )
+            return v1_model
 
         # Get active slots from leases
         active_slots = await _get_active_slots_from_leases(model.id)
@@ -524,60 +561,91 @@ async def increment_concurrency_limits_v1(
     db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> List[MinimalConcurrencyLimitResponse]:
     if _adapter_enabled():
-        # V1→V2 adapter: Use V2 increment-with-lease only when ALL V2 tag: limits exist
-        from prefect.client.orchestration import get_client
-
+        # V1→V2 adapter: acquire directly via models and create a lease locally
         v2_names = [f"tag:{tag}" for tag in names]
-
-        # Check for existence of all V2 limits
-        async with db.session_context() as session:
-            existing_v2 = []
-            for v2_name in v2_names:
-                model = await cl_v2_models.read_concurrency_limit(
-                    session=session, name=v2_name
+        # Read the existing V2 limits for the provided names
+        async with db.session_context(begin_transaction=True) as session:
+            existing_limits = await cl_v2_models.bulk_read_concurrency_limits(
+                session=session, names=v2_names
+            )
+            existing_names = {str(limit.name) for limit in existing_limits}
+            missing = [n for n in v2_names if n not in existing_names]
+            # If V2 is missing but a V1 record exists, create a V2 tag: limit to mirror it
+            for v2_name in missing:
+                v1_tag = v2_name.removeprefix("tag:")
+                v1_model = (
+                    await models.concurrency_limits.read_concurrency_limit_by_tag(
+                        session=session, tag=v1_tag
+                    )
                 )
-                if model:
-                    existing_v2.append(model)
-
-        if len(existing_v2) == len(v2_names):
-            holder = {
-                "type": "task_run",
-                "id": str(task_run_id),
-            }
-
-            try:
-                async with get_client() as client:
-                    response = await client.increment_concurrency_slots_with_lease(
-                        names=v2_names,
-                        slots=1,
-                        mode="concurrency",
-                        lease_duration=86400,  # 24 hours (max allowed)
-                        holder=holder,
+                if v1_model:
+                    created = await cl_v2_models.create_concurrency_limit(
+                        session=session,
+                        concurrency_limit=schemas.core.ConcurrencyLimitV2(
+                            name=v2_name, limit=v1_model.concurrency_limit, active=True
+                        ),
                     )
+                    existing_limits.append(created)
+            if not existing_limits:
+                return []
+            # If any requested tag has a limit of 0, mirror V1 Abort semantics (no Retry-After)
+            zero = next(
+                (limit for limit in existing_limits if getattr(limit, "limit", 0) == 0),
+                None,
+            )
+            if zero is not None:
+                zero_tag = str(zero.name).removeprefix("tag:")
+                raise HTTPException(
+                    status_code=status.HTTP_423_LOCKED,
+                    detail=(
+                        f'The concurrency limit on tag "{zero_tag}" is 0 and will '
+                        "deadlock if the task tries to run again."
+                    ),
+                )
+            limit_ids = [limit.id for limit in existing_limits if bool(limit.active)]
+            acquired = False
+            if limit_ids:
+                acquired = await cl_v2_models.bulk_increment_active_slots(
+                    session=session,
+                    concurrency_limit_ids=limit_ids,
+                    slots=1,
+                )
 
-                data = response.json()
-                return [
-                    MinimalConcurrencyLimitResponse(
-                        id=limit["id"],
-                        name=limit["name"].removeprefix("tag:"),
-                        limit=limit["limit"],
+        if not limit_ids:
+            return []
+
+        if not acquired:
+            blocking_tag = next(
+                (str(limit.name).removeprefix("tag:") for limit in existing_limits),
+                names[0],
+            )
+            raise HTTPException(
+                status_code=status.HTTP_423_LOCKED,
+                detail=f"Concurrency limit for the {blocking_tag} tag has been reached",
+                headers={
+                    "Retry-After": str(
+                        PREFECT_TASK_RUN_TAG_CONCURRENCY_SLOT_WAIT_SECONDS.value()
                     )
-                    for limit in data.get("limits", [])
-                ]
-            except PrefectHTTPStatusError as exc:
-                if exc.response.status_code == status.HTTP_423_LOCKED:
-                    retry_after = exc.response.headers.get("Retry-After")
-                    if retry_after:
-                        raise HTTPException(
-                            status_code=status.HTTP_423_LOCKED,
-                            detail="Concurrency limit reached",
-                            headers={"Retry-After": retry_after},
-                        )
-                    raise HTTPException(
-                        status_code=status.HTTP_423_LOCKED,
-                        detail="Concurrency limit is 0",
-                    )
-                raise
+                },
+            )
+
+        lease_storage = get_concurrency_lease_storage()
+        await lease_storage.create_lease(
+            resource_ids=limit_ids,
+            ttl=timedelta(seconds=86400),
+            metadata=ConcurrencyLimitLeaseMetadata(
+                slots=1, holder={"type": "task_run", "id": str(task_run_id)}
+            ),
+        )
+
+        return [
+            MinimalConcurrencyLimitResponse(
+                id=limit.id,
+                name=str(limit.name).removeprefix("tag:"),
+                limit=limit.limit,
+            )
+            for limit in existing_limits
+        ]
 
     # Original V1 implementation
     applied_limits = {}
