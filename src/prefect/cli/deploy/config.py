@@ -366,11 +366,29 @@ def _pick_deploy_configs(
             ]
         return selected_deploy_config
 
+    # Original behavior (pre-refactor): in non-interactive mode, if there is
+    # exactly one deploy config and at most one name provided, proceed with the
+    # single deploy config even if the provided name does not match. This allows
+    # users/tests to override the name via CLI while still inheriting templated
+    # fields (e.g., version, tags, description) from the config.
+    if (not is_interactive()) and len(deploy_configs) == 1 and len(names) <= 1:
+        return [
+            _merge_with_default_deploy_config(deploy_configs[0]),
+        ]
+
     if not names and not deploy_all:
         if not is_interactive():
-            return [
-                _merge_with_default_deploy_config(deploy_configs[0]),
-            ]
+            if len(deploy_configs) == 1:
+                return [
+                    _merge_with_default_deploy_config(deploy_configs[0]),
+                ]
+            # Mirror original behavior: error when multiple configs present and no
+            # explicit name provided in non-interactive mode.
+            raise ValueError(
+                "Discovered one or more deployment configurations, but no name was"
+                " given. Please specify the name of at least one deployment to"
+                " create or update."
+            )
         selected_deploy_config = _handle_pick_deploy_without_name(deploy_configs)
         if not selected_deploy_config:
             return [
