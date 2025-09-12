@@ -34,23 +34,23 @@ from prefect.utilities.templating import (
     resolve_variables,
 )
 
-from .actions import (
+from ._actions import (
     _generate_actions_for_remote_flow_storage,
     _generate_default_pull_action,
 )
-from .config import (
+from ._config import (
     _apply_cli_options_to_deploy_config,
     _handle_deprecated_schedule_fields,
     _merge_with_default_deploy_config,
 )
-from .schedules import _construct_schedules
-from .sla import (
+from ._schedules import _construct_schedules
+from ._sla import (
     _create_slas,
     _gather_deployment_sla_definitions,
     _initialize_deployment_slas,
 )
-from .storage import _PullStepStorage
-from .triggers import (
+from ._storage import _PullStepStorage
+from ._triggers import (
     _create_deployment_triggers,
     _gather_deployment_trigger_definitions,
     _initialize_deployment_triggers,

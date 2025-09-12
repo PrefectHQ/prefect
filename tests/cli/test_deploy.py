@@ -20,7 +20,7 @@ from typer import Exit
 import prefect
 from prefect.blocks.system import Secret
 from prefect.cli.deploy import _PullStepStorage
-from prefect.cli.deploy.triggers import (
+from prefect.cli.deploy._triggers import (
     _create_deployment_triggers,
     _initialize_deployment_triggers,
 )
@@ -5175,7 +5175,7 @@ class TestDeploymentTrigger:
                 yaml.safe_dump(contents, f)
 
             with mock.patch(
-                "prefect.cli.deploy.core._create_deployment_triggers",
+                "prefect.cli.deploy._core._create_deployment_triggers",
                 AsyncMock(),
             ) as create_triggers:
                 await run_sync_in_worker_thread(
@@ -5215,7 +5215,7 @@ class TestDeploymentTrigger:
             )
 
             with mock.patch(
-                "prefect.cli.deploy.core._create_deployment_triggers",
+                "prefect.cli.deploy._core._create_deployment_triggers",
                 AsyncMock(),
             ) as create_triggers:
                 await run_sync_in_worker_thread(
@@ -5256,7 +5256,7 @@ class TestDeploymentTrigger:
             )
 
             with mock.patch(
-                "prefect.cli.deploy.core._create_deployment_triggers",
+                "prefect.cli.deploy._core._create_deployment_triggers",
                 AsyncMock(),
             ) as create_triggers:
                 await run_sync_in_worker_thread(
@@ -5297,7 +5297,7 @@ class TestDeploymentTrigger:
             )
 
             with mock.patch(
-                "prefect.cli.deploy.core._create_deployment_triggers",
+                "prefect.cli.deploy._core._create_deployment_triggers",
                 AsyncMock(),
             ) as create_triggers:
                 await run_sync_in_worker_thread(
@@ -5339,7 +5339,7 @@ class TestDeploymentTrigger:
             )
 
             with mock.patch(
-                "prefect.cli.deploy.core._create_deployment_triggers",
+                "prefect.cli.deploy._core._create_deployment_triggers",
                 AsyncMock(),
             ) as create_triggers:
                 await run_sync_in_worker_thread(
@@ -5385,7 +5385,7 @@ class TestDeploymentTrigger:
             )
 
             with mock.patch(
-                "prefect.cli.deploy.core._create_deployment_triggers",
+                "prefect.cli.deploy._core._create_deployment_triggers",
                 AsyncMock(),
             ) as create_triggers:
                 await run_sync_in_worker_thread(
@@ -5442,7 +5442,7 @@ class TestDeploymentTrigger:
                 yaml.safe_dump(contents, f)
 
                 with mock.patch(
-                    "prefect.cli.deploy.core._create_deployment_triggers",
+                    "prefect.cli.deploy._core._create_deployment_triggers",
                     AsyncMock(),
                 ) as create_triggers:
                     await run_sync_in_worker_thread(
@@ -5471,7 +5471,7 @@ class TestDeploymentTrigger:
 
             for invalid_trigger in [invalid_json_str_trigger, invalid_yaml_trigger]:
                 with mock.patch(
-                    "prefect.cli.deploy.core._create_deployment_triggers",
+                    "prefect.cli.deploy._core._create_deployment_triggers",
                     AsyncMock(),
                 ):
                     await run_sync_in_worker_thread(

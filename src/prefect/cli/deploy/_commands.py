@@ -15,12 +15,12 @@ from prefect.client.schemas.objects import ConcurrencyLimitConfig
 from prefect.deployments import initialize_project
 from prefect.settings import PREFECT_DEFAULT_WORK_POOL_NAME
 
-from .config import (
+from ._config import (
     _load_deploy_configs_and_actions,
     _parse_name_from_pattern,
     _pick_deploy_configs,
 )
-from .core import _run_multi_deploy, _run_single_deploy
+from ._core import _run_multi_deploy, _run_single_deploy
 
 
 @app.command()
