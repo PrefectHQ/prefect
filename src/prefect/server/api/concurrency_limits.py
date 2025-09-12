@@ -196,7 +196,7 @@ async def create_concurrency_limit(
                 model = existing
                 model.limit = concurrency_limit.concurrency_limit
             else:
-                # Create new (V1 semantics expect 200 OK, not 201)
+                # Create new
                 model = await cl_v2_models.create_concurrency_limit(
                     session=session,
                     concurrency_limit=schemas.core.ConcurrencyLimitV2(
@@ -205,6 +205,7 @@ async def create_concurrency_limit(
                         active=True,
                     ),
                 )
+                response.status_code = status.HTTP_201_CREATED
 
         # Get active slots from leases
         active_slots = await _get_active_slots_from_leases(model.id)
@@ -615,13 +616,9 @@ async def increment_concurrency_limits_v1(
             return []
 
         if not acquired:
-            blocking_tag = next(
-                (str(limit.name).removeprefix("tag:") for limit in existing_limits),
-                names[0],
-            )
             raise HTTPException(
                 status_code=status.HTTP_423_LOCKED,
-                detail=f"Concurrency limit for the {blocking_tag} tag has been reached",
+                detail="Concurrency limit reached",
                 headers={
                     "Retry-After": str(
                         PREFECT_TASK_RUN_TAG_CONCURRENCY_SLOT_WAIT_SECONDS.value()
@@ -638,14 +635,21 @@ async def increment_concurrency_limits_v1(
             ),
         )
 
-        return [
-            MinimalConcurrencyLimitResponse(
-                id=limit.id,
-                name=str(limit.name).removeprefix("tag:"),
-                limit=limit.limit,
-            )
-            for limit in existing_limits
-        ]
+        # Build V1-shaped responses: prefer V1 ids if present (for event consumers)
+        results: list[MinimalConcurrencyLimitResponse] = []
+        async with db.session_context() as session:
+            for limit in existing_limits:
+                tag_name = str(limit.name).removeprefix("tag:")
+                v1 = await models.concurrency_limits.read_concurrency_limit_by_tag(
+                    session=session, tag=tag_name
+                )
+                result_id = v1.id if v1 else limit.id
+                results.append(
+                    MinimalConcurrencyLimitResponse(
+                        id=result_id, name=tag_name, limit=limit.limit
+                    )
+                )
+        return results
 
     # Original V1 implementation
     applied_limits = {}
@@ -753,7 +757,7 @@ async def decrement_concurrency_limits_v1(
 
         # Return current limits (matching V1 behavior)
         v2_names = [f"tag:{tag}" for tag in names]
-        limits = []
+        results: list[MinimalConcurrencyLimitResponse] = []
 
         async with db.session_context() as session:
             for v2_name, tag in zip(v2_names, names):
@@ -761,13 +765,17 @@ async def decrement_concurrency_limits_v1(
                     session=session, name=v2_name
                 )
                 if model:
-                    limits.append(
+                    v1 = await models.concurrency_limits.read_concurrency_limit_by_tag(
+                        session=session, tag=tag
+                    )
+                    result_id = v1.id if v1 else model.id
+                    results.append(
                         MinimalConcurrencyLimitResponse(
-                            id=model.id, name=tag, limit=model.limit
+                            id=result_id, name=tag, limit=model.limit
                         )
                     )
 
-        return limits
+        return results
 
     # Original V1 implementation
     async with db.session_context(begin_transaction=True) as session:
