@@ -9,7 +9,14 @@ from uuid import UUID, uuid4
 
 import pytest
 from packaging.version import Version
-from pydantic import BaseModel, Field, SecretBytes, SecretStr, ValidationError
+from pydantic import (
+    BaseModel,
+    Field,
+    SecretBytes,
+    SecretStr,
+    ValidationError,
+    model_validator,
+)
 from pydantic import Secret as PydanticSecret
 from pydantic_core import to_json
 from pydantic_extra_types.semantic_version import SemanticVersion
@@ -711,6 +718,56 @@ class TestAPICompatibility:
         assert block._block_schema_id == block_schema_id
         assert block._block_document_id == api_block.id
         assert block._block_type_id == block_type_id
+
+
+def test_union_of_blocks_round_trip_dispatches_correctly():
+    class MyInnerBlock1(Block):
+        name1: str = Field(default="inner-block1")
+
+    class MyInnerBlock2(Block):
+        name2: str = Field(default="inner-block2")
+
+    class MyOuterBlock(Block):
+        inner: Union[MyInnerBlock1, MyInnerBlock2]
+        name: str = Field(default="outer-block")
+
+    original = MyOuterBlock(inner=MyInnerBlock2())
+    dumped = original.model_dump()
+    restored = MyOuterBlock.model_validate(dumped)
+
+    assert isinstance(restored.inner, MyInnerBlock2)
+    assert restored.inner.name2 == "inner-block2"
+
+
+def test_union_of_blocks_with_after_validators_validates_without_attribute_error():
+    class MyInnerBlock1(Block):
+        name1: str = Field(default="inner-block1")
+
+        @model_validator(mode="after")
+        def validate_model(self):
+            if self.name1 is None:  # pragma: no cover
+                self.name1 = "Hello from inner block!"
+            return self
+
+    class MyInnerBlock2(Block):
+        name2: str = Field(default="inner-block2")
+
+        @model_validator(mode="after")
+        def validate_model(self):
+            if self.name2 is None:  # pragma: no cover
+                self.name2 = "Hello from inner block!"
+            return self
+
+    class MyOuterBlock(Block):
+        inner: Union[MyInnerBlock1, MyInnerBlock2]
+        name: str = Field(default="outer-block")
+
+    instance = MyOuterBlock(inner=MyInnerBlock2())
+    dumped = instance.model_dump()
+
+    restored = MyOuterBlock.model_validate(dumped)
+    assert isinstance(restored.inner, MyInnerBlock2)
+    assert restored.inner.name2 == "inner-block2"
 
     def test_create_block_document_from_block(self, block_type_x):
         @register_type

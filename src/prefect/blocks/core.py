@@ -29,6 +29,7 @@ from packaging.version import InvalidVersion, Version
 from pydantic import (
     BaseModel,
     ConfigDict,
+    GetCoreSchemaHandler,
     HttpUrl,
     PrivateAttr,
     SecretBytes,
@@ -39,6 +40,7 @@ from pydantic import (
     model_serializer,
 )
 from pydantic.json_schema import GenerateJsonSchema
+from pydantic_core import core_schema
 from typing_extensions import Literal, ParamSpec, Self, TypeGuard, get_args
 
 import prefect.exceptions
@@ -334,6 +336,47 @@ class Block(BaseModel, ABC):
     def __init__(self, *args: Any, **kwargs: Any):
         super().__init__(*args, **kwargs)
         self.block_initialization()
+
+    @classmethod
+    def __get_pydantic_core_schema__(
+        cls, source: type[Any], handler: GetCoreSchemaHandler
+    ) -> core_schema.CoreSchema:
+        base_schema = handler(source)
+
+        if cls.__name__ == "Block":
+            # When validating `Block` directly, dispatch to the concrete
+            # subclass based on `block_type_slug` if present.
+            def after(value: Any) -> Any:
+                if isinstance(value, dict):
+                    slug = value.get("block_type_slug")
+                    if slug:
+                        sub = cls.get_block_class_from_key(slug)
+                        return sub.model_validate(value)
+                return value
+
+            return core_schema.no_info_after_validator_function(
+                after, core_schema.any_schema()
+            )
+
+        # For concrete subclasses, reject inputs whose block_type_slug
+        # points to a different concrete Block; this enables correct
+        # discriminated behavior in Unions of Block subclasses.
+        expected_slug = None
+        try:
+            expected_slug = cls.get_block_type_slug()
+        except Exception:
+            expected_slug = None
+
+        def before(value: Any) -> Any:
+            if isinstance(value, dict):
+                slug = value.get("block_type_slug")
+                if slug and expected_slug and slug != expected_slug:
+                    raise ValueError(
+                        f"block_type_slug '{slug}' does not match expected '{expected_slug}' for {cls.__name__}"
+                    )
+            return value
+
+        return core_schema.no_info_before_validator_function(before, base_schema)
 
     def __str__(self) -> str:
         return self.__repr__()
@@ -1547,15 +1590,18 @@ class Block(BaseModel, ABC):
 
     def __new__(cls: type[Self], **kwargs: Any) -> Self:
         """
-        Create an instance of the Block subclass type if a `block_type_slug` is
-        present in the data payload.
+        Prefer dispatch at validation time; only dispatch here when constructing
+        the abstract base `Block` directly.
+
+        Pydantic's Union handling may instantiate concrete subclasses during
+        candidate validation; mutating the class in `__new__` for those
+        subclasses can confuse Pydantic and yield partially-initialized models.
         """
         block_type_slug = kwargs.pop("block_type_slug", None)
-        if block_type_slug:
+        if block_type_slug and cls.__name__ == "Block":
             subcls = cls.get_block_class_from_key(block_type_slug)
             return super().__new__(subcls)
-        else:
-            return super().__new__(cls)
+        return super().__new__(cls)
 
     def get_block_placeholder(self) -> str:
         """
@@ -1608,8 +1654,34 @@ class Block(BaseModel, ABC):
         from_attributes: bool | None = None,
         context: dict[str, Any] | None = None,
     ) -> Self:
+        # If a block_type_slug is present and maps to a different concrete
+        # Block subclass, delegate validation to that subclass. This avoids
+        # relying on `__new__`-time dispatch which interferes with Unions of
+        # Block subclasses.
         if isinstance(obj, dict):
             obj = cast(dict[str, Any], obj)
+            block_type_slug = obj.get("block_type_slug")
+            if block_type_slug:
+                try:
+                    target_cls = cls.get_block_class_from_key(block_type_slug)
+                except Exception:
+                    target_cls = None  # Unknown slug; fall through to super()
+                else:
+                    if target_cls is not None and target_cls is not cls:
+                        # If validating the abstract Block, delegate directly to
+                        # the resolved concrete class. If validating a concrete
+                        # subclass (e.g., within a Union of subclasses), raise
+                        # to allow Pydantic to try the next Union candidate.
+                        if cls.__name__ == "Block":
+                            return target_cls.model_validate(
+                                obj,
+                                strict=strict,
+                                from_attributes=from_attributes,
+                                context=context,
+                            )
+                        raise ValueError(
+                            f"block_type_slug '{block_type_slug}' matches {target_cls.__name__}, not {cls.__name__}"
+                        )
             extra_serializer_fields = {
                 "_block_document_id",
                 "_block_document_name",
