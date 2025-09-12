@@ -849,7 +849,20 @@
                       "v3/api-ref/python/prefect-cli-concurrency_limit",
                       "v3/api-ref/python/prefect-cli-config",
                       "v3/api-ref/python/prefect-cli-dashboard",
-                      "v3/api-ref/python/prefect-cli-deploy",
+                      {
+                        "group": "deploy",
+                        "pages": [
+                          "v3/api-ref/python/prefect-cli-deploy-__init__",
+                          "v3/api-ref/python/prefect-cli-deploy-actions",
+                          "v3/api-ref/python/prefect-cli-deploy-commands",
+                          "v3/api-ref/python/prefect-cli-deploy-config",
+                          "v3/api-ref/python/prefect-cli-deploy-core",
+                          "v3/api-ref/python/prefect-cli-deploy-schedules",
+                          "v3/api-ref/python/prefect-cli-deploy-sla",
+                          "v3/api-ref/python/prefect-cli-deploy-storage",
+                          "v3/api-ref/python/prefect-cli-deploy-triggers"
+                        ]
+                      },
                       "v3/api-ref/python/prefect-cli-deployment",
                       "v3/api-ref/python/prefect-cli-dev",
                       "v3/api-ref/python/prefect-cli-events",
