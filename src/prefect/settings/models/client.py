@@ -8,7 +8,7 @@ from prefect.settings.base import (
     PrefectBaseSettings,
     build_settings_config,
 )
-from prefect.types import ClientRetryExtraCodes, SometimesSerializedDict
+from prefect.types import ClientRetryExtraCodes, JsonStringOrDict
 
 
 class ClientMetricsSettings(PrefectBaseSettings):
@@ -89,7 +89,7 @@ class ClientSettings(PrefectBaseSettings):
     )
 
     # this needs to be typing.Dict for now as dict[str, str] is not compatible with pydantic < 2.11
-    custom_headers: SometimesSerializedDict = Field(
+    custom_headers: JsonStringOrDict = Field(
         default_factory=dict,
         description="""
         Custom HTTP headers to include with every API request to the Prefect server.
