@@ -206,6 +206,49 @@ export const buildCountFlowRunsQuery = (
 		refetchInterval,
 	});
 
+/**
+ * Builds a query configuration for fetching unique tags from flow runs
+ * This query fetches recent flow runs and extracts unique tags from them
+ *
+ * @param limit - Maximum number of flow runs to fetch for tag extraction (default 1000)
+ * @returns Query configuration object for use with TanStack Query that returns string array of unique tags
+ *
+ * @example
+ * ```ts
+ * const { data: availableTags } = useSuspenseQuery(buildListFlowRunTagsQuery());
+ * ```
+ */
+export const buildListFlowRunTagsQuery = (limit = 1000) =>
+	queryOptions({
+		queryKey: [...queryKeyFactory.all(), "tags", limit] as const,
+		queryFn: async () => {
+			const res = await getQueryService().POST("/flow_runs/filter", {
+				body: {
+					sort: "START_TIME_DESC",
+					offset: 0,
+					limit,
+				},
+			});
+
+			if (!res.data) {
+				return [];
+			}
+
+			// Extract unique tags from all flow runs
+			const tagsSet = new Set<string>();
+			for (const flowRun of res.data) {
+				if (flowRun.tags) {
+					for (const tag of flowRun.tags) {
+						tagsSet.add(tag);
+					}
+				}
+			}
+
+			return Array.from(tagsSet).sort();
+		},
+		staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+	});
+
 // ----- ✍🏼 Mutations 🗄️
 // ----------------------------
 
