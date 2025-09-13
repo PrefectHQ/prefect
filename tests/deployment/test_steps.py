@@ -1,3 +1,4 @@
+import os
 import shutil
 import subprocess
 import sys
@@ -428,20 +429,14 @@ def git_repository_mock(monkeypatch):
 
 class TestSetWorkingDirectory:
     def test_set_working_directory_returns_absolute_path_with_relative_input(
-        self, tmp_path
+        self, tmp_path: Path
     ):
         """Test that set_working_directory returns absolute path when given relative path."""
         # Create a subdirectory
         subdir = tmp_path / "subdir"
         subdir.mkdir()
 
-        # Change to the tmp_path first
-        import os
-
-        original_cwd = os.getcwd()
-        try:
-            os.chdir(tmp_path)
-
+        with tmpchdir(tmp_path):
             # Call set_working_directory with relative path
             result = set_working_directory("subdir")
 
@@ -449,32 +444,28 @@ class TestSetWorkingDirectory:
             assert result["directory"] == str(subdir.resolve())
             assert os.path.isabs(result["directory"])
             assert os.getcwd() == str(subdir.resolve())
-        finally:
-            # Restore original working directory
-            os.chdir(original_cwd)
 
     def test_set_working_directory_returns_absolute_path_with_absolute_input(
-        self, tmp_path
+        self, tmp_path: Path
     ):
         """Test that set_working_directory returns absolute path when given absolute path."""
         # Create a subdirectory
         subdir = tmp_path / "subdir"
         subdir.mkdir()
 
-        import os
-
+        # Store original cwd to verify it's restored
         original_cwd = os.getcwd()
-        try:
-            # Call set_working_directory with absolute path
-            result = set_working_directory(str(subdir))
 
-            # Verify it returns the same absolute path
-            assert result["directory"] == str(subdir.resolve())
-            assert os.path.isabs(result["directory"])
-            assert os.getcwd() == str(subdir.resolve())
-        finally:
-            # Restore original working directory
-            os.chdir(original_cwd)
+        # Call set_working_directory with absolute path
+        result = set_working_directory(str(subdir))
+
+        # Verify it returns the same absolute path
+        assert result["directory"] == str(subdir.resolve())
+        assert os.path.isabs(result["directory"])
+        assert os.getcwd() == str(subdir.resolve())
+
+        # Clean up by restoring the original working directory
+        os.chdir(original_cwd)
 
 
 class TestGitCloneStep:
