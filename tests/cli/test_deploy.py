@@ -19,10 +19,10 @@ from typer import Exit
 
 import prefect
 from prefect.blocks.system import Secret
-from prefect.cli.deploy import (
+from prefect.cli.deploy._storage import _PullStepStorage
+from prefect.cli.deploy._triggers import (
     _create_deployment_triggers,
     _initialize_deployment_triggers,
-    _PullStepStorage,
 )
 from prefect.client.orchestration import PrefectClient, ServerType
 from prefect.client.schemas.actions import (
@@ -72,7 +72,7 @@ TEST_PROJECTS_DIR = prefect.__development_base_path__ / "tests" / "test-projects
 
 @pytest.fixture
 def interactive_console(monkeypatch: pytest.MonkeyPatch):
-    monkeypatch.setattr("prefect.cli.deploy.is_interactive", lambda: True)
+    monkeypatch.setattr("prefect.cli.root.is_interactive", lambda: True)
 
     # `readchar` does not like the fake stdin provided by typer isolation so we provide
     # a version that does not require a fd to be attached
@@ -196,7 +196,7 @@ def mock_provide_password(monkeypatch: pytest.MonkeyPatch):
             return original_prompt(message, password=password, **kwargs)
 
     original_prompt = prefect.cli._prompts.prompt
-    monkeypatch.setattr("prefect.cli.deploy.prompt", new_prompt)
+    monkeypatch.setattr("prefect.cli._prompts.prompt", new_prompt)
 
 
 @pytest.fixture
@@ -5175,7 +5175,7 @@ class TestDeploymentTrigger:
                 yaml.safe_dump(contents, f)
 
             with mock.patch(
-                "prefect.cli.deploy._create_deployment_triggers",
+                "prefect.cli.deploy._core._create_deployment_triggers",
                 AsyncMock(),
             ) as create_triggers:
                 await run_sync_in_worker_thread(
@@ -5215,7 +5215,7 @@ class TestDeploymentTrigger:
             )
 
             with mock.patch(
-                "prefect.cli.deploy._create_deployment_triggers",
+                "prefect.cli.deploy._core._create_deployment_triggers",
                 AsyncMock(),
             ) as create_triggers:
                 await run_sync_in_worker_thread(
@@ -5256,7 +5256,7 @@ class TestDeploymentTrigger:
             )
 
             with mock.patch(
-                "prefect.cli.deploy._create_deployment_triggers",
+                "prefect.cli.deploy._core._create_deployment_triggers",
                 AsyncMock(),
             ) as create_triggers:
                 await run_sync_in_worker_thread(
@@ -5297,7 +5297,7 @@ class TestDeploymentTrigger:
             )
 
             with mock.patch(
-                "prefect.cli.deploy._create_deployment_triggers",
+                "prefect.cli.deploy._core._create_deployment_triggers",
                 AsyncMock(),
             ) as create_triggers:
                 await run_sync_in_worker_thread(
@@ -5339,7 +5339,7 @@ class TestDeploymentTrigger:
             )
 
             with mock.patch(
-                "prefect.cli.deploy._create_deployment_triggers",
+                "prefect.cli.deploy._core._create_deployment_triggers",
                 AsyncMock(),
             ) as create_triggers:
                 await run_sync_in_worker_thread(
@@ -5385,7 +5385,7 @@ class TestDeploymentTrigger:
             )
 
             with mock.patch(
-                "prefect.cli.deploy._create_deployment_triggers",
+                "prefect.cli.deploy._core._create_deployment_triggers",
                 AsyncMock(),
             ) as create_triggers:
                 await run_sync_in_worker_thread(
@@ -5441,22 +5441,22 @@ class TestDeploymentTrigger:
             with prefect_file.open(mode="w") as f:
                 yaml.safe_dump(contents, f)
 
-            with mock.patch(
-                "prefect.cli.deploy._create_deployment_triggers",
-                AsyncMock(),
-            ) as create_triggers:
-                await run_sync_in_worker_thread(
-                    invoke_and_assert,
-                    command=(
-                        "deploy ./flows/hello.py:my_flow -n test-name-1"
-                        f" --trigger '{json.dumps(cli_trigger_spec)}'"
-                    ),
-                    expected_code=0,
-                )
+                with mock.patch(
+                    "prefect.cli.deploy._core._create_deployment_triggers",
+                    AsyncMock(),
+                ) as create_triggers:
+                    await run_sync_in_worker_thread(
+                        invoke_and_assert,
+                        command=(
+                            "deploy ./flows/hello.py:my_flow -n test-name-1"
+                            f" --trigger '{json.dumps(cli_trigger_spec)}'"
+                        ),
+                        expected_code=0,
+                    )
 
-                _, _, triggers = create_triggers.call_args[0]
-                assert len(triggers) == 1
-                assert triggers == expected_triggers
+                    _, _, triggers = create_triggers.call_args[0]
+                    assert len(triggers) == 1
+                    assert triggers == expected_triggers
 
         @pytest.mark.usefixtures("project_dir")
         async def test_invalid_trigger_parsing(self, docker_work_pool):
@@ -5471,7 +5471,7 @@ class TestDeploymentTrigger:
 
             for invalid_trigger in [invalid_json_str_trigger, invalid_yaml_trigger]:
                 with mock.patch(
-                    "prefect.cli.deploy._create_deployment_triggers",
+                    "prefect.cli.deploy._core._create_deployment_triggers",
                     AsyncMock(),
                 ):
                     await run_sync_in_worker_thread(
