@@ -19,7 +19,7 @@ from typer import Exit
 
 import prefect
 from prefect.blocks.system import Secret
-from prefect.cli.deploy import _PullStepStorage
+from prefect.cli.deploy._storage import _PullStepStorage
 from prefect.cli.deploy._triggers import (
     _create_deployment_triggers,
     _initialize_deployment_triggers,
