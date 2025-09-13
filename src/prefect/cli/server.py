@@ -458,7 +458,6 @@ def _run_in_foreground(
                     log_level=server_settings.get(
                         "PREFECT_SERVER_LOGGING_LEVEL", "info"
                     ).lower(),
-                    workers=workers,
                 )
 
             else:
