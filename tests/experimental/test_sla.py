@@ -20,7 +20,7 @@ from prefect._experimental.sla.objects import (
     ServiceLevelAgreement,
     TimeToCompletionSla,
 )
-from prefect.cli.deploy import (
+from prefect.cli.deploy._sla import (
     _create_slas,
     _initialize_deployment_slas,
 )
@@ -75,7 +75,7 @@ async def docker_work_pool(prefect_client: PrefectClient) -> WorkPool:
 
 @pytest.fixture
 def interactive_console(monkeypatch):
-    monkeypatch.setattr("prefect.cli.deploy.is_interactive", lambda: True)
+    monkeypatch.setattr("prefect.cli.root.is_interactive", lambda: True)
 
     # `readchar` does not like the fake stdin provided by typer isolation so we provide
     # a version that does not require a fd to be attached
@@ -415,7 +415,7 @@ class TestDeploymentCLI:
                 yaml.safe_dump(contents, f)
 
             with mock.patch(
-                "prefect.cli.deploy._create_slas",
+                "prefect.cli.deploy._core._create_slas",
                 mock.AsyncMock(),
             ) as create_slas:
                 await run_sync_in_worker_thread(
@@ -455,7 +455,7 @@ class TestDeploymentCLI:
             ]
 
             with mock.patch(
-                "prefect.cli.deploy._create_slas",
+                "prefect.cli.deploy._core._create_slas",
                 mock.AsyncMock(),
             ) as create_slas:
                 await run_sync_in_worker_thread(
@@ -485,7 +485,7 @@ class TestDeploymentCLI:
             client.server_type = ServerType.CLOUD
 
             with mock.patch(
-                "prefect.cli.deploy._create_slas",
+                "prefect.cli.deploy._core._create_slas",
                 mock.AsyncMock(),
             ) as create_slas:
                 await run_sync_in_worker_thread(
@@ -524,7 +524,7 @@ class TestDeploymentCLI:
             ]
 
             with mock.patch(
-                "prefect.cli.deploy._create_slas",
+                "prefect.cli.deploy._core._create_slas",
                 mock.AsyncMock(),
             ) as create_slas:
                 await run_sync_in_worker_thread(
@@ -568,7 +568,7 @@ class TestDeploymentCLI:
             ]
 
             with mock.patch(
-                "prefect.cli.deploy._create_slas",
+                "prefect.cli.deploy._core._create_slas",
                 mock.AsyncMock(),
             ) as create_slas:
                 await run_sync_in_worker_thread(
@@ -598,7 +598,7 @@ class TestDeploymentCLI:
                 yaml.safe_dump({"sla": []}, f)
 
             with mock.patch(
-                "prefect.cli.deploy._create_slas",
+                "prefect.cli.deploy._core._create_slas",
                 mock.AsyncMock(),
             ) as create_slas:
                 await run_sync_in_worker_thread(
@@ -639,7 +639,7 @@ class TestDeploymentCLI:
             ]
 
             with mock.patch(
-                "prefect.cli.deploy._create_slas",
+                "prefect.cli.deploy._core._create_slas",
                 mock.AsyncMock(),
             ) as create_slas:
                 await run_sync_in_worker_thread(
@@ -695,7 +695,7 @@ class TestDeploymentCLI:
             ]
 
             with mock.patch(
-                "prefect.cli.deploy._create_slas",
+                "prefect.cli.deploy._core._create_slas",
                 mock.AsyncMock(),
             ) as create_slas:
                 await run_sync_in_worker_thread(
@@ -763,7 +763,7 @@ class TestDeploymentCLI:
                 yaml.safe_dump(contents, f)
 
             with mock.patch(
-                "prefect.cli.deploy._create_slas",
+                "prefect.cli.deploy._core._create_slas",
                 mock.AsyncMock(),
             ) as create_slas:
                 await run_sync_in_worker_thread(
@@ -796,7 +796,7 @@ class TestDeploymentCLI:
 
             for invalid_sla in [invalid_json_str_sla, invalid_yaml_sla]:
                 with mock.patch(
-                    "prefect.cli.deploy._create_slas",
+                    "prefect.cli.deploy._core._create_slas",
                     mock.AsyncMock(),
                 ):
                     await run_sync_in_worker_thread(
@@ -829,7 +829,7 @@ class TestDeploymentCLI:
             prefect_file.unlink()
 
             with mock.patch(
-                "prefect.cli.deploy._create_slas",
+                "prefect.cli.deploy._core._create_slas",
                 mock.AsyncMock(),
             ):
                 await run_sync_in_worker_thread(
