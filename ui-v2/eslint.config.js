@@ -43,6 +43,8 @@ export default tseslint.config(
 			],
 			...react.configs.recommended.rules,
 			...react.configs["jsx-runtime"].rules,
+			// TypeScript provides type checking; prop-types are unnecessary
+			"react/prop-types": "off",
 		},
 	},
 	...pluginQuery.configs["flat/recommended"],
