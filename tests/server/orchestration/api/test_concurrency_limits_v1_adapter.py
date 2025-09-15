@@ -17,6 +17,8 @@ from httpx import ASGITransport, AsyncClient
 from prefect.server.api.server import create_app
 from prefect.server.concurrency.lease_storage import ConcurrencyLimitLeaseMetadata
 from prefect.server.concurrency.lease_storage.filesystem import ConcurrencyLeaseStorage
+from prefect.server.models import concurrency_limits as v1_models
+from prefect.server.models import concurrency_limits_v2 as v2_models
 from prefect.server.models.concurrency_limits_v2 import create_concurrency_limit
 from prefect.server.schemas.core import ConcurrencyLimitV2
 from prefect.server.utilities.leasing import ResourceLease
@@ -76,9 +78,7 @@ async def test_v1_create_routes_to_v2(client: AsyncClient, session):
 
     # Verify V2 limit was created with tag: prefix
     async with session.begin():
-        from prefect.server.models import concurrency_limits_v2 as cl_v2_models
-
-        v2 = await cl_v2_models.read_concurrency_limit(session, name="tag:foo")
+        v2 = await v2_models.read_concurrency_limit(session, name="tag:foo")
         assert v2 is not None
         assert v2.limit == 5
         assert v2.name == "tag:foo"
@@ -101,6 +101,26 @@ async def test_v1_create_upsert_behavior(client: AsyncClient, session):
     data = response.json()
     assert data["id"] == initial_id  # Same ID
     assert data["concurrency_limit"] == 7  # Updated limit
+
+
+async def test_v1_create_returns_v1_id(client: AsyncClient, session):
+    """The adapter should return the mirrored V1 identifier, not the V2 id."""
+    response = await client.post(
+        "/concurrency_limits/", json={"tag": "idcheck", "concurrency_limit": 2}
+    )
+    assert response.status_code == 201
+    payload = response.json()
+
+    async with session.begin():
+        v2 = await v2_models.read_concurrency_limit(session=session, name="tag:idcheck")
+        v1 = await v1_models.read_concurrency_limit_by_tag(
+            session=session, tag="idcheck"
+        )
+
+    assert v1 is not None
+    assert payload["id"] == str(v1.id)
+    assert v2 is not None
+    assert str(v2.id) != payload["id"]
 
 
 async def test_v1_read_by_tag_uses_v2_leases(client: AsyncClient, session, monkeypatch):
@@ -157,17 +177,16 @@ async def test_v1_read_by_tag_uses_v2_leases(client: AsyncClient, session, monke
 async def test_v1_read_filter_returns_only_tag_prefixed(client: AsyncClient, session):
     """Test that V1 filter endpoint only returns tag: prefixed V2 limits."""
     # Create V2 limits - some with tag: prefix, some without
-    from prefect.server.models import concurrency_limits_v2 as cl_v2_models
 
-    await cl_v2_models.create_concurrency_limit(
+    await v2_models.create_concurrency_limit(
         session=session,
         concurrency_limit=ConcurrencyLimitV2(name="tag:test1", limit=5),
     )
-    await cl_v2_models.create_concurrency_limit(
+    await v2_models.create_concurrency_limit(
         session=session,
         concurrency_limit=ConcurrencyLimitV2(name="tag:test2", limit=3),
     )
-    await cl_v2_models.create_concurrency_limit(
+    await v2_models.create_concurrency_limit(
         session=session,
         concurrency_limit=ConcurrencyLimitV2(name="global:other", limit=10),
     )
@@ -192,12 +211,17 @@ async def test_v1_delete_by_tag_cleans_up_leases(client: AsyncClient, session):
         "/concurrency_limits/", json={"tag": "deleteme", "concurrency_limit": 5}
     )
     assert resp.status_code == 201
-    limit_id = resp.json()["id"]
+
+    async with session.begin():
+        v2_limit = await v2_models.read_concurrency_limit(
+            session=session, name="tag:deleteme"
+        )
+    assert v2_limit is not None
 
     # Create a lease for this limit
     storage = ConcurrencyLeaseStorage()
     lease = await storage.create_lease(
-        resource_ids=[limit_id],
+        resource_ids=[v2_limit.id],
         ttl=timedelta(hours=1),
         metadata=ConcurrencyLimitLeaseMetadata(
             slots=1, holder={"type": "task_run", "id": str(uuid4())}
@@ -218,6 +242,35 @@ async def test_v1_delete_by_tag_cleans_up_leases(client: AsyncClient, session):
     assert retrieved_lease is None or retrieved_lease.expiration <= datetime.now(
         timezone.utc
     )
+
+
+async def test_v1_delete_by_id_removes_v1_and_v2(client: AsyncClient, session):
+    """Deleting by the V1 id should also remove the mirrored V2 limit."""
+    resp = await client.post(
+        "/concurrency_limits/", json={"tag": "delete-by-id", "concurrency_limit": 2}
+    )
+    assert resp.status_code == 201
+    v1_id = resp.json()["id"]
+
+    async with session.begin():
+        v2 = await v2_models.read_concurrency_limit(
+            session=session, name="tag:delete-by-id"
+        )
+    assert v2 is not None
+
+    resp = await client.delete(f"/concurrency_limits/{v1_id}")
+    assert resp.status_code == 200
+
+    async with session.begin():
+        v1_record = await v1_models.read_concurrency_limit_by_tag(
+            session=session, tag="delete-by-id"
+        )
+        v2_after = await v2_models.read_concurrency_limit(
+            session=session, name="tag:delete-by-id"
+        )
+
+    assert v1_record is None
+    assert v2_after is None
 
 
 async def test_v1_read_by_id_converts_v2_limit(client: AsyncClient, session):
@@ -280,13 +333,18 @@ async def test_v1_reset_clears_and_sets_leases(client: AsyncClient, session):
         "/concurrency_limits/", json={"tag": "resetme", "concurrency_limit": 5}
     )
     assert resp.status_code == 201
-    limit_id = resp.json()["id"]
+
+    async with session.begin():
+        v2_limit = await v2_models.read_concurrency_limit(
+            session=session, name="tag:resetme"
+        )
+    assert v2_limit is not None
 
     # Create existing leases
     storage = ConcurrencyLeaseStorage()
     old_tr_id = str(uuid4())
     lease = await storage.create_lease(
-        resource_ids=[limit_id],
+        resource_ids=[v2_limit.id],
         ttl=timedelta(hours=1),
         metadata=ConcurrencyLimitLeaseMetadata(
             slots=1, holder={"type": "task_run", "id": old_tr_id}
@@ -315,6 +373,14 @@ async def test_v1_reset_clears_and_sets_leases(client: AsyncClient, session):
     assert old_tr_id not in active_slots
     # New slots should be present (if list_holders_for_limit is implemented)
     # Note: This depends on the storage implementation
+    assert set(new_tr_ids).issubset(active_slots)
+
+    async with session.begin():
+        v1_after_reset = await v1_models.read_concurrency_limit_by_tag(
+            session=session, tag="resetme"
+        )
+    assert v1_after_reset is not None
+    assert set(v1_after_reset.active_slots) == set(new_tr_ids)
 
 
 async def test_v1_increment_uses_v2_leases(client: AsyncClient, session):
