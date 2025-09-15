@@ -1,3 +1,4 @@
+import os
 import shutil
 import subprocess
 import sys
@@ -16,7 +17,7 @@ from prefect.blocks.system import Secret
 from prefect.client.orchestration import PrefectClient
 from prefect.deployments.steps import run_step
 from prefect.deployments.steps.core import StepExecutionError, run_steps
-from prefect.deployments.steps.pull import agit_clone
+from prefect.deployments.steps.pull import agit_clone, set_working_directory
 from prefect.deployments.steps.utility import run_shell_script
 from prefect.testing.utilities import AsyncMock, MagicMock
 from prefect.utilities.filesystem import tmpchdir
@@ -424,6 +425,47 @@ def git_repository_mock(monkeypatch):
         git_repository_mock,
     )
     return git_repository_mock
+
+
+class TestSetWorkingDirectory:
+    def test_set_working_directory_returns_absolute_path_with_relative_input(
+        self, tmp_path: Path
+    ):
+        """Test that set_working_directory returns absolute path when given relative path."""
+        # Create a subdirectory
+        subdir = tmp_path / "subdir"
+        subdir.mkdir()
+
+        with tmpchdir(tmp_path):
+            # Call set_working_directory with relative path
+            result = set_working_directory("subdir")
+
+            # Verify it returns the absolute path
+            assert result["directory"] == str(subdir.resolve())
+            assert os.path.isabs(result["directory"])
+            assert os.getcwd() == str(subdir.resolve())
+
+    def test_set_working_directory_returns_absolute_path_with_absolute_input(
+        self, tmp_path: Path
+    ):
+        """Test that set_working_directory returns absolute path when given absolute path."""
+        # Create a subdirectory
+        subdir = tmp_path / "subdir"
+        subdir.mkdir()
+
+        # Store original cwd to verify it's restored
+        original_cwd = os.getcwd()
+
+        # Call set_working_directory with absolute path
+        result = set_working_directory(str(subdir))
+
+        # Verify it returns the same absolute path
+        assert result["directory"] == str(subdir.resolve())
+        assert os.path.isabs(result["directory"])
+        assert os.getcwd() == str(subdir.resolve())
+
+        # Clean up by restoring the original working directory
+        os.chdir(original_cwd)
 
 
 class TestGitCloneStep:
