@@ -70,16 +70,19 @@ class LeaseStorage(Protocol[T]):
 # Prefect-specific helper utilities for working with concurrency leases.
 # These functions centralize normalization/fallback logic so API layers stay thin.
 
-from typing import Any  # noqa: E402
+from typing import TYPE_CHECKING, Any  # noqa: E402
 
 from prefect.server.database import PrefectDBInterface  # noqa: E402
 from prefect.server.models import (  # noqa: E402
     concurrency_limits_v2 as cl_v2_models,
 )
 
+if TYPE_CHECKING:  # pragma: no cover
+    from prefect.server.concurrency.lease_storage import ConcurrencyLeaseStorage
+
 
 async def get_active_slots_from_leases(
-    limit_id: UUID, lease_storage: object | None = None
+    limit_id: UUID, lease_storage: "ConcurrencyLeaseStorage | None" = None
 ) -> list[str]:
     """Extract task_run IDs from active leases for a given limit.
 
@@ -155,7 +158,7 @@ async def find_lease_for_task_run(
     task_run_id: UUID,
     tags: list[str],
     db: PrefectDBInterface,
-    lease_storage: object | None = None,
+    lease_storage: "ConcurrencyLeaseStorage | None" = None,
 ) -> UUID | None:
     """Find the lease ID for a given task run across tag-based limits.
 
