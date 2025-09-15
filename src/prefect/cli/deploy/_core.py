@@ -168,7 +168,11 @@ async def _run_single_deploy(
 
     update_work_pool_image = False
 
-    build_step_set_to_null = "build" in deploy_config and deploy_config["build"] is None
+    build_step_set_to_null = "build" in deploy_config and (
+        deploy_config["build"] is None
+        or deploy_config["build"] == {}
+        or deploy_config["build"] == []
+    )
 
     work_pool = await client.read_work_pool(deploy_config["work_pool"]["name"])
 
