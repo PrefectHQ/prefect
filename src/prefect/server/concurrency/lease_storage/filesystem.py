@@ -135,13 +135,6 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
 
         with open(lease_file, "w") as f:
             json.dump(lease_data, f)
-        # DEBUG: log created lease metadata holder
-        holder = getattr(metadata, "holder", None) if metadata else None
-        try:
-            dumped = holder.model_dump(mode="json") if holder else None  # type: ignore[attr-defined]
-        except Exception:
-            dumped = holder
-        print(f"DEBUG filesystem.create_lease holder={dumped}")
 
         # Update expiration index
         await self._update_expiration_index(lease.id, expiration)
