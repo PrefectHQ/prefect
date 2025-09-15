@@ -41,8 +41,8 @@ from ._actions import (
 from ._config import (
     _apply_cli_options_to_deploy_config,
     _handle_deprecated_schedule_fields,
-    _merge_with_default_deploy_config,
 )
+from ._models import DeploymentConfig
 from ._schedules import _construct_schedules
 from ._sla import (
     _create_slas,
@@ -72,50 +72,49 @@ async def _run_single_deploy(
     actions = deepcopy(actions) if actions else {}
     options = deepcopy(options) if options else {}
 
-    deploy_config = _merge_with_default_deploy_config(deploy_config)
-    deploy_config = _handle_deprecated_schedule_fields(deploy_config)
-    (
-        deploy_config,
-        variable_overrides,
-    ) = _apply_cli_options_to_deploy_config(deploy_config, options)
+    # Convert dict to model and apply CLI options using strongly-typed helpers
+    model = DeploymentConfig.model_validate(deploy_config or {})
+    model = _handle_deprecated_schedule_fields(model)
+    model, variable_overrides = _apply_cli_options_to_deploy_config(model, options)
 
-    build_steps = deploy_config.get("build", actions.get("build")) or []
-    push_steps = deploy_config.get("push", actions.get("push")) or []
-    pull_steps = deploy_config.get("pull", actions.get("pull")) or []
+    # Resolve blocks/variables and apply env vars on a dict view, then re-validate
+    dd = model.model_dump(exclude_unset=True, mode="json")
+    dd = await resolve_block_document_references(dd)
+    dd = await resolve_variables(dd)
+    dd = apply_values(dd, os.environ, remove_notset=False)
+    model = DeploymentConfig.model_validate(dd)
 
-    deploy_config = await resolve_block_document_references(deploy_config)
-    deploy_config = await resolve_variables(deploy_config)
+    build_steps = (model.build or actions.get("build")) or []
+    push_steps = (model.push or actions.get("push")) or []
+    pull_steps = (model.pull or actions.get("pull")) or []
 
-    # check for env var placeholders early so users can pass work pool names, etc.
-    deploy_config = apply_values(deploy_config, os.environ, remove_notset=False)
-
-    if not deploy_config.get("entrypoint"):
+    if not model.entrypoint:
         if not root.is_interactive():
             raise ValueError(
                 "An entrypoint must be provided:\n\n"
                 " \t[yellow]prefect deploy path/to/file.py:flow_function\n\n"
                 "You can also provide an entrypoint in a prefect.yaml file."
             )
-        deploy_config["entrypoint"] = await prompt_entrypoint(app.console)
+        model.entrypoint = await prompt_entrypoint(app.console)
 
-    flow = load_flow_from_entrypoint(deploy_config["entrypoint"])
+    flow = load_flow_from_entrypoint(model.entrypoint)
 
-    deploy_config["flow_name"] = flow.name
+    model.flow_name = flow.name
 
-    deployment_name = deploy_config.get("name")
+    deployment_name = model.name
     if not deployment_name:
         if not root.is_interactive():
             raise ValueError("A deployment name must be provided.")
-        deploy_config["name"] = prompt("Deployment name", default="default")
+        model.name = prompt("Deployment name", default="default")
 
-    deploy_config["parameter_openapi_schema"] = parameter_schema(flow)
+    parameter_openapi_schema = parameter_schema(flow)
 
-    work_pool_name = get_from_dict(deploy_config, "work_pool.name")
+    work_pool_name = model.work_pool.name if model.work_pool else None
 
     # determine work pool
     if work_pool_name:
         try:
-            work_pool = await client.read_work_pool(deploy_config["work_pool"]["name"])
+            work_pool = await client.read_work_pool(work_pool_name)
 
             # dont allow submitting to prefect-agent typed work pools
             if work_pool.type == "prefect-agent":
@@ -131,13 +130,15 @@ async def _run_single_deploy(
                     " cannot be used for project-style deployments. Let's pick"
                     " another work pool to deploy to."
                 )
-                deploy_config["work_pool"]["name"] = await prompt_select_work_pool(
-                    app.console
-                )
+                if model.work_pool is None:
+                    from ._models import WorkPoolConfig
+
+                    model.work_pool = WorkPoolConfig()
+                model.work_pool.name = await prompt_select_work_pool(app.console)
         except ObjectNotFound:
             raise ValueError(
                 "This deployment configuration references work pool"
-                f" {deploy_config['work_pool']['name']!r} which does not exist. This"
+                f" {work_pool_name!r} which does not exist. This"
                 " means no worker will be able to pick up its runs. You can create a"
                 " work pool in the Prefect UI."
             )
@@ -147,11 +148,11 @@ async def _run_single_deploy(
                 "A work pool is required to deploy this flow. Please specify a work"
                 " pool name via the '--pool' flag or in your prefect.yaml file."
             )
-        if not isinstance(deploy_config.get("work_pool"), dict):
-            deploy_config["work_pool"] = {}
-        deploy_config["work_pool"]["name"] = await prompt_select_work_pool(
-            console=app.console
-        )
+        if model.work_pool is None:
+            from ._models import WorkPoolConfig
+
+            model.work_pool = WorkPoolConfig()
+        model.work_pool.name = await prompt_select_work_pool(console=app.console)
 
     docker_build_steps = [
         "prefect_docker.deployments.steps.build_docker_image",
@@ -163,18 +164,14 @@ async def _run_single_deploy(
 
     docker_build_step_exists = any(
         any(step in action for step in docker_build_steps)
-        for action in deploy_config.get("build", actions.get("build")) or []
+        for action in ((model.build or actions.get("build")) or [])
     )
 
     update_work_pool_image = False
 
-    build_step_set_to_null = "build" in deploy_config and (
-        deploy_config["build"] is None
-        or deploy_config["build"] == {}
-        or deploy_config["build"] == []
-    )
+    build_step_set_to_null = model.build in (None, {}, [])
 
-    work_pool = await client.read_work_pool(deploy_config["work_pool"]["name"])
+    work_pool = await client.read_work_pool(model.work_pool.name)
 
     image_properties = (
         work_pool.base_job_template.get("variables", {})
@@ -195,17 +192,19 @@ async def _run_single_deploy(
         and image_is_configurable
     ):
         build_docker_image_step = await prompt_build_custom_docker_image(
-            app.console, deploy_config
+            app.console, model.model_dump(exclude_unset=True, mode="json")
         )
         if build_docker_image_step is not None:
-            if not get_from_dict(deploy_config, "work_pool.job_variables.image"):
+            if not ((model.work_pool.job_variables or {}).get("image")):
                 update_work_pool_image = True
 
             (
                 push_docker_image_step,
                 updated_build_docker_image_step,
             ) = await prompt_push_custom_docker_image(
-                app.console, deploy_config, build_docker_image_step
+                app.console,
+                model.model_dump(exclude_unset=True, mode="json"),
+                build_docker_image_step,
             )
 
             if actions.get("build"):
@@ -219,18 +218,18 @@ async def _run_single_deploy(
                 else:
                     actions["push"] = [push_docker_image_step]
 
-        build_steps = deploy_config.get("build", actions.get("build")) or []
-        push_steps = deploy_config.get("push", actions.get("push")) or []
+        build_steps = (model.build or actions.get("build")) or []
+        push_steps = (model.push or actions.get("push")) or []
 
     docker_push_step_exists = any(
         any(step in action for step in docker_push_steps)
-        for action in deploy_config.get("push", actions.get("push")) or []
+        for action in ((model.push or actions.get("push")) or [])
     )
 
     ## CONFIGURE PUSH and/or PULL STEPS FOR REMOTE FLOW STORAGE
     if (
         root.is_interactive()
-        and not (deploy_config.get("pull") or actions.get("pull"))
+        and not (model.pull or actions.get("pull"))
         and not docker_push_step_exists
         and confirm(
             (
@@ -243,11 +242,13 @@ async def _run_single_deploy(
         )
     ):
         actions = await _generate_actions_for_remote_flow_storage(
-            console=app.console, deploy_config=deploy_config, actions=actions
+            console=app.console,
+            deploy_config=model.model_dump(exclude_unset=True, mode="json"),
+            actions=actions,
         )
 
     if trigger_specs := _gather_deployment_trigger_definitions(
-        options.get("triggers"), deploy_config.get("triggers")
+        options.get("triggers"), (model.triggers or [])
     ):
         triggers = _initialize_deployment_triggers(deployment_name, trigger_specs)
     else:
@@ -258,11 +259,11 @@ async def _run_single_deploy(
     # back to the config/actions/default if no pull steps were provided.
     pull_steps = (
         pull_steps
-        or deploy_config.get("pull")
+        or model.pull
         or actions.get("pull")
         or await _generate_default_pull_action(
             app.console,
-            deploy_config=deploy_config,
+            deploy_config=model.model_dump(exclude_unset=True, mode="json"),
             actions=actions,
         )
     )
@@ -289,64 +290,64 @@ async def _run_single_deploy(
                 "Warning: no build-image step found in the deployment build steps."
                 " The work pool image will not be updated."
             )
-        deploy_config["work_pool"]["job_variables"]["image"] = "{{ build-image.image }}"
+        job_vars = model.work_pool.job_variables or {}
+        job_vars["image"] = "{{ build-image.image }}"
+        model.work_pool.job_variables = job_vars
 
-    if not deploy_config.get("description"):
-        deploy_config["description"] = flow.description
+    if not model.description:
+        model.description = flow.description
 
-    deploy_config["schedules"] = _construct_schedules(deploy_config, step_outputs)
+    schedules = _construct_schedules(
+        model.model_dump(exclude_unset=True, mode="json"), step_outputs
+    )
 
     # save deploy_config before templating
-    deploy_config_before_templating = deepcopy(deploy_config)
+    deploy_config_before_templating = model.model_dump(exclude_unset=True, mode="json")
     ## apply templating from build and push steps to the final deployment spec
-    _parameter_schema = deploy_config.pop("parameter_openapi_schema")
+    # Apply templating from build/push outputs to the final spec
+    dd = model.model_dump(exclude_unset=True, mode="json")
+    dd = apply_values(dd, step_outputs, warn_on_notset=True)
+    dd["parameter_openapi_schema"] = parameter_openapi_schema
+    dd["schedules"] = schedules
 
-    _schedules = deploy_config.pop("schedules")
-
-    deploy_config = apply_values(deploy_config, step_outputs, warn_on_notset=True)
-    deploy_config["parameter_openapi_schema"] = _parameter_schema
-    deploy_config["schedules"] = _schedules
-
-    if isinstance(deploy_config.get("concurrency_limit"), dict):
-        deploy_config["concurrency_options"] = {
+    if isinstance(dd.get("concurrency_limit"), dict):
+        dd["concurrency_options"] = {
             "collision_strategy": get_from_dict(
-                deploy_config, "concurrency_limit.collision_strategy"
+                dd, "concurrency_limit.collision_strategy"
             )
         }
-        deploy_config["concurrency_limit"] = get_from_dict(
-            deploy_config, "concurrency_limit.limit"
-        )
+        dd["concurrency_limit"] = get_from_dict(dd, "concurrency_limit.limit")
 
     pull_steps = apply_values(pull_steps, step_outputs, remove_notset=False)
 
     deployment = RunnerDeployment(
-        name=deploy_config["name"],
-        flow_name=deploy_config.get("flow_name"),
-        entrypoint=deploy_config.get("entrypoint"),
-        work_pool_name=get_from_dict(deploy_config, "work_pool.name"),
-        work_queue_name=get_from_dict(deploy_config, "work_pool.work_queue_name"),
-        parameters=deploy_config.get("parameters"),
-        description=deploy_config.get("description"),
-        version=deploy_config.get("version") or options.get("version"),
-        version_type=deploy_config.get("version_type") or options.get("version_type"),
-        tags=deploy_config.get("tags"),
-        concurrency_limit=deploy_config.get("concurrency_limit"),
-        concurrency_options=deploy_config.get("concurrency_options"),
-        paused=deploy_config.get("paused"),
+        name=dd["name"],
+        flow_name=dd.get("flow_name"),
+        entrypoint=dd.get("entrypoint"),
+        work_pool_name=get_from_dict(dd, "work_pool.name"),
+        work_queue_name=get_from_dict(dd, "work_pool.work_queue_name"),
+        parameters=dd.get("parameters"),
+        description=dd.get("description"),
+        version=dd.get("version") or options.get("version"),
+        version_type=dd.get("version_type") or options.get("version_type"),
+        tags=dd.get("tags"),
+        concurrency_limit=dd.get("concurrency_limit"),
+        concurrency_options=dd.get("concurrency_options"),
+        paused=dd.get("paused"),
         storage=_PullStepStorage(pull_steps),
-        job_variables=get_from_dict(deploy_config, "work_pool.job_variables"),
+        job_variables=get_from_dict(dd, "work_pool.job_variables"),
     )
 
     deployment._set_defaults_from_flow(flow)
 
-    deployment._parameter_openapi_schema = deploy_config["parameter_openapi_schema"]
+    deployment._parameter_openapi_schema = dd["parameter_openapi_schema"]
 
     if deploy_config.get("enforce_parameter_schema") is not None:
         deployment.enforce_parameter_schema = deploy_config.get(
             "enforce_parameter_schema"
         )
 
-    apply_coro = deployment.apply(schedules=deploy_config.get("schedules"))
+    apply_coro = deployment.apply(schedules=dd.get("schedules"))
     if TYPE_CHECKING:
         assert inspect.isawaitable(apply_coro)
 
@@ -358,16 +359,14 @@ async def _run_single_deploy(
     # # apply endpoint to remove existing SLAs for the deployment.
     # # If the argument is not provided, we will not call the endpoint.
     # Import SLA helpers from the package namespace to honor test monkeypatches
-    sla_specs = _gather_deployment_sla_definitions(
-        options.get("sla"), deploy_config.get("sla")
-    )
+    sla_specs = _gather_deployment_sla_definitions(options.get("sla"), dd.get("sla"))
     if sla_specs is not None:
         slas = _initialize_deployment_slas(deployment_id, sla_specs)
         await _create_slas(client, deployment_id, slas)
 
     app.console.print(
         Panel(
-            f"Deployment '{deploy_config['flow_name']}/{deploy_config['name']}'"
+            f"Deployment '{dd['flow_name']}/{dd['name']}'"
             f" successfully created with id '{deployment_id}'."
         ),
         style="green",
@@ -388,7 +387,7 @@ async def _run_single_deploy(
             ),
             console=app.console,
         ):
-            deploy_config_before_templating.update({"schedules": _schedules})
+            deploy_config_before_templating.update({"schedules": schedules})
             _save_deployment_to_prefect_file(
                 deploy_config_before_templating,
                 build_steps=build_steps or None,
@@ -403,7 +402,7 @@ async def _run_single_deploy(
                     f"\n[green]Deployment configuration saved to {prefect_file}![/]"
                     " You can now deploy using this deployment configuration"
                     " with:\n\n\t[blue]$ prefect deploy -n"
-                    f" {deploy_config['name']}[/]\n\nYou can also make changes to"
+                    f" {dd['name']}[/]\n\nYou can also make changes to"
                     " this deployment configuration by making changes to the"
                     " YAML file."
                 ),
@@ -432,10 +431,7 @@ async def _run_single_deploy(
         "\nTo schedule a run for this deployment, use the following command:"
     )
     app.console.print(
-        (
-            "\n\t$ prefect deployment run"
-            f" '{deploy_config['flow_name']}/{deploy_config['name']}'\n"
-        ),
+        (f"\n\t$ prefect deployment run '{dd['flow_name']}/{dd['name']}'\n"),
         style="blue",
     )
 

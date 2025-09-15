@@ -12,9 +12,8 @@ from yaml.error import YAMLError
 
 import prefect.cli.root as root
 from prefect.cli.root import app
-from prefect.utilities.annotations import NotSet
 
-from ._models import PrefectYamlModel
+from ._models import DeploymentConfig, PrefectYamlModel
 
 
 def _merge_with_default_deploy_config(deploy_config: dict[str, Any]) -> dict[str, Any]:
@@ -48,13 +47,13 @@ def _merge_with_default_deploy_config(deploy_config: dict[str, Any]) -> dict[str
 
 def _load_deploy_configs_and_actions(
     prefect_file: Path,
-) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+) -> tuple[list[DeploymentConfig], dict[str, Any]]:
     """
     Load and validate a prefect.yaml using Pydantic models.
 
     Returns a tuple of (deployment_configs, actions_dict) where deployments are
-    dictionaries compatible with existing CLI code and actions contains
-    top-level build/push/pull lists from the file.
+    strongly-typed DeploymentConfig instances and actions contains top-level
+    build/push/pull lists from the file.
     """
     raw: dict[str, Any] = {}
     try:
@@ -93,11 +92,8 @@ def _load_deploy_configs_and_actions(
         "push": model.push or [],
         "pull": model.pull or [],
     }
-    # Convert Pydantic models to plain dicts for downstream consumption,
-    # excluding keys that were not provided by users to preserve legacy semantics
-    deploy_configs: list[dict[str, Any]] = [
-        d.model_dump(exclude_unset=True, mode="json") for d in model.deployments
-    ]
+    # Return the actual models to enable stronger typing in the CLI
+    deploy_configs: list[DeploymentConfig] = list(model.deployments)
     return deploy_configs, actions
 
 
@@ -127,8 +123,8 @@ def _extract_variable(variable: str) -> dict[str, Any]:
 
 
 def _apply_cli_options_to_deploy_config(
-    deploy_config: dict[str, Any], cli_options: dict[str, Any]
-) -> dict[str, Any]:
+    deploy_config: DeploymentConfig, cli_options: dict[str, Any]
+) -> tuple[DeploymentConfig, dict[str, Any]]:
     """
     Applies CLI options to a deploy config. CLI options take
     precedence over values in the deploy config.
@@ -149,7 +145,7 @@ def _apply_cli_options_to_deploy_config(
     # If there's more than one name, we can't set the name of the deploy config.
     # The user will be prompted if running in interactive mode.
     if len(cli_options.get("names", [])) == 1:
-        deploy_config["name"] = cli_options["names"][0]
+        deploy_config.name = cli_options["names"][0]
 
     variable_overrides: dict[str, Any] = {}
     for cli_option, cli_value in cli_options.items():
@@ -163,34 +159,43 @@ def _apply_cli_options_to_deploy_config(
                 "concurrency_limit",
                 "flow_name",
                 "enforce_parameter_schema",
+                "version_type",
             ]
             and cli_value is not None
         ):
-            deploy_config[cli_option] = cli_value
+            if cli_option == "concurrency_limit" and isinstance(cli_value, dict):
+                from ._models import ConcurrencyLimitSpec as _CLS
+
+                cli_value = _CLS.model_validate(cli_value)
+            setattr(deploy_config, cli_option, cli_value)
 
         elif (
             cli_option in ["work_pool_name", "work_queue_name", "variables"]
             and cli_value
         ):
-            if not isinstance(deploy_config.get("work_pool"), dict):
-                deploy_config["work_pool"] = {}
+            if deploy_config.work_pool is None:
+                # Late import to avoid cycle
+                from ._models import WorkPoolConfig
+
+                deploy_config.work_pool = WorkPoolConfig()
             if cli_option == "work_pool_name":
-                deploy_config["work_pool"]["name"] = cli_value
+                deploy_config.work_pool.name = cli_value
             elif cli_option == "variables":
+                # variables are provided as key=value or JSON; merge into job_variables
                 for variable in cli_value or []:
                     variable_overrides.update(**_extract_variable(variable))
-                if not isinstance(deploy_config["work_pool"].get("variables"), dict):
-                    deploy_config["work_pool"]["job_variables"] = {}
-                deploy_config["work_pool"]["job_variables"].update(variable_overrides)
+                job_vars = deploy_config.work_pool.job_variables or {}
+                job_vars.update(variable_overrides)
+                deploy_config.work_pool.job_variables = job_vars
             else:
-                deploy_config["work_pool"][cli_option] = cli_value
+                # work_queue_name
+                setattr(deploy_config.work_pool, cli_option, cli_value)
 
         elif cli_option in ["cron", "interval", "rrule"] and cli_value:
-            if not isinstance(deploy_config.get("schedules"), list):
-                deploy_config["schedules"] = []
-
+            schedules = list(deploy_config.schedules or [])
             for value in cli_value:
-                deploy_config["schedules"].append({cli_option: value})
+                schedules.append({cli_option: value})
+            deploy_config.schedules = schedules
 
         elif cli_option in ["param", "params"] and cli_value:
             parameters: dict[str, Any] = {}
@@ -200,8 +205,7 @@ def _apply_cli_options_to_deploy_config(
                     try:
                         v = json.loads(unparsed_value)
                         app.console.print(
-                            f"The parameter value {unparsed_value} is parsed as a JSON"
-                            " string"
+                            f"The parameter value {unparsed_value} is parsed as a JSON string"
                         )
                     except json.JSONDecodeError:
                         v = unparsed_value
@@ -210,31 +214,43 @@ def _apply_cli_options_to_deploy_config(
             if cli_option == "params" and cli_value is not None:
                 parameters = json.loads(cli_value)
 
-            if not isinstance(deploy_config.get("parameters"), dict):
-                deploy_config["parameters"] = {}
-            deploy_config["parameters"].update(parameters)
+            merged = dict(deploy_config.parameters or {})
+            merged.update(parameters)
+            deploy_config.parameters = merged
 
     anchor_date = cli_options.get("anchor_date")
     timezone = cli_options.get("timezone")
 
     # Apply anchor_date and timezone to new and existing schedules
-    for schedule_config in deploy_config.get("schedules") or []:
-        if anchor_date and schedule_config.get("interval"):
-            schedule_config["anchor_date"] = anchor_date
-        if timezone:
-            schedule_config["timezone"] = timezone
+    schedules = []
+    for schedule_config in deploy_config.schedules or []:
+        if isinstance(schedule_config, dict):
+            sc = dict(schedule_config)
+            if anchor_date and sc.get("interval"):
+                sc["anchor_date"] = anchor_date
+            if timezone:
+                sc["timezone"] = timezone
+            schedules.append(sc)
+        else:
+            # Non-dict schedule objects are left unchanged
+            schedules.append(schedule_config)
+    if schedules:
+        deploy_config.schedules = schedules
 
     return deploy_config, variable_overrides
 
 
 def _handle_pick_deploy_without_name(
-    deploy_configs: list[dict[str, Any]],
+    deploy_configs: list[DeploymentConfig],
 ) -> list[dict[str, Any]]:
     from prefect.cli._prompts import prompt_select_from_table
 
-    selectable_deploy_configs = [
-        deploy_config for deploy_config in deploy_configs if deploy_config.get("name")
-    ]
+    # Build rows from models for selection; include full config as dict for return
+    selectable_deploy_configs: list[dict[str, Any]] = []
+    for d in deploy_configs:
+        if d.name:
+            row = d.model_dump(exclude_unset=True, mode="json")
+            selectable_deploy_configs.append(row)
     if not selectable_deploy_configs:
         return []
     selected_deploy_config = prompt_select_from_table(
@@ -273,29 +289,29 @@ def _log_missing_deployment_names(missing_names, matched_deploy_configs, names):
 
 
 def _filter_matching_deploy_config(
-    name: str, deploy_configs: list[dict[str, Any]]
+    name: str, deploy_configs: list[DeploymentConfig]
 ) -> list[dict[str, Any]]:
     matching_deployments: list[dict[str, Any]] = []
     if "/" in name:
         flow_name, deployment_name = name.split("/")
         flow_name = flow_name.replace("-", "_")
-        matching_deployments = [
-            deploy_config
-            for deploy_config in deploy_configs
-            if deploy_config.get("name") == deployment_name
-            and deploy_config.get("entrypoint", "").split(":")[-1] == flow_name
-        ]
+        for d in deploy_configs:
+            entry_flow = (d.entrypoint or "").split(":")[-1]
+            if d.name == deployment_name and entry_flow == flow_name:
+                matching_deployments.append(
+                    d.model_dump(exclude_unset=True, mode="json")
+                )
     else:
-        matching_deployments = [
-            deploy_config
-            for deploy_config in deploy_configs
-            if deploy_config.get("name") == name
-        ]
+        for d in deploy_configs:
+            if d.name == name:
+                matching_deployments.append(
+                    d.model_dump(exclude_unset=True, mode="json")
+                )
     return matching_deployments
 
 
 def _parse_name_from_pattern(
-    deploy_configs: list[dict[str, Any]], name_pattern: str
+    deploy_configs: list[DeploymentConfig], name_pattern: str
 ) -> list[str]:
     parsed_names: list[str] = []
     name_pattern = re.escape(name_pattern).replace(r"\*", ".*")
@@ -316,11 +332,11 @@ def _parse_name_from_pattern(
         flow_name = None
         deploy_name = re.compile(name_pattern.replace("*", ".*"))
 
-    for deploy_config in deploy_configs:
-        if not deploy_config.get("entrypoint"):
+    for d in deploy_configs:
+        if not d.entrypoint:
             continue
-        entrypoint = deploy_config.get("entrypoint").split(":")[-1].replace("_", "-")
-        deployment_name = deploy_config.get("name")
+        entrypoint = d.entrypoint.split(":")[-1].replace("_", "-")
+        deployment_name = d.name or ""
         flow_match = flow_name.fullmatch(entrypoint) if flow_name else True
         deploy_match = deploy_name.fullmatch(deployment_name)
         if flow_match and deploy_match:
@@ -330,7 +346,7 @@ def _parse_name_from_pattern(
 
 
 def _handle_pick_deploy_with_name(
-    deploy_configs: list[dict[str, Any]],
+    deploy_configs: list[DeploymentConfig],
     names: list[str],
 ) -> list[dict[str, Any]]:
     from prefect.cli._prompts import prompt_select_from_table
@@ -370,7 +386,7 @@ def _handle_pick_deploy_with_name(
 
 
 def _pick_deploy_configs(
-    deploy_configs: list[dict[str, Any]],
+    deploy_configs: list[DeploymentConfig],
     names: Optional[list[str]] = None,
     deploy_all: bool = False,
 ) -> list[dict[str, Any]]:
@@ -400,14 +416,18 @@ def _pick_deploy_configs(
     # fields (e.g., version, tags, description) from the config.
     if (not root.is_interactive()) and len(deploy_configs) == 1 and len(names) <= 1:
         return [
-            _merge_with_default_deploy_config(deploy_configs[0]),
+            _merge_with_default_deploy_config(
+                deploy_configs[0].model_dump(exclude_unset=True, mode="json")
+            ),
         ]
 
     if not names and not deploy_all:
         if not root.is_interactive():
             if len(deploy_configs) == 1:
                 return [
-                    _merge_with_default_deploy_config(deploy_configs[0]),
+                    _merge_with_default_deploy_config(
+                        deploy_configs[0].model_dump(exclude_unset=True, mode="json")
+                    ),
                 ]
             # Mirror original behavior: error when multiple configs present and no
             # explicit name provided in non-interactive mode.
@@ -419,7 +439,9 @@ def _pick_deploy_configs(
         selected_deploy_config = _handle_pick_deploy_without_name(deploy_configs)
         if not selected_deploy_config:
             return [
-                _merge_with_default_deploy_config(deploy_configs[0]),
+                _merge_with_default_deploy_config(
+                    deploy_configs[0].model_dump(exclude_unset=True, mode="json")
+                ),
             ]
         return selected_deploy_config
 
@@ -429,30 +451,40 @@ def _pick_deploy_configs(
 
     if deploy_all:
         return [
-            _merge_with_default_deploy_config(deploy_config)
+            _merge_with_default_deploy_config(
+                deploy_config.model_dump(exclude_unset=True, mode="json")
+            )
             for deploy_config in deploy_configs
         ]
 
     raise ValueError("Invalid selection. Please try again.")
 
 
-def _handle_deprecated_schedule_fields(deploy_config: dict[str, Any]):
+def _handle_deprecated_schedule_fields(
+    deploy_config: DeploymentConfig,
+) -> DeploymentConfig:
     deploy_config = deepcopy(deploy_config)
 
-    legacy_schedule = deploy_config.get("schedule", NotSet)
-    schedule_configs = deploy_config.get("schedules", NotSet)
+    legacy_schedule = deploy_config.schedule
+    schedule_configs = deploy_config.schedules
 
-    if (
-        legacy_schedule
-        and legacy_schedule is not NotSet
-        and schedule_configs is not NotSet
-    ):
+    if legacy_schedule is not None and schedule_configs is not None:
         raise ValueError(
-            "Both 'schedule' and 'schedules' keys are present in the deployment"
-            " configuration. Please use only use `schedules`."
+            "Both 'schedule' and 'schedules' keys are present in the deployment configuration. Please use only use `schedules`."
         )
 
-    if legacy_schedule and isinstance(legacy_schedule, dict):
-        deploy_config["schedules"] = [deploy_config["schedule"]]
+    # Only promote legacy 'schedule' to 'schedules' if it is meaningful.
+    # Historically, an empty dict `{}` was considered absent (falsy) and should not be promoted.
+    if schedule_configs is None and legacy_schedule is not None:
+        promote = False
+        if isinstance(legacy_schedule, dict):
+            promote = bool(legacy_schedule)
+        else:
+            # CronSchedule/IntervalSchedule/RRuleSchedule or DeploymentScheduleCreate
+            promote = True
+
+        if promote:
+            deploy_config.schedules = [legacy_schedule]
+        deploy_config.schedule = None
 
     return deploy_config
