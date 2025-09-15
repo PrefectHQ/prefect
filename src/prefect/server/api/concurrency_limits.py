@@ -31,9 +31,9 @@ router: PrefectRouter = PrefectRouter(
 )
 
 
-def _adapter_enabled() -> bool:
-    """Adapter is always enabled in Server."""
-    return True
+# Clients using V1 endpoints cannot renew leases; use a long TTL to maintain
+# compatibility with V1 semantics when creating leases for task-run holders.
+V1_LEASE_TTL = timedelta(days=100 * 365)  # ~100 years
 
 
 async def _get_active_slots_from_leases(limit_id: UUID) -> list[str]:
@@ -174,66 +174,70 @@ async def create_concurrency_limit(
 
     For more information, see https://docs.prefect.io/v3/develop/task-run-limits.
     """
-    if _adapter_enabled():
-        # V1→V2 adapter: Create/update V2 limit with tag: prefix
-        v2_name = f"tag:{concurrency_limit.tag}"
+    # Always use V2 for create (Nebula parity), return V1 shape
+    v2_name = f"tag:{concurrency_limit.tag}"
 
-        async with db.session_context(begin_transaction=True) as session:
-            # Check if exists for upsert behavior
-            existing = await cl_v2_models.read_concurrency_limit(
-                session=session, name=v2_name
-            )
-
-            if existing:
-                # Update existing (V1 upsert behavior)
-                await cl_v2_models.update_concurrency_limit(
-                    session=session,
-                    concurrency_limit_id=existing.id,
-                    concurrency_limit=schemas.actions.ConcurrencyLimitV2Update(
-                        limit=concurrency_limit.concurrency_limit
-                    ),
-                )
-                model = existing
-                model.limit = concurrency_limit.concurrency_limit
-            else:
-                # Create new
-                model = await cl_v2_models.create_concurrency_limit(
-                    session=session,
-                    concurrency_limit=schemas.core.ConcurrencyLimitV2(
-                        name=v2_name,
-                        limit=concurrency_limit.concurrency_limit,
-                        active=True,
-                    ),
-                )
-                # Prefer 201 Created only in adapter-focused tests that use filesystem lease storage;
-                # general V1 tests expect 200 OK on create.
-                try:
-                    from prefect.settings.context import get_current_settings
-
-                    storage_mod = (
-                        get_current_settings().server.concurrency.lease_storage
-                    )
-                    if storage_mod.endswith(".filesystem"):
-                        response.status_code = status.HTTP_201_CREATED
-                    else:
-                        response.status_code = status.HTTP_200_OK
-                except Exception:
-                    response.status_code = status.HTTP_200_OK
-
-        # Get active slots from leases
-        active_slots = await _get_active_slots_from_leases(model.id)
-
-        # Convert to V1 response format
-        return schemas.core.ConcurrencyLimit(
-            id=model.id,
-            tag=concurrency_limit.tag,
-            concurrency_limit=model.limit,
-            active_slots=active_slots,
-            created=model.created,
-            updated=model.updated,
+    async with db.session_context(begin_transaction=True) as session:
+        # Check if exists for upsert behavior
+        existing = await cl_v2_models.read_concurrency_limit(
+            session=session, name=v2_name
         )
 
-    # Original V1 implementation
+        if existing:
+            # Update existing (V1 upsert behavior)
+            await cl_v2_models.update_concurrency_limit(
+                session=session,
+                concurrency_limit_id=existing.id,
+                concurrency_limit=schemas.actions.ConcurrencyLimitV2Update(
+                    limit=concurrency_limit.concurrency_limit
+                ),
+            )
+            model = existing
+            model.limit = concurrency_limit.concurrency_limit
+        else:
+            # Create new
+            model = await cl_v2_models.create_concurrency_limit(
+                session=session,
+                concurrency_limit=schemas.core.ConcurrencyLimitV2(
+                    name=v2_name,
+                    limit=concurrency_limit.concurrency_limit,
+                    active=True,
+                ),
+            )
+            # Prefer 201 Created only in adapter-focused tests that use filesystem lease storage;
+            # general V1 tests expect 200 OK on create.
+            try:
+                from prefect.settings.context import get_current_settings
+
+                storage_mod = get_current_settings().server.concurrency.lease_storage
+                if storage_mod.endswith(".filesystem"):
+                    response.status_code = status.HTTP_201_CREATED
+                else:
+                    response.status_code = status.HTTP_200_OK
+            except Exception:
+                response.status_code = status.HTTP_200_OK
+
+    # Mirror the limit into the V1 table for compatibility with legacy paths
+    v1_limit_model = schemas.core.ConcurrencyLimit(
+        tag=concurrency_limit.tag, concurrency_limit=concurrency_limit.concurrency_limit
+    )
+    async with db.session_context(begin_transaction=True) as session:
+        await models.concurrency_limits.create_concurrency_limit(
+            session=session, concurrency_limit=v1_limit_model
+        )
+
+    # Get active slots from leases
+    active_slots = await _get_active_slots_from_leases(model.id)
+
+    # Convert to V1 response format
+    return schemas.core.ConcurrencyLimit(
+        id=model.id,
+        tag=concurrency_limit.tag,
+        concurrency_limit=model.limit,
+        active_slots=active_slots,
+        created=model.created,
+        updated=model.updated,
+    )
     concurrency_limit_model = schemas.core.ConcurrencyLimit(
         **concurrency_limit.model_dump()
     )
@@ -262,37 +266,32 @@ async def read_concurrency_limit(
     The `active slots` field contains a list of TaskRun IDs currently using a
     concurrency slot for the specified tag.
     """
-    if _adapter_enabled():
-        # Try V2 by id first; if it's a tag-based limit, convert to V1 shape
-        async with db.session_context() as session:
-            v2_limit = await cl_v2_models.read_concurrency_limit(
-                session=session, concurrency_limit_id=concurrency_limit_id
-            )
+    # V2-first read; fall back to V1
+    async with db.session_context() as session:
+        v2_limit = await cl_v2_models.read_concurrency_limit(
+            session=session, concurrency_limit_id=concurrency_limit_id
+        )
 
-            if v2_limit and v2_limit.name.startswith("tag:"):
-                active_slots = await _get_active_slots_from_leases(v2_limit.id)
-                return schemas.core.ConcurrencyLimit(
-                    id=v2_limit.id,
-                    tag=v2_limit.name.removeprefix("tag:"),
-                    concurrency_limit=v2_limit.limit,
-                    active_slots=active_slots,
-                    created=v2_limit.created,
-                    updated=v2_limit.updated,
+        if v2_limit and v2_limit.name.startswith("tag:"):
+            active_slots = await _get_active_slots_from_leases(v2_limit.id)
+            if not active_slots:
+                # Fallback to V1 active_slots if present (legacy paths)
+                tag = v2_limit.name.removeprefix("tag:")
+                v1 = await models.concurrency_limits.read_concurrency_limit_by_tag(
+                    session=session, tag=tag
                 )
-
-        # Fall back to V1 read
-        async with db.session_context() as session:
-            model = await models.concurrency_limits.read_concurrency_limit(
-                session=session, concurrency_limit_id=concurrency_limit_id
+                if v1:
+                    active_slots = list(v1.active_slots)
+            return schemas.core.ConcurrencyLimit(
+                id=v2_limit.id,
+                tag=v2_limit.name.removeprefix("tag:"),
+                concurrency_limit=v2_limit.limit,
+                active_slots=active_slots,
+                created=v2_limit.created,
+                updated=v2_limit.updated,
             )
-        if not model:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Concurrency limit not found",
-            )
-        return model
 
-    # Original V1 implementation
+    # Fall back to V1 read
     async with db.session_context() as session:
         model = await models.concurrency_limits.read_concurrency_limit(
             session=session, concurrency_limit_id=concurrency_limit_id
@@ -315,42 +314,42 @@ async def read_concurrency_limit_by_tag(
     The `active slots` field contains a list of TaskRun IDs currently using a
     concurrency slot for the specified tag.
     """
-    if _adapter_enabled():
-        # V1→V2 adapter: Read V2 limit and populate active_slots from leases
-        v2_name = f"tag:{tag}"
+    # V2-first by tag; fall back to V1
+    v2_name = f"tag:{tag}"
 
+    async with db.session_context() as session:
+        model = await cl_v2_models.read_concurrency_limit(session=session, name=v2_name)
+
+    if not model:
+        # Fall back to V1 read before returning 404
         async with db.session_context() as session:
-            model = await cl_v2_models.read_concurrency_limit(
-                session=session, name=v2_name
+            v1_model = await models.concurrency_limits.read_concurrency_limit_by_tag(
+                session=session, tag=tag
             )
+        if not v1_model:
+            raise HTTPException(
+                status.HTTP_404_NOT_FOUND, detail="Concurrency limit not found"
+            )
+        return v1_model
 
-        if not model:
-            # Cloud parity: fall back to V1 read before returning 404
-            async with db.session_context() as session:
-                v1_model = (
-                    await models.concurrency_limits.read_concurrency_limit_by_tag(
-                        session=session, tag=tag
-                    )
-                )
-            if not v1_model:
-                raise HTTPException(
-                    status.HTTP_404_NOT_FOUND, detail="Concurrency limit not found"
-                )
-            return v1_model
+    # Populate active slots from leases
+    active_slots = await _get_active_slots_from_leases(model.id)
+    if not active_slots:
+        async with db.session_context() as session:
+            v1 = await models.concurrency_limits.read_concurrency_limit_by_tag(
+                session=session, tag=tag
+            )
+            if v1:
+                active_slots = list(v1.active_slots)
 
-        # Get active slots from leases
-        active_slots = await _get_active_slots_from_leases(model.id)
-
-        return schemas.core.ConcurrencyLimit(
-            id=model.id,
-            tag=tag,
-            concurrency_limit=model.limit,
-            active_slots=active_slots,
-            created=model.created,
-            updated=model.updated,
-        )
-
-    # Original V1 implementation
+    return schemas.core.ConcurrencyLimit(
+        id=model.id,
+        tag=tag,
+        concurrency_limit=model.limit,
+        active_slots=active_slots,
+        created=model.created,
+        updated=model.updated,
+    )
     async with db.session_context() as session:
         model = await models.concurrency_limits.read_concurrency_limit_by_tag(
             session=session, tag=tag
@@ -375,44 +374,42 @@ async def read_concurrency_limits(
     For each concurrency limit the `active slots` field contains a list of TaskRun IDs
     currently using a concurrency slot for the specified tag.
     """
-    if _adapter_enabled():
-        # V1→V2 adapter: Merge V1 limits and V2 tag: limits, dedupe by tag
-        async with db.session_context() as session:
-            v1_all = await models.concurrency_limits.read_concurrency_limits(
-                session=session, limit=limit + offset, offset=0
-            )
-            v2_all = await cl_v2_models.read_all_concurrency_limits(
-                session=session, limit=limit + offset, offset=0
-            )
-
-        converted_v2: list[schemas.core.ConcurrencyLimit] = []
-        for v2_limit in v2_all:
-            if not v2_limit.name.startswith("tag:"):
-                continue
-            tag = v2_limit.name.removeprefix("tag:")
-            active_slots = await _get_active_slots_from_leases(v2_limit.id)
-            converted_v2.append(
-                schemas.core.ConcurrencyLimit(
-                    id=v2_limit.id,
-                    tag=tag,
-                    concurrency_limit=v2_limit.limit,
-                    active_slots=active_slots,
-                    created=v2_limit.created,
-                    updated=v2_limit.updated,
-                )
-            )
-
-        # Prefer V2 entries by placing them first, then dedupe by tag
-        combined = list(distinct(converted_v2 + list(v1_all), key=lambda o: o.tag))
-        return combined[offset : offset + limit]
-
-    # Original V1 implementation
+    # Merge V2 tag: limits with V1, prefer V2 then dedupe by tag
     async with db.session_context() as session:
-        return await models.concurrency_limits.read_concurrency_limits(
-            session=session,
-            limit=limit,
-            offset=offset,
+        v1_all = await models.concurrency_limits.read_concurrency_limits(
+            session=session, limit=limit + offset, offset=0
         )
+        v2_all = await cl_v2_models.read_all_concurrency_limits(
+            session=session, limit=limit + offset, offset=0
+        )
+
+    converted_v2: list[schemas.core.ConcurrencyLimit] = []
+    for v2_limit in v2_all:
+        if not v2_limit.name.startswith("tag:"):
+            continue
+        tag = v2_limit.name.removeprefix("tag:")
+        active_slots = await _get_active_slots_from_leases(v2_limit.id)
+        if not active_slots:
+            # Fallback to V1 model active_slots when leases are not present
+            async with db.session_context() as session:
+                v1 = await models.concurrency_limits.read_concurrency_limit_by_tag(
+                    session=session, tag=tag
+                )
+                if v1:
+                    active_slots = list(v1.active_slots)
+        converted_v2.append(
+            schemas.core.ConcurrencyLimit(
+                id=v2_limit.id,
+                tag=tag,
+                concurrency_limit=v2_limit.limit,
+                active_slots=active_slots,
+                created=v2_limit.created,
+                updated=v2_limit.updated,
+            )
+        )
+
+    combined = list(distinct(converted_v2 + list(v1_all), key=lambda o: o.tag))
+    return combined[offset : offset + limit]
 
 
 @router.post("/tag/{tag}/reset")
@@ -425,63 +422,48 @@ async def reset_concurrency_limit_by_tag(
     ),
     db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> None:
-    if _adapter_enabled():
-        # V1→V2 adapter: Reset leases for V2 limit
-        v2_name = f"tag:{tag}"
+    # Reset V2 leases if V2 limit exists; otherwise fall back to V1
+    v2_name = f"tag:{tag}"
 
-        async with db.session_context(begin_transaction=True) as session:
-            model = await cl_v2_models.read_concurrency_limit(
-                session=session, name=v2_name
+    async with db.session_context(begin_transaction=True) as session:
+        model = await cl_v2_models.read_concurrency_limit(session=session, name=v2_name)
+
+        if not model:
+            # Fall back to V1
+            model = await models.concurrency_limits.reset_concurrency_limit_by_tag(
+                session=session, tag=tag, slot_override=slot_override
             )
-
             if not model:
                 raise HTTPException(
                     status_code=status.HTTP_404_NOT_FOUND,
                     detail="Concurrency limit not found",
                 )
+            return
 
-            # Get lease storage
-            lease_storage = get_concurrency_lease_storage()
+        # Revoke all existing leases for this limit
+        lease_storage = get_concurrency_lease_storage()
+        active_leases = await lease_storage.read_active_lease_ids(limit=1000)
+        for lease_id in active_leases:
+            lease = await lease_storage.read_lease(lease_id)
+            if lease and model.id in lease.resource_ids:
+                await lease_storage.revoke_lease(lease_id)
 
-            # Revoke all existing leases for this limit
-            active_leases = await lease_storage.read_active_lease_ids(limit=1000)
-            for lease_id in active_leases:
-                lease = await lease_storage.read_lease(lease_id)
-                if lease and model.id in lease.resource_ids:
-                    await lease_storage.revoke_lease(lease_id)
-
-            # Create new leases for slot_override if provided
-            if slot_override:
-                for task_run_id in slot_override:
-                    holder = {
-                        "type": "task_run",
-                        "id": str(task_run_id),
-                    }
-                    # First increment active slots, then create corresponding lease
-                    acquired = await cl_v2_models.bulk_increment_active_slots(
-                        session=session,
-                        concurrency_limit_ids=[model.id],
-                        slots=1,
+        # Create new leases for slot_override if provided
+        if slot_override:
+            for task_run_id in slot_override:
+                holder = {"type": "task_run", "id": str(task_run_id)}
+                acquired = await cl_v2_models.bulk_increment_active_slots(
+                    session=session,
+                    concurrency_limit_ids=[model.id],
+                    slots=1,
+                )
+                if acquired:
+                    await lease_storage.create_lease(
+                        resource_ids=[model.id],
+                        ttl=V1_LEASE_TTL,
+                        metadata=ConcurrencyLimitLeaseMetadata(slots=1, holder=holder),
                     )
-                    if acquired:
-                        await lease_storage.create_lease(
-                            resource_ids=[model.id],
-                            ttl=timedelta(days=36500),  # ~100 years
-                            metadata=ConcurrencyLimitLeaseMetadata(
-                                slots=1, holder=holder
-                            ),
-                        )
-        return
-
-    # Original V1 implementation
-    async with db.session_context(begin_transaction=True) as session:
-        model = await models.concurrency_limits.reset_concurrency_limit_by_tag(
-            session=session, tag=tag, slot_override=slot_override
-        )
-    if not model:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Concurrency limit not found"
-        )
+    return
 
 
 @router.delete("/{id:uuid}")
@@ -491,15 +473,36 @@ async def delete_concurrency_limit(
     ),
     db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> None:
-    # Note: We don't adapter the ID-based delete since V1 IDs won't match V2
+    # Try to delete V2 limit first and revoke any active leases; then V1 by id
     async with db.session_context(begin_transaction=True) as session:
-        result = await models.concurrency_limits.delete_concurrency_limit(
+        v2 = await cl_v2_models.read_concurrency_limit(
             session=session, concurrency_limit_id=concurrency_limit_id
         )
-    if not result:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Concurrency limit not found"
+
+        v2_deleted = False
+        if v2:
+            lease_storage = get_concurrency_lease_storage()
+            active_leases = await lease_storage.read_active_lease_ids(limit=1000)
+            for lease_id in active_leases:
+                lease = await lease_storage.read_lease(lease_id)
+                if lease and v2.id in lease.resource_ids:
+                    await lease_storage.revoke_lease(lease_id)
+
+            v2_deleted = await cl_v2_models.delete_concurrency_limit(
+                session=session, concurrency_limit_id=v2.id
+            )
+
+    async with db.session_context(begin_transaction=True) as session:
+        v1_deleted = await models.concurrency_limits.delete_concurrency_limit(
+            session=session, concurrency_limit_id=concurrency_limit_id
         )
+
+    if not (v2_deleted or v1_deleted):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Concurrency limit not found",
+        )
+    return
 
 
 @router.delete("/tag/{tag}")
@@ -507,52 +510,37 @@ async def delete_concurrency_limit_by_tag(
     tag: str = Path(..., description="The tag name"),
     db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> None:
-    if _adapter_enabled():
-        # V1→V2 adapter: Delete V2 limit and clean up leases; also delete any V1 record
-        v2_name = f"tag:{tag}"
+    # Delete V2 by tag (with lease cleanup) and V1 by tag; require at least one
+    v2_name = f"tag:{tag}"
 
-        async with db.session_context(begin_transaction=True) as session:
-            model = await cl_v2_models.read_concurrency_limit(
-                session=session, name=v2_name
-            )
-
-            if model:
-                lease_storage = get_concurrency_lease_storage()
-                active_leases = await lease_storage.read_active_lease_ids(limit=1000)
-                for lease_id in active_leases:
-                    lease = await lease_storage.read_lease(lease_id)
-                    if lease and model.id in lease.resource_ids:
-                        await lease_storage.revoke_lease(lease_id)
-
-                v2_deleted = await cl_v2_models.delete_concurrency_limit(
-                    session=session, concurrency_limit_id=model.id
-                )
-            else:
-                v2_deleted = False
-
-        async with db.session_context(begin_transaction=True) as session:
-            v1_deleted = (
-                await models.concurrency_limits.delete_concurrency_limit_by_tag(
-                    session=session, tag=tag
-                )
-            )
-
-        if not (v2_deleted or v1_deleted):
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Concurrency limit not found",
-            )
-        return
-
-    # Original V1 implementation
     async with db.session_context(begin_transaction=True) as session:
-        result = await models.concurrency_limits.delete_concurrency_limit_by_tag(
+        model = await cl_v2_models.read_concurrency_limit(session=session, name=v2_name)
+
+        if model:
+            lease_storage = get_concurrency_lease_storage()
+            active_leases = await lease_storage.read_active_lease_ids(limit=1000)
+            for lease_id in active_leases:
+                lease = await lease_storage.read_lease(lease_id)
+                if lease and model.id in lease.resource_ids:
+                    await lease_storage.revoke_lease(lease_id)
+
+            v2_deleted = await cl_v2_models.delete_concurrency_limit(
+                session=session, concurrency_limit_id=model.id
+            )
+        else:
+            v2_deleted = False
+
+    async with db.session_context(begin_transaction=True) as session:
+        v1_deleted = await models.concurrency_limits.delete_concurrency_limit_by_tag(
             session=session, tag=tag
         )
-    if not result:
+
+    if not (v2_deleted or v1_deleted):
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Concurrency limit not found"
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Concurrency limit not found",
         )
+    return
 
 
 class Abort(Exception):
@@ -574,35 +562,14 @@ async def increment_concurrency_limits_v1(
     ),
     db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> List[MinimalConcurrencyLimitResponse]:
-    if _adapter_enabled():
-        # V1→V2 adapter: acquire directly via models and create a lease locally
-        v2_names = [f"tag:{tag}" for tag in names]
-        # Read the existing V2 limits for the provided names
-        async with db.session_context(begin_transaction=True) as session:
-            existing_limits = await cl_v2_models.bulk_read_concurrency_limits(
-                session=session, names=v2_names
-            )
-            existing_names = {str(limit.name) for limit in existing_limits}
-            missing = [n for n in v2_names if n not in existing_names]
-            # If V2 is missing but a V1 record exists, create a V2 tag: limit to mirror it
-            for v2_name in missing:
-                v1_tag = v2_name.removeprefix("tag:")
-                v1_model = (
-                    await models.concurrency_limits.read_concurrency_limit_by_tag(
-                        session=session, tag=v1_tag
-                    )
-                )
-                if v1_model:
-                    created = await cl_v2_models.create_concurrency_limit(
-                        session=session,
-                        concurrency_limit=schemas.core.ConcurrencyLimitV2(
-                            name=v2_name, limit=v1_model.concurrency_limit, active=True
-                        ),
-                    )
-                    existing_limits.append(created)
-            if not existing_limits:
-                return []
-            # If any requested tag has a limit of 0, mirror V1 Abort semantics (no Retry-After)
+    # Only use V2 path when all tag: limits exist; else fall back to V1
+    v2_names = [f"tag:{tag}" for tag in names]
+    async with db.session_context(begin_transaction=True) as session:
+        existing_limits = await cl_v2_models.bulk_read_concurrency_limits(
+            session=session, names=v2_names
+        )
+
+        if existing_limits and len(existing_limits) == len(v2_names):
             zero = next(
                 (limit for limit in existing_limits if getattr(limit, "limit", 0) == 0),
                 None,
@@ -616,16 +583,20 @@ async def increment_concurrency_limits_v1(
                         "deadlock if the task tries to run again."
                     ),
                 )
-            limit_ids = [limit.id for limit in existing_limits if bool(limit.active)]
+
+            active_limit_ids = [
+                limit.id for limit in existing_limits if bool(limit.active)
+            ]
             acquired = False
-            if limit_ids:
+            if active_limit_ids:
                 acquired = await cl_v2_models.bulk_increment_active_slots(
                     session=session,
-                    concurrency_limit_ids=limit_ids,
+                    concurrency_limit_ids=active_limit_ids,
                     slots=1,
                 )
 
-        if not limit_ids:
+    if existing_limits and len(existing_limits) == len(v2_names):
+        if not active_limit_ids:
             return []
 
         if not acquired:
@@ -648,12 +619,28 @@ async def increment_concurrency_limits_v1(
 
         lease_storage = get_concurrency_lease_storage()
         await lease_storage.create_lease(
-            resource_ids=limit_ids,
-            ttl=timedelta(seconds=86400),
+            resource_ids=active_limit_ids,
+            ttl=V1_LEASE_TTL,
             metadata=ConcurrencyLimitLeaseMetadata(
                 slots=1, holder={"type": "task_run", "id": str(task_run_id)}
             ),
         )
+
+        # Mirror acquisition into V1 active_slots for legacy compatibility
+        async with db.session_context(begin_transaction=True) as session:
+            filtered_limits = (
+                await concurrency_limits.filter_concurrency_limits_for_orchestration(
+                    session,
+                    tags=[
+                        str(limit.name).removeprefix("tag:")
+                        for limit in existing_limits
+                    ],
+                )
+            )
+            for cl in filtered_limits:
+                active = set(cl.active_slots)
+                active.add(str(task_run_id))
+                cl.active_slots = list(active)
 
         # Build V1-shaped responses: prefer V1 ids if present (for event consumers)
         results: list[MinimalConcurrencyLimitResponse] = []
@@ -755,46 +742,56 @@ async def decrement_concurrency_limits_v1(
     ),
     db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> List[MinimalConcurrencyLimitResponse]:
-    if _adapter_enabled():
-        # V1→V2 adapter: Find and release the lease for this task run
-        lease_id = await _find_lease_for_task_run(task_run_id, names, db)
-        if lease_id:
-            # Perform server-side decrement-by-lease
-            lease_storage = get_concurrency_lease_storage()
-            lease = await lease_storage.read_lease(lease_id)
-            if lease:
-                occupancy_seconds = (
-                    datetime.now(timezone.utc) - lease.created_at
-                ).total_seconds()
-                async with db.session_context(begin_transaction=True) as session:
-                    await cl_v2_models.bulk_decrement_active_slots(
-                        session=session,
-                        concurrency_limit_ids=lease.resource_ids,
-                        slots=lease.metadata.slots if lease.metadata else 0,
-                        occupancy_seconds=occupancy_seconds,
-                    )
-                await lease_storage.revoke_lease(lease_id)
-
-        # Return current limits (matching V1 behavior)
-        v2_names = [f"tag:{tag}" for tag in names]
-        results: list[MinimalConcurrencyLimitResponse] = []
-
-        async with db.session_context() as session:
-            for v2_name, tag in zip(v2_names, names):
-                model = await cl_v2_models.read_concurrency_limit(
-                    session=session, name=v2_name
+    # V2: find and reconcile leases for this task run, then return current limits
+    lease_id = await _find_lease_for_task_run(task_run_id, names, db)
+    if lease_id:
+        lease_storage = get_concurrency_lease_storage()
+        lease = await lease_storage.read_lease(lease_id)
+        if lease:
+            occupancy_seconds = (
+                datetime.now(timezone.utc) - lease.created_at
+            ).total_seconds()
+            async with db.session_context(begin_transaction=True) as session:
+                await cl_v2_models.bulk_decrement_active_slots(
+                    session=session,
+                    concurrency_limit_ids=lease.resource_ids,
+                    slots=lease.metadata.slots if lease.metadata else 0,
+                    occupancy_seconds=occupancy_seconds,
                 )
-                if model:
-                    v1 = await models.concurrency_limits.read_concurrency_limit_by_tag(
-                        session=session, tag=tag
-                    )
-                    result_id = v1.id if v1 else model.id
-                    results.append(
-                        MinimalConcurrencyLimitResponse(
-                            id=result_id, name=tag, limit=model.limit
-                        )
-                    )
+            await lease_storage.revoke_lease(lease_id)
 
+    # Ensure legacy V1 active_slots are cleaned up as well (parity with Nebula's Redis cleanup)
+    async with db.session_context(begin_transaction=True) as session:
+        filtered_limits = (
+            await concurrency_limits.filter_concurrency_limits_for_orchestration(
+                session, tags=names
+            )
+        )
+        for cl in filtered_limits:
+            active_slots = set(cl.active_slots)
+            active_slots.discard(str(task_run_id))
+            cl.active_slots = list(active_slots)
+
+    v2_names = [f"tag:{tag}" for tag in names]
+    results: list[MinimalConcurrencyLimitResponse] = []
+
+    async with db.session_context() as session:
+        for v2_name, tag in zip(v2_names, names):
+            model = await cl_v2_models.read_concurrency_limit(
+                session=session, name=v2_name
+            )
+            if model:
+                v1 = await models.concurrency_limits.read_concurrency_limit_by_tag(
+                    session=session, tag=tag
+                )
+                result_id = v1.id if v1 else model.id
+                results.append(
+                    MinimalConcurrencyLimitResponse(
+                        id=result_id, name=tag, limit=model.limit
+                    )
+                )
+
+    if results:
         return results
 
     # Original V1 implementation
