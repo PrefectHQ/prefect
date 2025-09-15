@@ -7,10 +7,10 @@ sidebarTitle: leasing
 
 ## Functions
 
-### `get_active_slots_from_leases` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/leasing.py#L81" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `get_active_slots_from_leases` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/leasing.py#L84" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-get_active_slots_from_leases(limit_id: UUID, lease_storage: object | None = None) -> list[str]
+get_active_slots_from_leases(limit_id: UUID, lease_storage: 'ConcurrencyLeaseStorage | None' = None) -> list[str]
 ```
 
 
@@ -20,10 +20,10 @@ Handles backends that provide a holder listing helper and those that do not by
 falling back to scanning active leases.
 
 
-### `find_lease_for_task_run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/leasing.py#L154" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `find_lease_for_task_run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/leasing.py#L157" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-find_lease_for_task_run(task_run_id: UUID, tags: list[str], db: PrefectDBInterface, lease_storage: object | None = None) -> UUID | None
+find_lease_for_task_run(task_run_id: UUID, tags: list[str], db: PrefectDBInterface, lease_storage: 'ConcurrencyLeaseStorage | None' = None) -> UUID | None
 ```
 
 
