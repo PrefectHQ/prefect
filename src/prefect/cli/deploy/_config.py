@@ -7,11 +7,14 @@ from pathlib import Path
 from typing import Any, Optional
 
 import yaml
+from pydantic import ValidationError
 from yaml.error import YAMLError
 
 import prefect.cli.root as root
 from prefect.cli.root import app
 from prefect.utilities.annotations import NotSet
+
+from ._models import PrefectYamlModel
 
 
 def _merge_with_default_deploy_config(deploy_config: dict[str, Any]) -> dict[str, Any]:
@@ -46,28 +49,55 @@ def _merge_with_default_deploy_config(deploy_config: dict[str, Any]) -> dict[str
 def _load_deploy_configs_and_actions(
     prefect_file: Path,
 ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    """
+    Load and validate a prefect.yaml using Pydantic models.
+
+    Returns a tuple of (deployment_configs, actions_dict) where deployments are
+    dictionaries compatible with existing CLI code and actions contains
+    top-level build/push/pull lists from the file.
+    """
+    raw: dict[str, Any] = {}
     try:
         with prefect_file.open("r") as f:
-            prefect_yaml_contents = yaml.safe_load(f)
+            loaded = yaml.safe_load(f)
     except (FileNotFoundError, IsADirectoryError, YAMLError) as exc:
         app.console.print(
             f"Unable to read the specified config file. Reason: {exc}. Skipping.",
             style="yellow",
         )
-        prefect_yaml_contents: dict[str, Any] = {}
-    if not isinstance(prefect_yaml_contents, dict):
+        loaded = {}
+
+    if isinstance(loaded, dict):
+        raw = loaded
+    else:
         app.console.print(
             "Unable to parse the specified config file. Skipping.",
             style="yellow",
         )
-        prefect_yaml_contents = {}
+
+    try:
+        model = PrefectYamlModel.model_validate(raw)
+    except ValidationError as exc:
+        # Match prior behavior: warn and continue with empty configuration
+        app.console.print(
+            (
+                "The specified config file contains invalid fields. "
+                "Validation error: " + str(exc.errors()[0].get("msg", exc))
+            ),
+            style="yellow",
+        )
+        model = PrefectYamlModel()
 
     actions: dict[str, Any] = {
-        "build": prefect_yaml_contents.get("build", []),
-        "push": prefect_yaml_contents.get("push", []),
-        "pull": prefect_yaml_contents.get("pull", []),
+        "build": model.build or [],
+        "push": model.push or [],
+        "pull": model.pull or [],
     }
-    deploy_configs = prefect_yaml_contents.get("deployments", [])
+    # Convert Pydantic models to plain dicts for downstream consumption,
+    # excluding keys that were not provided by users to preserve legacy semantics
+    deploy_configs: list[dict[str, Any]] = [
+        d.model_dump(exclude_unset=True, mode="json") for d in model.deployments
+    ]
     return deploy_configs, actions
 
 
