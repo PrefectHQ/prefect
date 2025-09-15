@@ -35,40 +35,27 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          
-      - name: Set up Python
-        uses: astral-sh/setup-uv@v6
-        with:
-          python-version: "3.9"
-          enable-cache: true
-          cache-dependency-glob: "pyproject.toml"
-          
-      - name: Install the project
-        run: uv sync --compile-bytecode --no-editable --locked
-        
-      - name: Setup NodeJS for Mintlify
+      
+      - name: Set up NodeJS (for npx)
         uses: actions/setup-node@v5
         with:
           node-version-file: ".nvmrc"
           cache-dependency-path: "**/package-lock.json"
-          
-      - name: Install mintlify-scrape
-        run: npm install -g @mintlify/scraping@3.0.123
-        
-      - name: Generate OpenAPI documentation
-        run: uv run --isolated -p 3.9 --with 'pydantic>=2.9.0' ./scripts/generate_mintlify_openapi_docs.py
-        
-      - name: Generate settings schema
-        run: uv run --isolated -p 3.9 --with 'pydantic>=2.9.0' ./scripts/generate_settings_schema.py
-        
-      - name: Generate settings reference
-        run: uv run --isolated -p 3.9 --with 'pydantic>=2.9.0' ./scripts/generate_settings_ref.py
-        
-      - name: Generate API reference
-        run: uv run --isolated -p 3.9 --with 'pydantic>=2.9.0' ./scripts/generate_api_ref.py
-        
-      - name: Generate example pages
-        run: uv run --isolated -p 3.13 --with anyio scripts/generate_example_pages.py
+      
+      - name: Set up uv (Python toolchain)
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          cache-dependency-glob: "pyproject.toml"
+
+      - name: Set up just
+        uses: extractions/setup-just@v2
+
+      - name: Install the project
+        run: uv sync --compile-bytecode --no-editable --locked
+
+      - name: Generate all docs via just
+        run: just generate-docs
         
       - name: Check for changes
         id: check-changes
