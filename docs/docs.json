@@ -1,5 +1,6 @@
 {
   "$schema": "https://mintlify.com/docs.json",
+  "redirect": true,
   "api": {
     "playground": {
       "display": "simple"
