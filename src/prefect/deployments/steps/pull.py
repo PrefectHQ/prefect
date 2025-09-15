@@ -30,10 +30,10 @@ def set_working_directory(directory: str) -> dict[str, str]:
 
     Returns:
         dict: a dictionary containing a `directory` key of the
-            directory that was set
+            absolute path of the directory that was set
     """
     os.chdir(directory)
-    return dict(directory=directory)
+    return dict(directory=os.getcwd())
 
 
 @retry_async_fn(
