@@ -5,6 +5,33 @@ sidebarTitle: leasing
 
 # `prefect.server.utilities.leasing`
 
+## Functions
+
+### `get_active_slots_from_leases` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/leasing.py#L81" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+get_active_slots_from_leases(limit_id: UUID, lease_storage: object | None = None) -> list[str]
+```
+
+
+Extract task_run IDs from active leases for a given limit.
+
+Handles backends that provide a holder listing helper and those that do not by
+falling back to scanning active leases.
+
+
+### `find_lease_for_task_run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/leasing.py#L154" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+find_lease_for_task_run(task_run_id: UUID, tags: list[str], db: PrefectDBInterface, lease_storage: object | None = None) -> UUID | None
+```
+
+
+Find the lease ID for a given task run across tag-based limits.
+
+Attempts to use a backend helper if available; otherwise scans active leases.
+
+
 ## Classes
 
 ### `ResourceLease` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/leasing.py#L13" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
@@ -28,21 +55,6 @@ Create a new resource lease.
 
 **Returns:**
 - A ResourceLease object representing the lease.
-
-
-#### `read_expired_lease_ids` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/leasing.py#L69" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
-
-```python
-read_expired_lease_ids(self, limit: int = 100) -> list[UUID]
-```
-
-Read the IDs of expired leases.
-
-**Args:**
-- `limit`: The maximum number of expired leases to read.
-
-**Returns:**
-- A list of UUIDs representing the expired leases.
 
 
 #### `read_lease` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/leasing.py#L38" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
