@@ -1,6 +1,10 @@
 {
   "$schema": "https://mintlify.com/docs.json",
-  "redirect": true,
+  "errors": {
+    "404": {
+      "redirect": true
+    }
+  },
   "api": {
     "playground": {
       "display": "simple"
