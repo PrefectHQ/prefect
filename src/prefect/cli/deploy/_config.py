@@ -96,7 +96,7 @@ def _load_deploy_configs_and_actions(
     # Convert Pydantic models to plain dicts for downstream consumption,
     # excluding keys that were not provided by users to preserve legacy semantics
     deploy_configs: list[dict[str, Any]] = [
-        d.model_dump(exclude_unset=True) for d in model.deployments
+        d.model_dump(exclude_unset=True, mode="json") for d in model.deployments
     ]
     return deploy_configs, actions
 

@@ -25,7 +25,9 @@ class DeploymentConfig(BaseModel):
     name: Optional[str] = None
     version: Optional[str] = None
     version_type: Optional[str] = None
-    tags: List[str] = Field(default_factory=list)
+    tags: Optional[Union[str, list[Any]]] = (
+        None  # allow raw templated string or list; templating will normalize
+    )
     description: Optional[str] = None
 
     # schedule metadata
@@ -41,9 +43,10 @@ class DeploymentConfig(BaseModel):
     enforce_parameter_schema: Optional[bool] = None
 
     # per-deployment actions (optional overrides)
-    build: Optional[List[Dict[str, Any]]] = None
-    push: Optional[List[Dict[str, Any]]] = None
-    pull: Optional[List[Dict[str, Any]]] = None
+    # Accept list, mapping (empty or step), or null for flexibility
+    build: Optional[Union[List[Dict[str, Any]], Dict[str, Any]]] = None
+    push: Optional[Union[List[Dict[str, Any]], Dict[str, Any]]] = None
+    pull: Optional[Union[List[Dict[str, Any]], Dict[str, Any]]] = None
 
     # infra-specific
     work_pool: Optional[WorkPoolConfig] = None
@@ -51,19 +54,6 @@ class DeploymentConfig(BaseModel):
     # automations metadata
     triggers: Optional[List[DeploymentTriggerTypes]] = None
     sla: Optional[List[SlaTypes]] = None
-
-    @field_validator("tags", mode="before")
-    @classmethod
-    def _ensure_tags_list(cls, v: Any) -> List[str]:
-        if v is None:
-            return []
-        if isinstance(v, list):
-            # Coerce to str for safety; invalid entries will raise later when used
-            return [str(i) for i in v]
-        # If provided as a single string, coerce into list
-        if isinstance(v, str):
-            return [v]
-        return []
 
 
 class PrefectYamlModel(BaseModel):
@@ -74,9 +64,9 @@ class PrefectYamlModel(BaseModel):
     name: Optional[str] = None
 
     # global actions
-    build: Optional[List[Dict[str, Any]]] = None
-    push: Optional[List[Dict[str, Any]]] = None
-    pull: Optional[List[Dict[str, Any]]] = None
+    build: Optional[Union[List[Dict[str, Any]], Dict[str, Any]]] = None
+    push: Optional[Union[List[Dict[str, Any]], Dict[str, Any]]] = None
+    pull: Optional[Union[List[Dict[str, Any]], Dict[str, Any]]] = None
 
     # deployments
     deployments: List[DeploymentConfig] = Field(default_factory=list)
