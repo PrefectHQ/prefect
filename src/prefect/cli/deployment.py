@@ -854,12 +854,12 @@ async def run(
     watch: bool = typer.Option(
         False,
         "--watch",
-        help=("Whether to poll the flow run until a terminal state is reached."),
+        help=("Wait for the flow run to reach a terminal state."),
     ),
     watch_interval: Optional[int] = typer.Option(
         None,
         "--watch-interval",
-        help=("How often to poll the flow run for state changes (in seconds)."),
+        help=("Deprecated; waiting no longer uses polling."),
     ),
     watch_timeout: Optional[int] = typer.Option(
         None,
