@@ -41,6 +41,7 @@ from ._actions import (
 from ._config import (
     _apply_cli_options_to_deploy_config,
     _handle_deprecated_schedule_fields,
+    _merge_with_default_deploy_config,
 )
 from ._models import DeploymentConfig
 from ._schedules import _construct_schedules
@@ -317,6 +318,9 @@ async def _run_single_deploy(
             )
         }
         dd["concurrency_limit"] = get_from_dict(dd, "concurrency_limit.limit")
+
+    # Ensure legacy defaults are present for downstream objects (e.g., parameters {})
+    dd = _merge_with_default_deploy_config(dd)
 
     pull_steps = apply_values(pull_steps, step_outputs, remove_notset=False)
 
