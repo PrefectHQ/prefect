@@ -236,16 +236,6 @@ async def read_concurrency_limit_by_tag(
         created=model.created,
         updated=model.updated,
     )
-    async with db.session_context() as session:
-        model = await models.concurrency_limits.read_concurrency_limit_by_tag(
-            session=session, tag=tag
-        )
-
-    if not model:
-        raise HTTPException(
-            status.HTTP_404_NOT_FOUND, detail="Concurrency limit not found"
-        )
-    return model
 
 
 @router.post("/filter")
