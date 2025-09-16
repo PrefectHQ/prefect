@@ -389,7 +389,13 @@ async def _run_single_deploy(
             ),
             console=app.console,
         ):
-            deploy_config_before_templating.update({"schedules": schedules})
+            deploy_config_before_templating.update(
+                {
+                    "schedules": schedules,
+                    # Ensure key exists for _format_deployment_for_saving_to_prefect_file
+                    "parameter_openapi_schema": parameter_openapi_schema,
+                }
+            )
             _save_deployment_to_prefect_file(
                 deploy_config_before_templating,
                 build_steps=build_steps or None,
