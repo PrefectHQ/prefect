@@ -3,10 +3,11 @@ from typing import TYPE_CHECKING, List, Optional
 from uuid import UUID
 
 import sqlalchemy as sa
-from fastapi import Depends, HTTPException, Path, status
+from fastapi import Depends, HTTPException, Path
 from pydantic import Field, model_serializer
 
 import prefect.server.schemas as schemas
+from prefect._internal.compatibility.starlette import status
 from prefect.logging import get_logger
 from prefect.server import models
 from prefect.server.database import PrefectDBInterface, provide_database_interface

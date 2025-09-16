@@ -18,7 +18,6 @@ from fastapi import (
     Path,
     Query,
     Response,
-    status,
 )
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import ORJSONResponse, PlainTextResponse, StreamingResponse
@@ -27,6 +26,7 @@ from sqlalchemy.exc import IntegrityError
 import prefect.server.api.dependencies as dependencies
 import prefect.server.models as models
 import prefect.server.schemas as schemas
+from prefect._internal.compatibility.starlette import status
 from prefect.logging import get_logger
 from prefect.server.api.run_history import run_history
 from prefect.server.api.validation import validate_job_variables_for_deployment_flow_run

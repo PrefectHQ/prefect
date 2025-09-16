@@ -6,8 +6,8 @@ from uuid import uuid4
 import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
-from starlette import status
 
+from prefect._internal.compatibility.starlette import status
 from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas.objects import Flow, State
 from prefect.server import models, schemas

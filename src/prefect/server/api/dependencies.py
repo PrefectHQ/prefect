@@ -10,10 +10,11 @@ from base64 import b64decode
 from typing import Annotated, Any, Optional
 from uuid import UUID
 
-from fastapi import Body, Depends, Header, HTTPException, status
+from fastapi import Body, Depends, Header, HTTPException
 from packaging.version import Version
 from starlette.requests import Request
 
+from prefect._internal.compatibility.starlette import status
 from prefect.server import schemas
 from prefect.settings import PREFECT_API_DEFAULT_LIMIT
 
