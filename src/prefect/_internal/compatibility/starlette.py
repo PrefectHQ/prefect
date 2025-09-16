@@ -19,7 +19,7 @@ class _StatusCompatibility:
     - HTTP_416_REQUESTED_RANGE_NOT_SATISFIABLE -> HTTP_416_RANGE_NOT_SATISFIABLE
     """
 
-    def __getattr__(self, name):
+    def __getattr__(self, name: str) -> int:
         mapping = {
             "HTTP_422_UNPROCESSABLE_ENTITY": "HTTP_422_UNPROCESSABLE_CONTENT",
             "HTTP_413_REQUEST_ENTITY_TOO_LARGE": "HTTP_413_CONTENT_TOO_LARGE",
