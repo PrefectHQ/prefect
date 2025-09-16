@@ -1,8 +1,9 @@
 from typing import TYPE_CHECKING
 
-from fastapi import Depends, Query, status
+from fastapi import Depends, Query
 from starlette.exceptions import HTTPException
 
+from prefect._internal.compatibility.starlette import status
 from prefect.logging import get_logger
 from prefect.server import models, schemas
 from prefect.server.database import PrefectDBInterface, provide_database_interface
