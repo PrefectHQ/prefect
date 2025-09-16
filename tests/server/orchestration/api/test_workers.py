@@ -5,10 +5,10 @@ from typing import List
 import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
-from starlette import status
 
 import prefect
 import prefect.server
+from prefect._internal.compatibility.starlette import status
 from prefect.client.schemas.actions import WorkPoolCreate
 from prefect.client.schemas.objects import WorkPool, WorkQueue
 from prefect.server import models, schemas

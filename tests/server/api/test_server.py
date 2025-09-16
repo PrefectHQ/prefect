@@ -11,9 +11,9 @@ import httpx
 import pytest
 import sqlalchemy as sa
 import toml
-from fastapi import status
 from httpx import ASGITransport, AsyncClient
 
+from prefect._internal.compatibility.starlette import status
 from prefect.client.constants import SERVER_API_VERSION
 from prefect.client.orchestration import get_client
 from prefect.flows import flow
