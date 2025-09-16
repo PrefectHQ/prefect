@@ -592,12 +592,46 @@ def wait(
     not_done = _futures - done
     if len(done) == len(_futures):
         return DoneAndNotDoneFutures(done, not_done)
+
+    # If no timeout, wait for all futures sequentially
+    if timeout is None:
+        for future in not_done.copy():
+            future.wait()
+            done.add(future)
+            not_done.remove(future)
+        return DoneAndNotDoneFutures(done, not_done)
+
+    # With timeout, monitor all futures concurrently
     try:
         with timeout_context(timeout):
-            for future in not_done.copy():
-                future.wait()
-                done.add(future)
-                not_done.remove(future)
+            finished_event = threading.Event()
+            finished_lock = threading.Lock()
+            finished_futures: list[PrefectFuture[R]] = []
+
+            def mark_done(future: PrefectFuture[R]):
+                with finished_lock:
+                    finished_futures.append(future)
+                    finished_event.set()
+
+            # Add callbacks to all pending futures
+            for future in not_done:
+                future.add_done_callback(mark_done)
+
+            # Wait for futures to complete within timeout
+            while not_done:
+                # Wait for at least one future to complete
+                finished_event.wait()
+                with finished_lock:
+                    newly_done = finished_futures[:]
+                    finished_futures.clear()
+                    finished_event.clear()
+
+                # Move completed futures to done set
+                for future in newly_done:
+                    if future in not_done:
+                        not_done.remove(future)
+                        done.add(future)
+
             return DoneAndNotDoneFutures(done, not_done)
     except TimeoutError:
         logger.debug("Timed out waiting for all futures to complete.")

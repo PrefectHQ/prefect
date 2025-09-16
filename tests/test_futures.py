@@ -62,6 +62,45 @@ class TestUtilityFunctions:
         futures = wait(mock_futures, timeout=0.01)
         assert futures.not_done == {mock_futures[-1]}
 
+    def test_wait_monitors_all_futures_concurrently_with_timeout(self):
+        """Test that wait() with timeout monitors all futures concurrently, not sequentially."""
+        import threading
+        import time
+
+        # Create a slow future first, then fast ones
+        # If wait() is sequential, it will timeout on the slow one and miss the fast ones
+        futures = []
+
+        # Slow future that won't complete within timeout
+        slow_future = Future()
+        futures.append(PrefectConcurrentFuture(uuid.uuid4(), slow_future))
+
+        # Fast futures that complete quickly
+        for i in range(1, 4):
+            future = Future()
+            wrapped = PrefectConcurrentFuture(uuid.uuid4(), future)
+            futures.append(wrapped)
+
+            # Complete after short delay
+            def complete_after(f, delay, result):
+                time.sleep(delay * 0.01)
+                f.set_result(Completed(data=result))
+
+            thread = threading.Thread(target=complete_after, args=(future, i, i))
+            thread.daemon = True
+            thread.start()
+
+        # Wait with timeout that allows fast futures to complete
+        done, not_done = wait(futures, timeout=0.1)
+
+        # Should have captured all 3 fast futures
+        assert len(done) == 3
+        assert len(not_done) == 1  # Just the slow future
+
+        # Verify we got the right futures
+        done_results = sorted([f.result() for f in done])
+        assert done_results == [1, 2, 3]
+
     def test_as_completed(self):
         mock_futures = [MockFuture(data=i) for i in range(5)]
         for future in as_completed(mock_futures):
