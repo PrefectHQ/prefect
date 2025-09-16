@@ -2,11 +2,12 @@ from datetime import datetime, timedelta, timezone
 from typing import List, Literal, Optional, Union
 from uuid import UUID
 
-from fastapi import Body, Depends, HTTPException, Path, status
+from fastapi import Body, Depends, HTTPException, Path
 from sqlalchemy.ext.asyncio import AsyncSession
 
 import prefect.server.models as models
 import prefect.server.schemas as schemas
+from prefect._internal.compatibility.starlette import status
 from prefect.server.api.dependencies import LimitBody
 from prefect.server.concurrency.lease_storage import (
     ConcurrencyLimitLeaseMetadata,

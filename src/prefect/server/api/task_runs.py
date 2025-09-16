@@ -15,7 +15,6 @@ from fastapi import (
     Path,
     Response,
     WebSocket,
-    status,
 )
 from fastapi.responses import ORJSONResponse
 from starlette.websockets import WebSocketDisconnect
@@ -23,6 +22,7 @@ from starlette.websockets import WebSocketDisconnect
 import prefect.server.api.dependencies as dependencies
 import prefect.server.models as models
 import prefect.server.schemas as schemas
+from prefect._internal.compatibility.starlette import status
 from prefect.logging import get_logger
 from prefect.server.api.run_history import run_history
 from prefect.server.database import PrefectDBInterface, provide_database_interface

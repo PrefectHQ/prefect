@@ -4,9 +4,9 @@ from typing import List
 from uuid import uuid4
 
 import pytest
-from starlette import status
 
 import prefect
+from prefect._internal.compatibility.starlette import status
 from prefect.blocks.core import Block
 from prefect.server import models, schemas
 from prefect.server.schemas.actions import BlockTypeCreate, BlockTypeUpdate

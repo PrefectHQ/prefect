@@ -6,11 +6,11 @@ from unittest import mock
 import httpx
 import pytest
 from httpx import AsyncClient, Request, Response
-from starlette import status
 
 import prefect
 import prefect.client
 import prefect.client.constants
+from prefect._internal.compatibility.starlette import status
 from prefect.client.base import (
     PrefectHttpxAsyncClient,
     PrefectResponse,

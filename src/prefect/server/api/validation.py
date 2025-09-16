@@ -39,10 +39,11 @@ from typing import TYPE_CHECKING, Any, Dict, Optional, Union
 from uuid import UUID
 
 import pydantic
-from fastapi import HTTPException, status
+from fastapi import HTTPException
 from sqlalchemy.exc import DBAPIError, NoInspectionAvailable
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from prefect._internal.compatibility.starlette import status
 from prefect.logging import get_logger
 from prefect.server import models, schemas
 from prefect.server.database.orm_models import Deployment as BaseDeployment

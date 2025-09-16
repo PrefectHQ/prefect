@@ -14,10 +14,10 @@ import anyio
 import httpx
 from asgi_lifespan import LifespanManager
 from httpx import HTTPStatusError, Request, Response
-from starlette import status
 from typing_extensions import Self
 
 import prefect
+from prefect._internal.compatibility.starlette import status
 from prefect.client import constants
 from prefect.client.schemas.objects import CsrfToken
 from prefect.exceptions import PrefectHTTPStatusError

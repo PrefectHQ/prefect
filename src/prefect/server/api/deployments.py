@@ -8,12 +8,13 @@ from uuid import UUID
 
 import jsonschema.exceptions
 import sqlalchemy as sa
-from fastapi import Body, Depends, HTTPException, Path, Response, status
+from fastapi import Body, Depends, HTTPException, Path, Response
 from starlette.background import BackgroundTasks
 
 import prefect.server.api.dependencies as dependencies
 import prefect.server.models as models
 import prefect.server.schemas as schemas
+from prefect._internal.compatibility.starlette import status
 from prefect.server.api.validation import (
     validate_job_variables_for_deployment,
     validate_job_variables_for_deployment_flow_run,

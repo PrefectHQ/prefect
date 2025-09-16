@@ -1,10 +1,11 @@
 from typing import Optional, Sequence
 from uuid import UUID
 
-from fastapi import Body, Depends, HTTPException, Path, status
+from fastapi import Body, Depends, HTTPException, Path
 from fastapi.exceptions import RequestValidationError
 from pydantic import ValidationError
 
+from prefect._internal.compatibility.starlette import status
 from prefect.server.api.dependencies import LimitBody
 from prefect.server.api.validation import (
     validate_job_variables_for_run_deployment_action,
