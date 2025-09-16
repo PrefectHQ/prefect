@@ -133,9 +133,7 @@ SQLITE_LOCKED_MSG = "database is locked"
 class _SQLiteLockedOperationalErrorFilter(logging.Filter):
     """Filter uvicorn error logs for retryable SQLite lock failures."""
 
-    def filter(
-        self, record: logging.LogRecord
-    ) -> bool:  # pragma: no cover - integration-tested
+    def filter(self, record: logging.LogRecord) -> bool:
         exc: BaseException | None = record.exc_info[1] if record.exc_info else None
 
         if not isinstance(exc, sqlalchemy.exc.OperationalError):
@@ -149,7 +147,7 @@ class _SQLiteLockedOperationalErrorFilter(logging.Filter):
             "SQLITE_BUSY",
             "SQLITE_BUSY_SNAPSHOT",
         } or SQLITE_LOCKED_MSG in getattr(orig_exc, "args", []):
-            return PREFECT_API_LOG_RETRYABLE_ERRORS.value()
+            return get_current_settings().server.log_retryable_errors
 
         return True
 
