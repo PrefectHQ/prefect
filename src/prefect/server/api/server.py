@@ -9,6 +9,7 @@ import atexit
 import base64
 import contextlib
 import gc
+import logging
 import mimetypes
 import os
 import random
@@ -21,7 +22,7 @@ import time
 from contextlib import AsyncExitStack, asynccontextmanager
 from functools import wraps
 from hashlib import sha256
-from typing import TYPE_CHECKING, Any, AsyncGenerator, Awaitable, Callable, Optional
+from typing import Any, AsyncGenerator, Awaitable, Callable, Optional
 
 import anyio
 import asyncpg
@@ -75,9 +76,6 @@ if os.environ.get("PREFECT_LOGFIRE_ENABLED"):
 else:
     logfire = None
 
-if TYPE_CHECKING:
-    import logging
-
 TITLE = "Prefect Server"
 API_TITLE = "Prefect Prefect REST API"
 UI_TITLE = "Prefect Prefect REST API UI"
@@ -130,6 +128,44 @@ API_ROUTERS = (
 )
 
 SQLITE_LOCKED_MSG = "database is locked"
+
+
+class _SQLiteLockedOperationalErrorFilter(logging.Filter):
+    """Filter uvicorn error logs for retryable SQLite lock failures."""
+
+    def filter(
+        self, record: logging.LogRecord
+    ) -> bool:  # pragma: no cover - integration-tested
+        exc: BaseException | None = record.exc_info[1] if record.exc_info else None
+
+        if not isinstance(exc, sqlalchemy.exc.OperationalError):
+            return True
+
+        orig_exc = getattr(exc, "orig", None)
+        if not isinstance(orig_exc, sqlite3.OperationalError):
+            return True
+
+        if getattr(orig_exc, "sqlite_errorname", None) in {
+            "SQLITE_BUSY",
+            "SQLITE_BUSY_SNAPSHOT",
+        } or SQLITE_LOCKED_MSG in getattr(orig_exc, "args", []):
+            return PREFECT_API_LOG_RETRYABLE_ERRORS.value()
+
+        return True
+
+
+_SQLITE_LOCKED_LOG_FILTER: _SQLiteLockedOperationalErrorFilter | None = None
+
+
+def _install_sqlite_locked_log_filter() -> None:
+    global _SQLITE_LOCKED_LOG_FILTER
+
+    if _SQLITE_LOCKED_LOG_FILTER is not None:
+        return
+
+    filter_ = _SQLiteLockedOperationalErrorFilter()
+    logging.getLogger("uvicorn.error").addFilter(filter_)
+    _SQLITE_LOCKED_LOG_FILTER = filter_
 
 
 class SPAStaticFiles(StaticFiles):
@@ -719,6 +755,7 @@ def create_app(
         get_dialect(prefect.settings.PREFECT_API_DATABASE_CONNECTION_URL.value()).name
         == "sqlite"
     ):
+        _install_sqlite_locked_log_filter()
         app.add_middleware(RequestLimitMiddleware, limit=100)
 
     if prefect.settings.PREFECT_SERVER_CSRF_PROTECTION_ENABLED.value():
