@@ -1,10 +1,5 @@
 {
   "$schema": "https://mintlify.com/docs.json",
-  "errors": {
-    "404": {
-      "redirect": true
-    }
-  },
   "api": {
     "playground": {
       "display": "simple"
@@ -18,6 +13,11 @@
     "dark": "#2D6DF6",
     "light": "#5F92FF",
     "primary": "#2D6DF6"
+  },
+  "errors": {
+    "404": {
+      "redirect": true
+    }
   },
   "favicon": "/logos/favicon.png",
   "footer": {
@@ -287,10 +287,10 @@
           {
             "group": "Examples",
             "pages": [
-              "v3/examples/hello-world",
-              "v3/examples/run-api-sourced-etl",
               "v3/examples/run-dbt-with-prefect",
-              "v3/examples/simple-web-scraper"
+              "v3/examples/hello-world",
+              "v3/examples/simple-web-scraper",
+              "v3/examples/run-api-sourced-etl"
             ]
           }
         ],
@@ -793,21 +793,34 @@
                 "group": "Python SDK Reference",
                 "pages": [
                   "v3/api-ref/python/prefect-artifacts",
+                  "v3/api-ref/python/prefect-assets",
                   "v3/api-ref/python/prefect-automations",
+                  "v3/api-ref/python/prefect-blocks",
                   "v3/api-ref/python/prefect-cache_policies",
+                  "v3/api-ref/python/prefect-cli",
+                  "v3/api-ref/python/prefect-client",
                   "v3/api-ref/python/prefect-context",
+                  "v3/api-ref/python/prefect-deployments",
                   "v3/api-ref/python/prefect-engine",
+                  "v3/api-ref/python/prefect-events",
                   "v3/api-ref/python/prefect-exceptions",
                   "v3/api-ref/python/prefect-filesystems",
                   "v3/api-ref/python/prefect-flow_engine",
                   "v3/api-ref/python/prefect-flow_runs",
                   "v3/api-ref/python/prefect-flows",
                   "v3/api-ref/python/prefect-futures",
+                  "v3/api-ref/python/prefect-infrastructure",
+                  "v3/api-ref/python/prefect-input",
+                  "v3/api-ref/python/prefect-logging",
                   "v3/api-ref/python/prefect-main",
                   "v3/api-ref/python/prefect-plugins",
                   "v3/api-ref/python/prefect-results",
+                  "v3/api-ref/python/prefect-runner",
+                  "v3/api-ref/python/prefect-runtime",
                   "v3/api-ref/python/prefect-schedules",
                   "v3/api-ref/python/prefect-serializers",
+                  "v3/api-ref/python/prefect-server",
+                  "v3/api-ref/python/prefect-settings",
                   "v3/api-ref/python/prefect-states",
                   "v3/api-ref/python/prefect-task_engine",
                   "v3/api-ref/python/prefect-task_runners",
@@ -815,104 +828,9 @@
                   "v3/api-ref/python/prefect-task_worker",
                   "v3/api-ref/python/prefect-tasks",
                   "v3/api-ref/python/prefect-transactions",
+                  "v3/api-ref/python/prefect-types",
                   "v3/api-ref/python/prefect-variables",
-                  {
-                    "group": "prefect.assets",
-                    "pages": [
-                      "v3/api-ref/python/prefect-assets-__init__",
-                      "v3/api-ref/python/prefect-assets-core",
-                      "v3/api-ref/python/prefect-assets-materialize"
-                    ]
-                  },
-                  {
-                    "group": "prefect.blocks",
-                    "pages": [
-                      "v3/api-ref/python/prefect-blocks-__init__",
-                      "v3/api-ref/python/prefect-blocks-abstract",
-                      "v3/api-ref/python/prefect-blocks-core",
-                      "v3/api-ref/python/prefect-blocks-fields",
-                      "v3/api-ref/python/prefect-blocks-notifications",
-                      "v3/api-ref/python/prefect-blocks-redis",
-                      "v3/api-ref/python/prefect-blocks-system",
-                      "v3/api-ref/python/prefect-blocks-webhook"
-                    ]
-                  },
-                  {
-                    "group": "prefect.cli",
-                    "pages": [
-                      "v3/api-ref/python/prefect-cli-__init__",
-                      "v3/api-ref/python/prefect-cli-artifact",
-                      "v3/api-ref/python/prefect-cli-block",
-                      {
-                        "group": "cloud",
-                        "pages": [
-                          "v3/api-ref/python/prefect-cli-cloud-__init__",
-                          "v3/api-ref/python/prefect-cli-cloud-ip_allowlist",
-                          "v3/api-ref/python/prefect-cli-cloud-webhook"
-                        ]
-                      },
-                      "v3/api-ref/python/prefect-cli-concurrency_limit",
-                      "v3/api-ref/python/prefect-cli-config",
-                      "v3/api-ref/python/prefect-cli-dashboard",
-                      "v3/api-ref/python/prefect-cli-deploy",
-                      "v3/api-ref/python/prefect-cli-deployment",
-                      "v3/api-ref/python/prefect-cli-dev",
-                      "v3/api-ref/python/prefect-cli-events",
-                      "v3/api-ref/python/prefect-cli-flow",
-                      "v3/api-ref/python/prefect-cli-flow_run",
-                      "v3/api-ref/python/prefect-cli-global_concurrency_limit",
-                      "v3/api-ref/python/prefect-cli-profile",
-                      "v3/api-ref/python/prefect-cli-root",
-                      "v3/api-ref/python/prefect-cli-server",
-                      "v3/api-ref/python/prefect-cli-shell",
-                      "v3/api-ref/python/prefect-cli-task",
-                      "v3/api-ref/python/prefect-cli-task_run",
-                      "v3/api-ref/python/prefect-cli-transfer",
-                      "v3/api-ref/python/prefect-cli-variable",
-                      "v3/api-ref/python/prefect-cli-work_pool",
-                      "v3/api-ref/python/prefect-cli-work_queue",
-                      "v3/api-ref/python/prefect-cli-worker"
-                    ]
-                  },
-                  {
-                    "group": "prefect.client",
-                    "pages": [
-                      "v3/api-ref/python/prefect-client-__init__",
-                      "v3/api-ref/python/prefect-client-base",
-                      "v3/api-ref/python/prefect-client-cloud",
-                      "v3/api-ref/python/prefect-client-collections",
-                      "v3/api-ref/python/prefect-client-constants",
-                      {
-                        "group": "orchestration",
-                        "pages": [
-                          "v3/api-ref/python/prefect-client-orchestration-__init__",
-                          "v3/api-ref/python/prefect-client-orchestration-base",
-                          "v3/api-ref/python/prefect-client-orchestration-routes"
-                        ]
-                      },
-                      {
-                        "group": "schemas",
-                        "pages": [
-                          "v3/api-ref/python/prefect-client-schemas-__init__",
-                          "v3/api-ref/python/prefect-client-schemas-actions",
-                          "v3/api-ref/python/prefect-client-schemas-filters",
-                          "v3/api-ref/python/prefect-client-schemas-objects",
-                          "v3/api-ref/python/prefect-client-schemas-responses",
-                          "v3/api-ref/python/prefect-client-schemas-schedules",
-                          "v3/api-ref/python/prefect-client-schemas-sorting"
-                        ]
-                      },
-                      "v3/api-ref/python/prefect-client-subscriptions",
-                      {
-                        "group": "types",
-                        "pages": [
-                          "v3/api-ref/python/prefect-client-types-__init__",
-                          "v3/api-ref/python/prefect-client-types-flexible_schedule_list"
-                        ]
-                      },
-                      "v3/api-ref/python/prefect-client-utilities"
-                    ]
-                  },
+                  "v3/api-ref/python/prefect-workers",
                   {
                     "group": "prefect.concurrency",
                     "pages": [
@@ -934,85 +852,10 @@
                     ]
                   },
                   {
-                    "group": "prefect.deployments",
-                    "pages": [
-                      "v3/api-ref/python/prefect-deployments-__init__",
-                      "v3/api-ref/python/prefect-deployments-base",
-                      "v3/api-ref/python/prefect-deployments-deployments",
-                      "v3/api-ref/python/prefect-deployments-flow_runs",
-                      "v3/api-ref/python/prefect-deployments-runner",
-                      "v3/api-ref/python/prefect-deployments-schedules",
-                      {
-                        "group": "steps",
-                        "pages": [
-                          "v3/api-ref/python/prefect-deployments-steps-__init__",
-                          "v3/api-ref/python/prefect-deployments-steps-core",
-                          "v3/api-ref/python/prefect-deployments-steps-pull",
-                          "v3/api-ref/python/prefect-deployments-steps-utility"
-                        ]
-                      }
-                    ]
-                  },
-                  {
                     "group": "prefect.docker",
                     "pages": [
                       "v3/api-ref/python/prefect-docker-__init__",
                       "v3/api-ref/python/prefect-docker-docker_image"
-                    ]
-                  },
-                  {
-                    "group": "prefect.events",
-                    "pages": [
-                      "v3/api-ref/python/prefect-events-__init__",
-                      "v3/api-ref/python/prefect-events-actions",
-                      {
-                        "group": "cli",
-                        "pages": [
-                          "v3/api-ref/python/prefect-events-cli-__init__",
-                          "v3/api-ref/python/prefect-events-cli-automations"
-                        ]
-                      },
-                      "v3/api-ref/python/prefect-events-clients",
-                      "v3/api-ref/python/prefect-events-filters",
-                      "v3/api-ref/python/prefect-events-related",
-                      {
-                        "group": "schemas",
-                        "pages": [
-                          "v3/api-ref/python/prefect-events-schemas-__init__",
-                          "v3/api-ref/python/prefect-events-schemas-automations",
-                          "v3/api-ref/python/prefect-events-schemas-deployment_triggers",
-                          "v3/api-ref/python/prefect-events-schemas-events",
-                          "v3/api-ref/python/prefect-events-schemas-labelling"
-                        ]
-                      },
-                      "v3/api-ref/python/prefect-events-utilities",
-                      "v3/api-ref/python/prefect-events-worker"
-                    ]
-                  },
-                  {
-                    "group": "prefect.infrastructure",
-                    "pages": [
-                      "v3/api-ref/python/prefect-infrastructure-__init__",
-                      "v3/api-ref/python/prefect-infrastructure-base",
-                      {
-                        "group": "provisioners",
-                        "pages": [
-                          "v3/api-ref/python/prefect-infrastructure-provisioners-__init__",
-                          "v3/api-ref/python/prefect-infrastructure-provisioners-cloud_run",
-                          "v3/api-ref/python/prefect-infrastructure-provisioners-coiled",
-                          "v3/api-ref/python/prefect-infrastructure-provisioners-container_instance",
-                          "v3/api-ref/python/prefect-infrastructure-provisioners-ecs",
-                          "v3/api-ref/python/prefect-infrastructure-provisioners-modal"
-                        ]
-                      }
-                    ]
-                  },
-                  {
-                    "group": "prefect.input",
-                    "pages": [
-                      "v3/api-ref/python/prefect-input-__init__",
-                      "v3/api-ref/python/prefect-input-actions",
-                      "v3/api-ref/python/prefect-input-run_input"
                     ]
                   },
                   {
@@ -1022,326 +865,6 @@
                       "v3/api-ref/python/prefect-locking-filesystem",
                       "v3/api-ref/python/prefect-locking-memory",
                       "v3/api-ref/python/prefect-locking-protocol"
-                    ]
-                  },
-                  {
-                    "group": "prefect.logging",
-                    "pages": [
-                      "v3/api-ref/python/prefect-logging-__init__",
-                      "v3/api-ref/python/prefect-logging-clients",
-                      "v3/api-ref/python/prefect-logging-configuration",
-                      "v3/api-ref/python/prefect-logging-filters",
-                      "v3/api-ref/python/prefect-logging-formatters",
-                      "v3/api-ref/python/prefect-logging-handlers",
-                      "v3/api-ref/python/prefect-logging-highlighters",
-                      "v3/api-ref/python/prefect-logging-loggers"
-                    ]
-                  },
-                  {
-                    "group": "prefect.runner",
-                    "pages": [
-                      "v3/api-ref/python/prefect-runner-__init__",
-                      "v3/api-ref/python/prefect-runner-runner",
-                      "v3/api-ref/python/prefect-runner-server",
-                      "v3/api-ref/python/prefect-runner-storage",
-                      "v3/api-ref/python/prefect-runner-submit",
-                      "v3/api-ref/python/prefect-runner-utils"
-                    ]
-                  },
-                  {
-                    "group": "prefect.runtime",
-                    "pages": [
-                      "v3/api-ref/python/prefect-runtime-__init__",
-                      "v3/api-ref/python/prefect-runtime-deployment",
-                      "v3/api-ref/python/prefect-runtime-flow_run",
-                      "v3/api-ref/python/prefect-runtime-task_run"
-                    ]
-                  },
-                  {
-                    "group": "prefect.server",
-                    "pages": [
-                      "v3/api-ref/python/prefect-server-__init__",
-                      {
-                        "group": "api",
-                        "pages": [
-                          "v3/api-ref/python/prefect-server-api-__init__",
-                          "v3/api-ref/python/prefect-server-api-admin",
-                          "v3/api-ref/python/prefect-server-api-artifacts",
-                          "v3/api-ref/python/prefect-server-api-automations",
-                          "v3/api-ref/python/prefect-server-api-block_capabilities",
-                          "v3/api-ref/python/prefect-server-api-block_documents",
-                          "v3/api-ref/python/prefect-server-api-block_schemas",
-                          "v3/api-ref/python/prefect-server-api-block_types",
-                          "v3/api-ref/python/prefect-server-api-clients",
-                          "v3/api-ref/python/prefect-server-api-collections",
-                          "v3/api-ref/python/prefect-server-api-concurrency_limits",
-                          "v3/api-ref/python/prefect-server-api-concurrency_limits_v2",
-                          "v3/api-ref/python/prefect-server-api-csrf_token",
-                          "v3/api-ref/python/prefect-server-api-dependencies",
-                          "v3/api-ref/python/prefect-server-api-deployments",
-                          "v3/api-ref/python/prefect-server-api-events",
-                          "v3/api-ref/python/prefect-server-api-flow_run_states",
-                          "v3/api-ref/python/prefect-server-api-flow_runs",
-                          "v3/api-ref/python/prefect-server-api-flows",
-                          "v3/api-ref/python/prefect-server-api-logs",
-                          "v3/api-ref/python/prefect-server-api-middleware",
-                          "v3/api-ref/python/prefect-server-api-root",
-                          "v3/api-ref/python/prefect-server-api-run_history",
-                          "v3/api-ref/python/prefect-server-api-saved_searches",
-                          "v3/api-ref/python/prefect-server-api-server",
-                          "v3/api-ref/python/prefect-server-api-task_run_states",
-                          "v3/api-ref/python/prefect-server-api-task_runs",
-                          "v3/api-ref/python/prefect-server-api-task_workers",
-                          "v3/api-ref/python/prefect-server-api-templates",
-                          {
-                            "group": "ui",
-                            "pages": [
-                              "v3/api-ref/python/prefect-server-api-ui-__init__",
-                              "v3/api-ref/python/prefect-server-api-ui-flow_runs",
-                              "v3/api-ref/python/prefect-server-api-ui-flows",
-                              "v3/api-ref/python/prefect-server-api-ui-schemas",
-                              "v3/api-ref/python/prefect-server-api-ui-task_runs"
-                            ]
-                          },
-                          "v3/api-ref/python/prefect-server-api-validation",
-                          "v3/api-ref/python/prefect-server-api-variables",
-                          "v3/api-ref/python/prefect-server-api-work_queues",
-                          "v3/api-ref/python/prefect-server-api-workers"
-                        ]
-                      },
-                      {
-                        "group": "database",
-                        "pages": [
-                          "v3/api-ref/python/prefect-server-database-__init__",
-                          "v3/api-ref/python/prefect-server-database-alembic_commands",
-                          "v3/api-ref/python/prefect-server-database-configurations",
-                          "v3/api-ref/python/prefect-server-database-dependencies",
-                          "v3/api-ref/python/prefect-server-database-interface",
-                          "v3/api-ref/python/prefect-server-database-orm_models",
-                          "v3/api-ref/python/prefect-server-database-query_components"
-                        ]
-                      },
-                      {
-                        "group": "events",
-                        "pages": [
-                          "v3/api-ref/python/prefect-server-events-__init__",
-                          "v3/api-ref/python/prefect-server-events-actions",
-                          "v3/api-ref/python/prefect-server-events-clients",
-                          "v3/api-ref/python/prefect-server-events-counting",
-                          "v3/api-ref/python/prefect-server-events-filters",
-                          "v3/api-ref/python/prefect-server-events-jinja_filters",
-                          "v3/api-ref/python/prefect-server-events-messaging",
-                          {
-                            "group": "models",
-                            "pages": [
-                              "v3/api-ref/python/prefect-server-events-models-__init__",
-                              "v3/api-ref/python/prefect-server-events-models-automations",
-                              "v3/api-ref/python/prefect-server-events-models-composite_trigger_child_firing"
-                            ]
-                          },
-                          {
-                            "group": "ordering",
-                            "pages": [
-                              "v3/api-ref/python/prefect-server-events-ordering-__init__",
-                              "v3/api-ref/python/prefect-server-events-ordering-db",
-                              "v3/api-ref/python/prefect-server-events-ordering-memory"
-                            ]
-                          },
-                          "v3/api-ref/python/prefect-server-events-pipeline",
-                          {
-                            "group": "schemas",
-                            "pages": [
-                              "v3/api-ref/python/prefect-server-events-schemas-__init__",
-                              "v3/api-ref/python/prefect-server-events-schemas-automations",
-                              "v3/api-ref/python/prefect-server-events-schemas-events",
-                              "v3/api-ref/python/prefect-server-events-schemas-labelling"
-                            ]
-                          },
-                          {
-                            "group": "services",
-                            "pages": [
-                              "v3/api-ref/python/prefect-server-events-services-__init__",
-                              "v3/api-ref/python/prefect-server-events-services-actions",
-                              "v3/api-ref/python/prefect-server-events-services-event_logger",
-                              "v3/api-ref/python/prefect-server-events-services-event_persister",
-                              "v3/api-ref/python/prefect-server-events-services-triggers"
-                            ]
-                          },
-                          {
-                            "group": "storage",
-                            "pages": [
-                              "v3/api-ref/python/prefect-server-events-storage-__init__",
-                              "v3/api-ref/python/prefect-server-events-storage-database"
-                            ]
-                          },
-                          "v3/api-ref/python/prefect-server-events-stream",
-                          "v3/api-ref/python/prefect-server-events-triggers"
-                        ]
-                      },
-                      "v3/api-ref/python/prefect-server-exceptions",
-                      {
-                        "group": "logs",
-                        "pages": [
-                          "v3/api-ref/python/prefect-server-logs-__init__",
-                          "v3/api-ref/python/prefect-server-logs-messaging",
-                          "v3/api-ref/python/prefect-server-logs-stream"
-                        ]
-                      },
-                      {
-                        "group": "models",
-                        "pages": [
-                          "v3/api-ref/python/prefect-server-models-__init__",
-                          "v3/api-ref/python/prefect-server-models-artifacts",
-                          "v3/api-ref/python/prefect-server-models-block_documents",
-                          "v3/api-ref/python/prefect-server-models-block_registration",
-                          "v3/api-ref/python/prefect-server-models-block_schemas",
-                          "v3/api-ref/python/prefect-server-models-block_types",
-                          "v3/api-ref/python/prefect-server-models-concurrency_limits",
-                          "v3/api-ref/python/prefect-server-models-concurrency_limits_v2",
-                          "v3/api-ref/python/prefect-server-models-configuration",
-                          "v3/api-ref/python/prefect-server-models-csrf_token",
-                          "v3/api-ref/python/prefect-server-models-deployments",
-                          "v3/api-ref/python/prefect-server-models-events",
-                          "v3/api-ref/python/prefect-server-models-flow_run_input",
-                          "v3/api-ref/python/prefect-server-models-flow_run_states",
-                          "v3/api-ref/python/prefect-server-models-flow_runs",
-                          "v3/api-ref/python/prefect-server-models-flows",
-                          "v3/api-ref/python/prefect-server-models-logs",
-                          "v3/api-ref/python/prefect-server-models-saved_searches",
-                          "v3/api-ref/python/prefect-server-models-task_run_states",
-                          "v3/api-ref/python/prefect-server-models-task_runs",
-                          "v3/api-ref/python/prefect-server-models-task_workers",
-                          "v3/api-ref/python/prefect-server-models-variables",
-                          "v3/api-ref/python/prefect-server-models-work_queues",
-                          "v3/api-ref/python/prefect-server-models-workers"
-                        ]
-                      },
-                      {
-                        "group": "orchestration",
-                        "pages": [
-                          "v3/api-ref/python/prefect-server-orchestration-__init__",
-                          "v3/api-ref/python/prefect-server-orchestration-core_policy",
-                          "v3/api-ref/python/prefect-server-orchestration-dependencies",
-                          "v3/api-ref/python/prefect-server-orchestration-global_policy",
-                          "v3/api-ref/python/prefect-server-orchestration-instrumentation_policies",
-                          "v3/api-ref/python/prefect-server-orchestration-policies",
-                          "v3/api-ref/python/prefect-server-orchestration-rules"
-                        ]
-                      },
-                      {
-                        "group": "schemas",
-                        "pages": [
-                          "v3/api-ref/python/prefect-server-schemas-__init__",
-                          "v3/api-ref/python/prefect-server-schemas-actions",
-                          "v3/api-ref/python/prefect-server-schemas-core",
-                          "v3/api-ref/python/prefect-server-schemas-filters",
-                          "v3/api-ref/python/prefect-server-schemas-graph",
-                          "v3/api-ref/python/prefect-server-schemas-internal",
-                          "v3/api-ref/python/prefect-server-schemas-responses",
-                          "v3/api-ref/python/prefect-server-schemas-schedules",
-                          "v3/api-ref/python/prefect-server-schemas-sorting",
-                          "v3/api-ref/python/prefect-server-schemas-states",
-                          "v3/api-ref/python/prefect-server-schemas-statuses",
-                          "v3/api-ref/python/prefect-server-schemas-ui"
-                        ]
-                      },
-                      {
-                        "group": "services",
-                        "pages": [
-                          "v3/api-ref/python/prefect-server-services-__init__",
-                          "v3/api-ref/python/prefect-server-services-base",
-                          "v3/api-ref/python/prefect-server-services-cancellation_cleanup",
-                          "v3/api-ref/python/prefect-server-services-foreman",
-                          "v3/api-ref/python/prefect-server-services-late_runs",
-                          "v3/api-ref/python/prefect-server-services-pause_expirations",
-                          "v3/api-ref/python/prefect-server-services-repossessor",
-                          "v3/api-ref/python/prefect-server-services-scheduler",
-                          "v3/api-ref/python/prefect-server-services-task_run_recorder",
-                          "v3/api-ref/python/prefect-server-services-telemetry"
-                        ]
-                      },
-                      "v3/api-ref/python/prefect-server-task_queue",
-                      {
-                        "group": "utilities",
-                        "pages": [
-                          "v3/api-ref/python/prefect-server-utilities-__init__",
-                          "v3/api-ref/python/prefect-server-utilities-database",
-                          "v3/api-ref/python/prefect-server-utilities-encryption",
-                          "v3/api-ref/python/prefect-server-utilities-http",
-                          "v3/api-ref/python/prefect-server-utilities-leasing",
-                          {
-                            "group": "messaging",
-                            "pages": [
-                              "v3/api-ref/python/prefect-server-utilities-messaging-__init__",
-                              "v3/api-ref/python/prefect-server-utilities-messaging-memory"
-                            ]
-                          },
-                          "v3/api-ref/python/prefect-server-utilities-names",
-                          "v3/api-ref/python/prefect-server-utilities-postgres_listener",
-                          {
-                            "group": "schemas",
-                            "pages": [
-                              "v3/api-ref/python/prefect-server-utilities-schemas-__init__",
-                              "v3/api-ref/python/prefect-server-utilities-schemas-bases",
-                              "v3/api-ref/python/prefect-server-utilities-schemas-serializers"
-                            ]
-                          },
-                          "v3/api-ref/python/prefect-server-utilities-server",
-                          "v3/api-ref/python/prefect-server-utilities-subscriptions",
-                          "v3/api-ref/python/prefect-server-utilities-user_templates"
-                        ]
-                      }
-                    ]
-                  },
-                  {
-                    "group": "prefect.settings",
-                    "pages": [
-                      "v3/api-ref/python/prefect-settings-__init__",
-                      "v3/api-ref/python/prefect-settings-base",
-                      "v3/api-ref/python/prefect-settings-constants",
-                      "v3/api-ref/python/prefect-settings-context",
-                      "v3/api-ref/python/prefect-settings-legacy",
-                      {
-                        "group": "models",
-                        "pages": [
-                          "v3/api-ref/python/prefect-settings-models-__init__",
-                          "v3/api-ref/python/prefect-settings-models-api",
-                          "v3/api-ref/python/prefect-settings-models-cli",
-                          "v3/api-ref/python/prefect-settings-models-client",
-                          "v3/api-ref/python/prefect-settings-models-cloud",
-                          "v3/api-ref/python/prefect-settings-models-deployments",
-                          "v3/api-ref/python/prefect-settings-models-experiments",
-                          "v3/api-ref/python/prefect-settings-models-flows",
-                          "v3/api-ref/python/prefect-settings-models-internal",
-                          "v3/api-ref/python/prefect-settings-models-logging",
-                          "v3/api-ref/python/prefect-settings-models-results",
-                          "v3/api-ref/python/prefect-settings-models-root",
-                          "v3/api-ref/python/prefect-settings-models-runner",
-                          {
-                            "group": "server",
-                            "pages": [
-                              "v3/api-ref/python/prefect-settings-models-server-__init__",
-                              "v3/api-ref/python/prefect-settings-models-server-api",
-                              "v3/api-ref/python/prefect-settings-models-server-concurrency",
-                              "v3/api-ref/python/prefect-settings-models-server-database",
-                              "v3/api-ref/python/prefect-settings-models-server-deployments",
-                              "v3/api-ref/python/prefect-settings-models-server-ephemeral",
-                              "v3/api-ref/python/prefect-settings-models-server-events",
-                              "v3/api-ref/python/prefect-settings-models-server-flow_run_graph",
-                              "v3/api-ref/python/prefect-settings-models-server-logs",
-                              "v3/api-ref/python/prefect-settings-models-server-root",
-                              "v3/api-ref/python/prefect-settings-models-server-services",
-                              "v3/api-ref/python/prefect-settings-models-server-tasks",
-                              "v3/api-ref/python/prefect-settings-models-server-ui"
-                            ]
-                          },
-                          "v3/api-ref/python/prefect-settings-models-tasks",
-                          "v3/api-ref/python/prefect-settings-models-testing",
-                          "v3/api-ref/python/prefect-settings-models-worker"
-                        ]
-                      },
-                      "v3/api-ref/python/prefect-settings-profiles",
-                      "v3/api-ref/python/prefect-settings-sources"
                     ]
                   },
                   {
@@ -1360,14 +883,6 @@
                       "v3/api-ref/python/prefect-testing-fixtures",
                       "v3/api-ref/python/prefect-testing-standard_test_suites",
                       "v3/api-ref/python/prefect-testing-utilities"
-                    ]
-                  },
-                  {
-                    "group": "prefect.types",
-                    "pages": [
-                      "v3/api-ref/python/prefect-types-__init__",
-                      "v3/api-ref/python/prefect-types-entrypoint",
-                      "v3/api-ref/python/prefect-types-names"
                     ]
                   },
                   {
@@ -1392,14 +907,7 @@
                       "v3/api-ref/python/prefect-utilities-processutils",
                       "v3/api-ref/python/prefect-utilities-pydantic",
                       "v3/api-ref/python/prefect-utilities-render_swagger",
-                      {
-                        "group": "schema_tools",
-                        "pages": [
-                          "v3/api-ref/python/prefect-utilities-schema_tools-__init__",
-                          "v3/api-ref/python/prefect-utilities-schema_tools-hydration",
-                          "v3/api-ref/python/prefect-utilities-schema_tools-validation"
-                        ]
-                      },
+                      "v3/api-ref/python/prefect-utilities-schema_tools",
                       "v3/api-ref/python/prefect-utilities-services",
                       "v3/api-ref/python/prefect-utilities-slugify",
                       "v3/api-ref/python/prefect-utilities-templating",
@@ -1407,18 +915,6 @@
                       "v3/api-ref/python/prefect-utilities-timeout",
                       "v3/api-ref/python/prefect-utilities-urls",
                       "v3/api-ref/python/prefect-utilities-visualization"
-                    ]
-                  },
-                  {
-                    "group": "prefect.workers",
-                    "pages": [
-                      "v3/api-ref/python/prefect-workers-__init__",
-                      "v3/api-ref/python/prefect-workers-base",
-                      "v3/api-ref/python/prefect-workers-block",
-                      "v3/api-ref/python/prefect-workers-cloud",
-                      "v3/api-ref/python/prefect-workers-process",
-                      "v3/api-ref/python/prefect-workers-server",
-                      "v3/api-ref/python/prefect-workers-utilities"
                     ]
                   }
                 ]

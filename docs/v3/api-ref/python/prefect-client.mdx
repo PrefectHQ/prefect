@@ -1,0 +1,25 @@
+---
+title: client
+sidebarTitle: client
+---
+
+# `prefect.client`
+
+
+
+Asynchronous client implementation for communicating with the [Prefect REST API](https://docs.prefect.io/v3/api-ref/rest-api/).
+
+Explore the client by communicating with an in-memory webserver - no setup required:
+
+&lt;div class="termy"&gt;
+```
+$ # start python REPL with native await functionality
+$ python -m asyncio
+from prefect.client.orchestration import get_client
+async with get_client() as client:
+    response = await client.hello()
+    print(response.json())
+👋
+```
+&lt;/div&gt;
+
