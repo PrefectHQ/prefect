@@ -38,7 +38,7 @@ from prefect.exceptions import MissingContextError
 from prefect.tasks import MaterializingTask, Task, TaskOptions
 from prefect_dbt.core._tracker import NodeTaskTracker
 from prefect_dbt.core.settings import PrefectDbtSettings
-from prefect_dbt.utilities import format_resource_id
+from prefect_dbt.utilities import format_resource_id, kwargs_to_args
 
 FAILURE_STATUSES = [
     RunStatus.Error,
@@ -660,8 +660,7 @@ class PrefectDbtRunner:
             invoke_kwargs["profiles_dir"] = profiles_dir
 
             res = dbtRunner(callbacks=callbacks).invoke(  # type: ignore[reportUnknownMemberType]
-                args_copy,
-                **invoke_kwargs,
+                kwargs_to_args(invoke_kwargs, args_copy)
             )
 
         if not res.success and res.exception:
