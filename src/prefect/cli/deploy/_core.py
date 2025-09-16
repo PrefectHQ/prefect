@@ -342,10 +342,8 @@ async def _run_single_deploy(
 
     deployment._parameter_openapi_schema = dd["parameter_openapi_schema"]
 
-    if deploy_config.get("enforce_parameter_schema") is not None:
-        deployment.enforce_parameter_schema = deploy_config.get(
-            "enforce_parameter_schema"
-        )
+    if dd.get("enforce_parameter_schema") is not None:
+        deployment.enforce_parameter_schema = dd.get("enforce_parameter_schema")
 
     apply_coro = deployment.apply(schedules=dd.get("schedules"))
     if TYPE_CHECKING:
