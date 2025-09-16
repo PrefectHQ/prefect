@@ -4,7 +4,7 @@ Utility functions for prefect-dbt
 
 import os
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 
 import slugify
 
@@ -71,3 +71,64 @@ def format_resource_id(adapter_type: str, relation_name: str) -> str:
         asset_key = asset_key[:MAX_ASSET_KEY_LENGTH]
 
     return asset_key
+
+
+def kwargs_to_args(kwargs: dict, args: Optional[list[str]] = None) -> list[str]:
+    """
+    Convert a dictionary of kwargs to a list of args in the dbt CLI format.
+    If args are provided, they take priority over kwargs when conflicts exist.
+
+    Args:
+        kwargs: A dictionary of kwargs.
+        args: Optional list of existing args that take priority over kwargs.
+
+    Returns:
+        A list of args.
+    """
+    if args is None:
+        args = []
+
+    kwargs_args = []
+    for key, value in list(kwargs.items()):
+        if value is None:
+            continue
+
+        flag = "--" + key.replace("_", "-")
+
+        if isinstance(value, bool):
+            kwargs_args.append(flag if value else f"--no-{key.replace('_', '-')}")
+
+        elif isinstance(value, (list, tuple)):
+            kwargs_args.append(flag)
+            kwargs_args.extend(str(v) for v in value)
+        else:
+            kwargs_args.extend([flag, str(value)])
+
+        kwargs.pop(key)
+
+    existing_flags = _parse_args_to_flag_groups(args)
+    kwargs_flags = _parse_args_to_flag_groups(kwargs_args)
+
+    result_args = []
+    for flag, values in existing_flags.items():
+        result_args.extend([flag] + values)
+
+    for flag, values in kwargs_flags.items():
+        if flag not in existing_flags:
+            result_args.extend([flag] + values)
+
+    return result_args
+
+
+def _parse_args_to_flag_groups(args_list: list[str]) -> dict[str, list[str]]:
+    groups = {}
+    current_flag = None
+
+    for arg in args_list:
+        if arg.startswith("--"):
+            current_flag = arg
+            groups[current_flag] = []
+        elif current_flag:
+            groups[current_flag].append(arg)
+
+    return groups
