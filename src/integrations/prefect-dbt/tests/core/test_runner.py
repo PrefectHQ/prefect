@@ -518,7 +518,7 @@ class TestPrefectDbtRunnerInvoke:
 
         # Verify log_level was set to "none"
         call_args = mock_dbt_runner_class.return_value.invoke.call_args
-        assert call_args[1]["log_level"] == "none"
+        assert "--log-level", "none" in call_args[0]
 
     def test_invoke_uses_original_log_level_outside_context(
         self, mock_dbt_runner_class, mock_settings_context_manager
@@ -535,7 +535,7 @@ class TestPrefectDbtRunnerInvoke:
 
         # Verify log_level was set to the original value
         call_args = mock_dbt_runner_class.return_value.invoke.call_args
-        assert call_args[1]["log_level"] == str(runner.log_level.value)
+        assert "--log-level", str(runner.log_level.value) in call_args[0]
 
     def test_invoke_handles_dbt_exceptions(
         self, mock_dbt_runner_class, mock_settings_context_manager
@@ -609,7 +609,8 @@ class TestPrefectDbtRunnerInvoke:
         assert result.success is True
         # Verify the CLI flags take precedence (processed after kwargs)
         call_args = mock_dbt_runner_class.return_value.invoke.call_args
-        assert call_args[1]["target_path"] == "/cli/path"
+        assert "--target-path", "/cli/path" in call_args[0]
+        assert "--target-path", "/kwargs/path" not in call_args[0]
 
     def test_invoke_uses_resolve_profiles_yml_context_manager(
         self, mock_dbt_runner_class, mock_settings_context_manager
