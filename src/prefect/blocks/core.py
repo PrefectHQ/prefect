@@ -79,10 +79,10 @@ P = ParamSpec("P")
 
 ResourceTuple = tuple[dict[str, Any], list[dict[str, Any]]]
 UnionTypes: tuple[object, ...] = (Union,)
-if union_type := getattr(types, "UnionType", None):
+if hasattr(types, "UnionType"):
     # Python 3.10+ only
-    UnionTypes = (*UnionTypes, union_type)
-NestedTypes = (list, dict, tuple, *UnionTypes)
+    UnionTypes = (*UnionTypes, types.UnionType)
+NestedTypes: tuple[type, ...] = (list, dict, tuple, *UnionTypes)
 
 
 def block_schema_to_key(schema: BlockSchema) -> str:
