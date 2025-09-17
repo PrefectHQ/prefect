@@ -7,7 +7,7 @@ sidebarTitle: events
 
 ## Functions
 
-### `create_events` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/events.py#L47" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `create_events` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/events.py#L48" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 create_events(events: List[Event], ephemeral_request: bool = Depends(is_ephemeral_request)) -> None
@@ -19,7 +19,7 @@ Record a batch of Events.
 For more information, see https://docs.prefect.io/v3/concepts/events.
 
 
-### `stream_events_in` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/events.py#L64" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `stream_events_in` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/events.py#L65" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 stream_events_in(websocket: WebSocket) -> None
@@ -29,7 +29,7 @@ stream_events_in(websocket: WebSocket) -> None
 Open a WebSocket to stream incoming Events
 
 
-### `stream_workspace_events_out` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/events.py#L81" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `stream_workspace_events_out` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/events.py#L82" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 stream_workspace_events_out(websocket: WebSocket) -> None
@@ -39,13 +39,13 @@ stream_workspace_events_out(websocket: WebSocket) -> None
 Open a WebSocket to stream Events
 
 
-### `verified_page_token` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/events.py#L165" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `verified_page_token` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/events.py#L166" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 verified_page_token(page_token: str = Query(..., alias='page-token')) -> str
 ```
 
-### `read_events` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/events.py#L182" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `read_events` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/events.py#L183" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_events(request: Request, filter: Optional[EventFilter] = Body(None, description='Additional optional filter criteria to narrow down the set of Events'), limit: int = Body(INTERACTIVE_PAGE_SIZE, ge=0, le=INTERACTIVE_PAGE_SIZE, embed=True, description='The number of events to return with each page'), db: PrefectDBInterface = Depends(provide_database_interface)) -> EventPage
@@ -57,7 +57,7 @@ the first page of results, and the URL to request the next page (if there are mo
 results).
 
 
-### `read_account_events_page` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/events.py#L222" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `read_account_events_page` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/events.py#L223" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_account_events_page(request: Request, page_token: str = Depends(verified_page_token), db: PrefectDBInterface = Depends(provide_database_interface)) -> EventPage
@@ -68,13 +68,13 @@ Returns the next page of Events for a previous query against the given Account, 
 the URL to request the next page (if there are more results).
 
 
-### `generate_next_page_link` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/events.py#L246" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `generate_next_page_link` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/events.py#L247" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 generate_next_page_link(request: Request, page_token: Optional[str]) -> Optional[str]
 ```
 
-### `count_account_events` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/events.py#L263" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `count_account_events` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/events.py#L264" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 count_account_events(filter: EventFilter, countable: Countable = Path(...), time_unit: TimeUnit = Body(default=TimeUnit.day), time_interval: float = Body(default=1.0, ge=0.01), db: PrefectDBInterface = Depends(provide_database_interface)) -> List[EventCount]
@@ -86,7 +86,7 @@ that can be counted include the day the event occurred, the type of event, or
 the IDs of the resources associated with the event.
 
 
-### `handle_event_count_request` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/events.py#L285" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `handle_event_count_request` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/events.py#L286" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 handle_event_count_request(session: AsyncSession, filter: EventFilter, countable: Countable, time_unit: TimeUnit, time_interval: float) -> List[EventCount]
