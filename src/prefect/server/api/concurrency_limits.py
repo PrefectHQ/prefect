@@ -222,16 +222,9 @@ async def read_concurrency_limits(
         tag = v2_limit.name.removeprefix("tag:")
         lease_storage = get_concurrency_lease_storage()
         active_slots = await get_active_slots_from_leases(v2_limit.id, lease_storage)
-        async with db.session_context() as session:
-            v1 = await models.concurrency_limits.read_concurrency_limit_by_tag(
-                session=session, tag=tag
-            )
-        if not active_slots and v1:
-            active_slots = list(v1.active_slots)
-        result_id = v1.id if v1 else v2_limit.id
         converted_v2.append(
             schemas.core.ConcurrencyLimit(
-                id=result_id,
+                id=v2_limit.id,
                 tag=tag,
                 concurrency_limit=v2_limit.limit,
                 active_slots=active_slots,
@@ -295,11 +288,6 @@ async def reset_concurrency_limit_by_tag(
                         ttl=V1_LEASE_TTL,
                         metadata=ConcurrencyLimitLeaseMetadata(slots=1, holder=holder),
                     )
-    # Mirror the reset into the V1 table so fallback reads stay accurate
-    async with db.session_context(begin_transaction=True) as session:
-        await models.concurrency_limits.reset_concurrency_limit_by_tag(
-            session=session, tag=tag, slot_override=slot_override
-        )
     return
 
 

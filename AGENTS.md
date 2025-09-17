@@ -73,6 +73,7 @@ prefect config view            # Inspect configuration
 ## Project Practices
 
 - GitHub issues are used for tracking issues (use the `gh` cli)
+- Retrieve review comments like: `gh api repos/PrefectHQ/prefect/pulls/18906/comments | jq -r '.[] | select(.user.login == "desertaxle") | {path, line, body}'`
 - Pre-commit hooks required (never use `--no-verify`)
 - There are some slower pre-push hooks that may modify files on `git push`; when that happens, run `git commit --amend` to bring those into the prior commit (never use `--amend` in any other situation unless asked)
 - Dependencies: updates to client-side deps in `@pyproject.toml` require parallel changes ing `@client/pyproject.toml`
