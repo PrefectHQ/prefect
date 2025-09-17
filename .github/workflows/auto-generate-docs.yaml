@@ -53,7 +53,7 @@ jobs:
         run: uv tool install mdxify@latest -U
 
       - name: Set up just
-        uses: extractions/setup-just@v2
+        uses: extractions/setup-just@v3
 
       - name: Install the project
         run: uv sync --compile-bytecode --no-editable --locked
