@@ -16,6 +16,7 @@ from prefect.server.concurrency.lease_storage import (
     ConcurrencyLimitLeaseMetadata,
 )
 from prefect.server.utilities.leasing import ResourceLease
+from prefect.types._concurrency import ConcurrencyLeaseHolder
 from prefect_redis.client import get_async_redis_client
 
 logger = logging.getLogger(__name__)
@@ -294,21 +295,30 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
             logger.error(f"Failed to read expired lease IDs: {e}")
             raise
 
-    async def list_holders_for_limit(self, limit_id: UUID) -> list[dict[str, Any]]:
+    async def list_holders_for_limit(
+        self, limit_id: UUID
+    ) -> list[ConcurrencyLeaseHolder]:
         try:
-            # Return a list of {"holder": {...}, "slots": int}
+            # Get all holder entries for this limit
             values = await self.redis_client.hvals(self._limit_holders_key(limit_id))
-            out: list[dict[str, Any]] = []
+            holders: list[ConcurrencyLeaseHolder] = []
+
             for v in values:
                 if isinstance(v, (bytes, bytearray)):
                     v = v.decode()
                 try:
                     data = json.loads(v)
-                    if isinstance(data, dict) and "holder" in data and "slots" in data:
-                        out.append({"holder": data["holder"], "slots": data["slots"]})
+                    if isinstance(data, dict) and "holder" in data:
+                        holder_data = data["holder"]
+                        if isinstance(holder_data, dict):
+                            # Create ConcurrencyLeaseHolder from the data
+                            holder = ConcurrencyLeaseHolder(**holder_data)
+                            holders.append(holder)
                 except Exception:
+                    # Skip malformed entries
                     continue
-            return out
+
+            return holders
         except RedisError as e:
             logger.error(f"Failed to list holders for limit {limit_id}: {e}")
             raise
