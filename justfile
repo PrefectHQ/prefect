@@ -34,6 +34,7 @@ clean: check-uv
 # Generate API reference documentation for all modules
 api-ref-all:
     uvx --with-editable . \
+        --python 3.12 \
         --isolated \
         mdxify \
         --all \
