@@ -45,7 +45,10 @@ jobs:
 
       - name: Set up uv
         uses: astral-sh/setup-uv@v6
-        
+        with:
+          enable-cache: true	
+          cache-dependency-glob: "pyproject.toml"
+
       - name: Install mdxify
         run: uv tool install mdxify@latest -U
 
