@@ -27,7 +27,6 @@ from prefect.server.utilities.leasing import (
 )
 from prefect.server.utilities.server import PrefectRouter
 from prefect.settings import PREFECT_TASK_RUN_TAG_CONCURRENCY_SLOT_WAIT_SECONDS
-from prefect.types._datetime import now
 from prefect.utilities.collections import distinct
 
 router: PrefectRouter = PrefectRouter(
@@ -120,19 +119,6 @@ async def create_concurrency_limit(
         created=model.created,
         updated=model.updated,
     )
-    concurrency_limit_model = schemas.core.ConcurrencyLimit(
-        **concurrency_limit.model_dump()
-    )
-
-    async with db.session_context(begin_transaction=True) as session:
-        model = await models.concurrency_limits.create_concurrency_limit(
-            session=session, concurrency_limit=concurrency_limit_model
-        )
-
-    if model.created >= now("UTC"):
-        response.status_code = status.HTTP_201_CREATED
-
-    return model
 
 
 @router.get("/{id:uuid}")
