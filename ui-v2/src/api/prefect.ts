@@ -1282,7 +1282,13 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Increment Concurrency Limits V1 */
+        /**
+         * Increment Concurrency Limits V1
+         * @description Increment concurrency limits for the given tags.
+         *
+         *     During migration, this handles both V1 and V2 limits to support mixed states.
+         *     Post-migration, it only uses V2 with lease-based concurrency.
+         */
         post: operations["increment_concurrency_limits_v1_concurrency_limits_increment_post"];
         delete?: never;
         options?: never;
@@ -1299,7 +1305,12 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Decrement Concurrency Limits V1 */
+        /**
+         * Decrement Concurrency Limits V1
+         * @description Decrement concurrency limits for the given tags.
+         *
+         *     Finds and revokes the lease for V2 limits or decrements V1 active slots.
+         */
         post: operations["decrement_concurrency_limits_v1_concurrency_limits_decrement_post"];
         delete?: never;
         options?: never;
@@ -12496,7 +12507,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": null;
                 };
             };
             /** @description Validation Error */
@@ -12564,7 +12575,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": null;
                 };
             };
             /** @description Validation Error */
@@ -12637,7 +12648,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": null;
                 };
             };
             /** @description Validation Error */
@@ -12707,7 +12718,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": null;
                 };
             };
             /** @description Validation Error */
