@@ -1310,6 +1310,7 @@ export interface paths {
          * @description Decrement concurrency limits for the given tags.
          *
          *     Finds and revokes the lease for V2 limits or decrements V1 active slots.
+         *     Returns the list of limits that were decremented.
          */
         post: operations["decrement_concurrency_limits_v1_concurrency_limits_decrement_post"];
         delete?: never;
@@ -12718,7 +12719,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": null;
+                    "application/json": components["schemas"]["MinimalConcurrencyLimitResponse"][];
                 };
             };
             /** @description Validation Error */

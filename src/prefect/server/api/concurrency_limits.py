@@ -515,28 +515,30 @@ async def decrement_concurrency_limits_v1(
         ..., description="The ID of the task run releasing the slot"
     ),
     db: PrefectDBInterface = Depends(provide_database_interface),
-) -> None:
+) -> List[MinimalConcurrencyLimitResponse]:
     """
     Decrement concurrency limits for the given tags.
 
     Finds and revokes the lease for V2 limits or decrements V1 active slots.
+    Returns the list of limits that were decremented.
     """
-    # Try to find a V2 lease
+    results = []
     lease_storage = get_concurrency_lease_storage()
     v2_names = [f"tag:{tag}" for tag in names]
 
-    async with db.session_context() as session:
-        # Get V2 limit IDs
-        v2_limit_ids = []
-        for v2_name in v2_names:
+    async with db.session_context(begin_transaction=True) as session:
+        # Get V2 limits
+        v2_limits = {}
+        for tag, v2_name in zip(names, v2_names):
             model = await cl_v2_models.read_concurrency_limit(
                 session=session, name=v2_name
             )
             if model:
-                v2_limit_ids.append(model.id)
+                v2_limits[tag] = model
 
-        # Find lease for this task run
-        if v2_limit_ids:
+        # Find and revoke lease for V2 limits
+        if v2_limits:
+            v2_limit_ids = [m.id for m in v2_limits.values()]
             active_lease_ids = await lease_storage.read_active_lease_ids(limit=1000)
             for lease_id in active_lease_ids:
                 lease = await lease_storage.read_lease(lease_id)
@@ -555,16 +557,33 @@ async def decrement_concurrency_limits_v1(
                             slots=lease.metadata.slots if lease.metadata else 1,
                         )
                         await lease_storage.revoke_lease(lease_id)
+                        # Add decremented V2 limits to results
+                        for tag, limit in v2_limits.items():
+                            if limit.id in lease.resource_ids:
+                                results.append(
+                                    MinimalConcurrencyLimitResponse(
+                                        id=limit.id, name=tag, limit=limit.limit
+                                    )
+                                )
                         break
 
-    # Handle V1 decrements
-    async with db.session_context(begin_transaction=True) as session:
+        # Handle V1 decrements (for pre-migration compatibility)
         v1_limits = (
             await concurrency_limits.filter_concurrency_limits_for_orchestration(
                 session, tags=names
             )
         )
         for cl in v1_limits:
-            active_slots = set(cl.active_slots)
-            active_slots.discard(str(task_run_id))
-            cl.active_slots = list(active_slots)
+            # Skip if already handled as V2
+            if cl.tag not in v2_limits:
+                active_slots = set(cl.active_slots)
+                if str(task_run_id) in active_slots:
+                    active_slots.discard(str(task_run_id))
+                    cl.active_slots = list(active_slots)
+                    results.append(
+                        MinimalConcurrencyLimitResponse(
+                            id=cl.id, name=cl.tag, limit=cl.concurrency_limit
+                        )
+                    )
+
+    return results
