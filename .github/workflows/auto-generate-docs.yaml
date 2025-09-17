@@ -15,6 +15,7 @@ on:
       - "scripts/run_precommit_generation_scripts.py"
       # Trigger on changes to this workflow
       - ".github/workflows/auto-generate-docs.yaml"
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -71,8 +72,17 @@ jobs:
             echo "has_changes=true" >> $GITHUB_OUTPUT
           fi
 
+      - name: Print git diff (workflow_dispatch only)
+        if: steps.check-changes.outputs.has_changes == 'true' && github.event_name == 'workflow_dispatch'
+        run: |
+          echo "Documentation changes detected (workflow_dispatch - not creating PR):"
+          git diff --name-status
+          echo ""
+          echo "Full diff:"
+          git diff
+
       - name: Create branch and commit changes
-        if: steps.check-changes.outputs.has_changes == 'true'
+        if: steps.check-changes.outputs.has_changes == 'true' && github.event_name == 'push'
         run: |
           BRANCH_NAME="auto-docs-update-$(date +%Y%m%d-%H%M%S)"
           git checkout -b "$BRANCH_NAME"
@@ -86,7 +96,7 @@ jobs:
           echo "BRANCH_NAME=$BRANCH_NAME" >> $GITHUB_ENV
 
       - name: Create pull request
-        if: steps.check-changes.outputs.has_changes == 'true'
+        if: steps.check-changes.outputs.has_changes == 'true' && github.event_name == 'push'
         run: |
           gh pr create \
             --title "Auto-update documentation" \
