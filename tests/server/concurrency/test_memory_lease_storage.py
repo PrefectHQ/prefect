@@ -208,3 +208,70 @@ class TestMemoryConcurrencyLeaseStorage:
 
         expired_ids = await storage.read_expired_lease_ids()
         assert len(expired_ids) == 2
+
+    async def test_list_holders_for_limit_empty(self, storage: ConcurrencyLeaseStorage):
+        limit_id = uuid4()
+        holders = await storage.list_holders_for_limit(limit_id)
+        assert holders == []
+
+    async def test_list_holders_for_limit_no_holders(
+        self, storage: ConcurrencyLeaseStorage, sample_resource_ids: list[UUID]
+    ):
+        # Create a lease without a holder
+        ttl = timedelta(minutes=5)
+        metadata = ConcurrencyLimitLeaseMetadata(slots=2)
+        await storage.create_lease(sample_resource_ids, ttl, metadata)
+
+        holders = await storage.list_holders_for_limit(sample_resource_ids[0])
+        assert holders == []
+
+    async def test_list_holders_for_limit_with_holders(
+        self, storage: ConcurrencyLeaseStorage
+    ):
+        limit_id = uuid4()
+
+        # Create leases with different holders
+        holder1 = {"type": "task_run", "id": uuid4()}
+        holder2 = {"type": "flow_run", "id": uuid4()}
+
+        metadata1 = ConcurrencyLimitLeaseMetadata(slots=2, holder=holder1)
+        metadata2 = ConcurrencyLimitLeaseMetadata(slots=1, holder=holder2)
+
+        ttl = timedelta(minutes=5)
+        await storage.create_lease([limit_id], ttl, metadata1)
+        await storage.create_lease([limit_id], ttl, metadata2)
+
+        # Create a lease for a different limit to ensure it's not included
+        other_limit_id = uuid4()
+        metadata3 = ConcurrencyLimitLeaseMetadata(
+            slots=1, holder={"type": "task_run", "id": uuid4()}
+        )
+        await storage.create_lease([other_limit_id], ttl, metadata3)
+
+        holders = await storage.list_holders_for_limit(limit_id)
+        assert len(holders) == 2
+
+        holder_dicts = [holder.model_dump() for holder in holders]
+        assert holder1 in holder_dicts
+        assert holder2 in holder_dicts
+
+    async def test_list_holders_for_limit_expired_leases(
+        self, storage: ConcurrencyLeaseStorage
+    ):
+        limit_id = uuid4()
+
+        # Create an expired lease with a holder
+        expired_ttl = timedelta(seconds=-1)
+        holder = {"type": "task_run", "id": uuid4()}
+        metadata = ConcurrencyLimitLeaseMetadata(slots=1, holder=holder)
+        await storage.create_lease([limit_id], expired_ttl, metadata)
+
+        # Create an active lease with a holder
+        active_ttl = timedelta(minutes=5)
+        active_holder = {"type": "flow_run", "id": uuid4()}
+        active_metadata = ConcurrencyLimitLeaseMetadata(slots=1, holder=active_holder)
+        await storage.create_lease([limit_id], active_ttl, active_metadata)
+
+        holders = await storage.list_holders_for_limit(limit_id)
+        assert len(holders) == 1
+        assert holders[0].model_dump() == active_holder
