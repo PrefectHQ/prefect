@@ -224,7 +224,7 @@ def prestart_check(base_url: str) -> None:
             )
 
 
-def _validate_multi_worker(workers: int, no_services: bool) -> None:
+def _validate_multi_worker(workers: int) -> None:
     """
     Validates the configuration for running multiple Prefect server workers.
 
@@ -237,7 +237,6 @@ def _validate_multi_worker(workers: int, no_services: bool) -> None:
 
     Args:
         workers: The number of worker processes to run. Must be >= 1.
-        no_services: Whether to run without background services. Must be True.
 
     Raises:
         exit_with_error: If the configuration is invalid.
@@ -249,9 +248,6 @@ def _validate_multi_worker(workers: int, no_services: bool) -> None:
 
     if workers < 1:
         exit_with_error("Number of workers must be >= 1")
-
-    if not no_services:
-        raise exit_with_error("Workers can only be run with --no-services")
 
     try:
         connection_url = PREFECT_API_DATABASE_CONNECTION_URL.value()
@@ -299,7 +295,9 @@ def start(
         False, "--background", "-b", help="Run the server in the background"
     ),
     workers: int = typer.Option(
-        1, "--workers", help="Number of worker processes to run"
+        1,
+        "--workers",
+        help="Number of worker processes to run. Only runs the webserver API and UI",
     ),
 ):
     """
@@ -312,7 +310,9 @@ def start(
         except Exception:
             pass
 
-    _validate_multi_worker(workers, no_services)
+    if workers > 1:
+        no_services = True
+    _validate_multi_worker(workers)
 
     server_settings = {
         "PREFECT_API_SERVICES_SCHEDULER_ENABLED": str(scheduler),

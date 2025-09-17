@@ -126,19 +126,6 @@ class TestMultipleWorkerServer:
             expected_code=1,
         )
 
-    def test_run_with_services(self) -> None:
-        """Test that services can be run with the server"""
-        invoke_and_assert(
-            command=[
-                "server",
-                "start",
-                "--workers",
-                "2",
-            ],
-            expected_output_contains="Workers can only be run with --no-services",
-            expected_code=1,
-        )
-
     @pytest.mark.parametrize(
         ["connection_url", "expected_output_contains"],
         [
@@ -158,13 +145,7 @@ class TestMultipleWorkerServer:
         """Test database validation"""
         with temporary_settings({PREFECT_API_DATABASE_CONNECTION_URL: connection_url}):
             invoke_and_assert(
-                command=[
-                    "server",
-                    "start",
-                    "--workers",
-                    "2",
-                    "--no-services",
-                ],
+                command=["server", "start", "--workers", "2"],
                 expected_output_contains=expected_output_contains,
                 expected_code=1,
             )
