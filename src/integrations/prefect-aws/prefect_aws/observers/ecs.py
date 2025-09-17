@@ -6,9 +6,11 @@ import enum
 import json
 import logging
 import uuid
+from collections import deque
 from contextlib import AsyncExitStack
 from datetime import timedelta
 from functools import partial
+from types import TracebackType
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -151,9 +153,15 @@ class EcsTaskTagsReader:
             print(f"Error reading tags for task {task_arn}: {e}")
             return {}
 
+        if not (tasks := response.get("tasks", [])):
+            return {}
+
+        if len(tasks) == 0:
+            return {}
+
         tags = {
             tag["key"]: tag["value"]
-            for tag in response.get("tasks", [{}])[0].get("tags", [])
+            for tag in tasks[0].get("tags", [])
             if "key" in tag and "value" in tag
         }
         self._cache[task_arn] = tags
@@ -168,6 +176,11 @@ class EcsTaskTagsReader:
     async def __aexit__(self, *args: Any) -> None:
         if self.ecs_client:
             await self.ecs_client.__aexit__(*args)
+
+
+SQS_MEMORY = 10
+SQS_CONSECUTIVE_FAILURES = 3
+SQS_BACKOFF = 1
 
 
 class SqsSubscriber:
@@ -207,22 +220,51 @@ class SqsSubscriber:
                     return
                 raise
 
+            track_record: deque[bool] = deque(
+                [True] * SQS_CONSECUTIVE_FAILURES, maxlen=SQS_CONSECUTIVE_FAILURES
+            )
+            failures: deque[tuple[Exception, TracebackType | None]] = deque(
+                maxlen=SQS_MEMORY
+            )
+            backoff_count = 0
+
             while True:
-                messages = await sqs_client.receive_message(
-                    QueueUrl=queue_url,
-                    MaxNumberOfMessages=10,
-                    WaitTimeSeconds=20,
-                )
-                for message in messages.get("Messages", []):
-                    if not (receipt_handle := message.get("ReceiptHandle")):
-                        continue
-
-                    yield message
-
-                    await sqs_client.delete_message(
+                try:
+                    messages = await sqs_client.receive_message(
                         QueueUrl=queue_url,
-                        ReceiptHandle=receipt_handle,
+                        MaxNumberOfMessages=10,
+                        WaitTimeSeconds=20,
                     )
+                    for message in messages.get("Messages", []):
+                        if not (receipt_handle := message.get("ReceiptHandle")):
+                            continue
+
+                        yield message
+
+                        await sqs_client.delete_message(
+                            QueueUrl=queue_url,
+                            ReceiptHandle=receipt_handle,
+                        )
+
+                    backoff_count = 0
+                except Exception as e:
+                    track_record.append(False)
+                    failures.append((e, e.__traceback__))
+                    logger.debug("Failed to receive messages from SQS", exc_info=e)
+
+                if not any(track_record):
+                    backoff_count += 1
+
+                    if backoff_count >= SQS_BACKOFF:
+                        raise RuntimeError("SQS exceeded error threshold.")
+
+                    track_record.extend([True] * SQS_CONSECUTIVE_FAILURES)
+                    failures.clear()
+                    logger.debug(
+                        "Backing off due to consecutive errors, using increased interval of %s seconds.",
+                        SQS_BACKOFF * 2**backoff_count,
+                    )
+                    await asyncio.sleep(SQS_BACKOFF * 2**backoff_count)
 
 
 class EcsObserver:
@@ -531,12 +573,22 @@ async def deregister_task_definition(event: dict[str, Any], tags: dict[str, str]
 _observer_task: asyncio.Task[None] | None = None
 
 
+def _observer_task_done(task: asyncio.Task[None]):
+    if task.cancelled():
+        logger.debug("ECS observer task cancelled")
+    elif task.exception():
+        logger.error("ECS observer task crashed", exc_info=task.exception())
+    else:
+        logger.debug("ECS observer task completed")
+
+
 async def start_observer():
     global _observer_task
     if _observer_task:
         return
 
     _observer_task = asyncio.create_task(ecs_observer.run())
+    _observer_task.add_done_callback(_observer_task_done)
     logger.debug("ECS observer started")
 
 
