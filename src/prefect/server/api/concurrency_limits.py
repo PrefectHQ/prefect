@@ -460,176 +460,166 @@ async def increment_concurrency_limits_v1(
     ),
     db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> List[MinimalConcurrencyLimitResponse]:
-    # Only use V2 path when all tag: limits exist; else fall back to V1
+    # Check for V2 limits
     v2_names = [f"tag:{tag}" for tag in names]
     async with db.session_context(begin_transaction=True) as session:
-        existing_limits = await cl_v2_models.bulk_read_concurrency_limits(
+        v2_limits = await cl_v2_models.bulk_read_concurrency_limits(
             session=session, names=v2_names
         )
+        v2_by_name = {limit.name: limit for limit in v2_limits}
 
-        if existing_limits and len(existing_limits) == len(v2_names):
-            zero = next(
-                (limit for limit in existing_limits if getattr(limit, "limit", 0) == 0),
-                None,
+        # Check for V1 limits
+        v1_limits = (
+            await concurrency_limits.filter_concurrency_limits_for_orchestration(
+                session, tags=names
             )
-            if zero is not None:
-                zero_tag = str(zero.name).removeprefix("tag:")
-                raise HTTPException(
-                    status_code=status.HTTP_423_LOCKED,
-                    detail=(
-                        f'The concurrency limit on tag "{zero_tag}" is 0 and will '
-                        "deadlock if the task tries to run again."
-                    ),
-                )
+        )
+        v1_by_tag = {limit.tag: limit for limit in v1_limits}
 
-            active_limit_ids = [
-                limit.id for limit in existing_limits if bool(limit.active)
-            ]
-            acquired = False
-            if active_limit_ids:
-                acquired = await cl_v2_models.bulk_increment_active_slots(
-                    session=session,
-                    concurrency_limit_ids=active_limit_ids,
-                    slots=1,
-                )
+        # Process each requested tag
+        applied_v2_ids = []
+        applied_v1_tags = []
+        results = []
 
-    if existing_limits and len(existing_limits) == len(v2_names):
-        if not active_limit_ids:
-            return []
+        for tag in names:
+            v2_limit = v2_by_name.get(f"tag:{tag}")
+            v1_limit = v1_by_tag.get(tag)
 
-        if not acquired:
-            blocking_tag = next(
-                (str(limit.name).removeprefix("tag:") for limit in existing_limits),
-                names[0],
-            )
-            raise HTTPException(
-                status_code=status.HTTP_423_LOCKED,
-                detail=(
-                    f"Concurrency limit for the {blocking_tag} tag has been reached; "
-                    "Concurrency limit reached"
-                ),
-                headers={
-                    "Retry-After": str(
-                        PREFECT_TASK_RUN_TAG_CONCURRENCY_SLOT_WAIT_SECONDS.value()
+            # Prefer V2 if it exists
+            if v2_limit:
+                # Check for zero limit
+                if v2_limit.limit == 0:
+                    # Roll back any already applied limits
+                    if applied_v2_ids:
+                        await cl_v2_models.bulk_decrement_active_slots(
+                            session=session,
+                            concurrency_limit_ids=applied_v2_ids,
+                            slots=1,
+                        )
+                    for applied_tag in applied_v1_tags:
+                        cl = v1_by_tag[applied_tag]
+                        active_slots = set(cl.active_slots)
+                        active_slots.discard(str(task_run_id))
+                        cl.active_slots = list(active_slots)
+
+                    raise HTTPException(
+                        status_code=status.HTTP_423_LOCKED,
+                        detail=(
+                            f'The concurrency limit on tag "{tag}" is 0 and will '
+                            "deadlock if the task tries to run again."
+                        ),
                     )
-                },
-            )
 
+                # Try to acquire V2 slot
+                if v2_limit.active:
+                    acquired = await cl_v2_models.bulk_increment_active_slots(
+                        session=session,
+                        concurrency_limit_ids=[v2_limit.id],
+                        slots=1,
+                    )
+                    if not acquired:
+                        # Roll back any already applied limits
+                        if applied_v2_ids:
+                            await cl_v2_models.bulk_decrement_active_slots(
+                                session=session,
+                                concurrency_limit_ids=applied_v2_ids,
+                                slots=1,
+                            )
+                        for applied_tag in applied_v1_tags:
+                            cl = v1_by_tag[applied_tag]
+                            active_slots = set(cl.active_slots)
+                            active_slots.discard(str(task_run_id))
+                            cl.active_slots = list(active_slots)
+
+                        raise HTTPException(
+                            status_code=status.HTTP_423_LOCKED,
+                            detail=(
+                                f"Concurrency limit for the {tag} tag has been reached; "
+                                "Concurrency limit reached"
+                            ),
+                            headers={
+                                "Retry-After": str(
+                                    PREFECT_TASK_RUN_TAG_CONCURRENCY_SLOT_WAIT_SECONDS.value()
+                                )
+                            },
+                        )
+                    applied_v2_ids.append(v2_limit.id)
+                    results.append(
+                        MinimalConcurrencyLimitResponse(
+                            id=v2_limit.id, name=tag, limit=v2_limit.limit
+                        )
+                    )
+
+            elif v1_limit:
+                # Handle V1 limit
+                if v1_limit.concurrency_limit == 0:
+                    # Roll back any already applied limits
+                    if applied_v2_ids:
+                        await cl_v2_models.bulk_decrement_active_slots(
+                            session=session,
+                            concurrency_limit_ids=applied_v2_ids,
+                            slots=1,
+                        )
+                    for applied_tag in applied_v1_tags:
+                        cl = v1_by_tag[applied_tag]
+                        active_slots = set(cl.active_slots)
+                        active_slots.discard(str(task_run_id))
+                        cl.active_slots = list(active_slots)
+
+                    raise HTTPException(
+                        status_code=status.HTTP_423_LOCKED,
+                        detail=(
+                            f'The concurrency limit on tag "{tag}" is 0 and will '
+                            "deadlock if the task tries to run again."
+                        ),
+                    )
+                elif len(v1_limit.active_slots) >= v1_limit.concurrency_limit:
+                    # Roll back any already applied limits
+                    if applied_v2_ids:
+                        await cl_v2_models.bulk_decrement_active_slots(
+                            session=session,
+                            concurrency_limit_ids=applied_v2_ids,
+                            slots=1,
+                        )
+                    for applied_tag in applied_v1_tags:
+                        cl = v1_by_tag[applied_tag]
+                        active_slots = set(cl.active_slots)
+                        active_slots.discard(str(task_run_id))
+                        cl.active_slots = list(active_slots)
+
+                    raise HTTPException(
+                        status_code=status.HTTP_423_LOCKED,
+                        detail=f"Concurrency limit for the {tag} tag has been reached",
+                        headers={
+                            "Retry-After": str(
+                                PREFECT_TASK_RUN_TAG_CONCURRENCY_SLOT_WAIT_SECONDS.value()
+                            )
+                        },
+                    )
+                else:
+                    # Apply V1 limit
+                    active_slots = set(v1_limit.active_slots)
+                    active_slots.add(str(task_run_id))
+                    v1_limit.active_slots = list(active_slots)
+                    applied_v1_tags.append(tag)
+                    results.append(
+                        MinimalConcurrencyLimitResponse(
+                            id=v1_limit.id, name=tag, limit=v1_limit.concurrency_limit
+                        )
+                    )
+
+    # Create lease for V2 limits if any were acquired
+    if applied_v2_ids:
         lease_storage = get_concurrency_lease_storage()
         await lease_storage.create_lease(
-            resource_ids=active_limit_ids,
+            resource_ids=applied_v2_ids,
             ttl=V1_LEASE_TTL,
             metadata=ConcurrencyLimitLeaseMetadata(
                 slots=1, holder={"type": "task_run", "id": str(task_run_id)}
             ),
         )
 
-        # Mirror acquisition into V1 active_slots for legacy compatibility
-        async with db.session_context(begin_transaction=True) as session:
-            filtered_limits = (
-                await concurrency_limits.filter_concurrency_limits_for_orchestration(
-                    session,
-                    tags=[
-                        str(limit.name).removeprefix("tag:")
-                        for limit in existing_limits
-                    ],
-                )
-            )
-            for cl in filtered_limits:
-                active = set(cl.active_slots)
-                active.add(str(task_run_id))
-                cl.active_slots = list(active)
-
-        # Build V1-shaped responses: prefer V1 ids if present (for event consumers)
-        results: list[MinimalConcurrencyLimitResponse] = []
-        async with db.session_context() as session:
-            for limit in existing_limits:
-                tag_name = str(limit.name).removeprefix("tag:")
-                v1 = await models.concurrency_limits.read_concurrency_limit_by_tag(
-                    session=session, tag=tag_name
-                )
-                result_id = v1.id if v1 else limit.id
-                results.append(
-                    MinimalConcurrencyLimitResponse(
-                        id=result_id, name=tag_name, limit=limit.limit
-                    )
-                )
-        return results
-
-    # Original V1 implementation
-    applied_limits = {}
-
-    async with db.session_context(begin_transaction=True) as session:
-        try:
-            applied_limits = {}
-            filtered_limits = (
-                await concurrency_limits.filter_concurrency_limits_for_orchestration(
-                    session, tags=names
-                )
-            )
-            run_limits = {limit.tag: limit for limit in filtered_limits}
-            for tag, cl in run_limits.items():
-                limit = cl.concurrency_limit
-                if limit == 0:
-                    # limits of 0 will deadlock, and the transition needs to abort
-                    for stale_tag in applied_limits.keys():
-                        stale_limit = run_limits.get(stale_tag, None)
-                        active_slots = set(stale_limit.active_slots)
-                        active_slots.discard(str(task_run_id))
-                        stale_limit.active_slots = list(active_slots)
-
-                    raise Abort(
-                        reason=(
-                            f'The concurrency limit on tag "{tag}" is 0 and will '
-                            "deadlock if the task tries to run again."
-                        ),
-                    )
-                elif len(cl.active_slots) >= limit:
-                    # if the limit has already been reached, delay the transition
-                    for stale_tag in applied_limits.keys():
-                        stale_limit = run_limits.get(stale_tag, None)
-                        active_slots = set(stale_limit.active_slots)
-                        active_slots.discard(str(task_run_id))
-                        stale_limit.active_slots = list(active_slots)
-
-                    raise Delay(
-                        delay_seconds=PREFECT_TASK_RUN_TAG_CONCURRENCY_SLOT_WAIT_SECONDS.value(),
-                        reason=f"Concurrency limit for the {tag} tag has been reached",
-                    )
-                else:
-                    # log the TaskRun ID to active_slots
-                    applied_limits[tag] = cl
-                    active_slots = set(cl.active_slots)
-                    active_slots.add(str(task_run_id))
-                    cl.active_slots = list(active_slots)
-        except Exception as e:
-            for tag in applied_limits.keys():
-                cl = await concurrency_limits.read_concurrency_limit_by_tag(
-                    session, tag
-                )
-                active_slots = set(cl.active_slots)
-                active_slots.discard(str(task_run_id))
-                cl.active_slots = list(active_slots)
-
-            if isinstance(e, Delay):
-                raise HTTPException(
-                    status_code=status.HTTP_423_LOCKED,
-                    detail=e.reason,
-                    headers={"Retry-After": str(e.delay_seconds)},
-                )
-            elif isinstance(e, Abort):
-                raise HTTPException(
-                    status_code=status.HTTP_423_LOCKED,
-                    detail=e.reason,
-                )
-            else:
-                raise
-    return [
-        MinimalConcurrencyLimitResponse(
-            name=limit.tag, limit=limit.concurrency_limit, id=limit.id
-        )
-        for limit in applied_limits.values()
-    ]
+    return results
 
 
 @router.post("/decrement")
