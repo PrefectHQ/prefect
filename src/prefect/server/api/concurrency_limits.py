@@ -26,7 +26,7 @@ from prefect.server.utilities.leasing import (
     get_active_slots_from_leases,
 )
 from prefect.server.utilities.server import PrefectRouter
-from prefect.settings import PREFECT_TASK_RUN_TAG_CONCURRENCY_SLOT_WAIT_SECONDS
+from prefect.settings import get_current_settings
 from prefect.utilities.collections import distinct
 
 router: PrefectRouter = PrefectRouter(
@@ -423,6 +423,9 @@ async def increment_concurrency_limits_v1(
             v1_limit = v1_by_tag.get(tag)
 
             # Prefer V2 if it exists
+            TAG_CONCURRENCY_SLOT_WAIT_SECONDS = (
+                get_current_settings().server.tasks.tag_concurrency_slot_wait_seconds
+            )
             if v2_limit:
                 # Check for zero limit
                 if v2_limit.limit == 0:
@@ -475,9 +478,7 @@ async def increment_concurrency_limits_v1(
                                 "Concurrency limit reached"
                             ),
                             headers={
-                                "Retry-After": str(
-                                    PREFECT_TASK_RUN_TAG_CONCURRENCY_SLOT_WAIT_SECONDS.value()
-                                )
+                                "Retry-After": str(TAG_CONCURRENCY_SLOT_WAIT_SECONDS)
                             },
                         )
                     applied_v2_ids.append(v2_limit.id)
@@ -527,11 +528,7 @@ async def increment_concurrency_limits_v1(
                     raise HTTPException(
                         status_code=status.HTTP_423_LOCKED,
                         detail=f"Concurrency limit for the {tag} tag has been reached",
-                        headers={
-                            "Retry-After": str(
-                                PREFECT_TASK_RUN_TAG_CONCURRENCY_SLOT_WAIT_SECONDS.value()
-                            )
-                        },
+                        headers={"Retry-After": str(TAG_CONCURRENCY_SLOT_WAIT_SECONDS)},
                     )
                 else:
                     # Apply V1 limit
