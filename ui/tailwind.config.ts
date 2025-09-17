@@ -1,4 +1,4 @@
-import prefectDesignTailwindConfig from '@prefecthq/prefect-design/src/tailwind.config'
+import prefectDesignTailwindConfig from '@prefecthq/prefect-design/tailwind.config'
 import type { Config } from 'tailwindcss'
 
 const config: Config = {
