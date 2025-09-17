@@ -116,21 +116,11 @@ async def get_active_slots_from_leases(
         # Support shapes:
         # 1) {"type": "task_run", "id": "..."}
         # 2) {"holder": {"type": "task_run", "id": "..."}, "slots": N}
-        # 3) typed objects with attribute `.holder` or attributes `.type`/`.id`
-        h: object
-        if isinstance(holder, dict):
-            h = holder.get("holder") if "holder" in holder else holder
-        else:
-            h = getattr(holder, "holder", holder)
+        # Since list_holders_for_limit returns dict[str, Any], we know holder is a dict
+        h = holder.get("holder") if "holder" in holder else holder
 
-        if isinstance(h, dict):
-            if h.get("type") == "task_run" and h.get("id"):
-                active_holders.append(str(h["id"]))
-        else:
-            htype = getattr(h, "type", None)
-            hid = getattr(h, "id", None)
-            if htype == "task_run" and hid:
-                active_holders.append(str(hid))
+        if isinstance(h, dict) and h.get("type") == "task_run" and h.get("id"):
+            active_holders.append(str(h["id"]))
 
     # Deduplicate
     return list(dict.fromkeys(active_holders))
@@ -175,8 +165,8 @@ async def find_lease_for_task_run(
         holders = await lease_storage.list_holders_for_limit(limit_id)
         # holders may be shape 1) {"type","id"} or 2) {"holder": {...}, "slots": N}
         for h in holders:
-            payload = h.get("holder", h) if isinstance(h, dict) else None
-            if isinstance(payload, dict) and payload == desired:
+            payload = h.get("holder", h)
+            if payload == desired:
                 # Find the lease id by scanning active leases for this limit
                 for lid in await lease_storage.read_active_lease_ids(limit=1000):
                     lease = await lease_storage.read_lease(lid)
