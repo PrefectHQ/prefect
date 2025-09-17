@@ -93,8 +93,10 @@ prefect server database upgrade -y
 For high-throughput scenarios, you can run the server with multiple worker processes to handle concurrent requests more efficiently:
 
 ```bash
-prefect server start --workers 4 --no-services
+prefect server start --workers 4
 ```
+
+This starts 4 worker processes to handle API and UI requests concurrently. 
 
 ### Requirements for multi-worker mode
 
@@ -102,7 +104,6 @@ Multi-worker mode has specific infrastructure requirements:
 
 1. **PostgreSQL database** - SQLite is not supported due to database locking issues
 2. **Redis messaging** - In-memory messaging doesn't work across processes
-3. **No background services** - Must use the `--no-services` flag
 
 ### Configuration example
 
@@ -119,7 +120,7 @@ export PREFECT_REDIS_MESSAGING_HOST="redis"
 export PREFECT_REDIS_MESSAGING_PORT="6379"
 
 # Start server with 4 workers
-prefect server start --workers 4 --no-services
+prefect server start --workers 4
 ```
 
 <Tip>
