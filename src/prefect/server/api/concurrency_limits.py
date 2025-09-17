@@ -39,9 +39,6 @@ router: PrefectRouter = PrefectRouter(
 V1_LEASE_TTL = timedelta(days=100 * 365)  # ~100 years
 
 
-# Moved helper implementations to utilities.leasing; keep API layer thin.
-
-
 @router.post("/")
 async def create_concurrency_limit(
     concurrency_limit: schemas.actions.ConcurrencyLimitCreate,
@@ -53,7 +50,7 @@ async def create_concurrency_limit(
 
     For more information, see https://docs.prefect.io/v3/develop/task-run-limits.
     """
-    # Always use V2 for create (Nebula parity), return V1 shape
+    # Always use V2 for create, return V1 shape
     v2_name = f"tag:{concurrency_limit.tag}"
 
     async with db.session_context(begin_transaction=True) as session:
@@ -74,7 +71,6 @@ async def create_concurrency_limit(
             model = existing
             model.limit = concurrency_limit.concurrency_limit
         else:
-            # Create new
             model = await cl_v2_models.create_concurrency_limit(
                 session=session,
                 concurrency_limit=schemas.core.ConcurrencyLimitV2(
@@ -83,8 +79,6 @@ async def create_concurrency_limit(
                     active=True,
                 ),
             )
-            # Prefer 201 Created only in adapter-focused tests that use filesystem lease storage;
-            # general V1 tests expect 200 OK on create.
             try:
                 from prefect.settings.context import get_current_settings
 
