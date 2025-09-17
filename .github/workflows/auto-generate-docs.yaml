@@ -46,6 +46,9 @@ jobs:
       - name: Set up uv
         uses: astral-sh/setup-uv@v6
 
+      - name: Run isolated walk_packages
+        run: "uv run --isolated --with-editable . python -c \"import pkgutil, prefect, sys; print(f'Python: {sys.version}'); print(f'Prefect path: {prefect.__path__}'); mods = list(pkgutil.walk_packages(prefect.__path__, prefix='prefect.', onerror=lambda x: print(f'ERROR importing: {x}'))); print(f'Found {len(mods)} modules'); deep = [m for m in mods if m[1].count('.') > 2]; print(f'Deep modules (3+ levels): {len(deep)}'); print('Sample deep:', [m[1] for m in deep[:5]])\""
+
       - name: Install mdxify
         run: uv tool install mdxify@latest -U
 
