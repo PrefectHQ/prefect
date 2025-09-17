@@ -21,7 +21,6 @@ from prefect.server.models import concurrency_limits as v1_models
 from prefect.server.models import concurrency_limits_v2 as v2_models
 from prefect.server.models.concurrency_limits_v2 import create_concurrency_limit
 from prefect.server.schemas.core import ConcurrencyLimitV2
-from prefect.server.utilities.leasing import ResourceLease
 from prefect.settings import (
     PREFECT_SERVER_CONCURRENCY_LEASE_STORAGE,
 )
@@ -123,7 +122,7 @@ async def test_v1_create_returns_v1_id(client: AsyncClient, session):
     assert str(v2.id) != payload["id"]
 
 
-async def test_v1_read_by_tag_uses_v2_leases(client: AsyncClient, session, monkeypatch):
+async def test_v1_read_by_tag_uses_v2_leases(client: AsyncClient, session):
     """Test that V1 READ endpoint populates active_slots from V2 leases."""
     # Create V2 limit directly in DB for tag:foo
     v2 = await create_concurrency_limit(
@@ -132,38 +131,16 @@ async def test_v1_read_by_tag_uses_v2_leases(client: AsyncClient, session, monke
     )
     await session.commit()
 
-    # Stub lease storage to return a lease with a task_run holder for this limit
+    # Create a lease with filesystem storage for this limit
     tr_id = str(uuid4())
-
-    class StubStorage:
-        def __init__(self):
-            self.storage_path = ConcurrencyLeaseStorage().storage_path
-            self.lease_id = uuid4()
-
-        async def list_holders_for_limit(self, limit_id):
-            if limit_id == v2.id:
-                # Return nested holder structure to ensure API supports both shapes
-                return [{"holder": {"type": "task_run", "id": tr_id}, "slots": 1}]
-            return []
-
-        async def read_active_lease_ids(self, limit: int = 100):
-            return [self.lease_id]
-
-        async def read_lease(self, lease_id):
-            if lease_id == self.lease_id:
-                return ResourceLease(
-                    resource_ids=[v2.id],
-                    expiration=datetime.now(timezone.utc) + timedelta(minutes=5),
-                    metadata=ConcurrencyLimitLeaseMetadata(
-                        slots=1, holder={"type": "task_run", "id": tr_id}
-                    ),
-                )
-            return None
-
-    # Patch the server module to use our stub
-    import prefect.server.api.concurrency_limits as v1api
-
-    monkeypatch.setattr(v1api, "get_concurrency_lease_storage", lambda: StubStorage())
+    storage = ConcurrencyLeaseStorage()
+    await storage.create_lease(
+        resource_ids=[v2.id],
+        ttl=timedelta(minutes=5),
+        metadata=ConcurrencyLimitLeaseMetadata(
+            slots=1, holder={"type": "task_run", "id": tr_id}
+        ),
+    )
 
     # Read V1 by tag; should include holder id in active_slots
     resp = await client.get("/concurrency_limits/tag/foo")
