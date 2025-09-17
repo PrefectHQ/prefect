@@ -10,6 +10,7 @@ from prefect.server.concurrency.lease_storage import (
     ConcurrencyLimitLeaseMetadata,
 )
 from prefect.server.utilities.leasing import ResourceLease
+from prefect.types._concurrency import ConcurrencyLeaseHolder
 
 
 class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
@@ -76,3 +77,22 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
             if expiration < now
         ]
         return expired_leases[:limit]
+
+    async def list_holders_for_limit(
+        self, limit_id: UUID
+    ) -> list[ConcurrencyLeaseHolder]:
+        """List all holders for a given concurrency limit."""
+        now = datetime.now(timezone.utc)
+        holders: list[ConcurrencyLeaseHolder] = []
+
+        for lease_id, lease in self.leases.items():
+            # Check if lease is active and for the specified limit
+            if (
+                limit_id in lease.resource_ids
+                and self.expirations.get(lease_id, now) > now
+                and lease.metadata
+                and lease.metadata.holder
+            ):
+                holders.append(lease.metadata.holder)
+
+        return holders
