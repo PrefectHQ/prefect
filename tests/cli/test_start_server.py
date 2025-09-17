@@ -171,7 +171,7 @@ class TestMultipleWorkerServer:
                     "2",
                     "--no-services",
                 ],
-                expected_output_contains="Multi-worker mode (--workers > 1) is not supported with in-memory messaging.",
+                expected_output_contains="Multi-worker mode (--workers > 1) requires Redis for messaging and lease storage.",
                 expected_code=1,
             )
 
