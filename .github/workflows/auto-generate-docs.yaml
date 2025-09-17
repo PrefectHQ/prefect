@@ -37,17 +37,14 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-      - name: Set up NodeJS (for npx)
+      - name: Set up node
         uses: actions/setup-node@v5
         with:
           node-version-file: ".nvmrc"
           cache-dependency-path: "**/package-lock.json"
 
-      - name: Set up uv (Python toolchain)
+      - name: Set up uv
         uses: astral-sh/setup-uv@v6
-        with:
-          enable-cache: true
-          cache-dependency-glob: "pyproject.toml"
 
       - name: Install mdxify
         run: uv tool install mdxify@latest -U
