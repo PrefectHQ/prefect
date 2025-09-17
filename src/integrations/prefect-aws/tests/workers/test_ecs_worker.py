@@ -2084,7 +2084,7 @@ async def test_user_defined_capacity_provider_strategy_with_launch_type(
         mock_run_task = MagicMock(side_effect=original_run_task)
         worker._create_task_run = mock_run_task
 
-        result = await run_then_stop_task(worker, configuration, flow_run)
+        result = await worker.run(flow_run, configuration)
 
     assert result.status_code == 0
 
