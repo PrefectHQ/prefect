@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from functools import partial
-from typing import Generic, Protocol, TypeVar
+from typing import Any, Generic, Protocol, TypeVar
 from uuid import UUID, uuid4
 
 T = TypeVar("T")
@@ -66,11 +66,23 @@ class LeaseStorage(Protocol[T]):
         """
         ...
 
+    async def list_holders_for_limit(self, limit_id: UUID) -> list[dict[str, Any]]:
+        """
+        List all holders for a given limit.
+
+        Args:
+            limit_id: The ID of the limit to list holders for.
+
+        Returns:
+            A list of holder dictionaries with structure {"holder": {...}, "slots": N}
+        """
+        ...
+
 
 # Prefect-specific helper utilities for working with concurrency leases.
 # These functions centralize normalization/fallback logic so API layers stay thin.
 
-from typing import TYPE_CHECKING, Any  # noqa: E402
+from typing import TYPE_CHECKING  # noqa: E402
 
 from prefect.server.database import PrefectDBInterface  # noqa: E402
 from prefect.server.models import (  # noqa: E402
@@ -96,40 +108,10 @@ async def get_active_slots_from_leases(
         )
 
         lease_storage = get_concurrency_lease_storage()
+    # Get holders from storage (now guaranteed by protocol)
+    holders = await lease_storage.list_holders_for_limit(limit_id)
+
     active_holders: list[str] = []
-
-    # Prefer storage-provided enumeration when available
-    list_fn = getattr(lease_storage, "list_holders_for_limit", None)
-    holders: list[Any] = []
-    if callable(list_fn):
-        holders = await list_fn(limit_id)  # type: ignore[misc]
-    # If storage does not support holder listing or returned nothing, scan leases
-    if not holders:
-        for lid in await lease_storage.read_active_lease_ids(limit=1024):
-            lease = await lease_storage.read_lease(lid)
-            if not lease or limit_id not in lease.resource_ids:
-                continue
-            if lease.metadata and getattr(lease.metadata, "holder", None):
-                holder_obj = lease.metadata.holder
-                if isinstance(holder_obj, dict):
-                    holders.append(holder_obj)
-                else:
-                    # Try to normalize pydantic model or typed object
-                    dumped = None
-                    if hasattr(holder_obj, "model_dump"):
-                        try:
-                            dumped = holder_obj.model_dump()  # type: ignore[attr-defined]
-                        except Exception:
-                            dumped = None
-                    if isinstance(dumped, dict):
-                        holders.append(dumped)
-                    else:
-                        htype = getattr(holder_obj, "type", None)
-                        hid = getattr(holder_obj, "id", None)
-                        if htype and hid:
-                            holders.append({"type": str(htype), "id": str(hid)})
-
-    # holders may be provided by storage helper or reconstructed by scanning leases
     for holder in holders:
         # Support shapes:
         # 1) {"type": "task_run", "id": "..."}
@@ -187,31 +169,29 @@ async def find_lease_for_task_run(
     if not limit_ids:
         return None
 
-    # Try direct per-limit holder search if storage exposes helpers; else scan
-    list_fn = getattr(lease_storage, "list_holders_for_limit", None)
-    if callable(list_fn):
-        desired = {"type": "task_run", "id": str(task_run_id)}
-        for limit_id in limit_ids:
-            holders = await list_fn(limit_id)  # type: ignore[misc]
-            # holders may be shape 1) {"type","id"} or 2) {"holder": {...}, "slots": N}
-            for h in holders:
-                payload = h.get("holder", h) if isinstance(h, dict) else None
-                if isinstance(payload, dict) and payload == desired:
-                    # Read a lease id by scanning active leases for this limit
-                    for lid in await lease_storage.read_active_lease_ids(limit=1000):
-                        lease = await lease_storage.read_lease(lid)
-                        if lease and limit_id in lease.resource_ids:
-                            inner = (
-                                getattr(lease.metadata, "holder", None)
-                                if lease.metadata
-                                else None
-                            )
-                            if inner is not None and hasattr(inner, "model_dump"):
-                                inner = inner.model_dump(mode="json")  # type: ignore[attr-defined]
-                            if isinstance(inner, dict) and inner == desired:
-                                return lid
+    # Use storage-provided holder search (now guaranteed by protocol)
+    desired = {"type": "task_run", "id": str(task_run_id)}
+    for limit_id in limit_ids:
+        holders = await lease_storage.list_holders_for_limit(limit_id)
+        # holders may be shape 1) {"type","id"} or 2) {"holder": {...}, "slots": N}
+        for h in holders:
+            payload = h.get("holder", h) if isinstance(h, dict) else None
+            if isinstance(payload, dict) and payload == desired:
+                # Find the lease id by scanning active leases for this limit
+                for lid in await lease_storage.read_active_lease_ids(limit=1000):
+                    lease = await lease_storage.read_lease(lid)
+                    if lease and limit_id in lease.resource_ids:
+                        inner = (
+                            getattr(lease.metadata, "holder", None)
+                            if lease.metadata
+                            else None
+                        )
+                        if inner is not None and hasattr(inner, "model_dump"):
+                            inner = inner.model_dump(mode="json")  # type: ignore[attr-defined]
+                        if isinstance(inner, dict) and inner == desired:
+                            return lid
 
-    # Fallback: scan active leases
+    # Scan active leases if not found via holder search
     active_leases = await lease_storage.read_active_lease_ids(limit=1000)
 
     for lease_id in active_leases:
