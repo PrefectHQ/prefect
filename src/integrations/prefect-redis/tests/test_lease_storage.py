@@ -8,6 +8,7 @@ from redis.asyncio import Redis
 
 from prefect.server.concurrency.lease_storage import ConcurrencyLimitLeaseMetadata
 from prefect.server.utilities.leasing import ResourceLease
+from prefect.types._concurrency import ConcurrencyLeaseHolder
 
 
 class TestConcurrencyLeaseStorage:
@@ -311,19 +312,22 @@ class TestConcurrencyLeaseStorage:
     async def test_holder_indexes_and_lookup(self, storage: ConcurrencyLeaseStorage):
         rid = uuid4()
         ttl = timedelta(seconds=120)
-        holder = {"type": "task_run", "id": str(uuid4())}
+        holder_id = uuid4()
+        holder = {"type": "task_run", "id": str(holder_id)}
         meta = ConcurrencyLimitLeaseMetadata(slots=1)
         setattr(meta, "holder", holder)
 
         lease = await storage.create_lease([rid], ttl, meta)
 
         holders = await storage.list_holders_for_limit(rid)
-        assert {"holder": holder, "slots": 1} in holders
+        assert len(holders) == 1
+        assert holders[0].type == "task_run"
+        assert holders[0].id == holder_id
 
         await storage.revoke_lease(lease.id)
 
         holders_after = await storage.list_holders_for_limit(rid)
-        assert {"holder": holder, "slots": 1} not in holders_after
+        assert len(holders_after) == 0
         # Reverse lookup removed; ensure holder entry is gone via list
 
     async def test_create_without_holder_does_not_index(
@@ -344,24 +348,80 @@ class TestConcurrencyLeaseStorage:
     ):
         rid1, rid2 = uuid4(), uuid4()
         ttl = timedelta(seconds=60)
-        holder = {"type": "task_run", "id": str(uuid4())}
+        holder_id = uuid4()
+        holder = {"type": "task_run", "id": str(holder_id)}
         meta = ConcurrencyLimitLeaseMetadata(slots=1)
         setattr(meta, "holder", holder)
 
         lease = await storage.create_lease([rid1, rid2], ttl, meta)
-        assert {"holder": holder, "slots": 1} in await storage.list_holders_for_limit(
-            rid1
-        )
-        assert {"holder": holder, "slots": 1} in await storage.list_holders_for_limit(
-            rid2
-        )
+
+        holders_rid1 = await storage.list_holders_for_limit(rid1)
+        assert len(holders_rid1) == 1
+        assert holders_rid1[0].type == "task_run"
+        assert holders_rid1[0].id == holder_id
+
+        holders_rid2 = await storage.list_holders_for_limit(rid2)
+        assert len(holders_rid2) == 1
+        assert holders_rid2[0].type == "task_run"
+        assert holders_rid2[0].id == holder_id
 
         await storage.revoke_lease(lease.id)
-        assert {
-            "holder": holder,
-            "slots": 1,
-        } not in await storage.list_holders_for_limit(rid1)
-        assert {
-            "holder": holder,
-            "slots": 1,
-        } not in await storage.list_holders_for_limit(rid2)
+
+        holders_rid1_after = await storage.list_holders_for_limit(rid1)
+        assert len(holders_rid1_after) == 0
+
+        holders_rid2_after = await storage.list_holders_for_limit(rid2)
+        assert len(holders_rid2_after) == 0
+
+    async def test_list_holders_for_limit_returns_typed_holders(
+        self, storage: ConcurrencyLeaseStorage
+    ):
+        """Test that list_holders_for_limit returns properly typed ConcurrencyLeaseHolder objects."""
+        limit_id = uuid4()
+        ttl = timedelta(seconds=60)
+
+        # Create multiple leases with different holders
+        holder1_id = uuid4()
+        holder2_id = uuid4()
+        holder1_data = {"type": "task_run", "id": str(holder1_id)}
+        holder2_data = {"type": "flow_run", "id": str(holder2_id)}
+
+        meta1 = ConcurrencyLimitLeaseMetadata(slots=2)
+        setattr(meta1, "holder", holder1_data)
+
+        meta2 = ConcurrencyLimitLeaseMetadata(slots=1)
+        setattr(meta2, "holder", holder2_data)
+
+        # Create leases
+        lease1 = await storage.create_lease([limit_id], ttl, meta1)
+        lease2 = await storage.create_lease([limit_id], ttl, meta2)
+
+        # Get holders - should return ConcurrencyLeaseHolder objects
+        holders = await storage.list_holders_for_limit(limit_id)
+
+        assert len(holders) == 2
+
+        # Check that they are ConcurrencyLeaseHolder instances
+        for holder in holders:
+            assert isinstance(holder, ConcurrencyLeaseHolder)
+
+        # Check that the data matches (IDs are UUIDs in the returned objects)
+        holder_types = {h.type for h in holders}
+        holder_ids = {h.id for h in holders}
+        assert "task_run" in holder_types
+        assert "flow_run" in holder_types
+        assert holder1_id in holder_ids
+        assert holder2_id in holder_ids
+
+        # Clean up
+        await storage.revoke_lease(lease1.id)
+        await storage.revoke_lease(lease2.id)
+
+    async def test_list_holders_for_limit_empty_when_no_holders(
+        self, storage: ConcurrencyLeaseStorage
+    ):
+        """Test that list_holders_for_limit returns empty list when no holders exist."""
+        limit_id = uuid4()
+        holders = await storage.list_holders_for_limit(limit_id)
+        assert holders == []
+        assert isinstance(holders, list)
