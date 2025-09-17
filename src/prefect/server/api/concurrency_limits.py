@@ -372,7 +372,7 @@ class Abort(Exception):
 
 
 class Delay(Exception):
-    def __init__(self, delay_seconds: int, reason: str):
+    def __init__(self, delay_seconds: float, reason: str):
         self.delay_seconds = delay_seconds
         self.reason = reason
 
