@@ -60,14 +60,16 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
         self.leases.pop(lease_id, None)
         self.expirations.pop(lease_id, None)
 
-    async def read_active_lease_ids(self, limit: int = 100) -> list[UUID]:
+    async def read_active_lease_ids(
+        self, limit: int = 100, offset: int = 0
+    ) -> list[UUID]:
         now = datetime.now(timezone.utc)
         active_leases = [
             lease_id
             for lease_id, expiration in self.expirations.items()
             if expiration > now
         ]
-        return active_leases[:limit]
+        return active_leases[offset : offset + limit]
 
     async def read_expired_lease_ids(self, limit: int = 100) -> list[UUID]:
         now = datetime.now(timezone.utc)

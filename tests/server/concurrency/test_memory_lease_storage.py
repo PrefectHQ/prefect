@@ -275,3 +275,63 @@ class TestMemoryConcurrencyLeaseStorage:
         holders = await storage.list_holders_for_limit(limit_id)
         assert len(holders) == 1
         assert holders[0].model_dump() == active_holder
+
+    async def test_read_active_lease_ids_with_pagination(
+        self, storage: ConcurrencyLeaseStorage
+    ):
+        # Create 10 active leases
+        active_ttl = timedelta(minutes=5)
+        lease_ids = []
+        for _ in range(10):
+            lease = await storage.create_lease([uuid4()], active_ttl)
+            lease_ids.append(lease.id)
+
+        # Test getting first page
+        first_page = await storage.read_active_lease_ids(limit=3, offset=0)
+        assert len(first_page) == 3
+        assert all(lid in lease_ids for lid in first_page)
+
+        # Test getting second page
+        second_page = await storage.read_active_lease_ids(limit=3, offset=3)
+        assert len(second_page) == 3
+        assert all(lid in lease_ids for lid in second_page)
+
+        # Ensure no overlap between pages
+        assert set(first_page).isdisjoint(set(second_page))
+
+        # Test getting third page
+        third_page = await storage.read_active_lease_ids(limit=3, offset=6)
+        assert len(third_page) == 3
+        assert all(lid in lease_ids for lid in third_page)
+
+        # Test getting partial last page
+        fourth_page = await storage.read_active_lease_ids(limit=3, offset=9)
+        assert len(fourth_page) == 1
+        assert all(lid in lease_ids for lid in fourth_page)
+
+        # Test offset beyond available items
+        empty_page = await storage.read_active_lease_ids(limit=3, offset=100)
+        assert empty_page == []
+
+    async def test_read_active_lease_ids_default_pagination(
+        self, storage: ConcurrencyLeaseStorage
+    ):
+        # Create 150 active leases (more than default limit)
+        active_ttl = timedelta(minutes=5)
+        lease_ids = []
+        for _ in range(150):
+            lease = await storage.create_lease([uuid4()], active_ttl)
+            lease_ids.append(lease.id)
+
+        # Test default limit of 100
+        default_page = await storage.read_active_lease_ids()
+        assert len(default_page) == 100
+        assert all(lid in lease_ids for lid in default_page)
+
+        # Test with offset
+        offset_page = await storage.read_active_lease_ids(offset=100)
+        assert len(offset_page) == 50  # remaining leases
+        assert all(lid in lease_ids for lid in offset_page)
+
+        # Ensure no overlap with first page
+        assert set(default_page).isdisjoint(set(offset_page))

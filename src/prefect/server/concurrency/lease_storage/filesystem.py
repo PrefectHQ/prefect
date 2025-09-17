@@ -195,26 +195,27 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
         # Remove from expiration index
         await self._remove_from_expiration_index(lease_id)
 
-    async def read_active_lease_ids(self, limit: int = 100) -> list[UUID]:
-        active_leases: list[UUID] = []
+    async def read_active_lease_ids(
+        self, limit: int = 100, offset: int = 0
+    ) -> list[UUID]:
         now = datetime.now(timezone.utc)
 
         expiration_index = await self._load_expiration_index()
 
+        # Collect all active leases first
+        all_active: list[UUID] = []
         for lease_id_str, expiration_str in expiration_index.items():
-            if len(active_leases) >= limit:
-                break
-
             try:
                 lease_id = UUID(lease_id_str)
                 expiration = datetime.fromisoformat(expiration_str)
 
                 if expiration > now:
-                    active_leases.append(lease_id)
+                    all_active.append(lease_id)
             except (ValueError, TypeError):
                 continue
 
-        return active_leases
+        # Apply offset and limit
+        return all_active[offset : offset + limit]
 
     async def read_expired_lease_ids(self, limit: int = 100) -> list[UUID]:
         expired_leases: list[UUID] = []
@@ -244,8 +245,20 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
         now = datetime.now(timezone.utc)
         holders: list[ConcurrencyLeaseHolder] = []
 
-        # Get all active lease IDs first
-        active_lease_ids = await self.read_active_lease_ids(limit=1000)
+        # Get all active lease IDs - need to paginate through all
+        all_active_lease_ids = []
+        offset = 0
+        batch_size = 100
+        while True:
+            batch = await self.read_active_lease_ids(limit=batch_size, offset=offset)
+            if not batch:
+                break
+            all_active_lease_ids.extend(batch)
+            if len(batch) < batch_size:
+                break
+            offset += batch_size
+
+        active_lease_ids = all_active_lease_ids
 
         for lease_id in active_lease_ids:
             lease = await self.read_lease(lease_id)
