@@ -267,13 +267,16 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
             logger.error(f"Failed to revoke lease {lease_id}: {e}")
             raise
 
-    async def read_active_lease_ids(self, limit: int = 100) -> list[UUID]:
+    async def read_active_lease_ids(
+        self, limit: int = 100, offset: int = 0
+    ) -> list[UUID]:
         try:
             now = datetime.now(timezone.utc).timestamp()
 
             # Get lease IDs that expire after now (active leases)
+            # Redis zrangebyscore uses 'start' as the offset and 'num' as the limit
             active_lease_ids = await self.redis_client.zrangebyscore(
-                self.expirations_key, now, "+inf", start=0, num=limit
+                self.expirations_key, now, "+inf", start=offset, num=limit
             )
 
             return [UUID(lease_id) for lease_id in active_lease_ids]
