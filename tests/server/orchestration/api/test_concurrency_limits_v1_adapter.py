@@ -102,8 +102,8 @@ async def test_v1_create_upsert_behavior(client: AsyncClient, session):
     assert data["concurrency_limit"] == 7  # Updated limit
 
 
-async def test_v1_create_returns_v1_id(client: AsyncClient, session):
-    """The adapter should return the mirrored V1 identifier, not the V2 id."""
+async def test_v1_create_only_creates_v2(client: AsyncClient, session):
+    """The adapter should only create V2 limits, not mirror to V1."""
     response = await client.post(
         "/concurrency_limits/", json={"tag": "idcheck", "concurrency_limit": 2}
     )
@@ -116,10 +116,9 @@ async def test_v1_create_returns_v1_id(client: AsyncClient, session):
             session=session, tag="idcheck"
         )
 
-    assert v1 is not None
-    assert payload["id"] == str(v1.id)
+    assert v1 is None  # No V1 limit should be created
     assert v2 is not None
-    assert str(v2.id) != payload["id"]
+    assert payload["id"] == str(v2.id)  # Response should contain V2 ID
 
 
 async def test_v1_read_by_tag_uses_v2_leases(client: AsyncClient, session):
@@ -352,12 +351,12 @@ async def test_v1_reset_clears_and_sets_leases(client: AsyncClient, session):
     # Note: This depends on the storage implementation
     assert set(new_tr_ids).issubset(active_slots)
 
+    # V1 limits should not exist when adapter only creates V2
     async with session.begin():
         v1_after_reset = await v1_models.read_concurrency_limit_by_tag(
             session=session, tag="resetme"
         )
-    assert v1_after_reset is not None
-    assert set(v1_after_reset.active_slots) == set(new_tr_ids)
+    assert v1_after_reset is None  # No V1 limit should exist
 
 
 async def test_v1_increment_uses_v2_leases(client: AsyncClient, session):
