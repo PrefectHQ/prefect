@@ -31,7 +31,6 @@ from prefect.cli.root import app, is_interactive
 from prefect.logging import get_logger
 from prefect.server.services.base import Service
 from prefect.settings import (
-    PREFECT_API_DATABASE_CONNECTION_URL,
     PREFECT_API_SERVICES_LATE_RUNS_ENABLED,
     PREFECT_API_SERVICES_SCHEDULER_ENABLED,
     PREFECT_API_URL,
@@ -249,9 +248,12 @@ def _validate_multi_worker(workers: int) -> None:
     if workers < 1:
         exit_with_error("Number of workers must be >= 1")
 
+    settings = get_current_settings()
+
     try:
-        connection_url = PREFECT_API_DATABASE_CONNECTION_URL.value()
-        dialect = get_dialect(connection_url)
+        dialect = get_dialect(
+            settings.server.database.connection_url.get_secret_value()
+        )
     except Exception as e:
         exit_with_error(f"Unable to validate database configuration: {e}")
 
@@ -261,15 +263,18 @@ def _validate_multi_worker(workers: int) -> None:
         )
 
     try:
-        settings = get_current_settings()
         messaging_cache = settings.server.events.messaging_cache
         messaging_broker = settings.server.events.messaging_broker
+        causal_ordering = settings.server.events.causal_ordering
+        lease_storage = settings.server.concurrency.lease_storage
     except Exception as e:
         exit_with_error(f"Unable to validate messaging configuration: {e}")
 
     if (
         messaging_cache == "prefect.server.utilities.messaging.memory"
         or messaging_broker == "prefect.server.utilities.messaging.memory"
+        or causal_ordering == "prefect.server.events.ordering.memory"
+        or lease_storage == "prefect.server.concurrency.lease_storage.memory"
     ):
         exit_with_error(
             "Multi-worker mode (--workers > 1) is not supported with in-memory messaging."

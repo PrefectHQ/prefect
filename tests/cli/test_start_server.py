@@ -26,6 +26,8 @@ from prefect.settings import (
     PREFECT_MESSAGING_BROKER,
     PREFECT_MESSAGING_CACHE,
     PREFECT_PROFILES_PATH,
+    PREFECT_SERVER_CONCURRENCY_LEASE_STORAGE,
+    PREFECT_SERVER_EVENTS_CAUSAL_ORDERING,
     Profile,
     ProfilesCollection,
     get_current_settings,
@@ -157,6 +159,8 @@ class TestMultipleWorkerServer:
                 PREFECT_API_DATABASE_CONNECTION_URL: "postgresql+asyncpg://user:pass@localhost:5432/prefect",
                 PREFECT_MESSAGING_CACHE: "prefect.server.utilities.messaging.memory",
                 PREFECT_MESSAGING_BROKER: "prefect.server.utilities.messaging.memory",
+                PREFECT_SERVER_EVENTS_CAUSAL_ORDERING: "prefect.server.events.ordering.memory",
+                PREFECT_SERVER_CONCURRENCY_LEASE_STORAGE: "prefect.server.concurrency.lease_storage.memory",
             }
         ):
             invoke_and_assert(
