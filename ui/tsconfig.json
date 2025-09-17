@@ -13,7 +13,7 @@
       "scripthost"
     ],
     "module": "esnext",
-    "moduleResolution": "node",
+    "moduleResolution": "bundler",
     "outDir": "./dist/types/",
     "paths": {
       "@/*": [

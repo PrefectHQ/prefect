@@ -15,9 +15,10 @@
     subscriptionIntervalKey,
     mapper,
     FlowStatsFilter,
-    WorkspaceDashboardFilter
+    WorkspaceDashboardFilter,
+    dateFunctions,
+    secondsInWeek
   } from '@prefecthq/prefect-ui-library'
-  import { secondsInWeek, secondsToMilliseconds } from 'date-fns'
   import { computed, provide, toRefs } from 'vue'
 
   const props = defineProps<{
@@ -39,7 +40,7 @@
   })
 
   provide(subscriptionIntervalKey, {
-    interval: secondsToMilliseconds(30),
+    interval: dateFunctions.secondsToMilliseconds(30),
   })
 
   const flowRunsFilter = computed(() => mapper.map('FlowStatsFilter', flowStats.value, 'FlowRunsFilter'))
