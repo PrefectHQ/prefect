@@ -1,41 +1,23 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
-
+import { render, screen, waitFor } from "@testing-library/react";
+import { buildApiUrl } from "@tests/utils/handlers";
+import { HttpResponse, http } from "msw";
+import { setupServer } from "msw/node";
+import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import type { WorkPool } from "@/api/work-pools";
-
+import { createFakeWorkPoolWorker } from "@/mocks";
 import { WorkPoolDetails } from "./work-pool-details";
 
-// Mock the API modules
-vi.mock("@/api/work-pools", () => ({
-	buildListWorkPoolWorkersQuery: vi.fn(),
-}));
-
-// Mock components
-vi.mock("@/components/ui/formatted-date", () => ({
-	FormattedDate: ({ date }: { date: string }) => <span>{date}</span>,
-}));
-
-vi.mock("@/components/work-pools/work-pool-status-badge", () => ({
-	WorkPoolStatusBadge: ({ status }: { status: string }) => (
-		<span>Status: {status}</span>
-	),
-}));
-
-vi.mock("@/components/work-pools/poll-status", () => ({
-	PollStatus: ({ workPoolName }: { workPoolName: string }) => (
-		<div data-testid="poll-status">Poll Status for {workPoolName}</div>
-	),
-}));
-
-vi.mock("@/components/schemas/schema-display", () => ({
-	SchemaDisplay: ({
-		data,
-	}: {
-		schema: unknown;
-		data: Record<string, unknown>;
-	}) => <div data-testid="schema-display">{JSON.stringify(data)}</div>,
-}));
+const mockWorkers = [
+	createFakeWorkPoolWorker({
+		name: "worker-1",
+		last_heartbeat_time: "2024-01-15T14:30:00Z",
+	}),
+	createFakeWorkPoolWorker({
+		name: "worker-2",
+		last_heartbeat_time: "2024-01-15T14:00:00Z",
+	}),
+];
 
 const mockWorkPool: WorkPool = {
 	id: "test-id",
@@ -56,15 +38,27 @@ const mockWorkPool: WorkPool = {
 			},
 		},
 		variables: {
-			image: {
-				type: "string",
-				default: "python:3.9",
-				title: "Docker Image",
-				description: "The Docker image to use",
+			properties: {
+				image: {
+					type: "string",
+					default: "python:3.9",
+					title: "Docker Image",
+					description: "The Docker image to use",
+				},
 			},
 		},
 	},
 };
+
+const server = setupServer(
+	http.post(buildApiUrl("/work_pools/test-work-pool/workers/filter"), () => {
+		return HttpResponse.json(mockWorkers);
+	}),
+);
+
+beforeAll(() => server.listen());
+afterEach(() => server.resetHandlers());
+afterAll(() => server.close());
 
 const createWrapper = () => {
 	const queryClient = new QueryClient({
@@ -82,29 +76,35 @@ const createWrapper = () => {
 };
 
 describe("WorkPoolDetails", () => {
-	it("renders basic work pool information", () => {
+	it("renders basic work pool information", async () => {
 		render(<WorkPoolDetails workPool={mockWorkPool} />, {
 			wrapper: createWrapper(),
 		});
 
-		expect(screen.getByText("Basic Information")).toBeInTheDocument();
-		expect(screen.getByText("Status: ready")).toBeInTheDocument();
-		expect(screen.getByText("A test work pool")).toBeInTheDocument();
+		// Wait for the workers data to load
+		await waitFor(() => {
+			expect(screen.getByText("A test work pool")).toBeInTheDocument();
+		});
+
 		expect(screen.getByText("Docker")).toBeInTheDocument();
 		expect(screen.getByText("10")).toBeInTheDocument(); // concurrency limit
-		expect(screen.getByText("2024-01-15T10:00:00Z")).toBeInTheDocument(); // created
-		expect(screen.getByText("2024-01-15T12:00:00Z")).toBeInTheDocument(); // updated
+		// Check that we have formatted dates for created/updated
+		const formattedDates = screen.getAllByText("over 1 year ago");
+		expect(formattedDates.length).toBeGreaterThan(0);
 	});
 
-	it("renders job template configuration when present", () => {
+	it("renders job template configuration when present", async () => {
 		render(<WorkPoolDetails workPool={mockWorkPool} />, {
 			wrapper: createWrapper(),
 		});
 
-		expect(screen.getByText("Base Job Template")).toBeInTheDocument();
+		// Wait for component to render
+		await waitFor(() => {
+			expect(screen.getByText("Base Job Configuration")).toBeInTheDocument();
+		});
 	});
 
-	it("hides job template when not present", () => {
+	it("hides job template when not present", async () => {
 		const workPoolWithoutTemplate = {
 			...mockWorkPool,
 			base_job_template: undefined,
@@ -114,7 +114,14 @@ describe("WorkPoolDetails", () => {
 			wrapper: createWrapper(),
 		});
 
-		expect(screen.queryByText("Base Job Template")).not.toBeInTheDocument();
+		// Wait for component to render
+		await waitFor(() => {
+			expect(screen.getByText("A test work pool")).toBeInTheDocument();
+		});
+
+		expect(
+			screen.queryByText("Base Job Configuration"),
+		).not.toBeInTheDocument();
 	});
 
 	it("handles alternate layout properly", () => {
@@ -144,7 +151,7 @@ describe("WorkPoolDetails", () => {
 		expect(container.firstChild).toHaveClass("custom-class");
 	});
 
-	it("handles missing optional fields gracefully", () => {
+	it("handles missing optional fields gracefully", async () => {
 		const minimalWorkPool = {
 			...mockWorkPool,
 			description: null,
@@ -157,8 +164,11 @@ describe("WorkPoolDetails", () => {
 			wrapper: createWrapper(),
 		});
 
-		expect(screen.getByText("Basic Information")).toBeInTheDocument();
-		expect(screen.getByText("Unlimited")).toBeInTheDocument(); // concurrency limit
+		// Wait for component to render and check for unlimited concurrency limit
+		await waitFor(() => {
+			expect(screen.getByText("Unlimited")).toBeInTheDocument();
+		});
+
 		// Description should be hidden when not present
 		expect(screen.queryByText("Description")).not.toBeInTheDocument();
 	});

@@ -1,3 +1,4 @@
+import inspect
 import json
 import os
 import ssl
@@ -2173,9 +2174,13 @@ class TestWorkPools:
 
 
 class TestArtifacts:
+    @pytest.fixture(params=[True, False], ids=["async", "sync"])
+    def artifact_client(self, request, prefect_client, sync_prefect_client):
+        return prefect_client if request.param else sync_prefect_client
+
     @pytest.fixture
-    async def artifacts(self, prefect_client):
-        artifact1 = await prefect_client.create_artifact(
+    async def artifacts(self, artifact_client, reset_worker_events):
+        create1 = artifact_client.create_artifact(
             artifact=ArtifactCreate(
                 key="voltaic",
                 data=1,
@@ -2183,7 +2188,9 @@ class TestArtifacts:
                 description="# This is a markdown description title",
             )
         )
-        artifact2 = await prefect_client.create_artifact(
+        artifact1 = await create1 if inspect.isawaitable(create1) else create1
+
+        create2 = artifact_client.create_artifact(
             artifact=ArtifactCreate(
                 key="voltaic",
                 data=2,
@@ -2191,7 +2198,9 @@ class TestArtifacts:
                 description="# This is a markdown description title",
             )
         )
-        artifact3 = await prefect_client.create_artifact(
+        artifact2 = await create2 if inspect.isawaitable(create2) else create2
+
+        create3 = artifact_client.create_artifact(
             artifact=ArtifactCreate(
                 key="lotus",
                 data=3,
@@ -2199,24 +2208,55 @@ class TestArtifacts:
                 description="# This is a markdown description title",
             )
         )
+        artifact3 = await create3 if inspect.isawaitable(create3) else create3
 
         return [artifact1, artifact2, artifact3]
 
-    async def test_create_then_read_artifact(self, prefect_client, client):
+    async def test_create_then_read_artifact(
+        self,
+        artifact_client,
+        client,
+        sync_client,
+        asserting_events_worker,
+        reset_worker_events,
+    ):
         artifact_schema = ArtifactCreate(
             key="voltaic",
             data=1,
             description="# This is a markdown description title",
             metadata_={"data": "opens many doors"},
         )
-        artifact = await prefect_client.create_artifact(artifact=artifact_schema)
-        response = await client.get(f"/artifacts/{artifact.id}")
+        create_call = artifact_client.create_artifact(artifact=artifact_schema)
+        artifact = (
+            await create_call if inspect.isawaitable(create_call) else create_call
+        )
+
+        # Verify via API
+        if inspect.isawaitable(create_call):
+            response = await client.get(f"/artifacts/{artifact.id}")
+        else:
+            response = sync_client.get(f"/artifacts/{artifact.id}")
         assert response.status_code == 200
         assert response.json()["key"] == artifact.key
         assert response.json()["description"] == artifact.description
 
-    async def test_read_artifacts(self, prefect_client, artifacts):
-        artifact_list = await prefect_client.read_artifacts()
+        # Events: creation should emit a client-side event
+        await asserting_events_worker.drain()
+        evt = next(
+            (
+                e
+                for e in asserting_events_worker._client.events
+                if e.event == "prefect.artifact.created"
+            ),
+            None,
+        )
+        assert evt is not None
+        assert evt.resource.id == f"prefect.artifact.{artifact.id}"
+        assert evt.resource.get("prefect.resource.name") == artifact.key
+
+    async def test_read_artifacts(self, artifact_client, artifacts):
+        read_call = artifact_client.read_artifacts()
+        artifact_list = await read_call if inspect.isawaitable(read_call) else read_call
         assert len(artifact_list) == 3
         keyed_data = {(r.key, r.data) for r in artifact_list}
         assert keyed_data == {
@@ -2225,22 +2265,48 @@ class TestArtifacts:
             ("lotus", 3),
         }
 
-    async def test_read_artifacts_with_latest_filter(self, prefect_client, artifacts):
-        artifact_list = await prefect_client.read_latest_artifacts()
+    async def test_update_artifact_emits_event(
+        self,
+        artifact_client,
+        artifacts,
+        asserting_events_worker,
+        reset_worker_events,
+    ):
+        from prefect.client.schemas.actions import ArtifactUpdate
 
-        assert len(artifact_list) == 2
-        keyed_data = {(r.key, r.data) for r in artifact_list}
-        assert keyed_data == {
-            ("voltaic", 2),
-            ("lotus", 3),
-        }
-
-    async def test_read_artifacts_with_key_filter(self, prefect_client, artifacts):
-        key_artifact_filter = ArtifactFilter(key=ArtifactFilterKey(any_=["voltaic"]))
-
-        artifact_list = await prefect_client.read_artifacts(
-            artifact_filter=key_artifact_filter
+        update_call = artifact_client.update_artifact(
+            artifact_id=artifacts[0].id,
+            artifact=ArtifactUpdate(description="updated desc"),
         )
+        _ = await update_call if inspect.isawaitable(update_call) else update_call
+
+        await asserting_events_worker.drain()
+        evt = next(
+            (
+                e
+                for e in asserting_events_worker._client.events
+                if e.event == "prefect.artifact.updated"
+            ),
+            None,
+        )
+        assert evt is not None
+        assert evt.resource.id == f"prefect.artifact.{artifacts[0].id}"
+
+    async def test_read_artifacts_with_latest_filter(self, artifact_client, artifacts):
+        call = artifact_client.read_latest_artifacts()
+        artifact_list = await call if inspect.isawaitable(call) else call
+
+        assert len(artifact_list) == 2
+        keyed_data = {(r.key, r.data) for r in artifact_list}
+        assert keyed_data == {
+            ("voltaic", 2),
+            ("lotus", 3),
+        }
+
+    async def test_read_artifacts_with_key_filter(self, artifact_client, artifacts):
+        key_artifact_filter = ArtifactFilter(key=ArtifactFilterKey(any_=["voltaic"]))
+        call = artifact_client.read_artifacts(artifact_filter=key_artifact_filter)
+        artifact_list = await call if inspect.isawaitable(call) else call
 
         assert len(artifact_list) == 2
         keyed_data = {(r.key, r.data) for r in artifact_list}
@@ -2249,9 +2315,11 @@ class TestArtifacts:
             ("voltaic", 2),
         }
 
-    async def test_delete_artifact_succeeds(self, prefect_client, artifacts):
-        await prefect_client.delete_artifact(artifacts[1].id)
-        artifact_list = await prefect_client.read_artifacts()
+    async def test_delete_artifact_succeeds(self, artifact_client, artifacts):
+        delete_call = artifact_client.delete_artifact(artifacts[1].id)
+        _ = await delete_call if inspect.isawaitable(delete_call) else delete_call
+        read_call = artifact_client.read_artifacts()
+        artifact_list = await read_call if inspect.isawaitable(read_call) else read_call
         assert len(artifact_list) == 2
         keyed_data = {(r.key, r.data) for r in artifact_list}
         assert keyed_data == {
@@ -2259,9 +2327,13 @@ class TestArtifacts:
             ("lotus", 3),
         }
 
-    async def test_delete_nonexistent_artifact_raises(self, prefect_client):
+    async def test_delete_nonexistent_artifact_raises(self, artifact_client):
         with pytest.raises(prefect.exceptions.ObjectNotFound):
-            await prefect_client.delete_artifact(uuid4())
+            call = artifact_client.delete_artifact(uuid4())
+            if inspect.isawaitable(call):
+                await call
+            else:
+                call
 
 
 class TestVariables:

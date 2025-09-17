@@ -1,4 +1,6 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { createWrapper } from "@tests/utils";
 import { describe, expect, it, vi } from "vitest";
 import { WorkPoolQueuesTableToolbar } from "./work-pool-queues-table-toolbar";
 
@@ -15,9 +17,11 @@ describe("WorkPoolQueuesTableToolbar", () => {
 	};
 
 	it("renders search input", () => {
-		render(<WorkPoolQueuesTableToolbar {...defaultProps} />);
+		render(<WorkPoolQueuesTableToolbar {...defaultProps} />, {
+			wrapper: createWrapper(),
+		});
 
-		const searchInput = screen.getByPlaceholderText("Search queues...");
+		const searchInput = screen.getByPlaceholderText("Search");
 		expect(searchInput).toBeInTheDocument();
 		expect(searchInput).toHaveValue("");
 	});
@@ -25,9 +29,12 @@ describe("WorkPoolQueuesTableToolbar", () => {
 	it("renders search input with current search query", () => {
 		render(
 			<WorkPoolQueuesTableToolbar {...defaultProps} searchQuery="my-search" />,
+			{
+				wrapper: createWrapper(),
+			},
 		);
 
-		const searchInput = screen.getByPlaceholderText("Search queues...");
+		const searchInput = screen.getByPlaceholderText("Search");
 		expect(searchInput).toHaveValue("my-search");
 	});
 
@@ -38,9 +45,12 @@ describe("WorkPoolQueuesTableToolbar", () => {
 				{...defaultProps}
 				onSearchChange={onSearchChange}
 			/>,
+			{
+				wrapper: createWrapper(),
+			},
 		);
 
-		const searchInput = screen.getByPlaceholderText("Search queues...");
+		const searchInput = screen.getByPlaceholderText("Search");
 		fireEvent.change(searchInput, { target: { value: "new-search" } });
 
 		expect(onSearchChange).toHaveBeenCalledWith("new-search");
@@ -53,9 +63,12 @@ describe("WorkPoolQueuesTableToolbar", () => {
 				searchQuery=""
 				totalCount={15}
 			/>,
+			{
+				wrapper: createWrapper(),
+			},
 		);
 
-		expect(screen.getByText("15 queues")).toBeInTheDocument();
+		expect(screen.getByText("15 Work Queues")).toBeInTheDocument();
 	});
 
 	it("displays filtered count when search query exists", () => {
@@ -66,9 +79,12 @@ describe("WorkPoolQueuesTableToolbar", () => {
 				resultsCount={3}
 				totalCount={15}
 			/>,
+			{
+				wrapper: createWrapper(),
+			},
 		);
 
-		expect(screen.getByText("3 of 15 queues")).toBeInTheDocument();
+		expect(screen.getByText("3 of 15 Work Queues")).toBeInTheDocument();
 	});
 
 	it("shows clear filters button when search query exists", () => {
@@ -77,6 +93,9 @@ describe("WorkPoolQueuesTableToolbar", () => {
 				{...defaultProps}
 				searchQuery="search-term"
 			/>,
+			{
+				wrapper: createWrapper(),
+			},
 		);
 
 		const clearButton = screen.getByRole("button", { name: /clear filters/i });
@@ -84,7 +103,9 @@ describe("WorkPoolQueuesTableToolbar", () => {
 	});
 
 	it("does not show clear filters button when no search query", () => {
-		render(<WorkPoolQueuesTableToolbar {...defaultProps} searchQuery="" />);
+		render(<WorkPoolQueuesTableToolbar {...defaultProps} searchQuery="" />, {
+			wrapper: createWrapper(),
+		});
 
 		const clearButton = screen.queryByRole("button", {
 			name: /clear filters/i,
@@ -100,6 +121,9 @@ describe("WorkPoolQueuesTableToolbar", () => {
 				searchQuery="search-term"
 				onSearchChange={onSearchChange}
 			/>,
+			{
+				wrapper: createWrapper(),
+			},
 		);
 
 		const clearButton = screen.getByRole("button", { name: /clear filters/i });
@@ -108,37 +132,46 @@ describe("WorkPoolQueuesTableToolbar", () => {
 		expect(onSearchChange).toHaveBeenCalledWith("");
 	});
 
-	it("renders create queue button", () => {
-		render(<WorkPoolQueuesTableToolbar {...defaultProps} />);
+	it("renders filter button", () => {
+		render(<WorkPoolQueuesTableToolbar {...defaultProps} />, {
+			wrapper: createWrapper(),
+		});
 
-		const createButton = screen.getByRole("button", { name: /create queue/i });
-		expect(createButton).toBeInTheDocument();
+		const buttons = screen.getAllByRole("button");
+		// Should have the plus/filter button
+		expect(buttons.length).toBeGreaterThanOrEqual(1);
 	});
 
-	it("logs work pool name when create queue button is clicked", () => {
-		render(
-			<WorkPoolQueuesTableToolbar
-				{...defaultProps}
-				workPoolName="my-work-pool"
-			/>,
-		);
+	it("opens create dialog when plus button is clicked", () => {
+		render(<WorkPoolQueuesTableToolbar {...defaultProps} />, {
+			wrapper: createWrapper(),
+		});
 
-		const createButton = screen.getByRole("button", { name: /create queue/i });
-		fireEvent.click(createButton);
+		const buttons = screen.getAllByRole("button");
+		const plusButton = buttons.find((btn) => btn.querySelector(".lucide-plus"));
+		expect(plusButton).toBeDefined();
 
-		expect(console.log).toHaveBeenCalledWith(
-			"Create queue for pool:",
-			"my-work-pool",
-		);
+		if (plusButton) {
+			fireEvent.click(plusButton);
+		}
+
+		// Dialog should be open
+		expect(screen.getByRole("dialog")).toBeInTheDocument();
+		expect(
+			screen.getByRole("heading", { name: "Create Work Queue" }),
+		).toBeInTheDocument();
 	});
 
 	it("has correct search icon placement", () => {
 		const { container } = render(
 			<WorkPoolQueuesTableToolbar {...defaultProps} />,
+			{
+				wrapper: createWrapper(),
+			},
 		);
 
 		// Check for search icon with correct positioning classes
-		const searchIcon = container.querySelector("svg");
+		const searchIcon = container.querySelector(".lucide-search");
 		expect(searchIcon).toBeInTheDocument();
 		expect(searchIcon).toHaveClass(
 			"absolute",
@@ -153,6 +186,9 @@ describe("WorkPoolQueuesTableToolbar", () => {
 	it("applies custom className when provided", () => {
 		const { container } = render(
 			<WorkPoolQueuesTableToolbar {...defaultProps} className="custom-class" />,
+			{
+				wrapper: createWrapper(),
+			},
 		);
 
 		const wrapper = container.firstChild as HTMLElement;
@@ -162,6 +198,9 @@ describe("WorkPoolQueuesTableToolbar", () => {
 	it("has correct default container classes", () => {
 		const { container } = render(
 			<WorkPoolQueuesTableToolbar {...defaultProps} />,
+			{
+				wrapper: createWrapper(),
+			},
 		);
 
 		const wrapper = container.firstChild as HTMLElement;
@@ -169,18 +208,22 @@ describe("WorkPoolQueuesTableToolbar", () => {
 	});
 
 	it("search input has correct styling", () => {
-		render(<WorkPoolQueuesTableToolbar {...defaultProps} />);
+		render(<WorkPoolQueuesTableToolbar {...defaultProps} />, {
+			wrapper: createWrapper(),
+		});
 
-		const searchInput = screen.getByPlaceholderText("Search queues...");
+		const searchInput = screen.getByPlaceholderText("Search");
 		expect(searchInput).toHaveClass("pl-8", "w-64");
 	});
 
 	it("create button has correct size", () => {
-		render(<WorkPoolQueuesTableToolbar {...defaultProps} />);
+		render(<WorkPoolQueuesTableToolbar {...defaultProps} />, {
+			wrapper: createWrapper(),
+		});
 
-		const createButton = screen.getByRole("button", { name: /create queue/i });
-		// Check for sm size class (this might be applied through the Button component)
-		expect(createButton).toBeInTheDocument();
+		// The plus button doesn't have specific button text, so check it exists
+		const buttons = screen.getAllByRole("button");
+		expect(buttons.length).toBeGreaterThan(0);
 	});
 
 	it("handles different count scenarios correctly", () => {
@@ -190,9 +233,12 @@ describe("WorkPoolQueuesTableToolbar", () => {
 				searchQuery=""
 				totalCount={0}
 			/>,
+			{
+				wrapper: createWrapper(),
+			},
 		);
 
-		expect(screen.getByText("0 queues")).toBeInTheDocument();
+		expect(screen.getByText("0 Work Queues")).toBeInTheDocument();
 
 		rerender(
 			<WorkPoolQueuesTableToolbar
@@ -203,7 +249,9 @@ describe("WorkPoolQueuesTableToolbar", () => {
 			/>,
 		);
 
-		expect(screen.getByText("0 of 5 queues")).toBeInTheDocument();
+		// Note: rerender doesn't need wrapper again
+
+		expect(screen.getByText("0 of 5 Work Queues")).toBeInTheDocument();
 
 		rerender(
 			<WorkPoolQueuesTableToolbar
@@ -214,7 +262,7 @@ describe("WorkPoolQueuesTableToolbar", () => {
 			/>,
 		);
 
-		expect(screen.getByText("1 of 1 queues")).toBeInTheDocument();
+		expect(screen.getByText("1 of 1 Work Queue")).toBeInTheDocument();
 	});
 
 	it("handles multiple search query changes", () => {
@@ -225,9 +273,12 @@ describe("WorkPoolQueuesTableToolbar", () => {
 				onSearchChange={onSearchChange}
 				searchQuery=""
 			/>,
+			{
+				wrapper: createWrapper(),
+			},
 		);
 
-		const searchInput = screen.getByPlaceholderText("Search queues...");
+		const searchInput = screen.getByPlaceholderText("Search");
 
 		fireEvent.change(searchInput, { target: { value: "first" } });
 		fireEvent.change(searchInput, { target: { value: "second" } });
@@ -237,42 +288,51 @@ describe("WorkPoolQueuesTableToolbar", () => {
 		expect(onSearchChange).toHaveBeenCalledTimes(2);
 	});
 
-	it("handles different work pool names in create button action", () => {
+	it("plus button works consistently across rerenders", () => {
 		const { rerender } = render(
-			<WorkPoolQueuesTableToolbar
-				{...defaultProps}
-				workPoolName="production-pool"
-			/>,
+			<WorkPoolQueuesTableToolbar {...defaultProps} />,
+			{
+				wrapper: createWrapper(),
+			},
 		);
 
-		let createButton = screen.getByRole("button", { name: /create queue/i });
-		fireEvent.click(createButton);
-
-		expect(console.log).toHaveBeenCalledWith(
-			"Create queue for pool:",
-			"production-pool",
+		const filterButtons = screen.getAllByRole("button");
+		const filterButton = filterButtons.find((btn) =>
+			btn.querySelector(".lucide-plus"),
 		);
+		if (filterButton) {
+			fireEvent.click(filterButton);
+		}
 
-		rerender(
-			<WorkPoolQueuesTableToolbar
-				{...defaultProps}
-				workPoolName="development-pool"
-			/>,
+		// Dialog should open
+		expect(screen.getByRole("dialog")).toBeInTheDocument();
+
+		// Close dialog first
+		const cancelButton = screen.getByRole("button", { name: "Cancel" });
+		fireEvent.click(cancelButton);
+
+		rerender(<WorkPoolQueuesTableToolbar {...defaultProps} />);
+
+		// Note: rerender doesn't need wrapper again
+
+		const rerenderedFilterButtons = screen.getAllByRole("button");
+		const rerenderedFilterButton = rerenderedFilterButtons.find((btn) =>
+			btn.querySelector(".lucide-plus"),
 		);
+		if (rerenderedFilterButton) {
+			fireEvent.click(rerenderedFilterButton);
+		}
 
-		createButton = screen.getByRole("button", { name: /create queue/i });
-		fireEvent.click(createButton);
-
-		expect(console.log).toHaveBeenCalledWith(
-			"Create queue for pool:",
-			"development-pool",
-		);
+		// Dialog should open again
+		expect(screen.getByRole("dialog")).toBeInTheDocument();
 	});
 
 	it("maintains input focus after typing", () => {
-		render(<WorkPoolQueuesTableToolbar {...defaultProps} />);
+		render(<WorkPoolQueuesTableToolbar {...defaultProps} />, {
+			wrapper: createWrapper(),
+		});
 
-		const searchInput = screen.getByPlaceholderText("Search queues...");
+		const searchInput = screen.getByPlaceholderText("Search");
 		searchInput.focus();
 
 		expect(document.activeElement).toBe(searchInput);
@@ -280,5 +340,52 @@ describe("WorkPoolQueuesTableToolbar", () => {
 		fireEvent.change(searchInput, { target: { value: "test" } });
 
 		expect(document.activeElement).toBe(searchInput);
+	});
+
+	it("renders plus button for creating work queues", () => {
+		render(<WorkPoolQueuesTableToolbar {...defaultProps} />, {
+			wrapper: createWrapper(),
+		});
+
+		const plusButton = screen.getByRole("button", { name: "" });
+		expect(plusButton).toBeInTheDocument();
+		expect(plusButton.querySelector("svg")).toBeInTheDocument(); // Plus icon
+	});
+
+	it("opens create dialog when plus button is clicked", async () => {
+		const user = userEvent.setup();
+		render(<WorkPoolQueuesTableToolbar {...defaultProps} />, {
+			wrapper: createWrapper(),
+		});
+
+		const plusButton = screen.getByRole("button", { name: "" });
+		await user.click(plusButton);
+
+		// Dialog should be open
+		expect(screen.getByRole("dialog")).toBeInTheDocument();
+		expect(
+			screen.getByRole("heading", { name: "Create Work Queue" }),
+		).toBeInTheDocument();
+	});
+
+	it("closes create dialog when dialog onOpenChange is called", async () => {
+		const user = userEvent.setup();
+		render(<WorkPoolQueuesTableToolbar {...defaultProps} />, {
+			wrapper: createWrapper(),
+		});
+
+		// Open dialog first
+		const plusButton = screen.getByRole("button", { name: "" });
+		await user.click(plusButton);
+		expect(screen.getByRole("dialog")).toBeInTheDocument();
+
+		// Close dialog via cancel button
+		const cancelButton = screen.getByRole("button", { name: "Cancel" });
+		await user.click(cancelButton);
+
+		// Dialog should be closed
+		await waitFor(() => {
+			expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+		});
 	});
 });

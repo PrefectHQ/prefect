@@ -1,8 +1,15 @@
 import type { WorkPool } from "@/api/work-pools";
+import {
+	Breadcrumb,
+	BreadcrumbItem,
+	BreadcrumbLink,
+	BreadcrumbList,
+	BreadcrumbPage,
+	BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
 import { cn } from "@/lib/utils";
-import { WorkPoolActions } from "./components/work-pool-actions";
-import { WorkPoolBreadcrumbs } from "./components/work-pool-breadcrumbs";
-import { WorkPoolTitle } from "./components/work-pool-title";
+import { WorkPoolMenu } from "../work-pool-menu";
+import { WorkPoolToggle } from "../work-pool-toggle";
 
 type WorkPoolPageHeaderProps = {
 	workPool: WorkPool;
@@ -15,24 +22,30 @@ export const WorkPoolPageHeader = ({
 	onUpdate,
 	className,
 }: WorkPoolPageHeaderProps) => {
-	const breadcrumbs = <WorkPoolBreadcrumbs workPoolName={workPool.name} />;
-	const title = <WorkPoolTitle workPool={workPool} />;
-	const actions = <WorkPoolActions workPool={workPool} onUpdate={onUpdate} />;
-
 	return (
 		<header
 			className={cn(
-				"flex flex-col space-y-4 md:flex-row md:items-center md:justify-between md:space-y-0",
+				"flex mb-4 flex-row items-center justify-between",
 				className,
 			)}
 		>
-			<div className="flex flex-col space-y-2">
-				{breadcrumbs && <nav>{breadcrumbs}</nav>}
-				<div className="flex flex-col space-y-1">
-					<h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
-				</div>
+			<Breadcrumb className={className}>
+				<BreadcrumbList>
+					<BreadcrumbItem>
+						<BreadcrumbLink to="/work-pools" className="text-xl font-semibold">
+							Work pools
+						</BreadcrumbLink>
+					</BreadcrumbItem>
+					<BreadcrumbSeparator />
+					<BreadcrumbItem className="text-xl font-semibold">
+						<BreadcrumbPage>{workPool.name}</BreadcrumbPage>
+					</BreadcrumbItem>
+				</BreadcrumbList>
+			</Breadcrumb>
+			<div className="flex items-center space-x-2">
+				<WorkPoolToggle workPool={workPool} onUpdate={onUpdate} />
+				<WorkPoolMenu workPool={workPool} onUpdate={onUpdate} />
 			</div>
-			{actions && <div className="flex items-center space-x-2">{actions}</div>}
 		</header>
 	);
 };

@@ -1,12 +1,11 @@
-import { Suspense } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { useMemo } from "react";
 
 import type { WorkPool } from "@/api/work-pools";
-import {
-	SchemaDisplay,
-	type SchemaProperty,
-} from "@/components/schemas/schema-display";
+import { buildListWorkPoolWorkersQuery } from "@/api/work-pools";
+import type { SchemaProperty } from "@/components/schemas/schema-display";
 import { FormattedDate } from "@/components/ui/formatted-date";
-import { PollStatus } from "@/components/work-pools/poll-status";
+import { Separator } from "@/components/ui/separator";
 import { WorkPoolStatusBadge } from "@/components/work-pools/work-pool-status-badge";
 import { cn } from "@/lib/utils";
 import { titleCase } from "@/utils";
@@ -22,12 +21,32 @@ const None = () => <dd className="text-muted-foreground text-sm">None</dd>;
 const FieldLabel = ({ children }: { children: React.ReactNode }) => (
 	<dt className="text-sm text-muted-foreground">{children}</dt>
 );
-const FieldValue = ({ children }: { children: React.ReactNode }) => (
-	<dd className="text-sm">{children}</dd>
-);
+const FieldValue = ({
+	children,
+	className,
+}: {
+	children: React.ReactNode;
+	className?: string;
+}) => <dd className={cn("text-sm", className)}>{children}</dd>;
 
 // Basic Info Section Component
 function BasicInfoSection({ workPool }: { workPool: WorkPool }) {
+	const { data: workers = [], isLoading } = useQuery(
+		buildListWorkPoolWorkersQuery(workPool.name),
+	);
+
+	const lastPolled = useMemo(() => {
+		if (isLoading) return null;
+		if (workers.length === 0) return null;
+
+		const heartbeats = workers
+			.map((w) => w.last_heartbeat_time)
+			.filter((time): time is string => Boolean(time))
+			.sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
+
+		return heartbeats[0] || null;
+	}, [workers, isLoading]);
+
 	const fields = [
 		{
 			field: "Status",
@@ -71,6 +90,19 @@ function BasicInfoSection({ workPool }: { workPool: WorkPool }) {
 			),
 		},
 		{
+			field: "Last Polled",
+			ComponentValue: () =>
+				lastPolled ? (
+					<FieldValue>
+						<FormattedDate date={lastPolled} />
+					</FieldValue>
+				) : workers.length === 0 ? null : (
+					<FieldValue className="text-muted-foreground">
+						No recent activity
+					</FieldValue>
+				),
+		},
+		{
 			field: "Created",
 			ComponentValue: () =>
 				workPool.created ? (
@@ -94,9 +126,16 @@ function BasicInfoSection({ workPool }: { workPool: WorkPool }) {
 		},
 	].filter(({ ComponentValue }) => ComponentValue() !== null);
 
+	if (isLoading) {
+		return (
+			<div className="text-muted-foreground text-sm">
+				Loading work pool details...
+			</div>
+		);
+	}
+
 	return (
 		<div>
-			<h3 className="mb-4 text-lg font-semibold">Basic Information</h3>
 			<ul className="flex flex-col gap-3">
 				{fields.map(({ field, ComponentValue }) => (
 					<li key={field}>
@@ -116,23 +155,65 @@ function JobTemplateSection({ workPool }: { workPool: WorkPool }) {
 	// Check if work pool has base job template
 	const baseJobTemplate = workPool.base_job_template;
 
-	if (!baseJobTemplate?.job_configuration) {
+	if (
+		!baseJobTemplate?.variables ||
+		typeof baseJobTemplate.variables !== "object" ||
+		!("properties" in baseJobTemplate.variables) ||
+		!baseJobTemplate.variables.properties
+	) {
 		return null;
 	}
 
-	// Convert job template to schema format
-	const schema = {
-		properties:
-			(baseJobTemplate.variables as Record<string, SchemaProperty>) ||
-			({} as Record<string, SchemaProperty>),
+	const properties = baseJobTemplate.variables.properties as Record<
+		string,
+		SchemaProperty
+	>;
+
+	// Helper function to format field names (from property title or key)
+	const formatFieldName = (key: string, property: SchemaProperty): string => {
+		return (
+			property.title ||
+			key
+				.split("_")
+				.map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+				.join(" ")
+		);
 	};
 
-	const data = baseJobTemplate.job_configuration as Record<string, unknown>;
+	// Helper function to format field values
+	const formatValue = (value: unknown): string => {
+		if (value === null || value === undefined) {
+			return "None";
+		}
+		if (typeof value === "boolean") {
+			return value.toString();
+		}
+		if (Array.isArray(value)) {
+			return value.length > 0 ? value.join(", ") : "None";
+		}
+		if (typeof value === "object") {
+			return JSON.stringify(value);
+		}
+		// At this point, value is a primitive (string, number, bigint, symbol)
+		return String(value as string | number | bigint | symbol);
+	};
 
 	return (
 		<div>
-			<h3 className="mb-4 text-lg font-semibold">Base Job Template</h3>
-			<SchemaDisplay schema={schema} data={data} />
+			<h3 className="mb-4 text-md">Base Job Configuration</h3>
+			<ul className="flex flex-col gap-3">
+				{Object.entries(properties).map(([key, property]) => {
+					const value = property.default ?? null;
+					return (
+						<li key={key} className="flex flex-col gap-1 text-sm">
+							<span className="text-muted-foreground font-medium">
+								{formatFieldName(key, property)}
+							</span>
+							<span className="break-words">{formatValue(value)}</span>
+						</li>
+					);
+				})}
+			</ul>
 		</div>
 	);
 }
@@ -148,16 +229,22 @@ export function WorkPoolDetails({
 		<div className={cn(spacing, className)}>
 			<BasicInfoSection workPool={workPool} />
 
-			<Suspense
-				fallback={
-					<div className="text-muted-foreground">Loading poll status...</div>
-				}
-			>
-				<PollStatus workPoolName={workPool.name} />
-			</Suspense>
-
-			{Boolean(workPool.base_job_template?.job_configuration) && (
-				<JobTemplateSection workPool={workPool} />
+			{Boolean(
+				workPool.base_job_template?.variables &&
+					typeof workPool.base_job_template.variables === "object" &&
+					"properties" in workPool.base_job_template.variables &&
+					workPool.base_job_template.variables.properties &&
+					Object.keys(
+						workPool.base_job_template.variables.properties as Record<
+							string,
+							unknown
+						>,
+					).length > 0,
+			) && (
+				<>
+					<Separator />
+					<JobTemplateSection workPool={workPool} />
+				</>
 			)}
 		</div>
 	);

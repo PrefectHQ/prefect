@@ -51,9 +51,9 @@ flowchart TB
         Users[Users / UI / API Clients]:::userClass
         Workers[Workers poll any available API server<br/>Process / K8s / Docker / Serverless]:::workerClass
     end
-    
+
     LB[Load Balancer<br/>NGINX / HAProxy / ALB<br/>Port 4200]:::lbClass
-    
+
     subgraph servers[Prefect Server Components]
         direction TB
         subgraph api[API Servers - Horizontal Scaling]
@@ -62,26 +62,26 @@ flowchart TB
             API2[API Server 2<br/>--no-services]:::apiClass
             API3[API Server N...<br/>--no-services]:::apiClass
         end
-        
+
         BG[Background Services<br/>prefect server services start<br/><br/>• Event Processing<br/>• Automation Triggers<br/>• Schedule Management]:::bgClass
     end
-    
+
     subgraph data[Data Layer]
         direction LR
         PG[(PostgreSQL<br/>• Flow/Task State<br/>• Configuration<br/>• History)]:::dataClass
         Redis[(Redis<br/>• Events<br/>• Automations<br/>• Real-time Updates)]:::dataClass
     end
-    
+
     %% Connections
     Users --> |HTTPS| LB
     LB --> |Round Robin| api
-    
+
     api --> |Read/Write| PG
     api --> |Publish| Redis
-    
+
     BG --> |Read/Write| PG
     BG --> |Subscribe| Redis
-    
+
     Workers -.-> |Poll Work| api
 ```
 
@@ -101,11 +101,13 @@ PostgreSQL version 14.9 or higher is required for multi-server deployments. SQLi
 
 ### Redis setup
 
-Configure Redis as your message broker:
+Configure Redis as your server's message broker, cache, and lease storage:
 
 ```bash
 export PREFECT_MESSAGING_BROKER="prefect_redis.messaging"
 export PREFECT_MESSAGING_CACHE="prefect_redis.messaging"
+export PREFECT_SERVER_EVENTS_CAUSAL_ORDERING="prefect_redis.ordering"
+export PREFECT_SERVER_CONCURRENCY_LEASE_STORAGE="prefect_redis.lease_storage"
 export PREFECT_REDIS_MESSAGING_HOST="redis-host"
 export PREFECT_REDIS_MESSAGING_PORT="6379"
 export PREFECT_REDIS_MESSAGING_DB="0"
@@ -123,14 +125,6 @@ For Redis instances that require an encrypted connection, you can enable SSL/TLS
 ```bash
 export PREFECT_REDIS_MESSAGING_SSL="true"
 ```
-
-For multi-server deployments with Redis, configure causal ordering to ensure proper task state synchronization:
-
-```bash
-export PREFECT_SERVER_EVENTS_CAUSAL_ORDERING="prefect_redis.ordering"
-```
-
-Each server instance automatically generates a unique consumer name to prevent message delivery conflicts.
 
 ### Service separation
 
@@ -180,13 +174,13 @@ upstream prefect_api {
 
 server {
     listen 4200;
-    
+
     location /api/health {
         proxy_pass http://prefect_api;
         proxy_connect_timeout 1s;
         proxy_read_timeout 1s;
     }
-    
+
     location / {
         proxy_pass http://prefect_api;
         proxy_set_header Host $host;
@@ -205,7 +199,7 @@ When hosting Prefect behind a reverse proxy, ensure proper header forwarding:
 server {
     listen 80;
     server_name prefect.example.com;
-    
+
     location / {
         return 301 https://$host$request_uri;
     }
@@ -222,15 +216,15 @@ server {
         proxy_set_header Host $host;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Real-IP $remote_addr;
-        
+
         # WebSocket support
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection "upgrade";
-        
+
         # Authentication headers
         proxy_set_header Authorization $http_authorization;
         proxy_pass_header Authorization;
-        
+
         proxy_pass http://prefect_api;
     }
 
@@ -311,7 +305,7 @@ services:
 
   prefect-api:
     image: prefecthq/prefect:3-latest
-    depends_on: 
+    depends_on:
       migrate:
         condition: service_completed_successfully
       postgres:
@@ -326,9 +320,10 @@ services:
       PREFECT_API_DATABASE_MIGRATE_ON_START: "false"
       PREFECT_MESSAGING_BROKER: prefect_redis.messaging
       PREFECT_MESSAGING_CACHE: prefect_redis.messaging
+      PREFECT_SERVER_EVENTS_CAUSAL_ORDERING: prefect_redis.ordering
+      PREFECT_SERVER_CONCURRENCY_LEASE_STORAGE: prefect_redis.lease_storage
       PREFECT_REDIS_MESSAGING_HOST: redis
       PREFECT_REDIS_MESSAGING_PORT: "6379"
-      PREFECT_SERVER_EVENTS_CAUSAL_ORDERING: prefect_redis.ordering
     ports:
       - "4200-4202:4200"  # Maps to different ports for each replica
 
@@ -347,9 +342,10 @@ services:
       PREFECT_API_DATABASE_MIGRATE_ON_START: "false"
       PREFECT_MESSAGING_BROKER: prefect_redis.messaging
       PREFECT_MESSAGING_CACHE: prefect_redis.messaging
+      PREFECT_SERVER_EVENTS_CAUSAL_ORDERING: prefect_redis.ordering
+      PREFECT_SERVER_CONCURRENCY_LEASE_STORAGE: prefect_redis.lease_storage
       PREFECT_REDIS_MESSAGING_HOST: redis
       PREFECT_REDIS_MESSAGING_PORT: "6379"
-      PREFECT_SERVER_EVENTS_CAUSAL_ORDERING: prefect_redis.ordering
 
 volumes:
   postgres_data:

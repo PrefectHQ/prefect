@@ -2063,6 +2063,46 @@ async def test_user_defined_capacity_provider_strategy(
 
 
 @pytest.mark.usefixtures("ecs_mocks")
+async def test_user_defined_capacity_provider_strategy_with_launch_type(
+    aws_credentials: AwsCredentials, flow_run: FlowRun, caplog
+):
+    configuration = await construct_configuration(
+        aws_credentials=aws_credentials,
+        launch_type="EC2",
+        capacity_provider_strategy=[
+            {
+                "weight": 1,
+                "base": 0,
+                "capacityProvider": "user-defined-capacity-provider",
+            }
+        ],
+    )
+
+    async with ECSWorker(work_pool_name="test") as worker:
+        # Capture the task run call because moto does not track 'capacityProviderStrategy'
+        original_run_task = worker._create_task_run
+        mock_run_task = MagicMock(side_effect=original_run_task)
+        worker._create_task_run = mock_run_task
+
+        result = await run_then_stop_task(worker, configuration, flow_run)
+
+    assert result.status_code == 0
+
+    # Assert the warning was emitted and that launchType was removed
+    assert (
+        "Found capacityProviderStrategy. Removing launchType from task run request."
+        in caplog.text
+    )
+
+    # launchType should be omitted and capacity provider strategy should be present
+    run_kwargs = mock_run_task.call_args[0][1]
+    assert "launchType" not in run_kwargs
+    assert run_kwargs.get("capacityProviderStrategy") == [
+        {"weight": 1, "base": 0, "capacityProvider": "user-defined-capacity-provider"}
+    ]
+
+
+@pytest.mark.usefixtures("ecs_mocks")
 async def test_user_defined_environment_variables_in_task_run_request_template(
     aws_credentials: AwsCredentials, flow_run: FlowRun
 ):

@@ -78,7 +78,11 @@ from prefect.tasks import Task
 from prefect.types import KeyValueLabels
 from prefect.utilities.dispatch import get_registry_for_type, register_base_type
 from prefect.utilities.engine import propose_state
-from prefect.utilities.services import critical_service_loop
+from prefect.utilities.services import (
+    critical_service_loop,
+    start_client_metrics_server,
+    stop_client_metrics_server,
+)
 from prefect.utilities.slugify import slugify
 from prefect.utilities.templating import (
     apply_values,
@@ -657,6 +661,8 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
 
                     self._started_event = await self._emit_worker_started_event()
 
+                    start_client_metrics_server()
+
                     if with_healthcheck:
                         from prefect.workers.server import build_healthcheck_server
 
@@ -673,7 +679,19 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
                         )
                         healthcheck_thread.start()
                     printer(f"Worker {worker.name!r} started!")
+
+                # If running once, wait for active runs to finish before teardown
+                if run_once and self._limiter:
+                    # Use the limiter's borrowed token count as the source of truth
+                    while self.limiter.borrowed_tokens > 0:
+                        self._logger.debug(
+                            "Waiting for %s active run(s) to finish before shutdown...",
+                            self.limiter.borrowed_tokens,
+                        )
+                        await anyio.sleep(0.1)
         finally:
+            stop_client_metrics_server()
+
             if healthcheck_server and healthcheck_thread:
                 self._logger.debug("Stopping healthcheck server...")
                 healthcheck_server.should_exit = True

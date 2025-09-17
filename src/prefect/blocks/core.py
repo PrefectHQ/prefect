@@ -78,6 +78,11 @@ R = TypeVar("R")
 P = ParamSpec("P")
 
 ResourceTuple = tuple[dict[str, Any], list[dict[str, Any]]]
+UnionTypes: tuple[object, ...] = (Union,)
+if hasattr(types, "UnionType"):
+    # Python 3.10+ only
+    UnionTypes = (*UnionTypes, types.UnionType)
+NestedTypes: tuple[type, ...] = (list, dict, tuple, *UnionTypes)
 
 
 def block_schema_to_key(schema: BlockSchema) -> str:
@@ -164,11 +169,7 @@ def _collect_secret_fields(
     secrets list, supporting nested Union / Dict / Tuple / List / BaseModel fields.
     Also, note, this function mutates the input secrets list, thus does not return anything.
     """
-    nested_types = (Union, dict, list, tuple)
-    # Include UnionType if it's available for the current Python version
-    if union_type := getattr(types, "UnionType", None):
-        nested_types = nested_types + (union_type,)
-    if get_origin(type_) in nested_types:
+    if get_origin(type_) in NestedTypes:
         for nested_type in get_args(type_):
             _collect_secret_fields(name, nested_type, secrets)
         return
@@ -298,7 +299,8 @@ def schema_extra(schema: dict[str, Any], model: type["Block"]) -> None:
                 ]
             else:
                 refs[field_name] = annotation._to_block_schema_reference_dict()  # pyright: ignore[reportPrivateUsage]
-        if get_origin(annotation) in (Union, list, tuple, dict):
+
+        if get_origin(annotation) in NestedTypes:
             for type_ in get_args(annotation):
                 collect_block_schema_references(field_name, type_)
 
@@ -1308,7 +1310,7 @@ class Block(BaseModel, ABC):
         if Block.is_block_class(annotation):
             return True
 
-        if get_origin(annotation) is Union:
+        if get_origin(annotation) in UnionTypes:
             for annotation in get_args(annotation):
                 if Block.is_block_class(annotation):
                     return True
@@ -1348,7 +1350,7 @@ class Block(BaseModel, ABC):
                 if TYPE_CHECKING:
                     assert isinstance(coro, Coroutine)
                 await coro
-            elif get_origin(annotation) in (Union, tuple, list, dict):
+            elif get_origin(annotation) in NestedTypes:
                 for inner_annotation in get_args(annotation):
                     await register_blocks_in_annotation(inner_annotation)
 

@@ -4,7 +4,7 @@ from prefect.server.events.services.event_persister import EventPersister
 from prefect.server.events.services.triggers import ProactiveTriggers, ReactiveTriggers
 from prefect.server.events.stream import Distributor
 from prefect.server.logs.stream import LogDistributor
-from prefect.server.services.base import RunInAllServers, Service
+from prefect.server.services.base import RunInEphemeralServers, RunInWebservers, Service
 from prefect.server.services.cancellation_cleanup import CancellationCleanup
 from prefect.server.services.foreman import Foreman
 from prefect.server.services.late_runs import MarkLateRuns
@@ -41,10 +41,9 @@ def test_the_all_service_subset():
     }
 
 
-def test_run_in_all_servers():
-    """The following services should be enabled on background servers and web-only
-    API servers"""
-    assert set(RunInAllServers.all_services()) == {
+def test_run_in_ephemeral_servers():
+    """The following services should be enabled on ephemeral servers"""
+    assert set(RunInEphemeralServers.all_services()) == {
         Telemetry,
         # Orchestration services
         TaskRunRecorder,
@@ -55,6 +54,17 @@ def test_run_in_all_servers():
         EventPersister,
         ProactiveTriggers,
         ReactiveTriggers,
+        # Logs services
+        LogDistributor,
+    }
+
+
+def test_run_in_webservers():
+    """The following services should be enabled on webservers"""
+    assert set(RunInWebservers.all_services()) == {
+        Telemetry,
+        # Events services
+        Distributor,
         # Logs services
         LogDistributor,
     }

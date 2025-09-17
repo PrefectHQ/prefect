@@ -2,11 +2,12 @@ from datetime import datetime, timedelta, timezone
 from typing import List, Literal, Optional, Union
 from uuid import UUID
 
-from fastapi import Body, Depends, HTTPException, Path, status
+from fastapi import Body, Depends, HTTPException, Path
 from sqlalchemy.ext.asyncio import AsyncSession
 
 import prefect.server.models as models
 import prefect.server.schemas as schemas
+from prefect._internal.compatibility.starlette import status
 from prefect.server.api.dependencies import LimitBody
 from prefect.server.concurrency.lease_storage import (
     ConcurrencyLimitLeaseMetadata,
@@ -16,6 +17,7 @@ from prefect.server.database import PrefectDBInterface, provide_database_interfa
 from prefect.server.schemas import actions
 from prefect.server.utilities.schemas import PrefectBaseModel
 from prefect.server.utilities.server import PrefectRouter
+from prefect.types._concurrency import ConcurrencyLeaseHolder
 
 router: PrefectRouter = PrefectRouter(
     prefix="/v2/concurrency_limits", tags=["Concurrency Limits V2"]
@@ -294,6 +296,10 @@ async def bulk_increment_active_slots_with_lease(
         le=60 * 60 * 24,  # 1 day
         description="The duration of the lease in seconds.",
     ),
+    holder: Optional[ConcurrencyLeaseHolder] = Body(
+        None,
+        description="The holder of the lease with type (flow_run, task_run, or deployment) and id.",
+    ),
     db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> ConcurrencyLimitWithLeaseResponse:
     async with db.session_context(begin_transaction=True) as session:
@@ -309,7 +315,10 @@ async def bulk_increment_active_slots_with_lease(
         lease = await lease_storage.create_lease(
             resource_ids=[limit.id for limit in acquired_limits],
             ttl=timedelta(seconds=lease_duration),
-            metadata=ConcurrencyLimitLeaseMetadata(slots=slots),
+            metadata=ConcurrencyLimitLeaseMetadata(
+                slots=slots,
+                holder=holder.model_dump() if holder else None,
+            ),
         )
         return ConcurrencyLimitWithLeaseResponse(
             lease_id=lease.id,

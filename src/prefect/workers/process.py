@@ -34,7 +34,11 @@ from prefect.runner.runner import Runner
 from prefect.settings import PREFECT_WORKER_QUERY_SECONDS
 from prefect.states import Pending
 from prefect.utilities.processutils import get_sys_executable
-from prefect.utilities.services import critical_service_loop
+from prefect.utilities.services import (
+    critical_service_loop,
+    start_client_metrics_server,
+    stop_client_metrics_server,
+)
 from prefect.workers.base import (
     BaseJobConfiguration,
     BaseVariables,
@@ -180,6 +184,8 @@ class ProcessWorker(
 
                     self._started_event = await self._emit_worker_started_event()
 
+                    start_client_metrics_server()
+
                     if with_healthcheck:
                         from prefect.workers.server import build_healthcheck_server
 
@@ -196,7 +202,18 @@ class ProcessWorker(
                         )
                         healthcheck_thread.start()
                     printer(f"Worker {worker.name!r} started!")
+
+                # If running once, wait for active runs to complete before exiting
+                if run_once and self._limiter:
+                    while self.limiter.borrowed_tokens > 0:
+                        self._logger.debug(
+                            "Waiting for %s active run(s) to finish before shutdown...",
+                            self.limiter.borrowed_tokens,
+                        )
+                        await anyio.sleep(0.1)
         finally:
+            stop_client_metrics_server()
+
             if healthcheck_server and healthcheck_thread:
                 self._logger.debug("Stopping healthcheck server...")
                 healthcheck_server.should_exit = True

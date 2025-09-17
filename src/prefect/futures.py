@@ -271,23 +271,17 @@ class PrefectDistributedFuture(PrefectTaskRunFuture[R]):
                 "Waiting for completed event for task run %s...",
                 self.task_run_id,
             )
-            await TaskRunWaiter.wait_for_task_run(self._task_run_id, timeout=timeout)
+            state_from_event = await TaskRunWaiter.wait_for_task_run(
+                self._task_run_id, timeout=timeout
+            )
 
-            # After the waiter returns, we expect the task to be complete.
-            # However, there may be a small delay before the API reflects the final state
-            # due to eventual consistency between the event system and the API.
-            # We'll read the state and only cache it if it's final.
-            task_run = await client.read_task_run(task_run_id=self._task_run_id)
-            if task_run.state and task_run.state.is_final():
-                self._final_state = task_run.state
-            else:
-                # Don't cache non-final states to avoid persisting stale data.
-                # result_async() will handle reading the state again if needed.
+            if state_from_event:
+                # We got the final state directly from the event
+                self._final_state = state_from_event
                 logger.debug(
-                    "Task run %s state not yet final after wait (state: %s). "
-                    "State will be re-read when needed.",
+                    "Task run %s completed with state from event: %s",
                     self.task_run_id,
-                    task_run.state.type if task_run.state else "Unknown",
+                    state_from_event.type,
                 )
             return
 
@@ -308,8 +302,8 @@ class PrefectDistributedFuture(PrefectTaskRunFuture[R]):
         if not self._final_state:
             await self.wait_async(timeout=timeout)
             if not self._final_state:
-                # If still no final state, try reading it directly as the
-                # state property does. This handles eventual consistency issues.
+                # If still no final state after wait, try reading it once more.
+                # This should rarely happen since wait_async() now gets state from events.
                 async with get_client() as client:
                     task_run = await client.read_task_run(task_run_id=self._task_run_id)
                     if task_run.state and task_run.state.is_final():
@@ -598,12 +592,46 @@ def wait(
     not_done = _futures - done
     if len(done) == len(_futures):
         return DoneAndNotDoneFutures(done, not_done)
+
+    # If no timeout, wait for all futures sequentially
+    if timeout is None:
+        for future in not_done.copy():
+            future.wait()
+            done.add(future)
+            not_done.remove(future)
+        return DoneAndNotDoneFutures(done, not_done)
+
+    # With timeout, monitor all futures concurrently
     try:
         with timeout_context(timeout):
-            for future in not_done.copy():
-                future.wait()
-                done.add(future)
-                not_done.remove(future)
+            finished_event = threading.Event()
+            finished_lock = threading.Lock()
+            finished_futures: list[PrefectFuture[R]] = []
+
+            def mark_done(future: PrefectFuture[R]):
+                with finished_lock:
+                    finished_futures.append(future)
+                    finished_event.set()
+
+            # Add callbacks to all pending futures
+            for future in not_done:
+                future.add_done_callback(mark_done)
+
+            # Wait for futures to complete within timeout
+            while not_done:
+                # Wait for at least one future to complete
+                finished_event.wait()
+                with finished_lock:
+                    newly_done = finished_futures[:]
+                    finished_futures.clear()
+                    finished_event.clear()
+
+                # Move completed futures to done set
+                for future in newly_done:
+                    if future in not_done:
+                        not_done.remove(future)
+                        done.add(future)
+
             return DoneAndNotDoneFutures(done, not_done)
     except TimeoutError:
         logger.debug("Timed out waiting for all futures to complete.")

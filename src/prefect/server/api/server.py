@@ -9,6 +9,7 @@ import atexit
 import base64
 import contextlib
 import gc
+import logging
 import mimetypes
 import os
 import random
@@ -18,10 +19,10 @@ import sqlite3
 import subprocess
 import sys
 import time
-from contextlib import asynccontextmanager
+from contextlib import AsyncExitStack, asynccontextmanager
 from functools import wraps
 from hashlib import sha256
-from typing import TYPE_CHECKING, Any, AsyncGenerator, Awaitable, Callable, Optional
+from typing import Any, AsyncGenerator, Awaitable, Callable, Optional
 
 import anyio
 import asyncpg
@@ -29,7 +30,7 @@ import httpx
 import sqlalchemy as sa
 import sqlalchemy.exc
 import sqlalchemy.orm.exc
-from fastapi import Depends, FastAPI, Request, Response, status
+from fastapi import Depends, FastAPI, Request, Response
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
@@ -43,11 +44,12 @@ from typing_extensions import Self
 import prefect
 import prefect.server.api as api
 import prefect.settings
+from prefect._internal.compatibility.starlette import status
 from prefect.client.constants import SERVER_API_VERSION
 from prefect.logging import get_logger
 from prefect.server.api.dependencies import EnforceMinimumAPIVersion
 from prefect.server.exceptions import ObjectNotFoundError
-from prefect.server.services.base import RunInAllServers, Service
+from prefect.server.services.base import RunInEphemeralServers, RunInWebservers, Service
 from prefect.server.utilities.database import get_dialect
 from prefect.settings import (
     PREFECT_API_DATABASE_CONNECTION_URL,
@@ -74,9 +76,6 @@ if os.environ.get("PREFECT_LOGFIRE_ENABLED"):
     logfire.configure(token=token)  # pyright: ignore
 else:
     logfire = None
-
-if TYPE_CHECKING:
-    import logging
 
 TITLE = "Prefect Server"
 API_TITLE = "Prefect Prefect REST API"
@@ -130,6 +129,42 @@ API_ROUTERS = (
 )
 
 SQLITE_LOCKED_MSG = "database is locked"
+
+
+class _SQLiteLockedOperationalErrorFilter(logging.Filter):
+    """Filter uvicorn error logs for retryable SQLite lock failures."""
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        exc: BaseException | None = record.exc_info[1] if record.exc_info else None
+
+        if not isinstance(exc, sqlalchemy.exc.OperationalError):
+            return True
+
+        orig_exc = getattr(exc, "orig", None)
+        if not isinstance(orig_exc, sqlite3.OperationalError):
+            return True
+
+        if getattr(orig_exc, "sqlite_errorname", None) in {
+            "SQLITE_BUSY",
+            "SQLITE_BUSY_SNAPSHOT",
+        } or SQLITE_LOCKED_MSG in getattr(orig_exc, "args", []):
+            return get_current_settings().server.log_retryable_errors
+
+        return True
+
+
+_SQLITE_LOCKED_LOG_FILTER: _SQLiteLockedOperationalErrorFilter | None = None
+
+
+def _install_sqlite_locked_log_filter() -> None:
+    global _SQLITE_LOCKED_LOG_FILTER
+
+    if _SQLITE_LOCKED_LOG_FILTER is not None:
+        return
+
+    filter_ = _SQLiteLockedOperationalErrorFilter()
+    logging.getLogger("uvicorn.error").addFilter(filter_)
+    _SQLITE_LOCKED_LOG_FILTER = filter_
 
 
 class SPAStaticFiles(StaticFiles):
@@ -644,18 +679,25 @@ def create_app(
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
-        if app not in LIFESPAN_RAN_FOR_APP:
-            await run_migrations()
-            await add_block_types()
+        if app in LIFESPAN_RAN_FOR_APP:
+            yield
+            return
 
-            Services: type[Service] = Service
-            if ephemeral or webserver_only:
-                Services = RunInAllServers
+        await run_migrations()
+        await add_block_types()
 
-            async with Services.running():
-                LIFESPAN_RAN_FOR_APP.add(app)
-                yield
-        else:
+        Services: type[Service] | None = (
+            RunInWebservers
+            if webserver_only
+            else RunInEphemeralServers
+            if ephemeral
+            else Service
+        )
+
+        async with AsyncExitStack() as stack:
+            if Services:
+                await stack.enter_async_context(Services.running())
+            LIFESPAN_RAN_FOR_APP.add(app)
             yield
 
     def on_service_exit(service: Service, task: asyncio.Task[None]) -> None:
@@ -712,6 +754,7 @@ def create_app(
         get_dialect(prefect.settings.PREFECT_API_DATABASE_CONNECTION_URL.value()).name
         == "sqlite"
     ):
+        _install_sqlite_locked_log_filter()
         app.add_middleware(RequestLimitMiddleware, limit=100)
 
     if prefect.settings.PREFECT_SERVER_CSRF_PROTECTION_ENABLED.value():

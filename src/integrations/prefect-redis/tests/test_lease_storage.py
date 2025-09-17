@@ -291,3 +291,77 @@ class TestConcurrencyLeaseStorage:
         read_lease = await storage2.read_lease(lease.id)
         assert read_lease is not None
         assert read_lease.id == lease.id
+
+    async def test_holder_round_trip(self, storage: ConcurrencyLeaseStorage):
+        """Holder data is preserved through serialize/deserialize."""
+        resource_ids = [uuid4()]
+        ttl = timedelta(seconds=60)
+        holder = {"type": "task_run", "id": str(uuid4())}
+
+        metadata = ConcurrencyLimitLeaseMetadata(slots=2)
+        # Support both models that define 'holder' and legacy ones
+        setattr(metadata, "holder", holder)
+
+        lease = await storage.create_lease(resource_ids, ttl, metadata)
+        read_back = await storage.read_lease(lease.id)
+
+        assert read_back is not None
+        assert getattr(read_back.metadata, "holder", None) == holder
+
+    async def test_holder_indexes_and_lookup(self, storage: ConcurrencyLeaseStorage):
+        rid = uuid4()
+        ttl = timedelta(seconds=120)
+        holder = {"type": "task_run", "id": str(uuid4())}
+        meta = ConcurrencyLimitLeaseMetadata(slots=1)
+        setattr(meta, "holder", holder)
+
+        lease = await storage.create_lease([rid], ttl, meta)
+
+        holders = await storage.list_holders_for_limit(rid)
+        assert {"holder": holder, "slots": 1} in holders
+
+        await storage.revoke_lease(lease.id)
+
+        holders_after = await storage.list_holders_for_limit(rid)
+        assert {"holder": holder, "slots": 1} not in holders_after
+        # Reverse lookup removed; ensure holder entry is gone via list
+
+    async def test_create_without_holder_does_not_index(
+        self, storage: ConcurrencyLeaseStorage
+    ):
+        rid = uuid4()
+        ttl = timedelta(seconds=60)
+        # No holder
+        lease = await storage.create_lease([rid], ttl)
+        assert lease is not None
+
+        holders = await storage.list_holders_for_limit(rid)
+        assert holders == []
+        # Reverse lookup removed; nothing to check here beyond empty list
+
+    async def test_multiple_resource_ids_index_all_and_cleanup(
+        self, storage: ConcurrencyLeaseStorage
+    ):
+        rid1, rid2 = uuid4(), uuid4()
+        ttl = timedelta(seconds=60)
+        holder = {"type": "task_run", "id": str(uuid4())}
+        meta = ConcurrencyLimitLeaseMetadata(slots=1)
+        setattr(meta, "holder", holder)
+
+        lease = await storage.create_lease([rid1, rid2], ttl, meta)
+        assert {"holder": holder, "slots": 1} in await storage.list_holders_for_limit(
+            rid1
+        )
+        assert {"holder": holder, "slots": 1} in await storage.list_holders_for_limit(
+            rid2
+        )
+
+        await storage.revoke_lease(lease.id)
+        assert {
+            "holder": holder,
+            "slots": 1,
+        } not in await storage.list_holders_for_limit(rid1)
+        assert {
+            "holder": holder,
+            "slots": 1,
+        } not in await storage.list_holders_for_limit(rid2)

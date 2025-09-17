@@ -129,7 +129,7 @@ Returns the count of flow runs matching all criteria for flow runs.
 - count of flow runs
 
 
-#### `create_artifact` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_artifacts/client.py#L110" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `create_artifact` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_artifacts/client.py#L145" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 create_artifact(self, artifact: 'ArtifactCreate') -> 'Artifact'
@@ -178,7 +178,7 @@ create_block_type(self, block_type: 'BlockTypeCreate') -> 'BlockType'
 Create a block type in the Prefect API.
 
 
-#### `create_concurrency_limit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_concurrency_limits/client.py#L470" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `create_concurrency_limit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_concurrency_limits/client.py#L476" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 create_concurrency_limit(self, tag: str, concurrency_limit: int) -> 'UUID'
@@ -369,7 +369,7 @@ Creates a flow run input.
 - `sender`: The sender of the input.
 
 
-#### `create_global_concurrency_limit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_concurrency_limits/client.py#L802" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `create_global_concurrency_limit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_concurrency_limits/client.py#L814" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 create_global_concurrency_limit(self, concurrency_limit: 'GlobalConcurrencyLimitCreate') -> 'UUID'
@@ -460,7 +460,7 @@ Create a work queue.
 - The created work queue
 
 
-#### `decrement_v1_concurrency_slots` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_concurrency_limits/client.py#L658" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `decrement_v1_concurrency_slots` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_concurrency_limits/client.py#L664" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 decrement_v1_concurrency_slots(self, names: list[str], task_run_id: 'UUID', occupancy_seconds: float) -> 'Response'
@@ -478,7 +478,7 @@ were held.
 - "Response": The HTTP response from the server.
 
 
-#### `delete_artifact` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_artifacts/client.py#L162" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `delete_artifact` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_artifacts/client.py#L232" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 delete_artifact(self, artifact_id: 'UUID') -> None
@@ -508,7 +508,7 @@ delete_block_type(self, block_type_id: 'UUID') -> None
 Delete a block type.
 
 
-#### `delete_concurrency_limit_by_tag` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_concurrency_limits/client.py#L608" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `delete_concurrency_limit_by_tag` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_concurrency_limits/client.py#L614" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 delete_concurrency_limit_by_tag(self, tag: str) -> None
@@ -601,7 +601,7 @@ Deletes a flow run input.
 - `key`: The input key.
 
 
-#### `delete_global_concurrency_limit_by_name` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_concurrency_limits/client.py#L838" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `delete_global_concurrency_limit_by_name` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_concurrency_limits/client.py#L850" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 delete_global_concurrency_limit_by_name(self, name: str) -> 'Response'
@@ -754,7 +754,7 @@ hello(self) -> httpx.Response
 Send a GET request to /hello for testing purposes.
 
 
-#### `increment_concurrency_slots` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_concurrency_limits/client.py#L688" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `increment_concurrency_slots` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_concurrency_limits/client.py#L694" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 increment_concurrency_slots(self, names: list[str], slots: int, mode: Literal['concurrency', 'rate_limit']) -> 'Response'
@@ -768,10 +768,10 @@ Increment concurrency slots for the specified limits.
 - `mode`: The mode of the concurrency limits.
 
 
-#### `increment_concurrency_slots_with_lease` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_concurrency_limits/client.py#L712" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `increment_concurrency_slots_with_lease` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_concurrency_limits/client.py#L718" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-increment_concurrency_slots_with_lease(self, names: list[str], slots: int, mode: Literal['concurrency', 'rate_limit'], lease_duration: float) -> 'Response'
+increment_concurrency_slots_with_lease(self, names: list[str], slots: int, mode: Literal['concurrency', 'rate_limit'], lease_duration: float, holder: dict[str, Any] | None = None) -> 'Response'
 ```
 
 Increment concurrency slots for the specified limits with a lease.
@@ -781,9 +781,10 @@ Increment concurrency slots for the specified limits with a lease.
 - `slots`: The number of concurrency slots to occupy.
 - `mode`: The mode of the concurrency limits.
 - `lease_duration`: The duration of the lease in seconds.
+- `holder`: Optional holder information for tracking who holds the slots.
 
 
-#### `increment_v1_concurrency_slots` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_concurrency_limits/client.py#L635" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `increment_v1_concurrency_slots` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_concurrency_limits/client.py#L641" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 increment_v1_concurrency_slots(self, names: list[str], task_run_id: 'UUID') -> 'Response'
@@ -847,7 +848,7 @@ Pause a deployment by ID.
 raise_for_api_version_mismatch(self) -> None
 ```
 
-#### `read_artifacts` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_artifacts/client.py#L131" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `read_artifacts` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_artifacts/client.py#L201" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_artifacts(self, **kwargs: Unpack['ArtifactReadParams']) -> list['Artifact']
@@ -1017,7 +1018,7 @@ Raises:
 - List of BlockTypes.
 
 
-#### `read_concurrency_limit_by_tag` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_concurrency_limits/client.py#L509" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `read_concurrency_limit_by_tag` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_concurrency_limits/client.py#L515" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_concurrency_limit_by_tag(self, tag: str) -> 'ConcurrencyLimit'
@@ -1036,7 +1037,7 @@ Read the concurrency limit set on a specific tag.
 - the concurrency limit set on a specific tag
 
 
-#### `read_concurrency_limits` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_concurrency_limits/client.py#L546" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `read_concurrency_limits` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_concurrency_limits/client.py#L552" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_concurrency_limits(self, limit: int, offset: int) -> list['ConcurrencyLimit']
@@ -1248,19 +1249,19 @@ be returned.
 - a list of Flow model representations of the flows
 
 
-#### `read_global_concurrency_limit_by_name` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_concurrency_limits/client.py#L852" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `read_global_concurrency_limit_by_name` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_concurrency_limits/client.py#L864" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_global_concurrency_limit_by_name(self, name: str) -> 'GlobalConcurrencyLimitResponse'
 ```
 
-#### `read_global_concurrency_limits` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_concurrency_limits/client.py#L901" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `read_global_concurrency_limits` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_concurrency_limits/client.py#L913" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_global_concurrency_limits(self, limit: int = 10, offset: int = 0) -> list['GlobalConcurrencyLimitResponse']
 ```
 
-#### `read_latest_artifacts` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_artifacts/client.py#L210" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `read_latest_artifacts` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_artifacts/client.py#L280" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_latest_artifacts(self, **kwargs: Unpack['ArtifactCollectionReadParams']) -> list['ArtifactCollection']
@@ -1487,7 +1488,7 @@ member workers.
 - `offset`: Limit for the worker query.
 
 
-#### `release_concurrency_slots` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_concurrency_limits/client.py#L758" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `release_concurrency_slots` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_concurrency_limits/client.py#L770" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 release_concurrency_slots(self, names: list[str], slots: int, occupancy_seconds: float) -> 'Response'
@@ -1505,7 +1506,7 @@ were occupied.
 - "Response": The HTTP response from the server.
 
 
-#### `release_concurrency_slots_with_lease` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_concurrency_limits/client.py#L784" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `release_concurrency_slots_with_lease` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_concurrency_limits/client.py#L796" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 release_concurrency_slots_with_lease(self, lease_id: 'UUID') -> 'Response'
@@ -1517,7 +1518,7 @@ Release concurrency slots for the specified lease.
 - `lease_id`: The ID of the lease corresponding to the concurrency limits to release.
 
 
-#### `renew_concurrency_lease` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_concurrency_limits/client.py#L739" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `renew_concurrency_lease` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_concurrency_limits/client.py#L751" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 renew_concurrency_lease(self, lease_id: 'UUID', lease_duration: float) -> 'Response'
@@ -1530,7 +1531,7 @@ Renew a concurrency lease.
 - `lease_duration`: The new lease duration in seconds.
 
 
-#### `reset_concurrency_limit_by_tag` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_concurrency_limits/client.py#L572" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `reset_concurrency_limit_by_tag` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_concurrency_limits/client.py#L578" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 reset_concurrency_limit_by_tag(self, tag: str, slot_override: list['UUID | str'] | None = None) -> None
@@ -1666,7 +1667,7 @@ forcing the Prefect API to accept the state
 - an OrchestrationResult model representation of state orchestration output
 
 
-#### `update_artifact` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_artifacts/client.py#L120" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `update_artifact` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_artifacts/client.py#L180" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 update_artifact(self, artifact_id: 'UUID', artifact: 'ArtifactUpdate') -> None
@@ -1754,7 +1755,7 @@ update_flow_run_labels(self, flow_run_id: 'UUID', labels: 'KeyValueLabelsField')
 Updates the labels of a flow run.
 
 
-#### `update_global_concurrency_limit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_concurrency_limits/client.py#L821" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `update_global_concurrency_limit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_concurrency_limits/client.py#L833" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 update_global_concurrency_limit(self, name: str, concurrency_limit: 'GlobalConcurrencyLimitUpdate') -> 'Response'
@@ -1806,7 +1807,7 @@ Update properties of a work queue.
 - `httpx.RequestError`: if the request fails
 
 
-#### `upsert_global_concurrency_limit_by_name` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_concurrency_limits/client.py#L870" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `upsert_global_concurrency_limit_by_name` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_concurrency_limits/client.py#L882" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 upsert_global_concurrency_limit_by_name(self, name: str, limit: int) -> None
@@ -1915,7 +1916,7 @@ Returns the count of flow runs matching all criteria for flow runs.
 - count of flow runs
 
 
-#### `create_artifact` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_artifacts/client.py#L44" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `create_artifact` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_artifacts/client.py#L45" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 create_artifact(self, artifact: 'ArtifactCreate') -> 'Artifact'
@@ -2155,7 +2156,7 @@ Creates a flow run input.
 - `sender`: The sender of the input.
 
 
-#### `create_global_concurrency_limit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_concurrency_limits/client.py#L356" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `create_global_concurrency_limit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_concurrency_limits/client.py#L362" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 create_global_concurrency_limit(self, concurrency_limit: 'GlobalConcurrencyLimitCreate') -> 'UUID'
@@ -2243,7 +2244,7 @@ were held.
 - "Response": The HTTP response from the server.
 
 
-#### `delete_artifact` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_artifacts/client.py#L63" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `delete_artifact` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_artifacts/client.py#L98" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 delete_artifact(self, artifact_id: 'UUID') -> None
@@ -2366,7 +2367,7 @@ Deletes a flow run input.
 - `key`: The input key.
 
 
-#### `delete_global_concurrency_limit_by_name` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_concurrency_limits/client.py#L391" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `delete_global_concurrency_limit_by_name` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_concurrency_limits/client.py#L397" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 delete_global_concurrency_limit_by_name(self, name: str) -> 'Response'
@@ -2482,7 +2483,7 @@ Increment concurrency slots for the specified limits.
 #### `increment_concurrency_slots_with_lease` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_concurrency_limits/client.py#L266" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-increment_concurrency_slots_with_lease(self, names: list[str], slots: int, mode: Literal['concurrency', 'rate_limit'], lease_duration: float) -> 'Response'
+increment_concurrency_slots_with_lease(self, names: list[str], slots: int, mode: Literal['concurrency', 'rate_limit'], lease_duration: float, holder: dict[str, Any] | None = None) -> 'Response'
 ```
 
 Increment concurrency slots for the specified limits with a lease.
@@ -2492,6 +2493,7 @@ Increment concurrency slots for the specified limits with a lease.
 - `slots`: The number of concurrency slots to occupy.
 - `mode`: The mode of the concurrency limits.
 - `lease_duration`: The duration of the lease in seconds.
+- `holder`: Optional holder information for tracking who holds the slots.
 
 
 #### `increment_v1_concurrency_slots` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_concurrency_limits/client.py#L189" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
@@ -2535,7 +2537,7 @@ Pause a deployment by ID.
 raise_for_api_version_mismatch(self) -> None
 ```
 
-#### `read_artifacts` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_artifacts/client.py#L77" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `read_artifacts` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_artifacts/client.py#L112" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_artifacts(self, **kwargs: Unpack['ArtifactReadParams']) -> list['Artifact']
@@ -2936,19 +2938,19 @@ be returned.
 - a list of Flow model representations of the flows
 
 
-#### `read_global_concurrency_limit_by_name` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_concurrency_limits/client.py#L405" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `read_global_concurrency_limit_by_name` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_concurrency_limits/client.py#L411" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_global_concurrency_limit_by_name(self, name: str) -> 'GlobalConcurrencyLimitResponse'
 ```
 
-#### `read_global_concurrency_limits` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_concurrency_limits/client.py#L452" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `read_global_concurrency_limits` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_concurrency_limits/client.py#L458" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_global_concurrency_limits(self, limit: int = 10, offset: int = 0) -> list['GlobalConcurrencyLimitResponse']
 ```
 
-#### `read_latest_artifacts` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_artifacts/client.py#L177" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `read_latest_artifacts` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_artifacts/client.py#L247" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_latest_artifacts(self, **kwargs: Unpack['ArtifactCollectionReadParams']) -> list['ArtifactCollection']
@@ -3089,7 +3091,7 @@ member workers.
 - `offset`: Limit for the worker query.
 
 
-#### `release_concurrency_slots` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_concurrency_limits/client.py#L312" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `release_concurrency_slots` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_concurrency_limits/client.py#L318" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 release_concurrency_slots(self, names: list[str], slots: int, occupancy_seconds: float) -> 'Response'
@@ -3107,7 +3109,7 @@ were occupied.
 - "Response": The HTTP response from the server.
 
 
-#### `release_concurrency_slots_with_lease` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_concurrency_limits/client.py#L338" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `release_concurrency_slots_with_lease` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_concurrency_limits/client.py#L344" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 release_concurrency_slots_with_lease(self, lease_id: 'UUID') -> 'Response'
@@ -3119,7 +3121,7 @@ Release concurrency slots for the specified lease.
 - `lease_id`: The ID of the lease corresponding to the concurrency limits to release.
 
 
-#### `renew_concurrency_lease` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_concurrency_limits/client.py#L293" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `renew_concurrency_lease` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_concurrency_limits/client.py#L299" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 renew_concurrency_lease(self, lease_id: 'UUID', lease_duration: float) -> 'Response'
@@ -3268,7 +3270,7 @@ forcing the Prefect API to accept the state
 - an OrchestrationResult model representation of state orchestration output
 
 
-#### `update_artifact` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_artifacts/client.py#L54" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `update_artifact` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_artifacts/client.py#L79" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 update_artifact(self, artifact_id: 'UUID', artifact: 'ArtifactUpdate') -> None
@@ -3356,7 +3358,7 @@ update_flow_run_labels(self, flow_run_id: 'UUID', labels: 'KeyValueLabelsField')
 Updates the labels of a flow run.
 
 
-#### `update_global_concurrency_limit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_concurrency_limits/client.py#L374" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `update_global_concurrency_limit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_concurrency_limits/client.py#L380" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 update_global_concurrency_limit(self, name: str, concurrency_limit: 'GlobalConcurrencyLimitUpdate') -> 'Response'
@@ -3390,7 +3392,7 @@ Updates a work pool.
 - `work_pool`: Fields to update in the work pool.
 
 
-#### `upsert_global_concurrency_limit_by_name` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_concurrency_limits/client.py#L423" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `upsert_global_concurrency_limit_by_name` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_concurrency_limits/client.py#L429" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 upsert_global_concurrency_limit_by_name(self, name: str, limit: int) -> None

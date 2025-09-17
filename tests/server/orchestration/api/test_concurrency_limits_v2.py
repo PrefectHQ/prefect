@@ -338,6 +338,156 @@ async def test_increment_concurrency_limit_with_lease_simple(
     assert lease.metadata == ConcurrencyLimitLeaseMetadata(slots=1)
 
 
+async def test_increment_concurrency_limit_with_lease_and_holder(
+    client: AsyncClient,
+    concurrency_limit: ConcurrencyLimitV2,
+):
+    # Test with flow_run holder
+    flow_run_holder = {"type": "flow_run", "id": str(uuid.uuid4())}
+
+    response = await client.post(
+        "/v2/concurrency_limits/increment-with-lease",
+        json={
+            "names": [concurrency_limit.name],
+            "slots": 1,
+            "mode": "concurrency",
+            "holder": flow_run_holder,
+        },
+    )
+    assert response.status_code == 200
+    assert response.json()["lease_id"]
+    # Holder should not be in response
+    assert "holder" not in response.json()
+
+    lease_id = response.json()["lease_id"]
+
+    # Verify the lease has the holder information internally
+    lease_storage = get_concurrency_lease_storage()
+    lease = await lease_storage.read_lease(uuid.UUID(lease_id))
+    assert lease
+    assert lease.metadata.holder.model_dump(mode="json") == flow_run_holder
+
+
+async def test_increment_concurrency_limit_with_different_holder_types(
+    client: AsyncClient,
+    concurrency_limit: ConcurrencyLimitV2,
+):
+    # Test with task_run holder
+    task_run_holder = {
+        "type": "task_run",
+        "id": str(uuid.uuid4()),
+    }
+
+    response = await client.post(
+        "/v2/concurrency_limits/increment-with-lease",
+        json={
+            "names": [concurrency_limit.name],
+            "slots": 1,
+            "mode": "concurrency",
+            "holder": task_run_holder,
+        },
+    )
+    assert response.status_code == 200
+    assert "holder" not in response.json()
+
+    # Clean up
+    await client.post(
+        "/v2/concurrency_limits/decrement-with-lease",
+        json={"lease_id": response.json()["lease_id"]},
+    )
+
+    # Test with deployment holder
+    deployment_holder = {
+        "type": "deployment",
+        "id": str(uuid.uuid4()),
+    }
+
+    response = await client.post(
+        "/v2/concurrency_limits/increment-with-lease",
+        json={
+            "names": [concurrency_limit.name],
+            "slots": 1,
+            "mode": "concurrency",
+            "holder": deployment_holder,
+        },
+    )
+    assert response.status_code == 200
+    assert "holder" not in response.json()
+
+
+async def test_increment_concurrency_limit_with_invalid_holder(
+    client: AsyncClient,
+    concurrency_limit: ConcurrencyLimitV2,
+):
+    # Test with invalid holder type
+    invalid_holder = {
+        "type": "invalid_type",
+        "id": str(uuid.uuid4()),
+    }
+
+    response = await client.post(
+        "/v2/concurrency_limits/increment-with-lease",
+        json={
+            "names": [concurrency_limit.name],
+            "slots": 1,
+            "mode": "concurrency",
+            "holder": invalid_holder,
+        },
+    )
+    assert response.status_code == 422
+
+    # Test with extra fields (should be rejected)
+    holder_with_extra = {
+        "type": "task_run",
+        "id": str(uuid.uuid4()),
+        "extra_field": "should_not_be_allowed",
+    }
+
+    response = await client.post(
+        "/v2/concurrency_limits/increment-with-lease",
+        json={
+            "names": [concurrency_limit.name],
+            "slots": 1,
+            "mode": "concurrency",
+            "holder": holder_with_extra,
+        },
+    )
+    assert response.status_code == 422
+
+    # Test with missing id field
+    holder_missing_id = {
+        "type": "flow_run",
+    }
+
+    response = await client.post(
+        "/v2/concurrency_limits/increment-with-lease",
+        json={
+            "names": [concurrency_limit.name],
+            "slots": 1,
+            "mode": "concurrency",
+            "holder": holder_missing_id,
+        },
+    )
+    assert response.status_code == 422
+
+
+async def test_increment_concurrency_limit_with_lease_no_holder(
+    client: AsyncClient,
+    concurrency_limit: ConcurrencyLimitV2,
+):
+    # Test without holder (should still work for backward compatibility)
+    response = await client.post(
+        "/v2/concurrency_limits/increment-with-lease",
+        json={
+            "names": [concurrency_limit.name],
+            "slots": 1,
+            "mode": "concurrency",
+        },
+    )
+    assert response.status_code == 200
+    assert response.json()["lease_id"]
+
+
 async def test_increment_concurrency_limit_with_lease_ttl(
     client: AsyncClient,
     concurrency_limit: ConcurrencyLimitV2,

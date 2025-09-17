@@ -36,6 +36,11 @@ prefect config view            # Inspect configuration
 
 ## Development Guidelines
 
+### Make sure you have a Prefect server or Prefect Cloud
+- use `prefect config view` to check your current profile
+- run `prefect server start` in the background if needed
+
+
 ### Code Conventions
 
 - Python 3.9+ with modern typing (`list[int]`, `T | None`)
@@ -53,9 +58,10 @@ prefect config view            # Inspect configuration
 ### Working on Issues
 
 - Create repros in `repros/` directory (gitignored)
-- Name files by issue number: `repros/1234.py`
+- Name files by issue number: `repros/1234.py` (only create one file per issue)
 - Reproduce before fixing
 - Add unit tests for fixes
+- DO NOT delete files from `repros/` directory after reproducing the issue unless asked
 
 ### PR Style
 
@@ -68,5 +74,6 @@ prefect config view            # Inspect configuration
 
 - GitHub issues are used for tracking issues (use the `gh` cli)
 - Pre-commit hooks required (never use `--no-verify`)
+- There are some slower pre-push hooks that may modify files on `git push`; when that happens, run `git commit --amend` to bring those into the prior commit (never use `--amend` in any other situation unless asked)
 - Dependencies: updates to client-side deps in `@pyproject.toml` require parallel changes ing `@client/pyproject.toml`
 - AGENTS.md always symlinked to CLAUDE.md

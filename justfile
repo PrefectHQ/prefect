@@ -33,11 +33,28 @@ clean: check-uv
 
 # Generate API reference documentation for all modules
 api-ref-all:
-    uvx --with-editable . --refresh-package mdxify mdxify@latest --all --root-module prefect --output-dir docs/v3/api-ref/python --anchor-name "Python SDK Reference" --exclude prefect.agent --include-inheritance
+    uvx --with-editable . \
+        --refresh-package mdxify \
+        mdxify@latest \
+        --all \
+        --root-module prefect \
+        --output-dir docs/v3/api-ref/python \
+        --anchor-name "Python SDK Reference" \
+        --repo-url https://github.com/PrefectHQ/prefect \
+        --exclude prefect.agent \
+        --include-inheritance
 
 # Generate API reference for specific modules (e.g., just api-ref prefect.flows prefect.tasks)
 api-ref *MODULES:
-    uvx --with-editable . --refresh-package mdxify mdxify@latest {{MODULES}} --root-module prefect --output-dir docs/v3/api-ref/python --anchor-name "Python SDK Reference" --include-inheritance
+    uvx --with-editable . \
+        --refresh-package mdxify \
+        mdxify@latest \
+        {{MODULES}} \
+        --root-module prefect \
+        --output-dir docs/v3/api-ref/python \
+        --anchor-name "Python SDK Reference" \
+        --repo-url https://github.com/PrefectHQ/prefect \
+        --include-inheritance
 
 # Clean up API reference documentation
 api-ref-clean:
@@ -46,6 +63,28 @@ api-ref-clean:
 # Generate example pages
 generate-examples:
     uv run --isolated -p 3.13 --with anyio scripts/generate_example_pages.py
+
+# Generate OpenAPI documentation
+generate-openapi:
+    uv run --isolated -p 3.9 --with 'pydantic>=2.9.0' ./scripts/generate_mintlify_openapi_docs.py
+
+# Generate settings schema and reference
+generate-settings:
+    uv run --isolated -p 3.9 --with 'pydantic>=2.9.0' ./scripts/generate_settings_schema.py
+    uv run --isolated -p 3.9 --with 'pydantic>=2.9.0' ./scripts/generate_settings_ref.py
+
+# Generate all documentation (OpenAPI, settings, API ref, examples)
+generate-docs:
+    @echo "Generating all documentation..."
+    @echo "1. Generating OpenAPI docs..."
+    @just generate-openapi
+    @echo "2. Generating settings schema and reference..."
+    @just generate-settings
+    @echo "3. Generating API reference..."
+    @just api-ref-all
+    @echo "4. Generating example pages..."
+    @just generate-examples
+    @echo "Documentation generation complete!"
 
 # Prepare release notes from a GitHub draft release
 # Usage: just prepare-release 3.5.0

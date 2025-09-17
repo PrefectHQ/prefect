@@ -11,19 +11,22 @@ from uuid import uuid4
 import httpx
 
 import prefect
-import prefect.settings
 from prefect.server.database import PrefectDBInterface
 from prefect.server.database.dependencies import db_injector
 from prefect.server.models import configuration
 from prefect.server.schemas.core import Configuration
-from prefect.server.services.base import LoopService, RunInAllServers
+from prefect.server.services.base import (
+    LoopService,
+    RunInEphemeralServers,
+    RunInWebservers,
+)
 from prefect.settings import PREFECT_DEBUG_MODE
 from prefect.settings.context import get_current_settings
 from prefect.settings.models.server.services import ServicesBaseSetting
 from prefect.types._datetime import now
 
 
-class Telemetry(RunInAllServers, LoopService):
+class Telemetry(RunInEphemeralServers, RunInWebservers, LoopService):
     """
     Sends anonymous data to Prefect to help us improve
 

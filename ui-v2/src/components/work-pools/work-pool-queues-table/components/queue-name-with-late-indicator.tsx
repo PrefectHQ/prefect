@@ -1,7 +1,8 @@
+import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
+import { buildCountFlowRunsQuery } from "@/api/flow-runs";
 import type { WorkPoolQueue } from "@/api/work-pool-queues";
 import { LateFlowRunsIndicator } from "@/components/flow-runs/late-flow-runs-indicator";
-import { Badge } from "@/components/ui/badge";
 
 type QueueNameWithLateIndicatorProps = {
 	queue: WorkPoolQueue;
@@ -10,12 +11,28 @@ type QueueNameWithLateIndicatorProps = {
 export const QueueNameWithLateIndicator = ({
 	queue,
 }: QueueNameWithLateIndicatorProps) => {
-	const isDefault = queue.name === "default";
-
-	// TODO: Implement proper late flow runs detection when API supports it
-	// For now, using a mock count to demonstrate the feature
-	const lateRunsCount =
-		queue.name === "default" ? 0 : Math.floor(Math.random() * 3);
+	const { data: lateRunsCount = 0 } = useQuery(
+		buildCountFlowRunsQuery(
+			{
+				work_pools: {
+					operator: "and_",
+					name: { any_: [queue.work_pool_name || ""] },
+				},
+				work_pool_queues: {
+					operator: "and_",
+					name: { any_: [queue.name] },
+				},
+				flow_runs: {
+					operator: "and_",
+					state: {
+						operator: "and_",
+						name: { any_: ["Late"] },
+					},
+				},
+			},
+			30000,
+		),
+	);
 
 	return (
 		<div className="flex items-center space-x-2">
@@ -29,11 +46,6 @@ export const QueueNameWithLateIndicator = ({
 			>
 				{queue.name}
 			</Link>
-			{isDefault && (
-				<Badge variant="secondary" className="text-xs">
-					Default
-				</Badge>
-			)}
 			<LateFlowRunsIndicator lateRunsCount={lateRunsCount} />
 		</div>
 	);

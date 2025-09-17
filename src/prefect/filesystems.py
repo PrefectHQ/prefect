@@ -515,6 +515,10 @@ class RemoteFileSystem(WritableFileSystem, WritableDeploymentStorage):
         path = self._resolve_path(path)
         dirpath = path[: path.rindex("/")]
 
+        if self.basepath.startswith("smb://"):
+            parsed = urllib.parse.urlparse(dirpath)
+            dirpath = parsed.path
+
         self.filesystem.makedirs(dirpath, exist_ok=True)
 
         with self.filesystem.open(path, "wb") as file:

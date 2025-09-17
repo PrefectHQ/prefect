@@ -77,7 +77,7 @@ describe("WorkPoolPageHeader", () => {
 		render(<WorkPoolPageHeader workPool={mockWorkPool} />, {
 			wrapper: Wrapper,
 		});
-		expect(screen.getByText("Work Pools")).toBeInTheDocument();
+		expect(screen.getByText("Work pools")).toBeInTheDocument();
 		// Check that the work pool name appears in the breadcrumb
 		const breadcrumb = screen.getByRole("navigation", { name: /breadcrumb/i });
 		expect(breadcrumb).toHaveTextContent(mockWorkPool.name);
@@ -88,10 +88,11 @@ describe("WorkPoolPageHeader", () => {
 		render(<WorkPoolPageHeader workPool={mockWorkPool} />, {
 			wrapper: Wrapper,
 		});
-		// Check the heading contains the work pool name
-		const heading = screen.getByRole("heading");
-		expect(heading).toHaveTextContent(mockWorkPool.name);
-		expect(screen.getByTestId("work-pool-status-badge")).toBeInTheDocument();
+		// Check the work pool name appears in the breadcrumb page
+		expect(screen.getByText(mockWorkPool.name)).toBeInTheDocument();
+		// The component doesn't render a status badge directly, it's just the toggle and menu
+		expect(screen.getByTestId("work-pool-toggle")).toBeInTheDocument();
+		expect(screen.getByTestId("work-pool-menu")).toBeInTheDocument();
 	});
 
 	it("shows actions components", () => {

@@ -35,7 +35,7 @@ jobs:
           echo "PACKAGE_VERSION=$PACKAGE_VERSION" >> $GITHUB_OUTPUT
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.9"
           cache: "pip"
@@ -48,7 +48,7 @@ jobs:
           version: latest
 
       - name: Set up node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         if: ${{ steps.package_name.outputs.PACKAGE_NAME }} == 'prefect-aws'
         with:
           node-version-file: "src/integrations/prefect-aws/infra/.nvmrc"

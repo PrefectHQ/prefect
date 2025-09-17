@@ -797,6 +797,8 @@ class ECSWorker(BaseWorker[ECSJobConfiguration, ECSVariables, ECSWorkerResult]):
                         + ", ".join(placeholders)
                     )
 
+        # Note: _prepare_task_definition (called later) mutates the task definition so
+        # validation needs to account for the mutation logic
         self._validate_task_definition(task_definition, configuration)
 
         if flow_run.deployment_id:
@@ -948,28 +950,6 @@ class ECSWorker(BaseWorker[ECSJobConfiguration, ECSVariables, ECSWorkerResult]):
 
         Raises `ValueError` on incompatibility. Returns `None` on success.
         """
-        launch_type = configuration.task_run_request.get(
-            "launchType", ECS_DEFAULT_LAUNCH_TYPE
-        )
-        if (
-            launch_type != "EC2"
-            and "FARGATE" not in task_definition["requiresCompatibilities"]
-        ):
-            raise ValueError(
-                "Task definition does not have 'FARGATE' in 'requiresCompatibilities'"
-                f" and cannot be used with launch type {launch_type!r}"
-            )
-
-        if launch_type == "FARGATE" or launch_type == "FARGATE_SPOT":
-            # Only the 'awsvpc' network mode is supported when using FARGATE
-            network_mode = task_definition.get("networkMode")
-            if network_mode != "awsvpc":
-                raise ValueError(
-                    f"Found network mode {network_mode!r} which is not compatible with "
-                    f"launch type {launch_type!r}. Use either the 'EC2' launch "
-                    "type or the 'awsvpc' network mode."
-                )
-
         if configuration.configure_cloudwatch_logs and not task_definition.get(
             "executionRoleArn"
         ):
@@ -978,6 +958,44 @@ class ECSWorker(BaseWorker[ECSJobConfiguration, ECSVariables, ECSWorkerResult]):
                 "`configure_cloudwatch_logs` or `stream_logs` but no execution role "
                 "was found on the task definition."
             )
+
+        launch_type = configuration.task_run_request.get("launchType")
+        capacity_provider_strategy = configuration.task_run_request.get(
+            "capacityProviderStrategy"
+        )
+
+        # Users may submit a job with a custom capacity provider strategy which requires
+        # launch type to be empty.
+        if not launch_type and not capacity_provider_strategy:
+            launch_type = ECS_DEFAULT_LAUNCH_TYPE
+
+        # Fargate spot requires a launch type and a capacity provider strategy
+        # otherwise we're valid with a capacity provider strategy alone
+        if capacity_provider_strategy and launch_type != "FARGATE_SPOT":
+            return
+
+        # Default launch type in compatibilities to maintain functionality with
+        # _prepare_task_definition which sets requiresCompatibilties to FARGATE
+        # which is the default launch type.
+        if launch_type != "EC2" and "FARGATE" not in task_definition.get(
+            "requiresCompatibilities", [ECS_DEFAULT_LAUNCH_TYPE]
+        ):
+            raise ValueError(
+                "Task definition does not have 'FARGATE' in 'requiresCompatibilities'"
+                f" and cannot be used with launch type {launch_type!r}"
+            )
+
+        if launch_type == "FARGATE" or launch_type == "FARGATE_SPOT":
+            # Only the 'awsvpc' network mode is supported when using FARGATE
+            # Default to 'awsvpc' if not provided to maintain functionality with
+            # _prepare_task_definition which sets network mode to 'awsvpc' if not provided.
+            network_mode = task_definition.get("networkMode", "awsvpc")
+            if network_mode != "awsvpc":
+                raise ValueError(
+                    f"Found network mode {network_mode!r} which is not compatible with "
+                    f"launch type {launch_type!r}. Use either the 'EC2' launch "
+                    "type or the 'awsvpc' network mode."
+                )
 
     def _register_task_definition(
         self,
@@ -1121,9 +1139,7 @@ class ECSWorker(BaseWorker[ECSJobConfiguration, ECSVariables, ECSWorkerResult]):
         cpu = task_definition.get("cpu") or ECS_DEFAULT_CPU
         memory = task_definition.get("memory") or ECS_DEFAULT_MEMORY
 
-        launch_type = configuration.task_run_request.get(
-            "launchType", ECS_DEFAULT_LAUNCH_TYPE
-        )
+        launch_type = configuration.task_run_request.get("launchType")
 
         if launch_type == "FARGATE" or launch_type == "FARGATE_SPOT":
             # Task level memory and cpu are required when using fargate
@@ -1141,14 +1157,10 @@ class ECSWorker(BaseWorker[ECSJobConfiguration, ECSVariables, ECSWorkerResult]):
             # However, we will not enforce that here if the user has set it
             task_definition.setdefault("networkMode", "awsvpc")
 
-        elif launch_type == "EC2":
-            # Container level memory and cpu are required when using ec2
-            container.setdefault("cpu", cpu)
-            container.setdefault("memory", memory)
-
-            # Ensure set values are cast to integers
-            container["cpu"] = int(container["cpu"])
-            container["memory"] = int(container["memory"])
+        else:
+            # Container level memory and cpu are required when using non-FARGATE launch types
+            container.setdefault("cpu", int(cpu))
+            container.setdefault("memory", int(memory))
 
         # Ensure set values are cast to strings
         if task_definition.get("cpu"):

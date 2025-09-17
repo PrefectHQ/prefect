@@ -4103,6 +4103,8 @@ export interface components {
              * @default 300
              */
             lease_duration: number;
+            /** @description The holder of the lease with type (flow_run, task_run, or deployment) and id. */
+            holder?: components["schemas"]["ConcurrencyLeaseHolder"] | null;
         };
         /** Body_clear_database_admin_database_clear_post */
         Body_clear_database_admin_database_clear_post: {
@@ -5057,6 +5059,22 @@ export interface components {
             within: number | null;
             /** Require */
             require: number | ("any" | "all");
+        };
+        /**
+         * ConcurrencyLeaseHolder
+         * @description Model for validating concurrency lease holder information.
+         */
+        ConcurrencyLeaseHolder: {
+            /**
+             * Type
+             * @enum {string}
+             */
+            type: "flow_run" | "task_run" | "deployment";
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
         };
         /**
          * ConcurrencyLimit
@@ -8225,6 +8243,11 @@ export interface components {
             job_variables?: {
                 [key: string]: unknown;
             } | null;
+            /**
+             * Schedule After
+             * @description The amount of time to wait before running the deployment. Defaults to running the deployment immediately.
+             */
+            schedule_after?: number;
         };
         /**
          * SavedSearch

@@ -29,7 +29,7 @@ from prefect import __version__, aserve, flow, serve, task
 from prefect._experimental.bundles import create_bundle_for_flow_run
 from prefect._internal.compatibility.deprecated import PrefectDeprecationWarning
 from prefect._versioning import VersionType
-from prefect.cli.deploy import _PullStepStorage
+from prefect.cli.deploy._storage import _PullStepStorage
 from prefect.client.orchestration import PrefectClient, SyncPrefectClient
 from prefect.client.schemas.actions import DeploymentScheduleCreate
 from prefect.client.schemas.objects import (
@@ -1715,6 +1715,29 @@ class TestRunner:
         flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
         assert flow_run.state
         assert flow_run.state.is_completed()
+
+    async def test_runner_temp_dir_creation_is_idempotent(self):
+        """
+        Test that Runner temp directory creation is idempotent
+        and handles the case where the directory already exists.
+
+        This tests the fix for the race condition where multiple flow runs
+        could try to create the same temp directory when the runner is
+        entered as a context manager.
+        """
+        runner = Runner()
+
+        # Manually create the temp directory to simulate race condition
+        runner._tmp_dir.mkdir(parents=True, exist_ok=False)
+
+        # Now entering the runner context should not fail even though
+        # the directory already exists (with exist_ok=True fix)
+        async with runner:
+            assert runner.started
+            assert runner._tmp_dir.exists()
+
+        # Directory should be cleaned up after exiting context
+        assert not runner._tmp_dir.exists()
 
     class TestRunnerBundleExecution:
         @pytest.fixture(autouse=True)

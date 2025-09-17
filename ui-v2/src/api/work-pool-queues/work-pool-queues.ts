@@ -1,4 +1,5 @@
 import {
+	keepPreviousData,
 	queryOptions,
 	useMutation,
 	useQueryClient,
@@ -79,6 +80,7 @@ export const buildListWorkPoolQueuesQuery = (workPoolName: string) =>
 			return res.data;
 		},
 		refetchInterval: 30000, // 30 seconds for real-time updates
+		placeholderData: keepPreviousData,
 	});
 
 /**
@@ -181,6 +183,34 @@ export const useResumeWorkPoolQueueMutation = () => {
 			});
 			void queryClient.invalidateQueries({
 				queryKey: workPoolQueuesQueryKeyFactory.detail(workPoolName, queueName),
+			});
+		},
+	});
+};
+
+/**
+ * Hook for creating a work pool queue
+ * @returns Mutation for creating a work pool queue
+ */
+export const useCreateWorkPoolQueueMutation = () => {
+	const queryClient = useQueryClient();
+
+	return useMutation({
+		mutationFn: ({
+			workPoolName,
+			workQueueData,
+		}: {
+			workPoolName: string;
+			workQueueData: WorkPoolQueueCreate;
+		}) =>
+			getQueryService().POST("/work_pools/{work_pool_name}/queues", {
+				params: { path: { work_pool_name: workPoolName } },
+				body: workQueueData,
+			}),
+
+		onSuccess: (_, { workPoolName }) => {
+			void queryClient.invalidateQueries({
+				queryKey: workPoolQueuesQueryKeyFactory.list(workPoolName),
 			});
 		},
 	});

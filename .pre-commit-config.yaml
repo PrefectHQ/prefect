@@ -9,9 +9,9 @@ repos:
       - id: no-commit-to-branch
         args: [--branch, main]
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.12.10
+    rev: v0.13.0
     hooks:
-      - id: ruff
+      - id: ruff-check
         language_version: python3
         args: [--fix, --exit-non-zero-on-fix, --show-fixes]
       - id: ruff-format
@@ -45,40 +45,6 @@ repos:
 
   - repo: local
     hooks:
-      - id: auto-generate-documentation
-        name: Auto-generating Documentation
-        language: system
-        entry: uv run --isolated -p 3.9 --with 'pydantic>=2.9.0' ./scripts/run_precommit_generation_scripts.py
-        pass_filenames: false
-        files: |
-          (?x)^(
-              .pre-commit-config.yaml|
-              src/prefect/.*\.py$|
-              src/prefect/server/api/.*|
-              src/prefect/server/schemas/.*|
-              src/prefect/server/events/.*|
-              src/prefect/settings/models/.*|
-              scripts/generate_mintlify_openapi_docs.py|
-              scripts/generate_settings_schema.py|
-              scripts/generate_settings_ref.py|
-              scripts/generate_api_ref.py|
-              scripts/run_precommit_generation_scripts.py
-          )$
-        stages:
-          - pre-push
-      - id: generate-example-pages
-        name: Generate example pages
-        language: system
-        entry: uv run --isolated -p 3.13 --with anyio scripts/generate_example_pages.py
-        pass_filenames: false
-        files: |
-          (?x)^(
-              .pre-commit-config.yaml|
-              examples/.*|
-              scripts/generate_example_pages.py
-          )$
-        stages:
-          - pre-push
       - id: check-ui-v2
         name: Check UI v2
         language: system
