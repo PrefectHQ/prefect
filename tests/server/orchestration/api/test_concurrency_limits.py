@@ -508,3 +508,57 @@ class TestV1ToV2Adapter:
         # Verify it's gone via V1 API
         read_response = await client.get("/concurrency_limits/tag/delete-v2")
         assert read_response.status_code == status.HTTP_404_NOT_FOUND
+
+    async def test_pagination_when_many_leases(self, session, client):
+        """Test that operations handle pagination properly with many active leases."""
+        # Create a limit with high capacity
+        data = ConcurrencyLimitCreate(
+            tag="pagination-test",
+            concurrency_limit=200,
+        ).model_dump(mode="json")
+        response = await client.post("/concurrency_limits/", json=data)
+        assert response.status_code == status.HTTP_201_CREATED
+
+        # Acquire 150 slots (more than typical batch size of 100)
+        task_ids = []
+        for i in range(150):
+            task_id = str(uuid4())
+            task_ids.append(task_id)
+            inc_response = await client.post(
+                "/concurrency_limits/increment",
+                json={"names": ["pagination-test"], "task_run_id": task_id},
+            )
+            assert inc_response.status_code == status.HTTP_200_OK
+
+        # Read should show all 150 active slots
+        read_response = await client.get("/concurrency_limits/tag/pagination-test")
+        assert read_response.status_code == status.HTTP_200_OK
+        data = read_response.json()
+        assert len(data["active_slots"]) == 150
+
+        # Reset should clear all 150 leases (tests pagination in reset)
+        reset_response = await client.post(
+            "/concurrency_limits/tag/pagination-test/reset",
+            json={"slot_override": []},
+        )
+        assert reset_response.status_code == status.HTTP_200_OK
+
+        # Verify all slots cleared
+        read_response = await client.get("/concurrency_limits/tag/pagination-test")
+        data = read_response.json()
+        assert len(data["active_slots"]) == 0
+
+        # Re-acquire some slots for delete test
+        for i in range(120):
+            await client.post(
+                "/concurrency_limits/increment",
+                json={"names": ["pagination-test"], "task_run_id": task_ids[i]},
+            )
+
+        # Delete should clean up all 120 leases (tests pagination in delete)
+        delete_response = await client.delete("/concurrency_limits/tag/pagination-test")
+        assert delete_response.status_code == status.HTTP_200_OK
+
+        # Verify it's gone
+        read_response = await client.get("/concurrency_limits/tag/pagination-test")
+        assert read_response.status_code == status.HTTP_404_NOT_FOUND

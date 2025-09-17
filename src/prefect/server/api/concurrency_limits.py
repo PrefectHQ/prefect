@@ -253,12 +253,30 @@ async def reset_concurrency_limit_by_tag(
         if model:
             # Revoke all existing leases
             lease_storage = get_concurrency_lease_storage()
-            active_lease_ids = await lease_storage.read_active_lease_ids(limit=1000)
 
-            for lease_id in active_lease_ids:
-                lease = await lease_storage.read_lease(lease_id)
-                if lease and model.id in lease.resource_ids:
-                    await lease_storage.revoke_lease(lease_id)
+            # Keep fetching and revoking in batches until all are gone
+            batch_size = 100
+            offset = 0
+            while True:
+                active_lease_ids = await lease_storage.read_active_lease_ids(
+                    limit=batch_size, offset=offset
+                )
+                if not active_lease_ids:
+                    break
+
+                revoked_any = False
+                for lease_id in active_lease_ids:
+                    lease = await lease_storage.read_lease(lease_id)
+                    if lease and model.id in lease.resource_ids:
+                        await lease_storage.revoke_lease(lease_id)
+                        revoked_any = True
+
+                # If we didn't revoke any in this batch, we're done with this limit
+                if not revoked_any:
+                    offset += batch_size
+                else:
+                    # Start from beginning since we modified the list
+                    offset = 0
 
             # Create new leases for slot_override if provided
             if slot_override:
@@ -304,12 +322,30 @@ async def delete_concurrency_limit(
         if v2:
             # Clean up leases
             lease_storage = get_concurrency_lease_storage()
-            active_lease_ids = await lease_storage.read_active_lease_ids(limit=1000)
 
-            for lease_id in active_lease_ids:
-                lease = await lease_storage.read_lease(lease_id)
-                if lease and v2.id in lease.resource_ids:
-                    await lease_storage.revoke_lease(lease_id)
+            # Keep fetching and revoking in batches until all are gone
+            batch_size = 100
+            offset = 0
+            while True:
+                active_lease_ids = await lease_storage.read_active_lease_ids(
+                    limit=batch_size, offset=offset
+                )
+                if not active_lease_ids:
+                    break
+
+                revoked_any = False
+                for lease_id in active_lease_ids:
+                    lease = await lease_storage.read_lease(lease_id)
+                    if lease and v2.id in lease.resource_ids:
+                        await lease_storage.revoke_lease(lease_id)
+                        revoked_any = True
+
+                # If we didn't revoke any in this batch, we're done with this limit
+                if not revoked_any:
+                    offset += batch_size
+                else:
+                    # Start from beginning since we modified the list
+                    offset = 0
 
             # Delete V2
             await cl_v2_models.delete_concurrency_limit(
@@ -341,12 +377,30 @@ async def delete_concurrency_limit_by_tag(
         if model:
             # Clean up leases
             lease_storage = get_concurrency_lease_storage()
-            active_lease_ids = await lease_storage.read_active_lease_ids(limit=1000)
 
-            for lease_id in active_lease_ids:
-                lease = await lease_storage.read_lease(lease_id)
-                if lease and model.id in lease.resource_ids:
-                    await lease_storage.revoke_lease(lease_id)
+            # Keep fetching and revoking in batches until all are gone
+            batch_size = 100
+            offset = 0
+            while True:
+                active_lease_ids = await lease_storage.read_active_lease_ids(
+                    limit=batch_size, offset=offset
+                )
+                if not active_lease_ids:
+                    break
+
+                revoked_any = False
+                for lease_id in active_lease_ids:
+                    lease = await lease_storage.read_lease(lease_id)
+                    if lease and model.id in lease.resource_ids:
+                        await lease_storage.revoke_lease(lease_id)
+                        revoked_any = True
+
+                # If we didn't revoke any in this batch, we're done with this limit
+                if not revoked_any:
+                    offset += batch_size
+                else:
+                    # Start from beginning since we modified the list
+                    offset = 0
 
             # Delete V2
             await cl_v2_models.delete_concurrency_limit(
@@ -409,89 +463,93 @@ async def increment_concurrency_limits_v1(
         )
         v1_by_tag = {limit.tag: limit for limit in v1_limits}
 
-        # Track what we've acquired for rollback
-        acquired_v2_ids = []
-        acquired_v1_tags = []
+        # Check all zero limits upfront before acquiring any
+        for tag in names:
+            v2_limit = v2_by_name.get(f"tag:{tag}")
+            v1_limit = v1_by_tag.get(tag)
 
-        try:
-            for tag in names:
-                v2_limit = v2_by_name.get(f"tag:{tag}")
-                v1_limit = v1_by_tag.get(tag)
+            if v2_limit and v2_limit.limit == 0:
+                raise HTTPException(
+                    status_code=status.HTTP_423_LOCKED,
+                    detail=f'The concurrency limit on tag "{tag}" is 0 and will deadlock if the task tries to run again.',
+                )
+            elif v1_limit and v1_limit.concurrency_limit == 0:
+                raise HTTPException(
+                    status_code=status.HTTP_423_LOCKED,
+                    detail=f'The concurrency limit on tag "{tag}" is 0 and will deadlock if the task tries to run again.',
+                )
 
-                if v2_limit:
-                    # Use V2
-                    if v2_limit.limit == 0:
-                        raise Abort(
-                            reason=f'The concurrency limit on tag "{tag}" is 0 and will deadlock if the task tries to run again.'
-                        )
+        # Collect V2 limits to acquire in bulk
+        v2_to_acquire = []
+        v2_tags_map = {}  # Map limit IDs to tags for results
 
-                    if v2_limit.active:
-                        acquired = await cl_v2_models.bulk_increment_active_slots(
-                            session=session,
-                            concurrency_limit_ids=[v2_limit.id],
-                            slots=1,
-                        )
-                        if not acquired:
-                            raise Delay(
-                                delay_seconds=PREFECT_TASK_RUN_TAG_CONCURRENCY_SLOT_WAIT_SECONDS.value(),
-                                reason=f"Concurrency limit for the {tag} tag has been reached",
+        # Check V1 limits availability upfront
+        v1_to_acquire = []
+
+        for tag in names:
+            v2_limit = v2_by_name.get(f"tag:{tag}")
+            v1_limit = v1_by_tag.get(tag)
+
+            if v2_limit and v2_limit.active:
+                v2_to_acquire.append(v2_limit.id)
+                v2_tags_map[v2_limit.id] = tag
+            elif v1_limit:
+                # Check V1 limit availability
+                if len(v1_limit.active_slots) >= v1_limit.concurrency_limit:
+                    raise HTTPException(
+                        status_code=status.HTTP_423_LOCKED,
+                        detail=f"Concurrency limit for the {tag} tag has been reached",
+                        headers={
+                            "Retry-After": str(
+                                PREFECT_TASK_RUN_TAG_CONCURRENCY_SLOT_WAIT_SECONDS.value()
                             )
-                        acquired_v2_ids.append(v2_limit.id)
-                        results.append(
-                            MinimalConcurrencyLimitResponse(
-                                id=v2_limit.id, name=tag, limit=v2_limit.limit
-                            )
-                        )
-
-                elif v1_limit:
-                    # Use V1 (pre-migration compatibility)
-                    if v1_limit.concurrency_limit == 0:
-                        raise Abort(
-                            reason=f'The concurrency limit on tag "{tag}" is 0 and will deadlock if the task tries to run again.'
-                        )
-
-                    if len(v1_limit.active_slots) >= v1_limit.concurrency_limit:
-                        raise Delay(
-                            delay_seconds=PREFECT_TASK_RUN_TAG_CONCURRENCY_SLOT_WAIT_SECONDS.value(),
-                            reason=f"Concurrency limit for the {tag} tag has been reached",
-                        )
-
-                    # Apply V1 increment
-                    active_slots = set(v1_limit.active_slots)
-                    active_slots.add(str(task_run_id))
-                    v1_limit.active_slots = list(active_slots)
-                    acquired_v1_tags.append(tag)
-                    results.append(
-                        MinimalConcurrencyLimitResponse(
-                            id=v1_limit.id, name=tag, limit=v1_limit.concurrency_limit
-                        )
+                        },
                     )
+                v1_to_acquire.append(v1_limit)
 
-        except (Abort, Delay) as e:
-            # Rollback any acquired slots
-            if acquired_v2_ids:
-                await cl_v2_models.bulk_decrement_active_slots(
-                    session=session,
-                    concurrency_limit_ids=acquired_v2_ids,
-                    slots=1,
-                )
-            for tag in acquired_v1_tags:
-                cl = v1_by_tag[tag]
-                active_slots = set(cl.active_slots)
-                active_slots.discard(str(task_run_id))
-                cl.active_slots = list(active_slots)
+        # Bulk acquire all V2 limits at once
+        acquired_v2_ids = []
+        if v2_to_acquire:
+            acquired = await cl_v2_models.bulk_increment_active_slots(
+                session=session,
+                concurrency_limit_ids=v2_to_acquire,
+                slots=1,
+            )
+            if not acquired:
+                # Find which limit was at capacity
+                for lid in v2_to_acquire:
+                    tag = v2_tags_map[lid]
+                    raise HTTPException(
+                        status_code=status.HTTP_423_LOCKED,
+                        detail=f"Concurrency limit for the {tag} tag has been reached",
+                        headers={
+                            "Retry-After": str(
+                                PREFECT_TASK_RUN_TAG_CONCURRENCY_SLOT_WAIT_SECONDS.value()
+                            )
+                        },
+                    )
+            acquired_v2_ids = v2_to_acquire
 
-            if isinstance(e, Delay):
-                raise HTTPException(
-                    status_code=status.HTTP_423_LOCKED,
-                    detail=e.reason,
-                    headers={"Retry-After": str(e.delay_seconds)},
+            # Add V2 results
+            for lid in acquired_v2_ids:
+                tag = v2_tags_map[lid]
+                limit = v2_by_name[f"tag:{tag}"]
+                results.append(
+                    MinimalConcurrencyLimitResponse(
+                        id=limit.id, name=tag, limit=limit.limit
+                    )
                 )
-            else:
-                raise HTTPException(
-                    status_code=status.HTTP_423_LOCKED,
-                    detail=e.reason,
+
+        # Apply V1 increments (already checked availability)
+        for v1_limit in v1_to_acquire:
+            active_slots = set(v1_limit.active_slots)
+            active_slots.add(str(task_run_id))
+            v1_limit.active_slots = list(active_slots)
+            results.append(
+                MinimalConcurrencyLimitResponse(
+                    id=v1_limit.id, name=v1_limit.tag, limit=v1_limit.concurrency_limit
                 )
+            )
 
     # Create lease for V2 limits
     if acquired_v2_ids:
@@ -527,45 +585,66 @@ async def decrement_concurrency_limits_v1(
     v2_names = [f"tag:{tag}" for tag in names]
 
     async with db.session_context(begin_transaction=True) as session:
-        # Get V2 limits
-        v2_limits = {}
-        for tag, v2_name in zip(names, v2_names):
-            model = await cl_v2_models.read_concurrency_limit(
-                session=session, name=v2_name
-            )
-            if model:
-                v2_limits[tag] = model
+        # Bulk read V2 limits
+        v2_limits = await cl_v2_models.bulk_read_concurrency_limits(
+            session=session, names=v2_names
+        )
+        v2_by_name = {limit.name: limit for limit in v2_limits}
+        v2_by_id = {limit.id: limit for limit in v2_limits}
 
         # Find and revoke lease for V2 limits
         if v2_limits:
-            v2_limit_ids = [m.id for m in v2_limits.values()]
-            active_lease_ids = await lease_storage.read_active_lease_ids(limit=1000)
-            for lease_id in active_lease_ids:
-                lease = await lease_storage.read_lease(lease_id)
-                if lease and lease.metadata:
-                    holder = getattr(lease.metadata, "holder", None)
-                    if (
-                        holder
-                        and getattr(holder, "type", None) == "task_run"
-                        and str(getattr(holder, "id", None)) == str(task_run_id)
-                        and any(lid in lease.resource_ids for lid in v2_limit_ids)
-                    ):
-                        # Found the lease - decrement and revoke
-                        await cl_v2_models.bulk_decrement_active_slots(
-                            session=session,
-                            concurrency_limit_ids=lease.resource_ids,
-                            slots=lease.metadata.slots if lease.metadata else 1,
-                        )
-                        await lease_storage.revoke_lease(lease_id)
-                        # Add decremented V2 limits to results
-                        for tag, limit in v2_limits.items():
-                            if limit.id in lease.resource_ids:
-                                results.append(
-                                    MinimalConcurrencyLimitResponse(
-                                        id=limit.id, name=tag, limit=limit.limit
+            v2_limit_ids = [m.id for m in v2_limits]
+
+            # Search through leases in batches to find the one for this task run
+            batch_size = 100
+            found_lease = False
+            offset = 0
+
+            # Search through active leases using pagination
+            while not found_lease:
+                active_lease_ids = await lease_storage.read_active_lease_ids(
+                    limit=batch_size, offset=offset
+                )
+                if not active_lease_ids:
+                    break
+
+                for lease_id in active_lease_ids:
+                    lease = await lease_storage.read_lease(lease_id)
+                    if lease and lease.metadata:
+                        holder = getattr(lease.metadata, "holder", None)
+                        if (
+                            holder
+                            and getattr(holder, "type", None) == "task_run"
+                            and str(getattr(holder, "id", None)) == str(task_run_id)
+                            and any(lid in lease.resource_ids for lid in v2_limit_ids)
+                        ):
+                            # Found the lease - bulk decrement and revoke
+                            await cl_v2_models.bulk_decrement_active_slots(
+                                session=session,
+                                concurrency_limit_ids=lease.resource_ids,
+                                slots=lease.metadata.slots if lease.metadata else 1,
+                            )
+                            await lease_storage.revoke_lease(lease_id)
+
+                            # Add all decremented V2 limits to results
+                            for lid in lease.resource_ids:
+                                if lid in v2_by_id:
+                                    limit = v2_by_id[lid]
+                                    tag = limit.name.removeprefix("tag:")
+                                    results.append(
+                                        MinimalConcurrencyLimitResponse(
+                                            id=limit.id, name=tag, limit=limit.limit
+                                        )
                                     )
-                                )
-                        break
+                            found_lease = True
+                            break
+
+                # Stop searching if found
+                if found_lease:
+                    break
+
+                offset += batch_size
 
         # Handle V1 decrements (for pre-migration compatibility)
         v1_limits = (
@@ -575,7 +654,8 @@ async def decrement_concurrency_limits_v1(
         )
         for cl in v1_limits:
             # Skip if already handled as V2
-            if cl.tag not in v2_limits:
+            v2_name = f"tag:{cl.tag}"
+            if v2_name not in v2_by_name:
                 active_slots = set(cl.active_slots)
                 if str(task_run_id) in active_slots:
                     active_slots.discard(str(task_run_id))
