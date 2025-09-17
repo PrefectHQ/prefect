@@ -5,9 +5,9 @@ import router from '@/router'
 import { initColorMode } from '@/utilities/colorMode'
 
 // styles
-import '@prefecthq/vue-charts/dist/style.css'
-import '@prefecthq/prefect-design/dist/prefect-design.css'
-import '@prefecthq/prefect-ui-library/dist/prefect-ui-library.css'
+import '@prefecthq/vue-charts/vue-charts.css'
+import '@prefecthq/prefect-design/prefect-design.css'
+import '@prefecthq/prefect-ui-library/prefect-ui-library.css'
 import '@/styles/style.css'
 
 // We want components imported last because import order determines style order

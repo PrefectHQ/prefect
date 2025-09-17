@@ -56,14 +56,16 @@
     MarketingBanner,
     Getter,
     DateRangeSelect,
-    useWorkspaceDashboardFilterFromRoute
+    useWorkspaceDashboardFilterFromRoute,
+    dateFunctions,
+    secondsInDay
   } from '@prefecthq/prefect-ui-library'
   import { useSubscription } from '@prefecthq/vue-compositions'
-  import { secondsInDay, secondsToMilliseconds } from 'date-fns'
   import { computed, provide } from 'vue'
 
+
   provide(subscriptionIntervalKey, {
-    interval: secondsToMilliseconds(30),
+    interval: dateFunctions.secondsToMilliseconds(30),
   })
 
   const api = useWorkspaceApi()
