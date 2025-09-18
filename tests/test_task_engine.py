@@ -2629,7 +2629,8 @@ class TestTaskConcurrencyLimits:
             # Check that aconcurrency was called with the correct V2 limit names and holder
             mock_aconcurrency.assert_called_once()
             args, kwargs = mock_aconcurrency.call_args
-            assert args == (["tag:limit-tag"],)
+            assert args == ()  # No positional args in new implementation
+            assert kwargs["names"] == ["tag:limit-tag"]
             assert kwargs["occupy"] == 1
             assert kwargs["holder"] is not None
             assert kwargs["holder"].type == "task_run"
@@ -2654,7 +2655,8 @@ class TestTaskConcurrencyLimits:
             # Check that concurrency was called with the correct V2 limit names and holder
             mock_concurrency.assert_called_once()
             args, kwargs = mock_concurrency.call_args
-            assert args == (["tag:limit-tag"],)
+            assert args == ()  # No positional args in new implementation
+            assert kwargs["names"] == ["tag:limit-tag"]
             assert kwargs["occupy"] == 1
             assert kwargs["holder"] is not None
             assert kwargs["holder"].type == "task_run"
@@ -2780,7 +2782,8 @@ class TestTaskConcurrencyLimits:
             # Check that concurrency was called with the correct V2 limit names and holder
             mock_concurrency.assert_called_once()
             args, kwargs = mock_concurrency.call_args
-            assert args == (["tag:limit-tag"],)
+            assert args == ()  # No positional args in new implementation
+            assert kwargs["names"] == ["tag:limit-tag"]
             assert kwargs["occupy"] == 1
             assert kwargs["holder"] is not None
             assert kwargs["holder"].type == "task_run"
@@ -2808,7 +2811,8 @@ class TestTaskConcurrencyLimits:
             # Check that aconcurrency was called with the correct V2 limit names and holder
             mock_aconcurrency.assert_called_once()
             args, kwargs = mock_aconcurrency.call_args
-            assert args == (["tag:limit-tag"],)
+            assert args == ()
+            assert kwargs["names"] == ["tag:limit-tag"]
             assert kwargs["occupy"] == 1
             assert kwargs["holder"] is not None
             assert kwargs["holder"].type == "task_run"
@@ -2820,10 +2824,22 @@ class TestTaskConcurrencyLimits:
             return 42
 
         with mock.patch("prefect.task_engine.aconcurrency") as mock_aconcurrency:
+            # Set up the mock to act as an async context manager
+            mock_aconcurrency.return_value.__aenter__ = mock.AsyncMock(
+                return_value=None
+            )
+            mock_aconcurrency.return_value.__aexit__ = mock.AsyncMock(return_value=None)
+
             await bar()
 
-            # Should not be called when there are no tags
-            mock_aconcurrency.assert_not_called()
+            # Should be called with empty names when there are no tags
+            mock_aconcurrency.assert_called_once()
+            args, kwargs = mock_aconcurrency.call_args
+            assert args == ()
+            assert kwargs["names"] == []
+            assert kwargs["occupy"] == 1
+            assert kwargs["holder"] is not None
+            assert kwargs["holder"].type == "task_run"
 
     def test_no_tags_no_concurrency_sync(self):
         @task
@@ -2831,10 +2847,20 @@ class TestTaskConcurrencyLimits:
             return 42
 
         with mock.patch("prefect.task_engine.concurrency") as mock_concurrency:
+            # Set up the mock to act as a sync context manager
+            mock_concurrency.return_value.__enter__ = mock.MagicMock(return_value=None)
+            mock_concurrency.return_value.__exit__ = mock.MagicMock(return_value=None)
+
             bar()
 
-            # Should not be called when there are no tags
-            mock_concurrency.assert_not_called()
+            # Should be called with empty names when there are no tags
+            mock_concurrency.assert_called_once()
+            args, kwargs = mock_concurrency.call_args
+            assert args == ()
+            assert kwargs["names"] == []
+            assert kwargs["occupy"] == 1
+            assert kwargs["holder"] is not None
+            assert kwargs["holder"].type == "task_run"
 
     async def test_tag_concurrency_does_not_create_limits(self, prefect_client):
         task_run_id = None
@@ -2857,7 +2883,8 @@ class TestTaskConcurrencyLimits:
             # Check that aconcurrency was called with the correct V2 limit names and holder
             mock_aconcurrency.assert_called_once()
             args, kwargs = mock_aconcurrency.call_args
-            assert args == (["tag:limit-tag"],)
+            assert args == ()
+            assert kwargs["names"] == ["tag:limit-tag"]
             assert kwargs["occupy"] == 1
             assert kwargs["holder"] is not None
             assert kwargs["holder"].type == "task_run"
