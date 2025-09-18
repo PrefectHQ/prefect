@@ -1,6 +1,6 @@
 import asyncio
 import logging
-from typing import Literal, Optional
+from typing import TYPE_CHECKING, Literal, Optional
 from uuid import UUID
 
 import httpx
@@ -15,6 +15,9 @@ from prefect.logging.loggers import get_run_logger
 from prefect.utilities.timeout import timeout_async
 
 from .services import ConcurrencySlotAcquisitionService
+
+if TYPE_CHECKING:
+    from prefect.client.schemas.objects import ConcurrencyLeaseHolder
 
 
 class ConcurrencySlotAcquisitionError(Exception):
@@ -76,6 +79,7 @@ async def aacquire_concurrency_slots_with_lease(
     max_retries: Optional[int] = None,
     lease_duration: float = 300,
     strict: bool = False,
+    holder: "Optional[ConcurrencyLeaseHolder]" = None,
 ) -> ConcurrencyLimitWithLeaseResponse:
     try:
         # Use a run logger if available
@@ -93,6 +97,7 @@ async def aacquire_concurrency_slots_with_lease(
                             slots=slots,
                             mode=mode,
                             lease_duration=lease_duration,
+                            holder=holder,
                         )
                         retval = ConcurrencyLimitWithLeaseResponse.model_validate(
                             response.json()
