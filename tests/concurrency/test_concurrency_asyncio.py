@@ -49,6 +49,7 @@ async def test_concurrency_orchestrates_api(concurrency_limit: ConcurrencyLimitV
                 max_retries=None,
                 lease_duration=300,
                 strict=False,
+                holder=None,
             )
 
             lease_id = release_spy.call_args[1]["lease_id"]
