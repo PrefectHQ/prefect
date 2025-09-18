@@ -1,6 +1,6 @@
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
-from typing import Optional, Union
+from typing import TYPE_CHECKING, Optional, Union
 
 import anyio
 
@@ -21,6 +21,9 @@ from ._events import (
 )
 from .context import ConcurrencyContext
 
+if TYPE_CHECKING:
+    from prefect.client.schemas.objects import ConcurrencyLeaseHolder
+
 
 @asynccontextmanager
 async def concurrency(
@@ -30,6 +33,7 @@ async def concurrency(
     max_retries: Optional[int] = None,
     lease_duration: float = 300,
     strict: bool = False,
+    holder: "Optional[ConcurrencyLeaseHolder]" = None,
 ) -> AsyncGenerator[None, None]:
     """A
     context manager that acquires and releases concurrency slots from the
@@ -44,6 +48,8 @@ async def concurrency(
         lease_duration: The duration of the lease for the acquired slots in seconds.
         strict: A boolean specifying whether to raise an error if the concurrency limit does not exist.
             Defaults to `False`.
+        holder: A dictionary containing information about the holder of the concurrency slots.
+            Typically includes 'type' and 'id' keys.
 
     Raises:
         TimeoutError: If the slots are not acquired within the given timeout.
@@ -75,6 +81,7 @@ async def concurrency(
         max_retries=max_retries,
         lease_duration=lease_duration,
         strict=strict,
+        holder=holder,
     )
     emitted_events = emit_concurrency_acquisition_events(response.limits, occupy)
 

@@ -819,7 +819,14 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                 if self.task_run.tags:
                     # Map tags to V2 global limit names
                     v2_limit_names = [f"tag:{tag}" for tag in self.task_run.tags]
-                    concurrency_ctx = concurrency(v2_limit_names, occupy=1)
+                    from prefect.client.schemas.objects import ConcurrencyLeaseHolder
+
+                    holder = ConcurrencyLeaseHolder(
+                        type="task_run", id=self.task_run.id
+                    )
+                    concurrency_ctx = concurrency(
+                        v2_limit_names, occupy=1, holder=holder
+                    )
                 else:
                     concurrency_ctx = nullcontext()
 
@@ -1416,7 +1423,14 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                 if self.task_run.tags:
                     # Map tags to V2 global limit names
                     v2_limit_names = [f"tag:{tag}" for tag in self.task_run.tags]
-                    concurrency_ctx = aconcurrency(v2_limit_names, occupy=1)
+                    from prefect.client.schemas.objects import ConcurrencyLeaseHolder
+
+                    holder = ConcurrencyLeaseHolder(
+                        type="task_run", id=self.task_run.id
+                    )
+                    concurrency_ctx = aconcurrency(
+                        v2_limit_names, occupy=1, holder=holder
+                    )
                 else:
                     # Use a no-op context manager when there are no tags
                     @asynccontextmanager
