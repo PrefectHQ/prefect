@@ -9,14 +9,14 @@ from uuid import UUID
 import anyio
 
 from prefect.server.concurrency.lease_storage import (
-    ConcurrencyLeaseStorage as _ConcurrencyLeaseStorage,
+    ConcurrencyLeaseHolder,
+    ConcurrencyLimitLeaseMetadata,
 )
 from prefect.server.concurrency.lease_storage import (
-    ConcurrencyLimitLeaseMetadata,
+    ConcurrencyLeaseStorage as _ConcurrencyLeaseStorage,
 )
 from prefect.server.utilities.leasing import ResourceLease
 from prefect.settings.context import get_current_settings
-from prefect.types._concurrency import ConcurrencyLeaseHolder
 
 
 class _LeaseFile(TypedDict):
@@ -240,13 +240,13 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
 
     async def list_holders_for_limit(
         self, limit_id: UUID
-    ) -> list[ConcurrencyLeaseHolder]:
+    ) -> list[tuple[UUID, ConcurrencyLeaseHolder]]:
         """List all holders for a given concurrency limit."""
         now = datetime.now(timezone.utc)
-        holders: list[ConcurrencyLeaseHolder] = []
+        holders_with_leases: list[tuple[UUID, ConcurrencyLeaseHolder]] = []
 
         # Get all active lease IDs - need to paginate through all
-        all_active_lease_ids = []
+        all_active_lease_ids: list[UUID] = []
         offset = 0
         batch_size = 100
         while True:
@@ -269,6 +269,6 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
                 and lease.metadata
                 and lease.metadata.holder
             ):
-                holders.append(lease.metadata.holder)
+                holders_with_leases.append((lease.id, lease.metadata.holder))
 
-        return holders
+        return holders_with_leases

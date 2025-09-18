@@ -4,13 +4,13 @@ from datetime import datetime, timedelta, timezone
 from uuid import UUID
 
 from prefect.server.concurrency.lease_storage import (
-    ConcurrencyLeaseStorage as _ConcurrencyLeaseStorage,
-)
-from prefect.server.concurrency.lease_storage import (
+    ConcurrencyLeaseHolder,
     ConcurrencyLimitLeaseMetadata,
 )
+from prefect.server.concurrency.lease_storage import (
+    ConcurrencyLeaseStorage as _ConcurrencyLeaseStorage,
+)
 from prefect.server.utilities.leasing import ResourceLease
-from prefect.types._concurrency import ConcurrencyLeaseHolder
 
 
 class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
@@ -82,10 +82,10 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
 
     async def list_holders_for_limit(
         self, limit_id: UUID
-    ) -> list[ConcurrencyLeaseHolder]:
+    ) -> list[tuple[UUID, ConcurrencyLeaseHolder]]:
         """List all holders for a given concurrency limit."""
         now = datetime.now(timezone.utc)
-        holders: list[ConcurrencyLeaseHolder] = []
+        holders_with_leases: list[tuple[UUID, ConcurrencyLeaseHolder]] = []
 
         for lease_id, lease in self.leases.items():
             # Check if lease is active and for the specified limit
@@ -95,6 +95,6 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
                 and lease.metadata
                 and lease.metadata.holder
             ):
-                holders.append(lease.metadata.holder)
+                holders_with_leases.append((lease.id, lease.metadata.holder))
 
-        return holders
+        return holders_with_leases

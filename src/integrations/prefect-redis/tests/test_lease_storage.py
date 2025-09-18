@@ -60,6 +60,7 @@ class TestConcurrencyLeaseStorage:
         assert read_lease is not None
         assert read_lease.id == created_lease.id
         assert read_lease.resource_ids == resource_ids
+        assert read_lease.metadata is not None
         assert read_lease.metadata.slots == metadata.slots
         assert read_lease.expiration == created_lease.expiration
 
@@ -167,7 +168,7 @@ class TestConcurrencyLeaseStorage:
         ttl = timedelta(seconds=300)
 
         # Create multiple active leases
-        leases = []
+        leases: list[ResourceLease[ConcurrencyLimitLeaseMetadata]] = []
         for _ in range(5):
             lease = await storage.create_lease(resource_ids, ttl)
             leases.append(lease)
@@ -189,7 +190,7 @@ class TestConcurrencyLeaseStorage:
         expired_ttl = timedelta(seconds=-300)
 
         # Create multiple expired leases
-        leases = []
+        leases: list[ResourceLease[ConcurrencyLimitLeaseMetadata]] = []
         for _ in range(5):
             lease = await storage.create_lease(resource_ids, expired_ttl)
             leases.append(lease)
@@ -222,6 +223,7 @@ class TestConcurrencyLeaseStorage:
         assert deserialized_lease.resource_ids == original_lease.resource_ids
         assert deserialized_lease.expiration == original_lease.expiration
         assert deserialized_lease.created_at == original_lease.created_at
+        assert deserialized_lease.metadata is not None
         assert deserialized_lease.metadata.slots == original_lease.metadata.slots
 
     async def test_concurrent_operations(self, storage: ConcurrencyLeaseStorage):
@@ -321,8 +323,10 @@ class TestConcurrencyLeaseStorage:
 
         holders = await storage.list_holders_for_limit(rid)
         assert len(holders) == 1
-        assert holders[0].type == "task_run"
-        assert holders[0].id == holder_id
+        lease_id, holder = holders[0]
+        assert holder.type == "task_run"
+        assert holder.id == holder_id
+        assert lease_id == lease.id
 
         await storage.revoke_lease(lease.id)
 
@@ -357,13 +361,17 @@ class TestConcurrencyLeaseStorage:
 
         holders_rid1 = await storage.list_holders_for_limit(rid1)
         assert len(holders_rid1) == 1
-        assert holders_rid1[0].type == "task_run"
-        assert holders_rid1[0].id == holder_id
+        lease_id, holder = holders_rid1[0]
+        assert holder.type == "task_run"
+        assert holder.id == holder_id
+        assert lease_id == lease.id
 
         holders_rid2 = await storage.list_holders_for_limit(rid2)
         assert len(holders_rid2) == 1
-        assert holders_rid2[0].type == "task_run"
-        assert holders_rid2[0].id == holder_id
+        lease_id, holder = holders_rid2[0]
+        assert holder.type == "task_run"
+        assert holder.id == holder_id
+        assert lease_id == lease.id
 
         await storage.revoke_lease(lease.id)
 
@@ -402,12 +410,12 @@ class TestConcurrencyLeaseStorage:
         assert len(holders) == 2
 
         # Check that they are ConcurrencyLeaseHolder instances
-        for holder in holders:
+        for _, holder in holders:
             assert isinstance(holder, ConcurrencyLeaseHolder)
 
         # Check that the data matches (IDs are UUIDs in the returned objects)
-        holder_types = {h.type for h in holders}
-        holder_ids = {h.id for h in holders}
+        holder_types = {holder.type for _, holder in holders}
+        holder_ids = {holder.id for _, holder in holders}
         assert "task_run" in holder_types
         assert "flow_run" in holder_types
         assert holder1_id in holder_ids
@@ -432,7 +440,7 @@ class TestConcurrencyLeaseStorage:
         """Test pagination of active lease IDs."""
         # Create 10 active leases
         active_ttl = timedelta(minutes=5)
-        lease_ids = []
+        lease_ids: list[UUID] = []
         for _ in range(10):
             lease = await storage.create_lease([uuid4()], active_ttl)
             lease_ids.append(lease.id)
@@ -474,7 +482,7 @@ class TestConcurrencyLeaseStorage:
         """Test default pagination behavior."""
         # Create 150 active leases (more than default limit)
         active_ttl = timedelta(minutes=5)
-        lease_ids = []
+        lease_ids: list[UUID] = []
         for _ in range(150):
             lease = await storage.create_lease([uuid4()], active_ttl)
             lease_ids.append(lease.id)

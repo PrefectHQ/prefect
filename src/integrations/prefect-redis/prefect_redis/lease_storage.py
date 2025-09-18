@@ -10,13 +10,13 @@ from redis.asyncio import Redis
 from redis.exceptions import RedisError
 
 from prefect.server.concurrency.lease_storage import (
-    ConcurrencyLeaseStorage as _ConcurrencyLeaseStorage,
-)
-from prefect.server.concurrency.lease_storage import (
+    ConcurrencyLeaseHolder,
     ConcurrencyLimitLeaseMetadata,
 )
+from prefect.server.concurrency.lease_storage import (
+    ConcurrencyLeaseStorage as _ConcurrencyLeaseStorage,
+)
 from prefect.server.utilities.leasing import ResourceLease
-from prefect.types._concurrency import ConcurrencyLeaseHolder
 from prefect_redis.client import get_async_redis_client
 
 logger = logging.getLogger(__name__)
@@ -44,17 +44,6 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
     def _expiration_key(self, lease_id: UUID) -> str:
         """Generate Redis key for lease expiration."""
         return f"{self.expiration_prefix}{lease_id}"
-
-    @staticmethod
-    def _holder_key(holder: dict[str, Any] | None) -> str | None:
-        """Create a canonical holder key of form 'type:uuid'."""
-        if not holder:
-            return None
-        h_type = holder.get("type")
-        h_id = holder.get("id")
-        if not h_type or not h_id:
-            return None
-        return f"{h_type}:{h_id}"
 
     @staticmethod
     def _limit_holders_key(limit_id: UUID) -> str:
@@ -112,7 +101,7 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
         self, lease: ResourceLease[ConcurrencyLimitLeaseMetadata]
     ) -> str:
         """Serialize a lease to JSON."""
-        metadata_dict = None
+        metadata_dict: dict[str, Any] | None = None
         if lease.metadata:
             metadata_dict = {"slots": lease.metadata.slots}
             if getattr(lease.metadata, "holder", None) is not None:
@@ -182,7 +171,11 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
                 if hasattr(holder, "model_dump"):
                     holder = holder.model_dump(mode="json")  # type: ignore[attr-defined]
                 holder_entry_json = json.dumps(
-                    {"holder": holder, "slots": metadata.slots}
+                    {
+                        "holder": holder,
+                        "slots": metadata.slots,
+                        "lease_id": str(lease.id),
+                    }
                 )
 
             keys: list[str] = [
@@ -300,11 +293,11 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
 
     async def list_holders_for_limit(
         self, limit_id: UUID
-    ) -> list[ConcurrencyLeaseHolder]:
+    ) -> list[tuple[UUID, ConcurrencyLeaseHolder]]:
         try:
             # Get all holder entries for this limit
             values = await self.redis_client.hvals(self._limit_holders_key(limit_id))
-            holders: list[ConcurrencyLeaseHolder] = []
+            holders_with_leases: list[tuple[UUID, ConcurrencyLeaseHolder]] = []
 
             for v in values:
                 if isinstance(v, (bytes, bytearray)):
@@ -312,16 +305,16 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
                 try:
                     data = json.loads(v)
                     if isinstance(data, dict) and "holder" in data:
-                        holder_data = data["holder"]
+                        holder_data: dict[str, Any] = data["holder"]
                         if isinstance(holder_data, dict):
                             # Create ConcurrencyLeaseHolder from the data
                             holder = ConcurrencyLeaseHolder(**holder_data)
-                            holders.append(holder)
+                            holders_with_leases.append((UUID(data["lease_id"]), holder))
                 except Exception:
                     # Skip malformed entries
                     continue
 
-            return holders
+            return holders_with_leases
         except RedisError as e:
             logger.error(f"Failed to list holders for limit {limit_id}: {e}")
             raise

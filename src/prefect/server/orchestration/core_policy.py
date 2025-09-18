@@ -8,9 +8,10 @@ Prefect enforces on a state transition.
 from __future__ import annotations
 
 import datetime
+import logging
 import math
 from typing import Any, Union, cast
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import sqlalchemy as sa
 from packaging.version import Version
@@ -19,6 +20,7 @@ from sqlalchemy import select
 from prefect.logging import get_logger
 from prefect.server import models
 from prefect.server.concurrency.lease_storage import (
+    ConcurrencyLeaseHolder,
     ConcurrencyLimitLeaseMetadata,
     get_concurrency_lease_storage,
 )
@@ -51,14 +53,14 @@ from prefect.server.schemas import core, filters, states
 from prefect.server.schemas.states import StateType
 from prefect.server.task_queue import TaskQueue
 from prefect.settings import (
-    PREFECT_API_TASK_CACHE_KEY_MAX_LENGTH,
-    PREFECT_DEPLOYMENT_CONCURRENCY_SLOT_WAIT_SECONDS,
-    PREFECT_TASK_RUN_TAG_CONCURRENCY_SLOT_WAIT_SECONDS,
+    get_current_settings,
 )
 from prefect.types._datetime import now
 from prefect.utilities.math import clamped_poisson_interval
 
 from .instrumentation_policies import InstrumentFlowRunStateTransitions
+
+logger: logging.Logger = get_logger(__name__)
 
 
 class CoreFlowPolicy(FlowRunOrchestrationPolicy):
@@ -278,49 +280,141 @@ class SecureTaskConcurrencySlots(TaskRunOrchestrationRule):
         proposed_state: states.State[Any] | None,
         context: OrchestrationContext[orm_models.TaskRun, core.TaskRunPolicy],
     ) -> None:
+        settings = get_current_settings()
         self._applied_limits: list[str] = []
-        filtered_limits = (
+        self._acquired_v2_lease_ids: list[UUID] = []
+        v1_limits = (
             await concurrency_limits.filter_concurrency_limits_for_orchestration(
                 context.session, tags=context.run.tags
             )
         )
-        run_limits = {limit.tag: limit for limit in filtered_limits}
-        for tag, cl in run_limits.items():
-            limit = cl.concurrency_limit
-            if limit == 0:
-                # limits of 0 will deadlock, and the transition needs to abort
-                for stale_tag in self._applied_limits:
-                    stale_limit = run_limits.get(stale_tag, None)
-                    if stale_limit:
-                        active_slots: set[str] = set(stale_limit.active_slots)
-                        active_slots.discard(str(context.run.id))
-                        stale_limit.active_slots = list(active_slots)
+        v2_names = [f"tag:{tag}" for tag in context.run.tags]
+        v2_limits = await concurrency_limits_v2.bulk_read_concurrency_limits(
+            context.session, names=v2_names
+        )
 
-                await self.abort_transition(
-                    reason=(
-                        f'The concurrency limit on tag "{tag}" is 0 and will deadlock'
-                        " if the task tries to run again."
-                    ),
-                )
-            elif len(cl.active_slots) >= limit:
-                # if the limit has already been reached, delay the transition
-                for stale_tag in self._applied_limits:
-                    stale_limit = run_limits.get(stale_tag, None)
-                    if stale_limit:
-                        active_slots = set(stale_limit.active_slots)
-                        active_slots.discard(str(context.run.id))
-                        stale_limit.active_slots = list(active_slots)
+        # Handle V2 limits first (if they exist)
+        v2_tags: set[str] = set()  # Track which tags have V2 limits
+        if v2_limits:
+            lease_storage = get_concurrency_lease_storage()
+            # Track which tags have V2 limits to exclude from V1 processing
+            v2_tags = {
+                limit.name.removeprefix("tag:") for limit in v2_limits if limit.active
+            }
 
-                await self.delay_transition(
-                    PREFECT_TASK_RUN_TAG_CONCURRENCY_SLOT_WAIT_SECONDS.value(),
-                    f"Concurrency limit for the {tag} tag has been reached",
+            # Check for zero limits that would deadlock
+            for limit in v2_limits:
+                if limit.active and limit.limit == 0:
+                    # Clean up any already acquired V2 leases
+                    for lease_id in self._acquired_v2_lease_ids:
+                        try:
+                            lease = await lease_storage.read_lease(
+                                lease_id=lease_id,
+                            )
+                            if lease:
+                                await concurrency_limits_v2.bulk_decrement_active_slots(
+                                    session=context.session,
+                                    concurrency_limit_ids=lease.resource_ids,
+                                    slots=lease.metadata.slots if lease.metadata else 1,
+                                )
+                                await lease_storage.revoke_lease(
+                                    lease_id=lease.id,
+                                )
+                        except Exception:
+                            logger.warning(
+                                f"Failed to clean up lease {lease_id} during abort",
+                                exc_info=True,
+                            )
+
+                    await self.abort_transition(
+                        reason=f'The concurrency limit on tag "{limit.name.removeprefix("tag:")}" is 0 and will deadlock if the task tries to run again.',
+                    )
+
+            # Try to acquire V2 slots with lease (exclude zero limits as they're handled above)
+            active_v2_limits = [
+                limit for limit in v2_limits if limit.active and limit.limit > 0
+            ]
+            if active_v2_limits:
+                # Attempt to acquire slots
+                acquired = await concurrency_limits_v2.bulk_increment_active_slots(
+                    session=context.session,
+                    concurrency_limit_ids=[limit.id for limit in active_v2_limits],
+                    slots=1,
                 )
-            else:
-                # log the TaskRun ID to active_slots
-                self._applied_limits.append(tag)
-                active_slots = set(cl.active_slots)
-                active_slots.add(str(context.run.id))
-                cl.active_slots = list(active_slots)
+
+                if acquired:
+                    # Create lease for acquired slots with minimal metadata first
+                    lease = await lease_storage.create_lease(
+                        resource_ids=[limit.id for limit in active_v2_limits],
+                        ttl=concurrency_limits.V1_LEASE_TTL,
+                        metadata=ConcurrencyLimitLeaseMetadata(
+                            slots=1,
+                        ),
+                    )
+
+                    # Now update the lease with holder information including lease_id
+                    lease.metadata = ConcurrencyLimitLeaseMetadata(
+                        slots=1,
+                        holder=ConcurrencyLeaseHolder(
+                            type="task_run",
+                            id=context.run.id,
+                        ),
+                    )
+
+                    self._acquired_v2_lease_ids.append(lease.id)
+                else:
+                    # Slots not available, delay transition
+                    delay_seconds = clamped_poisson_interval(
+                        average_interval=settings.server.tasks.tag_concurrency_slot_wait_seconds,
+                        clamping_factor=0.3,
+                    )
+                    await self.delay_transition(
+                        delay_seconds=round(delay_seconds),
+                        reason=f"Concurrency limit reached for tags: {', '.join([limit.name.removeprefix('tag:') for limit in active_v2_limits])}",
+                    )
+
+        remaining_v1_limits = [limit for limit in v1_limits if limit.tag not in v2_tags]
+        if remaining_v1_limits:
+            run_limits = {limit.tag: limit for limit in v1_limits}
+            for tag, cl in run_limits.items():
+                limit = cl.concurrency_limit
+                if limit == 0:
+                    # limits of 0 will deadlock, and the transition needs to abort
+                    for stale_tag in self._applied_limits:
+                        stale_limit = run_limits.get(stale_tag, None)
+                        if stale_limit:
+                            active_slots: set[str] = set(stale_limit.active_slots)
+                            active_slots.discard(str(context.run.id))
+                            stale_limit.active_slots = list(active_slots)
+
+                    await self.abort_transition(
+                        reason=(
+                            f'The concurrency limit on tag "{tag}" is 0 and will deadlock'
+                            " if the task tries to run again."
+                        ),
+                    )
+                elif len(cl.active_slots) >= limit:
+                    # if the limit has already been reached, delay the transition
+                    for stale_tag in self._applied_limits:
+                        stale_limit = run_limits.get(stale_tag, None)
+                        if stale_limit:
+                            active_slots = set(stale_limit.active_slots)
+                            active_slots.discard(str(context.run.id))
+                            stale_limit.active_slots = list(active_slots)
+
+                    await self.delay_transition(
+                        delay_seconds=int(
+                            settings.server.tasks.tag_concurrency_slot_wait_seconds
+                        ),
+                        # PREFECT_TASK_RUN_TAG_CONCURRENCY_SLOT_WAIT_SECONDS.value(),
+                        reason=f"Concurrency limit for the {tag} tag has been reached",
+                    )
+                else:
+                    # log the TaskRun ID to active_slots
+                    self._applied_limits.append(tag)
+                    active_slots = set(cl.active_slots)
+                    active_slots.add(str(context.run.id))
+                    cl.active_slots = list(active_slots)
 
     async def cleanup(
         self,
@@ -328,6 +422,27 @@ class SecureTaskConcurrencySlots(TaskRunOrchestrationRule):
         validated_state: states.State[Any] | None,
         context: OrchestrationContext[orm_models.TaskRun, core.TaskRunPolicy],
     ) -> None:
+        lease_storage = get_concurrency_lease_storage()
+        # Clean up V2 leases
+        for lease_id in self._acquired_v2_lease_ids:
+            try:
+                lease = await lease_storage.read_lease(
+                    lease_id=lease_id,
+                )
+                if lease:
+                    await concurrency_limits_v2.bulk_decrement_active_slots(
+                        session=context.session,
+                        concurrency_limit_ids=lease.resource_ids,
+                        slots=lease.metadata.slots if lease.metadata else 1,
+                    )
+                    await lease_storage.revoke_lease(
+                        lease_id=lease.id,
+                    )
+                else:
+                    logger.warning(f"Lease {lease_id} not found during cleanup")
+            except Exception:
+                logger.warning(f"Failed to clean up lease {lease_id}", exc_info=True)
+
         for tag in self._applied_limits:
             cl = await concurrency_limits.read_concurrency_limit_by_tag(
                 context.session, tag
@@ -355,13 +470,55 @@ class ReleaseTaskConcurrencySlots(TaskRunUniversalTransform):
             states.StateType.RUNNING,
             states.StateType.CANCELLING,
         ]:
-            filtered_limits = (
+            v2_names = [f"tag:{tag}" for tag in context.run.tags]
+            v2_limits = await concurrency_limits_v2.bulk_read_concurrency_limits(
+                context.session, names=v2_names
+            )
+            # Release V2 leases for this task run
+            if v2_limits:
+                lease_storage = get_concurrency_lease_storage()
+                lease_ids_to_reconcile: list[UUID] = []
+                for v2_limit in v2_limits:
+                    # Find holders for this limit
+                    holders_with_leases: list[
+                        tuple[UUID, ConcurrencyLeaseHolder]
+                    ] = await lease_storage.list_holders_for_limit(
+                        limit_id=v2_limit.id,
+                    )
+                    # Find leases that belong to this task run
+                    for lease_id, holder in holders_with_leases:
+                        if holder.id == context.run.id:
+                            lease_ids_to_reconcile.append(lease_id)
+
+                # Reconcile all found leases
+                for lease_id in lease_ids_to_reconcile:
+                    try:
+                        lease = await lease_storage.read_lease(
+                            lease_id=lease_id,
+                        )
+                        if lease:
+                            await concurrency_limits_v2.bulk_decrement_active_slots(
+                                session=context.session,
+                                concurrency_limit_ids=lease.resource_ids,
+                                slots=lease.metadata.slots if lease.metadata else 1,
+                            )
+                            await lease_storage.revoke_lease(
+                                lease_id=lease.id,
+                            )
+                        else:
+                            logger.warning(f"Lease {lease_id} not found during release")
+                    except Exception:
+                        logger.warning(
+                            f"Failed to reconcile lease {lease_id} during release",
+                            exc_info=True,
+                        )
+
+            v1_limits = (
                 await concurrency_limits.filter_concurrency_limits_for_orchestration(
                     context.session, tags=context.run.tags
                 )
             )
-            run_limits = {limit.tag: limit for limit in filtered_limits}
-            for cl in run_limits.values():
+            for cl in v1_limits:
                 active_slots = set(cl.active_slots)
                 active_slots.discard(str(context.run.id))
                 cl.active_slots = list(active_slots)
@@ -452,12 +609,13 @@ class SecureFlowConcurrencySlots(FlowRunOrchestrationRule):
                 concurrency_options.collision_strategy
                 == core.ConcurrencyLimitStrategy.ENQUEUE
             ):
+                settings = get_current_settings()
                 await self.reject_transition(
                     state=states.Scheduled(
                         name="AwaitingConcurrencySlot",
                         scheduled_time=now("UTC")
                         + datetime.timedelta(
-                            seconds=PREFECT_DEPLOYMENT_CONCURRENCY_SLOT_WAIT_SECONDS.value()
+                            seconds=settings.server.deployments.concurrency_slot_wait_seconds
                         ),
                     ),
                     reason="Deployment concurrency limit reached.",
@@ -657,11 +815,12 @@ class CacheInsertion(TaskRunOrchestrationRule):
         if proposed_state is None:
             return
 
+        settings = get_current_settings()
         cache_key = proposed_state.state_details.cache_key
-        if cache_key and len(cache_key) > PREFECT_API_TASK_CACHE_KEY_MAX_LENGTH.value():
+        if cache_key and len(cache_key) > settings.server.tasks.max_cache_key_length:
             await self.reject_transition(
                 state=proposed_state,
-                reason=f"Cache key exceeded maximum allowed length of {PREFECT_API_TASK_CACHE_KEY_MAX_LENGTH.value()} characters.",
+                reason=f"Cache key exceeded maximum allowed length of {settings.server.tasks.max_cache_key_length} characters.",
             )
             return
 

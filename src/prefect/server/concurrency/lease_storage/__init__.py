@@ -51,7 +51,7 @@ class ConcurrencyLeaseStorage(LeaseStorage[ConcurrencyLimitLeaseMetadata]):
 
     async def list_holders_for_limit(
         self, limit_id: UUID
-    ) -> list[ConcurrencyLeaseHolder]:
+    ) -> list[tuple[UUID, ConcurrencyLeaseHolder]]:
         """
         List all holders for a given concurrency limit.
 
@@ -59,7 +59,7 @@ class ConcurrencyLeaseStorage(LeaseStorage[ConcurrencyLimitLeaseMetadata]):
             limit_id: The ID of the concurrency limit to list holders for.
 
         Returns:
-            A list of ConcurrencyLeaseHolder objects representing active holders.
+            A list of tuples containing the lease ID and ConcurrencyLeaseHolder objects representing active holders.
         """
         ...
 
