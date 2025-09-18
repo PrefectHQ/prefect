@@ -317,7 +317,7 @@ async def bulk_increment_active_slots_with_lease(
             ttl=timedelta(seconds=lease_duration),
             metadata=ConcurrencyLimitLeaseMetadata(
                 slots=slots,
-                holder=holder.model_dump() if holder else None,
+                holder=holder,
             ),
         )
         return ConcurrencyLimitWithLeaseResponse(
