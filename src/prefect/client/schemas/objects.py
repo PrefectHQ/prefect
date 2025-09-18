@@ -166,6 +166,15 @@ class ConcurrencyLimitConfig(PrefectBaseModel):
     collision_strategy: ConcurrencyLimitStrategy = ConcurrencyLimitStrategy.ENQUEUE
 
 
+class ConcurrencyLeaseHolder(PrefectBaseModel):
+    """Model for validating concurrency lease holder information."""
+
+    model_config: ClassVar[ConfigDict] = ConfigDict(extra="forbid")
+
+    type: Literal["flow_run", "task_run", "deployment"]
+    id: UUID
+
+
 class StateDetails(PrefectBaseModel):
     flow_run_id: Optional[UUID] = None
     task_run_id: Optional[UUID] = None

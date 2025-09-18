@@ -1,6 +1,6 @@
 from collections.abc import Generator
 from contextlib import contextmanager
-from typing import Optional, TypeVar, Union
+from typing import TYPE_CHECKING, Optional, TypeVar, Union
 from uuid import UUID
 
 from typing_extensions import Literal
@@ -21,6 +21,9 @@ from ._events import (
     emit_concurrency_acquisition_events,
     emit_concurrency_release_events,
 )
+
+if TYPE_CHECKING:
+    from prefect.client.schemas.objects import ConcurrencyLeaseHolder
 
 T = TypeVar("T")
 
@@ -53,10 +56,18 @@ def _acquire_concurrency_slots_with_lease(
     max_retries: Optional[int] = None,
     lease_duration: float = 300,
     strict: bool = False,
+    holder: "Optional[ConcurrencyLeaseHolder]" = None,
 ) -> ConcurrencyLimitWithLeaseResponse:
     result = run_coro_as_sync(
         aacquire_concurrency_slots_with_lease(
-            names, slots, mode, timeout_seconds, max_retries, lease_duration, strict
+            names,
+            slots,
+            mode,
+            timeout_seconds,
+            max_retries,
+            lease_duration,
+            strict,
+            holder,
         )
     )
     return result
@@ -70,6 +81,7 @@ def concurrency(
     max_retries: Optional[int] = None,
     lease_duration: float = 300,
     strict: bool = False,
+    holder: "Optional[ConcurrencyLeaseHolder]" = None,
 ) -> Generator[None, None, None]:
     """A context manager that acquires and releases concurrency slots from the
     given concurrency limits.
@@ -83,6 +95,8 @@ def concurrency(
         lease_duration: The duration of the lease for the acquired slots in seconds.
         strict: A boolean specifying whether to raise an error if the concurrency limit does not exist.
             Defaults to `False`.
+        holder: A dictionary containing information about the holder of the concurrency slots.
+            Typically includes 'type' and 'id' keys.
 
     Raises:
         TimeoutError: If the slots are not acquired within the given timeout.
@@ -114,6 +128,7 @@ def concurrency(
         strict=strict,
         lease_duration=lease_duration,
         max_retries=max_retries,
+        holder=holder,
     )
     emitted_events = emit_concurrency_acquisition_events(
         acquisition_response.limits, occupy

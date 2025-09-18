@@ -16,7 +16,7 @@ if TYPE_CHECKING:
         GlobalConcurrencyLimitCreate,
         GlobalConcurrencyLimitUpdate,
     )
-    from prefect.client.schemas.objects import ConcurrencyLimit
+    from prefect.client.schemas.objects import ConcurrencyLeaseHolder, ConcurrencyLimit
     from prefect.client.schemas.responses import GlobalConcurrencyLimitResponse
 
 
@@ -269,7 +269,7 @@ class ConcurrencyLimitClient(BaseClient):
         slots: int,
         mode: Literal["concurrency", "rate_limit"],
         lease_duration: float,
-        holder: dict[str, Any] | None = None,
+        holder: "ConcurrencyLeaseHolder | None" = None,
     ) -> "Response":
         """
         Increment concurrency slots for the specified limits with a lease.
@@ -288,7 +288,7 @@ class ConcurrencyLimitClient(BaseClient):
             "lease_duration": lease_duration,
         }
         if holder is not None:
-            body["holder"] = holder
+            body["holder"] = holder.model_dump(mode="json")
 
         return self.request(
             "POST",
@@ -721,7 +721,7 @@ class ConcurrencyLimitAsyncClient(BaseAsyncClient):
         slots: int,
         mode: Literal["concurrency", "rate_limit"],
         lease_duration: float,
-        holder: dict[str, Any] | None = None,
+        holder: "ConcurrencyLeaseHolder | None" = None,
     ) -> "Response":
         """
         Increment concurrency slots for the specified limits with a lease.
@@ -740,7 +740,7 @@ class ConcurrencyLimitAsyncClient(BaseAsyncClient):
             "lease_duration": lease_duration,
         }
         if holder is not None:
-            body["holder"] = holder
+            body["holder"] = holder.model_dump(mode="json")
 
         return await self.request(
             "POST",
