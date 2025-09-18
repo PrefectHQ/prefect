@@ -771,7 +771,7 @@ Increment concurrency slots for the specified limits.
 #### `increment_concurrency_slots_with_lease` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_concurrency_limits/client.py#L718" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-increment_concurrency_slots_with_lease(self, names: list[str], slots: int, mode: Literal['concurrency', 'rate_limit'], lease_duration: float, holder: dict[str, Any] | None = None) -> 'Response'
+increment_concurrency_slots_with_lease(self, names: list[str], slots: int, mode: Literal['concurrency', 'rate_limit'], lease_duration: float, holder: 'ConcurrencyLeaseHolder | None' = None) -> 'Response'
 ```
 
 Increment concurrency slots for the specified limits with a lease.
@@ -2483,7 +2483,7 @@ Increment concurrency slots for the specified limits.
 #### `increment_concurrency_slots_with_lease` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_concurrency_limits/client.py#L266" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-increment_concurrency_slots_with_lease(self, names: list[str], slots: int, mode: Literal['concurrency', 'rate_limit'], lease_duration: float, holder: dict[str, Any] | None = None) -> 'Response'
+increment_concurrency_slots_with_lease(self, names: list[str], slots: int, mode: Literal['concurrency', 'rate_limit'], lease_duration: float, holder: 'ConcurrencyLeaseHolder | None' = None) -> 'Response'
 ```
 
 Increment concurrency slots for the specified limits with a lease.
