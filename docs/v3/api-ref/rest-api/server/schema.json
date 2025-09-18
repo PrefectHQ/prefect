@@ -3810,7 +3810,10 @@
                         "description": "Successful Response",
                         "content": {
                             "application/json": {
-                                "schema": {}
+                                "schema": {
+                                    "type": "null",
+                                    "title": "Response Delete Concurrency Limit Concurrency Limits  Id  Delete"
+                                }
                             }
                         }
                     },
@@ -3913,7 +3916,10 @@
                         "description": "Successful Response",
                         "content": {
                             "application/json": {
-                                "schema": {}
+                                "schema": {
+                                    "type": "null",
+                                    "title": "Response Delete Concurrency Limit By Tag Concurrency Limits Tag  Tag  Delete"
+                                }
                             }
                         }
                     },
@@ -4029,7 +4035,10 @@
                         "description": "Successful Response",
                         "content": {
                             "application/json": {
-                                "schema": {}
+                                "schema": {
+                                    "type": "null",
+                                    "title": "Response Reset Concurrency Limit By Tag Concurrency Limits Tag  Tag  Reset Post"
+                                }
                             }
                         }
                     },
@@ -4052,6 +4061,7 @@
                     "Concurrency Limits"
                 ],
                 "summary": "Increment Concurrency Limits V1",
+                "description": "Increment concurrency limits for the given tags.\n\nDuring migration, this handles both V1 and V2 limits to support mixed states.\nPost-migration, it only uses V2 with lease-based concurrency.",
                 "operationId": "increment_concurrency_limits_v1_concurrency_limits_increment_post",
                 "parameters": [
                     {
@@ -4108,6 +4118,7 @@
                     "Concurrency Limits"
                 ],
                 "summary": "Decrement Concurrency Limits V1",
+                "description": "Decrement concurrency limits for the given tags.\n\nFinds and revokes the lease for V2 limits or decrements V1 active slots.\nReturns the list of limits that were decremented.",
                 "operationId": "decrement_concurrency_limits_v1_concurrency_limits_decrement_post",
                 "parameters": [
                     {
@@ -4135,7 +4146,13 @@
                         "description": "Successful Response",
                         "content": {
                             "application/json": {
-                                "schema": {}
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/MinimalConcurrencyLimitResponse"
+                                    },
+                                    "title": "Response Decrement Concurrency Limits V1 Concurrency Limits Decrement Post"
+                                }
                             }
                         }
                     },
