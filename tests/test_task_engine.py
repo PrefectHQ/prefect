@@ -2626,8 +2626,14 @@ class TestTaskConcurrencyLimits:
 
             await bar()
 
-            # Check that aconcurrency was called with the correct V2 limit names
-            mock_aconcurrency.assert_called_once_with(["tag:limit-tag"], occupy=1)
+            # Check that aconcurrency was called with the correct V2 limit names and holder
+            mock_aconcurrency.assert_called_once()
+            args, kwargs = mock_aconcurrency.call_args
+            assert args == (["tag:limit-tag"],)
+            assert kwargs["occupy"] == 1
+            assert kwargs["holder"] is not None
+            assert kwargs["holder"].type == "task_run"
+            assert kwargs["holder"].id == task_run_id
 
     def test_tag_concurrency_sync(self):
         task_run_id = None
@@ -2645,8 +2651,14 @@ class TestTaskConcurrencyLimits:
 
             bar()
 
-            # Check that concurrency was called with the correct V2 limit names
-            mock_concurrency.assert_called_once_with(["tag:limit-tag"], occupy=1)
+            # Check that concurrency was called with the correct V2 limit names and holder
+            mock_concurrency.assert_called_once()
+            args, kwargs = mock_concurrency.call_args
+            assert args == (["tag:limit-tag"],)
+            assert kwargs["occupy"] == 1
+            assert kwargs["holder"] is not None
+            assert kwargs["holder"].type == "task_run"
+            assert kwargs["holder"].id == task_run_id
 
     async def test_tag_concurrency_is_taken_prior_to_running_state(
         self, events_pipeline, prefect_client
@@ -2765,8 +2777,14 @@ class TestTaskConcurrencyLimits:
             with tags("limit-tag"):
                 bar()
 
-            # Check that concurrency was called with the correct V2 limit names
-            mock_concurrency.assert_called_once_with(["tag:limit-tag"], occupy=1)
+            # Check that concurrency was called with the correct V2 limit names and holder
+            mock_concurrency.assert_called_once()
+            args, kwargs = mock_concurrency.call_args
+            assert args == (["tag:limit-tag"],)
+            assert kwargs["occupy"] == 1
+            assert kwargs["holder"] is not None
+            assert kwargs["holder"].type == "task_run"
+            assert kwargs["holder"].id == task_run_id
 
     async def test_tag_concurrency_with_tags_context(self):
         task_run_id = None
@@ -2787,8 +2805,14 @@ class TestTaskConcurrencyLimits:
             with tags("limit-tag"):
                 await bar()
 
-            # Check that aconcurrency was called with the correct V2 limit names
-            mock_aconcurrency.assert_called_once_with(["tag:limit-tag"], occupy=1)
+            # Check that aconcurrency was called with the correct V2 limit names and holder
+            mock_aconcurrency.assert_called_once()
+            args, kwargs = mock_aconcurrency.call_args
+            assert args == (["tag:limit-tag"],)
+            assert kwargs["occupy"] == 1
+            assert kwargs["holder"] is not None
+            assert kwargs["holder"].type == "task_run"
+            assert kwargs["holder"].id == task_run_id
 
     async def test_no_tags_no_concurrency(self):
         @task
@@ -2830,8 +2854,14 @@ class TestTaskConcurrencyLimits:
 
             await bar()
 
-            # Check that aconcurrency was called with the correct V2 limit names
-            mock_aconcurrency.assert_called_once_with(["tag:limit-tag"], occupy=1)
+            # Check that aconcurrency was called with the correct V2 limit names and holder
+            mock_aconcurrency.assert_called_once()
+            args, kwargs = mock_aconcurrency.call_args
+            assert args == (["tag:limit-tag"],)
+            assert kwargs["occupy"] == 1
+            assert kwargs["holder"] is not None
+            assert kwargs["holder"].type == "task_run"
+            assert kwargs["holder"].id == task_run_id
 
             # V2 global concurrency limits are different from V1 limits
             # We don't expect V1 limits to be created
