@@ -3,6 +3,7 @@ Functions for interacting with concurrency limit ORM objects.
 Intended for internal use by the Prefect REST API.
 """
 
+from datetime import timedelta
 from typing import List, Optional, Sequence, Union
 from uuid import UUID
 
@@ -12,6 +13,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 import prefect.server.schemas as schemas
 from prefect.server.database import PrefectDBInterface, db_injector, orm_models
 from prefect.types._datetime import now
+
+# Clients creating V1 limits can't maintain leases, so we use a long TTL to maintain compatibility.
+V1_LEASE_TTL = timedelta(days=100 * 365)  # ~100 years
 
 
 @db_injector
