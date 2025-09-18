@@ -25,8 +25,10 @@ from prefect.server.concurrency.lease_storage import (
 from prefect.server.database import PrefectDBInterface, provide_database_interface
 from prefect.server.models import concurrency_limits
 from prefect.server.models import concurrency_limits_v2 as cl_v2_models
+from prefect.server.utilities.leasing import ResourceLease
 from prefect.server.utilities.server import PrefectRouter
 from prefect.settings import PREFECT_TASK_RUN_TAG_CONCURRENCY_SLOT_WAIT_SECONDS
+from prefect.types._concurrency import ConcurrencyLeaseHolder
 
 router: PrefectRouter = PrefectRouter(
     prefix="/concurrency_limits", tags=["Concurrency Limits"]
@@ -83,7 +85,7 @@ async def create_concurrency_limit(
     # Return V1 format
     lease_storage = get_concurrency_lease_storage()
     holders = await lease_storage.list_holders_for_limit(model.id)
-    active_slots = [str(h.id) for h in holders if h.type == "task_run"]
+    active_slots = [h.id for _, h in holders if h.type == "task_run"]
 
     return schemas.core.ConcurrencyLimit(
         id=model.id,
@@ -118,7 +120,7 @@ async def read_concurrency_limit(
             tag = v2_limit.name.removeprefix("tag:")
             lease_storage = get_concurrency_lease_storage()
             holders = await lease_storage.list_holders_for_limit(v2_limit.id)
-            active_slots = [str(h.id) for h in holders if h.type == "task_run"]
+            active_slots = [h.id for _, h in holders if h.type == "task_run"]
 
             return schemas.core.ConcurrencyLimit(
                 id=v2_limit.id,
@@ -161,7 +163,7 @@ async def read_concurrency_limit_by_tag(
     if model:
         lease_storage = get_concurrency_lease_storage()
         holders = await lease_storage.list_holders_for_limit(model.id)
-        active_slots = [str(h.id) for h in holders if h.type == "task_run"]
+        active_slots = [h.id for _, h in holders if h.type == "task_run"]
 
         return schemas.core.ConcurrencyLimit(
             id=model.id,
@@ -214,7 +216,7 @@ async def read_concurrency_limits(
             continue
         tag = v2_limit.name.removeprefix("tag:")
         holders = await lease_storage.list_holders_for_limit(v2_limit.id)
-        active_slots = [str(h.id) for h in holders if h.type == "task_run"]
+        active_slots = [h.id for _, h in holders if h.type == "task_run"]
 
         converted_v2.append(
             schemas.core.ConcurrencyLimit(
@@ -291,7 +293,9 @@ async def reset_concurrency_limit_by_tag(
                         ttl=V1_LEASE_TTL,
                         metadata=ConcurrencyLimitLeaseMetadata(
                             slots=1,
-                            holder={"type": "task_run", "id": str(task_run_id)},
+                            holder=ConcurrencyLeaseHolder(
+                                type="task_run", id=task_run_id
+                            ),
                         ),
                     )
             return
@@ -559,7 +563,7 @@ async def increment_concurrency_limits_v1(
             ttl=V1_LEASE_TTL,
             metadata=ConcurrencyLimitLeaseMetadata(
                 slots=1,
-                holder={"type": "task_run", "id": str(task_run_id)},
+                holder=ConcurrencyLeaseHolder(type="task_run", id=task_run_id),
             ),
         )
 
@@ -580,7 +584,7 @@ async def decrement_concurrency_limits_v1(
     Finds and revokes the lease for V2 limits or decrements V1 active slots.
     Returns the list of limits that were decremented.
     """
-    results = []
+    results: list[MinimalConcurrencyLimitResponse] = []
     lease_storage = get_concurrency_lease_storage()
     v2_names = [f"tag:{tag}" for tag in names]
 
@@ -590,61 +594,35 @@ async def decrement_concurrency_limits_v1(
             session=session, names=v2_names
         )
         v2_by_name = {limit.name: limit for limit in v2_limits}
-        v2_by_id = {limit.id: limit for limit in v2_limits}
 
         # Find and revoke lease for V2 limits
         if v2_limits:
-            v2_limit_ids = [m.id for m in v2_limits]
+            leases_to_revoke: list[ResourceLease[ConcurrencyLimitLeaseMetadata]] = []
 
-            # Search through leases in batches to find the one for this task run
-            batch_size = 100
-            found_lease = False
-            offset = 0
+            for limit in v2_limits:
+                holders = await lease_storage.list_holders_for_limit(limit.id)
+                for lease_id, holder in holders:
+                    if holder.id == task_run_id:
+                        lease = await lease_storage.read_lease(lease_id)
+                        if lease:
+                            leases_to_revoke.append(lease)
 
-            # Search through active leases using pagination
-            while not found_lease:
-                active_lease_ids = await lease_storage.read_active_lease_ids(
-                    limit=batch_size, offset=offset
+            for lease in leases_to_revoke:
+                await cl_v2_models.bulk_decrement_active_slots(
+                    session=session,
+                    concurrency_limit_ids=lease.resource_ids,
+                    slots=lease.metadata.slots if lease.metadata else 0,
                 )
-                if not active_lease_ids:
-                    break
+                await lease_storage.revoke_lease(lease.id)
 
-                for lease_id in active_lease_ids:
-                    lease = await lease_storage.read_lease(lease_id)
-                    if lease and lease.metadata:
-                        holder = getattr(lease.metadata, "holder", None)
-                        if (
-                            holder
-                            and getattr(holder, "type", None) == "task_run"
-                            and str(getattr(holder, "id", None)) == str(task_run_id)
-                            and any(lid in lease.resource_ids for lid in v2_limit_ids)
-                        ):
-                            # Found the lease - bulk decrement and revoke
-                            await cl_v2_models.bulk_decrement_active_slots(
-                                session=session,
-                                concurrency_limit_ids=lease.resource_ids,
-                                slots=lease.metadata.slots if lease.metadata else 1,
-                            )
-                            await lease_storage.revoke_lease(lease_id)
-
-                            # Add all decremented V2 limits to results
-                            for lid in lease.resource_ids:
-                                if lid in v2_by_id:
-                                    limit = v2_by_id[lid]
-                                    tag = limit.name.removeprefix("tag:")
-                                    results.append(
-                                        MinimalConcurrencyLimitResponse(
-                                            id=limit.id, name=tag, limit=limit.limit
-                                        )
-                                    )
-                            found_lease = True
-                            break
-
-                # Stop searching if found
-                if found_lease:
-                    break
-
-                offset += batch_size
+            results.extend(
+                [
+                    MinimalConcurrencyLimitResponse(
+                        id=limit.id, name=limit.name, limit=limit.limit
+                    )
+                    for limit in v2_limits
+                ]
+            )
 
         # Handle V1 decrements (for pre-migration compatibility)
         v1_limits = (
