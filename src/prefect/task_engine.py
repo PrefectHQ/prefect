@@ -39,7 +39,7 @@ from prefect._internal.compatibility import deprecated
 from prefect.cache_policies import CachePolicy
 from prefect.client.orchestration import PrefectClient, SyncPrefectClient, get_client
 from prefect.client.schemas import TaskRun
-from prefect.client.schemas.objects import RunInput, State
+from prefect.client.schemas.objects import ConcurrencyLeaseHolder, RunInput, State
 from prefect.concurrency.asyncio import concurrency as aconcurrency
 from prefect.concurrency.context import ConcurrencyContext
 from prefect.concurrency.sync import concurrency
@@ -814,23 +814,11 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                     self.call_hooks()
                     return
 
-                # Acquire a concurrency slot for each tag, but only if a limit
-                # matching the tag already exists.
-                if self.task_run.tags:
-                    # Map tags to V2 global limit names
-                    v2_limit_names = [f"tag:{tag}" for tag in self.task_run.tags]
-                    from prefect.client.schemas.objects import ConcurrencyLeaseHolder
-
-                    holder = ConcurrencyLeaseHolder(
-                        type="task_run", id=self.task_run.id
-                    )
-                    concurrency_ctx = concurrency(
-                        v2_limit_names, occupy=1, holder=holder
-                    )
-                else:
-                    concurrency_ctx = nullcontext()
-
-                with concurrency_ctx:
+                with concurrency(
+                    names=[f"tag:{tag}" for tag in self.task_run.tags],
+                    occupy=1,
+                    holder=ConcurrencyLeaseHolder(type="task_run", id=self.task_run.id),
+                ):
                     self.begin_run()
                     try:
                         yield
@@ -1418,28 +1406,12 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                     yield
                     await self.call_hooks()
                     return
-                # Acquire a concurrency slot for each tag, but only if a limit
-                # matching the tag already exists.
-                if self.task_run.tags:
-                    # Map tags to V2 global limit names
-                    v2_limit_names = [f"tag:{tag}" for tag in self.task_run.tags]
-                    from prefect.client.schemas.objects import ConcurrencyLeaseHolder
 
-                    holder = ConcurrencyLeaseHolder(
-                        type="task_run", id=self.task_run.id
-                    )
-                    concurrency_ctx = aconcurrency(
-                        v2_limit_names, occupy=1, holder=holder
-                    )
-                else:
-                    # Use a no-op context manager when there are no tags
-                    @asynccontextmanager
-                    async def _null_async_context():
-                        yield
-
-                    concurrency_ctx = _null_async_context()
-
-                async with concurrency_ctx:
+                async with aconcurrency(
+                    names=[f"tag:{tag}" for tag in self.task_run.tags],
+                    occupy=1,
+                    holder=ConcurrencyLeaseHolder(type="task_run", id=self.task_run.id),
+                ):
                     await self.begin_run()
                     try:
                         yield
