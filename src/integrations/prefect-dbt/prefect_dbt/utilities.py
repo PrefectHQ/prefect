@@ -110,9 +110,17 @@ def kwargs_to_args(kwargs: dict, args: Optional[list[str]] = None) -> list[str]:
     kwargs_flags = _parse_args_to_flag_groups(kwargs_args)
 
     result_args = []
+
+    # First add positional arguments (like the dbt command)
+    if "__positional__" in existing_flags:
+        result_args.extend(existing_flags["__positional__"])
+        del existing_flags["__positional__"]
+
+    # Then add flags from existing args
     for flag, values in existing_flags.items():
         result_args.extend([flag] + values)
 
+    # Finally add flags from kwargs that aren't already in existing args
     for flag, values in kwargs_flags.items():
         if flag not in existing_flags:
             result_args.extend([flag] + values)
@@ -123,6 +131,7 @@ def kwargs_to_args(kwargs: dict, args: Optional[list[str]] = None) -> list[str]:
 def _parse_args_to_flag_groups(args_list: list[str]) -> dict[str, list[str]]:
     groups = {}
     current_flag = None
+    positional = []
 
     for arg in args_list:
         if arg.startswith("--"):
@@ -130,5 +139,12 @@ def _parse_args_to_flag_groups(args_list: list[str]) -> dict[str, list[str]]:
             groups[current_flag] = []
         elif current_flag:
             groups[current_flag].append(arg)
+        else:
+            # This is a positional argument (like the dbt command)
+            positional.append(arg)
+
+    # Store positional args with a special key
+    if positional:
+        groups["__positional__"] = positional
 
     return groups
