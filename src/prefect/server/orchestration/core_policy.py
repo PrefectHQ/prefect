@@ -53,8 +53,6 @@ from prefect.server.schemas import core, filters, states
 from prefect.server.schemas.states import StateType
 from prefect.server.task_queue import TaskQueue
 from prefect.settings import (
-    PREFECT_API_TASK_CACHE_KEY_MAX_LENGTH,
-    PREFECT_DEPLOYMENT_CONCURRENCY_SLOT_WAIT_SECONDS,
     get_current_settings,
 )
 from prefect.types._datetime import now
@@ -520,8 +518,7 @@ class ReleaseTaskConcurrencySlots(TaskRunUniversalTransform):
                     context.session, tags=context.run.tags
                 )
             )
-            run_limits = {limit.tag: limit for limit in v1_limits}
-            for cl in run_limits.values():
+            for cl in v1_limits:
                 active_slots = set(cl.active_slots)
                 active_slots.discard(str(context.run.id))
                 cl.active_slots = list(active_slots)
@@ -612,12 +609,13 @@ class SecureFlowConcurrencySlots(FlowRunOrchestrationRule):
                 concurrency_options.collision_strategy
                 == core.ConcurrencyLimitStrategy.ENQUEUE
             ):
+                settings = get_current_settings()
                 await self.reject_transition(
                     state=states.Scheduled(
                         name="AwaitingConcurrencySlot",
                         scheduled_time=now("UTC")
                         + datetime.timedelta(
-                            seconds=PREFECT_DEPLOYMENT_CONCURRENCY_SLOT_WAIT_SECONDS.value()
+                            seconds=settings.server.deployments.concurrency_slot_wait_seconds
                         ),
                     ),
                     reason="Deployment concurrency limit reached.",
@@ -817,11 +815,12 @@ class CacheInsertion(TaskRunOrchestrationRule):
         if proposed_state is None:
             return
 
+        settings = get_current_settings()
         cache_key = proposed_state.state_details.cache_key
-        if cache_key and len(cache_key) > PREFECT_API_TASK_CACHE_KEY_MAX_LENGTH.value():
+        if cache_key and len(cache_key) > settings.server.tasks.max_cache_key_length:
             await self.reject_transition(
                 state=proposed_state,
-                reason=f"Cache key exceeded maximum allowed length of {PREFECT_API_TASK_CACHE_KEY_MAX_LENGTH.value()} characters.",
+                reason=f"Cache key exceeded maximum allowed length of {settings.server.tasks.max_cache_key_length} characters.",
             )
             return
 
