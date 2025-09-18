@@ -40,10 +40,9 @@ from prefect.cache_policies import CachePolicy
 from prefect.client.orchestration import PrefectClient, SyncPrefectClient, get_client
 from prefect.client.schemas import TaskRun
 from prefect.client.schemas.objects import RunInput, State
+from prefect.concurrency.asyncio import concurrency as aconcurrency
 from prefect.concurrency.context import ConcurrencyContext
-from prefect.concurrency.v1.asyncio import concurrency as aconcurrency
-from prefect.concurrency.v1.context import ConcurrencyContext as ConcurrencyContextV1
-from prefect.concurrency.v1.sync import concurrency
+from prefect.concurrency.sync import concurrency
 from prefect.context import (
     AssetContext,
     AsyncClientContext,
@@ -665,7 +664,6 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                     persist_result=persist_result,
                 )
             )
-            stack.enter_context(ConcurrencyContextV1())
             stack.enter_context(ConcurrencyContext())
 
             self.logger: "logging.Logger" = task_run_logger(
@@ -818,7 +816,14 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
 
                 # Acquire a concurrency slot for each tag, but only if a limit
                 # matching the tag already exists.
-                with concurrency(list(self.task_run.tags), self.task_run.id):
+                if self.task_run.tags:
+                    # Map tags to V2 global limit names
+                    v2_limit_names = [f"tag:{tag}" for tag in self.task_run.tags]
+                    concurrency_ctx = concurrency(v2_limit_names, occupy=1)
+                else:
+                    concurrency_ctx = nullcontext()
+
+                with concurrency_ctx:
                     self.begin_run()
                     try:
                         yield
@@ -1408,7 +1413,19 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                     return
                 # Acquire a concurrency slot for each tag, but only if a limit
                 # matching the tag already exists.
-                async with aconcurrency(list(self.task_run.tags), self.task_run.id):
+                if self.task_run.tags:
+                    # Map tags to V2 global limit names
+                    v2_limit_names = [f"tag:{tag}" for tag in self.task_run.tags]
+                    concurrency_ctx = aconcurrency(v2_limit_names, occupy=1)
+                else:
+                    # Use a no-op context manager when there are no tags
+                    @asynccontextmanager
+                    async def _null_async_context():
+                        yield
+
+                    concurrency_ctx = _null_async_context()
+
+                async with concurrency_ctx:
                     await self.begin_run()
                     try:
                         yield
