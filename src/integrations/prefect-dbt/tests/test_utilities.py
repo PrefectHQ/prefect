@@ -287,3 +287,45 @@ class TestKwargsToArgs:
         expected = ["--a", "1", "--b", "2"]
 
         assert result == expected
+
+    def test_kwargs_to_args_preserves_positional_args(self) -> None:
+        """Test that positional arguments (like dbt commands) are preserved.
+
+        This test verifies the fix for issue #18980 where the dbt command
+        was being dropped from the args list.
+        """
+        # This is the exact case from issue #18980
+        kwargs = {
+            "profiles_dir": "/path/to/profiles",
+            "project_dir": "/path/to/project",
+            "target_path": "target",
+        }
+        args = ["debug", "--target", "prod"]
+
+        result = kwargs_to_args(kwargs, args)
+
+        # The command "debug" should be preserved at the beginning
+        assert result[0] == "debug"
+        # The user's --target flag should be preserved
+        assert "--target" in result
+        assert "prod" in result
+        # The kwargs should be added
+        assert "--profiles-dir" in result
+        assert "/path/to/profiles" in result
+
+        # Specifically test the order: positional args first, then flags
+        assert result[:3] == ["debug", "--target", "prod"]
+
+    def test_kwargs_to_args_multiple_positional_args(self) -> None:
+        """Test that multiple positional arguments are preserved."""
+        kwargs = {"some_flag": "value"}
+        args = ["command", "subcommand", "--option", "val"]
+
+        result = kwargs_to_args(kwargs, args)
+
+        # Both positional args should be preserved
+        assert result[:2] == ["command", "subcommand"]
+        assert "--option" in result
+        assert "val" in result
+        assert "--some-flag" in result
+        assert "value" in result

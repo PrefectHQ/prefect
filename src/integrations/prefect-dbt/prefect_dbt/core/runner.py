@@ -646,15 +646,42 @@ class PrefectDbtRunner:
             else []
         )
 
-        # Add settings to kwargs if they're set
-        invoke_kwargs = {
+        # Determine which command is being invoked
+        command_name = None
+        for arg in args_copy:
+            if not arg.startswith("-"):
+                command_name = arg
+                break
+
+        # Build invoke_kwargs with only parameters valid for this command
+        invoke_kwargs = {}
+
+        # Get valid parameters for the command if we can determine it
+        valid_params = None
+        if command_name:
+            from dbt.cli.main import cli
+
+            command = cli.commands.get(command_name)
+            if command:
+                valid_params = {p.name for p in command.params}
+
+        # Add settings to kwargs only if they're valid for the command
+        potential_kwargs = {
             "profiles_dir": str(self.profiles_dir),
             "project_dir": str(self.project_dir),
             "target_path": str(self.target_path),
             "log_level": "none" if in_flow_or_task_run else str(self.log_level.value),
             "log_level_file": str(self.log_level.value),
-            **kwargs,
         }
+
+        for key, value in potential_kwargs.items():
+            # If we couldn't determine valid params, include all (backward compat)
+            # Otherwise only include if it's valid for this command
+            if valid_params is None or key in valid_params:
+                invoke_kwargs[key] = value
+
+        # Add any additional kwargs passed by the user
+        invoke_kwargs.update(kwargs)
 
         with self.settings.resolve_profiles_yml() as profiles_dir:
             invoke_kwargs["profiles_dir"] = profiles_dir
