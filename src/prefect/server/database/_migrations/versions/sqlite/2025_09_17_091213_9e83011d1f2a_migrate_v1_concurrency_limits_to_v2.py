@@ -87,7 +87,6 @@ def upgrade():
             # Create actual leases if we have active slots
             if active_slots:
                 try:
-                    import asyncio
                     from datetime import timedelta
                     from uuid import UUID
 
@@ -112,8 +111,10 @@ def upgrade():
                                 ),
                             )
 
-                    # Run the async function
-                    asyncio.run(create_leases())
+                    # Use run_coro_as_sync to handle running async code from migration context
+                    from prefect.utilities.asyncutils import run_coro_as_sync
+
+                    run_coro_as_sync(create_leases())
                 except Exception as e:
                     # Log but don't fail migration if lease creation fails
                     print(f"Warning: Could not create leases for limit {v2_id}: {e}")
@@ -132,10 +133,39 @@ def downgrade():
         sa.text("SELECT * FROM concurrency_limit_v2 WHERE name LIKE 'tag:%'")
     ).fetchall()
 
+    # Try to get lease storage for recovering active slots
+    from prefect.server.concurrency.lease_storage import (
+        get_concurrency_lease_storage,
+    )
+
+    lease_storage = get_concurrency_lease_storage()
+
     for v2_limit in v2_limits:
         tag = v2_limit.name[4:]  # Remove 'tag:' prefix
 
-        # Restore with the same ID and empty active_slots - can't recreate the original slot UUIDs
+        # Best effort: try to recover active slots from lease storage
+        active_slots = []
+        try:
+            from uuid import UUID
+
+            async def get_holders():
+                holders = await lease_storage.list_holders_for_limit(
+                    UUID(str(v2_limit.id))
+                )
+                return [
+                    str(holder.id)
+                    for _, holder in holders
+                    if holder and holder.type == "task_run"
+                ]
+
+            from prefect.utilities.asyncutils import run_coro_as_sync
+
+            active_slots = run_coro_as_sync(get_holders())
+        except Exception as e:
+            # Can't recover slots - that's OK, best effort
+            print(f"Note: Could not recover active slots for {tag}: {e}")
+
+        # Restore with the same ID and recovered active_slots (or empty if couldn't recover)
         connection.execute(
             sa.text("""
                 INSERT INTO concurrency_limit
@@ -146,7 +176,7 @@ def downgrade():
                 "id": str(v2_limit.id),  # Preserve the same ID when downgrading
                 "tag": tag,
                 "limit": v2_limit.limit,
-                "slots": json.dumps([]),  # Can't restore original slots
+                "slots": json.dumps(active_slots),  # Best effort recovery from leases
                 "created": v2_limit.created,
                 "updated": v2_limit.updated,
             },
