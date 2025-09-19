@@ -54,7 +54,7 @@ jobs:
           #       https://github.com/PrefectHQ/prefect/issues/6990
 
       - name: Run benchmarks
-        uses: CodSpeedHQ/action@v3
+        uses: CodSpeedHQ/action@v4
         env:
           PREFECT_API_URL: "http://127.0.0.1:4200/api"
         with:
