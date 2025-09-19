@@ -1,13 +1,13 @@
 from unittest.mock import MagicMock
 
 import pytest
-from moto import mock_glue
+from moto import mock_aws
 from prefect_aws.glue_job import GlueJobBlock, GlueJobRun
 
 
 @pytest.fixture(scope="function")
 def glue_job_client(aws_credentials):
-    with mock_glue():
+    with mock_aws():
         boto_session = aws_credentials.get_boto3_session()
         yield boto_session.client("glue", region_name="us-east-1")
 
@@ -28,7 +28,7 @@ async def test_fetch_result(aws_credentials, glue_job_client):
 
 
 def test_wait_for_completion(aws_credentials, glue_job_client):
-    with mock_glue():
+    with mock_aws():
         glue_job_client.create_job(
             Name="test_job_name", Role="test-role", Command={}, DefaultArguments={}
         )
@@ -64,7 +64,7 @@ def test_wait_for_completion(aws_credentials, glue_job_client):
 
 
 def test_wait_for_completion_fail(aws_credentials, glue_job_client):
-    with mock_glue():
+    with mock_aws():
         glue_job_client.create_job(
             Name="test_job_name", Role="test-role", Command={}, DefaultArguments={}
         )
@@ -92,7 +92,7 @@ def test_wait_for_completion_fail(aws_credentials, glue_job_client):
 
 
 def test__get_job_run(aws_credentials, glue_job_client):
-    with mock_glue():
+    with mock_aws():
         glue_job_client.create_job(
             Name="test_job_name", Role="test-role", Command={}, DefaultArguments={}
         )
@@ -124,7 +124,7 @@ async def test_trigger(aws_credentials, glue_job_client):
 
 
 def test_start_job(aws_credentials, glue_job_client):
-    with mock_glue():
+    with mock_aws():
         glue_job_client.create_job(
             Name="test_job_name", Role="test-role", Command={}, DefaultArguments={}
         )
@@ -138,14 +138,14 @@ def test_start_job(aws_credentials, glue_job_client):
 
 
 def test_start_job_fail_because_not_exist_job(aws_credentials, glue_job_client):
-    with mock_glue():
+    with mock_aws():
         glue_job = GlueJobBlock(job_name="test_job_name", arguments={"arg1": "value1"})
         with pytest.raises(RuntimeError):
             glue_job._start_job(glue_job_client)
 
 
 def test_get_client(aws_credentials):
-    with mock_glue():
+    with mock_aws():
         glue_job_run = GlueJobBlock(
             job_name="test_job_name", aws_credentials=aws_credentials
         )
