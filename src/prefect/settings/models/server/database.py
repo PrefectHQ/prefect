@@ -93,7 +93,8 @@ class SQLAlchemySettings(PrefectBaseSettings):
     """
 
     model_config: ClassVar[SettingsConfigDict] = build_settings_config(
-        ("server", "database", "sqlalchemy")
+        ("server", "database", "sqlalchemy"),
+        env_parse_none_str="null",  # Allow 'null' string to be parsed as None
     )
 
     connect_args: SQLAlchemyConnectArgsSettings = Field(
@@ -101,9 +102,9 @@ class SQLAlchemySettings(PrefectBaseSettings):
         description="Settings for controlling SQLAlchemy connection behavior",
     )
 
-    pool_size: int = Field(
+    pool_size: Optional[int] = Field(
         default=5,
-        description="Controls connection pool size of database connection pools from the Prefect backend.",
+        description="Controls connection pool size of database connection pools from the Prefect backend. Set to None/null to use NullPool for external connection poolers like PgBouncer.",
         validation_alias=AliasChoices(
             AliasPath("pool_size"),
             "prefect_server_database_sqlalchemy_pool_size",
