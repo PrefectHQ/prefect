@@ -25,7 +25,7 @@ from prefect.server.concurrency.lease_storage import (
     get_concurrency_lease_storage,
 )
 from prefect.server.database import PrefectDBInterface, orm_models
-from prefect.server.database.dependencies import db_injector
+from prefect.server.database.dependencies import db_injector, provide_database_interface
 from prefect.server.exceptions import ObjectNotFoundError
 from prefect.server.models import concurrency_limits, concurrency_limits_v2, deployments
 from prefect.server.orchestration.dependencies import (
@@ -336,42 +336,40 @@ class SecureTaskConcurrencySlots(TaskRunOrchestrationRule):
             ]
             if active_v2_limits:
                 # Attempt to acquire slots
-                acquired = await concurrency_limits_v2.bulk_increment_active_slots(
-                    session=context.session,
-                    concurrency_limit_ids=[limit.id for limit in active_v2_limits],
-                    slots=1,
-                )
-
-                if acquired:
-                    # Create lease for acquired slots with minimal metadata first
-                    lease = await lease_storage.create_lease(
-                        resource_ids=[limit.id for limit in active_v2_limits],
-                        ttl=concurrency_limits.V1_LEASE_TTL,
-                        metadata=ConcurrencyLimitLeaseMetadata(
-                            slots=1,
-                        ),
+                async with provide_database_interface().session_context(
+                    begin_transaction=True
+                ) as session:
+                    acquired = await concurrency_limits_v2.bulk_increment_active_slots(
+                        session=session,
+                        concurrency_limit_ids=[limit.id for limit in active_v2_limits],
+                        slots=1,
                     )
+                    if not acquired:
+                        await session.rollback()
+                        # Slots not available, delay transition
+                        delay_seconds = clamped_poisson_interval(
+                            average_interval=settings.server.tasks.tag_concurrency_slot_wait_seconds,
+                        )
+                        await self.delay_transition(
+                            delay_seconds=round(delay_seconds),
+                            reason=f"Concurrency limit reached for tags: {', '.join([limit.name.removeprefix('tag:') for limit in active_v2_limits])}",
+                        )
+                        return
 
-                    # Now update the lease with holder information including lease_id
-                    lease.metadata = ConcurrencyLimitLeaseMetadata(
+                # Create lease for acquired slots with minimal metadata first
+                lease = await lease_storage.create_lease(
+                    resource_ids=[limit.id for limit in active_v2_limits],
+                    ttl=concurrency_limits.V1_LEASE_TTL,
+                    metadata=ConcurrencyLimitLeaseMetadata(
                         slots=1,
                         holder=ConcurrencyLeaseHolder(
                             type="task_run",
                             id=context.run.id,
                         ),
-                    )
+                    ),
+                )
 
-                    self._acquired_v2_lease_ids.append(lease.id)
-                else:
-                    # Slots not available, delay transition
-                    delay_seconds = clamped_poisson_interval(
-                        average_interval=settings.server.tasks.tag_concurrency_slot_wait_seconds,
-                        clamping_factor=0.3,
-                    )
-                    await self.delay_transition(
-                        delay_seconds=round(delay_seconds),
-                        reason=f"Concurrency limit reached for tags: {', '.join([limit.name.removeprefix('tag:') for limit in active_v2_limits])}",
-                    )
+                self._acquired_v2_lease_ids.append(lease.id)
 
         remaining_v1_limits = [limit for limit in v1_limits if limit.tag not in v2_tags]
         if remaining_v1_limits:
@@ -477,7 +475,7 @@ class ReleaseTaskConcurrencySlots(TaskRunUniversalTransform):
             # Release V2 leases for this task run
             if v2_limits:
                 lease_storage = get_concurrency_lease_storage()
-                lease_ids_to_reconcile: list[UUID] = []
+                lease_ids_to_reconcile: set[UUID] = set()
                 for v2_limit in v2_limits:
                     # Find holders for this limit
                     holders_with_leases: list[
@@ -488,7 +486,7 @@ class ReleaseTaskConcurrencySlots(TaskRunUniversalTransform):
                     # Find leases that belong to this task run
                     for lease_id, holder in holders_with_leases:
                         if holder.id == context.run.id:
-                            lease_ids_to_reconcile.append(lease_id)
+                            lease_ids_to_reconcile.add(lease_id)
 
                 # Reconcile all found leases
                 for lease_id in lease_ids_to_reconcile:
