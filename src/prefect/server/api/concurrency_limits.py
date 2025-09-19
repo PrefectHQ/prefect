@@ -8,6 +8,7 @@ continues to work for backward compatibility.
 
 from __future__ import annotations
 
+import logging
 from datetime import timedelta
 from typing import List, Optional, Sequence
 from uuid import UUID
@@ -17,6 +18,7 @@ from fastapi import Body, Depends, HTTPException, Path, Response, status
 import prefect.server.api.dependencies as dependencies
 import prefect.server.models as models
 import prefect.server.schemas as schemas
+from prefect.logging.loggers import get_logger
 from prefect.server.api.concurrency_limits_v2 import MinimalConcurrencyLimitResponse
 from prefect.server.concurrency.lease_storage import (
     ConcurrencyLimitLeaseMetadata,
@@ -25,7 +27,6 @@ from prefect.server.concurrency.lease_storage import (
 from prefect.server.database import PrefectDBInterface, provide_database_interface
 from prefect.server.models import concurrency_limits
 from prefect.server.models import concurrency_limits_v2 as cl_v2_models
-from prefect.server.utilities.leasing import ResourceLease
 from prefect.server.utilities.server import PrefectRouter
 from prefect.settings import PREFECT_TASK_RUN_TAG_CONCURRENCY_SLOT_WAIT_SECONDS
 from prefect.types._concurrency import ConcurrencyLeaseHolder
@@ -33,7 +34,7 @@ from prefect.types._concurrency import ConcurrencyLeaseHolder
 router: PrefectRouter = PrefectRouter(
     prefix="/concurrency_limits", tags=["Concurrency Limits"]
 )
-
+logger: logging.Logger = get_logger(__name__)
 # V1 clients cannot renew leases; use a long TTL
 V1_LEASE_TTL = timedelta(days=100 * 365)  # ~100 years
 
@@ -597,7 +598,7 @@ async def decrement_concurrency_limits_v1(
 
         # Find and revoke lease for V2 limits
         if v2_limits:
-            leases_to_revoke: list[ResourceLease[ConcurrencyLimitLeaseMetadata]] = []
+            leases_ids_to_revoke: set[UUID] = set()
 
             for limit in v2_limits:
                 holders = await lease_storage.list_holders_for_limit(limit.id)
@@ -605,15 +606,19 @@ async def decrement_concurrency_limits_v1(
                     if holder.id == task_run_id:
                         lease = await lease_storage.read_lease(lease_id)
                         if lease:
-                            leases_to_revoke.append(lease)
+                            leases_ids_to_revoke.add(lease.id)
 
-            for lease in leases_to_revoke:
-                await cl_v2_models.bulk_decrement_active_slots(
-                    session=session,
-                    concurrency_limit_ids=lease.resource_ids,
-                    slots=lease.metadata.slots if lease.metadata else 0,
-                )
-                await lease_storage.revoke_lease(lease.id)
+            for lease_id in leases_ids_to_revoke:
+                lease = await lease_storage.read_lease(lease_id)
+                if lease:
+                    await cl_v2_models.bulk_decrement_active_slots(
+                        session=session,
+                        concurrency_limit_ids=lease.resource_ids,
+                        slots=lease.metadata.slots if lease.metadata else 0,
+                    )
+                    await lease_storage.revoke_lease(lease.id)
+                else:
+                    logger.warning(f"Lease {lease_id} not found during decrement")
 
             results.extend(
                 [
