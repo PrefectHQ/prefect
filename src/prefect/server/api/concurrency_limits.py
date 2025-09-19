@@ -597,7 +597,7 @@ async def decrement_concurrency_limits_v1(
 
         # Find and revoke lease for V2 limits
         if v2_limits:
-            leases_to_revoke: list[ResourceLease[ConcurrencyLimitLeaseMetadata]] = []
+            leases_to_revoke: set[ResourceLease[ConcurrencyLimitLeaseMetadata]] = set()
 
             for limit in v2_limits:
                 holders = await lease_storage.list_holders_for_limit(limit.id)
@@ -605,7 +605,7 @@ async def decrement_concurrency_limits_v1(
                     if holder.id == task_run_id:
                         lease = await lease_storage.read_lease(lease_id)
                         if lease:
-                            leases_to_revoke.append(lease)
+                            leases_to_revoke.add(lease)
 
             for lease in leases_to_revoke:
                 await cl_v2_models.bulk_decrement_active_slots(

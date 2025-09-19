@@ -349,7 +349,6 @@ class SecureTaskConcurrencySlots(TaskRunOrchestrationRule):
                         # Slots not available, delay transition
                         delay_seconds = clamped_poisson_interval(
                             average_interval=settings.server.tasks.tag_concurrency_slot_wait_seconds,
-                            clamping_factor=0.3,
                         )
                         await self.delay_transition(
                             delay_seconds=round(delay_seconds),
@@ -363,15 +362,10 @@ class SecureTaskConcurrencySlots(TaskRunOrchestrationRule):
                     ttl=concurrency_limits.V1_LEASE_TTL,
                     metadata=ConcurrencyLimitLeaseMetadata(
                         slots=1,
-                    ),
-                )
-
-                # Now update the lease with holder information including lease_id
-                lease.metadata = ConcurrencyLimitLeaseMetadata(
-                    slots=1,
-                    holder=ConcurrencyLeaseHolder(
-                        type="task_run",
-                        id=context.run.id,
+                        holder=ConcurrencyLeaseHolder(
+                            type="task_run",
+                            id=context.run.id,
+                        ),
                     ),
                 )
 
