@@ -41,7 +41,7 @@ from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.processutils import open_process
 
 POLL_INTERVAL = 0.5
-STARTUP_TIMEOUT = 20
+STARTUP_TIMEOUT = 30
 SHUTDOWN_TIMEOUT = 20
 
 
