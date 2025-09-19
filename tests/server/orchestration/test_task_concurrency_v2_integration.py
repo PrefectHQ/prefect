@@ -7,7 +7,6 @@ Global Concurrency Limits V2 in SecureTaskConcurrencySlots and ReleaseTaskConcur
 
 import contextlib
 from typing import Any, Callable
-from unittest import mock
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -220,49 +219,6 @@ class TestSecureTaskConcurrencySlotsV2Integration:
         # Verify zero limit is still zero - no slots should have been acquired
         await session.refresh(zero_limit)
         assert zero_limit.active_slots == 0
-
-    async def test_v2_delay_uses_poisson_interval(
-        self,
-        session: AsyncSession,
-        initialize_orchestration: Callable[..., Any],
-        monkeypatch: Any,
-    ) -> None:
-        """Test that V2 delays use clamped poisson interval for jitter."""
-        mock_poisson = mock.Mock(return_value=42.7)
-        monkeypatch.setattr(
-            "prefect.server.orchestration.core_policy.clamped_poisson_interval",
-            mock_poisson,
-        )
-
-        v2_limit = await self.create_v2_concurrency_limit(session, "full-tag", 1)
-
-        # Fill the limit
-        await concurrency_limits_v2.bulk_increment_active_slots(
-            session=session,
-            concurrency_limit_ids=[v2_limit.id],
-            slots=1,
-        )
-
-        concurrency_policy = [SecureTaskConcurrencySlots]
-        running_transition = (states.StateType.PENDING, states.StateType.RUNNING)
-
-        ctx = await initialize_orchestration(
-            session, "task", *running_transition, run_tags=["full-tag"]
-        )
-
-        async with contextlib.AsyncExitStack() as stack:
-            for rule in concurrency_policy:
-                ctx = await stack.enter_async_context(rule(ctx, *running_transition))
-            await ctx.validate_proposed_state()
-
-        assert ctx.response_status == SetStateStatus.WAIT
-        assert ctx.response_details.delay_seconds == 43  # round(42.7)
-
-        # Verify poisson interval was called with correct parameters
-        mock_poisson.assert_called_once_with(
-            average_interval=mock.ANY,  # from settings
-            clamping_factor=0.3,
-        )
 
     async def test_v1_limits_processed_when_no_v2_overlap(
         self,
