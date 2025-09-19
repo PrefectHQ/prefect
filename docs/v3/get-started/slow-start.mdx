@@ -1,0 +1,431 @@
+---
+title: Slow Start
+description: A curated learning path for those who want to go deeper than the quick start
+icon: turtle
+---
+
+Unlike the [quickstart](/v3/get-started/quickstart) which gets you running immediately, this guide provides a guided tour of Prefect's philosophy, architecture, and capabilities.
+
+## Why Slow Start?
+
+The quickstart is great for getting up and running quickly, but sometimes you want to understand the **why** behind the **what**. This guide walks you through Prefect step-by-step, building understanding layer by layer.
+
+## 0. Who cares about orchestration?
+
+[Content to be added]
+
+## 1. Look! It's Just Normal Python
+
+Prefect [flows](/v3/concepts/flows) and [tasks](/v3/concepts/tasks) are just
+
+### Minimum Viable Adoption
+
+Here's a normal Python function that processes some data:
+
+```python
+def process_data(items: list[str]) -> dict:
+    """Process a list of items and return results."""
+    results = {}
+    for item in items:
+        # Some processing logic
+        processed = item.upper()
+        results[item] = processed
+    return results
+
+# Call it normally
+output = process_data(["hello", "world"])
+print(output)  # {'hello': 'HELLO', 'world': 'WORLD'}
+```
+
+Now let's make it a Prefect flow:
+
+```python
+from prefect import flow
+
+@flow
+def process_data(items: list[str]) -> dict:
+    """Process a list of items and return results."""
+    results = {}
+    for item in items:
+        # Some processing logic
+        processed = item.upper()
+        results[item] = processed
+    return results
+
+# Call it exactly the same way!
+output = process_data(["hello", "world"])
+print(output)  # {'hello': 'HELLO', 'world': 'WORLD'}
+```
+
+**What changed?**
+
+We just decorated the function with `@flow`. Now it's a Prefect flow!
+
+**What didn't change?**
+
+Everything else:
+- Same function signature
+- Same implementation
+- Same way to call it
+- Same `return` value
+
+### What Does @flow Actually Do?
+
+The `@flow` decorator enhances your function with:
+
+1. **Automatic [logging](/v3/how-to-guides/workflows/add-logging)** - Every run is tracked
+2. **[State](/v3/concepts/states) Management** - Know if it succeeded, failed, or is running
+3. **[Retries](/v3/how-to-guides/workflows/retries)** - Handle transient failures gracefully
+4. **[Observability](/v3/concepts/artifacts)** - See inputs, outputs, contained work, and more
+
+[Diagram: Client-side execution engine layers - to be added]
+
+Behind the scenes, Prefect:
+- Registers your flow with the Prefect database (self-hosted or Prefect Cloud)
+- Tracks every execution as a "[flow run](/v3/concepts/flows#the-life-of-a-flow-run)" with metadata like start time, duration, and final state
+- Stores logs and [results](/v3/advanced/results) for debugging and auditing
+- Makes all of this visible in the UI
+
+### You Can Still Use It Like Normal Python
+
+Flows work everywhere Python works - in scripts, classes, tests, and async functions. They're still just Python functions. See [supported function types](/v3/concepts/flows#supported-function-types) for all the patterns Prefect supports.
+
+### Tasks: Concurrent and Transactional Work
+
+[Tasks](/v3/concepts/tasks) are functions decorated with `@task`. You'd reach for tasks instead of regular functions when you want:
+
+1. **UI representation** - Each task appears separately in the Prefect UI
+2. **Concurrent execution** - Run multiple operations at the same time with `.map()` or `.submit()`
+3. **Transactional semantics** - Rollback side effects on failure
+4. **Individual retries** - Retry just the failed piece, not the whole flow
+
+#### Running Tasks Concurrently
+
+If you need to process multiple items in parallel, tasks make it simple with [`.map()`](/v3/how-to-guides/workflows/run-work-concurrently#using-map):
+
+```python
+@task
+def process_item(item: str) -> str:
+    # Some expensive operation
+    return f"Processed {item}"
+
+@flow  
+def process_many(items: list[str]):
+    # Runs and resolves all items concurrently
+    return process_item.map(items).result()
+```
+
+This automatically runs each item in parallel. Learn more about [concurrent execution patterns](/v3/how-to-guides/workflows/run-work-concurrently).
+
+#### Transactional Rollbacks
+
+Tasks support [transactional semantics](/v3/advanced/transactions) with rollback hooks:
+
+```python
+@task
+def write_file(filename: str, data: str):
+    with open(filename, "w") as f:
+        f.write(data)
+
+@write_file.on_rollback
+def cleanup_file(transaction):
+    """Delete the file if something fails later."""
+    os.remove(transaction.get("filename"))
+```
+
+If any task in the transaction fails, Prefect automatically runs the rollback hooks to clean up side effects. See the [transactions guide](/v3/advanced/transactions) for complete examples.
+
+<Note>
+Prefect is flexible by design. You can [compose flows and tasks](/v3/concepts/flows#organize-flows-with-subflows-and-tasks) however best fits your mental model of your workflow.
+</Note>
+
+
+
+
+## 2. Prefect Architecture
+
+We've taken a tour through what it looks like to "write prefect code", but if it's just python code, why do we need a web app and a database?
+
+### How Prefect Runs Your Code
+
+When you run a flow, here's what happens:
+
+- **Direct execution**: `my_flow()` runs immediately in your current process
+- **Scheduled execution**: Code is downloaded from storage (like GitHub) and executed when scheduled
+
+The key insight: Prefect orchestrates *when* and *where* your code runs, but your code lives in your version control system.
+
+### Running Flows: Two Modes
+
+#### Mode 1: Direct Execution (Development)
+```python
+# Your code runs immediately in your current process
+result = my_flow(param="value")
+```
+
+It's just Python! Run it in your terminal, in a notebook, or as an AWS Lambda handler. The world is your oyster.
+
+#### Mode 2: Scheduled/Triggered Execution (Deployment)
+If you want to run your flow on a schedule or in response to events, you probably want a [deployment](/v3/concepts/deployments).
+
+If you want to arbitrarily configure the infrastructure where your flow executes, you probably want a [work pool](/v3/concepts/work-pools).
+
+If you want control over how work is submitted to the infrastructure, you probably want a [worker](/v3/concepts/workers).
+
+<Note>
+You don't always need a worker. Some work pool types (e.g. [serverless](/v3/how-to-guides/deployment_infra/serverless)) will handle submission of work for you.
+</Note>
+
+### The Three Components of Remote Orchestration
+
+#### 1. Deployments - The "What"
+
+A [deployment](/v3/concepts/deployments) is a server-side representation of a flow. It stores metadata about which flow to run, when to run it, and where to find your code.
+
+```python
+# Deploy from GitHub
+my_flow.from_source(
+    source="https://github.com/myorg/myrepo.git"
+).deploy(
+    name="daily-process",
+    work_pool_name="my-pool",
+    cron="0 9 * * *"
+)
+```
+
+Learn about [code storage options](/v3/how-to-guides/deployments/store-flow-code) and [creating deployments](/v3/how-to-guides/deployments/create-deployments).
+
+#### 2. Work Pools - The "Where"
+
+A [work pool](/v3/concepts/work-pools) defines the infrastructure where flows *can* run:
+
+```bash
+prefect work-pool create my-docker-pool --type docker
+```
+
+Choose from many [work pool types](/v3/concepts/work-pools#work-pool-types): `process`, `docker`, `kubernetes`, `ecs`, and more.
+
+#### 3. Workers - The "How"
+
+A [worker](/v3/concepts/workers) polls for scheduled runs and executes them:
+
+```bash
+prefect worker start --pool my-docker-pool
+```
+
+Workers pull your code, run any setup ([`pull` steps](/v3/how-to-guides/deployments/prefect-yaml#the-pull-action)). Learn about [starting workers](/v3/concepts/workers#start-a-worker) and [worker types](/v3/concepts/workers#worker-types).
+
+### Putting It All Together
+
+Here's a typical workflow:
+
+<Steps>
+  <Step title="Push code to GitHub">
+    ```bash
+    git push origin main
+    ```
+    Your flow code is now versioned and ready to deploy.
+  </Step>
+  
+  <Step title="Create deployment pointing to GitHub">
+    ```python
+    my_flow.from_source(
+        source="https://github.com/myorg/myrepo.git"
+    ).deploy(
+        name="daily-process",
+        work_pool_name="docker-pool",
+        cron="0 9 * * *"
+    )
+    ```
+    This tells Prefect where to find your code and when to run it.
+  </Step>
+  
+  <Step title="Start a worker">
+    ```bash
+    prefect worker start --pool docker-pool
+    ```
+    The worker polls for scheduled runs and executes them.
+  </Step>
+  
+  <Step title="Automatic execution">
+    When the schedule triggers:
+    - Worker gets notification from Prefect
+    - Worker pulls latest code from GitHub
+    - Worker runs your flow in a Docker container
+    - Results and logs stream back to Prefect
+  </Step>
+</Steps>
+
+### Why This Architecture?
+
+This approach gives you:
+
+1. **No redeploys**: Change your code, push to GitHub, next run uses new code
+2. **Environment flexibility**: Same deployment can run on different infrastructure
+3. **Scale on demand**: Add workers when you need more capacity
+4. **Git-native**: Your existing version control is your deployment system
+
+### Deployment Options
+
+- **Simple**: Use [`flow.serve()`](/v3/how-to-guides/deployments/run-flows-in-local-processes) for long-running processes
+- **Scalable**: Deploy with workers for dynamic infrastructure
+- **Serverless**: Use [push work pools](/v3/how-to-guides/deployment_infra/serverless) (no worker needed)
+
+Choose based on your needs. Learn more about [deployment patterns](/v3/deploy).
+
+## 3. Schedule your workflow
+
+Now you have a workflow that you can run locally, but what if you want to run it on a schedule or trigger a run via an API call?
+
+In Prefect, you can take a workflow and make it remotely invocable by creating a deployment.
+
+First, we'll need to create a work pool:
+
+```bash
+prefect work-pool create my-local-pool --type process
+```
+
+<Accordion title="What is a work pool?">
+A work pool is where scheduled flow runs hang out until a worker picks them up for execution. A work pool's type corresponds to the type of infrastructure the runs will execute on.
+
+In this case, we created a <b>process work pool</b>, which means that workers in this work pool spin up a separate subprocess for each flow run. We chose a process work pool to start because process workers are simple to run locally and don't require any additional infrastructure.
+
+To learn more about work pools, see the [work pools concepts](/v3/concepts/work-pools) page.
+</Accordion>
+
+Second, we'll bootstrap out project with a configuration file for our deployment:
+
+```bash
+prefect init --recipe local
+```
+
+This will create a `prefect.yaml` file in your project root. Before you can deploy, you'll need to make some updates to the `deployments` section.
+
+Update the the following fields in your `prefect.yaml` file:
+
+- `name`: The name of the deployment. This is the name will be combined with the flow name to create a unique identifier for the deployment.
+- `entrypoint`: The path to the flow you want to deploy in the format `path/to/file.py:flow_name`.
+- `work_pool`: The name of the work pool to use for the deployment.
+
+After updating your `prefect.yaml` file, it should looks like this:
+
+```yaml {2,8,11}
+deployments:
+- name: my-deployment
+  version: null
+  tags: []
+  description: null
+  schedule: {}
+  flow_name: null
+  entrypoint: main.py:my_flow
+  parameters: {}
+  work_pool:
+    name: my-local-pool
+    work_queue_name: null
+    job_variables: {}
+```
+
+<Accordion title="What are those other fields for?">
+
+Each deployment can be customized with schedules, default parameters, infrastructure overrides, and more.
+
+If you want to see a full list of fields and their behavior, see the [deployment declaration reference](/v3/how-to-guides/deployments/prefect-yaml#deployment-declaration-reference) page.
+</Accordion>
+
+
+### Managing Dependencies
+
+[Content to be added]
+
+### Deployment Strategies
+
+[Content to be added]
+
+### Managing Dependencies
+
+[Content to be added]
+
+### Real-World Deployment Example
+
+[Content to be added]
+
+## 4. Storage / CI/CD
+
+Now let's integrate Prefect into your existing development workflow.
+
+### Code Storage Strategies
+
+[Content to be added]
+
+### GitHub Actions Integration
+
+[Content to be added]
+
+### Environment Configuration
+
+[Content to be added]
+
+### Deployment Patterns
+
+[Content to be added]
+
+### Storage Best Practices
+
+[Content to be added]
+
+### CI/CD Checklist
+
+[Content to be added]
+
+## 5. Scaling: N Developers, 1 Docker Worker on VM
+
+The final step: scaling from a single developer to a team sharing infrastructure.
+
+### The Shared Worker Pattern
+
+[Content to be added]
+
+### Setting Up the Worker VM
+
+[Link to existing systemd setup documentation]
+
+### Work Pool Configuration for Teams
+
+[Content to be added]
+
+### Developer Workflow
+
+[Content to be added]
+
+### Managing Concurrent Executions
+
+[Content to be added]
+
+### Monitoring and Debugging
+
+[Content to be added]
+
+### Scaling Considerations
+
+[Content to be added]
+
+### Best Practices for Teams
+
+[Content to be added]
+
+## Conclusion
+
+Congratulations! You've completed the Slow Start guide. You now understand:
+
+1. **Flows are just Python** - No magic, just enhanced functions
+2. **Architecture is simple** - Work pools + deployments + workers
+3. **Deployment is configuration** - Your code stays pure
+4. **CI/CD is standard** - Integrates with existing tools
+5. **Scaling is gradual** - Start simple, grow as needed
+
+### What's Next?
+
+- Explore [event-driven workflows](/v3/concepts/events)
+- Learn about [custom infrastructure blocks](/v3/how-to-guides/infrastructure)
+- Dive into [advanced scheduling patterns](/v3/concepts/schedules)
+- Join the [Prefect Community](https://prefect.io/slack)
