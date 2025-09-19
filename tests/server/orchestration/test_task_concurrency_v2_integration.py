@@ -578,6 +578,136 @@ class TestReleaseTaskConcurrencySlotsV2Integration:
         assert v2_limit1.active_slots == 1
         assert v2_limit2.active_slots == 1
 
+    async def test_v2_slot_increment_lease_creation_atomicity(
+        self,
+        session: AsyncSession,
+        initialize_orchestration: Callable[..., Any],
+    ) -> None:
+        """
+        Test that slot increments and lease creation are atomic in orchestration policy.
+        This test verifies the fix for the zombie slot bug where slots could be
+        incremented but leases not created due to session/transaction boundary issues.
+        The fix ensures both operations happen in a single transaction context.
+        """
+        # Create two limits with different capacities
+        v2_limit_5 = await self.create_v2_concurrency_limit(session, "limit-5", 5)
+        v2_limit_10 = await self.create_v2_concurrency_limit(session, "limit-10", 10)
+
+        secure_policy = [SecureTaskConcurrencySlots]
+        release_policy = [ReleaseTaskConcurrencySlots]
+        running_transition = (states.StateType.PENDING, states.StateType.RUNNING)
+        completed_transition = (states.StateType.RUNNING, states.StateType.COMPLETED)
+
+        # Run 5 tasks to fill the smaller limit and use slots from both limits
+        task_contexts = []
+        for _ in range(5):
+            task_ctx = await initialize_orchestration(
+                session,
+                "task",
+                *running_transition,
+                run_tags=["limit-5", "limit-10"],
+            )
+
+            async with contextlib.AsyncExitStack() as stack:
+                for rule in secure_policy:
+                    task_ctx = await stack.enter_async_context(
+                        rule(task_ctx, *running_transition)
+                    )
+                await task_ctx.validate_proposed_state()
+
+            # Each task should be accepted and increment both limits
+            assert task_ctx.response_status == SetStateStatus.ACCEPT
+            task_contexts.append(task_ctx)
+
+        # Verify both limits have the expected slots and leases
+        await session.refresh(v2_limit_5)
+        await session.refresh(v2_limit_10)
+        assert v2_limit_5.active_slots == 5
+        assert v2_limit_10.active_slots == 5
+
+        # Count leases via lease storage
+        lease_storage = get_concurrency_lease_storage()
+        limit_5_holders = await lease_storage.list_holders_for_limit(v2_limit_5.id)
+        limit_10_holders = await lease_storage.list_holders_for_limit(v2_limit_10.id)
+        assert len(limit_5_holders) == 5
+        assert len(limit_10_holders) == 5
+
+        # 6th task should be blocked because limit-5 is full
+        blocked_task_ctx = await initialize_orchestration(
+            session, "task", *running_transition, run_tags=["limit-5", "limit-10"]
+        )
+
+        async with contextlib.AsyncExitStack() as stack:
+            for rule in secure_policy:
+                blocked_task_ctx = await stack.enter_async_context(
+                    rule(blocked_task_ctx, *running_transition)
+                )
+            await blocked_task_ctx.validate_proposed_state()
+
+        # Should be blocked - no partial increments should occur
+        assert blocked_task_ctx.response_status == SetStateStatus.WAIT
+
+        # Slots should remain the same (no zombie slots created)
+        await session.refresh(v2_limit_5)
+        await session.refresh(v2_limit_10)
+        assert v2_limit_5.active_slots == 5
+        assert v2_limit_10.active_slots == 5
+
+        # Complete all tasks to verify proper cleanup atomicity
+        for task_ctx in task_contexts:
+            completed_ctx = await initialize_orchestration(
+                session,
+                "task",
+                *completed_transition,
+                run_override=task_ctx.run,
+                run_tags=["limit-5", "limit-10"],
+            )
+
+            # Set validated state to completed (normally done by orchestration)
+            completed_ctx.validated_state = states.State(
+                type=states.StateType.COMPLETED
+            )
+
+            async with contextlib.AsyncExitStack() as stack:
+                for rule in release_policy:
+                    completed_ctx = await stack.enter_async_context(
+                        rule(completed_ctx, *completed_transition)
+                    )
+
+        # Both limits should be completely cleaned up
+        await session.refresh(v2_limit_5)
+        await session.refresh(v2_limit_10)
+        assert v2_limit_5.active_slots == 0
+        assert v2_limit_10.active_slots == 0
+
+        # Verify leases were cleaned up
+        limit_5_holders = await lease_storage.list_holders_for_limit(v2_limit_5.id)
+        limit_10_holders = await lease_storage.list_holders_for_limit(v2_limit_10.id)
+        assert len(limit_5_holders) == 0
+        assert len(limit_10_holders) == 0
+
+        # Now the previously blocked task should be able to run
+        retry_task_ctx = await initialize_orchestration(
+            session,
+            "task",
+            *running_transition,
+            run_override=blocked_task_ctx.run,
+            run_tags=["limit-5", "limit-10"],
+        )
+
+        async with contextlib.AsyncExitStack() as stack:
+            for rule in secure_policy:
+                retry_task_ctx = await stack.enter_async_context(
+                    rule(retry_task_ctx, *running_transition)
+                )
+            await retry_task_ctx.validate_proposed_state()
+
+        assert retry_task_ctx.response_status == SetStateStatus.ACCEPT
+        await session.refresh(v2_limit_5)
+        await session.refresh(v2_limit_10)
+        assert v2_limit_5.active_slots == 1
+        assert v2_limit_10.active_slots == 1
+
     async def test_v2_limit_prevents_exceeding_capacity(
         self,
         session: AsyncSession,
