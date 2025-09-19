@@ -37,6 +37,7 @@ from pydantic import (
     SerializerFunctionWrapHandler,
     ValidationError,
     model_serializer,
+    model_validator,
 )
 from pydantic.json_schema import GenerateJsonSchema
 from typing_extensions import Literal, ParamSpec, Self, TypeGuard, get_args
@@ -333,6 +334,17 @@ class Block(BaseModel, ABC):
         json_schema_extra=schema_extra,
     )
 
+    def __new__(cls: type[Self], **kwargs: Any) -> Self:
+        """
+        Create an instance of the Block subclass type if a `block_type_slug` is
+        present in the data payload.
+        """
+        if block_type_slug := kwargs.pop("block_type_slug", None):
+            subcls = cls.get_block_class_from_key(block_type_slug)
+            if cls is not subcls and issubclass(subcls, cls):
+                return super().__new__(subcls)
+        return super().__new__(cls)
+
     def __init__(self, *args: Any, **kwargs: Any):
         super().__init__(*args, **kwargs)
         self.block_initialization()
@@ -346,6 +358,23 @@ class Block(BaseModel, ABC):
         return [
             (key, value) for key, value in repr_args if key is None or key in data_keys
         ]
+
+    @model_validator(mode="before")
+    @classmethod
+    def validate_block_type_slug(cls, values: Any) -> Any:
+        """
+        Validates that the `block_type_slug` in the input values matches the expected
+        block type slug for the class. This helps pydantic to correctly discriminate
+        between different Block subclasses when validating Union types of Blocks.
+        """
+        if isinstance(values, dict):
+            if "block_type_slug" in values:
+                expected_slug = cls.get_block_type_slug()
+                if values["block_type_slug"] != expected_slug:
+                    raise ValueError(
+                        f"Invalid block_type_slug: expected '{expected_slug}', got '{values['block_type_slug']}'"
+                    )
+        return values
 
     def block_initialization(self) -> None:
         pass
@@ -1546,18 +1575,6 @@ class Block(BaseModel, ABC):
         block_document, _ = await cls._aget_block_document(name, client=client)
 
         await client.delete_block_document(block_document.id)
-
-    def __new__(cls: type[Self], **kwargs: Any) -> Self:
-        """
-        Create an instance of the Block subclass type if a `block_type_slug` is
-        present in the data payload.
-        """
-        block_type_slug = kwargs.pop("block_type_slug", None)
-        if block_type_slug:
-            subcls = cls.get_block_class_from_key(block_type_slug)
-            return super().__new__(subcls)
-        else:
-            return super().__new__(cls)
 
     def get_block_placeholder(self) -> str:
         """
