@@ -2,6 +2,47 @@
 title: 3.4
 ---
 
+## 3.4.19 - Pay No Attention To That GCL Behind The Curtain
+
+*Released on September 19, 2025*
+
+**Enhancements ➕➕**
+
+* split `deploy.py` into a module by [@zzstoatzz](https://github.com/zzstoatzz) in [#18925](https://github.com/PrefectHQ/prefect/pull/18925)
+* Add minimal V1→V2 concurrency adapter by [@zzstoatzz](https://github.com/zzstoatzz) in [#18971](https://github.com/PrefectHQ/prefect/pull/18971)
+* Update task concurrency slot orchestration rules to work with global concurrency limits by [@desertaxle](https://github.com/desertaxle) in [#18983](https://github.com/PrefectHQ/prefect/pull/18983)
+* Update task engine to use GCLs to limit task concurrency by [@desertaxle](https://github.com/desertaxle) in [#18982](https://github.com/PrefectHQ/prefect/pull/18982)
+* Migrate V1 concurrency limits to V2 format in database by [@zzstoatzz](https://github.com/zzstoatzz) in [#18968](https://github.com/PrefectHQ/prefect/pull/18968)
+* Add pagination support to lease storage `read_active_lease_ids` by [@zzstoatzz](https://github.com/zzstoatzz) in [#18973](https://github.com/PrefectHQ/prefect/pull/18973)
+* Add `list_holders_for_limit` to `ConcurrencyLeaseStorage` protocol by [@zzstoatzz](https://github.com/zzstoatzz) in [#18970](https://github.com/PrefectHQ/prefect/pull/18970)
+
+**Bug Fixes 🐞**
+
+* Fix `set_working_directory` to return absolute path by [@desertaxle](https://github.com/desertaxle) in [#18932](https://github.com/PrefectHQ/prefect/pull/18932)
+* Silence retryable SQLite lock errors by [@zzstoatzz](https://github.com/zzstoatzz) in [#18957](https://github.com/PrefectHQ/prefect/pull/18957)
+* Fix `wait()` to monitor all futures concurrently with timeout by [@zzstoatzz](https://github.com/zzstoatzz) in [#18960](https://github.com/PrefectHQ/prefect/pull/18960)
+* Fix blocks not registering schema for nested Blocks in piped union types by [@GalLadislav](https://github.com/GalLadislav) in [#18920](https://github.com/PrefectHQ/prefect/pull/18920)
+* Fix atomicity issue in GCL-backed tag-based concurrency limits by [@desertaxle](https://github.com/desertaxle) in [#18991](https://github.com/PrefectHQ/prefect/pull/18991)
+
+**Development & Tidiness 🧹**
+
+* Add Python environment setup to Claude workflow by [@desertaxle](https://github.com/desertaxle) in [#18931](https://github.com/PrefectHQ/prefect/pull/18931)
+* Add models for validating loaded `prefect.yaml` files by [@desertaxle](https://github.com/desertaxle) in [#18941](https://github.com/PrefectHQ/prefect/pull/18941)
+* Replace pre-push docs generation with GitHub Action by [@desertaxle](https://github.com/desertaxle) in [#18930](https://github.com/PrefectHQ/prefect/pull/18930)
+* Install `mdxify` explicitly in CI by [@desertaxle](https://github.com/desertaxle) in [#18954](https://github.com/PrefectHQ/prefect/pull/18954)
+* Add starlette status code compatibility layer by [@zzstoatzz](https://github.com/zzstoatzz) in [#18963](https://github.com/PrefectHQ/prefect/pull/18963)
+
+**Documentation 📓**
+
+* fix: add redirect setting to docs.json to fix /latest path 404s by [@zzstoatzz](https://github.com/zzstoatzz) in [#18945](https://github.com/PrefectHQ/prefect/pull/18945)
+* fix: add errors.404.redirect setting to fix /latest path 404s by [@zzstoatzz](https://github.com/zzstoatzz) in [#18946](https://github.com/PrefectHQ/prefect/pull/18946)
+
+
+**Full Changelog**: https://github.com/PrefectHQ/prefect/compare/3.4.18...3.4.19
+
+
+---
+
 ## 3.4.18 - He who holds the leases controls the universe
 
 *Released on September 12, 2025*

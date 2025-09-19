@@ -253,6 +253,12 @@ def format_release_notes(release_info: dict, version: str) -> str:
             # This targets conventional commit prefixes for dependency bumps.
             if re.search(r"(?i)chore\(deps", line_stripped):
                 continue
+            # Omit auto-update documentation PRs (typically from github-actions bot)
+            if (
+                "auto-update documentation" in line_stripped.lower()
+                and "github-actions" in line_stripped.lower()
+            ):
+                continue
             # Skip duplicate empty lines that might be in the source after headers
             # This prevents having too many blank lines if source already had spacing
             if line.strip() == "" and filtered_lines and filtered_lines[-1] == "":
