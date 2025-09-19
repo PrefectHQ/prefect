@@ -119,6 +119,19 @@ async def clear_db(db, request):
                 else:
                     raise
 
+    # Also clear the memory lease storage singleton to prevent test pollution
+    try:
+        from prefect.server.concurrency.lease_storage.memory import (
+            ConcurrencyLeaseStorage,
+        )
+
+        storage = ConcurrencyLeaseStorage()
+        storage.leases.clear()
+        storage.expirations.clear()
+    except ImportError:
+        # Memory storage may not be available in all test configurations
+        pass
+
     yield
 
 

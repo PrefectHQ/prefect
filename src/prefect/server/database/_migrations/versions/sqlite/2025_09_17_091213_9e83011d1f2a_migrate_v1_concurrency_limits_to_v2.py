@@ -33,17 +33,12 @@ def upgrade():
         sa.text("SELECT * FROM concurrency_limit")
     ).fetchall()
 
-    # Try to get the configured lease storage to create actual leases
-    lease_storage = None
-    try:
-        from prefect.server.concurrency.lease_storage import (
-            get_concurrency_lease_storage,
-        )
+    # Get the configured lease storage to create actual leases
+    from prefect.server.concurrency.lease_storage import (
+        get_concurrency_lease_storage,
+    )
 
-        lease_storage = get_concurrency_lease_storage()
-    except Exception:
-        # If we can't get the lease storage, we'll create phantom slots
-        pass
+    lease_storage = get_concurrency_lease_storage()
 
     for v1_limit in v1_limits:
         v2_name = f"tag:{v1_limit.tag}"
@@ -89,8 +84,8 @@ def upgrade():
                 },
             )
 
-            # Try to create actual leases if we have a lease storage
-            if lease_storage and active_slots:
+            # Create actual leases if we have active slots
+            if active_slots:
                 try:
                     import asyncio
                     from datetime import timedelta
@@ -117,18 +112,11 @@ def upgrade():
                                 ),
                             )
 
-                    # Check if we're in a test environment to avoid test pollution
-                    import os
-
-                    if os.environ.get("PYTEST_CURRENT_TEST") is None:
-                        # Only create actual leases outside of test runs
-                        asyncio.run(create_leases())
-                    else:
-                        # In tests, just update the active_slots count to reflect the leases
-                        # without actually creating them to avoid test pollution
-                        pass
-                except Exception:
-                    # If lease creation fails, that's okay - we still have phantom slots
+                    # Run the async function
+                    asyncio.run(create_leases())
+                except Exception as e:
+                    # Log but don't fail migration if lease creation fails
+                    print(f"Warning: Could not create leases for limit {v2_id}: {e}")
                     pass
 
     # Delete V1 records after migration - the adapter handles all V1 API calls
