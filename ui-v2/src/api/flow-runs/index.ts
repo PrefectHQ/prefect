@@ -108,7 +108,6 @@ export const buildFilterFlowRunsQuery = (
 		},
 		staleTime: 1000,
 		refetchInterval,
-		placeholderData: keepPreviousData,
 	});
 };
 
@@ -205,7 +204,6 @@ export const buildCountFlowRunsQuery = (
 			return res.data ?? 0;
 		},
 		refetchInterval,
-		placeholderData: keepPreviousData,
 	});
 
 // ----- ✍🏼 Mutations 🗄️

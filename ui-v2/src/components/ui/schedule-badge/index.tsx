@@ -17,8 +17,7 @@ import {
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { useIsOverflowing } from "@/hooks/use-is-overflowing";
-import { cn } from "@/lib/utils";
-import { capitalize } from "@/utils";
+import { capitalize, cn } from "@/utils";
 
 type DeploymentSchedule = components["schemas"]["DeploymentSchedule"];
 type CronSchedule = components["schemas"]["CronSchedule"];

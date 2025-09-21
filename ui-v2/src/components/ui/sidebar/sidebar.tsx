@@ -14,7 +14,7 @@ import {
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { cn } from "@/lib/utils";
+import { cn } from "@/utils";
 import { SidebarContext, useSidebar } from "./hooks";
 
 const SIDEBAR_WIDTH = "16rem";
