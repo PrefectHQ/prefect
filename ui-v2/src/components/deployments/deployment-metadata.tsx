@@ -1,7 +1,7 @@
 import type { Deployment } from "@/api/deployments";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { TagBadgeGroup } from "@/components/ui/tag-badge-group";
-import { cn } from "@/lib/utils";
+import { cn } from "@/utils";
 
 type DeploymentMetadataProps = {
 	deployment: Deployment;

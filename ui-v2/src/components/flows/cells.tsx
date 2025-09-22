@@ -12,7 +12,7 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Icon } from "@/components/ui/icons";
-import { cn } from "@/lib/utils";
+import { cn } from "@/utils";
 import { formatDate } from "@/utils/date";
 import { Typography } from "../ui/typography";
 import {

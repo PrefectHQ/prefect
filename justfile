@@ -31,6 +31,10 @@ clean: check-uv
     deactivate || true
     rm -rf .venv
 
+# Symlink all AGENTS.md files to CLAUDE.md
+symlink-agents-to-claude:
+    ./scripts/symlink_agents_to_claude.py
+
 # Generate API reference documentation for all modules
 api-ref-all:
     uvx --with-editable . \

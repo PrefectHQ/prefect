@@ -34,7 +34,7 @@ import { WorkPoolFlowRunsTab } from "@/components/work-pools/work-pool-flow-runs
 import { WorkPoolPageHeader } from "@/components/work-pools/work-pool-page-header";
 import { WorkPoolQueuesTable } from "@/components/work-pools/work-pool-queues-table";
 import { WorkersTable } from "@/components/work-pools/workers-table";
-import { cn } from "@/lib/utils";
+import { cn } from "@/utils";
 
 const workPoolSearchParams = z.object({
 	tab: z

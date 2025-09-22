@@ -2,9 +2,7 @@ import { cva } from "class-variance-authority";
 import type { components } from "@/api/prefect";
 
 import { ICONS as COMPONENT_ICONS } from "@/components/ui/icons";
-
-import { cn } from "@/lib/utils";
-import { capitalize } from "@/utils";
+import { capitalize, cn } from "@/utils";
 import { Badge } from "../badge";
 
 const ICONS = {

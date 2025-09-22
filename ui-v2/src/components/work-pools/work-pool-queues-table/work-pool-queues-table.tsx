@@ -7,7 +7,7 @@ import {
 import { useCallback } from "react";
 import type { WorkPoolQueue } from "@/api/work-pool-queues";
 import { DataTable } from "@/components/ui/data-table";
-import { cn } from "@/lib/utils";
+import { cn } from "@/utils";
 import { createWorkPoolQueuesTableColumns } from "./components/work-pool-queues-table-columns";
 import { WorkPoolQueuesTableEmptyState } from "./components/work-pool-queues-table-empty-state";
 import { WorkPoolQueuesTableToolbar } from "./components/work-pool-queues-table-toolbar";

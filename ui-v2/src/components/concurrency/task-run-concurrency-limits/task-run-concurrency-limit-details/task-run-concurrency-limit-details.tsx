@@ -1,7 +1,7 @@
 import { format, parseISO } from "date-fns";
 import React from "react";
 import type { TaskRunConcurrencyLimit } from "@/api/task-run-concurrency-limits";
-import { cn } from "@/lib/utils";
+import { cn } from "@/utils";
 
 type TaskRunConcurrencyLimitDetailsProps = {
 	data: TaskRunConcurrencyLimit;

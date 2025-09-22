@@ -23,7 +23,7 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table";
-import { cn } from "@/lib/utils";
+import { cn } from "@/utils";
 
 export function DataTable<TData>({ table }: { table: TanstackTable<TData> }) {
 	return (

@@ -3,7 +3,7 @@ import type { VariantProps } from "class-variance-authority";
 import * as React from "react";
 
 import { Icon } from "@/components/ui/icons";
-import { cn } from "@/lib/utils";
+import { cn } from "@/utils";
 import { buttonVariants } from "./styles";
 
 export interface ButtonProps

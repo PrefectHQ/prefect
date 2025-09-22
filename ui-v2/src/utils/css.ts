@@ -18,27 +18,3 @@ import { twMerge } from "tailwind-merge";
 export function cn(...inputs: ClassValue[]) {
 	return twMerge(clsx(inputs));
 }
-
-/**
- * Checks if an array starts with a given prefix array
- *
- * @param array The array to check
- * @param prefix The prefix array to check against
- * @returns True if array starts with prefix, false otherwise
- *
- * @example
- * ```ts
- * const array = [1, 2, 3, 4];
- * const prefix = [1, 2];
- * startsWith(array, prefix); // returns true
- *
- * const notPrefix = [2, 3];
- * startsWith(array, notPrefix); // returns false
- * ```
- */
-export function startsWith(
-	array: readonly unknown[],
-	prefix: readonly unknown[],
-) {
-	return prefix.every((item, index) => array[index] === item);
-}

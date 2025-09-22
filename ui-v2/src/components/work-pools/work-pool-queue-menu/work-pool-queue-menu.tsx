@@ -6,7 +6,7 @@ import {
 	DropdownMenuItem,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { cn } from "@/lib/utils";
+import { cn } from "@/utils";
 import { DeleteWorkPoolQueueDialog } from "./components/delete-work-pool-queue-dialog";
 import { useWorkPoolQueueMenu } from "./hooks/use-work-pool-queue-menu";
 

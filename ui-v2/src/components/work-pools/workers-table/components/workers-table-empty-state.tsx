@@ -6,7 +6,7 @@ import {
 	EmptyStateIcon,
 	EmptyStateTitle,
 } from "@/components/ui/empty-state";
-import { cn } from "@/lib/utils";
+import { cn } from "@/utils";
 
 export type WorkersTableEmptyStateProps = {
 	hasSearchQuery: boolean;
