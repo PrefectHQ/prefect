@@ -31,12 +31,7 @@ def parse_text_search_query(query: str) -> TextSearchQuery:
 
     Returns:
         TextSearchQuery with parsed include/exclude/required terms
-
-    Raises:
-        TypeError: If query is not a string
     """
-    if not isinstance(query, str):
-        raise TypeError(f"Query must be a string, got {type(query)}")
 
     # Handle empty/whitespace-only queries
     if not query.strip():

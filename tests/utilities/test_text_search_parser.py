@@ -491,22 +491,6 @@ class TestDataclassStructure:
         assert "required=['error']" in repr_str
 
 
-class TestErrorHandling:
-    """Test error conditions and edge cases"""
-
-    def test_none_input(self):
-        with pytest.raises(TypeError):
-            parse_text_search_query(None)
-
-    def test_non_string_input(self):
-        with pytest.raises(TypeError):
-            parse_text_search_query(123)
-
-    def test_invalid_input_types(self):
-        with pytest.raises(TypeError, match="Query must be a string"):
-            parse_text_search_query(123)
-
-
 # Integration-style tests that verify the complete parsing flow
 class TestIntegrationScenarios:
     """Test realistic query parsing scenarios end-to-end"""
