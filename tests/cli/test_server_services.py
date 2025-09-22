@@ -1,6 +1,7 @@
 from pathlib import Path
 
 import pytest
+import requests
 
 from prefect import settings
 from prefect.server.services.base import Service
@@ -131,3 +132,75 @@ class TestBackgroundServices:
             ],
             expected_code=0,
         )
+
+    def test_start_services_with_healthcheck(self, pid_file: Path):
+        import time
+
+        invoke_and_assert(
+            command=[
+                "server",
+                "services",
+                "start",
+                "--background",
+                "--with-healthcheck",
+            ],
+            expected_output_contains="Services are running in the background.",
+            expected_code=0,
+        )
+
+        assert pid_file.exists(), "Services PID file does not exist"
+
+        # Give the health server a moment to start
+        time.sleep(2)
+
+        # Check that the healthcheck endpoint is responding
+        try:
+            response = requests.get("http://localhost:8080/health", timeout=5)
+            assert response.status_code == 200
+            assert response.text == "OK"
+        finally:
+            # Always clean up
+            invoke_and_assert(
+                command=[
+                    "server",
+                    "services",
+                    "stop",
+                ],
+                expected_output_contains="All services stopped.",
+                expected_code=0,
+            )
+
+    def test_services_without_healthcheck_no_http_server(self, pid_file: Path):
+        import time
+
+        invoke_and_assert(
+            command=[
+                "server",
+                "services",
+                "start",
+                "--background",
+            ],
+            expected_output_contains="Services are running in the background.",
+            expected_code=0,
+        )
+
+        assert pid_file.exists(), "Services PID file does not exist"
+
+        # Give a moment in case something would start
+        time.sleep(2)
+
+        # Check that no health server is running
+        try:
+            with pytest.raises(requests.exceptions.ConnectionError):
+                requests.get("http://localhost:8080/health", timeout=2)
+        finally:
+            # Always clean up
+            invoke_and_assert(
+                command=[
+                    "server",
+                    "services",
+                    "stop",
+                ],
+                expected_output_contains="All services stopped.",
+                expected_code=0,
+            )
