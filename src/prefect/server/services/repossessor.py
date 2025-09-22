@@ -16,9 +16,11 @@ class Repossessor(LoopService):
     Handles the reconciliation of expired leases; no tow truck dependency.
     """
 
-    def __init__(self):
+    def __init__(self, health_monitor=None, **kwargs):
         super().__init__(
             loop_seconds=get_current_settings().server.services.repossessor.loop_seconds,
+            health_monitor=health_monitor,
+            **kwargs,
         )
         self.concurrency_lease_storage: ConcurrencyLeaseStorage = (
             get_concurrency_lease_storage()

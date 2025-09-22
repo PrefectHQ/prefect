@@ -44,10 +44,13 @@ class MarkLateRuns(LoopService):
     def service_settings(cls) -> ServicesBaseSetting:
         return get_current_settings().server.services.late_runs
 
-    def __init__(self, loop_seconds: float | None = None, **kwargs: Any):
+    def __init__(
+        self, loop_seconds: float | None = None, health_monitor=None, **kwargs: Any
+    ):
         super().__init__(
             loop_seconds=loop_seconds
             or PREFECT_API_SERVICES_LATE_RUNS_LOOP_SECONDS.value(),
+            health_monitor=health_monitor,
             **kwargs,
         )
 

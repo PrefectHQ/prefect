@@ -68,12 +68,15 @@ class ProactiveTriggers(RunInEphemeralServers, LoopService):
     def service_settings(cls) -> ServicesBaseSetting:
         return get_current_settings().server.services.triggers
 
-    def __init__(self, loop_seconds: Optional[float] = None, **kwargs: Any):
+    def __init__(
+        self, loop_seconds: Optional[float] = None, health_monitor=None, **kwargs: Any
+    ):
         super().__init__(
             loop_seconds=(
                 loop_seconds
                 or PREFECT_EVENTS_PROACTIVE_GRANULARITY.value().total_seconds()
             ),
+            health_monitor=health_monitor,
             **kwargs,
         )
 

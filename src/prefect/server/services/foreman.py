@@ -47,11 +47,13 @@ class Foreman(LoopService):
         fallback_heartbeat_interval_seconds: Optional[int] = None,
         deployment_last_polled_timeout_seconds: Optional[int] = None,
         work_queue_last_polled_timeout_seconds: Optional[int] = None,
+        health_monitor=None,
         **kwargs: Any,
     ):
         super().__init__(
             loop_seconds=loop_seconds
             or PREFECT_API_SERVICES_FOREMAN_LOOP_SECONDS.value(),
+            health_monitor=health_monitor,
             **kwargs,
         )
         self._inactivity_heartbeat_multiple = (

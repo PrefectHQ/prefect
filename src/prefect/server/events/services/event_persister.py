@@ -89,8 +89,8 @@ class EventPersister(RunInEphemeralServers, Service):
     def service_settings(cls) -> ServicesBaseSetting:
         return get_current_settings().server.services.event_persister
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, health_monitor=None, **kwargs):
+        super().__init__(health_monitor=health_monitor, **kwargs)
         self._started_event: asyncio.Event | None = None
 
     @property

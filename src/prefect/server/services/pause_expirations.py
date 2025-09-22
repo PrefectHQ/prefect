@@ -29,10 +29,13 @@ class FailExpiredPauses(LoopService):
     def service_settings(cls) -> ServicesBaseSetting:
         return get_current_settings().server.services.pause_expirations
 
-    def __init__(self, loop_seconds: Optional[float] = None, **kwargs: Any):
+    def __init__(
+        self, loop_seconds: Optional[float] = None, health_monitor=None, **kwargs: Any
+    ):
         super().__init__(
             loop_seconds=loop_seconds
             or PREFECT_API_SERVICES_PAUSE_EXPIRATIONS_LOOP_SECONDS.value(),
+            health_monitor=health_monitor,
             **kwargs,
         )
 

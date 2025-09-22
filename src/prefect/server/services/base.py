@@ -109,12 +109,12 @@ class Service(ABC):
 
     @classmethod
     @asynccontextmanager
-    async def running(cls) -> AsyncGenerator[None, None]:
+    async def running(cls, health_monitor=None) -> AsyncGenerator[None, None]:
         """A context manager that runs enabled services on entry and stops them on
         exit."""
         service_tasks: dict[Service, asyncio.Task[None]] = {}
         for service_class in cls.enabled_services():
-            service = service_class()
+            service = service_class(health_monitor=health_monitor)
             service_tasks[service] = asyncio.create_task(service.start())
 
         try:
@@ -124,9 +124,9 @@ class Service(ABC):
             await asyncio.gather(*service_tasks.values(), return_exceptions=True)
 
     @classmethod
-    async def run_services(cls) -> NoReturn:
+    async def run_services(cls, health_monitor=None) -> NoReturn:
         """Run enabled services until cancelled."""
-        async with cls.running():
+        async with cls.running(health_monitor=health_monitor):
             heat_death_of_the_universe = asyncio.get_running_loop().create_future()
             try:
                 await heat_death_of_the_universe
@@ -143,9 +143,10 @@ class Service(ABC):
         """Stop the service"""
         ...
 
-    def __init__(self):
+    def __init__(self, health_monitor=None):
         self.name = self.__class__.__name__
         self.logger = get_logger(f"server.services.{self.name.lower()}")
+        self.health_monitor = health_monitor
 
 
 class RunInEphemeralServers(Service, abc.ABC):
@@ -177,7 +178,10 @@ class LoopService(Service, abc.ABC):
     loop_seconds = 60
 
     def __init__(
-        self, loop_seconds: Optional[float] = None, handle_signals: bool = False
+        self,
+        loop_seconds: Optional[float] = None,
+        handle_signals: bool = False,
+        health_monitor=None,
     ):
         """
         Args:
@@ -185,8 +189,9 @@ class LoopService(Service, abc.ABC):
                 otherwise specified as a class variable
             handle_signals (bool): if True, SIGINT and SIGTERM are
                 gracefully intercepted and shut down the running service.
+            health_monitor: optional health monitor to track service activity
         """
-        super().__init__()
+        super().__init__(health_monitor=health_monitor)
 
         if loop_seconds:
             self.loop_seconds: float = loop_seconds  # seconds between runs
@@ -247,6 +252,10 @@ class LoopService(Service, abc.ABC):
             try:
                 self.logger.debug(f"About to run {self.name}...")
                 await self.run_once()
+
+                # Record activity if health monitor is available
+                if self.health_monitor:
+                    self.health_monitor.record_activity(self.name)
 
             except asyncio.CancelledError:
                 self.logger.info(f"Received cancellation signal for {self.name}")

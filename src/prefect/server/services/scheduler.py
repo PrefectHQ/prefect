@@ -48,13 +48,16 @@ class Scheduler(LoopService):
     def service_settings(cls) -> ServicesBaseSetting:
         return get_current_settings().server.services.scheduler
 
-    def __init__(self, loop_seconds: float | None = None, **kwargs: Any):
+    def __init__(
+        self, loop_seconds: float | None = None, health_monitor=None, **kwargs: Any
+    ):
         super().__init__(
             loop_seconds=(
                 loop_seconds
                 or self.loop_seconds
                 or PREFECT_API_SERVICES_SCHEDULER_LOOP_SECONDS.value()
             ),
+            health_monitor=health_monitor,
             **kwargs,
         )
         self.deployment_batch_size: int = (
@@ -322,12 +325,15 @@ class RecentDeploymentsScheduler(Scheduler):
     def service_settings(cls) -> ServicesBaseSetting:
         return get_current_settings().server.services.scheduler
 
-    def __init__(self, loop_seconds: float | None = None, **kwargs: Any):
+    def __init__(
+        self, loop_seconds: float | None = None, health_monitor=None, **kwargs: Any
+    ):
         super().__init__(
             loop_seconds=(
                 loop_seconds
                 or get_current_settings().server.services.scheduler.recent_deployments_loop_seconds
             ),
+            health_monitor=health_monitor,
             **kwargs,
         )
 

@@ -47,8 +47,12 @@ class Telemetry(RunInEphemeralServers, RunInWebservers, LoopService):
     def enabled(cls) -> bool:
         return get_current_settings().server.analytics_enabled
 
-    def __init__(self, loop_seconds: Optional[int] = None, **kwargs: Any):
-        super().__init__(loop_seconds=loop_seconds, **kwargs)
+    def __init__(
+        self, loop_seconds: Optional[int] = None, health_monitor=None, **kwargs: Any
+    ):
+        super().__init__(
+            loop_seconds=loop_seconds, health_monitor=health_monitor, **kwargs
+        )
         self.telemetry_environment: str = os.environ.get(
             "PREFECT_API_TELEMETRY_ENVIRONMENT", "production"
         )
