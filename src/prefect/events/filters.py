@@ -279,7 +279,7 @@ class EventFilter(EventDataFilter):
         description="Filter criteria for the events' ID",
     )
     text: Optional[EventTextFilter] = Field(
-        None,
+        default=None,
         description="Filter criteria for text search across event content",
     )
 
