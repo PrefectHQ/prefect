@@ -17,12 +17,16 @@ from prefect.server.utilities.schemas.bases import PrefectBaseModel
 from prefect.types import DateTime
 from prefect.utilities.collections import AutoEnum
 from prefect.utilities.importtools import lazy_import
+from prefect.utilities.text_search_parser import (
+    parse_text_search_query,
+)
 
 if TYPE_CHECKING:
     import sqlalchemy as sa
     from sqlalchemy.dialects import postgresql
 
     from prefect.server.database import PrefectDBInterface
+    from prefect.server.schemas.core import Log
 else:
     sa = lazy_import("sqlalchemy")
     postgresql = lazy_import("sqlalchemy.dialects.postgresql")
@@ -1393,6 +1397,109 @@ class LogFilterTaskRunId(PrefectFilterBaseModel):
         return filters
 
 
+class LogFilterTextSearch(PrefectFilterBaseModel):
+    """Filter by text search across log content."""
+
+    query: str = Field(
+        description="Text search query string",
+        examples=[
+            "error",
+            "error -debug",
+            '"connection timeout"',
+            "+required -excluded",
+        ],
+        max_length=200,
+    )
+
+    def includes(self, log: "Log") -> bool:
+        """Check if this text filter includes the given log."""
+        from prefect.server.schemas.core import Log
+
+        if not isinstance(log, Log):
+            raise TypeError(f"Expected Log object, got {type(log)}")
+
+        # Parse query into components
+        parsed = parse_text_search_query(self.query)
+
+        # Build searchable text from message and logger name
+        searchable_text = f"{log.message} {log.name}".lower()
+
+        # Check include terms (OR logic)
+        if parsed.include:
+            include_match = any(
+                term.lower() in searchable_text for term in parsed.include
+            )
+            if not include_match:
+                return False
+
+        # Check exclude terms (NOT logic)
+        if parsed.exclude:
+            exclude_match = any(
+                term.lower() in searchable_text for term in parsed.exclude
+            )
+            if exclude_match:
+                return False
+
+        # Check required terms (AND logic - future feature)
+        if parsed.required:
+            required_match = all(
+                term.lower() in searchable_text for term in parsed.required
+            )
+            if not required_match:
+                return False
+
+        return True
+
+    def _get_filter_list(
+        self, db: "PrefectDBInterface"
+    ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
+        """Build SQLAlchemy WHERE clauses for text search"""
+        filters: list[sa.ColumnExpressionArgument[bool]] = []
+
+        if not self.query.strip():
+            return filters
+
+        parsed = parse_text_search_query(self.query)
+
+        # Build combined searchable text field (message + name)
+        searchable_field = sa.func.concat(db.Log.message, " ", db.Log.name)
+
+        # Handle include terms (OR logic)
+        if parsed.include:
+            include_conditions = []
+            for term in parsed.include:
+                include_conditions.append(
+                    sa.func.lower(searchable_field).contains(term.lower())
+                )
+
+            if include_conditions:
+                filters.append(sa.or_(*include_conditions))
+
+        # Handle exclude terms (NOT logic)
+        if parsed.exclude:
+            exclude_conditions = []
+            for term in parsed.exclude:
+                exclude_conditions.append(
+                    ~sa.func.lower(searchable_field).contains(term.lower())
+                )
+
+            if exclude_conditions:
+                filters.append(sa.and_(*exclude_conditions))
+
+        # Handle required terms (AND logic - future feature)
+        if parsed.required:
+            required_conditions = []
+            for term in parsed.required:
+                required_conditions.append(
+                    sa.func.lower(searchable_field).contains(term.lower())
+                )
+
+            if required_conditions:
+                filters.append(sa.and_(*required_conditions))
+
+        return filters
+
+
 class LogFilter(PrefectOperatorFilterBaseModel):
     """Filter logs. Only logs matching all criteria will be returned"""
 
@@ -1408,6 +1515,9 @@ class LogFilter(PrefectOperatorFilterBaseModel):
     task_run_id: Optional[LogFilterTaskRunId] = Field(
         default=None, description="Filter criteria for `Log.task_run_id`"
     )
+    text: Optional[LogFilterTextSearch] = Field(
+        default=None, description="Filter criteria for text search across log content"
+    )
 
     def _get_filter_list(
         self, db: "PrefectDBInterface"
@@ -1422,6 +1532,8 @@ class LogFilter(PrefectOperatorFilterBaseModel):
             filters.append(self.flow_run_id.as_sql_filter())
         if self.task_run_id is not None:
             filters.append(self.task_run_id.as_sql_filter())
+        if self.text is not None:
+            filters.extend(self.text._get_filter_list(db))
 
         return filters
 
