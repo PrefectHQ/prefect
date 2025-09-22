@@ -1,10 +1,10 @@
 """Tests for text search functionality across events storage backends"""
 
-from typing import Awaitable, Callable
+from datetime import datetime, timedelta, timezone
+from typing import Awaitable, Callable, Optional, Union
 from uuid import uuid4
 
 import pytest
-from pendulum import now
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.events.schemas.events import Event, Resource
@@ -17,7 +17,7 @@ from prefect.server.events.schemas.events import ReceivedEvent
 from prefect.server.events.storage.database import query_events, write_events
 
 # Define function types for our test variations
-QueryEventsFn = Callable[..., Awaitable[tuple[list[Event], int, str | None]]]
+QueryEventsFn = Callable[..., Awaitable[tuple[list[Event], int, Optional[str]]]]
 
 
 # In-memory event search that intentionally matches query_events() signature
@@ -25,7 +25,7 @@ async def query_events_memory(
     session: list[Event],  # For memory tests, this will be the list of events
     filter: EventFilter,
     page_size: int = 50,
-) -> tuple[list[Event], int, str | None]:
+) -> tuple[list[Event], int, Optional[str]]:
     """In-memory event filtering using EventFilter.includes() method.
 
     This function intentionally shares the signature of the database counterpart
@@ -187,8 +187,9 @@ def test_events() -> list[Event]:
     ]
 
     events: list[Event] = []
+    base_time = datetime.now(timezone.utc)
     for i, data in enumerate(test_data):
-        occurred = now("UTC").subtract(hours=i)
+        occurred = base_time - timedelta(hours=i)
 
         events.append(
             Event(
@@ -253,7 +254,7 @@ def full_occurred_range(test_events: list[Event]) -> EventOccurredFilter:
 
 
 async def test_single_term_search(
-    events_query_session: list[Event] | AsyncSession,
+    events_query_session: Union[list[Event], AsyncSession],
     query_events: QueryEventsFn,
     full_occurred_range: EventOccurredFilter,
 ):

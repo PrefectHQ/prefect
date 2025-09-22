@@ -1,10 +1,10 @@
 """Tests for text search functionality across logs storage backends"""
 
-from typing import Awaitable, Callable
+from datetime import datetime, timedelta, timezone
+from typing import Awaitable, Callable, Union
 from uuid import uuid4
 
 import pytest
-from pendulum import now
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.server import models
@@ -208,20 +208,20 @@ def test_logs() -> list[Log]:
     ]
 
     logs: list[Log] = []
-    base_time = now("UTC")
+    base_time = datetime.now(timezone.utc)
 
     for i, data in enumerate(test_data):
         logs.append(
             Log(
                 id=uuid4(),
-                created=base_time.subtract(hours=i),
-                updated=base_time.subtract(hours=i),
+                created=base_time - timedelta(hours=i),
+                updated=base_time - timedelta(hours=i),
                 name=data["name"],
                 level=data["level"],
                 flow_run_id=uuid4(),
                 task_run_id=None if i % 2 == 0 else uuid4(),
                 message=data["message"],
-                timestamp=base_time.subtract(hours=i),
+                timestamp=base_time - timedelta(hours=i),
             )
         )
 
@@ -264,7 +264,7 @@ async def logs_query_session(
 
 
 async def test_single_term_search(
-    logs_query_session: list[Log] | AsyncSession,
+    logs_query_session: Union[list[Log], AsyncSession],
     query_logs: QueryLogsFn,
 ):
     """Test searching for a single term that appears in log messages"""
