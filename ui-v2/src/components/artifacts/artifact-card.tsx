@@ -2,7 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { useMemo } from "react";
 import Markdown from "react-markdown";
 import type { Artifact } from "@/api/artifacts";
-import { cn } from "@/lib/utils";
+import { cn } from "@/utils";
 import { formatDate } from "@/utils/date";
 import { Card, CardContent, CardHeader } from "../ui/card";
 import { Typography } from "../ui/typography";

@@ -6,7 +6,7 @@ import {
 	DropdownMenuItem,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { cn } from "@/lib/utils";
+import { cn } from "@/utils";
 import { DeleteWorkerDialog } from "./components/delete-worker-dialog";
 import { useWorkerMenu } from "./hooks/use-worker-menu";
 

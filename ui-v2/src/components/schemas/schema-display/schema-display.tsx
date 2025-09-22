@@ -1,4 +1,4 @@
-import { cn } from "@/lib/utils";
+import { cn } from "@/utils";
 
 import { ArrayProperty } from "./property-types/array-property";
 import { BooleanProperty } from "./property-types/boolean-property";

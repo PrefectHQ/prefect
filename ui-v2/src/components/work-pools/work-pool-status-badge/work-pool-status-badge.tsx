@@ -1,6 +1,6 @@
 import { Pause } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { cn } from "@/lib/utils";
+import { cn } from "@/utils";
 import type { WorkPoolStatus } from "../types";
 
 export type { WorkPoolStatus };

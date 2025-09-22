@@ -7,8 +7,7 @@ import type { SchemaProperty } from "@/components/schemas/schema-display";
 import { FormattedDate } from "@/components/ui/formatted-date";
 import { Separator } from "@/components/ui/separator";
 import { WorkPoolStatusBadge } from "@/components/work-pools/work-pool-status-badge";
-import { cn } from "@/lib/utils";
-import { titleCase } from "@/utils";
+import { cn, titleCase } from "@/utils";
 
 type WorkPoolDetailsProps = {
 	workPool: WorkPool;

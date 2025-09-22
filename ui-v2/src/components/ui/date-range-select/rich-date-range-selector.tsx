@@ -48,7 +48,7 @@ import {
 	TooltipContent,
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { cn } from "@/lib/utils";
+import { cn } from "@/utils";
 
 // Types mirrored from legacy Vue `prefect-design/src/types/dateRange.ts`
 export type DateRangeSelectSpanValue = { type: "span"; seconds: number };

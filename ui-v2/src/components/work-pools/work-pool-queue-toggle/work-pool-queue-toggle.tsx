@@ -6,7 +6,7 @@ import {
 	TooltipProvider,
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { cn } from "@/lib/utils";
+import { cn } from "@/utils";
 import { useWorkPoolQueueToggle } from "./hooks/use-work-pool-queue-toggle";
 
 type WorkPoolQueueToggleProps = {

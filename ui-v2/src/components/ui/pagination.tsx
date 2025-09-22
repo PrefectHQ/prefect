@@ -7,7 +7,7 @@ import {
 	buttonVariants,
 } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icons";
-import { cn } from "@/lib/utils";
+import { cn } from "@/utils";
 
 type PaginationProps = React.ComponentProps<"nav"> & {
 	className?: string;

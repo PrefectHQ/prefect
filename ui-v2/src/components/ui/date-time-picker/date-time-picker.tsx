@@ -9,7 +9,7 @@ import {
 	PopoverTrigger,
 } from "@/components/ui/popover";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
-import { cn } from "@/lib/utils";
+import { cn } from "@/utils";
 
 const getInitialDate = (value: string | undefined) =>
 	value ? parseISO(value) : undefined;

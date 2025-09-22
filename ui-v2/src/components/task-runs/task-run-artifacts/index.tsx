@@ -6,7 +6,7 @@ import type { TaskRun } from "@/api/task-runs";
 import { ArtifactCard } from "@/components/artifacts/artifact-card";
 import { Card, CardContent } from "@/components/ui/card";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import { cn } from "@/lib/utils";
+import { cn } from "@/utils";
 
 type TaskRunArtifactsProps = {
 	taskRun: TaskRun;

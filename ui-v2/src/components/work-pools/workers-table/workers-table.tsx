@@ -12,7 +12,7 @@ import {
 import { useCallback, useMemo } from "react";
 import type { WorkPoolWorker } from "@/api/work-pools";
 import { DataTable } from "@/components/ui/data-table";
-import { cn } from "@/lib/utils";
+import { cn } from "@/utils";
 import { createWorkersTableColumnsWithActions } from "./components/workers-table-columns";
 import { WorkersTableEmptyState } from "./components/workers-table-empty-state";
 import { WorkersTableRowActions } from "./components/workers-table-row-actions";
