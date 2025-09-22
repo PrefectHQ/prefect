@@ -583,28 +583,14 @@ def run_manager_process(
     # Start healthcheck server if requested
     if with_healthcheck:
         import threading
-        from http.server import BaseHTTPRequestHandler, HTTPServer
 
-        class HealthHandler(BaseHTTPRequestHandler):
-            def do_GET(self):
-                if self.path == "/health":
-                    self.send_response(200)
-                    self.send_header("Content-type", "text/plain")
-                    self.end_headers()
-                    self.wfile.write(b"OK")
-                else:
-                    self.send_response(404)
-                    self.end_headers()
+        from prefect.server.services.healthcheck import build_healthcheck_server
 
-            def log_message(self, format, *args):
-                pass  # Suppress request logging
-
-        def run_healthcheck_server():
-            server = HTTPServer(("0.0.0.0", 8080), HealthHandler)
-            server.serve_forever()
-
+        healthcheck_server = build_healthcheck_server()
         healthcheck_thread = threading.Thread(
-            target=run_healthcheck_server, daemon=True
+            name="healthcheck-server-thread",
+            target=healthcheck_server.run,
+            daemon=True,
         )
         healthcheck_thread.start()
         logger.info("Healthcheck server started on port 8080")
@@ -673,32 +659,21 @@ def start_services(
     if not background:
         app.console.print("\n[blue]Starting services... Press CTRL+C to stop[/]\n")
 
-        # Start healthcheck server if requested
+        # Import at runtime to avoid circular imports
+        import threading
+
+        healthcheck_server = None
         healthcheck_thread = None
+
         if with_healthcheck:
-            import threading
-            from http.server import BaseHTTPRequestHandler, HTTPServer
+            from prefect.server.services.healthcheck import build_healthcheck_server
 
-            class HealthHandler(BaseHTTPRequestHandler):
-                def do_GET(self):
-                    if self.path == "/health":
-                        self.send_response(200)
-                        self.send_header("Content-type", "text/plain")
-                        self.end_headers()
-                        self.wfile.write(b"OK")
-                    else:
-                        self.send_response(404)
-                        self.end_headers()
-
-                def log_message(self, format, *args):
-                    pass  # Suppress request logging
-
-            def run_healthcheck_server():
-                server = HTTPServer(("0.0.0.0", 8080), HealthHandler)
-                server.serve_forever()
-
+            # Create and start the healthcheck server in a separate thread
+            healthcheck_server = build_healthcheck_server()
             healthcheck_thread = threading.Thread(
-                target=run_healthcheck_server, daemon=True
+                name="healthcheck-server-thread",
+                target=healthcheck_server.run,
+                daemon=True,
             )
             healthcheck_thread.start()
             app.console.print("[green]Healthcheck server started on port 8080[/]")
@@ -707,6 +682,13 @@ def start_services(
             asyncio.run(Service.run_services())
         except KeyboardInterrupt:
             pass
+        finally:
+            if healthcheck_server and healthcheck_thread:
+                logger.debug("Stopping healthcheck server...")
+                healthcheck_server.should_exit = True
+                healthcheck_thread.join()
+                logger.debug("Healthcheck server stopped.")
+
         app.console.print("\n[green]All services stopped.[/]")
         return
 

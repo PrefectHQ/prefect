@@ -157,7 +157,7 @@ class TestBackgroundServices:
         try:
             response = requests.get("http://localhost:8080/health", timeout=5)
             assert response.status_code == 200
-            assert response.text == "OK"
+            assert response.json() == {"message": "OK"}
         finally:
             # Always clean up
             invoke_and_assert(
