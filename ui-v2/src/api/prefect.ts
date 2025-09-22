@@ -6238,6 +6238,8 @@ export interface components {
             any_resource?: components["schemas"]["EventAnyResourceFilter"] | components["schemas"]["EventAnyResourceFilter"][] | null;
             /** @description Filter criteria for the events' ID */
             id?: components["schemas"]["EventIDFilter"];
+            /** @description Filter criteria for text search across event content */
+            text?: components["schemas"]["EventTextFilter"] | null;
             /**
              * @description The order to return filtered events
              * @default DESC
@@ -6360,6 +6362,17 @@ export interface components {
              * @default false
              */
             distinct: boolean;
+        };
+        /**
+         * EventTextFilter
+         * @description Filter by text search across event content.
+         */
+        EventTextFilter: {
+            /**
+             * Query
+             * @description Text search query string
+             */
+            query: string;
         };
         /**
          * EventTrigger
@@ -7764,6 +7777,8 @@ export interface components {
             flow_run_id?: components["schemas"]["LogFilterFlowRunId"] | null;
             /** @description Filter criteria for `Log.task_run_id` */
             task_run_id?: components["schemas"]["LogFilterTaskRunId"] | null;
+            /** @description Filter criteria for text search across log content */
+            text?: components["schemas"]["LogFilterTextSearch"] | null;
         };
         /**
          * LogFilterFlowRunId
@@ -7807,6 +7822,17 @@ export interface components {
              * @description If true, only include logs without a task run id
              */
             is_null_?: boolean | null;
+        };
+        /**
+         * LogFilterTextSearch
+         * @description Filter by text search across log content.
+         */
+        LogFilterTextSearch: {
+            /**
+             * Query
+             * @description Text search query string
+             */
+            query: string;
         };
         /**
          * LogFilterTimestamp
