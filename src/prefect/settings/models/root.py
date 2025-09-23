@@ -60,9 +60,10 @@ class Settings(PrefectBaseSettings):
 
     profiles_path: Annotated[Path, BeforeValidator(substitute_home_template)] = Field(
         default_factory=default_profiles_path,
+        # Escaped backslashes are to prevent latex rendering
         description=(
-            "The path to a profiles configuration file. Supports $PREFECT_HOME templating."
-            " Defaults to $PREFECT_HOME/profiles.toml."
+            "The path to a profiles configuration file. Supports \\$PREFECT_HOME templating."
+            " Defaults to \\$PREFECT_HOME/profiles.toml."
         ),
     )
 
