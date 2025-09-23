@@ -612,6 +612,21 @@ class LogFilterTaskRunId(PrefectBaseModel):
     )
 
 
+class LogFilterTextSearch(PrefectBaseModel):
+    """Filter by text search across log content."""
+
+    query: str = Field(
+        description="Text search query string",
+        examples=[
+            "error",
+            "error -debug",
+            '"connection timeout"',
+            "+required -excluded",
+        ],
+        max_length=200,
+    )
+
+
 class LogFilter(PrefectBaseModel, OperatorMixin):
     """Filter logs. Only logs matching all criteria will be returned"""
 
@@ -626,6 +641,9 @@ class LogFilter(PrefectBaseModel, OperatorMixin):
     )
     task_run_id: Optional[LogFilterTaskRunId] = Field(
         default=None, description="Filter criteria for `Log.task_run_id`"
+    )
+    text: Optional[LogFilterTextSearch] = Field(
+        default=None, description="Filter criteria for text search across log content"
     )
 
 

@@ -19,6 +19,9 @@ from prefect.server.schemas.filters import (
     PrefectOperatorFilterBaseModel,
 )
 from prefect.server.utilities.schemas.bases import PrefectBaseModel
+from prefect.server.utilities.text_search_parser import (
+    parse_text_search_query,
+)
 from prefect.types import DateTime
 from prefect.utilities.collections import AutoEnum
 
@@ -627,6 +630,136 @@ class EventIDFilter(EventDataFilter):
         return filters
 
 
+class EventTextFilter(EventDataFilter):
+    """Filter by text search across event content."""
+
+    query: str = Field(
+        description="Text search query string",
+        examples=[
+            "error",
+            "error -debug",
+            '"connection timeout"',
+            "+required -excluded",
+        ],
+        max_length=200,
+    )
+
+    def includes(self, event: Event) -> bool:
+        """Check if this text filter includes the given event."""
+        # Parse query into components
+        parsed = parse_text_search_query(self.query)
+
+        # Build searchable text from all event string fields
+        searchable_text = self._build_searchable_text(event).lower()
+
+        # Check include terms (OR logic)
+        if parsed.include:
+            include_match = any(
+                term.lower() in searchable_text for term in parsed.include
+            )
+            if not include_match:
+                return False
+
+        # Check exclude terms (NOT logic)
+        if parsed.exclude:
+            exclude_match = any(
+                term.lower() in searchable_text for term in parsed.exclude
+            )
+            if exclude_match:
+                return False
+
+        # Check required terms (AND logic - future feature)
+        if parsed.required:
+            required_match = all(
+                term.lower() in searchable_text for term in parsed.required
+            )
+            if not required_match:
+                return False
+
+        return True
+
+    def _build_searchable_text(self, event: Event) -> str:
+        """Build searchable text from all relevant event fields"""
+        text_parts = [
+            event.event,  # Event type/name
+        ]
+
+        # Add resource VALUES only (not keys)
+        text_parts.extend(event.resource.root.values())
+
+        # Add related resource VALUES only (not keys)
+        for related in event.related:
+            text_parts.extend(related.root.values())
+
+        # Add full payload as string (can include keys and values)
+        text_parts.append(str(event.payload))
+
+        return " ".join(text_parts)
+
+    @db_injector
+    def build_where_clauses(
+        self, db: PrefectDBInterface
+    ) -> Sequence["ColumnExpressionArgument[bool]"]:
+        """Build SQLAlchemy WHERE clauses for text search"""
+        filters: list["ColumnExpressionArgument[bool]"] = []
+
+        if not self.query.strip():
+            return filters
+
+        parsed = parse_text_search_query(self.query)
+
+        # Build combined searchable text field
+        # This concatenates event, resource VALUES only, related resource VALUES only, and full payload
+        event_field = db.Event.event
+
+        payload_field = sa.cast(db.Event.payload, sa.Text)
+
+        # For now, include resource and related as JSON strings - this will find the data
+        # even though it also includes keys. We can optimize later to extract only values.
+        resource_field = sa.cast(db.Event.resource, sa.Text)
+        related_field = sa.cast(db.Event.related, sa.Text)
+
+        # Combine all searchable fields
+        searchable_field = sa.func.concat(
+            event_field, " ", resource_field, " ", related_field, " ", payload_field
+        )
+
+        # Handle include terms (OR logic)
+        if parsed.include:
+            include_conditions = []
+            for term in parsed.include:
+                include_conditions.append(
+                    sa.func.lower(searchable_field).contains(term.lower())
+                )
+
+            if include_conditions:
+                filters.append(sa.or_(*include_conditions))
+
+        # Handle exclude terms (NOT logic)
+        if parsed.exclude:
+            exclude_conditions = []
+            for term in parsed.exclude:
+                exclude_conditions.append(
+                    ~sa.func.lower(searchable_field).contains(term.lower())
+                )
+
+            if exclude_conditions:
+                filters.append(sa.and_(*exclude_conditions))
+
+        # Handle required terms (AND logic - future feature)
+        if parsed.required:
+            required_conditions = []
+            for term in parsed.required:
+                required_conditions.append(
+                    sa.func.lower(searchable_field).contains(term.lower())
+                )
+
+            if required_conditions:
+                filters.append(sa.and_(*required_conditions))
+
+        return filters
+
+
 class EventOrder(AutoEnum):
     ASC = "ASC"
     DESC = "DESC"
@@ -657,6 +790,10 @@ class EventFilter(EventDataFilter):
     id: EventIDFilter = Field(
         default_factory=lambda: EventIDFilter(),
         description="Filter criteria for the events' ID",
+    )
+    text: Optional[EventTextFilter] = Field(
+        default=None,
+        description="Filter criteria for text search across event content",
     )
 
     order: EventOrder = Field(
