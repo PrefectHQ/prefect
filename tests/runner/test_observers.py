@@ -47,7 +47,6 @@ class TestFlowRunCancellingObserver:
         # Test removing non-existent ID doesn't error
         observer.remove_in_flight_flow_run_id(uuid.uuid4())
 
-    @pytest.mark.usefixtures("use_hosted_api_server")
     async def test_observer_context_manager_lifecycle(self):
         """Test observer async context manager setup and teardown."""
         callback = AsyncMock()
@@ -67,7 +66,6 @@ class TestFlowRunCancellingObserver:
         # After exit, shutdown flag should be set
         assert observer._is_shutting_down is True
 
-    @pytest.mark.usefixtures("use_hosted_api_server")
     async def test_observer_handles_empty_in_flight_list(self):
         """Test observer behavior with no flow runs to track."""
         callback = AsyncMock()
@@ -83,7 +81,6 @@ class TestFlowRunCancellingObserver:
         # Should not call callback with no flow runs
         callback.assert_not_called()
 
-    @pytest.mark.usefixtures("use_hosted_api_server")
     async def test_polling_with_mocked_flow_runs(self):
         """Test polling correctly identifies cancelling flow runs using mock."""
         callback = AsyncMock()
@@ -116,7 +113,6 @@ class TestFlowRunCancellingObserver:
             callback.assert_called_once_with(flow_run_id)
             assert flow_run_id in observer._cancelling_flow_run_ids
 
-    @pytest.mark.usefixtures("use_hosted_api_server")
     async def test_polling_avoids_duplicate_cancellations(self):
         """Test polling doesn't trigger callback multiple times for same flow run."""
         callback = AsyncMock()
@@ -147,7 +143,6 @@ class TestFlowRunCancellingObserver:
 
             assert callback.call_count == 1  # Still only called once
 
-    @pytest.mark.usefixtures("use_hosted_api_server")
     async def test_polling_filters_by_in_flight_ids(self):
         """Test polling only checks tracked flow runs."""
         callback = AsyncMock()
@@ -188,7 +183,6 @@ class TestFlowRunCancellingObserver:
             # Should call callback for the tracked flow run
             callback.assert_called_once_with(flow_run_id_1)
 
-    @pytest.mark.usefixtures("use_hosted_api_server")
     async def test_observer_consumes_cancelling_events(self):
         """Test observer consumes websocket events and calls callback."""
         callback = AsyncMock()
@@ -213,7 +207,6 @@ class TestFlowRunCancellingObserver:
             # Should call callback
             callback.assert_called_once_with(flow_run_id)
 
-    @pytest.mark.usefixtures("use_hosted_api_server")
     async def test_polling_fallback_on_websocket_failure(self):
         """Test observer switches to polling when websocket fails."""
         callback = AsyncMock()
@@ -260,7 +253,6 @@ class TestFlowRunCancellingObserver:
         with pytest.raises(RuntimeError, match="Client not initialized"):
             await observer._check_for_cancelled_flow_runs()
 
-    @pytest.mark.usefixtures("use_hosted_api_server")
     async def test_observer_shutdown_cancels_tasks(self):
         """Test proper cleanup on observer shutdown."""
         callback = AsyncMock()
