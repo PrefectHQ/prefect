@@ -1,0 +1,46 @@
+---
+title: text_search_parser
+sidebarTitle: text_search_parser
+---
+
+# `prefect.server.utilities.text_search_parser`
+
+
+Text search query parser
+
+Parses text search queries according to the following syntax:
+
+- Space-separated terms → OR logic (include)
+- Prefix with `-` or `!` → Exclude term
+- Prefix with `+` → Required term (AND logic, future)
+- Quote phrases → Match exact phrase
+- Backslash escapes → Allow quotes within phrases (")
+- Case-insensitive, substring matching
+- 200 character limit
+
+
+## Functions
+
+### `parse_text_search_query` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/text_search_parser.py#L26" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+parse_text_search_query(query: str) -> TextSearchQuery
+```
+
+
+Parse a text search query string into structured components
+
+**Args:**
+- `query`: The query string to parse
+
+**Returns:**
+- TextSearchQuery with parsed include/exclude/required terms
+
+
+## Classes
+
+### `TextSearchQuery` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/text_search_parser.py#L18" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+Parsed text search query structure
+
