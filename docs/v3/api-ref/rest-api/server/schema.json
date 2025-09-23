@@ -17259,6 +17259,17 @@
                         "$ref": "#/components/schemas/EventIDFilter",
                         "description": "Filter criteria for the events' ID"
                     },
+                    "text": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/EventTextFilter"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "description": "Filter criteria for text search across event content"
+                    },
                     "order": {
                         "$ref": "#/components/schemas/EventOrder",
                         "description": "The order to return filtered events",
@@ -17551,6 +17562,29 @@
                 "additionalProperties": false,
                 "type": "object",
                 "title": "EventResourceFilter"
+            },
+            "EventTextFilter": {
+                "properties": {
+                    "query": {
+                        "type": "string",
+                        "maxLength": 200,
+                        "title": "Query",
+                        "description": "Text search query string",
+                        "examples": [
+                            "error",
+                            "error -debug",
+                            "\"connection timeout\"",
+                            "+required -excluded"
+                        ]
+                    }
+                },
+                "additionalProperties": false,
+                "type": "object",
+                "required": [
+                    "query"
+                ],
+                "title": "EventTextFilter",
+                "description": "Filter by text search across event content."
             },
             "EventTrigger": {
                 "properties": {
@@ -20747,6 +20781,17 @@
                             }
                         ],
                         "description": "Filter criteria for `Log.task_run_id`"
+                    },
+                    "text": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/LogFilterTextSearch"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "description": "Filter criteria for text search across log content"
                     }
                 },
                 "additionalProperties": false,
@@ -20851,6 +20896,29 @@
                 "type": "object",
                 "title": "LogFilterTaskRunId",
                 "description": "Filter by `Log.task_run_id`."
+            },
+            "LogFilterTextSearch": {
+                "properties": {
+                    "query": {
+                        "type": "string",
+                        "maxLength": 200,
+                        "title": "Query",
+                        "description": "Text search query string",
+                        "examples": [
+                            "error",
+                            "error -debug",
+                            "\"connection timeout\"",
+                            "+required -excluded"
+                        ]
+                    }
+                },
+                "additionalProperties": false,
+                "type": "object",
+                "required": [
+                    "query"
+                ],
+                "title": "LogFilterTextSearch",
+                "description": "Filter by text search across log content."
             },
             "LogFilterTimestamp": {
                 "properties": {
