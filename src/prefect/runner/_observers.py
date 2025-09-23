@@ -50,11 +50,11 @@ class FlowRunCancellingObserver:
         self._cancelling_flow_run_ids: set[uuid.UUID] = set()
 
     def add_in_flight_flow_run_id(self, flow_run_id: uuid.UUID):
-        self.logger.debug(f"Adding in-flight flow run ID: {flow_run_id}")
+        self.logger.debug("Adding in-flight flow run ID: %s", flow_run_id)
         self._in_flight_flow_run_ids.add(flow_run_id)
 
     def remove_in_flight_flow_run_id(self, flow_run_id: uuid.UUID):
-        self.logger.debug(f"Removing in-flight flow run ID: {flow_run_id}")
+        self.logger.debug("Removing in-flight flow run ID: %s", flow_run_id)
         self._in_flight_flow_run_ids.discard(flow_run_id)
 
     async def _consume_events(self):
@@ -144,7 +144,7 @@ class FlowRunCancellingObserver:
 
         if cancelling_flow_runs:
             self.logger.info(
-                f"Found {len(cancelling_flow_runs)} flow runs awaiting cancellation."
+                "Found %s flow runs awaiting cancellation.", len(cancelling_flow_runs)
             )
 
         for flow_run in cancelling_flow_runs:
