@@ -2541,7 +2541,7 @@
             "type": "string"
         },
         "profiles_path": {
-            "description": "The path to a profiles configuration file. Supports $PREFECT_HOME templating. Defaults to $PREFECT_HOME/profiles.toml.",
+            "description": "The path to a profiles configuration file. Supports \\$PREFECT_HOME templating. Defaults to \\$PREFECT_HOME/profiles.toml.",
             "format": "path",
             "supported_environment_variables": [
                 "PREFECT_PROFILES_PATH"
