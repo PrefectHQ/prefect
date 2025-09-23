@@ -7,7 +7,7 @@ import {
 	BreadcrumbPage,
 	BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
-import { cn } from "@/lib/utils";
+import { cn } from "@/utils";
 import { WorkPoolMenu } from "../work-pool-menu";
 import { WorkPoolToggle } from "../work-pool-toggle";
 

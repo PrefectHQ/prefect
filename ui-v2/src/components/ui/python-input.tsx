@@ -6,7 +6,7 @@ import {
 } from "@uiw/react-codemirror";
 import React, { useEffect, useRef } from "react";
 import { toast } from "sonner";
-import { cn } from "@/lib/utils";
+import { cn } from "@/utils";
 import { Button } from "./button";
 import { Icon } from "./icons";
 

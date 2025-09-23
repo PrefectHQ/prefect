@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { zodValidator } from "@tanstack/zod-adapter";
 import { useCallback, useEffect, useMemo } from "react";
 import { z } from "zod";
+import { DashboardWorkPoolsCard } from "@/components/dashboard/dashboard-work-pools-card";
 import { FlowRunTagsSelect } from "@/components/flow-runs/flow-run-tags-select";
 import {
 	Breadcrumb,
@@ -14,6 +15,7 @@ import {
 	type DateRangeSelectValue,
 	RichDateRangeSelector,
 } from "@/components/ui/date-range-select";
+import { FlowRunActivityBarGraphTooltipProvider } from "@/components/ui/flow-run-activity-bar-graph";
 import { Label } from "@/components/ui/label";
 import {
 	LayoutWell,
@@ -244,96 +246,104 @@ export function RouteComponent() {
 	}, [search.rangeType, search.from, search.to, onDateRangeChange]);
 
 	return (
-		<LayoutWell>
-			<LayoutWellContent>
-				<LayoutWellHeader className="pb-4 md:pb-6">
-					<div className="flex flex-col space-y-4 md:space-y-0 md:flex-row md:items-center md:justify-between">
-						<div>
-							<Breadcrumb>
-								<BreadcrumbList>
-									<BreadcrumbItem className="text-2xl font-bold text-foreground">
-										Dashboard
-									</BreadcrumbItem>
-								</BreadcrumbList>
-							</Breadcrumb>
-						</div>
-						<div className="flex flex-col w-full max-w-full gap-2 md:w-auto md:inline-flex md:flex-row items-center">
-							{/* Filters */}
-							<div className="flex items-center gap-2 w-full md:w-auto">
-								<div className="pr-2 w-full md:w-auto flex items-center gap-2">
-									<Switch
-										id="hide-subflows"
-										checked={hideSubflows}
-										onCheckedChange={onToggleHideSubflows}
-									/>
-									<Label htmlFor="hide-subflows">Hide subflows</Label>
-								</div>
-								<div className="min-w-0 w-60">
-									<FlowRunTagsSelect
-										value={tags}
-										onChange={onTagsChange}
-										placeholder="All tags"
-									/>
-								</div>
-								<div className="min-w-0">
-									<RichDateRangeSelector
-										value={dateRangeValue}
-										onValueChange={onDateRangeChange}
-										placeholder="Select a time span"
-									/>
+		<FlowRunActivityBarGraphTooltipProvider>
+			<LayoutWell>
+				<LayoutWellContent>
+					<LayoutWellHeader className="pb-4 md:pb-6">
+						<div className="flex flex-col space-y-4 md:space-y-0 md:flex-row md:items-center md:justify-between">
+							<div>
+								<Breadcrumb>
+									<BreadcrumbList>
+										<BreadcrumbItem className="text-2xl font-bold text-foreground">
+											Dashboard
+										</BreadcrumbItem>
+									</BreadcrumbList>
+								</Breadcrumb>
+							</div>
+							<div className="flex flex-col w-full max-w-full gap-2 md:w-auto md:inline-flex md:flex-row items-center">
+								{/* Filters */}
+								<div className="flex items-center gap-2 w-full md:w-auto">
+									<div className="pr-2 w-full md:w-auto flex items-center gap-2">
+										<Switch
+											id="hide-subflows"
+											checked={hideSubflows}
+											onCheckedChange={onToggleHideSubflows}
+										/>
+										<Label htmlFor="hide-subflows">Hide subflows</Label>
+									</div>
+									<div className="min-w-0 w-60">
+										<FlowRunTagsSelect
+											value={tags}
+											onChange={onTagsChange}
+											placeholder="All tags"
+										/>
+									</div>
+									<div className="min-w-0">
+										<RichDateRangeSelector
+											value={dateRangeValue}
+											onValueChange={onDateRangeChange}
+											placeholder="Select a time span"
+										/>
+									</div>
 								</div>
 							</div>
 						</div>
-					</div>
-				</LayoutWellHeader>
+					</LayoutWellHeader>
 
-				<div className="grid grid-cols-1 gap-4 items-start xl:grid-cols-2">
-					{/* Main content - Flow Runs Card */}
-					<div className="space-y-4">
-						<Card>
-							<CardHeader>
-								<CardTitle>Flow Runs</CardTitle>
-							</CardHeader>
-							<CardContent className="space-y-4">
-								<div className="h-64 bg-muted rounded-md flex items-center justify-center">
-									<span className="text-muted-foreground">
-										Flow runs chart and table will appear here
-									</span>
-								</div>
-							</CardContent>
-						</Card>
-					</div>
+					<div className="grid grid-cols-1 gap-4 items-start xl:grid-cols-2">
+						{/* Main content - Flow Runs Card */}
+						<div className="space-y-4">
+							<Card>
+								<CardHeader>
+									<CardTitle>Flow Runs</CardTitle>
+								</CardHeader>
+								<CardContent className="space-y-4">
+									<div className="h-64 bg-muted rounded-md flex items-center justify-center">
+										<span className="text-muted-foreground">
+											Flow runs chart and table will appear here
+										</span>
+									</div>
+								</CardContent>
+							</Card>
+						</div>
 
-					{/* Sidebar - Task Runs and Work Pools Cards */}
-					<div className="grid grid-cols-1 gap-4">
-						<Card>
-							<CardHeader>
-								<CardTitle>Cumulative Task Runs</CardTitle>
-							</CardHeader>
-							<CardContent>
-								<div className="h-48 bg-muted rounded-md flex items-center justify-center">
-									<span className="text-muted-foreground">
-										Cumulative task runs chart will appear here
-									</span>
-								</div>
-							</CardContent>
-						</Card>
+						{/* Sidebar - Task Runs and Work Pools Cards */}
+						<div className="grid grid-cols-1 gap-4">
+							<Card>
+								<CardHeader>
+									<CardTitle>Cumulative Task Runs</CardTitle>
+								</CardHeader>
+								<CardContent>
+									<div className="h-48 bg-muted rounded-md flex items-center justify-center">
+										<span className="text-muted-foreground">
+											Cumulative task runs chart will appear here
+										</span>
+									</div>
+								</CardContent>
+							</Card>
 
-						<Card>
-							<CardHeader>
-								<CardTitle>Work Pools</CardTitle>
-							</CardHeader>
-							<CardContent>
-								<div className="h-48 bg-muted rounded-md flex items-center justify-center">
-									<span className="text-muted-foreground">
-										Work pools status will appear here
-									</span>
-								</div>
-							</CardContent>
-						</Card>
+							<DashboardWorkPoolsCard
+								filter={{
+									range: {
+										start:
+											search.from ||
+											new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
+										end: search.to || new Date().toISOString(),
+									},
+									flow_runs: {
+										start_time_after: search.from
+											? new Date(search.from)
+											: new Date(Date.now() - 24 * 60 * 60 * 1000),
+										start_time_before: search.to
+											? new Date(search.to)
+											: new Date(),
+									},
+								}}
+							/>
+						</div>
 					</div>
-				</div>
-			</LayoutWellContent>
-		</LayoutWell>
+				</LayoutWellContent>
+			</LayoutWell>
+		</FlowRunActivityBarGraphTooltipProvider>
 	);
 }

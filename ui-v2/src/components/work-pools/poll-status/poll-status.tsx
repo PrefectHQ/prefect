@@ -3,7 +3,7 @@ import { useMemo } from "react";
 
 import { buildListWorkPoolWorkersQuery } from "@/api/work-pools";
 import { FormattedDate } from "@/components/ui/formatted-date";
-import { cn } from "@/lib/utils";
+import { cn } from "@/utils";
 
 export type PollStatusProps = {
 	workPoolName: string;
