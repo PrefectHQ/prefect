@@ -14,12 +14,12 @@ from sqlalchemy.sql.functions import coalesce
 import prefect.server.schemas as schemas
 from prefect.server.utilities.database import db_injector
 from prefect.server.utilities.schemas.bases import PrefectBaseModel
+from prefect.server.utilities.text_search_parser import (
+    parse_text_search_query,
+)
 from prefect.types import DateTime
 from prefect.utilities.collections import AutoEnum
 from prefect.utilities.importtools import lazy_import
-from prefect.utilities.text_search_parser import (
-    parse_text_search_query,
-)
 
 if TYPE_CHECKING:
     import sqlalchemy as sa

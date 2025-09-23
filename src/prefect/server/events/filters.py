@@ -19,11 +19,11 @@ from prefect.server.schemas.filters import (
     PrefectOperatorFilterBaseModel,
 )
 from prefect.server.utilities.schemas.bases import PrefectBaseModel
-from prefect.types import DateTime
-from prefect.utilities.collections import AutoEnum
-from prefect.utilities.text_search_parser import (
+from prefect.server.utilities.text_search_parser import (
     parse_text_search_query,
 )
+from prefect.types import DateTime
+from prefect.utilities.collections import AutoEnum
 
 from .schemas.events import Event, Resource, ResourceSpecification
 

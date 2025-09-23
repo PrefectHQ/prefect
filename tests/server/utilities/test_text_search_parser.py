@@ -11,7 +11,7 @@ Tests the parsing of text search queries according to the following syntax:
 
 import pytest
 
-from prefect.utilities.text_search_parser import (
+from prefect.server.utilities.text_search_parser import (
     TextSearchQuery,
     parse_text_search_query,
 )
