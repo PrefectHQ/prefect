@@ -281,7 +281,6 @@ class PrefectEventsClient(EventsClient):
         # Don't handle any errors in the initial connection, because these are most
         # likely a permission or configuration issue that should propagate
         await super().__aenter__()
-        self._websocket_generator = self._connect.__aiter__()
         await self._reconnect()
         return self
 
@@ -292,6 +291,7 @@ class PrefectEventsClient(EventsClient):
         exc_tb: Optional[TracebackType],
     ) -> None:
         self._websocket = None
+        await self._connect.__aexit__(exc_type, exc_val, exc_tb)
         return await super().__aexit__(exc_type, exc_val, exc_tb)
 
     def _log_debug(self, message: str, *args: Any, **kwargs: Any) -> None:
@@ -301,9 +301,14 @@ class PrefectEventsClient(EventsClient):
     async def _reconnect(self) -> None:
         logger.debug("Reconnecting websocket connection.")
 
+        if self._websocket:
+            self._websocket = None
+            await self._connect.__aexit__(None, None, None)
+            logger.debug("Cleared existing websocket connection.")
+
         try:
             logger.debug("Opening websocket connection.")
-            self._websocket = await self._websocket_generator.__anext__()
+            self._websocket = await self._connect.__aenter__()
             # make sure we have actually connected
             logger.debug("Pinging to ensure websocket connected.")
             pong = await self._websocket.ping()
@@ -535,7 +540,6 @@ class PrefectEventSubscriber:
             subprotocols=[Subprotocol("prefect")],
         )
         self._websocket = None
-        self._websocket_generator = self._connect.__aiter__()
         self._reconnection_attempts = reconnection_attempts
         if self._reconnection_attempts < 0:
             raise ValueError("reconnection_attempts must be a non-negative integer")
@@ -555,8 +559,11 @@ class PrefectEventSubscriber:
 
     async def _reconnect(self) -> None:
         logger.debug("Reconnecting...")
+        if self._websocket:
+            self._websocket = None
+            await self._connect.__aexit__(None, None, None)
 
-        self._websocket = await self._websocket_generator.__anext__()
+        self._websocket = await self._connect.__aenter__()
 
         # make sure we have actually connected
         logger.debug("  pinging...")
@@ -608,6 +615,7 @@ class PrefectEventSubscriber:
         exc_tb: Optional[TracebackType],
     ) -> None:
         self._websocket = None
+        await self._connect.__aexit__(exc_type, exc_val, exc_tb)
 
     def __aiter__(self) -> Self:
         return self
