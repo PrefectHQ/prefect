@@ -951,6 +951,10 @@ class AzureContainerWorker(
 
             try:
                 line_time = dateutil.parser.parse(line_timestamp)
+                # Ensure line_time is timezone-aware for comparison
+                if line_time.tzinfo is None:
+                    # Assume same timezone as last_written_time
+                    line_time = line_time.replace(tzinfo=last_written_time.tzinfo)
                 if line_time > last_written_time:
                     self._write_output_line(line)
                     last_written_time = line_time
