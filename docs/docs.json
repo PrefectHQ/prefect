@@ -1,10 +1,5 @@
 {
   "$schema": "https://mintlify.com/docs.json",
-  "errors": {
-    "404": {
-      "redirect": true
-    }
-  },
   "api": {
     "playground": {
       "display": "simple"
@@ -18,6 +13,11 @@
     "dark": "#2D6DF6",
     "light": "#5F92FF",
     "primary": "#2D6DF6"
+  },
+  "errors": {
+    "404": {
+      "redirect": true
+    }
   },
   "favicon": "/logos/favicon.png",
   "footer": {
@@ -1289,6 +1289,7 @@
                           },
                           "v3/api-ref/python/prefect-server-utilities-server",
                           "v3/api-ref/python/prefect-server-utilities-subscriptions",
+                          "v3/api-ref/python/prefect-server-utilities-text_search_parser",
                           "v3/api-ref/python/prefect-server-utilities-user_templates"
                         ]
                       }

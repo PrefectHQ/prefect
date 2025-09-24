@@ -1,4 +1,5 @@
 import asyncio
+import datetime
 import uuid
 from typing import Dict, List, Tuple, Union
 from unittest.mock import MagicMock, Mock
@@ -1215,3 +1216,34 @@ def test_both_secrets_handled_as_secure_values(
         "name": "PREFECT_API_AUTH_STRING",
         "secureValue": "my-auth-string",
     }
+
+
+def test_stream_output_handles_timezone_naive_timestamps(aci_worker):
+    """
+    Test that _stream_output correctly handles timezone-naive timestamps parsed from logs
+    when comparing against timezone-aware last_log_time.
+
+    This reproduces the TypeError: can't compare offset-naive and offset-aware datetimes
+    """
+    # Create timezone-aware last_log_time (like run_start_time from datetime.now(timezone.utc))
+    last_log_time = datetime.datetime(
+        2022, 10, 3, 20, 40, 5, 311952, tzinfo=datetime.timezone.utc
+    )
+
+    # Azure log content with timestamps that dateutil.parser.parse() will parse as timezone-naive
+    log_content = """2022-10-03T20:41:05.3119525 20:41:05.307 | INFO    | Flow run 'test' - Created task run
+2022-10-03T20:41:06.3119525 20:41:06.308 | INFO    | Flow run 'test' - Executing task
+2022-10-03T20:41:07.3119525 20:41:07.616 | INFO    | Task run 'test' - Test Message"""
+
+    # Before the fix, this would raise: TypeError: can't compare offset-naive and offset-aware datetimes
+    # After the fix, it should work correctly
+    result_time = aci_worker._stream_output(log_content, last_log_time)
+
+    # Verify the result is timezone-aware and represents the latest log time
+    assert result_time.tzinfo is not None
+    assert result_time.tzinfo == datetime.timezone.utc
+    # Should be the timestamp of the last log line
+    expected_time = datetime.datetime(
+        2022, 10, 3, 20, 41, 7, 311952, tzinfo=datetime.timezone.utc
+    )
+    assert result_time == expected_time
