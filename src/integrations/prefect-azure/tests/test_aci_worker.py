@@ -1,4 +1,5 @@
 import asyncio
+import datetime
 import uuid
 from typing import Dict, List, Tuple, Union
 from unittest.mock import MagicMock, Mock
@@ -1215,3 +1216,105 @@ def test_both_secrets_handled_as_secure_values(
         "name": "PREFECT_API_AUTH_STRING",
         "secureValue": "my-auth-string",
     }
+
+
+def test_stream_output_handles_timezone_naive_timestamps(aci_worker):
+    """
+    Test that _stream_output correctly handles timezone-naive timestamps parsed from logs
+    when comparing against timezone-aware last_log_time.
+    
+    This reproduces the TypeError: can't compare offset-naive and offset-aware datetimes
+    """
+    # Create timezone-aware last_log_time (like run_start_time from datetime.now(timezone.utc))
+    last_log_time = datetime.datetime(2022, 10, 3, 20, 40, 5, 311952, tzinfo=datetime.timezone.utc)
+    
+    # Azure log content with timestamps that dateutil.parser.parse() will parse as timezone-naive
+    log_content = """2022-10-03T20:41:05.3119525 20:41:05.307 | INFO    | Flow run 'test' - Created task run
+2022-10-03T20:41:06.3119525 20:41:06.308 | INFO    | Flow run 'test' - Executing task
+2022-10-03T20:41:07.3119525 20:41:07.616 | INFO    | Task run 'test' - Test Message"""
+    
+    # Before the fix, this would raise: TypeError: can't compare offset-naive and offset-aware datetimes
+    # After the fix, it should work correctly
+    result_time = aci_worker._stream_output(log_content, last_log_time)
+    
+    # Verify the result is timezone-aware and represents the latest log time
+    assert result_time.tzinfo is not None
+    assert result_time.tzinfo == datetime.timezone.utc
+    # Should be the timestamp of the last log line
+    expected_time = datetime.datetime(2022, 10, 3, 20, 41, 7, 311952, tzinfo=datetime.timezone.utc)
+    assert result_time == expected_time
+
+
+def test_stream_output_handles_mixed_timezone_awareness(aci_worker):
+    """
+    Test that _stream_output handles logs with mixed timezone awareness correctly.
+    """
+    # Create timezone-aware last_log_time
+    last_log_time = datetime.datetime(2022, 10, 3, 20, 40, 5, tzinfo=datetime.timezone.utc)
+    
+    # Mix of timezone-naive and timezone-aware timestamps (some with Z suffix)
+    log_content = """2022-10-03T20:41:05.3119525 20:41:05.307 | INFO    | Flow run 'test' - Naive timestamp
+2022-10-03T20:41:06.3119525Z 20:41:06.308 | INFO    | Flow run 'test' - Aware timestamp with Z
+2022-10-03T20:41:07.3119525+00:00 20:41:07.616 | INFO    | Task run 'test' - Aware timestamp with offset"""
+    
+    result_time = aci_worker._stream_output(log_content, last_log_time)
+    
+    # Should handle all timestamps correctly and return the latest one
+    assert result_time.tzinfo is not None
+    assert result_time > last_log_time
+
+
+def test_stream_output_timezone_naive_last_log_time_edge_case(aci_worker):
+    """
+    Test edge case where last_log_time might be timezone-naive (though this shouldn't
+    happen in practice since run_start_time is always UTC).
+    """
+    # Edge case: timezone-naive last_log_time (shouldn't happen but test defensively)
+    last_log_time = datetime.datetime(2022, 10, 3, 20, 40, 5, 311952)  # No timezone
+    
+    log_content = """2022-10-03T20:41:05.3119525 20:41:05.307 | INFO    | Flow run 'test' - Test log"""
+    
+    # Should handle this gracefully - the fix should prevent the TypeError
+    # even in this edge case
+    result_time = aci_worker._stream_output(log_content, last_log_time)
+    
+    # Result should have same timezone awareness as input
+    assert result_time.tzinfo == last_log_time.tzinfo
+
+
+def test_stream_output_empty_logs(aci_worker):
+    """Test that _stream_output handles empty log content correctly."""
+    last_log_time = datetime.datetime(2022, 10, 3, 20, 40, 5, tzinfo=datetime.timezone.utc)
+    
+    # Test with None
+    result = aci_worker._stream_output(None, last_log_time)
+    assert result == last_log_time
+    
+    # Test with empty string
+    result = aci_worker._stream_output("", last_log_time)
+    assert result == last_log_time
+    
+    # Test with whitespace only
+    result = aci_worker._stream_output("   \n  \n  ", last_log_time)
+    assert result == last_log_time
+
+
+def test_stream_output_unparseable_timestamps(aci_worker, monkeypatch):
+    """Test that _stream_output handles unparseable timestamps gracefully."""
+    last_log_time = datetime.datetime(2022, 10, 3, 20, 40, 5, tzinfo=datetime.timezone.utc)
+    
+    # Mock the logger to capture debug messages
+    mock_logger = Mock()
+    monkeypatch.setattr(aci_worker, "_logger", mock_logger)
+    
+    log_content = """invalid-timestamp 20:41:05.307 | INFO    | Flow run 'test' - Bad timestamp
+2022-10-03T20:41:06.3119525 20:41:06.308 | INFO    | Flow run 'test' - Good timestamp"""
+    
+    result_time = aci_worker._stream_output(log_content, last_log_time)
+    
+    # Should skip the unparseable line and process the good one
+    expected_time = datetime.datetime(2022, 10, 3, 20, 41, 6, 311952, tzinfo=datetime.timezone.utc)
+    assert result_time == expected_time
+    
+    # Should have logged the parsing error
+    mock_logger.debug.assert_called()
