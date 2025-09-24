@@ -818,6 +818,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                     names=[f"tag:{tag}" for tag in self.task_run.tags],
                     occupy=1,
                     holder=ConcurrencyLeaseHolder(type="task_run", id=self.task_run.id),
+                    lease_duration=60,
                 ):
                     self.begin_run()
                     try:
@@ -1411,6 +1412,7 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                     names=[f"tag:{tag}" for tag in self.task_run.tags],
                     occupy=1,
                     holder=ConcurrencyLeaseHolder(type="task_run", id=self.task_run.id),
+                    lease_duration=60,
                 ):
                     await self.begin_run()
                     try:
