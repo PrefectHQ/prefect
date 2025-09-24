@@ -43,6 +43,7 @@ from prefect.settings import (
     PREFECT_SERVER_LOGGING_LEVEL,
     PREFECT_UI_ENABLED,
     Profile,
+    get_current_settings,
     load_current_profile,
     load_profiles,
     save_profiles,
@@ -222,6 +223,84 @@ def prestart_check(base_url: str) -> None:
             )
 
 
+def _validate_multi_worker(workers: int) -> None:
+    """
+    Validates the configuration for running multiple Prefect server workers.
+
+    Multi-worker mode requires specific infrastructure components to ensure proper
+    coordination and data consistency across worker processes:
+
+    - **Database**: PostgreSQL is required (SQLite causes database locking issues)
+    - **Messaging**: Redis is required for event messaging (in-memory messaging
+      doesn't work across processes)
+
+    Args:
+        workers: The number of worker processes to run. Must be >= 1.
+
+    Raises:
+        exit_with_error: If the configuration is invalid.
+    """
+    from prefect.server.utilities.database import get_dialect
+
+    if workers == 1:
+        return
+
+    if workers < 1:
+        exit_with_error("Number of workers must be >= 1")
+
+    settings = get_current_settings()
+
+    try:
+        dialect = get_dialect(
+            settings.server.database.connection_url.get_secret_value()
+        )
+    except Exception as e:
+        exit_with_error(f"Unable to validate database configuration: {e}")
+
+    if dialect.name != "postgresql":
+        exit_with_error(
+            "Multi-worker mode (--workers > 1) is not supported with SQLite database."
+        )
+
+    try:
+        messaging_cache = settings.server.events.messaging_cache
+        messaging_broker = settings.server.events.messaging_broker
+        causal_ordering = settings.server.events.causal_ordering
+        lease_storage = settings.server.concurrency.lease_storage
+    except Exception as e:
+        exit_with_error(f"Unable to validate messaging configuration: {e}")
+
+    if (
+        messaging_cache == "prefect.server.utilities.messaging.memory"
+        or messaging_broker == "prefect.server.utilities.messaging.memory"
+        or causal_ordering == "prefect.server.events.ordering.memory"
+        or lease_storage == "prefect.server.concurrency.lease_storage.memory"
+    ):
+        error_message = textwrap.dedent(
+            """
+            Multi-worker mode (--workers > 1) requires Redis for messaging and lease storage.
+            
+            Please configure the following settings to use Redis:
+            
+                prefect config set PREFECT_MESSAGING_BROKER="prefect_redis.messaging"
+                prefect config set PREFECT_MESSAGING_CACHE="prefect_redis.messaging"
+                prefect config set PREFECT_SERVER_EVENTS_CAUSAL_ORDERING="prefect_redis.ordering"
+                prefect config set PREFECT_SERVER_CONCURRENCY_LEASE_STORAGE="prefect_redis.lease_storage"
+            
+            You'll also need to configure your Redis connection:
+            
+                export PREFECT_REDIS_MESSAGING_HOST="your-redis-host"
+                export PREFECT_REDIS_MESSAGING_PORT="6379"
+                export PREFECT_REDIS_MESSAGING_DB="0"
+            
+            For complete setup instructions, see:
+            https://docs.prefect.io/v3/how-to-guides/self-hosted/server-cli#multi-worker-api-server
+            https://docs.prefect.io/v3/advanced/self-hosted#redis-setup
+            """
+        ).strip()
+        exit_with_error(error_message)
+
+
 @server_app.command()
 def start(
     host: str = SettingsOption(PREFECT_SERVER_API_HOST),
@@ -240,6 +319,11 @@ def start(
     background: bool = typer.Option(
         False, "--background", "-b", help="Run the server in the background"
     ),
+    workers: int = typer.Option(
+        1,
+        "--workers",
+        help="Number of worker processes to run. Only runs the webserver API and UI",
+    ),
 ):
     """
     Start a Prefect server instance
@@ -250,6 +334,10 @@ def start(
             prestart_check(base_url)
         except Exception:
             pass
+
+    if workers > 1:
+        no_services = True
+    _validate_multi_worker(workers)
 
     server_settings = {
         "PREFECT_API_SERVICES_SCHEDULER_ENABLED": str(scheduler),
@@ -297,12 +385,30 @@ def start(
     app.console.print(generate_welcome_blurb(base_url, ui_enabled=ui))
     app.console.print("\n")
 
+    if workers > 1:
+        app.console.print(
+            f"Starting server with {workers} worker processes.\n", style="blue"
+        )
+
     if background:
         _run_in_background(
-            pid_file, server_settings, host, port, keep_alive_timeout, no_services
+            pid_file,
+            server_settings,
+            host,
+            port,
+            keep_alive_timeout,
+            no_services,
+            workers,
         )
     else:
-        _run_in_foreground(server_settings, host, port, keep_alive_timeout, no_services)
+        _run_in_foreground(
+            server_settings,
+            host,
+            port,
+            keep_alive_timeout,
+            no_services,
+            workers,
+        )
 
 
 def _run_in_background(
@@ -312,6 +418,7 @@ def _run_in_background(
     port: int,
     keep_alive_timeout: int,
     no_services: bool,
+    workers: int,
 ) -> None:
     command = [
         sys.executable,
@@ -327,6 +434,8 @@ def _run_in_background(
         str(port),
         "--timeout-keep-alive",
         str(keep_alive_timeout),
+        "--workers",
+        str(workers),
     ]
     logger.debug("Opening server process with command: %s", shlex.join(command))
 
@@ -356,6 +465,7 @@ def _run_in_foreground(
     port: int,
     keep_alive_timeout: int,
     no_services: bool,
+    workers: int,
 ) -> None:
     from prefect.server.api.server import create_app
 
@@ -363,16 +473,34 @@ def _run_in_foreground(
         with temporary_settings(
             {getattr(prefect.settings, k): v for k, v in server_settings.items()}
         ):
-            uvicorn.run(
-                app=create_app(final=True, webserver_only=no_services),
-                app_dir=str(prefect.__module_path__.parent),
-                host=host,
-                port=port,
-                timeout_keep_alive=keep_alive_timeout,
-                log_level=server_settings.get(
-                    "PREFECT_SERVER_LOGGING_LEVEL", "info"
-                ).lower(),
-            )
+            if workers == 1:
+                uvicorn.run(
+                    app=create_app(final=True, webserver_only=no_services),
+                    app_dir=str(prefect.__module_path__.parent),
+                    host=host,
+                    port=port,
+                    timeout_keep_alive=keep_alive_timeout,
+                    log_level=server_settings.get(
+                        "PREFECT_SERVER_LOGGING_LEVEL", "info"
+                    ).lower(),
+                )
+
+            else:
+                os.environ["PREFECT__SERVER_FINAL"] = "1"
+                os.environ["PREFECT__SERVER_WEBSERVER_ONLY"] = "1"
+
+                uvicorn.run(
+                    app="prefect.server.api.server:create_app",
+                    factory=True,
+                    host=host,
+                    port=port,
+                    timeout_keep_alive=keep_alive_timeout,
+                    log_level=server_settings.get(
+                        "PREFECT_SERVER_LOGGING_LEVEL", "info"
+                    ).lower(),
+                    workers=workers,
+                )
+
     finally:
         app.console.print("Server stopped!")
 
