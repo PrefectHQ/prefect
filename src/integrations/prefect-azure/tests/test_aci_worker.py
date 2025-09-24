@@ -1299,8 +1299,8 @@ def test_stream_output_empty_logs(aci_worker):
     assert result == last_log_time
 
 
-def test_stream_output_unparseable_timestamps(aci_worker, monkeypatch):
-    """Test that _stream_output handles unparseable timestamps gracefully."""
+def test_stream_output_unparsable_timestamps(aci_worker, monkeypatch):
+    """Test that _stream_output handles unparsable timestamps gracefully."""
     last_log_time = datetime.datetime(2022, 10, 3, 20, 40, 5, tzinfo=datetime.timezone.utc)
     
     # Mock the logger to capture debug messages
@@ -1312,7 +1312,7 @@ def test_stream_output_unparseable_timestamps(aci_worker, monkeypatch):
     
     result_time = aci_worker._stream_output(log_content, last_log_time)
     
-    # Should skip the unparseable line and process the good one
+    # Should skip the unparsable line and process the good one
     expected_time = datetime.datetime(2022, 10, 3, 20, 41, 6, 311952, tzinfo=datetime.timezone.utc)
     assert result_time == expected_time
     
