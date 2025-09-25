@@ -48,7 +48,7 @@ async def create_concurrency_limit(
     """
     Create a task run concurrency limit.
 
-    For more information, see https://docs.prefect.io/v3/develop/task-run-limits.
+    For more information, see https://docs.prefect.io/v3/concepts/tag-based-concurrency-limits.
     """
     # Always create V2 limits (no V1 record)
     v2_name = f"tag:{concurrency_limit.tag}"
