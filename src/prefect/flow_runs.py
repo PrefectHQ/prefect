@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import warnings
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -11,6 +12,8 @@ from uuid import UUID, uuid4
 
 import anyio
 
+from prefect._internal.compatibility.deprecated import PrefectDeprecationWarning
+from prefect._waiters import FlowRunWaiter
 from prefect.client.orchestration import PrefectClient, get_client
 from prefect.client.schemas import FlowRun
 from prefect.client.schemas.objects import (
@@ -120,26 +123,38 @@ async def wait_for_flow_run(
             ```
     """
     if poll_interval is not None:
-        get_logger().warning(
-            "The `poll_interval` argument is deprecated and will be removed in a future release. "
+        warnings.warn(
+            "The `poll_interval` argument is deprecated and will be removed in a "
+            "future release.",
+            PrefectDeprecationWarning,
+            stacklevel=2,
         )
 
     assert client is not None, "Client injection failed"
     logger = get_logger()
+
+    FlowRunWaiter.instance()
 
     event_filter = EventFilter(
         event=EventNameFilter(prefix=["prefect.flow-run"]),
         resource=EventResourceFilter(id=[f"prefect.flow-run.{flow_run_id}"]),
     )
 
-    with anyio.move_on_after(timeout):
-        async with get_events_subscriber(filter=event_filter) as subscriber:
-            flow_run = await client.read_flow_run(flow_run_id)
-            if flow_run.state and flow_run.state.is_final():
-                if log_states:
-                    logger.info(f"Flow run is in state {flow_run.state.name!r}")
-                return flow_run
+    flow_run = await client.read_flow_run(flow_run_id)
+    if flow_run.state and flow_run.state.is_final():
+        if log_states:
+            logger.info(f"Flow run is in state {flow_run.state.name!r}")
+        return flow_run
 
+    if timeout == 0:
+        raise FlowRunWaitTimeout(
+            f"Flow run with ID {flow_run_id} exceeded watch timeout of {timeout} seconds"
+        )
+
+    final_state_logged: anyio.Event | None = anyio.Event() if log_states else None
+
+    async def _log_state_changes() -> None:
+        async with get_events_subscriber(filter=event_filter) as subscriber:
             async for event in subscriber:
                 if not (state_type := event.resource.get("prefect.state-type")):
                     logger.debug(f"Received {event.event!r} event")
@@ -151,7 +166,27 @@ async def wait_for_flow_run(
                     logger.info(f"Flow run is in state {state.name!r}")
 
                 if state.is_final():
-                    return await client.read_flow_run(flow_run_id)
+                    if final_state_logged is not None:
+                        final_state_logged.set()
+                    return
+
+    if log_states:
+        async with anyio.create_task_group() as task_group:
+            task_group.start_soon(_log_state_changes)
+            await FlowRunWaiter.wait_for_flow_run(flow_run_id, timeout=timeout)
+            task_group.cancel_scope.cancel()
+    else:
+        await FlowRunWaiter.wait_for_flow_run(flow_run_id, timeout=timeout)
+
+    flow_run = await client.read_flow_run(flow_run_id)
+    if flow_run.state and flow_run.state.is_final():
+        if (
+            log_states
+            and final_state_logged is not None
+            and not final_state_logged.is_set()
+        ):
+            logger.info(f"Flow run is in state {flow_run.state.name!r}")
+        return flow_run
 
     raise FlowRunWaitTimeout(
         f"Flow run with ID {flow_run_id} exceeded watch timeout of {timeout} seconds"

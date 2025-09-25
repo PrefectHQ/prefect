@@ -10,6 +10,7 @@ from httpx import Response
 from opentelemetry import trace
 
 from prefect import flow
+from prefect._waiters import FlowRunWaiter
 from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas import TaskRunResult
 from prefect.client.schemas.responses import DeploymentResponse
@@ -50,7 +51,6 @@ class TestRunDeployment:
         flow_run = await run_deployment(
             f"foo/{deployment.name}",
             timeout=0,
-            poll_interval=0,
             client=prefect_client,
         )
         assert flow_run.deployment_id == deployment.id
@@ -66,7 +66,6 @@ class TestRunDeployment:
         flow_run = await run_deployment(
             f"{deployment.id}",
             timeout=0,
-            poll_interval=0,
             client=prefect_client,
         )
         assert flow_run.deployment_id == deployment.id
@@ -82,7 +81,6 @@ class TestRunDeployment:
         flow_run = await run_deployment(
             deployment.id,
             timeout=0,
-            poll_interval=0,
             client=prefect_client,
         )
         assert flow_run.deployment_id == deployment.id
@@ -125,7 +123,7 @@ class TestRunDeployment:
             router.get("/csrf-token", params={"client": mock.ANY}).pass_through()
             router.get(f"/deployments/name/foo/{deployment.name}").pass_through()
             router.post(f"/deployments/{deployment.id}/create_flow_run").pass_through()
-            flow_polls = router.request(
+            flow_poll = router.request(
                 "GET", re.compile(PREFECT_API_URL.value() + "/flow_runs/.*")
             ).mock(
                 return_value=Response(
@@ -133,11 +131,20 @@ class TestRunDeployment:
                 )
             )
 
-            flow_run = await run_deployment(
-                f"foo/{deployment.name}", timeout=1, poll_interval=0
-            )
-            assert len(flow_polls.calls) > 0
-            assert flow_run.state
+            with mock.patch.object(
+                FlowRunWaiter,
+                "wait_for_flow_run",
+                new_callable=mock.AsyncMock,
+            ) as wait_mock:
+                wait_mock.return_value = None
+                with pytest.deprecated_call():
+                    flow_run = await run_deployment(
+                        f"foo/{deployment.name}", timeout=1, poll_interval=0
+                    )
+
+        wait_mock.assert_awaited_once_with(mock.ANY, timeout=1)
+        assert len(flow_poll.calls) == 1
+        assert flow_run.state
 
     async def test_returns_flow_run_immediately_when_timeout_is_zero(
         self,
@@ -168,9 +175,7 @@ class TestRunDeployment:
                 )
             )
 
-            flow_run = await run_deployment(
-                f"foo/{deployment.name}", timeout=0, poll_interval=0
-            )
+            flow_run = await run_deployment(f"foo/{deployment.name}", timeout=0)
             assert len(flow_polls.calls) == 0
             assert flow_run.state.is_scheduled()
 
@@ -189,21 +194,6 @@ class TestRunDeployment:
             "flow_id": str(uuid4()),
         }
 
-        side_effects = [
-            Response(
-                200, json={**mock_flowrun_response, "state": {"type": "SCHEDULED"}}
-            )
-        ]
-        side_effects.append(
-            Response(
-                200,
-                json={
-                    **mock_flowrun_response,
-                    "state": {"type": "COMPLETED", "data": {"type": "unpersisted"}},
-                },
-            )
-        )
-
         with respx.mock(
             base_url=PREFECT_API_URL.value(),
             assert_all_mocked=True,
@@ -215,13 +205,27 @@ class TestRunDeployment:
             router.post(f"/deployments/{deployment.id}/create_flow_run").pass_through()
             router.request(
                 "GET", re.compile(PREFECT_API_URL.value() + "/flow_runs/.*")
-            ).mock(side_effect=side_effects)
-
-            flow_run = await run_deployment(
-                f"foo/{deployment.name}", timeout=None, poll_interval=0
+            ).mock(
+                return_value=Response(
+                    200,
+                    json={
+                        **mock_flowrun_response,
+                        "state": {"type": "COMPLETED", "data": {"type": "unpersisted"}},
+                    },
+                )
             )
-            assert flow_run.state.is_completed()
-            assert flow_run.state.data is None
+
+            with mock.patch.object(
+                FlowRunWaiter,
+                "wait_for_flow_run",
+                new_callable=mock.AsyncMock,
+            ) as wait_mock:
+                wait_mock.return_value = None
+                flow_run = await run_deployment(f"foo/{deployment.name}", timeout=None)
+
+        wait_mock.assert_awaited_once_with(mock.ANY, timeout=None)
+        assert flow_run.state.is_completed()
+        assert flow_run.state.data is None
 
     async def test_polls_indefinitely(
         self,
@@ -235,17 +239,6 @@ class TestRunDeployment:
             "flow_id": str(uuid4()),
         }
 
-        side_effects = [
-            Response(
-                200, json={**mock_flowrun_response, "state": {"type": "SCHEDULED"}}
-            )
-        ] * 99
-        side_effects.append(
-            Response(
-                200, json={**mock_flowrun_response, "state": {"type": "COMPLETED"}}
-            )
-        )
-
         with respx.mock(
             base_url=PREFECT_API_URL.value(),
             assert_all_mocked=True,
@@ -255,14 +248,24 @@ class TestRunDeployment:
             router.get("/csrf-token", params={"client": mock.ANY}).pass_through()
             router.get(f"/deployments/name/foo/{deployment.name}").pass_through()
             router.post(f"/deployments/{deployment.id}/create_flow_run").pass_through()
-            flow_polls = router.request(
+            router.request(
                 "GET", re.compile(PREFECT_API_URL.value() + "/flow_runs/.*")
-            ).mock(side_effect=side_effects)
-
-            await run_deployment(
-                f"foo/{deployment.name}", timeout=None, poll_interval=0
+            ).mock(
+                return_value=Response(
+                    200,
+                    json={**mock_flowrun_response, "state": {"type": "COMPLETED"}},
+                )
             )
-            assert len(flow_polls.calls) == 100
+
+            with mock.patch.object(
+                FlowRunWaiter,
+                "wait_for_flow_run",
+                new_callable=mock.AsyncMock,
+            ) as wait_mock:
+                wait_mock.return_value = None
+                await run_deployment(f"foo/{deployment.name}", timeout=None)
+
+        wait_mock.assert_awaited_once_with(mock.ANY, timeout=None)
 
     async def test_schedules_immediately_by_default(
         self, test_deployment, use_hosted_api_server
@@ -273,7 +276,6 @@ class TestRunDeployment:
         flow_run = await run_deployment(
             f"foo/{deployment.name}",
             timeout=0,
-            poll_interval=0,
         )
 
         assert (flow_run.expected_start_time - scheduled_time).total_seconds() < 1
@@ -288,7 +290,6 @@ class TestRunDeployment:
             f"foo/{deployment.name}",
             scheduled_time=scheduled_time,
             timeout=0,
-            poll_interval=0,
         )
 
         assert (flow_run.expected_start_time - scheduled_time).total_seconds() < 1
@@ -300,7 +301,6 @@ class TestRunDeployment:
             f"foo/{deployment.name}",
             flow_run_name="a custom flow run name",
             timeout=0,
-            poll_interval=0,
         )
 
         assert flow_run.name == "a custom flow run name"
@@ -312,7 +312,6 @@ class TestRunDeployment:
             f"foo/{deployment.name}",
             tags=["I", "love", "prefect"],
             timeout=0,
-            poll_interval=0,
         )
 
         assert sorted(flow_run.tags) == ["I", "love", "prefect"]
@@ -324,14 +323,12 @@ class TestRunDeployment:
             f"foo/{deployment.name}",
             idempotency_key="12345",
             timeout=0,
-            poll_interval=0,
         )
 
         flow_run_b = await run_deployment(
             f"foo/{deployment.name}",
             idempotency_key="12345",
             timeout=0,
-            poll_interval=0,
         )
 
         assert flow_run_a.id == flow_run_b.id
@@ -346,7 +343,6 @@ class TestRunDeployment:
             return await run_deployment(
                 f"foo/{my_deployment.name}",
                 timeout=0,
-                poll_interval=0,
             )
 
         parent_state = await foo(return_state=True)
@@ -368,7 +364,6 @@ class TestRunDeployment:
             return await run_deployment(
                 f"foo/{deployment.name}",
                 timeout=0,
-                poll_interval=0,
                 as_subflow=False,
             )
 
@@ -393,7 +388,6 @@ class TestRunDeployment:
                 result = await run_deployment(
                     f"foo/{deployment.name}",
                     timeout=0,
-                    poll_interval=0,
                 )
                 return result
 
@@ -424,7 +418,6 @@ class TestRunDeployment:
             child_flow_run = await run_deployment(
                 f"foo/{deployment.name}",
                 timeout=0,
-                poll_interval=0,
                 parameters={"x": upstream_result},
             )
             return upstream_task_state, child_flow_run
@@ -468,7 +461,6 @@ class TestRunDeployment:
             return await run_deployment(
                 f"foo/{deployment.name}",
                 timeout=0,
-                poll_interval=0,
             )
 
         parent_state = await parent_flow(return_state=True)
@@ -514,7 +506,6 @@ class TestRunDeployment:
             flow_run = await run_deployment(
                 f"foo/{deployment.name}",
                 timeout=0,
-                poll_interval=0,
                 client=prefect_client,
             )
 

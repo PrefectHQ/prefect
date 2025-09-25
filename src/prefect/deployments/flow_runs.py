@@ -1,12 +1,14 @@
+import warnings
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Iterable, Optional, Union
 from uuid import UUID
 
-import anyio
 from opentelemetry import trace
 
 import prefect
+from prefect._internal.compatibility.deprecated import PrefectDeprecationWarning
 from prefect._result_records import ResultRecordMetadata
+from prefect._waiters import FlowRunWaiter
 from prefect.client.schemas import FlowRun
 from prefect.client.utilities import inject_client
 from prefect.context import FlowRunContext, TaskRunContext
@@ -43,6 +45,8 @@ if TYPE_CHECKING:
     import logging
 
 logger: "logging.Logger" = get_logger(__name__)
+
+_DEFAULT_POLL_INTERVAL = 5
 
 
 @sync_compatible
@@ -88,7 +92,8 @@ async def run_deployment(
             complete before returning. Setting `timeout` to 0 will return the flow
             run metadata immediately. Setting `timeout` to None will allow this
             function to poll indefinitely. Defaults to None.
-        poll_interval: The number of seconds between polls
+        poll_interval: Deprecated; polling is no longer used. This argument will be
+            removed in a future release.
         tags: A list of tags to associate with this flow run; tags can be used in
             automations and for organizational purposes.
         idempotency_key: A unique value to recognize retries of the same run, and
@@ -198,12 +203,15 @@ async def run_deployment(
     if timeout == 0:
         return flow_run
 
-    with anyio.move_on_after(timeout):
-        while True:
-            flow_run = await client.read_flow_run(flow_run_id)
-            flow_state = flow_run.state
-            if flow_state and flow_state.is_final():
-                return flow_run
-            await anyio.sleep(poll_interval)
+    if poll_interval is not None and poll_interval != _DEFAULT_POLL_INTERVAL:
+        warnings.warn(
+            "The `poll_interval` argument is deprecated and will be removed in a "
+            "future release.",
+            PrefectDeprecationWarning,
+            stacklevel=2,
+        )
 
-    return flow_run
+    FlowRunWaiter.instance()
+    await FlowRunWaiter.wait_for_flow_run(flow_run_id, timeout=timeout)
+
+    return await client.read_flow_run(flow_run_id)
