@@ -89,6 +89,30 @@ class PrefectBaseSettings(BaseSettings):
             ProfileSettingsTomlLoader(settings_cls),
         )
 
+    @staticmethod
+    def _settings_warn_unused_config_keys(
+        sources: tuple[object, ...],
+        model_config: SettingsConfigDict,
+    ) -> None:
+        warn_method = getattr(BaseSettings, "_settings_warn_unused_config_keys", None)
+        if warn_method is None:
+            return
+
+        adjusted_config = dict(model_config)
+
+        if any(
+            isinstance(source, PrefectTomlConfigSettingsSource) for source in sources
+        ):
+            adjusted_config["toml_file"] = None
+
+        if any(
+            isinstance(source, PyprojectTomlConfigSettingsSource) for source in sources
+        ):
+            adjusted_config["pyproject_toml_table_header"] = None
+            adjusted_config["pyproject_toml_depth"] = None
+
+        warn_method(sources, adjusted_config)
+
     def to_environment_variables(
         self,
         exclude_unset: bool = False,
