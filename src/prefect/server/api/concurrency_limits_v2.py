@@ -32,7 +32,7 @@ async def create_concurrency_limit_v2(
     """
     Create a task run concurrency limit.
 
-    For more information, see https://docs.prefect.io/v3/develop/global-concurrency-limits.
+    For more information, see https://docs.prefect.io/v3/how-to-guides/workflows/global-concurrency-limits.
     """
     async with db.session_context(begin_transaction=True) as session:
         model = await models.concurrency_limits_v2.create_concurrency_limit(

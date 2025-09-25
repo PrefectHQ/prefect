@@ -33,7 +33,7 @@ async def create_block_schema(
     """
     Create a block schema.
 
-    For more information, see https://docs.prefect.io/v3/develop/blocks.
+    For more information, see https://docs.prefect.io/v3/concepts/blocks.
     """
     from prefect.blocks.core import Block
 

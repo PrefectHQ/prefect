@@ -29,7 +29,7 @@ async def create_artifact(
     """
     Create an artifact.
 
-    For more information, see https://docs.prefect.io/v3/develop/artifacts.
+    For more information, see https://docs.prefect.io/v3/concepts/artifacts.
     """
     artifact = core.Artifact(**artifact.model_dump())
 

@@ -46,7 +46,7 @@ async def create_work_queue(
     If a work queue with the same name already exists, an error
     will be raised.
 
-    For more information, see https://docs.prefect.io/v3/deploy/infrastructure-concepts/work-pools#work-queues.
+    For more information, see https://docs.prefect.io/v3/concepts/work-pools#work-queues.
     """
 
     try:
