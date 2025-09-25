@@ -57,13 +57,12 @@ class Artifact():
     """
 
     def __init__(self, key: str, description: Optional[str] = None):
-        self.id: Optional[UUID] = None
-        self.created: Optional[datetime] = None
-        self.updated: Optional[datetime] = None
         self.key: str = key
         self.description: Optional[str] = description
         self.data: OrderedDict[UUID, ArtifactComponent] = OrderedDict()
-        self.icon: Optional[str] = None
+
+        self._create()
+        
 
     def _format(self) -> str:
         return "\n\n---\n\n".join([data._format() for data in self.data.values()])
@@ -154,10 +153,6 @@ class Artifact():
             )
 
     async def aappend(self, data: ArtifactComponent) -> None:
-        # Register the component with this artifact
-        if not self.id:
-            await self._create()
-
         ArtifactRegistry.register_component(data.id, self.id, self)
             
         self.data[data.id] = data
@@ -165,10 +160,6 @@ class Artifact():
         await self._update()
 
     def append(self, data: ArtifactComponent) -> None:
-        # Register the component with this artifact
-        if not self.id:
-            self._create()
-
         ArtifactRegistry.register_component(data.id, self.id, self)
             
         self.data[data.id] = data
