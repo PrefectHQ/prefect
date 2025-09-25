@@ -58,7 +58,7 @@
                     "Flows"
                 ],
                 "summary": "Create Flow",
-                "description": "Gracefully creates a new flow from the provided schema. If a flow with the\nsame name already exists, the existing flow is returned.\n\nFor more information, see https://docs.prefect.io/v3/develop/write-flows.",
+                "description": "Gracefully creates a new flow from the provided schema. If a flow with the\nsame name already exists, the existing flow is returned.\n\nFor more information, see https://docs.prefect.io/v3/concepts/flows.",
                 "operationId": "create_flow_flows__post",
                 "parameters": [
                     {
@@ -483,7 +483,7 @@
                     "Flow Runs"
                 ],
                 "summary": "Create Flow Run",
-                "description": "Create a flow run. If a flow run with the same flow_id and\nidempotency key already exists, the existing flow run will be returned.\n\nIf no state is provided, the flow run will be created in a PENDING state.\n\nFor more information, see https://docs.prefect.io/v3/develop/write-flows.",
+                "description": "Create a flow run. If a flow run with the same flow_id and\nidempotency key already exists, the existing flow run will be returned.\n\nIf no state is provided, the flow run will be created in a PENDING state.\n\nFor more information, see https://docs.prefect.io/v3/concepts/flows.",
                 "operationId": "create_flow_run_flow_runs__post",
                 "parameters": [
                     {
@@ -1596,7 +1596,7 @@
                     "Task Runs"
                 ],
                 "summary": "Create Task Run",
-                "description": "Create a task run. If a task run with the same flow_run_id,\ntask_key, and dynamic_key already exists, the existing task\nrun will be returned.\n\nIf no state is provided, the task run will be created in a PENDING state.\n\nFor more information, see https://docs.prefect.io/v3/develop/write-tasks.",
+                "description": "Create a task run. If a task run with the same flow_run_id,\ntask_key, and dynamic_key already exists, the existing task\nrun will be returned.\n\nIf no state is provided, the task run will be created in a PENDING state.\n\nFor more information, see https://docs.prefect.io/v3/concepts/tasks.",
                 "operationId": "create_task_run_task_runs__post",
                 "parameters": [
                     {
@@ -2089,7 +2089,7 @@
                     "Flow Run States"
                 ],
                 "summary": "Read Flow Run State",
-                "description": "Get a flow run state by id.\n\nFor more information, see https://docs.prefect.io/v3/develop/write-flows#final-state-determination.",
+                "description": "Get a flow run state by id.\n\nFor more information, see https://docs.prefect.io/v3/concepts/flows#final-state-determination.",
                 "operationId": "read_flow_run_state_flow_run_states__id__get",
                 "parameters": [
                     {
@@ -2201,7 +2201,7 @@
                     "Task Run States"
                 ],
                 "summary": "Read Task Run State",
-                "description": "Get a task run state by id.\n\nFor more information, see https://docs.prefect.io/v3/develop/write-tasks.",
+                "description": "Get a task run state by id.\n\nFor more information, see https://docs.prefect.io/v3/concepts/tasks.",
                 "operationId": "read_task_run_state_task_run_states__id__get",
                 "parameters": [
                     {
@@ -2313,7 +2313,7 @@
                     "Deployments"
                 ],
                 "summary": "Create Deployment",
-                "description": "Gracefully creates a new deployment from the provided schema. If a deployment with\nthe same name and flow_id already exists, the deployment is updated.\n\nIf the deployment has an active schedule, flow runs will be scheduled.\nWhen upserting, any scheduled runs from the existing deployment will be deleted.\n\nFor more information, see https://docs.prefect.io/v3/deploy.",
+                "description": "Gracefully creates a new deployment from the provided schema. If a deployment with\nthe same name and flow_id already exists, the deployment is updated.\n\nIf the deployment has an active schedule, flow runs will be scheduled.\nWhen upserting, any scheduled runs from the existing deployment will be deleted.\n\nFor more information, see https://docs.prefect.io/v3/concepts/deployments.",
                 "operationId": "create_deployment_deployments__post",
                 "parameters": [
                     {
@@ -3564,7 +3564,7 @@
                     "Logs"
                 ],
                 "summary": "Create Logs",
-                "description": "Create new logs from the provided schema.\n\nFor more information, see https://docs.prefect.io/v3/develop/logging.",
+                "description": "Create new logs from the provided schema.\n\nFor more information, see https://docs.prefect.io/v3/how-to-guides/workflows/add-logging.",
                 "operationId": "create_logs_logs__post",
                 "parameters": [
                     {
@@ -3675,7 +3675,7 @@
                     "Concurrency Limits"
                 ],
                 "summary": "Create Concurrency Limit",
-                "description": "Create a task run concurrency limit.\n\nFor more information, see https://docs.prefect.io/v3/develop/task-run-limits.",
+                "description": "Create a task run concurrency limit.\n\nFor more information, see https://docs.prefect.io/v3/concepts/tag-based-concurrency-limits.",
                 "operationId": "create_concurrency_limit_concurrency_limits__post",
                 "parameters": [
                     {
@@ -4175,7 +4175,7 @@
                     "Concurrency Limits V2"
                 ],
                 "summary": "Create Concurrency Limit V2",
-                "description": "Create a task run concurrency limit.\n\nFor more information, see https://docs.prefect.io/v3/develop/global-concurrency-limits.",
+                "description": "Create a task run concurrency limit.\n\nFor more information, see https://docs.prefect.io/v3/how-to-guides/workflows/global-concurrency-limits.",
                 "operationId": "create_concurrency_limit_v2_v2_concurrency_limits__post",
                 "parameters": [
                     {
@@ -4723,7 +4723,7 @@
                     "Block types"
                 ],
                 "summary": "Create Block Type",
-                "description": "Create a new block type.\n\nFor more information, see https://docs.prefect.io/v3/develop/blocks.",
+                "description": "Create a new block type.\n\nFor more information, see https://docs.prefect.io/v3/concepts/blocks.",
                 "operationId": "create_block_type_block_types__post",
                 "parameters": [
                     {
@@ -5231,7 +5231,7 @@
                     "Block documents"
                 ],
                 "summary": "Create Block Document",
-                "description": "Create a new block document.\n\nFor more information, see https://docs.prefect.io/v3/develop/blocks.",
+                "description": "Create a new block document.\n\nFor more information, see https://docs.prefect.io/v3/concepts/blocks.",
                 "operationId": "create_block_document_block_documents__post",
                 "parameters": [
                     {
@@ -5559,7 +5559,7 @@
                     "Work Pools"
                 ],
                 "summary": "Create Work Pool",
-                "description": "Creates a new work pool. If a work pool with the same\nname already exists, an error will be raised.\n\nFor more information, see https://docs.prefect.io/v3/deploy/infrastructure-concepts/work-pools.",
+                "description": "Creates a new work pool. If a work pool with the same\nname already exists, an error will be raised.\n\nFor more information, see https://docs.prefect.io/v3/concepts/work-pools.",
                 "operationId": "create_work_pool_work_pools__post",
                 "parameters": [
                     {
@@ -5942,7 +5942,7 @@
                     "Work Pools"
                 ],
                 "summary": "Create Work Queue",
-                "description": "Creates a new work pool queue. If a work pool queue with the same\nname already exists, an error will be raised.\n\nFor more information, see https://docs.prefect.io/v3/deploy/infrastructure-concepts/work-pools#work-queues.",
+                "description": "Creates a new work pool queue. If a work pool queue with the same\nname already exists, an error will be raised.\n\nFor more information, see https://docs.prefect.io/v3/concepts/work-pools#work-queues.",
                 "operationId": "create_work_queue_work_pools__work_pool_name__queues_post",
                 "parameters": [
                     {
@@ -6441,7 +6441,7 @@
                     "Task Workers"
                 ],
                 "summary": "Read Task Workers",
-                "description": "Read active task workers. Optionally filter by task keys.\n\nFor more information, see https://docs.prefect.io/v3/concepts/flows-and-tasks#background-tasks.",
+                "description": "Read active task workers. Optionally filter by task keys.\n\nFor more information, see https://docs.prefect.io/v3/how-to-guides/workflows/run-background-tasks.",
                 "operationId": "read_task_workers_task_workers_filter_post",
                 "parameters": [
                     {
@@ -6497,7 +6497,7 @@
                     "Work Queues"
                 ],
                 "summary": "Create Work Queue",
-                "description": "Creates a new work queue.\n\nIf a work queue with the same name already exists, an error\nwill be raised.\n\nFor more information, see https://docs.prefect.io/v3/deploy/infrastructure-concepts/work-pools#work-queues.",
+                "description": "Creates a new work queue.\n\nIf a work queue with the same name already exists, an error\nwill be raised.\n\nFor more information, see https://docs.prefect.io/v3/concepts/work-pools#work-queues.",
                 "operationId": "create_work_queue_work_queues__post",
                 "parameters": [
                     {
@@ -6959,7 +6959,7 @@
                     "Artifacts"
                 ],
                 "summary": "Create Artifact",
-                "description": "Create an artifact.\n\nFor more information, see https://docs.prefect.io/v3/develop/artifacts.",
+                "description": "Create an artifact.\n\nFor more information, see https://docs.prefect.io/v3/concepts/artifacts.",
                 "operationId": "create_artifact_artifacts__post",
                 "parameters": [
                     {
@@ -7441,7 +7441,7 @@
                     "Block schemas"
                 ],
                 "summary": "Create Block Schema",
-                "description": "Create a block schema.\n\nFor more information, see https://docs.prefect.io/v3/develop/blocks.",
+                "description": "Create a block schema.\n\nFor more information, see https://docs.prefect.io/v3/concepts/blocks.",
                 "operationId": "create_block_schema_block_schemas__post",
                 "parameters": [
                     {
@@ -7722,7 +7722,7 @@
                     "Block capabilities"
                 ],
                 "summary": "Read Available Block Capabilities",
-                "description": "Get available block capabilities.\n\nFor more information, see https://docs.prefect.io/v3/develop/blocks.",
+                "description": "Get available block capabilities.\n\nFor more information, see https://docs.prefect.io/v3/concepts/blocks.",
                 "operationId": "read_available_block_capabilities_block_capabilities__get",
                 "parameters": [
                     {
@@ -7823,7 +7823,7 @@
                     "Variables"
                 ],
                 "summary": "Create Variable",
-                "description": "Create a variable.\n\nFor more information, see https://docs.prefect.io/v3/develop/variables.",
+                "description": "Create a variable.\n\nFor more information, see https://docs.prefect.io/v3/concepts/variables.",
                 "operationId": "create_variable_variables__post",
                 "parameters": [
                     {
@@ -8546,7 +8546,7 @@
                     "Automations"
                 ],
                 "summary": "Create Automation",
-                "description": "Create an automation.\n\nFor more information, see https://docs.prefect.io/v3/automate.",
+                "description": "Create an automation.\n\nFor more information, see https://docs.prefect.io/v3/concepts/automations.",
                 "operationId": "create_automation_automations__post",
                 "parameters": [
                     {
