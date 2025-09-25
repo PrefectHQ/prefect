@@ -155,25 +155,25 @@ class Artifact():
 
     async def aappend(self, data: ArtifactComponent) -> None:
         # Register the component with this artifact
-        if self.id:
-            ArtifactRegistry.register_component(data.id, self.id, self)
+        if not self.id:
+            await self._create()
+
+        ArtifactRegistry.register_component(data.id, self.id, self)
+            
         self.data[data.id] = data
 
-        if self.id:
-            await self._aupdate()
-        else:
-            await self._acreate()
+        await self._update()
 
     def append(self, data: ArtifactComponent) -> None:
         # Register the component with this artifact
-        if self.id:
-            ArtifactRegistry.register_component(data.id, self.id, self)
+        if not self.id:
+            self._create()
+
+        ArtifactRegistry.register_component(data.id, self.id, self)
+            
         self.data[data.id] = data
 
-        if self.id:
-            self._update()
-        else:
-            self._create()
+        self._update()
     
     def remove(self, data: ArtifactComponent) -> None:
         """

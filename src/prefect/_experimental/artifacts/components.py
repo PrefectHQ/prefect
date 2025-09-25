@@ -8,6 +8,7 @@ from pydantic import Field
 
 from prefect._internal.schemas.bases import PrefectBaseModel
 from prefect._experimental.artifacts._registry import ArtifactRegistry
+from prefect.logging import get_run_logger
 
 class ArtifactComponent(PrefectBaseModel):
     """
@@ -22,6 +23,8 @@ class ArtifactComponent(PrefectBaseModel):
             artifact_ids = ArtifactRegistry.get_artifact_ids(self.id)
             for artifact_id in artifact_ids:
                 ArtifactRegistry.sync_artifact(artifact_id)
+        else:
+            get_run_logger().warning(f"ArtifactComponent {self.id} is not registered with an artifact.")
 
     async def _sync_if_registered_async(self) -> None:
         """Sync changes if this ArtifactComponent is registered with an artifact."""
@@ -30,6 +33,8 @@ class ArtifactComponent(PrefectBaseModel):
             artifact_ids = ArtifactRegistry.get_artifact_ids(self.id)
             for artifact_id in artifact_ids:
                 ArtifactRegistry.sync_artifact_async(artifact_id)
+        else:
+            get_run_logger().warning(f"ArtifactComponent {self.id} is not registered with an artifact.")
 
     def _format(self) -> str:
         ...
