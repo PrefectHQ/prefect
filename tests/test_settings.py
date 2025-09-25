@@ -57,7 +57,11 @@ from prefect.settings import (
     save_profiles,
     temporary_settings,
 )
-from prefect.settings.base import _to_environment_variable_value
+from prefect.settings.base import (
+    PrefectBaseSettings,
+    _to_environment_variable_value,
+    build_settings_config,
+)
 from prefect.settings.constants import DEFAULT_PROFILES_PATH
 from prefect.settings.legacy import (
     Setting,
@@ -74,6 +78,10 @@ from prefect.settings.models.server.api import ServerAPISettings
 from prefect.settings.models.server.database import (
     ServerDatabaseSettings,
     SQLAlchemySettings,
+)
+from prefect.settings.sources import (
+    PrefectTomlConfigSettingsSource,
+    PyprojectTomlConfigSettingsSource,
 )
 from prefect.utilities.collections import get_from_dict, set_in_dict
 from prefect.utilities.filesystem import tmpchdir
@@ -2638,3 +2646,22 @@ class TestClientCustomHeadersSetting:
                 "PREFECT_CLIENT_CUSTOM_HEADERS"
             ]
             assert json.loads(env_value) == custom_headers
+
+
+def test_prefect_custom_sources_satisfy_pydantic_warning_check() -> None:
+    class DummySettings(PrefectBaseSettings):
+        model_config = build_settings_config()
+
+    sources = (
+        PrefectTomlConfigSettingsSource(DummySettings),
+        PyprojectTomlConfigSettingsSource(DummySettings),
+    )
+
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        PrefectBaseSettings._settings_warn_unused_config_keys(
+            sources,
+            DummySettings.model_config,
+        )
+
+    assert not caught
