@@ -94,6 +94,15 @@ class PrefectBaseSettings(BaseSettings):
         sources: tuple[object, ...],
         model_config: SettingsConfigDict,
     ) -> None:
+        """
+        Override PrefectBaseSettings._settings_warn_unused_config_keys to ensure
+        Prefect’s TOML sources satisfy pydantic-settings 2.11’s unused-config check
+        without renaming public config keys. This method suppresses warnings when
+        Prefect sources are configured.
+
+        In the future pydantic-settings's init might stop invoking this method, so we
+        should remove this method.
+        """
         warn_method = getattr(BaseSettings, "_settings_warn_unused_config_keys", None)
         if warn_method is None:
             return
