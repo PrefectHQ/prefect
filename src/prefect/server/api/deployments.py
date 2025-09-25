@@ -70,7 +70,7 @@ async def create_deployment(
     If the deployment has an active schedule, flow runs will be scheduled.
     When upserting, any scheduled runs from the existing deployment will be deleted.
 
-    For more information, see https://docs.prefect.io/v3/deploy.
+    For more information, see https://docs.prefect.io/v3/concepts/deployments.
     """
 
     data = deployment.model_dump(exclude_unset=True)
