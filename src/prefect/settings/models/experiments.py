@@ -22,8 +22,3 @@ class ExperimentsSettings(PrefectBaseSettings):
             AliasPath("warn"), "prefect_experiments_warn", "prefect_experimental_warn"
         ),
     )
-
-    lineage_events_enabled: bool = Field(
-        default=False,
-        description="If `True`, enables emitting lineage events. Set to `False` to disable lineage event emission.",
-    )
