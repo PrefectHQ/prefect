@@ -9,6 +9,7 @@ from prefect.utilities.schema_tools.hydration import (
     ValueNotFound,
     WorkspaceVariable,
     WorkspaceVariableNotFound,
+    _coerce_jinja_result,
     hydrate,
 )
 
@@ -185,6 +186,64 @@ class TestHydrateWithJsonPrefectKind:
         assert hydrate(input_object) == expected_output
 
 
+class TestCoerceJinjaResult:
+    """Test the type coercion functionality for Jinja template results."""
+
+    def test_coerce_integers(self):
+        assert _coerce_jinja_result("42") == 42
+        assert isinstance(_coerce_jinja_result("42"), int)
+        assert _coerce_jinja_result("-42") == -42
+        assert isinstance(_coerce_jinja_result("-42"), int)
+        assert _coerce_jinja_result("0") == 0
+        assert isinstance(_coerce_jinja_result("0"), int)
+
+    def test_coerce_floats(self):
+        assert _coerce_jinja_result("3.14") == 3.14
+        assert isinstance(_coerce_jinja_result("3.14"), float)
+        assert _coerce_jinja_result("-3.14") == -3.14
+        assert isinstance(_coerce_jinja_result("-3.14"), float)
+        assert _coerce_jinja_result("0.0") == 0.0
+        assert isinstance(_coerce_jinja_result("0.0"), float)
+
+    def test_coerce_whitespace_handling(self):
+        assert _coerce_jinja_result("  42  ") == 42
+        assert isinstance(_coerce_jinja_result("  42  "), int)
+        assert _coerce_jinja_result("  3.14  ") == 3.14
+        assert isinstance(_coerce_jinja_result("  3.14  "), float)
+        # Non-numeric strings with whitespace preserve their formatting
+        assert _coerce_jinja_result("  hello  ") == "  hello  "
+        assert isinstance(_coerce_jinja_result("  hello  "), str)
+
+    def test_coerce_non_numeric_strings(self):
+        assert _coerce_jinja_result("hello") == "hello"
+        assert isinstance(_coerce_jinja_result("hello"), str)
+        assert _coerce_jinja_result("not-a-number") == "not-a-number"
+        assert isinstance(_coerce_jinja_result("not-a-number"), str)
+        assert _coerce_jinja_result("42.5.5") == "42.5.5"  # Invalid float
+        assert isinstance(_coerce_jinja_result("42.5.5"), str)
+
+    def test_coerce_edge_cases(self):
+        # Empty string stays string
+        assert _coerce_jinja_result("") == ""
+        assert isinstance(_coerce_jinja_result(""), str)
+
+        # Scientific notation
+        assert _coerce_jinja_result("1e5") == 100000.0
+        assert isinstance(_coerce_jinja_result("1e5"), float)
+
+        # Hexadecimal - should stay as string since we're not trying to parse it
+        assert _coerce_jinja_result("0x10") == "0x10"
+        assert isinstance(_coerce_jinja_result("0x10"), str)
+
+        # JSON strings should not be coerced
+        assert _coerce_jinja_result('"4"') == '"4"'
+        assert isinstance(_coerce_jinja_result('"4"'), str)
+        assert _coerce_jinja_result('{"key": "value"}') == '{"key": "value"}'
+        assert isinstance(_coerce_jinja_result('{"key": "value"}'), str)
+        assert _coerce_jinja_result("[1, 2, 3]") == "[1, 2, 3]"
+        assert isinstance(_coerce_jinja_result("[1, 2, 3]"), str)
+
+
 class TestHydrateWithJinjaPrefectKind:
     @pytest.mark.parametrize(
         "input_object, expected_output",
@@ -250,6 +309,84 @@ class TestHydrateWithJinjaPrefectKind:
         # render with no jinja_context
         ctx = HydrationContext(render_jinja=True, jinja_context={})
         assert hydrate(values, ctx) == {"param": "Hello "}
+
+    def test_jinja_type_coercion(self):
+        """Test that Jinja templates automatically coerce numeric strings to appropriate types."""
+        # Test integer coercion
+        values = {"param": {"__prefect_kind": "jinja", "template": "{{ value }}"}}
+        ctx = HydrationContext(render_jinja=True, jinja_context={"value": 42})
+        result = hydrate(values, ctx)
+        assert result == {"param": 42}
+        assert isinstance(result["param"], int)
+
+        # Test float coercion
+        values = {"param": {"__prefect_kind": "jinja", "template": "{{ value }}"}}
+        ctx = HydrationContext(render_jinja=True, jinja_context={"value": 3.14})
+        result = hydrate(values, ctx)
+        assert result == {"param": 3.14}
+        assert isinstance(result["param"], float)
+
+        # Test string remains string
+        values = {"param": {"__prefect_kind": "jinja", "template": "Hello {{ name }}"}}
+        ctx = HydrationContext(render_jinja=True, jinja_context={"name": "world"})
+        result = hydrate(values, ctx)
+        assert result == {"param": "Hello world"}
+        assert isinstance(result["param"], str)
+
+        # Test numeric string coercion
+        values = {"param": {"__prefect_kind": "jinja", "template": "42"}}
+        ctx = HydrationContext(render_jinja=True, jinja_context={})
+        result = hydrate(values, ctx)
+        assert result == {"param": 42}
+        assert isinstance(result["param"], int)
+
+        # Test float string coercion
+        values = {"param": {"__prefect_kind": "jinja", "template": "3.14"}}
+        ctx = HydrationContext(render_jinja=True, jinja_context={})
+        result = hydrate(values, ctx)
+        assert result == {"param": 3.14}
+        assert isinstance(result["param"], float)
+
+        # Test edge case: string that looks like float but is actually int
+        values = {"param": {"__prefect_kind": "jinja", "template": "42"}}
+        ctx = HydrationContext(render_jinja=True, jinja_context={})
+        result = hydrate(values, ctx)
+        assert result == {"param": 42}
+        assert isinstance(result["param"], int)
+
+        # Test whitespace handling
+        values = {"param": {"__prefect_kind": "jinja", "template": "  42  "}}
+        ctx = HydrationContext(render_jinja=True, jinja_context={})
+        result = hydrate(values, ctx)
+        assert result == {"param": 42}
+        assert isinstance(result["param"], int)
+
+        # Test non-numeric string stays string
+        values = {"param": {"__prefect_kind": "jinja", "template": "not-a-number"}}
+        ctx = HydrationContext(render_jinja=True, jinja_context={})
+        result = hydrate(values, ctx)
+        assert result == {"param": "not-a-number"}
+        assert isinstance(result["param"], str)
+
+        # Test negative numbers
+        values = {"param": {"__prefect_kind": "jinja", "template": "-42"}}
+        ctx = HydrationContext(render_jinja=True, jinja_context={})
+        result = hydrate(values, ctx)
+        assert result == {"param": -42}
+        assert isinstance(result["param"], int)
+
+        values = {"param": {"__prefect_kind": "jinja", "template": "-3.14"}}
+        ctx = HydrationContext(render_jinja=True, jinja_context={})
+        result = hydrate(values, ctx)
+        assert result == {"param": -3.14}
+        assert isinstance(result["param"], float)
+
+        # Test that JSON filter templates are not coerced
+        values = {"param": {"__prefect_kind": "jinja", "template": "{{ 42 | tojson }}"}}
+        ctx = HydrationContext(render_jinja=True, jinja_context={})
+        result = hydrate(values, ctx)
+        assert result == {"param": "42"}  # String, not integer
+        assert isinstance(result["param"], str)
 
 
 class TestHydrateWithWorkspaceVariablePrefectKind:

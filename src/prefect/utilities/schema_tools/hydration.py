@@ -222,6 +222,58 @@ def json_handler(obj: dict[str, Any], ctx: HydrationContext):
         return RemoveValue()
 
 
+def _coerce_jinja_result(rendered_value: str, is_nested: bool = False) -> Any:
+    """
+    Attempt to coerce a rendered Jinja template string to appropriate types.
+
+    This function tries to convert the string to:
+    1. int if it represents a whole number
+    2. float if it represents a decimal number
+    3. str if no conversion is possible
+
+    Only performs coercion on "plain" numeric strings to avoid interfering
+    with JSON strings or other structured data.
+
+    Args:
+        rendered_value: The string result from rendering a Jinja template
+        is_nested: True if this Jinja result will be further processed by another handler
+
+    Returns:
+        The value coerced to the most appropriate type
+    """
+    # If this is nested (will be processed by another handler), don't coerce
+    # to avoid interfering with JSON parsing, etc.
+    if is_nested:
+        return rendered_value
+
+    # Create a stripped version for type checking but preserve the original
+    # if no type conversion is possible
+    stripped_value = rendered_value.strip()
+
+    # Don't coerce if it looks like JSON (starts/ends with quotes or brackets)
+    if stripped_value.startswith(('"', "'", "[", "{")) or stripped_value.endswith(
+        ('"', "'", "]", "}")
+    ):
+        return rendered_value
+
+    # Try integer conversion first
+    try:
+        # Check if it looks like an integer (no decimal point)
+        if "." not in stripped_value:
+            return int(stripped_value)
+    except ValueError:
+        pass
+
+    # Try float conversion
+    try:
+        return float(stripped_value)
+    except ValueError:
+        pass
+
+    # Return as string if no conversion worked (preserve original formatting)
+    return rendered_value
+
+
 @handler("jinja")
 def jinja_handler(obj: dict[str, Any], ctx: HydrationContext) -> Any:
     from prefect.server.utilities.user_templates import (
@@ -246,7 +298,16 @@ def jinja_handler(obj: dict[str, Any], ctx: HydrationContext) -> Any:
             return InvalidJinja(detail=str(exc))
 
         if ctx.render_jinja:
-            return render_user_template_sync(dehydrated_jinja, ctx.jinja_context)
+            rendered = render_user_template_sync(dehydrated_jinja, ctx.jinja_context)
+            # Only attempt to coerce if the template doesn't use JSON-related filters
+            # to avoid interfering with templates meant to produce JSON for further parsing
+            uses_json_filters = (
+                "| tojson" in dehydrated_jinja
+                or "|tojson" in dehydrated_jinja
+                or "| toxml" in dehydrated_jinja
+                or "|toxml" in dehydrated_jinja
+            )
+            return _coerce_jinja_result(rendered, is_nested=uses_json_filters)
         else:
             return ValidJinja(template=dehydrated_jinja)
     else:
