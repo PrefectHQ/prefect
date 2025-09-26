@@ -117,7 +117,7 @@ class RawScheduleConfig(BaseModel):
     # Common extras
     timezone: Optional[str] = None
     anchor_date: Optional[str] = None
-    active: Optional[bool] = None
+    active: Optional[Union[bool, str]] = None  # Allow string for template values
     parameters: Dict[str, Any] = Field(default_factory=dict)
     slug: Optional[str] = None
 
