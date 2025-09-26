@@ -695,7 +695,9 @@ def _cleanup_pid_file(path: Path) -> None:
 
 # this is a hidden command used by the `prefect server services start --background` command
 @services_app.command(hidden=True, name="manager")
-def run_manager_process():
+def run_manager_process(
+    with_healthcheck: bool = typer.Option(False, "--with-healthcheck"),
+):
     """
     This is an internal entrypoint used by `prefect server services start --background`.
     Users do not call this directly.
@@ -705,6 +707,21 @@ def run_manager_process():
     if not Service.enabled_services():
         logger.error("No services are enabled! Exiting manager.")
         sys.exit(1)
+
+    # Start healthcheck server if requested
+    if with_healthcheck:
+        import threading
+
+        from prefect.server.services.healthcheck import build_healthcheck_server
+
+        healthcheck_server = build_healthcheck_server()
+        healthcheck_thread = threading.Thread(
+            name="healthcheck-server-thread",
+            target=healthcheck_server.run,
+            daemon=True,
+        )
+        healthcheck_thread.start()
+        logger.info("Healthcheck server started on port 8080")
 
     logger.debug("Manager process started. Starting services...")
     try:
@@ -744,6 +761,9 @@ def start_services(
     background: bool = typer.Option(
         False, "--background", "-b", help="Run the services in the background"
     ),
+    with_healthcheck: bool = typer.Option(
+        False, "--with-healthcheck", help="Start a healthcheck server on port 8080"
+    ),
 ):
     """Start all enabled Prefect services in one process."""
     SERVICES_PID_FILE.parent.mkdir(parents=True, exist_ok=True)
@@ -766,20 +786,46 @@ def start_services(
 
     if not background:
         app.console.print("\n[blue]Starting services... Press CTRL+C to stop[/]\n")
+
+        # Import at runtime to avoid circular imports
+        import threading
+
+        healthcheck_server = None
+        healthcheck_thread = None
+
+        if with_healthcheck:
+            from prefect.server.services.healthcheck import build_healthcheck_server
+
+            # Create and start the healthcheck server in a separate thread
+            healthcheck_server = build_healthcheck_server()
+            healthcheck_thread = threading.Thread(
+                name="healthcheck-server-thread",
+                target=healthcheck_server.run,
+                daemon=True,
+            )
+            healthcheck_thread.start()
+            app.console.print("[green]Healthcheck server started on port 8080[/]")
+
         try:
             asyncio.run(Service.run_services())
         except KeyboardInterrupt:
             pass
+        finally:
+            if healthcheck_server and healthcheck_thread:
+                logger.debug("Stopping healthcheck server...")
+                healthcheck_server.should_exit = True
+                healthcheck_thread.join()
+                logger.debug("Healthcheck server stopped.")
+
         app.console.print("\n[green]All services stopped.[/]")
         return
 
+    cmd = ["prefect", "server", "services", "manager"]
+    if with_healthcheck:
+        cmd.append("--with-healthcheck")
+
     process = subprocess.Popen(
-        [
-            "prefect",
-            "server",
-            "services",
-            "manager",
-        ],
+        cmd,
         env=os.environ.copy(),
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
@@ -796,6 +842,10 @@ def start_services(
         "\n[green]Services are running in the background.[/]"
         "\n[blue]Use[/] [yellow]`prefect server services stop`[/] [blue]to stop them.[/]"
     )
+    if with_healthcheck:
+        app.console.print(
+            "\n[green]Healthcheck server available at http://localhost:8080/health[/]"
+        )
 
 
 @services_app.command(aliases=["stop"])
