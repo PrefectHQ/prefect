@@ -17,6 +17,50 @@ from prefect.utilities.annotations import NotSet
 from ._models import PrefectYamlModel
 
 
+def _format_validation_error(exc: ValidationError, raw_data: dict[str, Any]) -> str:
+    """Format Pydantic validation errors into user-friendly messages."""
+    errors: dict[str, set[str]] = {}
+
+    for error in exc.errors():
+        loc = error.get("loc", ())
+
+        # Get deployment context
+        if len(loc) >= 2 and loc[0] == "deployments" and isinstance(loc[1], int):
+            idx = loc[1]
+            deployments = raw_data.get("deployments", [])
+            name = (
+                deployments[idx].get("name", f"#{idx}")
+                if idx < len(deployments)
+                else f"#{idx}"
+            )
+
+            # Get field path (only include string field names, not indices or type names)
+            field_parts = []
+            for part in loc[2:]:
+                if isinstance(part, str) and not part.startswith("function-"):
+                    # Assume lowercase names are field names, not type names
+                    if part[0].islower():
+                        field_parts.append(part)
+
+            if field_parts:
+                field = field_parts[0]  # Just use the top-level field
+                if name not in errors:
+                    errors[name] = set()
+                errors[name].add(field)
+
+    if not errors:
+        return "Validation error in config file"
+
+    lines = ["Invalid fields in deployments:\n"]
+    for name, fields in sorted(errors.items()):
+        lines.append(f"  • {name}: {', '.join(sorted(fields))}")
+    lines.append(
+        "\nFor valid deployment fields and examples, go to: https://docs.prefect.io/v3/concepts/deployments#deployment-schema"
+    )
+
+    return "\n".join(lines)
+
+
 def _merge_with_default_deploy_config(deploy_config: dict[str, Any]) -> dict[str, Any]:
     deploy_config = deepcopy(deploy_config)
     DEFAULT_DEPLOY_CONFIG: dict[str, Any] = {
@@ -78,12 +122,11 @@ def _load_deploy_configs_and_actions(
     try:
         model = PrefectYamlModel.model_validate(raw)
     except ValidationError as exc:
-        # Match prior behavior: warn and continue with empty configuration
+        # Format and display validation errors
+        error_message = _format_validation_error(exc, raw)
+        app.console.print(error_message, style="yellow")
         app.console.print(
-            (
-                "The specified config file contains invalid fields. "
-                "Validation error: " + str(exc.errors()[0].get("msg", exc))
-            ),
+            "\nSkipping deployment configuration due to validation errors.",
             style="yellow",
         )
         model = PrefectYamlModel()
