@@ -107,7 +107,7 @@ class RawScheduleConfig(BaseModel):
     Exactly one of cron, interval, or rrule must be provided.
     """
 
-    model_config = ConfigDict(extra="ignore")
+    model_config = ConfigDict(extra="forbid")
 
     # One-of schedule selectors
     cron: Optional[str] = None
@@ -132,5 +132,5 @@ class RawScheduleConfig(BaseModel):
 
 
 ScheduleItem = Union[
-    RawScheduleConfig, DeploymentScheduleCreate, SCHEDULE_TYPES, Dict[str, Any]
+    RawScheduleConfig, DeploymentScheduleCreate, SCHEDULE_TYPES, Dict[None, None]
 ]
