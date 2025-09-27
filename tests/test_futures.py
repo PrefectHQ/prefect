@@ -1,4 +1,5 @@
 import asyncio
+import sys
 import uuid
 from collections import OrderedDict
 from concurrent.futures import Future
@@ -166,6 +167,65 @@ class TestUtilityFunctions:
                 for future in as_completed(futures, timeout=5):
                     results.append(future.result())
             assert exc_info.value.args[0] == f"2 (of {len(timings)}) futures unfinished"
+
+    @pytest.mark.skipif(
+        not sys.platform.startswith("win"),
+        reason="Windows-specific test for timeout functionality",
+    )
+    def test_wait_timeout_works_on_windows(self):
+        """Test that wait() timeout functionality works on Windows.
+
+        This test verifies that issue #18956 is fixed on Windows by ensuring
+        wait() properly monitors all futures concurrently and returns after the
+        timeout expires, not just when all futures complete.
+        """
+        import threading
+        import time
+
+        # Create futures that complete at different times
+        futures = []
+
+        # Fast futures that complete quickly
+        for i in range(1, 4):
+            future = Future()
+            wrapped = PrefectConcurrentFuture(uuid.uuid4(), future)
+            futures.append(wrapped)
+
+            # Complete after short delay
+            def complete_after(f, delay, result):
+                time.sleep(delay * 0.01)
+                f.set_result(Completed(data=result))
+
+            thread = threading.Thread(target=complete_after, args=(future, i, i))
+            thread.daemon = True
+            thread.start()
+
+        # Slow future that won't complete within timeout
+        slow_future = Future()
+        futures.append(PrefectConcurrentFuture(uuid.uuid4(), slow_future))
+
+        # Wait with timeout that allows fast futures to complete but not the slow one
+        start_time = time.monotonic()
+        done, not_done = wait(futures, timeout=0.1)
+        end_time = time.monotonic()
+
+        # Verify timeout actually occurred (should be close to 0.1 seconds)
+        elapsed = end_time - start_time
+        assert 0.05 <= elapsed <= 0.3, (
+            f"Expected timeout after ~0.1s, but took {elapsed:.2f}s"
+        )
+
+        # Should have captured all 3 fast futures
+        assert len(done) == 3
+        assert len(not_done) == 1  # Just the slow future
+
+        # Verify we got the right futures
+        done_results = sorted([f.result() for f in done])
+        assert done_results == [1, 2, 3]
+
+        # The slow future should still be pending
+        assert len(not_done) == 1
+        assert not not_done.pop()._final_state
 
     async def test_as_completed_yields_correct_order_dist(self, events_pipeline):
         @task
