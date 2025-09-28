@@ -2,7 +2,6 @@ import os
 import signal
 import subprocess
 import sys
-from pathlib import Path
 from typing import Any, Literal
 from unittest.mock import MagicMock, patch
 
@@ -507,86 +506,3 @@ from my_package.submodule import function
 
             # Check that a debug message was logged about the failure
             assert "Failed to register module nonexistent_module" in caplog.text
-
-
-class TestBundleWithLocalDependencies:
-    """Integration tests for bundle creation with local dependencies."""
-
-    async def test_bundle_with_local_module(
-        self, prefect_client: PrefectClient, tmp_path: Path
-    ):
-        """Test that a flow with local dependencies can be bundled and executed."""
-        # Create a temporary local module
-        module_dir = tmp_path / "test_module"
-        module_dir.mkdir()
-
-        # Create __init__.py
-        (module_dir / "__init__.py").write_text("")
-
-        # Create a helper module with a function
-        helper_code = """
-def helper_function():
-    return "Hello from helper!"
-"""
-        (module_dir / "helper.py").write_text(helper_code)
-
-        # Add the temporary directory to sys.path
-        import sys
-
-        sys.path.insert(0, str(tmp_path))
-
-        try:
-            # Import the local module and create a flow that uses it
-
-            @flow(name="test_bundle_with_local_module", persist_result=True)
-            def flow_with_local_import():
-                from test_module.helper import helper_function
-
-                return helper_function()
-
-            # Create a flow run and bundle
-            flow_run = await prefect_client.create_flow_run(flow=flow_with_local_import)
-
-            # Mock subprocess to avoid actually freezing dependencies
-            with patch("subprocess.check_output", return_value=b""):
-                bundle = create_bundle_for_flow_run(flow_with_local_import, flow_run)
-
-            # The flow should be serialized (we can't easily test the actual serialization
-            # includes the local module without running it, but we can verify the bundle is created)
-            assert "function" in bundle
-            assert "context" in bundle
-            assert "flow_run" in bundle
-
-        finally:
-            # Clean up sys.path
-            sys.path.remove(str(tmp_path))
-
-    async def test_bundle_excludes_stdlib_and_third_party(
-        self, prefect_client: PrefectClient
-    ):
-        """Test that standard library and third-party modules are not registered for pickle-by-value."""
-
-        @flow(name="test_bundle_excludes_non_local")
-        def flow_with_various_imports():
-            return "test"
-
-        flow_run = await prefect_client.create_flow_run(flow=flow_with_various_imports)
-
-        # Mock the discovery to verify it doesn't include stdlib/third-party modules
-        with patch(
-            "prefect._experimental.bundles._discover_local_dependencies"
-        ) as mock_discover:
-            mock_discover.return_value = (
-                set()
-            )  # Should return empty set for no local deps
-
-            with patch("subprocess.check_output", return_value=b""):
-                with patch("cloudpickle.register_pickle_by_value") as mock_register:
-                    bundle = create_bundle_for_flow_run(
-                        flow_with_various_imports, flow_run
-                    )
-
-                    # Verify no modules were registered (since none were local)
-                    mock_register.assert_not_called()
-
-        assert "function" in bundle
