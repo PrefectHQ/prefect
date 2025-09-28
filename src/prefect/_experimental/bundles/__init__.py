@@ -200,81 +200,77 @@ def _discover_local_dependencies(
     # Get the module containing the flow
     try:
         flow_module = inspect.getmodule(flow.fn)
-        if not flow_module:
-            return local_modules
-
-        module_name = flow_module.__name__
-
-        # Skip if we've already processed this module
-        if module_name in visited:
-            return local_modules
-        visited.add(module_name)
-
-        # Check if the flow's module itself is local
-        module_file = getattr(flow_module, "__file__", None)
-        if module_file and _is_local_module(module_name, module_file):
-            local_modules.add(module_name)
-
-            # Get the source code of the module
-            try:
-                source_code = inspect.getsource(flow_module)
-                imports = _extract_imports_from_source(source_code)
-
-                # Check each import to see if it's local
-                for import_name in imports:
-                    # Skip if already visited
-                    if import_name in visited:
-                        continue
-
-                    # Try to resolve the import
-                    try:
-                        # Handle relative imports by resolving them
-                        if module_name and "." in module_name:
-                            package = ".".join(module_name.split(".")[:-1])
-                            try:
-                                imported_module = importlib.import_module(
-                                    import_name, package
-                                )
-                            except ImportError:
-                                imported_module = importlib.import_module(import_name)
-                        else:
-                            imported_module = importlib.import_module(import_name)
-
-                        imported_file = getattr(imported_module, "__file__", None)
-                        if imported_file and _is_local_module(
-                            import_name, imported_file
-                        ):
-                            local_modules.add(import_name)
-                            visited.add(import_name)
-
-                            # Recursively check this module's dependencies
-                            try:
-                                imported_source = inspect.getsource(imported_module)
-                                nested_imports = _extract_imports_from_source(
-                                    imported_source
-                                )
-                                for nested_import in nested_imports:
-                                    if (
-                                        nested_import not in visited
-                                        and _is_local_module(nested_import)
-                                    ):
-                                        local_modules.add(nested_import)
-                                        visited.add(nested_import)
-                            except (OSError, TypeError):
-                                # Can't get source for this module, skip its dependencies
-                                pass
-
-                    except (ImportError, AttributeError):
-                        # Can't import or module has no __file__, skip it
-                        pass
-
-            except (OSError, TypeError):
-                # Can't get source for the flow's module
-                pass
-
     except (AttributeError, TypeError):
         # Flow function doesn't have a module (e.g., defined in REPL)
-        pass
+        return local_modules
+
+    if not flow_module:
+        return local_modules
+
+    module_name = flow_module.__name__
+
+    # Skip if we've already processed this module
+    if module_name in visited:
+        return local_modules
+    visited.add(module_name)
+
+    # Check if the flow's module itself is local
+    module_file = getattr(flow_module, "__file__", None)
+    if not module_file or not _is_local_module(module_name, module_file):
+        return local_modules
+
+    local_modules.add(module_name)
+
+    # Get the source code of the module
+    try:
+        source_code = inspect.getsource(flow_module)
+    except (OSError, TypeError):
+        # Can't get source for the flow's module
+        return local_modules
+
+    imports = _extract_imports_from_source(source_code)
+
+    # Check each import to see if it's local
+    for import_name in imports:
+        # Skip if already visited
+        if import_name in visited:
+            continue
+
+        # Try to resolve the import
+        imported_module = None
+        try:
+            # Handle relative imports by resolving them
+            if module_name and "." in module_name:
+                package = ".".join(module_name.split(".")[:-1])
+                try:
+                    imported_module = importlib.import_module(import_name, package)
+                except ImportError:
+                    imported_module = importlib.import_module(import_name)
+            else:
+                imported_module = importlib.import_module(import_name)
+        except (ImportError, AttributeError):
+            # Can't import or module has no __file__, skip it
+            continue
+
+        imported_file = getattr(imported_module, "__file__", None)
+        if not imported_file or not _is_local_module(import_name, imported_file):
+            continue
+
+        local_modules.add(import_name)
+        visited.add(import_name)
+
+        # Recursively check this module's dependencies
+        try:
+            imported_source = inspect.getsource(imported_module)
+        except (OSError, TypeError):
+            # Can't get source for this module, skip its dependencies
+            continue
+
+        nested_imports = _extract_imports_from_source(imported_source)
+        for nested_import in nested_imports:
+            if nested_import not in visited and _is_local_module(nested_import):
+                local_modules.add(nested_import)
+                visited.add(nested_import)
 
     return local_modules
 
