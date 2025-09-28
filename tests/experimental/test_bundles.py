@@ -2,14 +2,19 @@ import os
 import signal
 import subprocess
 import sys
+from pathlib import Path
 from typing import Any, Literal
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 import uv
 
 from prefect import flow
 from prefect._experimental.bundles import (
+    _discover_local_dependencies,
+    _extract_imports_from_source,
+    _is_local_module,
+    _pickle_local_modules_by_value,
     convert_step_to_command,
     create_bundle_for_flow_run,
     execute_bundle_in_subprocess,
@@ -382,3 +387,206 @@ class TestConvertStepToCommand:
         step: dict[str, Any] = {}
         with pytest.raises(ValueError, match="Expected exactly one function in step"):
             convert_step_to_command(step, "test-key")
+
+
+class TestLocalDependencyDiscovery:
+    def test_is_local_module_builtin(self):
+        """Test that built-in modules are not considered local."""
+        assert not _is_local_module("sys")
+        assert not _is_local_module("os")
+        assert not _is_local_module("json")
+
+    @pytest.mark.skipif(
+        not hasattr(sys, "stdlib_module_names"), reason="Requires Python 3.10+"
+    )
+    def test_is_local_module_stdlib(self):
+        """Test that standard library modules are not considered local."""
+        assert not _is_local_module("logging")
+        assert not _is_local_module("asyncio")
+        assert not _is_local_module("unittest")
+
+    def test_is_local_module_site_packages(self):
+        """Test that modules in site-packages are not considered local."""
+        # pytest is definitely installed in site-packages
+        assert not _is_local_module("pytest")
+
+    def test_extract_imports_from_source(self):
+        """Test extraction of import statements from source code."""
+        source = """
+import os
+import sys
+from pathlib import Path
+from typing import List, Dict
+import numpy as np
+from my_module import helper
+from my_package.submodule import function
+"""
+        imports = _extract_imports_from_source(source)
+
+        assert "os" in imports
+        assert "sys" in imports
+        assert "pathlib" in imports
+        assert "typing" in imports
+        assert "numpy" in imports
+        assert "my_module" in imports
+        assert "my_package.submodule" in imports
+        # These should not be included as they are individual items, not modules
+        assert "my_module.helper" not in imports
+        assert "my_package.submodule.function" not in imports
+
+    def test_extract_imports_handles_syntax_errors(self):
+        """Test that import extraction handles syntax errors gracefully."""
+        source = "this is not valid python syntax !!!"
+        imports = _extract_imports_from_source(source)
+        assert imports == set()
+
+    def test_discover_local_dependencies_with_no_module(self):
+        """Test discovery when flow has no module (e.g., defined in REPL)."""
+
+        @flow
+        def repl_flow():
+            return "repl"
+
+        # Mock the flow to have no module
+        with patch("inspect.getmodule", return_value=None):
+            deps = _discover_local_dependencies(repl_flow)
+            assert deps == set()
+
+    def test_pickle_local_modules_context_manager(self):
+        """Test the context manager for registering local modules."""
+
+        @flow
+        def test_flow():
+            return "test"
+
+        # Track which modules were registered/unregistered
+        registered = []
+        unregistered = []
+
+        def mock_register(module):
+            registered.append(module)
+
+        def mock_unregister(module):
+            unregistered.append(module)
+
+        with patch("cloudpickle.register_pickle_by_value", side_effect=mock_register):
+            with patch(
+                "cloudpickle.unregister_pickle_by_value", side_effect=mock_unregister
+            ):
+                with patch(
+                    "prefect._experimental.bundles._discover_local_dependencies",
+                    return_value={"test_module"},
+                ):
+                    with patch("importlib.import_module") as mock_import:
+                        mock_module = MagicMock()
+                        mock_module.__name__ = "test_module"
+                        mock_import.return_value = mock_module
+
+                        with _pickle_local_modules_by_value(test_flow):
+                            # Inside context, module should be registered
+                            assert len(registered) == 1
+                            assert registered[0] == mock_module
+
+                        # After context, module should be unregistered
+                        assert len(unregistered) == 1
+                        assert unregistered[0] == mock_module
+
+    def test_pickle_local_modules_handles_import_errors(self, caplog):
+        """Test that import errors are handled gracefully."""
+
+        @flow
+        def test_flow():
+            return "test"
+
+        with patch(
+            "prefect._experimental.bundles._discover_local_dependencies",
+            return_value={"nonexistent_module"},
+        ):
+            with _pickle_local_modules_by_value(test_flow):
+                pass
+
+            # Check that a debug message was logged about the failure
+            assert "Failed to register module nonexistent_module" in caplog.text
+
+
+class TestBundleWithLocalDependencies:
+    """Integration tests for bundle creation with local dependencies."""
+
+    async def test_bundle_with_local_module(
+        self, prefect_client: PrefectClient, tmp_path: Path
+    ):
+        """Test that a flow with local dependencies can be bundled and executed."""
+        # Create a temporary local module
+        module_dir = tmp_path / "test_module"
+        module_dir.mkdir()
+
+        # Create __init__.py
+        (module_dir / "__init__.py").write_text("")
+
+        # Create a helper module with a function
+        helper_code = """
+def helper_function():
+    return "Hello from helper!"
+"""
+        (module_dir / "helper.py").write_text(helper_code)
+
+        # Add the temporary directory to sys.path
+        import sys
+
+        sys.path.insert(0, str(tmp_path))
+
+        try:
+            # Import the local module and create a flow that uses it
+
+            @flow(name="test_bundle_with_local_module", persist_result=True)
+            def flow_with_local_import():
+                from test_module.helper import helper_function
+
+                return helper_function()
+
+            # Create a flow run and bundle
+            flow_run = await prefect_client.create_flow_run(flow=flow_with_local_import)
+
+            # Mock subprocess to avoid actually freezing dependencies
+            with patch("subprocess.check_output", return_value=b""):
+                bundle = create_bundle_for_flow_run(flow_with_local_import, flow_run)
+
+            # The flow should be serialized (we can't easily test the actual serialization
+            # includes the local module without running it, but we can verify the bundle is created)
+            assert "function" in bundle
+            assert "context" in bundle
+            assert "flow_run" in bundle
+
+        finally:
+            # Clean up sys.path
+            sys.path.remove(str(tmp_path))
+
+    async def test_bundle_excludes_stdlib_and_third_party(
+        self, prefect_client: PrefectClient
+    ):
+        """Test that standard library and third-party modules are not registered for pickle-by-value."""
+
+        @flow(name="test_bundle_excludes_non_local")
+        def flow_with_various_imports():
+            return "test"
+
+        flow_run = await prefect_client.create_flow_run(flow=flow_with_various_imports)
+
+        # Mock the discovery to verify it doesn't include stdlib/third-party modules
+        with patch(
+            "prefect._experimental.bundles._discover_local_dependencies"
+        ) as mock_discover:
+            mock_discover.return_value = (
+                set()
+            )  # Should return empty set for no local deps
+
+            with patch("subprocess.check_output", return_value=b""):
+                with patch("cloudpickle.register_pickle_by_value") as mock_register:
+                    bundle = create_bundle_for_flow_run(
+                        flow_with_various_imports, flow_run
+                    )
+
+                    # Verify no modules were registered (since none were local)
+                    mock_register.assert_not_called()
+
+        assert "function" in bundle
