@@ -68,3 +68,4 @@ jobs:
             --numprocesses auto
             --dist worksteal
             -vv
+          token: ${{ secrets.CODSPEED_TOKEN }}
