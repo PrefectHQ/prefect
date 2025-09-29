@@ -580,3 +580,35 @@ async def test_deployment_runs_with_job_variables(
     flow_runs = await prefect_client.read_flow_runs()
     this_run = flow_runs[0]
     assert this_run.job_variables == job_vars
+
+
+async def test_deployment_run_without_parameter_openapi_schema(
+    flow: Any,
+    prefect_client: prefect.client.orchestration.PrefectClient,
+):
+    """
+    Verify that deployments created without a parameter_openapi_schema
+    can still be run via the CLI without crashing.
+
+    Regression test for issue where deployments created via client.create_deployment
+    without an explicit parameter_openapi_schema would cause a KeyError when
+    running via `prefect deployment run`.
+    """
+    flow_id = await prefect_client.create_flow(flow=flow)
+    deployment_id = await prefect_client.create_deployment(
+        flow_id=flow_id,
+        name="test-deployment-no-schema",
+    )
+
+    deployment = await prefect_client.read_deployment(deployment_id)
+    deployment_name = f"{flow.name}/{deployment.name}"
+
+    await run_sync_in_worker_thread(
+        invoke_and_assert,
+        command=["deployment", "run", deployment_name],
+        expected_output_contains="Created flow run",
+    )
+
+    flow_runs = await prefect_client.read_flow_runs()
+    assert len(flow_runs) == 1
+    assert flow_runs[0].deployment_id == deployment_id
