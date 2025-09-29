@@ -1,4 +1,4 @@
-from typing import ClassVar, Dict
+from typing import ClassVar
 
 from pydantic import AliasChoices, AliasPath, Field
 from pydantic_settings import SettingsConfigDict
@@ -7,7 +7,7 @@ from prefect.settings.base import (
     PrefectBaseSettings,
     build_settings_config,
 )
-from prefect.types import ClientRetryExtraCodes
+from prefect.types import ClientRetryExtraCodes, JsonStringOrDict
 
 
 class ClientMetricsSettings(PrefectBaseSettings):
@@ -88,7 +88,7 @@ class ClientSettings(PrefectBaseSettings):
     )
 
     # this needs to be typing.Dict for now as dict[str, str] is not compatible with pydantic < 2.11
-    custom_headers: Dict[str, str] = Field(
+    custom_headers: JsonStringOrDict = Field(
         default_factory=dict,
         description="""
         Custom HTTP headers to include with every API request to the Prefect server.
