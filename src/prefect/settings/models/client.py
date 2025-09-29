@@ -87,7 +87,6 @@ class ClientSettings(PrefectBaseSettings):
         """,
     )
 
-    # this needs to be typing.Dict for now as dict[str, str] is not compatible with pydantic < 2.11
     custom_headers: JsonStringOrDict = Field(
         default_factory=dict,
         description="""

@@ -214,7 +214,7 @@ KeyValueLabelsField = Annotated[
 ]
 
 
-def deserialize_dict_if_string(value: Any) -> dict[str, Any]:
+def _deserialize_dict_if_string(value: Any) -> dict[str, Any]:
     """
     Useful when a value is sometimes passed as a string or natively as a dict.
 
@@ -230,7 +230,7 @@ def deserialize_dict_if_string(value: Any) -> dict[str, Any]:
 
 JsonStringOrDict = Annotated[
     dict[str, Any],
-    BeforeValidator(deserialize_dict_if_string),
+    BeforeValidator(_deserialize_dict_if_string),
 ]
 
 
