@@ -586,12 +586,15 @@ class SecureFlowConcurrencySlots(FlowRunOrchestrationRule):
         )
         if acquired:
             lease_storage = get_concurrency_lease_storage()
+            settings = get_current_settings()
             lease = await lease_storage.create_lease(
                 resource_ids=[deployment.concurrency_limit_id],
                 metadata=ConcurrencyLimitLeaseMetadata(
                     slots=1,
                 ),
-                ttl=datetime.timedelta(seconds=60),
+                ttl=datetime.timedelta(
+                    seconds=settings.server.concurrency.initial_lease_timeout
+                ),
             )
             proposed_state.state_details.deployment_concurrency_lease_id = lease.id
 
