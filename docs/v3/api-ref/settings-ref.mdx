@@ -1244,6 +1244,22 @@ The module to use for storing concurrency limit leases.
 **Supported environment variables**:
 `PREFECT_SERVER_CONCURRENCY_LEASE_STORAGE`
 
+### `initial_lease_timeout`
+Initial timeout for concurrency lease acquisition in seconds.
+
+**Type**: `number`
+
+**Default**: `300.0`
+
+**Constraints**:
+- Minimum: 30.0
+- Maximum: 3600.0
+
+**TOML dotted key path**: `server.concurrency.initial_lease_timeout`
+
+**Supported environment variables**:
+`PREFECT_SERVER_CONCURRENCY_INITIAL_LEASE_TIMEOUT`
+
 ---
 ## ServerDatabaseSettings
 Settings for controlling server database behavior
