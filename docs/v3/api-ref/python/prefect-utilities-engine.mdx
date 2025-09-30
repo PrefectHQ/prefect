@@ -226,7 +226,7 @@ check_api_reachable(client: 'PrefectClient', fail_message: str) -> None
 emit_task_run_state_change_event(task_run: TaskRun, initial_state: Optional[State[Any]], validated_state: State[Any], follows: Optional[Event] = None) -> Optional[Event]
 ```
 
-### `resolve_to_final_result` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/engine.py#L710" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `resolve_to_final_result` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/engine.py#L717" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 resolve_to_final_result(expr: Any, context: dict[str, Any]) -> Any
@@ -237,7 +237,7 @@ Resolve any `PrefectFuture`, or `State` types nested in parameters into
 data. Designed to be use with `visit_collection`.
 
 
-### `resolve_inputs_sync` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/engine.py#L781" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `resolve_inputs_sync` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/engine.py#L788" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 resolve_inputs_sync(parameters: dict[str, Any], return_data: bool = True, max_depth: int = -1) -> dict[str, Any]
