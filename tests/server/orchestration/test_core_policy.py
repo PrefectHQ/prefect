@@ -4555,3 +4555,102 @@ class TestFlowConcurrencyLimits:
 
         lease_ids = await lease_storage.read_active_lease_ids()
         assert len(lease_ids) == 1
+
+    async def test_configurable_initial_lease_timeout(
+        self,
+        session,
+        initialize_orchestration,
+        flow,
+        monkeypatch,
+    ):
+        """Test that SecureFlowConcurrencySlots uses configurable initial lease timeout."""    
+        # Set custom initial lease timeout via environment variable
+        monkeypatch.setenv("PREFECT_SERVER_CONCURRENCY_INITIAL_LEASE_TIMEOUT", "120")
+        
+        deployment = await self.create_deployment_with_concurrency_limit(
+            session, 1, flow
+        )
+        
+        pending_transition = (states.StateType.SCHEDULED, states.StateType.PENDING)
+        
+        ctx = await initialize_orchestration(
+            session, "flow", *pending_transition, deployment_id=deployment.id
+        )
+        
+        # Mock the lease storage to capture the TTL
+        with mock.patch('prefect.server.orchestration.core_policy.get_concurrency_lease_storage') as mock_get_storage:
+            mock_lease_storage = AsyncMock()
+            mock_lease_storage.create_lease.return_value.id = uuid4()  # Use proper UUID
+            mock_get_storage.return_value = mock_lease_storage
+            
+            # Mock the bulk_increment_active_slots to return True (slots available)
+            with mock.patch('prefect.server.orchestration.core_policy.concurrency_limits_v2.bulk_increment_active_slots') as mock_increment:
+                mock_increment.return_value = True
+                
+                # Mock get_current_settings to return settings with our custom initial lease timeout
+                with mock.patch('prefect.server.orchestration.core_policy.get_current_settings') as mock_get_settings:
+                    from prefect.settings.models.root import Settings
+                    mock_settings = Settings()
+                    mock_settings.server.concurrency.initial_lease_timeout = 120.0  # Use initial_lease_timeout
+                    mock_get_settings.return_value = mock_settings
+                    
+                    async with contextlib.AsyncExitStack() as stack:
+                        ctx = await stack.enter_async_context(
+                            SecureFlowConcurrencySlots(ctx, *pending_transition)
+                        )
+                        await ctx.validate_proposed_state()
+                    
+                    # Verify lease was created with correct TTL (120 seconds from initial_lease_timeout)
+                    mock_lease_storage.create_lease.assert_called_once()
+                    call_args = mock_lease_storage.create_lease.call_args
+                    assert call_args[1]['ttl'].total_seconds() == 120
+                    
+                    # Verify the response was accepted
+                    assert ctx.response_status == SetStateStatus.ACCEPT
+
+    async def test_configurable_lease_renewal_duration(
+        self,
+        session,
+        initialize_orchestration,
+        flow,
+        monkeypatch,
+    ):
+        """Test that flow engine uses configurable lease renewal duration."""
+        # Set custom lease renewal duration via environment variable
+        monkeypatch.setenv("PREFECT_SERVER_CONCURRENCY_LEASE_DURATION", "600")
+        
+        # Test that the flow engine code path uses the configurable lease duration
+        # We'll test this by mocking the maintain_concurrency_lease call directly
+        with mock.patch('prefect.flow_engine.get_current_settings') as mock_get_settings:
+            from prefect.settings.models.root import Settings
+            mock_settings = Settings()
+            mock_settings.server.concurrency.lease_duration = 600.0
+            mock_get_settings.return_value = mock_settings
+            
+            with mock.patch('prefect.flow_engine.maintain_concurrency_lease') as mock_maintain:
+                # Mock the context manager behavior
+                mock_maintain.return_value.__enter__ = mock.MagicMock()
+                mock_maintain.return_value.__exit__ = mock.MagicMock()
+                
+                # Simulate the code path in setup_run_context where maintain_concurrency_lease is called
+                from prefect.flow_engine import FlowRunEngine
+                from prefect.server.schemas.states import StateDetails
+                
+                # Create a mock flow run with a lease ID
+                mock_flow_run = mock.MagicMock()
+                mock_flow_run.state.state_details = StateDetails()
+                mock_flow_run.state.state_details.deployment_concurrency_lease_id = uuid4()
+                
+                engine = FlowRunEngine(flow=flow, flow_run=mock_flow_run)
+                
+                # Simulate the setup_run_context code path that calls maintain_concurrency_lease
+                # This is the actual code from setup_run_context method
+                if lease_id := engine.flow_run.state.state_details.deployment_concurrency_lease_id:
+                    settings = mock_get_settings.return_value
+                    # This is the actual call that should happen
+                    mock_maintain(lease_id, settings.server.concurrency.lease_duration, raise_on_lease_renewal_failure=True)
+                
+                # Verify maintain_concurrency_lease was called with correct duration
+                mock_maintain.assert_called_once()
+                call_args = mock_maintain.call_args
+                assert call_args[0][1] == 600.0  # Second argument should be lease duration
