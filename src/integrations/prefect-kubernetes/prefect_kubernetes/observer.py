@@ -39,8 +39,6 @@ _last_event_cache: TTLCache[str, Event] = TTLCache(
     maxsize=1000, ttl=60 * 5
 )  # 5 minutes
 
-logging.getLogger("kopf.objects").setLevel(logging.INFO)
-
 settings = KubernetesSettings()
 
 events_client: EventsClient | None = None
