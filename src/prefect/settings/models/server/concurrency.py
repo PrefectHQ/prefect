@@ -16,17 +16,6 @@ class ServerConcurrencySettings(PrefectBaseSettings):
         description="The module to use for storing concurrency limit leases.",
     )
 
-    lease_duration: float = Field(
-        default=300.0,
-        ge=60.0,  # Minimum 1 minute
-        le=86400.0,  # Maximum 1 day
-        description="Duration for concurrency lease renewals in seconds.",
-        validation_alias=AliasChoices(
-            AliasPath("lease_duration"),
-            "prefect_server_concurrency_lease_duration",
-        ),
-    )
-
     initial_lease_timeout: float = Field(
         default=300.0,
         ge=30.0,  # Minimum 30 seconds
