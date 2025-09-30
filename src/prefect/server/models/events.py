@@ -195,7 +195,7 @@ def _resource_data_as_related_resources(
     resource_data: ResourceData,
     excluded_kinds: Optional[List[str]] = None,
 ) -> RelatedResourceList:
-    from prefect.settings import PREFECT_EVENTS_MAXIMUM_RELATED_RESOURCES
+    from prefect.settings.context import get_current_settings
 
     related = []
     tags: Set[str] = set()
@@ -225,7 +225,8 @@ def _resource_data_as_related_resources(
     # 1. The related resources we've already added (flow, deployment, work queue, etc.)
     # 2. The provenance resource that will be added by the caller (if present)
     # We conservatively reserve 1 slot for provenance to avoid edge cases.
-    max_tags = PREFECT_EVENTS_MAXIMUM_RELATED_RESOURCES.value() - len(related) - 1
+    max_related = get_current_settings().events.maximum_related_resources
+    max_tags = max_related - len(related) - 1
 
     # Only include tags up to the limit, sorted for consistency
     tags_to_include = sorted(tags)[: max(0, max_tags)]
