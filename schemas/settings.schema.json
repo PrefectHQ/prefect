@@ -1065,6 +1065,17 @@
                     ],
                     "title": "Lease Storage",
                     "type": "string"
+                },
+                "initial_lease_timeout": {
+                    "default": 300.0,
+                    "description": "Initial timeout for concurrency lease acquisition in seconds.",
+                    "maximum": 3600.0,
+                    "minimum": 30.0,
+                    "supported_environment_variables": [
+                        "PREFECT_SERVER_CONCURRENCY_INITIAL_LEASE_TIMEOUT"
+                    ],
+                    "title": "Initial Lease Timeout",
+                    "type": "number"
                 }
             },
             "title": "ServerConcurrencySettings",
