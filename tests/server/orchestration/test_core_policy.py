@@ -4593,7 +4593,7 @@ class TestFlowConcurrencyLimits:
             lease_id = ctx.validated_state.state_details.deployment_concurrency_lease_id
             assert lease_id is not None
 
-            # Verify the lease expiration matches our configured timeout (120 seconds)
+            # Verify the lease expiration matches our configured timeout
             lease_storage = get_concurrency_lease_storage()
             lease = await lease_storage.read_lease(lease_id=lease_id)
             assert lease is not None
