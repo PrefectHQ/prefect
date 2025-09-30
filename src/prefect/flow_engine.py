@@ -632,7 +632,9 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
                 settings = get_current_settings()
                 stack.enter_context(
                     maintain_concurrency_lease(
-                        lease_id, settings.server.concurrency.lease_duration, raise_on_lease_renewal_failure=True
+                        lease_id,
+                        settings.server.concurrency.lease_duration,
+                        raise_on_lease_renewal_failure=True,
                     )
                 )
 
@@ -1203,7 +1205,9 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
                 settings = get_current_settings()
                 await stack.enter_async_context(
                     amaintain_concurrency_lease(
-                        lease_id, settings.server.concurrency.lease_duration, raise_on_lease_renewal_failure=True
+                        lease_id,
+                        settings.server.concurrency.lease_duration,
+                        raise_on_lease_renewal_failure=True,
                     )
                 )
 

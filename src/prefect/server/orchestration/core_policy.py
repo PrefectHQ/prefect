@@ -592,7 +592,9 @@ class SecureFlowConcurrencySlots(FlowRunOrchestrationRule):
                 metadata=ConcurrencyLimitLeaseMetadata(
                     slots=1,
                 ),
-                ttl=datetime.timedelta(seconds=settings.server.concurrency.initial_lease_timeout),
+                ttl=datetime.timedelta(
+                    seconds=settings.server.concurrency.initial_lease_timeout
+                ),
             )
             proposed_state.state_details.deployment_concurrency_lease_id = lease.id
 
