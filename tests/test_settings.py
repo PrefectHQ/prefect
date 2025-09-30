@@ -2646,6 +2646,37 @@ class TestClientCustomHeadersSetting:
             ]
             assert json.loads(env_value) == custom_headers
 
+    def test_setting_via_cli_string(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ):
+        """Test setting custom headers via CLI/profile with a JSON string."""
+        from prefect.settings.models.root import Settings
+
+        # Clear test mode to ensure profile loading
+        monkeypatch.delenv("PREFECT_TESTING_TEST_MODE", raising=False)
+        monkeypatch.delenv("PREFECT_TESTING_UNIT_TEST_MODE", raising=False)
+
+        json_string = (
+            '{"X-Test-Header": "test-value", "Authorization": "Bearer token123"}'
+        )
+
+        # Use a temporary profiles file for isolation
+        profiles_path = tmp_path / "profiles.toml"
+        monkeypatch.setenv("PREFECT_PROFILES_PATH", str(profiles_path))
+
+        # Write a profile with the JSON string value, simulating what `prefect config set` does
+        profiles_path.write_text(f"""
+active = "test"
+
+[profiles.test]
+PREFECT_CLIENT_CUSTOM_HEADERS = '{json_string}'
+""")
+
+        # Create a new settings instance that will load from the profiles file
+        settings = Settings()
+        expected = {"X-Test-Header": "test-value", "Authorization": "Bearer token123"}
+        assert settings.client.custom_headers == expected
+
 
 def test_prefect_custom_sources_satisfy_pydantic_warning_check() -> None:
     class DummySettings(PrefectBaseSettings):

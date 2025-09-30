@@ -214,12 +214,33 @@ KeyValueLabelsField = Annotated[
 ]
 
 
+def _deserialize_dict_if_string(value: Any) -> dict[str, str]:
+    """
+    Useful when a value is sometimes passed as a string or natively as a dict.
+
+    Example, setting the custom headers via the CLI involves passing a string format of a dict:
+    ```
+    prefect settings set PREFECT_CLIENT_CUSTOM_HEADERS='{"X-Test-Header": "test-value", "Authorization": "Bearer token123"}'
+    ```
+    """
+    if isinstance(value, str):
+        return orjson.loads(value)
+    return value
+
+
+JsonStringOrDict = Annotated[
+    dict[str, str],
+    BeforeValidator(_deserialize_dict_if_string),
+]
+
+
 __all__ = [
     "BANNED_CHARACTERS",
     "WITHOUT_BANNED_CHARACTERS",
     "ClientRetryExtraCodes",
     "Date",
     "DateTime",
+    "JsonStringOrDict",
     "LogLevel",
     "KeyValueLabelsField",
     "MAX_VARIABLE_NAME_LENGTH",
