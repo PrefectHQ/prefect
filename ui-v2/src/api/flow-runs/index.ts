@@ -206,6 +206,40 @@ export const buildCountFlowRunsQuery = (
 		refetchInterval,
 	});
 
+/**
+ * Builds a query configuration for fetching the average lateness of flow runs
+ *
+ * @param filter - Filter parameters for the flow runs
+ * @param refetchInterval - Interval for refetching the average lateness (default 30 seconds)
+ * @returns Query configuration object for use with TanStack Query
+ *
+ * @example
+ * ```ts
+ * const { data: avgLateness } = useSuspenseQuery(buildAverageLatenessFlowRunsQuery({
+ *   flow_runs: {
+ *     state: { name: { any_: ["Late"] } }
+ *   }
+ * }));
+ * ```
+ */
+export const buildAverageLatenessFlowRunsQuery = (
+	filter: FlowRunsFilter = {
+		sort: "ID_DESC",
+		offset: 0,
+	},
+	refetchInterval = 30_000,
+) =>
+	queryOptions({
+		queryKey: [...queryKeyFactory.all(), "lateness", filter] as const,
+		queryFn: async (): Promise<number | null> => {
+			const res = await getQueryService().POST("/flow_runs/lateness", {
+				body: filter,
+			});
+			return res.data ?? null;
+		},
+		refetchInterval,
+	});
+
 // ----- ✍🏼 Mutations 🗄️
 // ----------------------------
 

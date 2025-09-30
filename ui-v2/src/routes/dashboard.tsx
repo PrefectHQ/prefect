@@ -2,7 +2,8 @@ import { createFileRoute } from "@tanstack/react-router";
 import { zodValidator } from "@tanstack/zod-adapter";
 import { useCallback, useEffect, useMemo } from "react";
 import { z } from "zod";
-import { DashboardWorkPoolsCard } from "@/components/dashboard/dashboard-work-pools-card";
+import { buildFilterWorkPoolsQuery } from "@/api/work-pools";
+import { DashboardWorkPoolsCard } from "@/components/dashboard";
 import { FlowRunTagsSelect } from "@/components/flow-runs/flow-run-tags-select";
 import {
 	Breadcrumb,
@@ -45,6 +46,11 @@ const searchParams = z.object({
 export const Route = createFileRoute("/dashboard")({
 	validateSearch: zodValidator(searchParams),
 	component: RouteComponent,
+	loader: ({ context: { queryClient } }) => {
+		// Prefetch work pools data for the dashboard
+		void queryClient.prefetchQuery(buildFilterWorkPoolsQuery({ offset: 0 }));
+	},
+	wrapInSuspense: true,
 });
 
 function omitKeys<T extends object, K extends readonly (keyof T)[]>(
@@ -324,20 +330,8 @@ export function RouteComponent() {
 
 							<DashboardWorkPoolsCard
 								filter={{
-									range: {
-										start:
-											search.from ||
-											new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
-										end: search.to || new Date().toISOString(),
-									},
-									flow_runs: {
-										start_time_after: search.from
-											? new Date(search.from)
-											: new Date(Date.now() - 24 * 60 * 60 * 1000),
-										start_time_before: search.to
-											? new Date(search.to)
-											: new Date(),
-									},
+									startDate: search.from,
+									endDate: search.to,
 								}}
 							/>
 						</div>
