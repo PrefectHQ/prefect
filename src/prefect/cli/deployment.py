@@ -957,7 +957,11 @@ async def run(
 
         if TYPE_CHECKING:
             assert deployment.parameter_openapi_schema is not None
-        deployment_parameters = deployment.parameter_openapi_schema["properties"].keys()
+        deployment_parameters = (
+            deployment.parameter_openapi_schema.get("properties", {}).keys()
+            if deployment.parameter_openapi_schema
+            else []
+        )
         unknown_keys = set(parameters.keys()).difference(deployment_parameters)
         if unknown_keys:
             available_parameters = (
