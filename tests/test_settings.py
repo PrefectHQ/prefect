@@ -313,6 +313,8 @@ SUPPORTED_SETTINGS = {
     "PREFECT_SERVER_CONCURRENCY_LEASE_STORAGE": {
         "test_value": "prefect.server.concurrency.lease_storage.filesystem"
     },
+    "PREFECT_SERVER_CONCURRENCY_LEASE_DURATION": {"test_value": 600.0},
+    "PREFECT_SERVER_CONCURRENCY_INITIAL_LEASE_TIMEOUT": {"test_value": 120.0},
     "PREFECT_SERVER_CORS_ALLOWED_HEADERS": {"test_value": "foo", "legacy": True},
     "PREFECT_SERVER_CORS_ALLOWED_METHODS": {"test_value": "foo", "legacy": True},
     "PREFECT_SERVER_CORS_ALLOWED_ORIGINS": {"test_value": "foo", "legacy": True},
