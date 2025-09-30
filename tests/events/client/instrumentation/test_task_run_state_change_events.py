@@ -474,6 +474,91 @@ async def test_background_task_state_changes(
     assert observed == expected
 
 
+async def test_task_state_change_includes_tags_as_related_resources(
+    asserting_events_worker: EventsWorker,
+    prefect_client: PrefectClient,
+    events_pipeline: Any,
+):
+    @task(tags=["tag-c", "tag-a", "tag-b"])
+    def tagged_task():
+        return "tagged"
+
+    @flow
+    def flow_with_tagged_task():
+        return tagged_task(return_state=True)
+
+    flow_state: State[State[str]] = flow_with_tagged_task(return_state=True)
+
+    await events_pipeline.process_events(dequeue_events=False)
+
+    task_state: State[str] = await flow_state.result()
+    task_run_id = task_state.state_details.task_run_id
+
+    task_run = await prefect_client.read_task_run(task_run_id)
+    assert sorted(task_run.tags) == ["tag-a", "tag-b", "tag-c"]
+
+    await asserting_events_worker.drain()
+    assert isinstance(asserting_events_worker._client, AssertingEventsClient)
+    events = [
+        event
+        for event in asserting_events_worker._client.events
+        if event.event.startswith("prefect.task-run.")
+    ]
+    assert len(events) == 3
+
+    # Check all three events have tags as related resources
+    for event in events:
+        tag_related = [r for r in event.related if r["prefect.resource.role"] == "tag"]
+        assert len(tag_related) == 3
+
+        # Verify tags are sorted
+        tag_ids = [r["prefect.resource.id"] for r in tag_related]
+        assert tag_ids == [
+            "prefect.tag.tag-a",
+            "prefect.tag.tag-b",
+            "prefect.tag.tag-c",
+        ]
+
+        # Verify each tag has the correct structure
+        for tag_resource in tag_related:
+            assert tag_resource["prefect.resource.role"] == "tag"
+            assert tag_resource["prefect.resource.id"].startswith("prefect.tag.")
+
+
+async def test_task_state_change_with_no_tags_has_no_tag_related_resources(
+    asserting_events_worker: EventsWorker,
+    prefect_client: PrefectClient,
+    events_pipeline: Any,
+):
+    @task
+    def untagged_task():
+        return "untagged"
+
+    @flow
+    def flow_with_untagged_task():
+        return untagged_task(return_state=True)
+
+    flow_state: State[State[str]] = flow_with_untagged_task(return_state=True)
+
+    await events_pipeline.process_events(dequeue_events=False)
+
+    await flow_state.result()
+
+    await asserting_events_worker.drain()
+    assert isinstance(asserting_events_worker._client, AssertingEventsClient)
+    events = [
+        event
+        for event in asserting_events_worker._client.events
+        if event.event.startswith("prefect.task-run.")
+    ]
+    assert len(events) == 3
+
+    # Check no events have tag related resources
+    for event in events:
+        tag_related = [r for r in event.related if r["prefect.resource.role"] == "tag"]
+        assert len(tag_related) == 0
+
+
 async def test_apply_async_emits_scheduled_event(
     asserting_events_worker: Any,
     prefect_client: PrefectClient,
