@@ -3,11 +3,12 @@ from __future__ import annotations
 import asyncio
 import logging
 from contextlib import asynccontextmanager
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from typing import Any, AsyncGenerator
 from uuid import UUID
 
 import anyio
+from cachetools import TTLCache
 
 import prefect.types._datetime
 from prefect.logging import get_logger
@@ -53,7 +54,9 @@ class CausalOrdering(_CausalOrdering):
 
         self.scope: str = scope
         self._processing_events: set[UUID] = set()
-        self._seen_events: dict[UUID, datetime] = {}
+        self._seen_events: TTLCache[UUID, bool] = TTLCache(
+            maxsize=10000, ttl=SEEN_EXPIRATION.total_seconds()
+        )
         self._followers: dict[UUID, set[UUID]] = {}  # leader_id -> set of follower_ids
         self._events: dict[UUID, ReceivedEvent] = {}  # event_id -> event
         self._waitlist: dict[UUID, datetime] = {}  # event_id -> received_time
@@ -101,28 +104,11 @@ class CausalOrdering(_CausalOrdering):
     async def event_has_been_seen(self, event: UUID | Event) -> bool:
         event_id = event.id if isinstance(event, Event) else event
         async with self._lock:
-            if event_id not in self._seen_events:
-                return False
-            # Clean up expired entries
-            now = prefect.types._datetime.now("UTC")
-            return now - self._seen_events[event_id] < SEEN_EXPIRATION
+            return event_id in self._seen_events
 
     async def record_event_as_seen(self, event: ReceivedEvent) -> None:
         async with self._lock:
-            self._seen_events[event.id] = datetime.now(timezone.utc)
-            # Cleanup old seen events periodically
-            await self._cleanup_seen_events()
-
-    async def _cleanup_seen_events(self) -> None:
-        """Remove expired seen events to prevent memory leaks."""
-        now = datetime.now(timezone.utc)
-        expired_ids = [
-            event_id
-            for event_id, seen_time in self._seen_events.items()
-            if now - seen_time >= SEEN_EXPIRATION
-        ]
-        for event_id in expired_ids:
-            del self._seen_events[event_id]
+            self._seen_events[event.id] = True
 
     async def record_follower(self, event: ReceivedEvent) -> None:
         """Remember that this event is waiting on another event to arrive."""
