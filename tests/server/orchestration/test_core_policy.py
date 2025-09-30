@@ -4561,11 +4561,14 @@ class TestFlowConcurrencyLimits:
         session,
         initialize_orchestration,
         flow,
-        monkeypatch,
     ):
         """Test that SecureFlowConcurrencySlots uses configurable initial lease timeout."""
-        # Set custom initial lease timeout via environment variable
-        monkeypatch.setenv("PREFECT_SERVER_CONCURRENCY_INITIAL_LEASE_TIMEOUT", "120")
+        from datetime import datetime, timezone
+
+        from prefect.settings import (
+            PREFECT_SERVER_CONCURRENCY_INITIAL_LEASE_TIMEOUT,
+            temporary_settings,
+        )
 
         deployment = await self.create_deployment_with_concurrency_limit(
             session, 1, flow
@@ -4573,46 +4576,31 @@ class TestFlowConcurrencyLimits:
 
         pending_transition = (states.StateType.SCHEDULED, states.StateType.PENDING)
 
-        ctx = await initialize_orchestration(
-            session, "flow", *pending_transition, deployment_id=deployment.id
-        )
+        # Use temporary_settings to set custom initial lease timeout
+        with temporary_settings(
+            updates={PREFECT_SERVER_CONCURRENCY_INITIAL_LEASE_TIMEOUT: 123.0}
+        ):
+            ctx = await initialize_orchestration(
+                session, "flow", *pending_transition, deployment_id=deployment.id
+            )
 
-        # Mock the lease storage to capture the TTL
-        with mock.patch(
-            "prefect.server.orchestration.core_policy.get_concurrency_lease_storage"
-        ) as mock_get_storage:
-            mock_lease_storage = AsyncMock()
-            mock_lease_storage.create_lease.return_value.id = uuid4()  # Use proper UUID
-            mock_get_storage.return_value = mock_lease_storage
+            now = datetime.now(timezone.utc)
 
-            # Mock the bulk_increment_active_slots to return True (slots available)
-            with mock.patch(
-                "prefect.server.orchestration.core_policy.concurrency_limits_v2.bulk_increment_active_slots"
-            ) as mock_increment:
-                mock_increment.return_value = True
+            async with contextlib.AsyncExitStack() as stack:
+                ctx = await stack.enter_async_context(
+                    SecureFlowConcurrencySlots(ctx, *pending_transition)
+                )
+                await ctx.validate_proposed_state()
 
-                # Mock get_current_settings to return settings with our custom initial lease timeout
-                with mock.patch(
-                    "prefect.server.orchestration.core_policy.get_current_settings"
-                ) as mock_get_settings:
-                    from prefect.settings.models.root import Settings
+            assert ctx.response_status == SetStateStatus.ACCEPT
+            lease_id = ctx.validated_state.state_details.deployment_concurrency_lease_id
+            assert lease_id is not None
 
-                    mock_settings = Settings()
-                    mock_settings.server.concurrency.initial_lease_timeout = (
-                        120.0  # Use initial_lease_timeout
-                    )
-                    mock_get_settings.return_value = mock_settings
+            # Verify the lease expiration matches our configured timeout (120 seconds)
+            lease_storage = get_concurrency_lease_storage()
+            lease = await lease_storage.read_lease(lease_id=lease_id)
+            assert lease is not None
 
-                    async with contextlib.AsyncExitStack() as stack:
-                        ctx = await stack.enter_async_context(
-                            SecureFlowConcurrencySlots(ctx, *pending_transition)
-                        )
-                        await ctx.validate_proposed_state()
-
-                    # Verify lease was created with correct TTL (120 seconds from initial_lease_timeout)
-                    mock_lease_storage.create_lease.assert_called_once()
-                    call_args = mock_lease_storage.create_lease.call_args
-                    assert call_args[1]["ttl"].total_seconds() == 120
-
-                    # Verify the response was accepted
-                    assert ctx.response_status == SetStateStatus.ACCEPT
+            # Allow a 2 second window for test execution
+            expected_expiration = now + timedelta(seconds=123)
+            assert expected_expiration <= lease.expiration <= expected_expiration + timedelta(seconds=2)
