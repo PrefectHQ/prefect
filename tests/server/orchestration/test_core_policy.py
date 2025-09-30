@@ -4581,7 +4581,7 @@ class TestFlowConcurrencyLimits:
                 session, "flow", *pending_transition, deployment_id=deployment.id
             )
 
-            now = datetime.datetime.now(timezone.utc)
+            created_at = datetime.datetime.now(timezone.utc)
 
             async with contextlib.AsyncExitStack() as stack:
                 ctx = await stack.enter_async_context(
@@ -4593,15 +4593,10 @@ class TestFlowConcurrencyLimits:
             lease_id = ctx.validated_state.state_details.deployment_concurrency_lease_id
             assert lease_id is not None
 
-            # Verify the lease expiration matches our configured timeout
+            # Verify the lease was created with updated TTL
             lease_storage = get_concurrency_lease_storage()
             lease = await lease_storage.read_lease(lease_id=lease_id)
             assert lease is not None
 
-            # Allow a 2 second window for test execution
-            expected_expiration = now + timedelta(seconds=123)
-            assert (
-                expected_expiration
-                <= lease.expiration
-                <= expected_expiration + timedelta(seconds=2)
-            )
+            actual_ttl_seconds = (lease.expiration - created_at).total_seconds()
+            assert abs(actual_ttl_seconds - 123.0) < 1  # Within 1 second
