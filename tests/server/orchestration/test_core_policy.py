@@ -2,7 +2,7 @@ import contextlib
 import datetime
 import math
 import random
-from datetime import timedelta
+from datetime import timedelta, timezone
 from itertools import product
 from typing import Optional
 from unittest import mock
@@ -58,7 +58,11 @@ from prefect.server.orchestration.rules import (
 from prefect.server.schemas import actions, states
 from prefect.server.schemas.responses import SetStateStatus
 from prefect.server.schemas.states import StateType
-from prefect.settings import PREFECT_DEPLOYMENT_CONCURRENCY_SLOT_WAIT_SECONDS
+from prefect.settings import (
+    PREFECT_DEPLOYMENT_CONCURRENCY_SLOT_WAIT_SECONDS,
+    PREFECT_SERVER_CONCURRENCY_INITIAL_LEASE_TIMEOUT,
+    temporary_settings,
+)
 from prefect.testing.utilities import AsyncMock
 from prefect.types._datetime import DateTime, now, parse_datetime
 
@@ -4563,13 +4567,6 @@ class TestFlowConcurrencyLimits:
         flow,
     ):
         """Test that SecureFlowConcurrencySlots uses configurable initial lease timeout."""
-        from datetime import datetime, timezone
-
-        from prefect.settings import (
-            PREFECT_SERVER_CONCURRENCY_INITIAL_LEASE_TIMEOUT,
-            temporary_settings,
-        )
-
         deployment = await self.create_deployment_with_concurrency_limit(
             session, 1, flow
         )
@@ -4584,7 +4581,7 @@ class TestFlowConcurrencyLimits:
                 session, "flow", *pending_transition, deployment_id=deployment.id
             )
 
-            now = datetime.now(timezone.utc)
+            now = datetime.datetime.now(timezone.utc)
 
             async with contextlib.AsyncExitStack() as stack:
                 ctx = await stack.enter_async_context(
@@ -4603,4 +4600,8 @@ class TestFlowConcurrencyLimits:
 
             # Allow a 2 second window for test execution
             expected_expiration = now + timedelta(seconds=123)
-            assert expected_expiration <= lease.expiration <= expected_expiration + timedelta(seconds=2)
+            assert (
+                expected_expiration
+                <= lease.expiration
+                <= expected_expiration + timedelta(seconds=2)
+            )
