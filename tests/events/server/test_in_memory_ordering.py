@@ -5,6 +5,7 @@ from unittest.mock import patch
 from uuid import uuid4
 
 import pytest
+from cachetools import TTLCache
 
 from prefect.server.events.ordering import (
     MAX_DEPTH_OF_PRECEDING_EVENT,
@@ -208,14 +209,30 @@ class TestEventSeenTracking:
         await causal_ordering.record_event_as_seen(event_one)
         assert await causal_ordering.event_has_been_seen(event_one)
 
-        # Mock time to simulate expiration
-        with patch("prefect.types._datetime.now") as mock_now:
-            # Set current time to be past expiration
-            future_time = event_one.received + SEEN_EXPIRATION + timedelta(seconds=1)
-            mock_now.return_value = future_time
+        assert isinstance(causal_ordering._seen_events, TTLCache)
+        assert causal_ordering._seen_events.ttl == SEEN_EXPIRATION.total_seconds()
+
+        # Verify maxsize is reasonable (prevents unbounded growth)
+        assert causal_ordering._seen_events.maxsize == 10000
+
+        # Replace the cache temporarily with one that has a very short TTL
+        original_cache = causal_ordering._seen_events
+        try:
+            # Create a TTLCache with 0.1 second TTL for testing
+            causal_ordering._seen_events = TTLCache(maxsize=10000, ttl=0.1)
+
+            # Add event to the short-lived cache
+            await causal_ordering.record_event_as_seen(event_one)
+            assert await causal_ordering.event_has_been_seen(event_one)
+
+            # Wait for expiration
+            await asyncio.sleep(0.15)
 
             # Should not be seen anymore due to expiration
             assert not await causal_ordering.event_has_been_seen(event_one)
+        finally:
+            # Restore original cache
+            causal_ordering._seen_events = original_cache
 
 
 class TestFollowerLeaderTracking:
