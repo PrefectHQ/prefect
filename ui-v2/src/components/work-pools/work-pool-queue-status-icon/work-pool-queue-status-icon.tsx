@@ -1,5 +1,8 @@
 import { CircleDot, PauseCircle } from "lucide-react";
-import type { WorkPoolStatus } from "@/api/work-pools";
+import type {
+	WorkPoolQueue,
+	WorkPoolQueueStatus,
+} from "@/api/work-pool-queues";
 import {
 	Tooltip,
 	TooltipContent,
@@ -8,9 +11,8 @@ import {
 } from "@/components/ui/tooltip";
 import { cn } from "@/utils";
 
-type WorkPoolStatusIconProps = {
-	status: WorkPoolStatus;
-	showTooltip?: boolean;
+type WorkPoolQueueStatusIconProps = {
+	queue: WorkPoolQueue;
 	className?: string;
 };
 
@@ -22,27 +24,37 @@ const statusIconMap = {
 
 const statusColorMap = {
 	READY: "text-green-600",
-	PAUSED: "text-yellow-600",
+	PAUSED: "text-muted-foreground",
 	NOT_READY: "text-red-600",
 } as const;
 
-const getStatusDescription = (status: WorkPoolStatus): string => {
+const getStatusDescription = (
+	status: WorkPoolQueueStatus,
+	isPushPool: boolean,
+): string => {
 	switch (status) {
 		case "READY":
-			return "Work pool is ready and accepting work";
+			return isPushPool
+				? "Work queue is ready."
+				: "Work queue has at least one actively polling worker ready to execute work.";
 		case "PAUSED":
-			return "Work pool is paused";
+			return "Work queue is paused. No work will be executed.";
 		case "NOT_READY":
-			return "Work pool is not ready";
+			return "Work queue does not have any actively polling workers ready to execute work.";
 	}
 };
 
-export const WorkPoolStatusIcon = ({
-	status,
-	showTooltip = true,
+const getStatus = (queue: WorkPoolQueue): WorkPoolQueueStatus => {
+	if (queue.is_paused) return "PAUSED";
+	return (queue.status?.toUpperCase() as WorkPoolQueueStatus) ?? "READY";
+};
+
+export const WorkPoolQueueStatusIcon = ({
+	queue,
 	className,
-}: WorkPoolStatusIconProps) => {
-	const description = getStatusDescription(status);
+}: WorkPoolQueueStatusIconProps) => {
+	const status = getStatus(queue);
+	const description = getStatusDescription(status, false); // TODO: Get isPushPool from work pool context if needed
 	const Icon = statusIconMap[status];
 	const colorClass = statusColorMap[status];
 
@@ -53,10 +65,6 @@ export const WorkPoolStatusIcon = ({
 			fill={shouldFill ? "currentColor" : "none"}
 		/>
 	);
-
-	if (!showTooltip) {
-		return icon;
-	}
 
 	return (
 		<TooltipProvider>
