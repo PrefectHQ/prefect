@@ -99,32 +99,6 @@ if __name__ == "__main__":
 See this [example](/v3/how-to-guides/automations/chaining-deployments-with-events) that triggers downstream work on upstream events.
 </Tip>
 
-## Serve instance methods
-
-You can serve flow methods that are part of a class instance. This is useful when your flow needs to maintain state or access instance-specific configuration:
-
-```python my_flow.py
-from prefect import flow
-
-
-class MyFlowManager:
-    def __init__(self, sleep_time: int = 60):
-        self.sleep_time = sleep_time
-
-    @flow(log_prints=True)
-    def my_flow(self, override_sleep_time: int | None = None):
-        sleep_duration = override_sleep_time or self.sleep_time
-        print(f"sleeping for {sleep_duration} seconds")
-        # flow implementation here
-
-
-if __name__ == "__main__":
-    manager = MyFlowManager(sleep_time=30)
-    manager.my_flow.serve(name="my-instance-flow")
-```
-
-When serving an instance method, the flow maintains access to the instance's state and attributes during execution.
-
 When you rerun this script, you will find an updated deployment in the UI that is actively scheduling work.
 Stop the script in the CLI using `CTRL+C` and your schedule automatically pauses.
 
@@ -176,13 +150,39 @@ A few optional steps for exploration include:
 - use the UI to submit ad-hoc runs for the `"sleeper"` deployment with different values for `sleep`
 - cancel an active run for the `"sleeper"` deployment from the UI
 
+## Serve instance methods
+
+You can serve flow methods that are part of a class instance. This is useful when your flow needs to maintain state or access instance-specific configuration:
+
+```python my_flow.py
+from prefect import flow
+
+
+class MyFlowManager:
+    def __init__(self, sleep_time: int = 60):
+        self.sleep_time = sleep_time
+
+    @flow(log_prints=True)
+    def my_flow(self, override_sleep_time: int | None = None):
+        sleep_duration = override_sleep_time or self.sleep_time
+        print(f"sleeping for {sleep_duration} seconds")
+        # flow implementation here
+
+
+if __name__ == "__main__":
+    manager = MyFlowManager(sleep_time=30)
+    manager.my_flow.serve(name="my-instance-flow")
+```
+
+When serving an instance method, the flow maintains access to the instance's state and attributes during execution.
+
 <Tip>
 **Hybrid execution option**
 
 Prefect's deployment interface allows you to choose a hybrid execution model.
-Whether you use Prefect Cloud or self-host Prefect server, you can run workflows in the 
+Whether you use Prefect Cloud or self-host Prefect server, you can run workflows in the
 environments best suited to their execution.
-This model enables efficient use of your infrastructure resources while maintaining the privacy 
+This model enables efficient use of your infrastructure resources while maintaining the privacy
 of your code and data.
 There is no ingress required.
 Read more about our [hybrid model](https://www.prefect.io/security/overview/#hybrid-model).
