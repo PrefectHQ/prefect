@@ -152,29 +152,53 @@ A few optional steps for exploration include:
 
 ## Serve instance methods
 
-You can serve flow methods that are part of a class instance. This is useful when your flow needs to maintain state or access instance-specific configuration:
+You can serve flow methods that are part of a class instance. This is useful when your flow needs to maintain state or access instance-specific configuration across multiple runs.
 
-```python my_flow.py
+Here's an example of a rate limiter that tracks request counts and changes behavior based on accumulated state:
+
+```python rate_limiter.py
 from prefect import flow
+import time
 
 
-class MyFlowManager:
-    def __init__(self, sleep_time: int = 60):
-        self.sleep_time = sleep_time
+class RateLimiter:
+    """Tracks and enforces rate limits across flow runs."""
+
+    def __init__(self, max_requests: int = 100, window_seconds: int = 60):
+        self.max_requests = max_requests
+        self.window_seconds = window_seconds
+        self.request_count = 0
+        self.window_start = time.time()
 
     @flow(log_prints=True)
-    def my_flow(self, override_sleep_time: int | None = None):
-        sleep_duration = override_sleep_time or self.sleep_time
-        print(f"sleeping for {sleep_duration} seconds")
-        # flow implementation here
+    def process_request(self, request_id: str):
+        """Process a request if within rate limits."""
+        current_time = time.time()
+
+        # Reset window if expired
+        if current_time - self.window_start >= self.window_seconds:
+            print(f"Rate limit window reset after {self.window_seconds}s")
+            self.request_count = 0
+            self.window_start = current_time
+
+        # Check rate limit
+        self.request_count += 1
+        print(f"Request count: {self.request_count}/{self.max_requests}")
+
+        if self.request_count <= self.max_requests:
+            print(f"✓ Processing request {request_id}")
+            return {"status": "success", "request_id": request_id}
+        else:
+            print(f"✗ Rate limit exceeded for request {request_id}")
+            return {"status": "rate_limited", "request_id": request_id}
 
 
 if __name__ == "__main__":
-    manager = MyFlowManager(sleep_time=30)
-    manager.my_flow.serve(name="my-instance-flow")
+    limiter = RateLimiter(max_requests=100, window_seconds=60)
+    limiter.process_request.serve(name="rate-limited-processor")
 ```
 
-When serving an instance method, the flow maintains access to the instance's state and attributes during execution.
+When serving an instance method, the flow maintains access to the instance's state and attributes during execution. In this example, the `request_count` and `window_start` attributes persist across flow runs, allowing the rate limiter to track requests and change behavior (accepting or rejecting requests) based on the accumulated state.
 
 <Tip>
 **Hybrid execution option**
