@@ -427,8 +427,8 @@ def generate_parameter_schema(
             param, position=position, docstrings=docstrings, aliases=aliases
         )
 
-        if name == "cls":
-            continue  # Exclude 'cls' as it's implicitly passed to @classmethod and not a real flow parameter
+        if name in ("cls", "self"):
+            continue  # Exclude 'cls'/'self' as they're implicitly passed and not real flow parameters
 
         # Generate a Pydantic model at each step so we can check if this parameter
         # type supports schema generation
