@@ -1,6 +1,6 @@
 import { useQueries, useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { max } from "date-fns";
+import { formatDuration, intervalToDuration, max } from "date-fns";
 import { useMemo } from "react";
 import {
 	buildAverageLatenessFlowRunsQuery,
@@ -20,10 +20,9 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { FlowRunActivityBarChart } from "@/components/ui/flow-run-activity-bar-graph";
 import { FormattedDate } from "@/components/ui/formatted-date";
-import { WorkPoolQueueStatusIcon } from "@/components/work-pool-queues/work-pool-queue-status-icon";
+import { WorkPoolQueueStatusIcon } from "@/components/work-pools/work-pool-queue-status-icon";
 import { WorkPoolStatusIcon } from "@/components/work-pools/work-pool-status-icon";
 import { cn } from "@/utils";
-import { secondsToApproximateString } from "@/utils/date";
 
 type DashboardWorkPoolsCardProps = {
 	filter?: {
@@ -403,9 +402,16 @@ const WorkPoolAverageLateTime = ({
 		return null;
 	}
 
+	const duration = intervalToDuration({ start: 0, end: lateness * 1000 });
+	const formattedDuration = formatDuration(duration, {
+		format: ["years", "days", "hours", "minutes", "seconds"],
+		zero: false,
+		delimiter: " ",
+	});
+
 	return (
 		<span className="whitespace-nowrap text-xs">
-			({secondsToApproximateString(lateness)} avg.)
+			({formattedDuration} avg.)
 		</span>
 	);
 };
