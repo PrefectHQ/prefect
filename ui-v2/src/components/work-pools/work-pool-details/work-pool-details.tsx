@@ -51,14 +51,7 @@ function BasicInfoSection({ workPool }: { workPool: WorkPool }) {
 			field: "Status",
 			ComponentValue: () => (
 				<dd>
-					<WorkPoolStatusBadge
-						status={
-							(workPool.status?.toLowerCase() as
-								| "ready"
-								| "paused"
-								| "not_ready") || "not_ready"
-						}
-					/>
+					<WorkPoolStatusBadge status={workPool.status || "NOT_READY"} />
 				</dd>
 			),
 		},

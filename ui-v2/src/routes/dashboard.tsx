@@ -2,7 +2,11 @@ import { createFileRoute } from "@tanstack/react-router";
 import { zodValidator } from "@tanstack/zod-adapter";
 import { useCallback, useEffect, useMemo } from "react";
 import { z } from "zod";
-import { buildFilterWorkPoolsQuery } from "@/api/work-pools";
+import { buildListWorkPoolQueuesQuery } from "@/api/work-pool-queues";
+import {
+	buildFilterWorkPoolsQuery,
+	buildListWorkPoolWorkersQuery,
+} from "@/api/work-pools";
 import { DashboardWorkPoolsCard } from "@/components/dashboard";
 import { FlowRunTagsSelect } from "@/components/flow-runs/flow-run-tags-select";
 import {
@@ -46,9 +50,22 @@ const searchParams = z.object({
 export const Route = createFileRoute("/dashboard")({
 	validateSearch: zodValidator(searchParams),
 	component: RouteComponent,
-	loader: ({ context: { queryClient } }) => {
+	loader: async ({ context: { queryClient } }) => {
 		// Prefetch work pools data for the dashboard
-		void queryClient.prefetchQuery(buildFilterWorkPoolsQuery({ offset: 0 }));
+		const workPools = await queryClient.ensureQueryData(
+			buildFilterWorkPoolsQuery({ offset: 0 }),
+		);
+
+		// Prefetch nested queries for each active work pool to minimize loading states
+		const activeWorkPools = workPools.filter((pool) => !pool.is_paused);
+		activeWorkPools.forEach((workPool) => {
+			void queryClient.prefetchQuery(
+				buildListWorkPoolWorkersQuery(workPool.name),
+			);
+			void queryClient.prefetchQuery(
+				buildListWorkPoolQueuesQuery(workPool.name),
+			);
+		});
 	},
 	wrapInSuspense: true,
 });
