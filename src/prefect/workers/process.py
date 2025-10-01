@@ -17,7 +17,6 @@ checkout out the [Prefect docs](https://docs.prefect.io/v3/concepts/work-pools/)
 from __future__ import annotations
 
 import contextlib
-import multiprocessing.context
 import os
 import tempfile
 import threading
@@ -247,11 +246,11 @@ class ProcessWorker(
                 task_status=task_status,
             )
 
-        status_code = None
-        if isinstance(process, multiprocessing.context.SpawnProcess):
-            status_code = process.exitcode
-        elif isinstance(process, anyio.abc.Process):
-            status_code = process.returncode
+        status_code = (
+            getattr(process, "returncode", None)
+            if getattr(process, "returncode", None) is not None
+            else getattr(process, "exitcode", None)
+        )
 
         if process is None or status_code is None:
             raise RuntimeError("Failed to start flow run process.")
