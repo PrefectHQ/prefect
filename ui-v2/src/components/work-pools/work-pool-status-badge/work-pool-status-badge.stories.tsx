@@ -11,7 +11,7 @@ const meta: Meta<typeof WorkPoolStatusBadge> = {
 	argTypes: {
 		status: {
 			control: "select",
-			options: ["ready", "paused", "not_ready"],
+			options: ["READY", "PAUSED", "NOT_READY"],
 		},
 	},
 };
@@ -21,19 +21,19 @@ type Story = StoryObj<typeof WorkPoolStatusBadge>;
 
 export const Ready: Story = {
 	args: {
-		status: "ready",
+		status: "READY",
 	},
 };
 
 export const Paused: Story = {
 	args: {
-		status: "paused",
+		status: "PAUSED",
 	},
 };
 
 export const NotReady: Story = {
 	args: {
-		status: "not_ready",
+		status: "NOT_READY",
 	},
 };
 
@@ -41,19 +41,19 @@ export const AllStatuses: Story = {
 	render: () => (
 		<div className="flex flex-col space-y-2">
 			<div className="flex items-center space-x-2">
-				<WorkPoolStatusBadge status="ready" />
+				<WorkPoolStatusBadge status="READY" />
 				<span className="text-sm text-muted-foreground">
 					Work pool is ready and accepting work
 				</span>
 			</div>
 			<div className="flex items-center space-x-2">
-				<WorkPoolStatusBadge status="paused" />
+				<WorkPoolStatusBadge status="PAUSED" />
 				<span className="text-sm text-muted-foreground">
 					Work pool is paused
 				</span>
 			</div>
 			<div className="flex items-center space-x-2">
-				<WorkPoolStatusBadge status="not_ready" />
+				<WorkPoolStatusBadge status="NOT_READY" />
 				<span className="text-sm text-muted-foreground">
 					Work pool is not ready
 				</span>
@@ -67,7 +67,7 @@ export const InContext: Story = {
 		<div className="max-w-md p-4 border rounded-lg">
 			<div className="flex items-center justify-between mb-2">
 				<h3 className="font-semibold">My Work Pool</h3>
-				<WorkPoolStatusBadge status="ready" />
+				<WorkPoolStatusBadge status="READY" />
 			</div>
 			<p className="text-sm text-muted-foreground">
 				A sample work pool demonstrating the status badge in context.

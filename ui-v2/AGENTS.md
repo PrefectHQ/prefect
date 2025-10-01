@@ -34,6 +34,11 @@ prefect/ui-v2/
 - **Storybook** - component development and documentation
 - **MSW** - API mocking
 
+## General Principles
+
+- Prefer using functionality from third party libraries over custom implementations
+- Prefer to colocate components in the same file as long as the file is less than 750 lines
+
 ## Development Workflow
 
 ### Development Process

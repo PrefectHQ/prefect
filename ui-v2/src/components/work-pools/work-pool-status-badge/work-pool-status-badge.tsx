@@ -1,9 +1,7 @@
 import { Pause } from "lucide-react";
+import type { WorkPoolStatus } from "@/api/work-pools";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/utils";
-import type { WorkPoolStatus } from "../types";
-
-export type { WorkPoolStatus };
 
 type WorkPoolStatusBadgeProps = {
 	status: WorkPoolStatus;
@@ -12,22 +10,22 @@ type WorkPoolStatusBadgeProps = {
 
 const getStatusLabel = (status: WorkPoolStatus): string => {
 	switch (status) {
-		case "ready":
+		case "READY":
 			return "Ready";
-		case "paused":
+		case "PAUSED":
 			return "Paused";
-		case "not_ready":
+		case "NOT_READY":
 			return "Not Ready";
 	}
 };
 
 const getStatusColor = (status: WorkPoolStatus): string => {
 	switch (status) {
-		case "ready":
+		case "READY":
 			return "bg-green-500";
-		case "paused":
+		case "PAUSED":
 			return "bg-yellow-500";
-		case "not_ready":
+		case "NOT_READY":
 			return "bg-red-500";
 	}
 };
@@ -44,7 +42,7 @@ export const WorkPoolStatusBadge = ({
 			variant="secondary"
 			className={cn("flex items-center space-x-1", className)}
 		>
-			{status === "paused" ? (
+			{status === "PAUSED" ? (
 				<Pause className="h-2 w-2 text-muted-foreground" />
 			) : (
 				<div className={cn("h-2 w-2 rounded-full", colorClass)} />

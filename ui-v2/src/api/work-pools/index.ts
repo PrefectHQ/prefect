@@ -10,6 +10,7 @@ export {
 	useResumeWorkPool,
 	type WorkPool,
 	type WorkPoolCreate,
+	type WorkPoolStatus,
 	type WorkPoolsCountFilter,
 	type WorkPoolsFilter,
 	type WorkPoolWorker,

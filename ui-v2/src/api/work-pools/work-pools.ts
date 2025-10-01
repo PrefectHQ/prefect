@@ -14,6 +14,7 @@ export type WorkPoolsFilter =
 export type WorkPoolsCountFilter =
 	components["schemas"]["Body_count_work_pools_work_pools_count_post"];
 export type WorkPoolWorker = components["schemas"]["WorkerResponse"];
+export type WorkPoolStatus = components["schemas"]["WorkPoolStatus"];
 
 /**
  * Query key factory for work pools-related queries
