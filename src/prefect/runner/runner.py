@@ -403,7 +403,7 @@ class Runner:
 
         # Only add the flow to the map if it is not loaded from storage
         # Further work is needed to support directly running flows created using `flow.from_source`
-        if flow._storage is None:
+        if not getattr(flow, "_storage", None):
             self._deployment_flow_map[deployment_id] = flow
         return deployment_id
 
