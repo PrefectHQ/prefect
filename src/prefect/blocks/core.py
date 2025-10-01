@@ -370,7 +370,8 @@ class Block(BaseModel, ABC):
         if isinstance(values, dict):
             if "block_type_slug" in values:
                 expected_slug = cls.get_block_type_slug()
-                if values["block_type_slug"] != expected_slug:
+                slug = values["block_type_slug"]
+                if slug and slug != expected_slug:
                     raise ValueError(
                         f"Invalid block_type_slug: expected '{expected_slug}', got '{values['block_type_slug']}'"
                     )
