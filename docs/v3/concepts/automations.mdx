@@ -46,17 +46,23 @@ notification for someone to take manual remediation steps. Or you could set both
 
 Actions specify what your automation does when its trigger criteria are met. Current action types include:
 
-- Cancel a flow run
-- Pause or resume a schedule
-- Run a deployment
-- Pause or resume a deployment schedule
-- Pause or resume a work pool
-- Pause or resume a work queue
-- Pause or resume an automation
-- Send a [notification](#sending-notifications-with-automations)
-- Call a webhook
-- Suspend a flow run
-- Change the state of a flow run
+| Action | Type |
+| ------ | ---- |
+| Cancel a flow run | `cancel-flow-run` |
+| Change the state of a flow run | `change-flow-run-state` |
+| Suspend a flow run | `suspend-flow-run` |
+| Resume a flow run | `resume-flow-run` |
+| Run a deployment | `run-deployment` |
+| Pause a deployment schedule | `pause-deployment` |
+| Resume a deployment schedule | `resume-deployment` |
+| Pause a work pool | `pause-work-pool` |
+| Resume a work pool | `resume-work-pool` |
+| Pause a work queue | `pause-work-queue` |
+| Resume a work queue | `resume-work-queue` |
+| Pause an automation | `pause-automation` |
+| Resume an automation | `resume-automation` |
+| Send a [notification](#sending-notifications-with-automations) | `send-notification` |
+| Call a webhook | `call-webhook` |
 
 ![Configuring an action for an automation in Prefect Cloud.](/v3/img/ui/automations-action.png)
 
