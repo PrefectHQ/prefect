@@ -6,7 +6,7 @@ import { WorkPoolStatusIcon } from "./work-pool-status-icon";
 
 describe("WorkPoolStatusIcon", () => {
 	it("renders ready status with correct icon and color", () => {
-		render(<WorkPoolStatusIcon status="ready" />);
+		render(<WorkPoolStatusIcon status="READY" />);
 
 		const icon = document.querySelector("svg");
 		expect(icon).toBeInTheDocument();
@@ -14,7 +14,7 @@ describe("WorkPoolStatusIcon", () => {
 	});
 
 	it("renders paused status with correct icon and color", () => {
-		render(<WorkPoolStatusIcon status="paused" />);
+		render(<WorkPoolStatusIcon status="PAUSED" />);
 
 		const icon = document.querySelector("svg");
 		expect(icon).toBeInTheDocument();
@@ -22,7 +22,7 @@ describe("WorkPoolStatusIcon", () => {
 	});
 
 	it("renders not_ready status with correct icon and color", () => {
-		render(<WorkPoolStatusIcon status="not_ready" />);
+		render(<WorkPoolStatusIcon status="NOT_READY" />);
 
 		const icon = document.querySelector("svg");
 		expect(icon).toBeInTheDocument();
@@ -31,7 +31,7 @@ describe("WorkPoolStatusIcon", () => {
 
 	it("shows tooltip with correct description on hover", async () => {
 		const user = userEvent.setup();
-		render(<WorkPoolStatusIcon status="ready" />);
+		render(<WorkPoolStatusIcon status="READY" />);
 
 		const triggerElement = document.querySelector(
 			"[data-slot='tooltip-trigger']",
@@ -46,7 +46,7 @@ describe("WorkPoolStatusIcon", () => {
 
 	it("shows tooltip for paused status", async () => {
 		const user = userEvent.setup();
-		render(<WorkPoolStatusIcon status="paused" />);
+		render(<WorkPoolStatusIcon status="PAUSED" />);
 
 		const triggerElement = document.querySelector(
 			"[data-slot='tooltip-trigger']",
@@ -59,7 +59,7 @@ describe("WorkPoolStatusIcon", () => {
 
 	it("shows tooltip for not_ready status", async () => {
 		const user = userEvent.setup();
-		render(<WorkPoolStatusIcon status="not_ready" />);
+		render(<WorkPoolStatusIcon status="NOT_READY" />);
 
 		const triggerElement = document.querySelector(
 			"[data-slot='tooltip-trigger']",
@@ -71,7 +71,7 @@ describe("WorkPoolStatusIcon", () => {
 	});
 
 	it("does not show tooltip when showTooltip is false", () => {
-		render(<WorkPoolStatusIcon status="ready" showTooltip={false} />);
+		render(<WorkPoolStatusIcon status="READY" showTooltip={false} />);
 
 		// Should render just the icon, not wrapped in tooltip trigger
 		expect(
@@ -83,7 +83,7 @@ describe("WorkPoolStatusIcon", () => {
 	it("applies custom className", () => {
 		render(
 			<WorkPoolStatusIcon
-				status="ready"
+				status="READY"
 				className="custom-class"
 				showTooltip={false}
 			/>,
