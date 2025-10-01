@@ -112,6 +112,38 @@ class ClassNameClassmethod:
         pass
 
 
+class ClassWithInstanceMethod:
+    def __init__(self, value: int):
+        self.value = value
+
+    @flow
+    def instance_method_flow(self, x: int):
+        return self.value + x
+
+
+def instance_on_cancellation(flow, flow_run, state):
+    logger = flow_run_logger(flow_run, flow)
+    logger.info("Instance method flow was cancelled!")
+
+
+class ClassWithCancellableFlow:
+    @flow(on_cancellation=[instance_on_cancellation], log_prints=True)
+    def cancellable_flow(self, sleep_time: int = 100):
+        sleep(sleep_time)
+
+
+def instance_on_crashed(flow, flow_run, state):
+    logger = flow_run_logger(flow_run, flow)
+    logger.info("Instance method flow crashed!")
+
+
+class ClassWithCrashingFlow:
+    @flow(on_crashed=[instance_on_crashed], log_prints=True)
+    def crashing_flow(self):
+        print("Oh boy, here I go crashing again...")
+        os.kill(os.getpid(), signal.SIGTERM)
+
+
 @task
 def my_task(seconds: int):
     time.sleep(seconds)
@@ -2016,6 +2048,102 @@ async def test_runner_emits_cancelled_event(
             "prefect.resource.role": "tag",
         },
     ]
+
+
+async def test_runner_can_execute_instance_method_flow(
+    prefect_client: PrefectClient,
+):
+    """Test that instance method flows can be executed via multiprocessing."""
+    runner = Runner(query_seconds=1)
+
+    # Create an instance and add its flow method
+    flow_instance = ClassWithInstanceMethod(10)
+    deployment_id = await runner.add_flow(
+        flow_instance.instance_method_flow,
+        name="instance-method-test",
+    )
+
+    flow_run = await prefect_client.create_flow_run_from_deployment(
+        deployment_id=deployment_id,
+        parameters={"x": 5},
+    )
+
+    async with runner:
+        await runner.execute_flow_run(flow_run_id=flow_run.id)
+
+    flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
+    assert flow_run.state
+    assert flow_run.state.is_completed()
+
+
+async def test_runner_runs_on_cancellation_hooks_for_instance_method_flows(
+    prefect_client: PrefectClient,
+    caplog: pytest.LogCaptureFixture,
+):
+    """Test that cancellation hooks work correctly for instance method flows."""
+    runner = Runner(query_seconds=1)
+
+    # Create an instance and add its flow method with cancellation hook
+    flow_instance = ClassWithCancellableFlow()
+    deployment_id = await runner.add_flow(
+        flow_instance.cancellable_flow,
+        name="cancellable-instance-method",
+    )
+
+    async with runner:
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            deployment_id=deployment_id
+        )
+
+        execute_task = asyncio.create_task(runner.execute_flow_run(flow_run.id))
+
+        # Wait for flow to start running
+        while True:
+            await anyio.sleep(0.5)
+            flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
+            assert flow_run.state
+            if flow_run.state.is_running():
+                break
+
+        # Cancel the flow run
+        await prefect_client.set_flow_run_state(
+            flow_run_id=flow_run.id,
+            state=flow_run.state.model_copy(
+                update={"name": "Cancelling", "type": StateType.CANCELLING}
+            ),
+        )
+
+        await execute_task
+
+    flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
+    assert flow_run.state.is_cancelled()
+    assert "Instance method flow was cancelled!" in caplog.text
+
+
+async def test_runner_runs_on_crashed_hooks_for_instance_method_flows(
+    prefect_client: PrefectClient,
+    caplog: pytest.LogCaptureFixture,
+):
+    """Test that crashed hooks work correctly for instance method flows."""
+    runner = Runner()
+
+    # Create an instance and add its flow method with crashed hook
+    flow_instance = ClassWithCrashingFlow()
+    deployment_id = await runner.add_flow(
+        flow_instance.crashing_flow,
+        name="crashing-instance-method",
+    )
+
+    flow_run = await prefect_client.create_flow_run_from_deployment(
+        deployment_id=deployment_id
+    )
+
+    await runner.execute_flow_run(flow_run.id)
+
+    flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
+    assert flow_run.state
+    assert flow_run.state.is_crashed()
+    assert "Instance method flow crashed!" in caplog.text
 
 
 class TestRunnerDeployment:

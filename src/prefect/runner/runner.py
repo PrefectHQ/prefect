@@ -38,6 +38,7 @@ import asyncio
 import datetime
 import inspect
 import logging
+import multiprocessing.context
 import os
 import shlex
 import shutil
@@ -93,6 +94,7 @@ from prefect.events.clients import EventsClient, get_events_client
 from prefect.events.related import tags_as_related_resources
 from prefect.events.schemas.events import Event, RelatedResource, Resource
 from prefect.exceptions import Abort, ObjectNotFound
+from prefect.flow_engine import run_flow_in_subprocess
 from prefect.flows import Flow, FlowStateHook, load_flow_from_flow_run
 from prefect.logging.loggers import PrefectLogAdapter, flow_run_logger, get_logger
 from prefect.runner._observers import FlowRunCancellingObserver
@@ -254,6 +256,9 @@ class Runner:
         )
         self._flow_cache: LRUCache[UUID, "APIFlow"] = LRUCache(maxsize=100)
 
+        # Keep track of added flows so we can run them directly in a subprocess
+        self._deployment_flow_map: dict[UUID, "Flow[Any, Any]"] = dict()
+
     @property
     def _flow_run_process_map_lock(self) -> asyncio.Lock:
         if self.__flow_run_process_map_lock is None:
@@ -394,7 +399,13 @@ class Runner:
         add_deployment_coro = self.add_deployment(deployment)
         if TYPE_CHECKING:
             assert inspect.isawaitable(add_deployment_coro)
-        return await add_deployment_coro
+        deployment_id = await add_deployment_coro
+
+        # Only add the flow to the map if it is not loaded from storage
+        # Further work is needed to support directly running flows created using `flow.from_source`
+        if not getattr(flow, "_storage", None):
+            self._deployment_flow_map[deployment_id] = flow
+        return deployment_id
 
     @sync_compatible
     async def _add_storage(self, storage: RunnerStorage) -> RunnerStorage:
@@ -574,7 +585,7 @@ class Runner:
         env: dict[str, str | None] | None = None,
         task_status: anyio.abc.TaskStatus[int] = anyio.TASK_STATUS_IGNORED,
         stream_output: bool = True,
-    ) -> anyio.abc.Process | None:
+    ) -> anyio.abc.Process | multiprocessing.context.SpawnProcess | None:
         """
         Executes a single flow run with the given ID.
 
@@ -594,7 +605,9 @@ class Runner:
             self._submitting_flow_run_ids.add(flow_run_id)
             flow_run = await self._client.read_flow_run(flow_run_id)
 
-            process: anyio.abc.Process | Exception = await self._runs_task_group.start(
+            process: (
+                anyio.abc.Process | multiprocessing.context.SpawnProcess | Exception
+            ) = await self._runs_task_group.start(
                 partial(
                     self._submit_run_and_capture_errors,
                     flow_run=flow_run,
@@ -608,13 +621,21 @@ class Runner:
             if isinstance(process, Exception):
                 return
 
+            if process.pid is None:
+                raise RuntimeError("Process has no PID")
+
             task_status.started(process.pid)
 
             if self.heartbeat_seconds is not None:
                 await self._emit_flow_run_heartbeat(flow_run)
 
             # Only add the process to the map if it is still running
-            if process.returncode is None:
+            # The process may be a multiprocessing.context.SpawnProcess, in which case it will have an `exitcode`` attribute
+            # but no `returncode` attribute
+            if (
+                getattr(process, "returncode", None)
+                or getattr(process, "exitcode", None)
+            ) is None:
                 await self._add_flow_run_process_map_entry(
                     flow_run.id, ProcessMapEntry(pid=process.pid, flow_run=flow_run)
                 )
@@ -734,14 +755,14 @@ class Runner:
         self,
         flow_run: "FlowRun",
         task_status: anyio.abc.TaskStatus[
-            anyio.abc.Process
+            anyio.abc.Process | multiprocessing.context.SpawnProcess
         ] = anyio.TASK_STATUS_IGNORED,
         entrypoint: str | None = None,
         command: str | None = None,
         cwd: Path | str | None = None,
         env: dict[str, str | None] | None = None,
         stream_output: bool = True,
-    ) -> anyio.abc.Process:
+    ) -> int | None:
         """
         Runs the given flow run in a subprocess.
 
@@ -753,6 +774,16 @@ class Runner:
             task_status: anyio task status used to send a message to the caller
                 than the flow run process has started.
         """
+        # If we have an instance of the flow for this deployment, run it directly in a subprocess
+        if flow_run.deployment_id is not None:
+            flow = self._deployment_flow_map.get(flow_run.deployment_id)
+            if flow:
+                process = run_flow_in_subprocess(flow, flow_run=flow_run)
+                task_status.started(process)
+                await anyio.to_thread.run_sync(process.join)
+                return process.exitcode
+
+        # Otherwise, we'll need to run a `python -m prefect.engine` command to load and run the flow
         if command is None:
             runner_command = [get_sys_executable(), "-m", "prefect.engine"]
         else:
@@ -818,52 +849,7 @@ class Runner:
             **kwargs,
         )
 
-        if process.returncode is None:
-            raise RuntimeError("Process exited with None return code")
-
-        if process.returncode:
-            help_message = None
-            level = logging.ERROR
-            if process.returncode == -9:
-                level = logging.INFO
-                help_message = (
-                    "This indicates that the process exited due to a SIGKILL signal. "
-                    "Typically, this is either caused by manual cancellation or "
-                    "high memory usage causing the operating system to "
-                    "terminate the process."
-                )
-            if process.returncode == -15:
-                level = logging.INFO
-                help_message = (
-                    "This indicates that the process exited due to a SIGTERM signal. "
-                    "Typically, this is caused by manual cancellation."
-                )
-            elif process.returncode == 247:
-                help_message = (
-                    "This indicates that the process was terminated due to high "
-                    "memory usage."
-                )
-            elif (
-                sys.platform == "win32" and process.returncode == STATUS_CONTROL_C_EXIT
-            ):
-                level = logging.INFO
-                help_message = (
-                    "Process was terminated due to a Ctrl+C or Ctrl+Break signal. "
-                    "Typically, this is caused by manual cancellation."
-                )
-
-            flow_run_logger.log(
-                level,
-                f"Process for flow run {flow_run.name!r} exited with status code:"
-                f" {process.returncode}"
-                + (f"; {help_message}" if help_message else ""),
-            )
-        else:
-            flow_run_logger.info(
-                f"Process for flow run {flow_run.name!r} exited cleanly."
-            )
-
-        return process
+        return process.returncode
 
     async def _kill_process(
         self,
@@ -1299,7 +1285,9 @@ class Runner:
     async def _submit_run_and_capture_errors(
         self,
         flow_run: "FlowRun",
-        task_status: anyio.abc.TaskStatus[anyio.abc.Process | Exception],
+        task_status: anyio.abc.TaskStatus[
+            anyio.abc.Process | multiprocessing.context.SpawnProcess | Exception
+        ],
         entrypoint: str | None = None,
         command: str | None = None,
         cwd: Path | str | None = None,
@@ -1309,7 +1297,7 @@ class Runner:
         run_logger = self._get_flow_run_logger(flow_run)
 
         try:
-            process = await self._run_process(
+            exit_code = await self._run_process(
                 flow_run=flow_run,
                 task_status=task_status,
                 entrypoint=entrypoint,
@@ -1318,7 +1306,45 @@ class Runner:
                 env=env,
                 stream_output=stream_output,
             )
-            status_code = process.returncode
+            flow_run_logger = self._get_flow_run_logger(flow_run)
+            if exit_code:
+                help_message = None
+                level = logging.ERROR
+                if exit_code == -9:
+                    level = logging.INFO
+                    help_message = (
+                        "This indicates that the process exited due to a SIGKILL signal. "
+                        "Typically, this is either caused by manual cancellation or "
+                        "high memory usage causing the operating system to "
+                        "terminate the process."
+                    )
+                if exit_code == -15:
+                    level = logging.INFO
+                    help_message = (
+                        "This indicates that the process exited due to a SIGTERM signal. "
+                        "Typically, this is caused by manual cancellation."
+                    )
+                elif exit_code == 247:
+                    help_message = (
+                        "This indicates that the process was terminated due to high "
+                        "memory usage."
+                    )
+                elif sys.platform == "win32" and exit_code == STATUS_CONTROL_C_EXIT:
+                    level = logging.INFO
+                    help_message = (
+                        "Process was terminated due to a Ctrl+C or Ctrl+Break signal. "
+                        "Typically, this is caused by manual cancellation."
+                    )
+
+                flow_run_logger.log(
+                    level,
+                    f"Process for flow run {flow_run.name!r} exited with status code:"
+                    f" {exit_code}" + (f"; {help_message}" if help_message else ""),
+                )
+            else:
+                flow_run_logger.info(
+                    f"Process for flow run {flow_run.name!r} exited cleanly."
+                )
         except Exception as exc:
             if not task_status._future.done():  # type: ignore
                 # This flow run was being submitted and did not start successfully
@@ -1341,10 +1367,10 @@ class Runner:
 
             await self._remove_flow_run_process_map_entry(flow_run.id)
 
-        if status_code != 0 and not self._rescheduling:
+        if exit_code != 0 and not self._rescheduling:
             await self._propose_crashed_state(
                 flow_run,
-                f"Flow run process exited with non-zero status code {status_code}.",
+                f"Flow run process exited with non-zero status code {exit_code}.",
             )
 
         api_flow_run = await self._client.read_flow_run(flow_run_id=flow_run.id)
@@ -1352,7 +1378,7 @@ class Runner:
         if terminal_state and terminal_state.is_crashed():
             await self._run_on_crashed_hooks(flow_run=flow_run, state=terminal_state)
 
-        return status_code
+        return exit_code
 
     async def _propose_pending_state(self, flow_run: "FlowRun") -> bool:
         run_logger = self._get_flow_run_logger(flow_run)
@@ -1459,6 +1485,10 @@ class Runner:
                     flow = extract_flow_from_bundle(
                         self._flow_run_bundle_map[flow_run.id]
                     )
+                elif flow_run.deployment_id and self._deployment_flow_map.get(
+                    flow_run.deployment_id
+                ):
+                    flow = self._deployment_flow_map[flow_run.deployment_id]
                 else:
                     run_logger.info("Loading flow to check for on_cancellation hooks")
                     flow = await load_flow_from_flow_run(
@@ -1488,6 +1518,10 @@ class Runner:
                     flow = extract_flow_from_bundle(
                         self._flow_run_bundle_map[flow_run.id]
                     )
+                elif flow_run.deployment_id and self._deployment_flow_map.get(
+                    flow_run.deployment_id
+                ):
+                    flow = self._deployment_flow_map[flow_run.deployment_id]
                 else:
                     run_logger.info("Loading flow to check for on_crashed hooks")
                     flow = await load_flow_from_flow_run(
