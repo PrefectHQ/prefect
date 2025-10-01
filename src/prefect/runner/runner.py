@@ -400,7 +400,11 @@ class Runner:
         if TYPE_CHECKING:
             assert inspect.isawaitable(add_deployment_coro)
         deployment_id = await add_deployment_coro
-        self._deployment_flow_map[deployment_id] = flow
+
+        # Only add the flow to the map if it is not loaded from storage
+        # Further work is needed to support directly running flows created using `flow.from_source`
+        if flow._storage is None:
+            self._deployment_flow_map[deployment_id] = flow
         return deployment_id
 
     @sync_compatible
