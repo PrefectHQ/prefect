@@ -11,7 +11,7 @@ import {
 	createFakeWorkPoolWorkers,
 } from "@/mocks";
 import { reactQueryDecorator, routerDecorator } from "@/storybook/utils";
-import { DashboardWorkPoolsCard } from "./dashboard-work-pools-card";
+import { DashboardWorkPoolsCard } from "./work-pools-card";
 
 const createMockHandlers = (
 	workPools: ReturnType<typeof createFakeWorkPool>[],

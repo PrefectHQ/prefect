@@ -27,7 +27,7 @@ import {
 	createFakeWorkPoolQueue,
 	createFakeWorkPoolWorker,
 } from "@/mocks";
-import { DashboardWorkPoolsCard } from "./dashboard-work-pools-card";
+import { DashboardWorkPoolsCard } from "./work-pools-card";
 
 // Wraps component in test with a Tanstack router provider
 const DashboardWorkPoolsCardRouter = () => {
