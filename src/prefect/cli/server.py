@@ -29,7 +29,6 @@ from prefect.cli._utilities import exit_with_error, exit_with_success
 from prefect.cli.cloud import prompt_select_from_list
 from prefect.cli.root import app, is_interactive
 from prefect.logging import get_logger
-from prefect.server.services.base import Service
 from prefect.settings import (
     PREFECT_API_SERVICES_LATE_RUNS_ENABLED,
     PREFECT_API_SERVICES_SCHEDULER_ENABLED,
@@ -702,6 +701,8 @@ def run_manager_process():
 
     We do everything in sync so that the child won't exit until the user kills it.
     """
+    from prefect.server.services.base import Service
+
     if not Service.enabled_services():
         logger.error("No services are enabled! Exiting manager.")
         sys.exit(1)
@@ -719,6 +720,8 @@ def run_manager_process():
 @services_app.command(aliases=["ls"])
 def list_services():
     """List all available services and their status."""
+    from prefect.server.services.base import Service
+
     table = Table(title="Available Services", expand=True)
     table.add_column("Name", no_wrap=True)
     table.add_column("Enabled?", no_wrap=True)
@@ -746,6 +749,8 @@ def start_services(
     ),
 ):
     """Start all enabled Prefect services in one process."""
+    from prefect.server.services.base import Service
+
     SERVICES_PID_FILE.parent.mkdir(parents=True, exist_ok=True)
 
     if SERVICES_PID_FILE.exists():
