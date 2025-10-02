@@ -5494,7 +5494,9 @@ export interface components {
              */
             parameter_openapi_schema?: {
                 [key: string]: unknown;
-            };
+            } | {
+                [key: string]: unknown;
+            } | null;
             /**
              * Parameters
              * @description Parameters for flow runs scheduled by the deployment.
