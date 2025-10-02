@@ -65,6 +65,12 @@ async def get_pg_notify_connection() -> Connection | None:
     if asyncpg_dsn.database:
         connect_args["database"] = asyncpg_dsn.database
 
+    # Include application_name if configured
+    settings = get_current_settings()
+    app_name = settings.server.database.sqlalchemy.connect_args.application_name
+    if app_name:
+        connect_args["server_settings"] = {"application_name": app_name}
+
     try:
         # Note: For production, connection parameters (timeouts, etc.) might need tuning.
         # This connection is outside SQLAlchemy's pool and needs its own lifecycle management.
