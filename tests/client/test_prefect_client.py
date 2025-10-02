@@ -666,7 +666,7 @@ async def test_create_then_read_deployment(prefect_client, storage_document_id):
         parameters={"foo": "bar"},
         tags=["foo", "bar"],
         storage_document_id=storage_document_id,
-        parameter_openapi_schema={},
+        parameter_openapi_schema={"type": "object", "properties": {}},
     )
 
     lookup = await prefect_client.read_deployment(deployment_id)
@@ -681,7 +681,27 @@ async def test_create_then_read_deployment(prefect_client, storage_document_id):
     assert lookup.parameters == {"foo": "bar"}
     assert lookup.tags == ["foo", "bar"]
     assert lookup.storage_document_id == storage_document_id
-    assert lookup.parameter_openapi_schema == {}
+    assert lookup.parameter_openapi_schema == {"type": "object", "properties": {}}
+
+
+async def test_create_deployment_with_empty_schema_normalizes(prefect_client):
+    """Test that passing an empty dict for parameter_openapi_schema gets normalized server-side."""
+
+    @flow
+    def foo():
+        pass
+
+    flow_id = await prefect_client.create_flow(foo)
+
+    deployment_id = await prefect_client.create_deployment(
+        flow_id=flow_id,
+        name="test-deployment",
+        parameter_openapi_schema={},
+    )
+
+    # Verify it was normalized to valid schema by the server
+    lookup = await prefect_client.read_deployment(deployment_id)
+    assert lookup.parameter_openapi_schema == {"type": "object", "properties": {}}
 
 
 async def test_read_deployment_errors_on_invalid_uuid(prefect_client):
@@ -706,7 +726,7 @@ async def test_update_deployment(prefect_client, storage_document_id):
         tags=["foo", "bar"],
         paused=True,
         storage_document_id=storage_document_id,
-        parameter_openapi_schema={},
+        parameter_openapi_schema={"type": "object", "properties": {}},
     )
 
     deployment = await prefect_client.read_deployment(deployment_id)
@@ -755,7 +775,7 @@ async def test_update_deployment_to_remove_schedules(
         parameters={"foo": "bar"},
         tags=["foo", "bar"],
         storage_document_id=storage_document_id,
-        parameter_openapi_schema={},
+        parameter_openapi_schema={"type": "object", "properties": {}},
     )
 
     deployment = await prefect_client.read_deployment(deployment_id)

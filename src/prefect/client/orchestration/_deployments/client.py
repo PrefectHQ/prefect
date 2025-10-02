@@ -99,8 +99,6 @@ class DeploymentClient(BaseClient):
 
         from prefect.client.schemas.actions import DeploymentCreate
 
-        if parameter_openapi_schema is None:
-            parameter_openapi_schema = {}
         deployment_create = DeploymentCreate(
             flow_id=flow_id,
             name=name,
@@ -115,7 +113,7 @@ class DeploymentClient(BaseClient):
             entrypoint=entrypoint,
             infrastructure_document_id=infrastructure_document_id,
             job_variables=dict(job_variables or {}),
-            parameter_openapi_schema=parameter_openapi_schema,
+            parameter_openapi_schema=parameter_openapi_schema or {},
             paused=paused,
             schedules=schedules or [],
             concurrency_limit=concurrency_limit,
@@ -767,8 +765,6 @@ class DeploymentAsyncClient(BaseAsyncClient):
 
         from prefect.client.schemas.actions import DeploymentCreate
 
-        if parameter_openapi_schema is None:
-            parameter_openapi_schema = {}
         deployment_create = DeploymentCreate(
             flow_id=flow_id,
             name=name,
@@ -783,7 +779,7 @@ class DeploymentAsyncClient(BaseAsyncClient):
             entrypoint=entrypoint,
             infrastructure_document_id=infrastructure_document_id,
             job_variables=dict(job_variables or {}),
-            parameter_openapi_schema=parameter_openapi_schema,
+            parameter_openapi_schema=parameter_openapi_schema or {},
             paused=paused,
             schedules=schedules or [],
             concurrency_limit=concurrency_limit,

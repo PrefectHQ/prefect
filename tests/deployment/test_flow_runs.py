@@ -37,7 +37,9 @@ class TestRunDeployment:
         flow_id = await prefect_client.create_flow_from_name("foo")
 
         deployment_id = await prefect_client.create_deployment(
-            name="foo-deployment", flow_id=flow_id, parameter_openapi_schema={}
+            name="foo-deployment",
+            flow_id=flow_id,
+            parameter_openapi_schema={"type": "object", "properties": {}},
         )
         deployment = await prefect_client.read_deployment(deployment_id)
 
@@ -459,7 +461,9 @@ class TestRunDeployment:
         flow_id = await prefect_client.create_flow(child_flow)
 
         deployment_id = await prefect_client.create_deployment(
-            name="foo-deployment", flow_id=flow_id, parameter_openapi_schema={}
+            name="foo-deployment",
+            flow_id=flow_id,
+            parameter_openapi_schema={"type": "object", "properties": {}},
         )
         deployment = await prefect_client.read_deployment(deployment_id)
 
