@@ -152,38 +152,41 @@ A few optional steps for exploration include:
 
 ## Serve instance methods
 
-You can serve flow methods that are part of a class instance. This is useful when your flow needs to maintain state or access instance-specific configuration across multiple runs.
+You can serve flow methods that are part of a class instance. This is useful when you want to configure a flow once at initialization time and reuse that configuration across all runs.
 
-Here's an example of a counter that tracks how many times it has been run:
-
-```python counter.py
+```python data_processor.py
 from prefect import flow
 
 
-class RunCounter:
-    """Tracks state across flow runs."""
+class DataProcessor:
+    """Processor configured at initialization time."""
 
-    def __init__(self):
-        self.count = 0
+    def __init__(self, environment: str):
+        # Configuration is set once when the instance is created
+        if environment == "prod":
+            self.api_url = "https://api.example.com"
+            self.batch_size = 1000
+        else:
+            self.api_url = "https://staging.example.com"
+            self.batch_size = 100
 
     @flow(log_prints=True)
-    def my_flow(self, name: str = "world"):
-        """A flow that tracks how many times it has run."""
-        self.count += 1
-        print(f"Hello {name}!")
-        print(f"This flow has run {self.count} time(s)")
-
-        # Behavior changes based on state
-        if self.count % 10 == 0:
-            print(f"Milestone: {self.count} runs! 🎉")
+    def process_batch(self, batch_id: str):
+        """Process a batch using the configured settings."""
+        print(f"Processing batch {batch_id}")
+        print(f"API URL: {self.api_url}")
+        print(f"Batch size: {self.batch_size}")
+        # processing logic here using self.api_url and self.batch_size
 
 
 if __name__ == "__main__":
-    counter = RunCounter()
-    counter.my_flow.serve(name="tracked-flow")
+    # Create processor configured for staging environment
+    processor = DataProcessor(environment="staging")
+    # All flow runs will use the staging configuration
+    processor.process_batch.serve(name="batch-processor")
 ```
 
-When serving an instance method, the flow maintains access to the instance's state during execution. The `count` attribute persists and updates across flow runs, demonstrating how instance methods can track state and change behavior over time.
+The instance configuration (set during `__init__`) is available to all flow runs. This is useful for environment-specific settings, connection parameters, or any configuration that should be consistent across all runs of the deployment.
 
 <Tip>
 **Hybrid execution option**
