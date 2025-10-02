@@ -99,13 +99,11 @@ if __name__ == "__main__":
 See this [example](/v3/how-to-guides/automations/chaining-deployments-with-events) that triggers downstream work on upstream events.
 </Tip>
 
-When you rerun this script, you will find an updated deployment in the UI that is actively scheduling work.
-Stop the script in the CLI using `CTRL+C` and your schedule automatically pauses.
-
 <Note>
 **`serve()` is a long-running process**
 
 To execute remotely triggered or scheduled runs, your script with `flow.serve` must be actively running.
+Stop the script with `CTRL+C` and your schedule will automatically pause.
 </Note>
 
 ## Serve multiple flows at once
@@ -150,6 +148,18 @@ A few optional steps for exploration include:
 - use the UI to submit ad-hoc runs for the `"sleeper"` deployment with different values for `sleep`
 - cancel an active run for the `"sleeper"` deployment from the UI
 
+<Tip>
+**Hybrid execution option**
+
+Prefect's deployment interface allows you to choose a hybrid execution model.
+Whether you use Prefect Cloud or self-host Prefect server, you can run workflows in the
+environments best suited to their execution.
+This model enables efficient use of your infrastructure resources while maintaining the privacy
+of your code and data.
+There is no ingress required.
+Read more about our [hybrid model](https://www.prefect.io/security/overview/#hybrid-model).
+</Tip>
+
 ## Serve instance methods
 
 You can serve flow methods that are part of a class instance. This is useful when you want to configure a flow once at initialization time and reuse that configuration across all runs.
@@ -187,19 +197,6 @@ if __name__ == "__main__":
 ```
 
 The instance configuration (set during `__init__`) is available to all flow runs. This is useful for environment-specific settings, connection parameters, or any configuration that should be consistent across all runs of the deployment.
-
-<Tip>
-**Hybrid execution option**
-
-Prefect's deployment interface allows you to choose a hybrid execution model.
-Whether you use Prefect Cloud or self-host Prefect server, you can run workflows in the
-environments best suited to their execution.
-This model enables efficient use of your infrastructure resources while maintaining the privacy
-of your code and data.
-There is no ingress required.
-Read more about our [hybrid model](https://www.prefect.io/security/overview/#hybrid-model).
-</Tip>
-
 
 ## Retrieve a flow from remote storage
 
