@@ -60,7 +60,7 @@ from prefect.server.schemas.responses import SetStateStatus
 from prefect.server.schemas.states import StateType
 from prefect.settings import (
     PREFECT_DEPLOYMENT_CONCURRENCY_SLOT_WAIT_SECONDS,
-    PREFECT_SERVER_CONCURRENCY_INITIAL_LEASE_TIMEOUT,
+    PREFECT_SERVER_CONCURRENCY_INITIAL_DEPLOYMENT_LEASE_DURATION,
     temporary_settings,
 )
 from prefect.testing.utilities import AsyncMock
@@ -4560,7 +4560,7 @@ class TestFlowConcurrencyLimits:
         lease_ids = await lease_storage.read_active_lease_ids()
         assert len(lease_ids) == 1
 
-    async def test_configurable_initial_lease_timeout(
+    async def test_configurable_initial_lease_duration(
         self,
         session,
         initialize_orchestration,
@@ -4575,7 +4575,9 @@ class TestFlowConcurrencyLimits:
 
         # Use temporary_settings to set custom initial lease timeout
         with temporary_settings(
-            updates={PREFECT_SERVER_CONCURRENCY_INITIAL_LEASE_TIMEOUT: 123.0}
+            updates={
+                PREFECT_SERVER_CONCURRENCY_INITIAL_DEPLOYMENT_LEASE_DURATION: 123.0
+            }
         ):
             ctx = await initialize_orchestration(
                 session, "flow", *pending_transition, deployment_id=deployment.id

@@ -593,7 +593,7 @@ class SecureFlowConcurrencySlots(FlowRunOrchestrationRule):
                     slots=1,
                 ),
                 ttl=datetime.timedelta(
-                    seconds=settings.server.concurrency.initial_lease_timeout
+                    seconds=settings.server.concurrency.initial_deployment_lease_duration
                 ),
             )
             proposed_state.state_details.deployment_concurrency_lease_id = lease.id
