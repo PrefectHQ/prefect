@@ -11,7 +11,7 @@
 # **Build data pipelines with Prefect Assets – declarative, dependency-aware, and observable.**
 #
 # This example demonstrates how to use **Prefect Assets** to build a social media analytics pipeline.
-# The full implementation with ATProto/Bluesky integration, dbt transformations, and a Streamlit
+# The full implementation with [ATProto](https://atproto.com) integration, [dbt](https://www.getdbt.com) transformations, and a [Streamlit](https://streamlit.io) dashboard
 # dashboard is available at: https://github.com/zzstoatzz/atproto-dashboard
 #
 # ## Key Prefect Features
@@ -224,7 +224,7 @@ def run_asset_pipeline() -> dict[str, Any]:
 # ### Full Implementation
 #
 # This example demonstrates the core patterns. The complete implementation includes:
-# - Real ATProto/Bluesky API integration
+# - Real ATProto API integration
 # - S3-backed asset storage with partitioning
 # - dbt transformations with DuckDB
 # - Streamlit dashboard for visualization
@@ -234,8 +234,7 @@ def run_asset_pipeline() -> dict[str, Any]:
 #
 # ### Learn More
 #
-# - [Prefect Assets Documentation](https://docs.prefect.io/v3/develop/assets)
-# - [Asset Dependencies Guide](https://docs.prefect.io/v3/develop/assets#asset-dependencies)
+# - [Prefect Assets Documentation](https://docs.prefect.io/v3/concepts/assets)
 # - [prefect-aws Integration](https://docs.prefect.io/integrations/prefect-aws)
 
 if __name__ == "__main__":
