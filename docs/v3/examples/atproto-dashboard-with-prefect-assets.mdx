@@ -11,480 +11,247 @@ This page is automatically generated via the `generate_example_pages.py` script.
 <a href="https://github.com/zzstoatzz/atproto-dashboard" target="_blank">View full project on GitHub</a>
 
 
-**Transform social media data into actionable insights with a modern data stack powered by Prefect Assets.**
+**Build data pipelines with Prefect Assets – declarative, dependency-aware, and observable.**
 
-This example demonstrates how to build a complete social analytics pipeline using:
+This example demonstrates how to use **Prefect Assets** to build a social media analytics pipeline.
+The full implementation with ATProto/Bluesky integration, dbt transformations, and a Streamlit
+dashboard is available at: https://github.com/zzstoatzz/atproto-dashboard
 
-* **ATProto/Bluesky Integration** – Extract data from decentralized social networks using the ATProto protocol
-* **Prefect Assets** – Use the modern `@materialize` decorator for asset-based data pipeline orchestration
-* **S3 Storage** – Store intermediate data in cloud storage with automatic AWS credential handling
-* **dbt Transformations** – Transform raw social data into analytics-ready models using SQL
-* **Streamlit Dashboard** – Create an interactive web dashboard for data visualization
-* **Simplified Architecture** – No complex resource management or retry logic needed
+## Key Prefect Features
 
-The result? A production-ready social analytics platform that ingests data from Bluesky, transforms it with dbt, and presents insights through an interactive dashboard.
+* **`@materialize` decorator** – Transform functions into versioned, cacheable data assets
+* **Automatic dependency tracking** – Prefect infers dependencies from function parameters
+* **S3-backed assets** – Store assets directly in S3 with built-in versioning
+* **Artifact creation** – Generate rich UI artifacts for observability
+* **Flow orchestration** – Coordinate asset materialization with retries and scheduling
 
-This example demonstrates these Prefect features:
-* [`@materialize`](https://docs.prefect.io/v3/develop/assets) – asset-based data pipeline orchestration with dependency tracking
-* [**prefect-aws integration**](https://docs.prefect.io/integrations/prefect-aws) – seamless S3 storage for data assets
-* [**prefect-dbt integration**](https://docs.prefect.io/integrations/prefect-dbt) – native dbt execution with enhanced logging
-* Automatic [**dependency resolution**](https://docs.prefect.io/v3/develop/assets#asset-dependencies) for complex data pipelines
-* [**Asset materialization**](https://docs.prefect.io/v3/develop/assets#materializing-assets) with automatic caching and versioning
+## The Pattern: Asset-Based Data Pipelines
 
-### The Scenario: Social Media Analytics Pipeline
-Your team wants to analyze engagement patterns and content trends from Bluesky social networks. You need a pipeline that:
-- Fetches data from ATProto APIs (starter packs, user feeds, posts)
-- Stores raw data reliably in cloud storage
-- Transforms data into analytics models using SQL
-- Presents insights through an interactive dashboard
-- Runs reliably on a schedule with automatic dependency management
+Instead of manually managing data dependencies and storage:
+1. Define assets with `@materialize` and unique keys (e.g., S3 paths)
+2. Declare dependencies via function parameters or `asset_deps`
+3. Let Prefect handle execution order, caching, and storage
+4. Get automatic lineage tracking and observability
 
-### Our Solution
-Build a modern data pipeline using Prefect Assets that automatically handles dependencies, storage, and transformations. The entire pipeline is defined in Python with declarative asset dependencies.
+## Running This Example
 
-### Running the example locally
-
-1. **Set up environment variables** in `.env`:
+This simplified example demonstrates the core patterns. For the complete implementation:
 ```bash
-BSKY_LOGIN=your.handle@bsky.social
-BSKY_APP_PASSWORD=your-app-password
-AWS_BUCKET_NAME=your-s3-bucket
+git clone https://github.com/zzstoatzz/atproto-dashboard
+cd atproto-dashboard
+# Follow README for setup and configuration
 ```
-
-2. **Configure AWS credentials** in `~/.aws/credentials`:
-```
-[default]
-aws_access_key_id = YOUR_KEY
-aws_secret_access_key = YOUR_SECRET
-```
-
-3. **Run the complete pipeline**:
-```bash
-python atproto_dashboard_with_prefect_assets.py
-```
-
-4. **Launch the dashboard**:
-```bash
-streamlit run dashboard.py
-```
-
-Watch as Prefect orchestrates the complete social analytics pipeline: fetching data from Bluesky, storing in S3, transforming with dbt, and materializing analytics assets.
-
-## Code walkthrough
-1. **ATProto Data Ingestion** – Fetch starter pack members and social feeds using ATProto APIs
-2. **S3 Asset Storage** – Store raw social data in S3 with automatic AWS integration
-3. **dbt Transformations** – Transform raw data into analytics models (profiles, activity, engagement)
-4. **Asset Orchestration** – Automatic dependency resolution and materialization
-5. **Dashboard Visualization** – Interactive Streamlit dashboard for exploring insights
 
 ```python
 import json
-import os
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-import pandas as pd
 from prefect import flow
+from prefect.artifacts import create_markdown_artifact
 from prefect.assets import Asset, materialize
-from prefect.artifacts import create_table_artifact
-from prefect_aws import S3Bucket
 
 ```
 
-For this example, we'll simulate the ATProto client and dbt integration
-In a real implementation, you would use the actual atproto library and dbt models
-
 ---------------------------------------------------------------------------
-Asset Definitions – Modern Prefect Assets for social analytics pipeline
+Core Pattern: Define Assets and Dependencies
 ---------------------------------------------------------------------------
-Using the new @materialize decorator for declarative data pipeline orchestration
-Each asset automatically tracks dependencies and handles materialization
+Assets represent data products in your pipeline. Each asset has:
+- A unique key (often an S3 path or other storage location)
+- A materialization function decorated with @materialize
+- Dependencies (automatically tracked via function parameters)
 
-Define assets
+Define assets with descriptive keys
 
 ```python
-starter_pack_members_asset = Asset(key="atproto://starter_pack_members")
-social_feeds_asset = Asset(key="atproto://social_feeds")
-s3_raw_data_asset = Asset(key="s3://raw_data")
-analytics_models_asset = Asset(key="dbt://analytics_models")
-dashboard_data_asset = Asset(key="dashboard://data")
+raw_data_asset = Asset(key="pipeline://raw_data")
+processed_data_asset = Asset(key="pipeline://processed_data")
+analytics_asset = Asset(key="pipeline://analytics")
 
 
-@materialize(starter_pack_members_asset)
-def fetch_starter_pack_members() -> dict[str, Any]:
-    """Fetch member profiles from a Bluesky starter pack using ATProto APIs.
-
-    This asset connects to the ATProto network and extracts profile information
-    for all members of a specified starter pack. The data includes usernames,
-    display names, follower counts, and profile metadata.
-
-    Returns raw profile data that will be stored in S3 for downstream processing.
+@materialize(raw_data_asset)
+def fetch_raw_data() -> dict[str, Any]:
     """
+    Fetch raw data from an external source.
 
-    # Simulate ATProto client interaction
-    # In real implementation: use atproto.Client() to fetch actual data
+    This demonstrates the simplest asset pattern - a function that produces data
+    and is tracked as a versioned asset by Prefect.
+    """
+    print("Fetching raw data...")
 
-    bsky_login = os.getenv("BSKY_LOGIN")
-    if not bsky_login:
-        raise ValueError("BSKY_LOGIN environment variable required")
-
-    print(f"Fetching starter pack members for {bsky_login}")
-
-    # Simulated member data - replace with actual ATProto API calls
-    members_data = {
-        "members": [
-            {
-                "handle": "alice.bsky.social",
-                "display_name": "Alice",
-                "followers_count": 1250,
-                "following_count": 300,
-                "posts_count": 450,
-                "created_at": "2023-05-15T10:30:00Z",
-            },
-            {
-                "handle": "bob.data.social",
-                "display_name": "Bob Data",
-                "followers_count": 890,
-                "following_count": 420,
-                "posts_count": 320,
-                "created_at": "2023-06-20T14:15:00Z",
-            },
-            {
-                "handle": "charlie.dev.social",
-                "display_name": "Charlie Dev",
-                "followers_count": 2100,
-                "following_count": 150,
-                "posts_count": 780,
-                "created_at": "2023-04-10T09:45:00Z",
-            },
-        ],
+    # In the real implementation, this fetches from ATProto APIs
+    # See: https://github.com/zzstoatzz/atproto-dashboard/blob/main/src/atproto_dashboard/assets.py
+    data = {
+        "items": ["item1", "item2", "item3"],
         "fetched_at": datetime.now(timezone.utc).isoformat(),
-        "total_members": 3,
+        "count": 3,
     }
 
-    print(f"Successfully fetched {len(members_data['members'])} starter pack members")
-    return members_data
+    print(f"✓ Fetched {data['count']} items")
+    return data
 
 
-@materialize(social_feeds_asset)
-def fetch_social_feeds(starter_pack_members: dict[str, Any]) -> dict[str, Any]:
-    """Fetch recent posts and engagement data from starter pack member feeds.
+@materialize(processed_data_asset)
+def process_data(raw_data: dict[str, Any]) -> dict[str, Any]:
+    """
+    Process raw data into a structured format.
 
-    Uses the member list from the starter pack asset to fetch recent posts,
-    replies, likes, and reposts for each member. This provides the raw engagement
-    data needed for analytics.
+    This demonstrates automatic dependency tracking - by accepting raw_data as a
+    parameter, Prefect knows this asset depends on raw_data_asset and will ensure
+    it's materialized first.
 
     Args:
-        starter_pack_members: Member profile data from upstream asset
+        raw_data: Data from the raw_data_asset (automatically injected by Prefect)
 
     Returns:
-        Raw feed data with posts, engagement metrics, and metadata
+        Processed data ready for analytics
     """
+    print(f"Processing {raw_data['count']} items...")
 
-    members = starter_pack_members["members"]
-    print(f"Fetching feeds for {len(members)} members")
-
-    # Simulated feed data - replace with actual ATProto feed fetching
-    feeds_data = {
-        "posts": [
-            {
-                "author": "alice.bsky.social",
-                "text": "Working on some interesting data analysis today! #data #analytics",
-                "created_at": "2024-06-27T15:30:00Z",
-                "likes_count": 45,
-                "reposts_count": 12,
-                "replies_count": 8,
-                "uri": "at://alice.bsky.social/app.bsky.feed.post/abc123",
-            },
-            {
-                "author": "bob.data.social",
-                "text": "Just discovered this amazing visualization library. Mind = blown! 🤯",
-                "created_at": "2024-06-27T12:15:00Z",
-                "likes_count": 89,
-                "reposts_count": 23,
-                "replies_count": 15,
-                "uri": "at://bob.data.social/app.bsky.feed.post/def456",
-            },
-            {
-                "author": "charlie.dev.social",
-                "text": "Debugging is like being a detective in a crime movie where you are also the murderer.",
-                "created_at": "2024-06-26T18:45:00Z",
-                "likes_count": 156,
-                "reposts_count": 67,
-                "replies_count": 34,
-                "uri": "at://charlie.dev.social/app.bsky.feed.post/ghi789",
-            },
-        ],
-        "fetched_at": datetime.now(timezone.utc).isoformat(),
-        "total_posts": 3,
+    # In the real implementation, this stores data to S3 with partitioning
+    # See: https://github.com/zzstoatzz/atproto-dashboard/blob/main/src/atproto_dashboard/assets.py
+    processed = {
+        "items": [item.upper() for item in raw_data["items"]],
+        "processed_at": datetime.now(timezone.utc).isoformat(),
+        "source_count": raw_data["count"],
     }
 
-    print(f"Successfully fetched {len(feeds_data['posts'])} posts from member feeds")
-    return feeds_data
+    # Optionally persist to local storage (in prod, this would be S3)
+    storage_dir = Path("./data")
+    storage_dir.mkdir(exist_ok=True)
+    with open(storage_dir / "processed.json", "w") as f:
+        json.dump(processed, f, indent=2)
+
+    print(f"✓ Processed and stored {len(processed['items'])} items")
+    return processed
 
 
-@materialize(s3_raw_data_asset)
-def store_in_s3(
-    starter_pack_members: dict[str, Any], social_feeds: dict[str, Any]
-) -> dict[str, str]:
-    """Store raw social media data in S3 for reliable persistence and downstream processing.
+@materialize(analytics_asset)
+def create_analytics(processed_data: dict[str, Any]) -> dict[str, Any]:
+    """
+    Generate analytics from processed data.
 
-    Takes the raw data from ATProto ingestion and stores it in S3 with proper
-    partitioning and metadata. This creates a reliable data lake for analytics.
+    This demonstrates:
+    1. Chained dependencies (depends on processed_data, which depends on raw_data)
+    2. Artifact creation for observability in the Prefect UI
 
     Args:
-        starter_pack_members: Raw member profile data
-        social_feeds: Raw feed and engagement data
+        processed_data: Data from the processed_data_asset
 
     Returns:
-        S3 paths where data was stored
+        Analytics summary
     """
+    print("Creating analytics...")
 
-    bucket_name = os.getenv("AWS_BUCKET_NAME")
-    if not bucket_name:
-        print("AWS_BUCKET_NAME not set - using local storage simulation")
-
-        # Local storage simulation for demo
-        local_dir = Path("./data/raw")
-        local_dir.mkdir(parents=True, exist_ok=True)
-
-        members_path = local_dir / "members.json"
-        feeds_path = local_dir / "feeds.json"
-
-        with open(members_path, "w") as f:
-            json.dump(starter_pack_members, f, indent=2)
-
-        with open(feeds_path, "w") as f:
-            json.dump(social_feeds, f, indent=2)
-
-        print(f"Stored data locally at {local_dir}")
-
-        return {
-            "members_path": str(members_path),
-            "feeds_path": str(feeds_path),
-            "storage_type": "local",
-        }
-
-    # Real S3 storage
-    s3_bucket = S3Bucket.load("default")
-
-    # Upload with date partitioning
-    date_str = datetime.now(timezone.utc).strftime("%Y/%m/%d")
-
-    members_key = f"raw/members/{date_str}/members.json"
-    feeds_key = f"raw/feeds/{date_str}/feeds.json"
-
-    # Upload to S3
-    s3_bucket.upload_from_string(
-        json.dumps(starter_pack_members, indent=2), members_key
-    )
-    s3_bucket.upload_from_string(json.dumps(social_feeds, indent=2), feeds_key)
-
-    print(f"Uploaded data to S3 bucket {bucket_name}")
-
-    return {
-        "members_path": f"s3://{bucket_name}/{members_key}",
-        "feeds_path": f"s3://{bucket_name}/{feeds_key}",
-        "storage_type": "s3",
+    # In the real implementation, this runs dbt transformations
+    # See: https://github.com/zzstoatzz/atproto-dashboard/blob/main/src/atproto_dashboard/dbt_flow.py
+    analytics = {
+        "total_items": len(processed_data["items"]),
+        "source_timestamp": processed_data["processed_at"],
+        "created_at": datetime.now(timezone.utc).isoformat(),
     }
 
+    # Create a Prefect artifact for observability
+    create_markdown_artifact(
+        key="analytics-summary",
+        markdown=f"""# Analytics Summary
 
-@materialize(analytics_models_asset)
-def run_dbt_transformations(s3_raw_data: dict[str, str]) -> dict[str, Any]:
-    """Transform raw social data into analytics-ready models using dbt.
+- **Total Items**: {analytics["total_items"]}
+- **Created**: {analytics["created_at"]}
+- **Source**: {analytics["source_timestamp"]}
 
-    Runs dbt models that create staging tables for profiles and feeds,
-    then builds analytics models for daily activity, engagement metrics,
-    and top content identification.
-
-    Args:
-        s3_raw_data: S3 paths to raw data files
-
-    Returns:
-        Summary of dbt model execution and analytics results
-    """
-
-    print("Running dbt transformations on social media data")
-
-    # For demo purposes, simulate dbt transformations
-    # In real implementation, use PrefectDbtRunner with actual dbt project
-
-    # Simulated dbt execution
-    print("Creating staging models...")
-    print("- stg_profiles: Member profile staging table")
-    print("- stg_feeds: Social feed staging table")
-
-    print("Building analytics models...")
-    print("- daily_activity: Daily posting and engagement aggregations")
-    print("- top_posts: Posts ranked by engagement metrics")
-    print("- member_stats: Member-level analytics and trends")
-
-    # Simulated analytics results
-    analytics_summary = {
-        "models_built": [
-            "stg_profiles",
-            "stg_feeds",
-            "daily_activity",
-            "top_posts",
-            "member_stats",
-        ],
-        "total_profiles": 3,
-        "total_posts": 3,
-        "avg_engagement_rate": 0.125,
-        "top_post_likes": 156,
-        "transformation_completed_at": datetime.now(timezone.utc).isoformat(),
-    }
-
-    print("dbt transformations completed successfully")
-    return analytics_summary
-
-
-@materialize(dashboard_data_asset)
-def prepare_dashboard_data(analytics_models: dict[str, Any]) -> dict[str, Any]:
-    """Prepare final datasets optimized for dashboard visualization.
-
-    Creates aggregated datasets and summary statistics that power
-    the Streamlit dashboard. This includes engagement trends,
-    top content rankings, and member performance metrics.
-
-    Args:
-        analytics_models: Summary of dbt model execution
-
-    Returns:
-        Dashboard-ready datasets and metadata
-    """
-
-    print("Preparing dashboard datasets")
-
-    # Simulated dashboard data preparation
-    dashboard_datasets = {
-        "overview_metrics": {
-            "total_members": analytics_models["total_profiles"],
-            "total_posts": analytics_models["total_posts"],
-            "avg_engagement_rate": analytics_models["avg_engagement_rate"],
-            "top_post_likes": analytics_models["top_post_likes"],
-        },
-        "engagement_trends": [
-            {"date": "2024-06-25", "posts": 8, "likes": 245, "reposts": 67},
-            {"date": "2024-06-26", "posts": 12, "likes": 389, "reposts": 89},
-            {"date": "2024-06-27", "posts": 15, "likes": 456, "reposts": 102},
-        ],
-        "top_content": [
-            {
-                "author": "charlie.dev.social",
-                "text": "Debugging is like being a detective...",
-                "engagement_score": 257,
-                "likes": 156,
-                "reposts": 67,
-                "replies": 34,
-            }
-        ],
-        "prepared_at": datetime.now(timezone.utc).isoformat(),
-    }
-
-    # Create Prefect artifact for dashboard data
-    create_table_artifact(
-        key="dashboard-overview",
-        table=[dashboard_datasets["overview_metrics"]],
-        description="Dashboard overview metrics",
+This artifact appears in the Prefect UI for observability.
+        """,
+        description="Analytics summary for this pipeline run",
     )
 
-    print("Dashboard datasets prepared successfully")
-    return dashboard_datasets
+    print(f"✓ Analytics created for {analytics['total_items']} items")
+    return analytics
 
 
 ```
 
 ---------------------------------------------------------------------------
-Main Pipeline Flow – Orchestrate the complete social analytics workflow
+Flow: Orchestrate Asset Materialization
 ---------------------------------------------------------------------------
-This flow orchestrates the asset materialization pipeline with automatic
-dependency resolution and error handling.
+The flow calls each asset function, and Prefect handles:
+- Dependency resolution (ensuring correct execution order)
+- Automatic caching (skip re-computation if upstream assets haven't changed)
+- Observability (tracking lineage and execution in the UI)
 
 ```python
-@flow(name="atproto_social_analytics", log_prints=True)
-def atproto_analytics_pipeline() -> None:
-    """Run the complete ATProto social analytics pipeline using Prefect Assets.
-
-    This flow orchestrates the entire social media analytics workflow:
-    1. Fetch member profiles from Bluesky starter pack
-    2. Extract recent posts and engagement data from member feeds
-    3. Store raw data in S3 for reliable persistence
-    4. Transform data using dbt into analytics models
-    5. Prepare final datasets for dashboard visualization
-
-    Each step is defined as a Prefect Asset with automatic dependency tracking,
-    materialization, and caching. The pipeline handles failures gracefully
-    and provides comprehensive observability.
+@flow(name="asset-pipeline-demo", log_prints=True)
+def run_asset_pipeline() -> dict[str, Any]:
     """
+    Orchestrate the asset pipeline.
 
-    print("🚀 Starting ATProto Social Analytics Pipeline")
+    By calling the materialization functions in sequence and passing results,
+    Prefect automatically:
+    - Tracks dependencies between assets
+    - Ensures execution order
+    - Provides observability in the UI
+    - Enables caching and versioning
+    """
+    print("🚀 Starting asset pipeline")
 
-    # Materialize all assets with automatic dependency resolution
-    members = fetch_starter_pack_members()
-    feeds = fetch_social_feeds(members)
-    s3_data = store_in_s3(members, feeds)
-    analytics = run_dbt_transformations(s3_data)
-    dashboard_data = prepare_dashboard_data(analytics)
+    # Materialize assets - Prefect tracks dependencies automatically
+    raw = fetch_raw_data()
+    processed = process_data(raw)
+    analytics = create_analytics(processed)
 
-    print("✅ Social analytics pipeline completed successfully!")
-    print(
-        f"📊 Dashboard data ready with {dashboard_data['overview_metrics']['total_posts']} posts analyzed"
-    )
-    print("🔗 Next step: Launch Streamlit dashboard with 'streamlit run dashboard.py'")
+    print(f"✅ Pipeline complete! Processed {analytics['total_items']} items")
+    return analytics
 
 
 ```
 
-### What Just Happened?
+### What Makes Assets Powerful?
 
-Here's the sequence of events when you run this pipeline:
-1. **ATProto Data Ingestion** – Prefect Assets fetched member profiles and social feeds from Bluesky using the ATProto protocol
-2. **Reliable Storage** – Raw social data was automatically stored in S3 with proper partitioning and metadata
-3. **dbt Transformations** – SQL models transformed raw data into analytics-ready tables (staging, aggregations, rankings)
-4. **Asset Dependencies** – Prefect automatically resolved dependencies and materialized assets in the correct order
-5. **Dashboard Preparation** – Final datasets were optimized for visualization and cached for fast dashboard loading
-6. **Observability** – Every step was logged, timed, and tracked in the Prefect UI with automatic artifact creation
+1. **Automatic Dependency Tracking**
+   - Prefect infers dependencies from function parameters
+   - Ensures correct execution order without manual DAG definition
+   - Tracks asset lineage for observability
 
-**Prefect Assets transformed a complex multi-step analytics workflow into a declarative, reliable pipeline** – no manual dependency management, no fragile scripts, just clean Python with enterprise-grade orchestration.
+2. **Caching and Versioning**
+   - Assets are versioned based on their inputs
+   - Skip re-computation when upstream data hasn't changed
+   - Efficient incremental processing
 
-### Why This Matters
+3. **Storage Integration**
+   - Asset keys can be S3 paths, database URIs, or any identifier
+   - Built-in support for prefect-aws, prefect-gcp, etc.
+   - Automatic data persistence and retrieval
 
-Traditional social media analytics often involves fragile scripts, manual data movement, and complex orchestration. Prefect Assets provide **modern data pipeline orchestration with zero operational overhead**:
+4. **Observability**
+   - Every materialization tracked in the Prefect UI
+   - Artifacts provide rich context (tables, markdown, links)
+   - Full lineage and execution history
 
-- **Declarative Dependencies**: Assets automatically resolve execution order based on upstream/downstream relationships
-- **Automatic Caching**: Materialized assets are cached and only re-computed when upstream dependencies change
-- **Cloud Storage Integration**: Native S3 integration with automatic credential handling and data versioning
-- **dbt Integration**: Enhanced dbt execution with proper logging, failure handling, and Prefect event emission
-- **Observability**: Every asset materialization is logged, timed, and searchable with automatic artifact creation
-- **Composability**: Easily extend with additional data sources, transformation steps, or downstream systems
+5. **Production Ready**
+   - Built-in retry logic and error handling
+   - Scheduling and automation via Prefect deployments
+   - Scales from local development to cloud production
 
-This pattern scales from prototype analytics to production social media monitoring platforms. Whether you're analyzing a small community or enterprise social engagement, Prefect ensures your workflows are reliable, observable, and maintainable.
+### Full Implementation
 
-### Dashboard Features
+This example demonstrates the core patterns. The complete implementation includes:
+- Real ATProto/Bluesky API integration
+- S3-backed asset storage with partitioning
+- dbt transformations with DuckDB
+- Streamlit dashboard for visualization
+- Production-ready error handling and logging
 
-The included Streamlit dashboard provides:
-- **Overview Metrics**: Total members, posts, and engagement statistics
-- **Member Listings**: Profiles from the starter pack with follower counts and activity
-- **Recent Posts**: Latest posts with filtering, sorting, and engagement metrics
-- **Analytics Charts**: Engagement trends, top content, and activity patterns
-- **Interactive Exploration**: Drill-down capabilities for detailed analysis
+See the full project at: https://github.com/zzstoatzz/atproto-dashboard
 
-### Deployment Options
+### Learn More
 
-This pipeline can be deployed in multiple ways:
-- **Local Development**: Run directly with DuckDB for rapid iteration
-- **Prefect Cloud**: Deploy with automatic scheduling and monitoring
-- **CI/CD Integration**: Include in automated data quality and testing workflows
-- **Production Scale**: Connect to Snowflake, BigQuery, or other data warehouses
-
-To learn more about building modern data pipelines with Prefect, check out:
-- [Prefect Assets documentation](https://docs.prefect.io/v3/develop/assets)
-- [prefect-aws integration guide](https://docs.prefect.io/integrations/prefect-aws)
-- [prefect-dbt integration guide](https://docs.prefect.io/integrations/prefect-dbt)
+- [Prefect Assets Documentation](https://docs.prefect.io/v3/develop/assets)
+- [Asset Dependencies Guide](https://docs.prefect.io/v3/develop/assets#asset-dependencies)
+- [prefect-aws Integration](https://docs.prefect.io/integrations/prefect-aws)
 
 ```python
 if __name__ == "__main__":
-    atproto_analytics_pipeline()
+    run_asset_pipeline()
+
 ```
