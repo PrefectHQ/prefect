@@ -202,15 +202,6 @@ class ProcessWorker(
                         )
                         healthcheck_thread.start()
                     printer(f"Worker {worker.name!r} started!")
-
-                # If running once, wait for active runs to complete before exiting
-                if run_once and self._limiter:
-                    while self.limiter.borrowed_tokens > 0:
-                        self._logger.debug(
-                            "Waiting for %s active run(s) to finish before shutdown...",
-                            self.limiter.borrowed_tokens,
-                        )
-                        await anyio.sleep(0.1)
         finally:
             stop_client_metrics_server()
 
