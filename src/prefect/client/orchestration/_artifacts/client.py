@@ -5,7 +5,6 @@ from pydantic import Field
 from typing_extensions import TypedDict, Unpack
 
 from prefect.client.orchestration.base import BaseAsyncClient, BaseClient
-from prefect.events.utilities import emit_event
 from prefect.exceptions import ObjectNotFound
 
 if TYPE_CHECKING:
@@ -49,6 +48,7 @@ class ArtifactClient(BaseClient):
             json=artifact.model_dump(mode="json", exclude_unset=True),
         )
         from prefect.client.schemas.objects import Artifact
+        from prefect.events.utilities import emit_event
 
         created = Artifact.model_validate(response.json())
 
@@ -77,6 +77,8 @@ class ArtifactClient(BaseClient):
         return created
 
     def update_artifact(self, artifact_id: "UUID", artifact: "ArtifactUpdate") -> None:
+        from prefect.events.utilities import emit_event
+
         self.request(
             "PATCH",
             "/artifacts/{id}",
@@ -149,6 +151,7 @@ class ArtifactAsyncClient(BaseAsyncClient):
             json=artifact.model_dump(mode="json", exclude_unset=True),
         )
         from prefect.client.schemas.objects import Artifact
+        from prefect.events.utilities import emit_event
 
         created = Artifact.model_validate(response.json())
 
@@ -180,6 +183,8 @@ class ArtifactAsyncClient(BaseAsyncClient):
     async def update_artifact(
         self, artifact_id: "UUID", artifact: "ArtifactUpdate"
     ) -> None:
+        from prefect.events.utilities import emit_event
+
         await self.request(
             "PATCH",
             "/artifacts/{id}",
