@@ -2,6 +2,46 @@
 title: 3.4
 ---
 
+## 3.4.21 - Memory Lane Has a TTL
+
+*Released on October 02, 2025*
+
+**Enhancements ➕➕**
+
+* Add automatic local dependency discovery for flow bundles by [@desertaxle](https://github.com/desertaxle) in [#19043](https://github.com/PrefectHQ/prefect/pull/19043)
+* Allow serving instance methods by [@desertaxle](https://github.com/desertaxle) in [#19070](https://github.com/PrefectHQ/prefect/pull/19070)
+* Add task run tags as related resources on task run events by [@chrisguidry](https://github.com/chrisguidry) in [#19059](https://github.com/PrefectHQ/prefect/pull/19059)
+* Enable configurable lease timeout durations by [@solms](https://github.com/solms) in [#19058](https://github.com/PrefectHQ/prefect/pull/19058)
+* Improve CLI import performance by [@zzstoatzz](https://github.com/zzstoatzz) in [#19078](https://github.com/PrefectHQ/prefect/pull/19078)
+
+**Bug Fixes 🐞**
+
+* Improve deployment validation error messages by [@desertaxle](https://github.com/desertaxle) in [#19038](https://github.com/PrefectHQ/prefect/pull/19038)
+* Fix `KeyError` when running deployment without parameter schema by [@zzstoatzz](https://github.com/zzstoatzz) in [#19055](https://github.com/PrefectHQ/prefect/pull/19055)
+* Fix `PREFECT_CLIENT_CUSTOM_HEADERS` JSON string parsing by [@zzstoatzz](https://github.com/zzstoatzz) in [#19052](https://github.com/PrefectHQ/prefect/pull/19052)
+* Use `TTLCache` for memory-based `CausalOrdering` to prevent memory leaks by [@desertaxle](https://github.com/desertaxle) in [#19061](https://github.com/PrefectHQ/prefect/pull/19061)
+* Fix block type dispatch breaking validation of Block Unions by [@GalLadislav](https://github.com/GalLadislav) in [#18995](https://github.com/PrefectHQ/prefect/pull/18995)
+* Update Postgres listener to respect `application_name` setting by [@zzstoatzz](https://github.com/zzstoatzz) in [#19081](https://github.com/PrefectHQ/prefect/pull/19081)
+
+**Development & Tidiness 🧹**
+
+* Clean up lineage experiment by [@zzstoatzz](https://github.com/zzstoatzz) in [#19041](https://github.com/PrefectHQ/prefect/pull/19041)
+* Remove duplicate `graphviz`, bump `typer`, update lockfile by [@zzstoatzz](https://github.com/zzstoatzz) in [#19051](https://github.com/PrefectHQ/prefect/pull/19051)
+* Remove flaky serve interrupt integration test by [@zzstoatzz](https://github.com/zzstoatzz) in [#19053](https://github.com/PrefectHQ/prefect/pull/19053)
+* Rename `server.concurrency.initial_lease_timeout` to `server.concurrency.initial_deployment_lease_duration` by [@desertaxle](https://github.com/desertaxle) in [#19085](https://github.com/PrefectHQ/prefect/pull/19085)
+* Normalize empty `parameter_openapi_schema` to valid OpenAPI format by [@zzstoatzz](https://github.com/zzstoatzz) in [#19072](https://github.com/PrefectHQ/prefect/pull/19072)
+* Keep `DeploymentCreate.parameter_openapi_schema` field `Optional` by [@zzstoatzz](https://github.com/zzstoatzz) in [#19089](https://github.com/PrefectHQ/prefect/pull/19089)
+
+**Documentation 📓**
+
+* Improve automation actions documentation with type identifiers by [@zzstoatzz](https://github.com/zzstoatzz) in [#19071](https://github.com/PrefectHQ/prefect/pull/19071)
+
+
+**Full Changelog**: https://github.com/PrefectHQ/prefect/compare/3.4.20...3.4.21
+
+
+---
+
 ## 3.4.20 - Search Party
 
 *Released on September 25, 2025*
