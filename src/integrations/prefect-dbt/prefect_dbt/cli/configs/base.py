@@ -56,7 +56,10 @@ class DbtConfigs(Block, abc.ABC):
                 field_value = getattr(model, field_name, None)
                 # override the name with alias so dbt parser can recognize the keyword;
                 # e.g. schema_ -> schema, returns the original name if no alias is set
-                if field.alias:
+                # prioritize serialization_alias since we're generating output
+                if field.serialization_alias:
+                    field_name = field.serialization_alias
+                elif field.alias:
                     field_name = field.alias
             else:
                 field_value = field

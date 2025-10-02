@@ -152,3 +152,42 @@ def test_snowflake_target_configs_get_configs_private_key():
         )
         expected_v = expected[k]
         assert actual_v == expected_v
+
+
+def test_snowflake_target_configs_schema_from_connector_in_profile():
+    """
+    Regression test for issue #19069.
+
+    When creating a DbtCliProfile from SnowflakeTargetConfigs with a connector,
+    the schema from the connector should be included in the profile output,
+    even when not explicitly passed to SnowflakeTargetConfigs.
+    """
+    from prefect_dbt.cli import DbtCliProfile
+
+    credentials = SnowflakeCredentials(
+        account="account.region.aws",
+        user="user",
+        password="password",
+    )
+    connector = SnowflakeConnector(
+        schema="ANALYTICS_PROD",
+        database="ANALYTICS",
+        warehouse="FIVETRAN_WAREHOUSE",
+        credentials=credentials,
+    )
+    # Note: NOT passing schema explicitly to SnowflakeTargetConfigs
+    target_configs = SnowflakeTargetConfigs(connector=connector)
+    profile = DbtCliProfile(
+        name="dubclub", target="prod", target_configs=target_configs
+    ).get_profile()
+
+    # The schema should be present in the profile output
+    assert "dubclub" in profile
+    assert "outputs" in profile["dubclub"]
+    assert "prod" in profile["dubclub"]["outputs"]
+
+    prod_output = profile["dubclub"]["outputs"]["prod"]
+    assert "schema" in prod_output, (
+        f"schema missing from profile output. Available keys: {list(prod_output.keys())}"
+    )
+    assert prod_output["schema"] == "ANALYTICS_PROD"
