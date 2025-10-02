@@ -170,7 +170,7 @@ export const useDeploymentForm = (
 						job_variables: jobVariablesPayload,
 						name,
 						parameters: parametersFormValues,
-						parameter_openapi_schema,
+						parameter_openapi_schema: parameter_openapi_schema || undefined,
 						paused: deployment.paused,
 						tags,
 						// If value is "", set as null

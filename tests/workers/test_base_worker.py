@@ -1920,7 +1920,7 @@ async def test_env_merge_logic_is_deep(
             flow_id=flow.id,
             path="./subdir",
             entrypoint="/file.py:flow",
-            parameter_openapi_schema={},
+            parameter_openapi_schema={"type": "object", "properties": {}},
             job_variables={"env": deployment_env},
             work_queue_id=work_pool.default_queue_id,
         ),
