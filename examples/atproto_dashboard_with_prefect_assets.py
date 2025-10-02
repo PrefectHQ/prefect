@@ -1,17 +1,18 @@
 # ---
-# title: ATProto Social Analytics Dashboard – Prefect Assets
+# title: Social Analytics Dashboard
 # description: Build a social media analytics dashboard using Prefect Assets, ATProto/Bluesky APIs, dbt transformations, and Streamlit visualization.
 # icon: chart-bar
 # dependencies: ["prefect", "prefect-aws"]
 # cmd: ["python", "atproto_dashboard_with_prefect_assets.py"]
 # tags: [assets, social-media, analytics, dbt, streamlit, atproto, bluesky]
+# github_url: https://github.com/zzstoatzz/atproto-dashboard
 # draft: false
 # ---
 #
 # **Build data pipelines with Prefect Assets – declarative, dependency-aware, and observable.**
 #
 # This example demonstrates how to use **Prefect Assets** to build a social media analytics pipeline.
-# The full implementation with ATProto/Bluesky integration, dbt transformations, and a Streamlit
+# The full implementation with [ATProto](https://atproto.com) integration, [dbt](https://www.getdbt.com) transformations, and a [Streamlit](https://streamlit.io) dashboard
 # dashboard is available at: https://github.com/zzstoatzz/atproto-dashboard
 #
 # ## Key Prefect Features
@@ -42,15 +43,15 @@
 import json
 from datetime import datetime, timezone
 from pathlib import Path
+from textwrap import dedent
 from typing import Any
 
 from prefect import flow
 from prefect.artifacts import create_markdown_artifact
 from prefect.assets import Asset, materialize
 
-# ---------------------------------------------------------------------------
-# Core Pattern: Define Assets and Dependencies
-# ---------------------------------------------------------------------------
+# ## Core Pattern: Define Assets and Dependencies
+#
 # Assets represent data products in your pipeline. Each asset has:
 # - A unique key (often an S3 path or other storage location)
 # - A materialization function decorated with @materialize
@@ -61,19 +62,17 @@ raw_data_asset = Asset(key="pipeline://raw_data")
 processed_data_asset = Asset(key="pipeline://processed_data")
 analytics_asset = Asset(key="pipeline://analytics")
 
+# ### Step 1: Fetch Raw Data
+#
+# The first asset fetches data from an external source. In the [full implementation](https://github.com/zzstoatzz/atproto-dashboard),
+# this connects to the ATProto/Bluesky API to fetch social media data.
+
 
 @materialize(raw_data_asset)
 def fetch_raw_data() -> dict[str, Any]:
-    """
-    Fetch raw data from an external source.
-
-    This demonstrates the simplest asset pattern - a function that produces data
-    and is tracked as a versioned asset by Prefect.
-    """
+    """Fetch raw data from an external source."""
     print("Fetching raw data...")
 
-    # In the real implementation, this fetches from ATProto APIs
-    # See: https://github.com/zzstoatzz/atproto-dashboard/blob/main/src/atproto_dashboard/assets.py
     data = {
         "items": ["item1", "item2", "item3"],
         "fetched_at": datetime.now(timezone.utc).isoformat(),
@@ -84,32 +83,25 @@ def fetch_raw_data() -> dict[str, Any]:
     return data
 
 
+# ### Step 2: Process the Data
+#
+# This asset demonstrates **automatic dependency tracking**. By accepting `raw_data` as a parameter,
+# Prefect knows this asset depends on `raw_data_asset` and ensures it's materialized first.
+#
+# In production, this would store data to S3 with partitioning. Here we use local storage for simplicity.
+
+
 @materialize(processed_data_asset)
 def process_data(raw_data: dict[str, Any]) -> dict[str, Any]:
-    """
-    Process raw data into a structured format.
-
-    This demonstrates automatic dependency tracking - by accepting raw_data as a
-    parameter, Prefect knows this asset depends on raw_data_asset and will ensure
-    it's materialized first.
-
-    Args:
-        raw_data: Data from the raw_data_asset (automatically injected by Prefect)
-
-    Returns:
-        Processed data ready for analytics
-    """
+    """Process raw data into a structured format with automatic dependency tracking."""
     print(f"Processing {raw_data['count']} items...")
 
-    # In the real implementation, this stores data to S3 with partitioning
-    # See: https://github.com/zzstoatzz/atproto-dashboard/blob/main/src/atproto_dashboard/assets.py
     processed = {
         "items": [item.upper() for item in raw_data["items"]],
         "processed_at": datetime.now(timezone.utc).isoformat(),
         "source_count": raw_data["count"],
     }
 
-    # Optionally persist to local storage (in prod, this would be S3)
     storage_dir = Path("./data")
     storage_dir.mkdir(exist_ok=True)
     with open(storage_dir / "processed.json", "w") as f:
@@ -119,42 +111,38 @@ def process_data(raw_data: dict[str, Any]) -> dict[str, Any]:
     return processed
 
 
+# ### Step 3: Create Analytics
+#
+# This asset demonstrates **chained dependencies** (it depends on `processed_data`, which depends on `raw_data`)
+# and **artifact creation** for rich observability in the Prefect UI.
+#
+# In the full implementation, this runs dbt transformations to create analytics models.
+
+
 @materialize(analytics_asset)
 def create_analytics(processed_data: dict[str, Any]) -> dict[str, Any]:
-    """
-    Generate analytics from processed data.
-
-    This demonstrates:
-    1. Chained dependencies (depends on processed_data, which depends on raw_data)
-    2. Artifact creation for observability in the Prefect UI
-
-    Args:
-        processed_data: Data from the processed_data_asset
-
-    Returns:
-        Analytics summary
-    """
+    """Generate analytics with chained dependencies and create UI artifacts."""
     print("Creating analytics...")
 
-    # In the real implementation, this runs dbt transformations
-    # See: https://github.com/zzstoatzz/atproto-dashboard/blob/main/src/atproto_dashboard/dbt_flow.py
     analytics = {
         "total_items": len(processed_data["items"]),
         "source_timestamp": processed_data["processed_at"],
         "created_at": datetime.now(timezone.utc).isoformat(),
     }
 
-    # Create a Prefect artifact for observability
     create_markdown_artifact(
         key="analytics-summary",
-        markdown=f"""# Analytics Summary
+        markdown=dedent(
+            f"""
+            # Analytics Summary
 
-- **Total Items**: {analytics["total_items"]}
-- **Created**: {analytics["created_at"]}
-- **Source**: {analytics["source_timestamp"]}
+            - **Total Items**: {analytics["total_items"]}
+            - **Created**: {analytics["created_at"]}
+            - **Source**: {analytics["source_timestamp"]}
 
-This artifact appears in the Prefect UI for observability.
-        """,
+            This artifact appears in the Prefect UI for observability.
+            """
+        ),
         description="Analytics summary for this pipeline run",
     )
 
@@ -162,9 +150,8 @@ This artifact appears in the Prefect UI for observability.
     return analytics
 
 
-# ---------------------------------------------------------------------------
-# Flow: Orchestrate Asset Materialization
-# ---------------------------------------------------------------------------
+# ## Flow: Orchestrate Asset Materialization
+#
 # The flow calls each asset function, and Prefect handles:
 # - Dependency resolution (ensuring correct execution order)
 # - Automatic caching (skip re-computation if upstream assets haven't changed)
@@ -194,7 +181,10 @@ def run_asset_pipeline() -> dict[str, Any]:
     return analytics
 
 
-# ### What Makes Assets Powerful?
+if __name__ == "__main__":
+    run_asset_pipeline()
+
+# ## What Makes Assets Powerful?
 #
 # 1. **Automatic Dependency Tracking**
 #    - Prefect infers dependencies from function parameters
@@ -208,7 +198,7 @@ def run_asset_pipeline() -> dict[str, Any]:
 #
 # 3. **Storage Integration**
 #    - Asset keys can be S3 paths, database URIs, or any identifier
-#    - Built-in support for prefect-aws, prefect-gcp, etc.
+#    - Built-in support for `prefect-aws`, `prefect-gcp`, etc.
 #    - Automatic data persistence and retrieval
 #
 # 4. **Observability**
@@ -221,10 +211,10 @@ def run_asset_pipeline() -> dict[str, Any]:
 #    - Scheduling and automation via Prefect deployments
 #    - Scales from local development to cloud production
 #
-# ### Full Implementation
+# ## Full Implementation
 #
 # This example demonstrates the core patterns. The complete implementation includes:
-# - Real ATProto/Bluesky API integration
+# - Real ATProto API integration
 # - S3-backed asset storage with partitioning
 # - dbt transformations with DuckDB
 # - Streamlit dashboard for visualization
@@ -232,11 +222,7 @@ def run_asset_pipeline() -> dict[str, Any]:
 #
 # See the full project at: https://github.com/zzstoatzz/atproto-dashboard
 #
-# ### Learn More
+# ## Learn More
 #
-# - [Prefect Assets Documentation](https://docs.prefect.io/v3/develop/assets)
-# - [Asset Dependencies Guide](https://docs.prefect.io/v3/develop/assets#asset-dependencies)
+# - [Prefect Assets Documentation](https://docs.prefect.io/v3/concepts/assets)
 # - [prefect-aws Integration](https://docs.prefect.io/integrations/prefect-aws)
-
-if __name__ == "__main__":
-    run_asset_pipeline()
