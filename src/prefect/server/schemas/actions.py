@@ -179,7 +179,7 @@ class DeploymentCreate(ActionBaseModel):
             "Whether or not the deployment should enforce the parameter schema."
         ),
     )
-    parameter_openapi_schema: ParameterSchema = Field(
+    parameter_openapi_schema: Optional[ParameterSchema] = Field(
         default_factory=lambda: {"type": "object", "properties": {}},
         description="The parameter schema of the flow, including defaults.",
         json_schema_extra={"additionalProperties": True},
