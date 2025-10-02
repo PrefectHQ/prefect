@@ -15423,8 +15423,16 @@
                         "default": true
                     },
                     "parameter_openapi_schema": {
+                        "anyOf": [
+                            {
+                                "additionalProperties": true,
+                                "type": "object"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
                         "additionalProperties": true,
-                        "type": "object",
                         "title": "Parameter Openapi Schema",
                         "description": "The parameter schema of the flow, including defaults."
                     },
