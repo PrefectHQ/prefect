@@ -1066,15 +1066,15 @@
                     "title": "Lease Storage",
                     "type": "string"
                 },
-                "initial_lease_timeout": {
+                "initial_deployment_lease_duration": {
                     "default": 300.0,
-                    "description": "Initial timeout for concurrency lease acquisition in seconds.",
+                    "description": "Initial duration for deployment concurrency lease in seconds.",
                     "maximum": 3600.0,
                     "minimum": 30.0,
                     "supported_environment_variables": [
-                        "PREFECT_SERVER_CONCURRENCY_INITIAL_LEASE_TIMEOUT"
+                        "PREFECT_SERVER_CONCURRENCY_INITIAL_DEPLOYMENT_LEASE_DURATION"
                     ],
-                    "title": "Initial Lease Timeout",
+                    "title": "Initial Deployment Lease Duration",
                     "type": "number"
                 }
             },
