@@ -40,6 +40,7 @@ from prefect.types import (
     PositiveInteger,
     StrictVariableValue,
 )
+from prefect.types._schema import ParameterSchema
 from prefect.types.names import (
     ArtifactKey,
     BlockDocumentName,
@@ -234,7 +235,9 @@ class DeploymentCreate(ActionBaseModel):
             "Whether or not the deployment should enforce the parameter schema."
         ),
     )
-    parameter_openapi_schema: Optional[dict[str, Any]] = Field(default_factory=dict)
+    parameter_openapi_schema: ParameterSchema = Field(
+        default_factory=lambda: {"type": "object", "properties": {}}
+    )
     parameters: dict[str, Any] = Field(
         default_factory=dict,
         description="Parameters for flow runs scheduled by the deployment.",
@@ -349,7 +352,9 @@ class DeploymentUpdate(ActionBaseModel):
             "Whether or not the deployment should enforce the parameter schema."
         ),
     )
-    parameter_openapi_schema: Optional[dict[str, Any]] = Field(default_factory=dict)
+    parameter_openapi_schema: Optional[ParameterSchema] = Field(
+        default_factory=lambda: {"type": "object", "properties": {}}
+    )
     pull_steps: Optional[list[dict[str, Any]]] = Field(default=None)
 
     def check_valid_configuration(self, base_job_template: dict[str, Any]) -> None:
