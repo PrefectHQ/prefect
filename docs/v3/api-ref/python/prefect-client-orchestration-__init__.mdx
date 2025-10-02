@@ -129,7 +129,7 @@ Returns the count of flow runs matching all criteria for flow runs.
 - count of flow runs
 
 
-#### `create_artifact` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_artifacts/client.py#L145" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `create_artifact` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_artifacts/client.py#L147" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 create_artifact(self, artifact: 'ArtifactCreate') -> 'Artifact'
@@ -478,7 +478,7 @@ were held.
 - "Response": The HTTP response from the server.
 
 
-#### `delete_artifact` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_artifacts/client.py#L232" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `delete_artifact` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_artifacts/client.py#L237" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 delete_artifact(self, artifact_id: 'UUID') -> None
@@ -848,7 +848,7 @@ Pause a deployment by ID.
 raise_for_api_version_mismatch(self) -> None
 ```
 
-#### `read_artifacts` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_artifacts/client.py#L201" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `read_artifacts` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_artifacts/client.py#L206" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_artifacts(self, **kwargs: Unpack['ArtifactReadParams']) -> list['Artifact']
@@ -1261,7 +1261,7 @@ read_global_concurrency_limit_by_name(self, name: str) -> 'GlobalConcurrencyLimi
 read_global_concurrency_limits(self, limit: int = 10, offset: int = 0) -> list['GlobalConcurrencyLimitResponse']
 ```
 
-#### `read_latest_artifacts` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_artifacts/client.py#L280" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `read_latest_artifacts` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_artifacts/client.py#L285" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_latest_artifacts(self, **kwargs: Unpack['ArtifactCollectionReadParams']) -> list['ArtifactCollection']
@@ -1667,7 +1667,7 @@ forcing the Prefect API to accept the state
 - an OrchestrationResult model representation of state orchestration output
 
 
-#### `update_artifact` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_artifacts/client.py#L180" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `update_artifact` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_artifacts/client.py#L183" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 update_artifact(self, artifact_id: 'UUID', artifact: 'ArtifactUpdate') -> None
@@ -1916,7 +1916,7 @@ Returns the count of flow runs matching all criteria for flow runs.
 - count of flow runs
 
 
-#### `create_artifact` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_artifacts/client.py#L45" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `create_artifact` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_artifacts/client.py#L44" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 create_artifact(self, artifact: 'ArtifactCreate') -> 'Artifact'
@@ -2244,7 +2244,7 @@ were held.
 - "Response": The HTTP response from the server.
 
 
-#### `delete_artifact` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_artifacts/client.py#L98" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `delete_artifact` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_artifacts/client.py#L100" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 delete_artifact(self, artifact_id: 'UUID') -> None
@@ -2537,7 +2537,7 @@ Pause a deployment by ID.
 raise_for_api_version_mismatch(self) -> None
 ```
 
-#### `read_artifacts` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_artifacts/client.py#L112" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `read_artifacts` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_artifacts/client.py#L114" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_artifacts(self, **kwargs: Unpack['ArtifactReadParams']) -> list['Artifact']
@@ -2950,7 +2950,7 @@ read_global_concurrency_limit_by_name(self, name: str) -> 'GlobalConcurrencyLimi
 read_global_concurrency_limits(self, limit: int = 10, offset: int = 0) -> list['GlobalConcurrencyLimitResponse']
 ```
 
-#### `read_latest_artifacts` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_artifacts/client.py#L247" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `read_latest_artifacts` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_artifacts/client.py#L252" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_latest_artifacts(self, **kwargs: Unpack['ArtifactCollectionReadParams']) -> list['ArtifactCollection']
