@@ -134,15 +134,6 @@ class Runner(
                 assert self._cancelling_observer is not None
             self._cancelling_observer.remove_in_flight_flow_run_id(flow_run_id)
 
-    async def _get_execution_handle(
-        self, flow_run_id: UUID
-    ) -> Optional[Union[anyio.abc.Process, multiprocessing.context.SpawnProcess]]:
-        """Get the process handle for a flow run (returns PID for cancellation)."""
-        # For cancellation purposes, we need the PID
-        # Since we can't store the process object (it may not be picklable),
-        # we just return None here and use the PID directly from the map
-        return None
-
     async def _get_execution_pid(self, flow_run_id: UUID) -> Optional[int]:
         """Get the PID for a flow run."""
         process_map_entry = self._flow_run_process_map.get(flow_run_id)
@@ -160,7 +151,6 @@ class Runner(
     async def _cancel_execution(
         self,
         flow_run: "FlowRun",
-        handle: Union[anyio.abc.Process, multiprocessing.context.SpawnProcess],
     ) -> None:
         """Cancel a running process."""
         # We need to get the PID from the map since the handle might not be available

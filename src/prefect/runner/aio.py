@@ -27,7 +27,7 @@ class AsyncRunner(BaseRunner[anyio.abc.CancelScope]):
     Async task-based runner implementation.
 
     Runs flows directly in async tasks using anyio task groups instead of
-    spawning subprocesses.
+    spawning subprocesses. Use only with async flows.
     """
 
     def __init__(self, *args: Any, **kwargs: Any):
@@ -69,26 +69,17 @@ class AsyncRunner(BaseRunner[anyio.abc.CancelScope]):
                 assert self._cancelling_observer is not None
             self._cancelling_observer.remove_in_flight_flow_run_id(flow_run_id)
 
-    async def _get_execution_handle(
-        self, flow_run_id: UUID
-    ) -> Optional[anyio.abc.CancelScope]:
-        """Get the cancel scope for a flow run."""
-        task_map_entry = self._flow_run_task_map.get(flow_run_id)
-        if task_map_entry:
-            return task_map_entry[0]
-        return None
-
     async def _get_all_execution_entries(self) -> list[tuple[UUID, "FlowRun"]]:
         """Get all active task entries."""
         return [
             (fid, flow_run) for fid, (_, flow_run) in self._flow_run_task_map.items()
         ]
 
-    async def _cancel_execution(
-        self, flow_run: "FlowRun", handle: anyio.abc.CancelScope
-    ) -> None:
+    async def _cancel_execution(self, flow_run: "FlowRun") -> None:
         """Cancel a running task."""
-        handle.cancel()
+        task_map_entry = self._flow_run_task_map.get(flow_run.id)
+        if task_map_entry:
+            task_map_entry[0].cancel()
 
     async def _execute_flow_run_impl(
         self,

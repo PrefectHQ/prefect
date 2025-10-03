@@ -71,6 +71,12 @@ class FlowRunCancellingObserver:
                         "prefect.flow-run.", ""
                     )
                 )
+                if flow_run_id not in self._in_flight_flow_run_ids:
+                    self.logger.debug(
+                        "Received event for flow run ID %s but it is not in the in-flight flow run IDs. Ignoring.",
+                        flow_run_id,
+                    )
+                    continue
                 self.on_cancelling(flow_run_id)
             except ValueError:
                 self.logger.debug(
@@ -151,6 +157,12 @@ class FlowRunCancellingObserver:
 
         for flow_run in cancelling_flow_runs:
             self._cancelling_flow_run_ids.add(flow_run.id)
+            if flow_run.id not in self._in_flight_flow_run_ids:
+                self.logger.debug(
+                    "Found flow run ID %s in cancelling flow runs but it is not in the in-flight flow run IDs. Ignoring.",
+                    flow_run.id,
+                )
+                continue
             self.on_cancelling(flow_run.id)
 
     async def __aenter__(self):

@@ -204,16 +204,7 @@ class BaseRunner(Generic[ExecutionHandleT], abc.ABC):
         ...
 
     @abc.abstractmethod
-    async def _get_execution_handle(
-        self, flow_run_id: UUID
-    ) -> Optional[ExecutionHandleT]:
-        """Get the execution handle for a flow run."""
-        ...
-
-    @abc.abstractmethod
-    async def _cancel_execution(
-        self, flow_run: "FlowRun", handle: ExecutionHandleT
-    ) -> None:
+    async def _cancel_execution(self, flow_run: "FlowRun") -> None:
         """Cancel a running execution."""
         ...
 
@@ -692,16 +683,8 @@ class BaseRunner(Generic[ExecutionHandleT], abc.ABC):
             flow_run = await self._client.read_flow_run(flow_run)
         run_logger = self._get_flow_run_logger(flow_run)
 
-        handle = await self._get_execution_handle(flow_run.id)
-        if not handle:
-            self._logger.debug(
-                "Received cancellation request for flow run %s but no execution was found.",
-                flow_run.id,
-            )
-            return
-
         try:
-            await self._cancel_execution(flow_run, handle)
+            await self._cancel_execution(flow_run)
         except RuntimeError as exc:
             self._logger.warning(f"{exc} Marking flow run as cancelled.")
             if flow_run.state:
