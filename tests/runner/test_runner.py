@@ -213,7 +213,7 @@ def patch_run_process(monkeypatch: pytest.MonkeyPatch):
 def mock_events_client(monkeypatch: pytest.MonkeyPatch):
     mock_events_client = AssertingEventsClient()
     monkeypatch.setattr(
-        "prefect.runner.runner.get_events_client",
+        "prefect.runner._base.get_events_client",
         lambda *args, **kwargs: mock_events_client,
     )
     yield mock_events_client
@@ -1273,7 +1273,7 @@ class TestRunner:
 
         # Mock load_flow_from_flow_run to raise the exception
         with patch(
-            "prefect.runner.runner.load_flow_from_flow_run", side_effect=exception
+            "prefect.runner._base.load_flow_from_flow_run", side_effect=exception
         ):
             # Run the appropriate hook method
             if hook_type == "crashed":
