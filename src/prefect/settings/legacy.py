@@ -99,22 +99,25 @@ def _get_valid_setting_names(cls: type[BaseSettings]) -> Set[str]:
     """
     settings_fields: set[str] = set()
     for field_name, field in cls.model_fields.items():
-        if inspect.isclass(field.annotation) and issubclass(
-            field.annotation, PrefectBaseSettings
-        ):
-            settings_fields.update(_get_valid_setting_names(field.annotation))
-        else:
-            if field.validation_alias and isinstance(
-                field.validation_alias, AliasChoices
+        try:
+            if inspect.isclass(field.annotation) and issubclass(
+                field.annotation, PrefectBaseSettings
             ):
-                for alias in field.validation_alias.choices:
-                    if not isinstance(alias, str):
-                        continue
-                    settings_fields.add(alias.upper())
-            else:
-                settings_fields.add(
-                    f"{cls.model_config.get('env_prefix')}{field_name.upper()}"
-                )
+                settings_fields.update(_get_valid_setting_names(field.annotation))
+                continue
+        except TypeError:
+            # In some Pydantic versions, field.annotation may not be compatible with issubclass()
+            pass
+
+        if field.validation_alias and isinstance(field.validation_alias, AliasChoices):
+            for alias in field.validation_alias.choices:
+                if not isinstance(alias, str):
+                    continue
+                settings_fields.add(alias.upper())
+        else:
+            settings_fields.add(
+                f"{cls.model_config.get('env_prefix')}{field_name.upper()}"
+            )
     return settings_fields
 
 
@@ -125,43 +128,44 @@ def _get_settings_fields(
     """Get the settings fields for the settings object"""
     settings_fields: dict[str, Setting] = {}
     for field_name, field in settings.model_fields.items():
-        if inspect.isclass(field.annotation) and issubclass(
-            field.annotation, PrefectBaseSettings
-        ):
-            accessor = (
-                field_name
-                if accessor_prefix is None
-                else f"{accessor_prefix}.{field_name}"
-            )
-            settings_fields.update(_get_settings_fields(field.annotation, accessor))
-        else:
-            accessor = (
-                field_name
-                if accessor_prefix is None
-                else f"{accessor_prefix}.{field_name}"
-            )
-            if field.validation_alias and isinstance(
-                field.validation_alias, AliasChoices
+        try:
+            if inspect.isclass(field.annotation) and issubclass(
+                field.annotation, PrefectBaseSettings
             ):
-                for alias in field.validation_alias.choices:
-                    if not isinstance(alias, str):
-                        continue
-                    setting = Setting(
-                        name=alias.upper(),
-                        default=field.default,
-                        type_=field.annotation,
-                        accessor=accessor,
-                    )
-                    settings_fields[setting.name] = setting
-                    settings_fields[setting.accessor] = setting
-            else:
+                accessor = (
+                    field_name
+                    if accessor_prefix is None
+                    else f"{accessor_prefix}.{field_name}"
+                )
+                settings_fields.update(_get_settings_fields(field.annotation, accessor))
+                continue
+        except TypeError:
+            # In some Pydantic versions, field.annotation may not be compatible with issubclass()
+            pass
+
+        accessor = (
+            field_name if accessor_prefix is None else f"{accessor_prefix}.{field_name}"
+        )
+        if field.validation_alias and isinstance(field.validation_alias, AliasChoices):
+            for alias in field.validation_alias.choices:
+                if not isinstance(alias, str):
+                    continue
                 setting = Setting(
-                    name=f"{settings.model_config.get('env_prefix')}{field_name.upper()}",
+                    name=alias.upper(),
                     default=field.default,
                     type_=field.annotation,
                     accessor=accessor,
                 )
                 settings_fields[setting.name] = setting
                 settings_fields[setting.accessor] = setting
+        else:
+            setting = Setting(
+                name=f"{settings.model_config.get('env_prefix')}{field_name.upper()}",
+                default=field.default,
+                type_=field.annotation,
+                accessor=accessor,
+            )
+            settings_fields[setting.name] = setting
+            settings_fields[setting.accessor] = setting
 
     return settings_fields
