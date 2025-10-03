@@ -213,7 +213,7 @@ def patch_run_process(monkeypatch: pytest.MonkeyPatch):
 def mock_events_client(monkeypatch: pytest.MonkeyPatch):
     mock_events_client = AssertingEventsClient()
     monkeypatch.setattr(
-        "prefect.runner.runner.get_events_client",
+        "prefect.runner._base.get_events_client",
         lambda *args, **kwargs: mock_events_client,
     )
     yield mock_events_client
