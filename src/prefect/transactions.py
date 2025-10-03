@@ -489,7 +489,9 @@ class AsyncTransaction(BaseTransaction):
 
         # do this below reset so that get_transaction() returns the relevant txn
         if parent and self.state == TransactionState.ROLLED_BACK:
-            await parent.rollback()
+            maybe_coro = parent.rollback()
+            if inspect.isawaitable(maybe_coro):
+                await maybe_coro
 
     async def commit(self) -> bool:
         if self.state in [TransactionState.ROLLED_BACK, TransactionState.COMMITTED]:
