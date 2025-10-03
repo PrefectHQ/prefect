@@ -1,16 +1,18 @@
 import asyncio
 import time
 import uuid
+from unittest import mock
 
 import pytest
 
 import prefect.client.schemas as client_schemas
 from prefect import flow
+from prefect._internal.compatibility.deprecated import PrefectDeprecationWarning
 from prefect.client.orchestration import PrefectClient
 from prefect.events.utilities import emit_event
 from prefect.exceptions import FlowRunWaitTimeout
 from prefect.flow_engine import run_flow_async
-from prefect.flow_runs import wait_for_flow_run
+from prefect.flow_runs import FlowRunWaiter, wait_for_flow_run
 from prefect.server.events.pipeline import EventsPipeline
 from prefect.states import Completed, Pending
 
@@ -84,3 +86,20 @@ async def test_wait_for_flow_run_handles_heartbeats(
     assert finished_flow_run.id == flow_run_id
     assert finished_flow_run.state is not None
     assert finished_flow_run.state.is_completed()
+
+
+async def test_wait_for_flow_run_poll_interval_deprecated(
+    prefect_client: PrefectClient,
+):
+    @flow
+    def foo():
+        pass
+
+    flow_run = await prefect_client.create_flow_run(foo, state=Completed())
+
+    with mock.patch.object(
+        FlowRunWaiter, "wait_for_flow_run", new_callable=mock.AsyncMock
+    ) as wait_mock:
+        wait_mock.return_value = None
+        with pytest.raises(PrefectDeprecationWarning):
+            await wait_for_flow_run(flow_run.id, poll_interval=1)
