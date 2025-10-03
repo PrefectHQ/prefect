@@ -5764,3 +5764,59 @@ class TestDelay:
         assert await get_background_task_run_parameters(
             add_em_up, future.state.state_details.task_parameters_id
         ) == {"parameters": {"args": (42,), "kwargs": {"y": 42}}, "context": ANY}
+
+
+class TestAsyncTaskFromSyncTask:
+    """Tests for submitting async tasks from within sync tasks."""
+
+    def test_async_task_submit_from_sync_task_with_exception(self):
+        """
+        Test that an async task that raises an exception can be submitted
+        from within a sync task without causing a TypeError about
+        awaiting a bool.
+
+        Regression test for issue where mixed sync/async task transactions
+        would fail with "object bool can't be used in 'await' expression"
+        during transaction rollback.
+        """
+
+        @task
+        async def async_task():
+            raise ValueError("aah!")
+
+        @task
+        def sync_task():
+            future = async_task.submit()
+            # This should raise ValueError, not TypeError
+            return future.result()
+
+        @flow
+        def my_flow():
+            return sync_task()
+
+        # The flow should fail with ValueError from the async task,
+        # not TypeError from transaction handling
+        with pytest.raises(ValueError, match="aah!"):
+            my_flow()
+
+    def test_async_task_submit_from_sync_task_success(self):
+        """
+        Test that an async task can successfully be submitted and awaited
+        from within a sync task.
+        """
+
+        @task
+        async def async_task():
+            return 42
+
+        @task
+        def sync_task():
+            future = async_task.submit()
+            return future.result()
+
+        @flow
+        def my_flow():
+            return sync_task()
+
+        result = my_flow()
+        assert result == 42
