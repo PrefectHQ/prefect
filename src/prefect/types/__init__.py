@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import timedelta
 from functools import partial
-from typing import Annotated, Any, Optional, TypeVar, Union
+from typing import Annotated, Any, Dict, Optional, TypeVar, Union
 from typing_extensions import Literal
 import orjson
 import pydantic
@@ -228,8 +228,10 @@ def _deserialize_dict_if_string(value: Any) -> dict[str, str]:
     return value
 
 
+# This is a Dict[str, str] and not a dict[str, str] because the latter causes errors with Pydantic
+# 2.10.6 and Python < 3.11
 JsonStringOrDict = Annotated[
-    dict[str, str],
+    Dict[str, str],
     BeforeValidator(_deserialize_dict_if_string),
 ]
 
