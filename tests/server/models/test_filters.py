@@ -144,6 +144,7 @@ async def data(flow_function, db):
                 tags=["db", "blue"],
                 state=prefect.server.schemas.states.Completed(),
                 deployment_id=d_1_1.id,
+                start_time=now("UTC") - timedelta(hours=1),
             )
         )
 
@@ -153,6 +154,7 @@ async def data(flow_function, db):
                 name="sad-duck",
                 tags=["db", "blue"],
                 state=prefect.server.schemas.states.Completed(),
+                start_time=now("UTC") - timedelta(hours=1),
             )
         )
         await create_flow_run(
@@ -162,6 +164,7 @@ async def data(flow_function, db):
                 tags=["db", "red"],
                 state=prefect.server.schemas.states.Failed(),
                 deployment_id=d_1_1.id,
+                start_time=now("UTC") - timedelta(hours=1),
             )
         )
         await create_flow_run(
@@ -187,6 +190,7 @@ async def data(flow_function, db):
                 name="another-test-happy-duck",
                 tags=["db", "blue"],
                 state=prefect.server.schemas.states.Completed(),
+                start_time=now("UTC") - timedelta(hours=1),
             )
         )
 
@@ -203,6 +207,7 @@ async def data(flow_function, db):
                 flow_id=f_2.id,
                 tags=["db", "red"],
                 state=prefect.server.schemas.states.Failed(),
+                start_time=now("UTC") - timedelta(hours=1),
             )
         )
 
@@ -215,6 +220,7 @@ async def data(flow_function, db):
                 state=prefect.server.schemas.states.Completed(),
                 deployment_id=d_3_1.id,
                 work_queue_id=wp.default_queue_id,
+                start_time=now("UTC") - timedelta(hours=1),
             )
         )
 
@@ -246,6 +252,7 @@ async def data(flow_function, db):
                 task_key="b",
                 state=prefect.server.schemas.states.Completed(),
                 dynamic_key="0",
+                start_time=now("UTC") - timedelta(hours=1),
             )
         )
         await create_task_run(
@@ -255,6 +262,7 @@ async def data(flow_function, db):
                 task_key="c",
                 state=prefect.server.schemas.states.Completed(),
                 dynamic_key="0",
+                start_time=now("UTC") - timedelta(hours=1),
             )
         )
 
@@ -272,6 +280,7 @@ async def data(flow_function, db):
                 task_key="b",
                 state=prefect.server.schemas.states.Completed(),
                 dynamic_key="0",
+                start_time=now("UTC") - timedelta(hours=1),
             )
         )
         await create_task_run(
@@ -280,6 +289,7 @@ async def data(flow_function, db):
                 task_key="c",
                 state=prefect.server.schemas.states.Completed(),
                 dynamic_key="0",
+                start_time=now("UTC") - timedelta(hours=1),
             )
         )
 
@@ -289,6 +299,7 @@ async def data(flow_function, db):
                 task_key="a",
                 state=prefect.server.schemas.states.Failed(),
                 dynamic_key="0",
+                start_time=now("UTC") - timedelta(hours=1),
             )
         )
 
