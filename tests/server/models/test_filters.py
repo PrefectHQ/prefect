@@ -584,6 +584,16 @@ class TestCountFlowRunModels:
             ),
             1,
         ],
+        # flow runs with end_time set (completed or failed)
+        [
+            dict(flow_run_filter=filters.FlowRunFilter(end_time=dict(is_null_=False))),
+            6,
+        ],
+        # flow runs with null end_time (running or scheduled)
+        [
+            dict(flow_run_filter=filters.FlowRunFilter(end_time=dict(is_null_=True))),
+            6,
+        ],
         # empty filter
         [dict(flow_filter=filters.FlowFilter()), 12],
         # multiple empty filters
@@ -774,6 +784,16 @@ class TestCountTaskRunsModels:
                 )
             ),
             0,
+        ],
+        # task runs with end_time set (completed or failed)
+        [
+            dict(task_run_filter=filters.TaskRunFilter(end_time=dict(is_null_=False))),
+            5,
+        ],
+        # task runs with null end_time (running or no state)
+        [
+            dict(task_run_filter=filters.TaskRunFilter(end_time=dict(is_null_=True))),
+            5,
         ],
         # empty filter
         [dict(flow_filter=filters.FlowFilter()), 10],
