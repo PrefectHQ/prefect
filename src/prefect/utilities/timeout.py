@@ -1,8 +1,8 @@
-from asyncio import CancelledError
 from contextlib import contextmanager
 from typing import Optional
 
 from prefect._internal.concurrency.cancellation import (
+    CancelledError,
     cancel_async_after,
     cancel_sync_after,
 )

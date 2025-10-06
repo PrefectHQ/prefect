@@ -1956,6 +1956,14 @@ class TestTimeout:
         )
         assert response.active_slots == 0
 
+    async def test_does_not_raise_timeout_error_when_async_task_is_cancelled(self):
+        @task(timeout_seconds=10)
+        async def async_task():
+            raise asyncio.CancelledError()
+
+        with pytest.raises(asyncio.CancelledError):
+            await async_task()
+
 
 class TestPersistence:
     async def test_task_can_return_result_record(self):
