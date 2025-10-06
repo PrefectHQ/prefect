@@ -54,10 +54,11 @@ from prefect.assets import Asset, materialize
 #
 # Assets represent data products in your pipeline. Each asset has:
 # - A unique key (often an S3 path or other storage location)
-# - A materialization function decorated with @materialize
+# - A materialization function decorated with `@materialize`
 # - Dependencies (automatically tracked via function parameters)
-
+#
 # Define assets with descriptive keys
+
 raw_data_asset = Asset(key="pipeline://raw_data")
 processed_data_asset = Asset(key="pipeline://processed_data")
 analytics_asset = Asset(key="pipeline://analytics")
