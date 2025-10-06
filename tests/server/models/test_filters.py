@@ -594,6 +594,24 @@ class TestCountFlowRunModels:
             dict(flow_run_filter=filters.FlowRunFilter(end_time=dict(is_null_=True))),
             6,
         ],
+        # flow runs with end_time before now + 1 day (all completed/failed runs)
+        [
+            dict(
+                flow_run_filter=filters.FlowRunFilter(
+                    end_time=dict(before_=now("UTC") + timedelta(days=1))
+                )
+            ),
+            6,
+        ],
+        # flow runs with end_time after now + 1 day (none)
+        [
+            dict(
+                flow_run_filter=filters.FlowRunFilter(
+                    end_time=dict(after_=now("UTC") + timedelta(days=1))
+                )
+            ),
+            0,
+        ],
         # empty filter
         [dict(flow_filter=filters.FlowFilter()), 12],
         # multiple empty filters
@@ -794,6 +812,24 @@ class TestCountTaskRunsModels:
         [
             dict(task_run_filter=filters.TaskRunFilter(end_time=dict(is_null_=True))),
             5,
+        ],
+        # task runs with end_time before now + 1 day (all completed/failed runs)
+        [
+            dict(
+                task_run_filter=filters.TaskRunFilter(
+                    end_time=dict(before_=now("UTC") + timedelta(days=1))
+                )
+            ),
+            5,
+        ],
+        # task runs with end_time after now + 1 day (none)
+        [
+            dict(
+                task_run_filter=filters.TaskRunFilter(
+                    end_time=dict(after_=now("UTC") + timedelta(days=1))
+                )
+            ),
+            0,
         ],
         # empty filter
         [dict(flow_filter=filters.FlowFilter()), 10],
