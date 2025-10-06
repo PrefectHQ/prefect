@@ -218,6 +218,22 @@ class FlowRunFilterStartTime(PrefectBaseModel):
     )
 
 
+class FlowRunFilterEndTime(PrefectBaseModel):
+    """Filter by `FlowRun.end_time`."""
+
+    before_: Optional[DateTime] = Field(
+        default=None,
+        description="Only include flow runs ending at or before this time",
+    )
+    after_: Optional[DateTime] = Field(
+        default=None,
+        description="Only include flow runs ending at or after this time",
+    )
+    is_null_: Optional[bool] = Field(
+        default=None, description="If true, only return flow runs without an end time"
+    )
+
+
 class FlowRunFilterExpectedStartTime(PrefectBaseModel):
     """Filter by `FlowRun.expected_start_time`."""
 
@@ -307,6 +323,9 @@ class FlowRunFilter(PrefectBaseModel, OperatorMixin):
     )
     start_time: Optional[FlowRunFilterStartTime] = Field(
         default=None, description="Filter criteria for `FlowRun.start_time`"
+    )
+    end_time: Optional[FlowRunFilterEndTime] = Field(
+        default=None, description="Filter criteria for `FlowRun.end_time`"
     )
     expected_start_time: Optional[FlowRunFilterExpectedStartTime] = Field(
         default=None, description="Filter criteria for `FlowRun.expected_start_time`"
@@ -430,6 +449,22 @@ class TaskRunFilterStartTime(PrefectBaseModel):
     )
 
 
+class TaskRunFilterEndTime(PrefectBaseModel):
+    """Filter by `TaskRun.end_time`."""
+
+    before_: Optional[DateTime] = Field(
+        default=None,
+        description="Only include task runs ending at or before this time",
+    )
+    after_: Optional[DateTime] = Field(
+        default=None,
+        description="Only include task runs ending at or after this time",
+    )
+    is_null_: Optional[bool] = Field(
+        default=None, description="If true, only return task runs without an end time"
+    )
+
+
 class TaskRunFilter(PrefectBaseModel, OperatorMixin):
     """Filter task runs. Only task runs matching all criteria will be returned"""
 
@@ -447,6 +482,9 @@ class TaskRunFilter(PrefectBaseModel, OperatorMixin):
     )
     start_time: Optional[TaskRunFilterStartTime] = Field(
         default=None, description="Filter criteria for `TaskRun.start_time`"
+    )
+    end_time: Optional[TaskRunFilterEndTime] = Field(
+        default=None, description="Filter criteria for `TaskRun.end_time`"
     )
     subflow_runs: Optional[TaskRunFilterSubFlowRuns] = Field(
         default=None, description="Filter criteria for `TaskRun.subflow_run`"

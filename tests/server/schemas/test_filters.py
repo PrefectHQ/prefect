@@ -2,7 +2,7 @@ from uuid import uuid4
 
 import sqlalchemy as sa
 
-from prefect.server.schemas.filters import FlowRunFilter, LogFilter
+from prefect.server.schemas.filters import FlowRunFilter, LogFilter, TaskRunFilter
 from prefect.types._datetime import now
 
 NOW = now("UTC")
@@ -85,3 +85,20 @@ class TestFlowRunFilters:
                 <= NOW
             )
         )
+
+
+class TestTaskRunFilters:
+    def test_applies_task_run_end_time_filter_before(self, db):
+        task_run_filter = TaskRunFilter(end_time={"before_": NOW})
+        sql_filter = task_run_filter.as_sql_filter()
+        assert sql_filter.compare(sa.and_(db.TaskRun.end_time <= NOW))
+
+    def test_applies_task_run_end_time_filter_after(self, db):
+        task_run_filter = TaskRunFilter(end_time={"after_": NOW})
+        sql_filter = task_run_filter.as_sql_filter()
+        assert sql_filter.compare(sa.and_(db.TaskRun.end_time >= NOW))
+
+    def test_applies_task_run_end_time_filter_null(self, db):
+        task_run_filter = TaskRunFilter(end_time={"is_null_": True})
+        sql_filter = task_run_filter.as_sql_filter()
+        assert sql_filter.compare(sa.and_(db.TaskRun.end_time.is_(None)))

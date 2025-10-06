@@ -8932,12 +8932,35 @@ export interface components {
             state?: components["schemas"]["TaskRunFilterState"] | null;
             /** @description Filter criteria for `TaskRun.start_time` */
             start_time?: components["schemas"]["TaskRunFilterStartTime"] | null;
+            /** @description Filter criteria for `TaskRun.end_time` */
+            end_time?: components["schemas"]["TaskRunFilterEndTime"] | null;
             /** @description Filter criteria for `TaskRun.expected_start_time` */
             expected_start_time?: components["schemas"]["TaskRunFilterExpectedStartTime"] | null;
             /** @description Filter criteria for `TaskRun.subflow_run` */
             subflow_runs?: components["schemas"]["TaskRunFilterSubFlowRuns"] | null;
             /** @description Filter criteria for `TaskRun.flow_run_id` */
             flow_run_id?: components["schemas"]["TaskRunFilterFlowRunId"] | null;
+        };
+        /**
+         * TaskRunFilterEndTime
+         * @description Filter by `TaskRun.end_time`.
+         */
+        TaskRunFilterEndTime: {
+            /**
+             * Before
+             * @description Only include task runs ending at or before this time
+             */
+            before_?: string | null;
+            /**
+             * After
+             * @description Only include task runs ending at or after this time
+             */
+            after_?: string | null;
+            /**
+             * Is Null
+             * @description If true, only return task runs without an end time
+             */
+            is_null_?: boolean | null;
         };
         /**
          * TaskRunFilterExpectedStartTime
