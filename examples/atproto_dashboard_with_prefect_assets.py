@@ -39,6 +39,15 @@
 # cd atproto-dashboard
 # # Follow README for setup and configuration
 # ```
+#
+# ## Core Pattern: Define Assets and Dependencies
+#
+# Assets represent data products in your pipeline. Each asset has:
+# - A unique key (often an S3 path or other storage location)
+# - A materialization function decorated with `@materialize`
+# - Dependencies (automatically tracked via function parameters)
+#
+# Define assets with descriptive keys
 
 import json
 from datetime import datetime, timezone
@@ -49,15 +58,6 @@ from typing import Any
 from prefect import flow
 from prefect.artifacts import create_markdown_artifact
 from prefect.assets import Asset, materialize
-
-# ## Core Pattern: Define Assets and Dependencies
-#
-# Assets represent data products in your pipeline. Each asset has:
-# - A unique key (often an S3 path or other storage location)
-# - A materialization function decorated with `@materialize`
-# - Dependencies (automatically tracked via function parameters)
-#
-# Define assets with descriptive keys
 
 raw_data_asset = Asset(key="pipeline://raw_data")
 processed_data_asset = Asset(key="pipeline://processed_data")
