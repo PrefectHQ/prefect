@@ -62,6 +62,9 @@ async def convert_example_to_mdx_page(example: Example) -> str:
 
     content = await example.path.read_text()
 
+    # Extract frontmatter to check for custom github_url
+    example_frontmatter = extract_front_matter(content)
+
     lines = _RE_NEWLINE.split(content)
     markdown: list[str] = []
     code: list[str] = []
@@ -84,13 +87,24 @@ async def convert_example_to_mdx_page(example: Example) -> str:
     if _RE_FRONTMATTER.match(text):
         # Strip out frontmatter from text.
         if match := _RE_FRONTMATTER.search(text, 4):
-            github_url = f"{_GITHUB_BASE_URL}{example.path.relative_to(_REPO_ROOT)}"
+            # Use custom github_url if provided, otherwise use default
+            github_url = example_frontmatter.get(
+                "github_url",
+                f"{_GITHUB_BASE_URL}{example.path.relative_to(_REPO_ROOT)}",
+            )
+
+            # Use custom link text if this is an external URL
+            link_text = (
+                "View full project on GitHub"
+                if example_frontmatter.get("github_url")
+                else "View on GitHub"
+            )
 
             # Using raw HTML for precise placement; most Markdown/MDX renderers will
             # preserve the styling while allowing fallback to a plain link if HTML
             # is stripped.
             github_button = (
-                f'<a href="{github_url}" target="_blank">View on GitHub</a>\n\n'
+                f'<a href="{github_url}" target="_blank">{link_text}</a>\n\n'
             )
 
             frontmatter = "---\n"
