@@ -19,21 +19,13 @@ from prefect.testing.utilities import assert_does_not_warn, prefect_test_harness
 def _multiprocessing_worker():
     """
     Worker function for multiprocessing test. Must be at module level for pickling.
-
-    Explicitly exits with code 0 to avoid any Python cleanup issues in the forked process.
     """
-    import os
     import sys
 
-    try:
-        # Explicitly exit with success code instead of relying on return value cleanup
-        os._exit(0)
-    except Exception as e:
-        print(f"Worker error: {e}", file=sys.stderr)
-        import traceback
-
-        traceback.print_exc()
-        os._exit(1)
+    # Use sys.exit(0) which multiprocessing's _bootstrap explicitly handles
+    # by catching SystemExit. Just returning would also work, but this is
+    # more explicit about the intent to exit successfully.
+    sys.exit(0)
 
 
 def test_assert_does_not_warn_no_warning():
