@@ -5,6 +5,7 @@
 # dependencies: ["prefect", "requests", "beautifulsoup4"]
 # keywords: ["getting_started", "webscraping", "tasks", "retries"]
 # draft: false
+# order: 5
 # ---
 #
 # This example shows how Prefect enhances regular Python code without getting in its way.
