@@ -179,6 +179,42 @@ def _extract_imports_from_source(source_code: str) -> set[str]:
     return imports
 
 
+def _discover_local_dependencies(
+    flow: Flow[Any, Any], visited: set[str] | None = None
+) -> set[str]:
+    """
+    Recursively discover local module dependencies of a flow.
+
+    Args:
+        flow: The flow to analyze.
+        visited: Set of already visited modules to avoid infinite recursion.
+
+    Returns:
+        A set of local module names that should be serialized by value.
+    """
+    if visited is None:
+        visited = set()
+
+    local_modules: set[str] = set()
+
+    # Get the module containing the flow
+    try:
+        flow_module = inspect.getmodule(flow.fn)
+    except (AttributeError, TypeError):
+        # Flow function doesn't have a module (e.g., defined in REPL)
+        return local_modules
+
+    if not flow_module:
+        return local_modules
+
+    module_name = flow_module.__name__
+
+    # Process the flow's module and all its dependencies recursively
+    _process_module_dependencies(flow_module, module_name, local_modules, visited)
+
+    return local_modules
+
+
 def _process_module_dependencies(
     module: ModuleType,
     module_name: str,
@@ -241,42 +277,6 @@ def _process_module_dependencies(
         _process_module_dependencies(
             imported_module, import_name, local_modules, visited
         )
-
-
-def _discover_local_dependencies(
-    flow: Flow[Any, Any], visited: set[str] | None = None
-) -> set[str]:
-    """
-    Recursively discover local module dependencies of a flow.
-
-    Args:
-        flow: The flow to analyze.
-        visited: Set of already visited modules to avoid infinite recursion.
-
-    Returns:
-        A set of local module names that should be serialized by value.
-    """
-    if visited is None:
-        visited = set()
-
-    local_modules: set[str] = set()
-
-    # Get the module containing the flow
-    try:
-        flow_module = inspect.getmodule(flow.fn)
-    except (AttributeError, TypeError):
-        # Flow function doesn't have a module (e.g., defined in REPL)
-        return local_modules
-
-    if not flow_module:
-        return local_modules
-
-    module_name = flow_module.__name__
-
-    # Process the flow's module and all its dependencies recursively
-    _process_module_dependencies(flow_module, module_name, local_modules, visited)
-
-    return local_modules
 
 
 @contextmanager
