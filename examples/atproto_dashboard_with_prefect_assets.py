@@ -7,6 +7,7 @@
 # tags: [assets, social-media, analytics, dbt, streamlit, atproto, bluesky]
 # github_url: https://github.com/zzstoatzz/atproto-dashboard
 # draft: false
+# order: 4
 # ---
 #
 # **Build data pipelines with Prefect Assets – declarative, dependency-aware, and observable.**

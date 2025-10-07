@@ -5,6 +5,7 @@
 # dependencies: ["prefect", "httpx", "pandas"]
 # keywords: ["getting_started", "etl", "pandas"]
 # draft: false
+# order: 2
 # ---
 #
 # Prefect turns everyday Python into production-grade workflows with **zero boilerplate**.
