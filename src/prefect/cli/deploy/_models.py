@@ -121,6 +121,9 @@ class RawScheduleConfig(BaseModel):
     parameters: Dict[str, Any] = Field(default_factory=dict)
     slug: Optional[str] = None
 
+    # Cron-specific
+    day_or: Optional[Union[bool, str]] = None  # Allow string for template values
+
     @model_validator(mode="after")
     def _one_of_schedule(self):
         provided = [v is not None for v in (self.cron, self.interval, self.rrule)]
