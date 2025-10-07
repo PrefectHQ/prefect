@@ -38,12 +38,12 @@ Deploy the MCP server to [FastMCP Cloud](https://fastmcp.cloud) for remote acces
    - Server path: `src/prefect_mcp_server/server.py`
    - Requirements: `pyproject.toml` (or leave blank)
 4. Configure environment variables in the FastMCP Cloud interface:
-   - **For Prefect Cloud:**
-     - `PREFECT_API_URL`: `https://api.prefect.cloud/api/accounts/[ACCOUNT_ID]/workspaces/[WORKSPACE_ID]`
-     - `PREFECT_API_KEY`: Your Prefect Cloud API key
-   - **For self-hosted Prefect:**
-     - `PREFECT_API_URL`: Your Prefect server URL (e.g., `http://your-server:4200/api`)
-     - `PREFECT_API_AUTH_STRING`: Your authentication string (if using basic auth)
+
+   | Environment Variable | Prefect Cloud | Self-hosted Prefect |
+   |---------------------|---------------|---------------------|
+   | `PREFECT_API_URL` | `https://api.prefect.cloud/api/`<br/>`accounts/[ACCOUNT_ID]/`<br/>`workspaces/[WORKSPACE_ID]` | Your Prefect server URL (e.g., `http://your-server:4200/api`) |
+   | `PREFECT_API_KEY` | Your Prefect Cloud API key | Not used |
+   | `PREFECT_API_AUTH_STRING` | Not used | Your authentication string (if using basic auth) |
 5. Get your server URL (e.g., `https://your-server-name.fastmcp.app/mcp`)
 
 <Note>
