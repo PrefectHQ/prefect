@@ -5,6 +5,7 @@
 # dependencies: ["prefect"]
 # keywords: ["getting_started", "basics"]
 # draft: false
+# order: 1
 # ---
 #
 # Welcome to your first Prefect flow. In under a minute you will:
