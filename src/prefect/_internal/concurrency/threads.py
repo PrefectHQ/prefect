@@ -8,8 +8,10 @@ import asyncio
 import atexit
 import concurrent.futures
 import itertools
+import os
 import queue
 import threading
+import weakref
 from typing import Any, Optional
 
 from typing_extensions import TypeVar
@@ -21,6 +23,58 @@ from prefect._internal.concurrency.event_loop import get_running_loop
 from prefect._internal.concurrency.primitives import Event
 
 T = TypeVar("T", infer_variance=True)
+
+# Track all active threads for fork handling
+_active_worker_threads: weakref.WeakSet[WorkerThread] = weakref.WeakSet()
+_active_event_loop_threads: weakref.WeakSet[EventLoopThread] = weakref.WeakSet()
+
+
+def _reset_after_fork_in_child():
+    """
+    Reset thread state after fork() to prevent multiprocessing deadlocks on Linux.
+
+    When fork() is called, the child process inherits all thread state and locks
+    from the parent, but only the calling thread continues. This leaves other threads'
+    locks in inconsistent states causing deadlocks.
+
+    This handler is called by os.register_at_fork() in the child process after fork().
+    """
+    # Reset all WorkerThread instances
+    for worker in list(_active_worker_threads):
+        try:
+            # Mark as not started to prevent operations on dead threads
+            worker._started = False
+            worker._queue = (
+                queue.Queue()
+            )  # Reset queue to prevent deadlock on old locks
+            worker._lock = threading.Lock()  # Create new lock
+            worker._submitted_count = 0
+        except Exception:
+            # Instance might be in inconsistent state, ignore
+            pass
+
+    # Reset all EventLoopThread instances
+    for thread in list(_active_event_loop_threads):
+        try:
+            # Mark loop as None to prevent operations on dead threads
+            thread._loop = None
+            thread._ready_future = concurrent.futures.Future()
+            thread._shutdown_event = Event()
+            thread._lock = threading.Lock()  # Create new lock
+            thread._submitted_count = 0
+            thread._on_shutdown = []
+        except Exception:
+            # Instance might be in inconsistent state, ignore
+            pass
+
+
+# Register fork handler if supported (POSIX systems)
+if hasattr(os, "register_at_fork"):
+    try:
+        os.register_at_fork(after_in_child=_reset_after_fork_in_child)
+    except RuntimeError:
+        # Might fail in certain contexts (e.g., if already in a child process)
+        pass
 
 
 class WorkerThread(Portal):
@@ -44,6 +98,9 @@ class WorkerThread(Portal):
         self._started: bool = False
         self._submitted_count: int = 0
         self._lock = threading.Lock()
+
+        # Track this instance for fork handling
+        _active_worker_threads.add(self)
 
         if not daemon:
             atexit.register(self.shutdown)
@@ -144,6 +201,9 @@ class EventLoopThread(Portal):
         self._submitted_count: int = 0
         self._on_shutdown: list[Call[Any]] = []
         self._lock = threading.Lock()
+
+        # Track this instance for fork handling
+        _active_event_loop_threads.add(self)
 
         if not daemon:
             atexit.register(self.shutdown)

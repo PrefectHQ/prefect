@@ -5,8 +5,10 @@ import asyncio
 import concurrent.futures
 import contextlib
 import logging
+import os
 import queue
 import threading
+import weakref
 from collections.abc import AsyncGenerator, Awaitable, Coroutine, Generator, Hashable
 from typing import TYPE_CHECKING, Any, Generic, NoReturn, Optional, Union, cast
 
@@ -21,6 +23,48 @@ from prefect._internal.concurrency.threads import WorkerThread, get_global_loop
 T = TypeVar("T")
 Ts = TypeVarTuple("Ts")
 R = TypeVar("R", infer_variance=True)
+
+# Track all active services for fork handling
+_active_services: weakref.WeakSet[_QueueServiceBase[Any]] = weakref.WeakSet()
+
+
+def _reset_services_after_fork():
+    """
+    Reset service state after fork() to prevent multiprocessing deadlocks on Linux.
+
+    Called by os.register_at_fork() in the child process after fork().
+    """
+    # Clear all service instances to prevent operations on dead services
+    for service in list(_active_services):
+        try:
+            service._stopped = True
+            service._started = False
+            service._loop = None
+            service._done_event = None
+            service._task = None
+            service._queue = (
+                queue.Queue()
+            )  # Reset queue to prevent deadlock on old locks
+            service._lock = threading.Lock()  # Create new lock
+        except Exception:
+            # Instance might be in inconsistent state, ignore
+            pass
+
+    # Reset the class-level instance tracking for all service subclasses
+    try:
+        _QueueServiceBase._instances.clear()
+        _QueueServiceBase._instance_lock = threading.Lock()
+    except Exception:
+        pass
+
+
+# Register fork handler if supported (POSIX systems)
+if hasattr(os, "register_at_fork"):
+    try:
+        os.register_at_fork(after_in_child=_reset_services_after_fork)
+    except RuntimeError:
+        # Might fail in certain contexts (e.g., if already in a child process)
+        pass
 
 
 class _QueueServiceBase(abc.ABC, Generic[T]):
@@ -43,6 +87,9 @@ class _QueueServiceBase(abc.ABC, Generic[T]):
             name=f"{type(self).__name__}Thread",
         )
         self._logger = logging.getLogger(f"{type(self).__name__}")
+
+        # Track this instance for fork handling
+        _active_services.add(self)
 
     def start(self) -> None:
         logger.debug("Starting service %r", self)
