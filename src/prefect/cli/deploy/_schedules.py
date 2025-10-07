@@ -46,7 +46,8 @@ def _schedule_config_to_deployment_schedule(
     slug = schedule_config.get("slug")
 
     if cron := schedule_config.get("cron"):
-        cron_kwargs = {"cron": cron, "timezone": timezone}
+        day_or = schedule_config.get("day_or")
+        cron_kwargs = {"cron": cron, "timezone": timezone, "day_or": day_or}
         schedule = CronSchedule(
             **{k: v for k, v in cron_kwargs.items() if v is not None}
         )
