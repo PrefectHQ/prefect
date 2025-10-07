@@ -217,6 +217,12 @@
             ]
           },
           {
+            "group": "AI",
+            "pages": [
+              "v3/how-to-guides/ai/use-prefect-mcp-server"
+            ]
+          },
+          {
             "group": "Migrate",
             "pages": [
               "v3/how-to-guides/migrate/airflow",
