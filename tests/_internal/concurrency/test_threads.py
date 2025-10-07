@@ -1,4 +1,5 @@
 import concurrent.futures
+import sys
 from unittest.mock import MagicMock, call
 
 import pytest
@@ -113,10 +114,7 @@ def test_thread_submit(work, thread_cls):
     thread.shutdown()
 
 
-@pytest.mark.skipif(
-    not hasattr(__import__("os"), "fork"),
-    reason="fork() not available on this platform",
-)
+@pytest.mark.skipif(sys.platform == "win32", reason="fork() not available on Windows")
 def test_fork_handlers_registered():
     """Test that fork handlers are registered to prevent multiprocessing deadlocks."""
     import os

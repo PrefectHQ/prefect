@@ -1,5 +1,6 @@
 import asyncio
 import contextlib
+import sys
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
@@ -497,10 +498,7 @@ def test_queue_service_start_failure_contains_traceback_only_at_debug(
     assert (ExceptionOnHandleService.exception_msg in caplog.text) == expected
 
 
-@pytest.mark.skipif(
-    not hasattr(__import__("os"), "fork"),
-    reason="fork() not available on this platform",
-)
+@pytest.mark.skipif(sys.platform == "win32", reason="fork() not available on Windows")
 def test_service_fork_handlers_registered():
     """Test that fork handlers are registered for services to prevent multiprocessing deadlocks."""
     import os
