@@ -73,7 +73,7 @@ Documentation = "https://docs.prefect.io"
 Source = "https://github.com/PrefectHQ/prefect"
 Tracker = "https://github.com/PrefectHQ/prefect/issues"
 [project.optional-dependencies]
-notifications = ["apprise>=1.1.0, <2.0.0"]
+notifications = ["apprise>=1.9.5, <2.0.0"]
 
 
 [tool.hatch.version]

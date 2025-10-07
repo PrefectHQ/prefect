@@ -27,7 +27,7 @@ dependencies = [
     # Server dependencies
     "aiosqlite>=0.17.0,<1.0.0",
     "alembic>=1.7.5,<2.0.0",
-    "apprise>=1.1.0,<2.0.0",
+    "apprise>=1.9.5,<2.0.0",
     "asyncpg>=0.23,<1.0.0",
     "click>=8.0,<9",
     "cryptography>=36.0.1",
