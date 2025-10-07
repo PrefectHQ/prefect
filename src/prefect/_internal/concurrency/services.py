@@ -34,28 +34,11 @@ def _reset_services_after_fork():
 
     Called by os.register_at_fork() in the child process after fork().
     """
-    # Clear all service instances to prevent operations on dead services
     for service in list(_active_services):
-        try:
-            service._stopped = True
-            service._started = False
-            service._loop = None
-            service._done_event = None
-            service._task = None
-            service._queue = (
-                queue.Queue()
-            )  # Reset queue to prevent deadlock on old locks
-            service._lock = threading.Lock()  # Create new lock
-        except Exception:
-            # Instance might be in inconsistent state, ignore
-            pass
+        service._reset_for_fork()
 
-    # Reset the class-level instance tracking for all service subclasses
-    try:
-        _QueueServiceBase._instances.clear()
-        _QueueServiceBase._instance_lock = threading.Lock()
-    except Exception:
-        pass
+    # Reset the class-level instance tracking
+    _QueueServiceBase._reset_instances_for_fork()
 
 
 # Register fork handler if supported (POSIX systems)
@@ -90,6 +73,22 @@ class _QueueServiceBase(abc.ABC, Generic[T]):
 
         # Track this instance for fork handling
         _active_services.add(self)
+
+    def _reset_for_fork(self) -> None:
+        """Reset instance state after fork() to prevent deadlocks in child process."""
+        self._stopped = True
+        self._started = False
+        self._loop = None
+        self._done_event = None
+        self._task = None
+        self._queue = queue.Queue()
+        self._lock = threading.Lock()
+
+    @classmethod
+    def _reset_instances_for_fork(cls) -> None:
+        """Reset class-level state after fork() to prevent deadlocks in child process."""
+        cls._instances.clear()
+        cls._instance_lock = threading.Lock()
 
     def start(self) -> None:
         logger.debug("Starting service %r", self)
