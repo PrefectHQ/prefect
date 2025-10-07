@@ -170,7 +170,7 @@ Have an example to share? Check out our [contributing guide](/contribute/docs-co
         <Card title="{example.title}" icon="{example.icon}" href="/v3/examples/{slugify(example.path.stem)}">
             {example.description}
         </Card>
-        """
+"""
             for example in examples
         )
         + BOTTOM
