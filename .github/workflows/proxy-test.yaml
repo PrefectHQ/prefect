@@ -9,7 +9,10 @@ on:
       - .github/workflows/proxy-test.yaml
       - scripts/proxy-test/*
       - "src/prefect/events/clients.py"
+      - "src/prefect/_internal/websockets.py"
       - pyproject.toml
+      - client/pyproject.toml
+      - uv.lock
   push:
     branches:
       - main
@@ -17,7 +20,10 @@ on:
       - .github/workflows/proxy-test.yaml
       - scripts/proxy-test/*
       - "src/prefect/events/clients.py"
+      - "src/prefect/_internal/websockets.py"
       - pyproject.toml
+      - client/pyproject.toml
+      - uv.lock
 
 jobs:
   proxy-test:
