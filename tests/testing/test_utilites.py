@@ -20,12 +20,14 @@ def _multiprocessing_worker():
     """
     Worker function for multiprocessing test. Must be at module level for pickling.
     """
-    import sys
+    import os
 
-    # Use sys.exit(0) which multiprocessing's _bootstrap explicitly handles
-    # by catching SystemExit. Just returning would also work, but this is
-    # more explicit about the intent to exit successfully.
-    sys.exit(0)
+    # os._exit() is required here despite the underscore prefix. On Linux with fork(),
+    # the child process inherits Prefect's logging/event state. Normal exit (return or
+    # sys.exit) triggers Python cleanup that fails with this inherited state, causing
+    # exitcode=1. os._exit() bypasses cleanup and is documented for use "in the child
+    # process after os.fork()" - which is exactly this scenario.
+    os._exit(0)
 
 
 def test_assert_does_not_warn_no_warning():
