@@ -54,6 +54,16 @@ When deploying to FastMCP Cloud, you **must** provide credentials via environmen
 
 Configure your AI assistant to connect to the Prefect MCP server.
 
+### General setup
+
+All MCP clients need three pieces of information to connect to the Prefect MCP server:
+
+1. **Command**: `uvx` (the Universal Virtualenv eXecutor)
+2. **Arguments**: `--from prefect-mcp prefect-mcp-server`
+3. **Environment variables** (optional): Credentials for your Prefect instance
+
+The configuration format varies by client. Choose your client below for specific setup instructions:
+
 <AccordionGroup>
 
 <Accordion title="Claude Code">
@@ -227,7 +237,7 @@ To get the most out of the Prefect MCP server, guide your AI assistant with thes
 
 The MCP tools are optimized for reading and monitoring. For creating or updating resources, prompt your assistant to use the `prefect` CLI:
 
-**Good prompts:**
+**Example prompts:**
 - "Use the `prefect` CLI to create a new deployment"
 - "Show me how to update this deployment's schedule using `prefect`"
 - "Create an automation using the `prefect` CLI"
@@ -236,7 +246,7 @@ The MCP tools are optimized for reading and monitoring. For creating or updating
 
 The integrated docs proxy gives your assistant access to current Prefect documentation:
 
-**Good prompts:**
+**Example prompts:**
 - "Look up the latest syntax for creating a work pool"
 - "Find documentation on how to configure Docker work pools"
 - "What are the current best practices for deployment configuration?"
@@ -245,33 +255,11 @@ The integrated docs proxy gives your assistant access to current Prefect documen
 
 The MCP server excels at helping diagnose issues:
 
-**Good prompts:**
+**Example prompts:**
 - "Why is my deployment not running?"
 - "Debug the last failed flow run"
 - "Why are my flow runs delayed?"
 - "Show me which work pools have no active workers"
-
-## Examples
-
-### Debug a failed flow run
-
-```
-You: Why did my latest flow run fail?
-AI: Let me check your recent flow runs...
-    [Uses get_flow_runs and get_flow_run_logs tools]
-    Your flow run failed with a ValueError in the data validation step.
-    Here's the relevant error from the logs: ...
-```
-
-### Diagnose late runs
-
-```
-You: My deployment runs are being delayed. Can you help?
-AI: Let me investigate your work pools and concurrency limits...
-    [Uses get_dashboard and get_work_pools tools]
-    Your work pool "production" has reached its concurrency limit of 10.
-    There are currently 15 pending runs waiting for capacity.
-```
 
 ## Learn more
 
