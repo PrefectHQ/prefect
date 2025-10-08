@@ -2,6 +2,8 @@
 Command line interface for making direct API requests.
 """
 
+from __future__ import annotations
+
 import json
 import sys
 from pathlib import Path
@@ -18,8 +20,8 @@ from prefect.client.cloud import get_cloud_client
 from prefect.client.orchestration import get_client
 from prefect.settings import get_current_settings
 
-console = Console()
-console_err = Console(stderr=True)
+console: Console = Console()
+console_err: Console = Console(stderr=True)
 
 
 def parse_headers(header_list: list[str]) -> dict[str, str]:
