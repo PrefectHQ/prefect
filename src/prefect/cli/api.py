@@ -287,7 +287,7 @@ async def api_request(
 
     try:
         async with get_client() as client:
-            response = await client._client.request(
+            response = await client.request(
                 method=http_method,
                 url=url,
                 json=body_data if body_data is not None else None,
