@@ -520,8 +520,6 @@ from my_package.submodule import function
 
         All modules should be discovered, including module_d which is 3 levels deep.
         """
-        import sys
-
         # Create temporary package structure with deep nesting
         package_root = tmp_path / "test_packages"
         package_root.mkdir()
