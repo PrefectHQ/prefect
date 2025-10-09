@@ -7,7 +7,7 @@ from __future__ import annotations
 import json
 import sys
 from pathlib import Path
-from typing import Annotated, Any, Optional
+from typing import Any, Optional
 
 import httpx
 import typer
@@ -119,29 +119,37 @@ def get_exit_code(error: Exception) -> int:
 
 @app.command(name="api")
 async def api_request(
-    method: Annotated[
-        str, typer.Argument(help="HTTP method (GET, POST, PUT, PATCH, DELETE)")
-    ],
-    path: Annotated[str, typer.Argument(help="API path (e.g., /flows, /flows/filter)")],
-    data: Annotated[
-        Optional[str],
-        typer.Option("--data", help="Request body as JSON string or @filename"),
-    ] = None,
+    method: str = typer.Argument(
+        ..., help="HTTP method (GET, POST, PUT, PATCH, DELETE)"
+    ),
+    path: str = typer.Argument(..., help="API path (e.g., /flows, /flows/filter)"),
+    data: Optional[str] = typer.Option(
+        None,
+        "--data",
+        help="Request body as JSON string or @filename",
+    ),
     headers: list[str] = typer.Option(
         None,
         "-H",
         "--header",
         help="Custom header in 'Key: Value' format",
     ),
-    verbose: Annotated[
-        bool, typer.Option("-v", "--verbose", help="Show request/response headers")
-    ] = False,
-    root: Annotated[
-        bool, typer.Option("--root", help="Access API root level (e.g., /api/me)")
-    ] = False,
-    account: Annotated[
-        bool, typer.Option("--account", help="Access account level (Cloud only)")
-    ] = False,
+    verbose: bool = typer.Option(
+        False,
+        "-v",
+        "--verbose",
+        help="Show request/response headers",
+    ),
+    root: bool = typer.Option(
+        False,
+        "--root",
+        help="Access API root level (e.g., /api/me)",
+    ),
+    account: bool = typer.Option(
+        False,
+        "--account",
+        help="Access account level (Cloud only)",
+    ),
 ):
     """
     Make a direct request to the Prefect API.
