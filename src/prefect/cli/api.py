@@ -127,10 +127,12 @@ async def api_request(
         Optional[str],
         typer.Option("--data", help="Request body as JSON string or @filename"),
     ] = None,
-    headers: Annotated[
-        Optional[list[str]],
-        typer.Option("-H", "--header", help="Custom header in 'Key: Value' format"),
-    ] = None,
+    headers: list[str] = typer.Option(
+        None,
+        "-H",
+        "--header",
+        help="Custom header in 'Key: Value' format",
+    ),
     verbose: Annotated[
         bool, typer.Option("-v", "--verbose", help="Show request/response headers")
     ] = False,
