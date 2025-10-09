@@ -7,7 +7,7 @@ sidebarTitle: cloud
 
 ## Functions
 
-### `get_cloud_client` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/cloud.py#L38" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `get_cloud_client` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/cloud.py#L40" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_cloud_client(host: Optional[str] = None, api_key: Optional[str] = None, httpx_settings: Optional[dict[str, Any]] = None, infer_cloud_url: bool = False) -> 'CloudClient'
@@ -19,23 +19,23 @@ Needs a docstring.
 
 ## Classes
 
-### `CloudUnauthorizedError` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/cloud.py#L66" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `CloudUnauthorizedError` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/cloud.py#L68" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Raised when the CloudClient receives a 401 or 403 from the Cloud API.
 
 
-### `CloudClient` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/cloud.py#L72" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `CloudClient` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/cloud.py#L74" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 **Methods:**
 
-#### `account_base_url` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/cloud.py#L101" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `account_base_url` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/cloud.py#L103" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 account_base_url(self) -> str
 ```
 
-#### `api_healthcheck` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/cloud.py#L114" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `api_healthcheck` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/cloud.py#L116" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 api_healthcheck(self) -> None
@@ -47,67 +47,89 @@ successful.
 If successful, returns `None`.
 
 
-#### `check_ip_allowlist_access` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/cloud.py#L166" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `check_ip_allowlist_access` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/cloud.py#L168" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 check_ip_allowlist_access(self) -> IPAllowlistMyAccessResponse
 ```
 
-#### `get` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/cloud.py#L186" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/cloud.py#L188" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get(self, route: str, **kwargs: Any) -> Any
 ```
 
-#### `read_account_ip_allowlist` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/cloud.py#L155" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `raw_request` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/cloud.py#L191" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+raw_request(self, method: str, path: str, params: dict[str, Any] | None = None, path_params: dict[str, Any] | None = None, **kwargs: Any) -> httpx.Response
+```
+
+Make a raw HTTP request and return the Response object.
+
+Unlike request(), this does not parse JSON or raise special exceptions,
+returning the raw httpx.Response for direct access to headers, status, etc.
+
+**Args:**
+- `method`: HTTP method (GET, POST, etc.)
+- `path`: API path/route
+- `params`: Query parameters
+- `path_params`: Path parameters for formatting
+- `**kwargs`: Additional arguments passed to httpx (json, headers, etc.)
+
+**Returns:**
+- Raw httpx.Response object
+
+
+#### `read_account_ip_allowlist` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/cloud.py#L157" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_account_ip_allowlist(self) -> IPAllowlist
 ```
 
-#### `read_account_settings` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/cloud.py#L144" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `read_account_settings` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/cloud.py#L146" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_account_settings(self) -> dict[str, Any]
 ```
 
-#### `read_current_workspace` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/cloud.py#L130" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `read_current_workspace` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/cloud.py#L132" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_current_workspace(self) -> Workspace
 ```
 
-#### `read_worker_metadata` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/cloud.py#L138" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `read_worker_metadata` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/cloud.py#L140" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_worker_metadata(self) -> dict[str, Any]
 ```
 
-#### `read_workspaces` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/cloud.py#L124" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `read_workspaces` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/cloud.py#L126" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_workspaces(self) -> list[Workspace]
 ```
 
-#### `request` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/cloud.py#L189" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `request` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/cloud.py#L220" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 request(self, method: str, route: str, **kwargs: Any) -> Any
 ```
 
-#### `update_account_ip_allowlist` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/cloud.py#L159" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `update_account_ip_allowlist` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/cloud.py#L161" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 update_account_ip_allowlist(self, updated_allowlist: IPAllowlist) -> None
 ```
 
-#### `update_account_settings` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/cloud.py#L148" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `update_account_settings` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/cloud.py#L150" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 update_account_settings(self, settings: dict[str, Any]) -> None
 ```
 
-#### `workspace_base_url` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/cloud.py#L108" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `workspace_base_url` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/cloud.py#L110" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 workspace_base_url(self) -> str
