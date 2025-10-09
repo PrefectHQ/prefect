@@ -1,0 +1,98 @@
+---
+title: api
+sidebarTitle: api
+---
+
+# `prefect.cli.api`
+
+
+
+Command line interface for making direct API requests.
+
+
+## Functions
+
+### `parse_headers` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/api.py#L27" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+parse_headers(header_list: list[str]) -> dict[str, str]
+```
+
+
+Parse header strings in format 'Key: Value' into a dict.
+
+
+### `parse_data` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/api.py#L40" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+parse_data(data: str | None) -> dict[str, Any] | str | None
+```
+
+
+Parse data input - can be JSON string, @filename, or None.
+
+
+### `read_stdin_data` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/api.py#L61" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+read_stdin_data() -> dict[str, Any] | None
+```
+
+
+Read and parse JSON data from stdin if available.
+
+
+### `format_output` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/api.py#L73" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+format_output(response: httpx.Response, verbose: bool) -> None
+```
+
+
+Format and print the response using rich.
+
+
+### `get_exit_code` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/api.py#L102" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+get_exit_code(error: Exception) -> int
+```
+
+
+Determine the appropriate exit code for an error.
+
+
+### `api_request` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/api.py#L121" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+api_request(method: str = typer.Argument(..., help='HTTP method (GET, POST, PUT, PATCH, DELETE)'), path: str = typer.Argument(..., help='API path (e.g., /flows, /flows/filter)'), data: Optional[str] = typer.Option(None, '--data', help='Request body as JSON string or @filename'), headers: list[str] = typer.Option(None, '-H', '--header', help="Custom header in 'Key: Value' format"), verbose: bool = typer.Option(False, '-v', '--verbose', help='Show request/response headers'), root: bool = typer.Option(False, '--root', help='Access API root level (e.g., /api/me)'), account: bool = typer.Option(False, '--account', help='Access account level (Cloud only)'))
+```
+
+
+Make a direct request to the Prefect API.
+
+**Examples:**
+
+```bash
+# GET request
+$ prefect api GET /flows/abc-123
+
+# POST request with data
+$ prefect api POST /flows/filter --data '{"limit": 10}'
+
+# POST to filter endpoint (defaults to empty object)
+$ prefect api POST /flows/filter
+
+# Custom headers
+$ prefect api POST /flows/filter -H "X-Custom: value" --data '{}'
+
+# Verbose output
+$ prefect api GET /flows --verbose
+
+# Account-level operation (Cloud)
+$ prefect api GET /workspaces --account
+
+# API root level (Cloud only)
+$ prefect api GET /me --root
+```
+
