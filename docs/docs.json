@@ -849,6 +849,7 @@
                     "group": "prefect.cli",
                     "pages": [
                       "v3/api-ref/python/prefect-cli-__init__",
+                      "v3/api-ref/python/prefect-cli-api",
                       "v3/api-ref/python/prefect-cli-artifact",
                       "v3/api-ref/python/prefect-cli-block",
                       {
