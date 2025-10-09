@@ -314,19 +314,21 @@ class PrefectClient(
         httpx_settings = httpx_settings.copy() if httpx_settings else {}
         httpx_settings.setdefault("headers", {})
 
-        if PREFECT_API_TLS_INSECURE_SKIP_VERIFY:
-            # Create an unverified context for insecure connections
-            ctx = ssl.create_default_context()
-            ctx.check_hostname = False
-            ctx.verify_mode = ssl.CERT_NONE
-            httpx_settings.setdefault("verify", ctx)
-        else:
-            cert_file = PREFECT_API_SSL_CERT_FILE.value()
-            if not cert_file:
-                cert_file = certifi.where()
-            # Create a verified context with the certificate file
-            ctx = ssl.create_default_context(cafile=cert_file)
-            httpx_settings.setdefault("verify", ctx)
+        tls_verify = httpx_settings.get("verify")
+        if not tls_verify or not isinstance(tls_verify, ssl.SSLContext):
+            if PREFECT_API_TLS_INSECURE_SKIP_VERIFY:
+                # Create an unverified context for insecure connections
+                ctx = ssl.create_default_context()
+                ctx.check_hostname = False
+                ctx.verify_mode = ssl.CERT_NONE
+                httpx_settings.setdefault("verify", ctx)
+            else:
+                cert_file = PREFECT_API_SSL_CERT_FILE.value()
+                if not cert_file:
+                    cert_file = certifi.where()
+                # Create a verified context with the certificate file
+                ctx = ssl.create_default_context(cafile=cert_file)
+                httpx_settings.setdefault("verify", ctx)
 
         if api_version is None:
             api_version = SERVER_API_VERSION
@@ -1177,19 +1179,21 @@ class SyncPrefectClient(
         httpx_settings = httpx_settings.copy() if httpx_settings else {}
         httpx_settings.setdefault("headers", {})
 
-        if PREFECT_API_TLS_INSECURE_SKIP_VERIFY:
-            # Create an unverified context for insecure connections
-            ctx = ssl.create_default_context()
-            ctx.check_hostname = False
-            ctx.verify_mode = ssl.CERT_NONE
-            httpx_settings.setdefault("verify", ctx)
-        else:
-            cert_file = PREFECT_API_SSL_CERT_FILE.value()
-            if not cert_file:
-                cert_file = certifi.where()
-            # Create a verified context with the certificate file
-            ctx = ssl.create_default_context(cafile=cert_file)
-            httpx_settings.setdefault("verify", ctx)
+        tls_verify = httpx_settings.get("verify")
+        if not tls_verify or not isinstance(tls_verify, ssl.SSLContext):
+            if PREFECT_API_TLS_INSECURE_SKIP_VERIFY:
+                # Create an unverified context for insecure connections
+                ctx = ssl.create_default_context()
+                ctx.check_hostname = False
+                ctx.verify_mode = ssl.CERT_NONE
+                httpx_settings.setdefault("verify", ctx)
+            else:
+                cert_file = PREFECT_API_SSL_CERT_FILE.value()
+                if not cert_file:
+                    cert_file = certifi.where()
+                # Create a verified context with the certificate file
+                ctx = ssl.create_default_context(cafile=cert_file)
+                httpx_settings.setdefault("verify", ctx)
 
         if api_version is None:
             api_version = SERVER_API_VERSION
