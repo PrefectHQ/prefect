@@ -209,28 +209,49 @@ def _discover_local_dependencies(
 
     module_name = flow_module.__name__
 
+    # Process the flow's module and all its dependencies recursively
+    _process_module_dependencies(flow_module, module_name, local_modules, visited)
+
+    return local_modules
+
+
+def _process_module_dependencies(
+    module: ModuleType,
+    module_name: str,
+    local_modules: set[str],
+    visited: set[str],
+) -> None:
+    """
+    Recursively process a module and discover its local dependencies.
+
+    Args:
+        module: The module to process.
+        module_name: The name of the module.
+        local_modules: Set to accumulate discovered local modules.
+        visited: Set of already visited modules to avoid infinite recursion.
+    """
     # Skip if we've already processed this module
     if module_name in visited:
-        return local_modules
+        return
     visited.add(module_name)
 
-    # Check if the flow's module itself is local
-    module_file = getattr(flow_module, "__file__", None)
+    # Check if this is a local module
+    module_file = getattr(module, "__file__", None)
     if not module_file or not _is_local_module(module_name, module_file):
-        return local_modules
+        return
 
     local_modules.add(module_name)
 
     # Get the source code of the module
     try:
-        source_code = inspect.getsource(flow_module)
+        source_code = inspect.getsource(module)
     except (OSError, TypeError):
-        # Can't get source for the flow's module
-        return local_modules
+        # Can't get source for this module
+        return
 
     imports = _extract_imports_from_source(source_code)
 
-    # Check each import to see if it's local
+    # Check each import to see if it's local and recursively process it
     for import_name in imports:
         # Skip if already visited
         if import_name in visited:
@@ -249,30 +270,13 @@ def _discover_local_dependencies(
             else:
                 imported_module = importlib.import_module(import_name)
         except (ImportError, AttributeError):
-            # Can't import or module has no __file__, skip it
+            # Can't import, skip it
             continue
 
-        imported_file = getattr(imported_module, "__file__", None)
-        if not imported_file or not _is_local_module(import_name, imported_file):
-            continue
-
-        local_modules.add(import_name)
-        visited.add(import_name)
-
-        # Recursively check this module's dependencies
-        try:
-            imported_source = inspect.getsource(imported_module)
-        except (OSError, TypeError):
-            # Can't get source for this module, skip its dependencies
-            continue
-
-        nested_imports = _extract_imports_from_source(imported_source)
-        for nested_import in nested_imports:
-            if nested_import not in visited and _is_local_module(nested_import):
-                local_modules.add(nested_import)
-                visited.add(nested_import)
-
-    return local_modules
+        # Recursively process this imported module
+        _process_module_dependencies(
+            imported_module, import_name, local_modules, visited
+        )
 
 
 @contextmanager
