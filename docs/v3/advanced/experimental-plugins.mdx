@@ -44,10 +44,10 @@ Here's a minimal example plugin that sets environment variables:
 
 ```python
 # my_plugin/__init__.py
-from prefect._experimental.plugins import hookimpl, HookContext, SetupResult
+from prefect._experimental.plugins import register_hook, HookContext, SetupResult
 
 class Plugin:
-    @hookimpl
+    @register_hook
     def setup_environment(self, *, ctx: HookContext):
         """Configure environment before Prefect starts."""
         # Perform authentication or configuration
@@ -119,10 +119,10 @@ export PREFECT_PLUGINS_SAFE_MODE=1
 Plugins implement the `setup_environment` hook to configure the environment:
 
 ```python
-from prefect._experimental.plugins import hookimpl, HookContext, SetupResult
+from prefect._experimental.plugins import register_hook, HookContext, SetupResult
 
 class MyPlugin:
-    @hookimpl
+    @register_hook
     def setup_environment(self, *, ctx: HookContext) -> SetupResult | None:
         """
         Prepare process environment for Prefect.
@@ -148,6 +148,10 @@ class MyPlugin:
             required=False  # Optional
         )
 ```
+
+<Note>
+The `@register_hook` decorator marks your method as a plugin hook implementation. While the decorator is recommended for clarity, it's not strictly required for the plugin system to discover your hooks.
+</Note>
 
 ### HookContext
 
@@ -186,13 +190,13 @@ import os
 from datetime import timezone
 
 import botocore.session
-from prefect._experimental.plugins import hookimpl, HookContext, SetupResult
+from prefect._experimental.plugins import register_hook, HookContext, SetupResult
 
 PREFECT_PLUGIN_API_REQUIRES = ">=0.1,<1"
 
 
 class Plugin:
-    @hookimpl
+    @register_hook
     def setup_environment(self, *, ctx: HookContext) -> SetupResult | None:
         """Assume AWS IAM role and provide temporary credentials."""
         logger = ctx.logger_factory("prefect-aws-setup")
@@ -372,14 +376,16 @@ If plugin initialization fails (and strict mode is disabled), Prefect will log t
 Plugins can be either synchronous or asynchronous:
 
 ```python
+from prefect._experimental.plugins import register_hook
+
 class SyncPlugin:
-    @hookimpl
+    @register_hook
     def setup_environment(self, *, ctx: HookContext):
         # Synchronous implementation
         return SetupResult(env={"KEY": "value"})
 
 class AsyncPlugin:
-    @hookimpl
+    @register_hook
     async def setup_environment(self, *, ctx: HookContext):
         # Asynchronous implementation
         await fetch_data()
@@ -478,9 +484,9 @@ A: Use environment variables. Plugins can read variables set by earlier plugins.
 
 A: Yes, when the feature flag is enabled. The same hooks run in CLI, workers, and agents.
 
-**Q: Can I use plugins without the `@hookimpl` decorator?**
+**Q: Can I use plugins without the `@register_hook` decorator?**
 
-A: The `@hookimpl` decorator is recommended but not strictly required for the plugin system to discover your hooks.
+A: The `@register_hook` decorator is recommended but not strictly required for the plugin system to discover your hooks.
 
 ## Examples Repository
 

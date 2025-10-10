@@ -19,8 +19,8 @@ from prefect._experimental.plugins.diagnostics import SetupSummary
 from prefect._experimental.plugins.manager import (
     build_manager,
     call_async_hook,
-    hookimpl,
     load_entry_point_plugins,
+    register_hook,
 )
 from prefect._experimental.plugins.spec import (
     PREFECT_PLUGIN_API_VERSION,
@@ -36,7 +36,7 @@ __all__ = [
     "HookSpec",
     "SetupSummary",
     "PREFECT_PLUGIN_API_VERSION",
-    "hookimpl",
+    "register_hook",
 ]
 
 

@@ -19,6 +19,9 @@ EP_GROUP = "prefect.plugins"
 # Create a hookimpl marker for plugins to optionally use
 hookimpl = pluggy.HookimplMarker(PM_PROJECT_NAME)
 
+# User-friendly alias for hookimpl
+register_hook = hookimpl
+
 
 def build_manager(hookspecs: type) -> pluggy.PluginManager:
     """
