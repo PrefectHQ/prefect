@@ -26,9 +26,22 @@ jobs:
       actions: read # Required for Claude to read CI results on PRs
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 1
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+          python-version: '3.13'
+
+      - name: Install dependencies
+        run: |
+          uv sync
+
+      - name: Install pre-commit hooks
+        run: uv run pre-commit install --install-hooks
 
       - name: Run Claude Code
         id: claude
@@ -39,16 +52,6 @@ jobs:
           # This is an optional setting that allows Claude to read CI results on PRs
           additional_permissions: |
             actions: read
-
-          # Optional: Give a custom prompt to Claude. If this is not specified, Claude will perform the instructions specified in the comment that tagged it.
-          prompt: |
-            Proceed with the task specified in the comment that tagged you.
-
-            IMPORTANT: Before committing any code changes, you MUST run `pre-commit run --all-files` to ensure all formatting, linting, and type checking passes. This prevents the Static Analysis workflow from failing.
-
-            The pre-commit hooks will automatically format code with ruff and check types with pyright. If the hooks modify any files, add them with `git add .` and commit again.
-
-            Never use `git commit --no-verify` or `git commit --amend` under any circumstances.
 
           # Optional: Add claude_args to customize behavior and configuration
           # See https://github.com/anthropics/claude-code-action/blob/main/docs/usage.md

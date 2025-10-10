@@ -35,7 +35,7 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { TimezoneSelect } from "@/components/ui/timezone-select";
-import { cn } from "@/lib/utils";
+import { cn } from "@/utils";
 import { formatDate } from "@/utils/date";
 
 const INTERVALS = [

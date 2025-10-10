@@ -8,6 +8,7 @@ from redis.asyncio import Redis
 
 from prefect.server.concurrency.lease_storage import ConcurrencyLimitLeaseMetadata
 from prefect.server.utilities.leasing import ResourceLease
+from prefect.types._concurrency import ConcurrencyLeaseHolder
 
 
 class TestConcurrencyLeaseStorage:
@@ -59,6 +60,7 @@ class TestConcurrencyLeaseStorage:
         assert read_lease is not None
         assert read_lease.id == created_lease.id
         assert read_lease.resource_ids == resource_ids
+        assert read_lease.metadata is not None
         assert read_lease.metadata.slots == metadata.slots
         assert read_lease.expiration == created_lease.expiration
 
@@ -166,7 +168,7 @@ class TestConcurrencyLeaseStorage:
         ttl = timedelta(seconds=300)
 
         # Create multiple active leases
-        leases = []
+        leases: list[ResourceLease[ConcurrencyLimitLeaseMetadata]] = []
         for _ in range(5):
             lease = await storage.create_lease(resource_ids, ttl)
             leases.append(lease)
@@ -188,7 +190,7 @@ class TestConcurrencyLeaseStorage:
         expired_ttl = timedelta(seconds=-300)
 
         # Create multiple expired leases
-        leases = []
+        leases: list[ResourceLease[ConcurrencyLimitLeaseMetadata]] = []
         for _ in range(5):
             lease = await storage.create_lease(resource_ids, expired_ttl)
             leases.append(lease)
@@ -221,6 +223,7 @@ class TestConcurrencyLeaseStorage:
         assert deserialized_lease.resource_ids == original_lease.resource_ids
         assert deserialized_lease.expiration == original_lease.expiration
         assert deserialized_lease.created_at == original_lease.created_at
+        assert deserialized_lease.metadata is not None
         assert deserialized_lease.metadata.slots == original_lease.metadata.slots
 
     async def test_concurrent_operations(self, storage: ConcurrencyLeaseStorage):
@@ -307,3 +310,196 @@ class TestConcurrencyLeaseStorage:
 
         assert read_back is not None
         assert getattr(read_back.metadata, "holder", None) == holder
+
+    async def test_holder_indexes_and_lookup(self, storage: ConcurrencyLeaseStorage):
+        rid = uuid4()
+        ttl = timedelta(seconds=120)
+        holder_id = uuid4()
+        holder = {"type": "task_run", "id": str(holder_id)}
+        meta = ConcurrencyLimitLeaseMetadata(slots=1)
+        setattr(meta, "holder", holder)
+
+        lease = await storage.create_lease([rid], ttl, meta)
+
+        holders = await storage.list_holders_for_limit(rid)
+        assert len(holders) == 1
+        lease_id, holder = holders[0]
+        assert holder.type == "task_run"
+        assert holder.id == holder_id
+        assert lease_id == lease.id
+
+        await storage.revoke_lease(lease.id)
+
+        holders_after = await storage.list_holders_for_limit(rid)
+        assert len(holders_after) == 0
+        # Reverse lookup removed; ensure holder entry is gone via list
+
+    async def test_create_without_holder_does_not_index(
+        self, storage: ConcurrencyLeaseStorage
+    ):
+        rid = uuid4()
+        ttl = timedelta(seconds=60)
+        # No holder
+        lease = await storage.create_lease([rid], ttl)
+        assert lease is not None
+
+        holders = await storage.list_holders_for_limit(rid)
+        assert holders == []
+        # Reverse lookup removed; nothing to check here beyond empty list
+
+    async def test_multiple_resource_ids_index_all_and_cleanup(
+        self, storage: ConcurrencyLeaseStorage
+    ):
+        rid1, rid2 = uuid4(), uuid4()
+        ttl = timedelta(seconds=60)
+        holder_id = uuid4()
+        holder = {"type": "task_run", "id": str(holder_id)}
+        meta = ConcurrencyLimitLeaseMetadata(slots=1)
+        setattr(meta, "holder", holder)
+
+        lease = await storage.create_lease([rid1, rid2], ttl, meta)
+
+        holders_rid1 = await storage.list_holders_for_limit(rid1)
+        assert len(holders_rid1) == 1
+        lease_id, holder = holders_rid1[0]
+        assert holder.type == "task_run"
+        assert holder.id == holder_id
+        assert lease_id == lease.id
+
+        holders_rid2 = await storage.list_holders_for_limit(rid2)
+        assert len(holders_rid2) == 1
+        lease_id, holder = holders_rid2[0]
+        assert holder.type == "task_run"
+        assert holder.id == holder_id
+        assert lease_id == lease.id
+
+        await storage.revoke_lease(lease.id)
+
+        holders_rid1_after = await storage.list_holders_for_limit(rid1)
+        assert len(holders_rid1_after) == 0
+
+        holders_rid2_after = await storage.list_holders_for_limit(rid2)
+        assert len(holders_rid2_after) == 0
+
+    async def test_list_holders_for_limit_returns_typed_holders(
+        self, storage: ConcurrencyLeaseStorage
+    ):
+        """Test that list_holders_for_limit returns properly typed ConcurrencyLeaseHolder objects."""
+        limit_id = uuid4()
+        ttl = timedelta(seconds=60)
+
+        # Create multiple leases with different holders
+        holder1_id = uuid4()
+        holder2_id = uuid4()
+        holder1_data = {"type": "task_run", "id": str(holder1_id)}
+        holder2_data = {"type": "flow_run", "id": str(holder2_id)}
+
+        meta1 = ConcurrencyLimitLeaseMetadata(slots=2)
+        setattr(meta1, "holder", holder1_data)
+
+        meta2 = ConcurrencyLimitLeaseMetadata(slots=1)
+        setattr(meta2, "holder", holder2_data)
+
+        # Create leases
+        lease1 = await storage.create_lease([limit_id], ttl, meta1)
+        lease2 = await storage.create_lease([limit_id], ttl, meta2)
+
+        # Get holders - should return ConcurrencyLeaseHolder objects
+        holders = await storage.list_holders_for_limit(limit_id)
+
+        assert len(holders) == 2
+
+        # Check that they are ConcurrencyLeaseHolder instances
+        for _, holder in holders:
+            assert isinstance(holder, ConcurrencyLeaseHolder)
+
+        # Check that the data matches (IDs are UUIDs in the returned objects)
+        holder_types = {holder.type for _, holder in holders}
+        holder_ids = {holder.id for _, holder in holders}
+        assert "task_run" in holder_types
+        assert "flow_run" in holder_types
+        assert holder1_id in holder_ids
+        assert holder2_id in holder_ids
+
+        # Clean up
+        await storage.revoke_lease(lease1.id)
+        await storage.revoke_lease(lease2.id)
+
+    async def test_list_holders_for_limit_empty_when_no_holders(
+        self, storage: ConcurrencyLeaseStorage
+    ):
+        """Test that list_holders_for_limit returns empty list when no holders exist."""
+        limit_id = uuid4()
+        holders = await storage.list_holders_for_limit(limit_id)
+        assert holders == []
+        assert isinstance(holders, list)
+
+    async def test_read_active_lease_ids_with_pagination(
+        self, storage: ConcurrencyLeaseStorage
+    ):
+        """Test pagination of active lease IDs."""
+        # Create 10 active leases
+        active_ttl = timedelta(minutes=5)
+        lease_ids: list[UUID] = []
+        for _ in range(10):
+            lease = await storage.create_lease([uuid4()], active_ttl)
+            lease_ids.append(lease.id)
+
+        # Test getting first page
+        first_page = await storage.read_active_lease_ids(limit=3, offset=0)
+        assert len(first_page) == 3
+        assert all(lid in lease_ids for lid in first_page)
+
+        # Test getting second page
+        second_page = await storage.read_active_lease_ids(limit=3, offset=3)
+        assert len(second_page) == 3
+        assert all(lid in lease_ids for lid in second_page)
+
+        # Ensure no overlap between pages
+        assert set(first_page).isdisjoint(set(second_page))
+
+        # Test getting third page
+        third_page = await storage.read_active_lease_ids(limit=3, offset=6)
+        assert len(third_page) == 3
+        assert all(lid in lease_ids for lid in third_page)
+
+        # Test getting partial last page
+        fourth_page = await storage.read_active_lease_ids(limit=3, offset=9)
+        assert len(fourth_page) == 1
+        assert all(lid in lease_ids for lid in fourth_page)
+
+        # Test offset beyond available items
+        empty_page = await storage.read_active_lease_ids(limit=3, offset=100)
+        assert empty_page == []
+
+        # Clean up
+        for lease_id in lease_ids:
+            await storage.revoke_lease(lease_id)
+
+    async def test_read_active_lease_ids_default_pagination(
+        self, storage: ConcurrencyLeaseStorage
+    ):
+        """Test default pagination behavior."""
+        # Create 150 active leases (more than default limit)
+        active_ttl = timedelta(minutes=5)
+        lease_ids: list[UUID] = []
+        for _ in range(150):
+            lease = await storage.create_lease([uuid4()], active_ttl)
+            lease_ids.append(lease.id)
+
+        # Test default limit of 100
+        default_page = await storage.read_active_lease_ids()
+        assert len(default_page) == 100
+        assert all(lid in lease_ids for lid in default_page)
+
+        # Test with offset
+        offset_page = await storage.read_active_lease_ids(offset=100)
+        assert len(offset_page) == 50  # remaining leases
+        assert all(lid in lease_ids for lid in offset_page)
+
+        # Ensure no overlap with first page
+        assert set(default_page).isdisjoint(set(offset_page))
+
+        # Clean up
+        for lease_id in lease_ids:
+            await storage.revoke_lease(lease_id)

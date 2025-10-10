@@ -43,9 +43,25 @@ class ConcurrencyLeaseStorage(LeaseStorage[ConcurrencyLimitLeaseMetadata]):
 
     async def revoke_lease(self, lease_id: UUID) -> None: ...
 
-    async def read_active_lease_ids(self) -> list[UUID]: ...
+    async def read_active_lease_ids(
+        self, limit: int = 100, offset: int = 0
+    ) -> list[UUID]: ...
 
     async def read_expired_lease_ids(self, limit: int = 100) -> list[UUID]: ...
+
+    async def list_holders_for_limit(
+        self, limit_id: UUID
+    ) -> list[tuple[UUID, ConcurrencyLeaseHolder]]:
+        """
+        List all holders for a given concurrency limit.
+
+        Args:
+            limit_id: The ID of the concurrency limit to list holders for.
+
+        Returns:
+            A list of tuples containing the lease ID and ConcurrencyLeaseHolder objects representing active holders.
+        """
+        ...
 
 
 def get_concurrency_lease_storage() -> ConcurrencyLeaseStorage:

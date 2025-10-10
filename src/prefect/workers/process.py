@@ -202,6 +202,15 @@ class ProcessWorker(
                         )
                         healthcheck_thread.start()
                     printer(f"Worker {worker.name!r} started!")
+
+                # If running once, wait for active runs to complete before exiting
+                if run_once and self._limiter:
+                    while self.limiter.borrowed_tokens > 0:
+                        self._logger.debug(
+                            "Waiting for %s active run(s) to finish before shutdown...",
+                            self.limiter.borrowed_tokens,
+                        )
+                        await anyio.sleep(0.1)
         finally:
             stop_client_metrics_server()
 
@@ -237,12 +246,16 @@ class ProcessWorker(
                 task_status=task_status,
             )
 
-        if process is None or process.returncode is None:
+        status_code = (
+            getattr(process, "returncode", None)
+            if getattr(process, "returncode", None) is not None
+            else getattr(process, "exitcode", None)
+        )
+
+        if process is None or status_code is None:
             raise RuntimeError("Failed to start flow run process.")
 
-        return ProcessWorkerResult(
-            status_code=process.returncode, identifier=str(process.pid)
-        )
+        return ProcessWorkerResult(status_code=status_code, identifier=str(process.pid))
 
     async def _submit_adhoc_run(
         self,

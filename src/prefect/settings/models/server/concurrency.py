@@ -15,3 +15,10 @@ class ServerConcurrencySettings(PrefectBaseSettings):
         default="prefect.server.concurrency.lease_storage.memory",
         description="The module to use for storing concurrency limit leases.",
     )
+
+    initial_deployment_lease_duration: float = Field(
+        default=300.0,
+        ge=30.0,  # Minimum 30 seconds
+        le=3600.0,  # Maximum 1 hour
+        description="Initial duration for deployment concurrency lease in seconds.",
+    )

@@ -1,4 +1,4 @@
-import { createContext, use, useState } from "react";
+import { createContext, type KeyboardEventHandler, use, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
 	Command,
@@ -14,7 +14,7 @@ import {
 	PopoverContent,
 	PopoverTrigger,
 } from "@/components/ui/popover";
-import { cn } from "@/lib/utils";
+import { cn } from "@/utils";
 
 const ComboboxContext = createContext<{
 	open: boolean;
@@ -81,10 +81,12 @@ const ComboboxCommandInput = ({
 	value,
 	onValueChange,
 	placeholder,
+	onKeyDown,
 }: {
 	value?: string;
 	onValueChange?: (value: string) => void;
 	placeholder?: string;
+	onKeyDown?: KeyboardEventHandler<HTMLInputElement>;
 }) => {
 	return (
 		<CommandInput
@@ -92,6 +94,7 @@ const ComboboxCommandInput = ({
 			onValueChange={onValueChange}
 			placeholder={placeholder}
 			className="h-9"
+			onKeyDown={onKeyDown}
 		/>
 	);
 };

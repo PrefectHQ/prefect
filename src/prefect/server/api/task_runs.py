@@ -15,7 +15,6 @@ from fastapi import (
     Path,
     Response,
     WebSocket,
-    status,
 )
 from fastapi.responses import ORJSONResponse
 from starlette.websockets import WebSocketDisconnect
@@ -23,6 +22,7 @@ from starlette.websockets import WebSocketDisconnect
 import prefect.server.api.dependencies as dependencies
 import prefect.server.models as models
 import prefect.server.schemas as schemas
+from prefect._internal.compatibility.starlette import status
 from prefect.logging import get_logger
 from prefect.server.api.run_history import run_history
 from prefect.server.database import PrefectDBInterface, provide_database_interface
@@ -63,7 +63,7 @@ async def create_task_run(
 
     If no state is provided, the task run will be created in a PENDING state.
 
-    For more information, see https://docs.prefect.io/v3/develop/write-tasks.
+    For more information, see https://docs.prefect.io/v3/concepts/tasks.
     """
     # hydrate the input model into a full task run / state model
     task_run_dict = task_run.model_dump()

@@ -4,10 +4,11 @@ from datetime import datetime, timedelta, timezone
 from uuid import UUID
 
 from prefect.server.concurrency.lease_storage import (
-    ConcurrencyLeaseStorage as _ConcurrencyLeaseStorage,
+    ConcurrencyLeaseHolder,
+    ConcurrencyLimitLeaseMetadata,
 )
 from prefect.server.concurrency.lease_storage import (
-    ConcurrencyLimitLeaseMetadata,
+    ConcurrencyLeaseStorage as _ConcurrencyLeaseStorage,
 )
 from prefect.server.utilities.leasing import ResourceLease
 
@@ -59,14 +60,16 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
         self.leases.pop(lease_id, None)
         self.expirations.pop(lease_id, None)
 
-    async def read_active_lease_ids(self, limit: int = 100) -> list[UUID]:
+    async def read_active_lease_ids(
+        self, limit: int = 100, offset: int = 0
+    ) -> list[UUID]:
         now = datetime.now(timezone.utc)
         active_leases = [
             lease_id
             for lease_id, expiration in self.expirations.items()
             if expiration > now
         ]
-        return active_leases[:limit]
+        return active_leases[offset : offset + limit]
 
     async def read_expired_lease_ids(self, limit: int = 100) -> list[UUID]:
         now = datetime.now(timezone.utc)
@@ -76,3 +79,22 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
             if expiration < now
         ]
         return expired_leases[:limit]
+
+    async def list_holders_for_limit(
+        self, limit_id: UUID
+    ) -> list[tuple[UUID, ConcurrencyLeaseHolder]]:
+        """List all holders for a given concurrency limit."""
+        now = datetime.now(timezone.utc)
+        holders_with_leases: list[tuple[UUID, ConcurrencyLeaseHolder]] = []
+
+        for lease_id, lease in self.leases.items():
+            # Check if lease is active and for the specified limit
+            if (
+                limit_id in lease.resource_ids
+                and self.expirations.get(lease_id, now) > now
+                and lease.metadata
+                and lease.metadata.holder
+            ):
+                holders_with_leases.append((lease.id, lease.metadata.holder))
+
+        return holders_with_leases

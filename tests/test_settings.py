@@ -57,7 +57,11 @@ from prefect.settings import (
     save_profiles,
     temporary_settings,
 )
-from prefect.settings.base import _to_environment_variable_value
+from prefect.settings.base import (
+    PrefectBaseSettings,
+    _to_environment_variable_value,
+    build_settings_config,
+)
 from prefect.settings.constants import DEFAULT_PROFILES_PATH
 from prefect.settings.legacy import (
     Setting,
@@ -74,6 +78,10 @@ from prefect.settings.models.server.api import ServerAPISettings
 from prefect.settings.models.server.database import (
     ServerDatabaseSettings,
     SQLAlchemySettings,
+)
+from prefect.settings.sources import (
+    PrefectTomlConfigSettingsSource,
+    PyprojectTomlConfigSettingsSource,
 )
 from prefect.utilities.collections import get_from_dict, set_in_dict
 from prefect.utilities.filesystem import tmpchdir
@@ -245,7 +253,6 @@ SUPPORTED_SETTINGS = {
     "PREFECT_EVENTS_WEBSOCKET_BACKFILL_PAGE_SIZE": {"test_value": 10, "legacy": True},
     "PREFECT_EXPERIMENTAL_WARN": {"test_value": True, "legacy": True},
     "PREFECT_EXPERIMENTS_WARN": {"test_value": True},
-    "PREFECT_EXPERIMENTS_LINEAGE_EVENTS_ENABLED": {"test_value": True},
     "PREFECT_FLOW_DEFAULT_RETRIES": {"test_value": 10, "legacy": True},
     "PREFECT_FLOWS_DEFAULT_RETRIES": {"test_value": 10},
     "PREFECT_FLOW_DEFAULT_RETRY_DELAY_SECONDS": {"test_value": 10, "legacy": True},
@@ -305,6 +312,9 @@ SUPPORTED_SETTINGS = {
     "PREFECT_SERVER_API_PORT": {"test_value": 4200},
     "PREFECT_SERVER_CONCURRENCY_LEASE_STORAGE": {
         "test_value": "prefect.server.concurrency.lease_storage.filesystem"
+    },
+    "PREFECT_SERVER_CONCURRENCY_INITIAL_DEPLOYMENT_LEASE_DURATION": {
+        "test_value": 120.0
     },
     "PREFECT_SERVER_CORS_ALLOWED_HEADERS": {"test_value": "foo", "legacy": True},
     "PREFECT_SERVER_CORS_ALLOWED_METHODS": {"test_value": "foo", "legacy": True},
@@ -2638,3 +2648,53 @@ class TestClientCustomHeadersSetting:
                 "PREFECT_CLIENT_CUSTOM_HEADERS"
             ]
             assert json.loads(env_value) == custom_headers
+
+    def test_setting_via_cli_string(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ):
+        """Test setting custom headers via CLI/profile with a JSON string."""
+        from prefect.settings.models.root import Settings
+
+        # Clear test mode to ensure profile loading
+        monkeypatch.delenv("PREFECT_TESTING_TEST_MODE", raising=False)
+        monkeypatch.delenv("PREFECT_TESTING_UNIT_TEST_MODE", raising=False)
+
+        json_string = (
+            '{"X-Test-Header": "test-value", "Authorization": "Bearer token123"}'
+        )
+
+        # Use a temporary profiles file for isolation
+        profiles_path = tmp_path / "profiles.toml"
+        monkeypatch.setenv("PREFECT_PROFILES_PATH", str(profiles_path))
+
+        # Write a profile with the JSON string value, simulating what `prefect config set` does
+        profiles_path.write_text(f"""
+active = "test"
+
+[profiles.test]
+PREFECT_CLIENT_CUSTOM_HEADERS = '{json_string}'
+""")
+
+        # Create a new settings instance that will load from the profiles file
+        settings = Settings()
+        expected = {"X-Test-Header": "test-value", "Authorization": "Bearer token123"}
+        assert settings.client.custom_headers == expected
+
+
+def test_prefect_custom_sources_satisfy_pydantic_warning_check() -> None:
+    class DummySettings(PrefectBaseSettings):
+        model_config = build_settings_config()
+
+    sources = (
+        PrefectTomlConfigSettingsSource(DummySettings),
+        PyprojectTomlConfigSettingsSource(DummySettings),
+    )
+
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        PrefectBaseSettings._settings_warn_unused_config_keys(
+            sources,
+            DummySettings.model_config,
+        )
+
+    assert not caught

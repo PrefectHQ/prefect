@@ -7,8 +7,7 @@ import type { SchemaProperty } from "@/components/schemas/schema-display";
 import { FormattedDate } from "@/components/ui/formatted-date";
 import { Separator } from "@/components/ui/separator";
 import { WorkPoolStatusBadge } from "@/components/work-pools/work-pool-status-badge";
-import { cn } from "@/lib/utils";
-import { titleCase } from "@/utils";
+import { cn, titleCase } from "@/utils";
 
 type WorkPoolDetailsProps = {
 	workPool: WorkPool;
@@ -52,14 +51,7 @@ function BasicInfoSection({ workPool }: { workPool: WorkPool }) {
 			field: "Status",
 			ComponentValue: () => (
 				<dd>
-					<WorkPoolStatusBadge
-						status={
-							(workPool.status?.toLowerCase() as
-								| "ready"
-								| "paused"
-								| "not_ready") || "not_ready"
-						}
-					/>
+					<WorkPoolStatusBadge status={workPool.status || "NOT_READY"} />
 				</dd>
 			),
 		},

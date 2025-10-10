@@ -57,6 +57,7 @@ class ReactiveTriggers(RunInEphemeralServers, Service):
         except asyncio.CancelledError:
             pass
         finally:
+            await self.consumer.cleanup()
             self.consumer_task = None
         logger.debug("Reactive triggers stopped")
 

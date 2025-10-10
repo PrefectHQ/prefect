@@ -1357,6 +1357,55 @@ class TestRegisterBlockTypeAndSchema:
         )
         assert umbrella_block_schema is not None
 
+    @pytest.mark.skipif(
+        sys.version_info < (3, 10),
+        reason="requires python3.10 or higher for `|` unions",
+    )
+    async def test_register_nested_block_union_pipe(
+        self, prefect_client: PrefectClient
+    ):
+        class A(Block):
+            a: str
+
+        class B(Block):
+            b: str
+
+        class C(Block):
+            c: str
+
+        class Umbrella(Block):
+            a_b_or_c: A | B | C
+
+        await Umbrella.register_type_and_schema()
+
+        a_block_type = await prefect_client.read_block_type_by_slug(slug="a")
+        assert a_block_type is not None
+        b_block_type = await prefect_client.read_block_type_by_slug(slug="b")
+        assert b_block_type is not None
+        c_block_type = await prefect_client.read_block_type_by_slug(slug="c")
+        assert c_block_type is not None
+        umbrella_block_type = await prefect_client.read_block_type_by_slug(
+            slug="umbrella"
+        )
+        assert umbrella_block_type is not None
+
+        a_block_schema = await prefect_client.read_block_schema_by_checksum(
+            checksum=A._calculate_schema_checksum()
+        )
+        assert a_block_schema is not None
+        b_block_schema = await prefect_client.read_block_schema_by_checksum(
+            checksum=B._calculate_schema_checksum()
+        )
+        assert b_block_schema is not None
+        c_block_schema = await prefect_client.read_block_schema_by_checksum(
+            checksum=C._calculate_schema_checksum()
+        )
+        assert c_block_schema is not None
+        umbrella_block_schema = await prefect_client.read_block_schema_by_checksum(
+            checksum=Umbrella._calculate_schema_checksum()
+        )
+        assert umbrella_block_schema is not None
+
     async def test_register_nested_block_list(self, prefect_client: PrefectClient):
         class A(Block):
             a: str
@@ -2576,9 +2625,11 @@ class TestTypeDispatch:
     def test_base_parse_creates_child_instance_from_dict(self):
         block = BaseBlock.model_validate(AChildBlock().model_dump())
         assert type(block) is AChildBlock
+        assert block.a == 1
 
         block = BaseBlock.model_validate(BChildBlock().model_dump())
         assert type(block) is BChildBlock
+        assert block.b == 2
 
     def test_base_parse_creates_child_instance_from_json(self):
         block = BaseBlock.model_validate_json(AChildBlock().model_dump_json())
@@ -2612,9 +2663,11 @@ class TestTypeDispatch:
     def test_base_field_creates_child_instance_from_dict(self):
         model = ParentModel(block=AChildBlock().model_dump())
         assert type(model.block) is AChildBlock
+        assert model.block.a == 1
 
         model = ParentModel(block=BChildBlock().model_dump())
         assert type(model.block) is BChildBlock
+        assert model.block.b == 2
 
     def test_created_block_has_pydantic_attributes(self):
         block = BaseBlock.model_validate(AChildBlock().model_dump())
@@ -2662,9 +2715,11 @@ class TestTypeDispatch:
         model.block = model.block.model_copy()
         assert type(model.block) is AChildBlock
         assert model.block
+        assert model.block.a == 3
 
         model = UnionParentModel(block=BChildBlock(b=4).model_dump())
         assert type(model.block) is BChildBlock
+        assert model.block.b == 4
 
     def test_base_field_creates_child_instance_with_assignment_validation(self):
         class AssignmentParentModel(BaseModel, validate_assignment=True):

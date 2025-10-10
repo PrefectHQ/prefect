@@ -364,15 +364,6 @@
                     ],
                     "title": "Warn",
                     "type": "boolean"
-                },
-                "lineage_events_enabled": {
-                    "default": false,
-                    "description": "If `True`, enables emitting lineage events. Set to `False` to disable lineage event emission.",
-                    "supported_environment_variables": [
-                        "PREFECT_EXPERIMENTS_LINEAGE_EVENTS_ENABLED"
-                    ],
-                    "title": "Lineage Events Enabled",
-                    "type": "boolean"
                 }
             },
             "title": "ExperimentsSettings",
@@ -1074,6 +1065,17 @@
                     ],
                     "title": "Lease Storage",
                     "type": "string"
+                },
+                "initial_deployment_lease_duration": {
+                    "default": 300.0,
+                    "description": "Initial duration for deployment concurrency lease in seconds.",
+                    "maximum": 3600.0,
+                    "minimum": 30.0,
+                    "supported_environment_variables": [
+                        "PREFECT_SERVER_CONCURRENCY_INITIAL_DEPLOYMENT_LEASE_DURATION"
+                    ],
+                    "title": "Initial Deployment Lease Duration",
+                    "type": "number"
                 }
             },
             "title": "ServerConcurrencySettings",
@@ -2541,7 +2543,7 @@
             "type": "string"
         },
         "profiles_path": {
-            "description": "The path to a profiles configuration file. Supports $PREFECT_HOME templating. Defaults to $PREFECT_HOME/profiles.toml.",
+            "description": "The path to a profiles configuration file. Supports \\$PREFECT_HOME templating. Defaults to \\$PREFECT_HOME/profiles.toml.",
             "format": "path",
             "supported_environment_variables": [
                 "PREFECT_PROFILES_PATH"

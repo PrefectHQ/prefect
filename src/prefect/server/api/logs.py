@@ -30,7 +30,7 @@ async def create_logs(
     """
     Create new logs from the provided schema.
 
-    For more information, see https://docs.prefect.io/v3/develop/logging.
+    For more information, see https://docs.prefect.io/v3/how-to-guides/workflows/add-logging.
     """
     for batch in models.logs.split_logs_into_batches(logs):
         async with db.session_context(begin_transaction=True) as session:

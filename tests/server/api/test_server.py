@@ -1,6 +1,8 @@
 import contextlib
+import logging
 import socket
 import sqlite3
+import sys
 from unittest.mock import MagicMock, patch
 from uuid import uuid4
 
@@ -9,9 +11,9 @@ import httpx
 import pytest
 import sqlalchemy as sa
 import toml
-from fastapi import status
 from httpx import ASGITransport, AsyncClient
 
+from prefect._internal.compatibility.starlette import status
 from prefect.client.constants import SERVER_API_VERSION
 from prefect.client.orchestration import get_client
 from prefect.flows import flow
@@ -20,12 +22,14 @@ from prefect.server.api.server import (
     SQLITE_LOCKED_MSG,
     SubprocessASGIServer,
     _memoize_block_auto_registration,
+    _SQLiteLockedOperationalErrorFilter,
     create_api_app,
     create_app,
 )
 from prefect.server.utilities.server import method_paths_from_routes
 from prefect.settings import (
     PREFECT_API_DATABASE_CONNECTION_URL,
+    PREFECT_API_LOG_RETRYABLE_ERRORS,
     PREFECT_API_URL,
     PREFECT_MEMO_STORE_PATH,
     PREFECT_MEMOIZE_BLOCK_AUTO_REGISTRATION,
@@ -103,6 +107,72 @@ async def test_sqlite_database_locked_handler(errorname, ephemeral):
 
         response = await client.get("/api/raise_other_error")
         assert response.status_code == 500
+
+
+def _log_record_for_sqlite_error(orig_exc):
+    try:
+        raise sa.exc.OperationalError("statement", {"params": 1}, orig_exc, None)
+    except sa.exc.OperationalError:
+        exc_info = sys.exc_info()
+    return logging.LogRecord(
+        name="uvicorn.error",
+        level=logging.ERROR,
+        pathname=__file__,
+        lineno=1,
+        msg="msg",
+        args=(),
+        exc_info=exc_info,
+    )
+
+
+def test_sqlite_locked_log_filter_suppresses_when_disabled():
+    filter_ = _SQLiteLockedOperationalErrorFilter()
+    orig_exc = sqlite3.OperationalError(SQLITE_LOCKED_MSG)
+    record = _log_record_for_sqlite_error(orig_exc)
+
+    with temporary_settings({PREFECT_API_LOG_RETRYABLE_ERRORS: False}):
+        assert filter_.filter(record) is False
+
+
+def test_sqlite_locked_log_filter_allows_when_enabled():
+    filter_ = _SQLiteLockedOperationalErrorFilter()
+    orig_exc = sqlite3.OperationalError("db locked")
+    setattr(orig_exc, "sqlite_errorname", "SQLITE_BUSY")
+    record = _log_record_for_sqlite_error(orig_exc)
+
+    with temporary_settings({PREFECT_API_LOG_RETRYABLE_ERRORS: True}):
+        assert filter_.filter(record) is True
+
+
+def test_sqlite_locked_log_filter_ignores_non_retryable_sqlite_errors():
+    filter_ = _SQLiteLockedOperationalErrorFilter()
+    orig_exc = sqlite3.OperationalError("other error")
+    setattr(orig_exc, "sqlite_errorname", "FOO")
+    record = _log_record_for_sqlite_error(orig_exc)
+
+    with temporary_settings({PREFECT_API_LOG_RETRYABLE_ERRORS: False}):
+        assert filter_.filter(record) is True
+
+
+def test_sqlite_locked_log_filter_ignores_non_operational_errors():
+    filter_ = _SQLiteLockedOperationalErrorFilter()
+    try:
+        raise ValueError("boom")
+    except ValueError:
+        exc_info = sys.exc_info()
+
+    record = logging.LogRecord(
+        name="uvicorn.error",
+        level=logging.ERROR,
+        pathname=__file__,
+        lineno=1,
+        msg="msg",
+        args=(),
+        exc_info=exc_info,
+    )
+
+    with temporary_settings({PREFECT_API_LOG_RETRYABLE_ERRORS: False}):
+        assert filter_.filter(record) is True
 
 
 @pytest.mark.parametrize(

@@ -37,6 +37,7 @@ from pydantic import (
     SerializerFunctionWrapHandler,
     ValidationError,
     model_serializer,
+    model_validator,
 )
 from pydantic.json_schema import GenerateJsonSchema
 from typing_extensions import Literal, ParamSpec, Self, TypeGuard, get_args
@@ -78,6 +79,11 @@ R = TypeVar("R")
 P = ParamSpec("P")
 
 ResourceTuple = tuple[dict[str, Any], list[dict[str, Any]]]
+UnionTypes: tuple[object, ...] = (Union,)
+if hasattr(types, "UnionType"):
+    # Python 3.10+ only
+    UnionTypes = (*UnionTypes, types.UnionType)
+NestedTypes: tuple[type, ...] = (list, dict, tuple, *UnionTypes)
 
 
 def block_schema_to_key(schema: BlockSchema) -> str:
@@ -164,11 +170,7 @@ def _collect_secret_fields(
     secrets list, supporting nested Union / Dict / Tuple / List / BaseModel fields.
     Also, note, this function mutates the input secrets list, thus does not return anything.
     """
-    nested_types = (Union, dict, list, tuple)
-    # Include UnionType if it's available for the current Python version
-    if union_type := getattr(types, "UnionType", None):
-        nested_types = nested_types + (union_type,)
-    if get_origin(type_) in nested_types:
+    if get_origin(type_) in NestedTypes:
         for nested_type in get_args(type_):
             _collect_secret_fields(name, nested_type, secrets)
         return
@@ -298,7 +300,8 @@ def schema_extra(schema: dict[str, Any], model: type["Block"]) -> None:
                 ]
             else:
                 refs[field_name] = annotation._to_block_schema_reference_dict()  # pyright: ignore[reportPrivateUsage]
-        if get_origin(annotation) in (Union, list, tuple, dict):
+
+        if get_origin(annotation) in NestedTypes:
             for type_ in get_args(annotation):
                 collect_block_schema_references(field_name, type_)
 
@@ -331,6 +334,17 @@ class Block(BaseModel, ABC):
         json_schema_extra=schema_extra,
     )
 
+    def __new__(cls: type[Self], **kwargs: Any) -> Self:
+        """
+        Create an instance of the Block subclass type if a `block_type_slug` is
+        present in the data payload.
+        """
+        if block_type_slug := kwargs.pop("block_type_slug", None):
+            subcls = cls.get_block_class_from_key(block_type_slug)
+            if cls is not subcls and issubclass(subcls, cls):
+                return super().__new__(subcls)
+        return super().__new__(cls)
+
     def __init__(self, *args: Any, **kwargs: Any):
         super().__init__(*args, **kwargs)
         self.block_initialization()
@@ -344,6 +358,24 @@ class Block(BaseModel, ABC):
         return [
             (key, value) for key, value in repr_args if key is None or key in data_keys
         ]
+
+    @model_validator(mode="before")
+    @classmethod
+    def validate_block_type_slug(cls, values: Any) -> Any:
+        """
+        Validates that the `block_type_slug` in the input values matches the expected
+        block type slug for the class. This helps pydantic to correctly discriminate
+        between different Block subclasses when validating Union types of Blocks.
+        """
+        if isinstance(values, dict):
+            if "block_type_slug" in values:
+                expected_slug = cls.get_block_type_slug()
+                slug = values["block_type_slug"]
+                if slug and slug != expected_slug:
+                    raise ValueError(
+                        f"Invalid block_type_slug: expected '{expected_slug}', got '{values['block_type_slug']}'"
+                    )
+        return values
 
     def block_initialization(self) -> None:
         pass
@@ -1308,7 +1340,7 @@ class Block(BaseModel, ABC):
         if Block.is_block_class(annotation):
             return True
 
-        if get_origin(annotation) is Union:
+        if get_origin(annotation) in UnionTypes:
             for annotation in get_args(annotation):
                 if Block.is_block_class(annotation):
                     return True
@@ -1348,7 +1380,7 @@ class Block(BaseModel, ABC):
                 if TYPE_CHECKING:
                     assert isinstance(coro, Coroutine)
                 await coro
-            elif get_origin(annotation) in (Union, tuple, list, dict):
+            elif get_origin(annotation) in NestedTypes:
                 for inner_annotation in get_args(annotation):
                     await register_blocks_in_annotation(inner_annotation)
 
@@ -1544,18 +1576,6 @@ class Block(BaseModel, ABC):
         block_document, _ = await cls._aget_block_document(name, client=client)
 
         await client.delete_block_document(block_document.id)
-
-    def __new__(cls: type[Self], **kwargs: Any) -> Self:
-        """
-        Create an instance of the Block subclass type if a `block_type_slug` is
-        present in the data payload.
-        """
-        block_type_slug = kwargs.pop("block_type_slug", None)
-        if block_type_slug:
-            subcls = cls.get_block_class_from_key(block_type_slug)
-            return super().__new__(subcls)
-        else:
-            return super().__new__(cls)
 
     def get_block_placeholder(self) -> str:
         """

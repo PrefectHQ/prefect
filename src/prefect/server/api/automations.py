@@ -1,10 +1,11 @@
 from typing import Optional, Sequence
 from uuid import UUID
 
-from fastapi import Body, Depends, HTTPException, Path, status
+from fastapi import Body, Depends, HTTPException, Path
 from fastapi.exceptions import RequestValidationError
 from pydantic import ValidationError
 
+from prefect._internal.compatibility.starlette import status
 from prefect.server.api.dependencies import LimitBody
 from prefect.server.api.validation import (
     validate_job_variables_for_run_deployment_action,
@@ -42,7 +43,7 @@ async def create_automation(
     """
     Create an automation.
 
-    For more information, see https://docs.prefect.io/v3/automate.
+    For more information, see https://docs.prefect.io/v3/concepts/automations.
     """
     # reset any client-provided IDs on the provided triggers
     automation.trigger.reset_ids()

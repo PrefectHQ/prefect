@@ -28,7 +28,7 @@ Go to your terminal session and run this command to set the API URL to point to 
 prefect config set PREFECT_API_URL="http://127.0.0.1:4200/api"
 ```
 
-You can save the API server address in a Prefect profile. 
+You can save the API server address in a Prefect profile.
 Whenever that profile is active, the API endpoint is at that address.
 See [Profiles and configuration](/v3/develop/settings-and-profiles/) for more information on profiles and configurable Prefect settings.
 
@@ -87,6 +87,45 @@ For large databases, you may need to increase the timeout:
 export PREFECT_API_DATABASE_TIMEOUT=600
 prefect server database upgrade -y
 ```
+
+## Multi-worker API server
+
+For high-throughput scenarios, you can run the server with multiple worker processes to handle concurrent requests more efficiently:
+
+```bash
+prefect server start --workers 4
+```
+
+This starts 4 worker processes to handle API and UI requests concurrently. 
+
+### Requirements for multi-worker mode
+
+Multi-worker mode has specific infrastructure requirements:
+
+1. **PostgreSQL database** - SQLite is not supported due to database locking issues
+2. **Redis messaging** - In-memory messaging doesn't work across processes
+
+### Configuration example
+
+```bash
+# Set PostgreSQL connection
+prefect config set PREFECT_API_DATABASE_CONNECTION_URL="postgresql+asyncpg://postgres:password@localhost:5432/prefect"
+
+# Configure Redis messaging
+prefect config set PREFECT_SERVER_EVENTS_MESSAGING_CACHE="prefect.server.utilities.messaging.redis"
+prefect config set PREFECT_SERVER_EVENTS_MESSAGING_BROKER="prefect.server.utilities.messaging.redis"
+
+# Configure Redis messaging host and port
+export PREFECT_REDIS_MESSAGING_HOST="redis"
+export PREFECT_REDIS_MESSAGING_PORT="6379"
+
+# Start server with 4 workers
+prefect server start --workers 4
+```
+
+<Tip>
+The number of workers should typically match the number of CPU cores available to your server process, but you may need to experiment to find the optimal value for your workload.
+</Tip>
 
 ## Advanced configuration
 
