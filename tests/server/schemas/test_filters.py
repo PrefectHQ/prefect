@@ -51,21 +51,6 @@ class TestLogFilters:
 
 
 class TestFlowRunFilters:
-    def test_applies_flow_run_end_time_filter_before(self, db):
-        flow_run_filter = FlowRunFilter(end_time={"before_": NOW})
-        sql_filter = flow_run_filter.as_sql_filter()
-        assert sql_filter.compare(sa.and_(db.FlowRun.end_time <= NOW))
-
-    def test_applies_flow_run_end_time_filter_after(self, db):
-        flow_run_filter = FlowRunFilter(end_time={"after_": NOW})
-        sql_filter = flow_run_filter.as_sql_filter()
-        assert sql_filter.compare(sa.and_(db.FlowRun.end_time >= NOW))
-
-    def test_applies_flow_run_end_time_filter_null(self, db):
-        flow_run_filter = FlowRunFilter(end_time={"is_null_": True})
-        sql_filter = flow_run_filter.as_sql_filter()
-        assert sql_filter.compare(sa.and_(db.FlowRun.end_time.is_(None)))
-
     def test_coalesces_start_time_and_expected_start_time_after_(self, db):
         flow_run_filter = FlowRunFilter(start_time={"after_": NOW})
         sql_filter = flow_run_filter.as_sql_filter()

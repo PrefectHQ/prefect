@@ -144,6 +144,7 @@ async def data(flow_function, db):
                 tags=["db", "blue"],
                 state=prefect.server.schemas.states.Completed(),
                 deployment_id=d_1_1.id,
+                start_time=now("UTC") - timedelta(hours=1),
             )
         )
 
@@ -153,6 +154,7 @@ async def data(flow_function, db):
                 name="sad-duck",
                 tags=["db", "blue"],
                 state=prefect.server.schemas.states.Completed(),
+                start_time=now("UTC") - timedelta(hours=1),
             )
         )
         await create_flow_run(
@@ -162,6 +164,7 @@ async def data(flow_function, db):
                 tags=["db", "red"],
                 state=prefect.server.schemas.states.Failed(),
                 deployment_id=d_1_1.id,
+                start_time=now("UTC") - timedelta(hours=1),
             )
         )
         await create_flow_run(
@@ -187,6 +190,7 @@ async def data(flow_function, db):
                 name="another-test-happy-duck",
                 tags=["db", "blue"],
                 state=prefect.server.schemas.states.Completed(),
+                start_time=now("UTC") - timedelta(hours=1),
             )
         )
 
@@ -203,6 +207,7 @@ async def data(flow_function, db):
                 flow_id=f_2.id,
                 tags=["db", "red"],
                 state=prefect.server.schemas.states.Failed(),
+                start_time=now("UTC") - timedelta(hours=1),
             )
         )
 
@@ -215,6 +220,7 @@ async def data(flow_function, db):
                 state=prefect.server.schemas.states.Completed(),
                 deployment_id=d_3_1.id,
                 work_queue_id=wp.default_queue_id,
+                start_time=now("UTC") - timedelta(hours=1),
             )
         )
 
@@ -246,6 +252,7 @@ async def data(flow_function, db):
                 task_key="b",
                 state=prefect.server.schemas.states.Completed(),
                 dynamic_key="0",
+                start_time=now("UTC") - timedelta(hours=1),
             )
         )
         await create_task_run(
@@ -255,6 +262,7 @@ async def data(flow_function, db):
                 task_key="c",
                 state=prefect.server.schemas.states.Completed(),
                 dynamic_key="0",
+                start_time=now("UTC") - timedelta(hours=1),
             )
         )
 
@@ -272,6 +280,7 @@ async def data(flow_function, db):
                 task_key="b",
                 state=prefect.server.schemas.states.Completed(),
                 dynamic_key="0",
+                start_time=now("UTC") - timedelta(hours=1),
             )
         )
         await create_task_run(
@@ -280,6 +289,7 @@ async def data(flow_function, db):
                 task_key="c",
                 state=prefect.server.schemas.states.Completed(),
                 dynamic_key="0",
+                start_time=now("UTC") - timedelta(hours=1),
             )
         )
 
@@ -289,6 +299,7 @@ async def data(flow_function, db):
                 task_key="a",
                 state=prefect.server.schemas.states.Failed(),
                 dynamic_key="0",
+                start_time=now("UTC") - timedelta(hours=1),
             )
         )
 
@@ -584,6 +595,34 @@ class TestCountFlowRunModels:
             ),
             1,
         ],
+        # flow runs with end_time set (completed or failed)
+        [
+            dict(flow_run_filter=filters.FlowRunFilter(end_time=dict(is_null_=False))),
+            6,
+        ],
+        # flow runs with null end_time (running or scheduled)
+        [
+            dict(flow_run_filter=filters.FlowRunFilter(end_time=dict(is_null_=True))),
+            6,
+        ],
+        # flow runs with end_time before now + 1 day (all completed/failed runs)
+        [
+            dict(
+                flow_run_filter=filters.FlowRunFilter(
+                    end_time=dict(before_=now("UTC") + timedelta(days=1))
+                )
+            ),
+            6,
+        ],
+        # flow runs with end_time after now + 1 day (none)
+        [
+            dict(
+                flow_run_filter=filters.FlowRunFilter(
+                    end_time=dict(after_=now("UTC") + timedelta(days=1))
+                )
+            ),
+            0,
+        ],
         # empty filter
         [dict(flow_filter=filters.FlowFilter()), 12],
         # multiple empty filters
@@ -771,6 +810,34 @@ class TestCountTaskRunsModels:
             dict(
                 task_run_filter=filters.TaskRunFilter(
                     subflow_runs=dict(exists_=True), tags=dict(all_=["subflow"])
+                )
+            ),
+            0,
+        ],
+        # task runs with end_time set (completed or failed)
+        [
+            dict(task_run_filter=filters.TaskRunFilter(end_time=dict(is_null_=False))),
+            5,
+        ],
+        # task runs with null end_time (running or no state)
+        [
+            dict(task_run_filter=filters.TaskRunFilter(end_time=dict(is_null_=True))),
+            5,
+        ],
+        # task runs with end_time before now + 1 day (all completed/failed runs)
+        [
+            dict(
+                task_run_filter=filters.TaskRunFilter(
+                    end_time=dict(before_=now("UTC") + timedelta(days=1))
+                )
+            ),
+            5,
+        ],
+        # task runs with end_time after now + 1 day (none)
+        [
+            dict(
+                task_run_filter=filters.TaskRunFilter(
+                    end_time=dict(after_=now("UTC") + timedelta(days=1))
                 )
             ),
             0,
