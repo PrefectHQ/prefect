@@ -1,17 +1,15 @@
 ---
-title: Experimental Plugin System
-sidebarTitle: Plugins (Experimental)
+title: How to write a Prefect plugin 
+sidebarTitle: Write a plugin
 ---
 
 <Warning>
 **Experimental Feature**
 
-The plugin system is an **experimental feature** under active development. The API is subject to change without notice, and features may be modified or removed in future releases. Use in production environments at your own risk.
-
-This feature is explicitly namespaced under `prefect._experimental` to indicate its unstable status.
+The plugin system is an **experimental feature** under active development. The API is subject to change without notice, and features may be modified or removed in future releases.
 </Warning>
 
-The Prefect experimental plugin system allows third-party packages to run startup hooks before Prefect CLI commands, workers, or agents execute. This enables plugins to configure environment variables, authenticate with external services, or perform other initialization tasks automatically.
+The Prefect plugin system allows third-party packages to run hooks when Prefect is imported. This enables plugins to configure environment variables, authenticate with external services, or perform other initialization tasks automatically - whether you're running CLI commands, Python scripts, workers, or agents.
 
 ## Use Cases
 
@@ -32,7 +30,13 @@ The plugin system is opt-in and disabled by default. Enable it by setting the en
 export PREFECT_EXPERIMENTAL_PLUGINS=1
 ```
 
-Once enabled, plugins will automatically run before every Prefect CLI command and worker/agent startup.
+Once enabled, plugins will automatically run whenever Prefect is imported - this includes:
+- Python scripts that import Prefect (`import prefect`)
+- CLI commands (`prefect deploy`, `prefect server start`, etc.)
+- Workers and agents starting up
+- Any process that uses Prefect
+
+This ensures your environment is properly configured before any Prefect code executes.
 
 ### Example Plugin
 
@@ -340,6 +344,15 @@ Plugins execute with the same permissions as the Prefect process. Be cautious ab
 - Plugins can import any installed package
 
 ## Behavior & Guarantees
+
+### Import-Time Execution
+
+Plugins run **automatically when Prefect is imported**, before any other Prefect code executes. This means:
+- Environment variables are available to all Prefect operations
+- Credentials are configured before connecting to APIs
+- Setup happens once per process, not per CLI command
+
+If plugin initialization fails (and strict mode is disabled), Prefect will log the error and continue loading.
 
 ### Execution Order
 

@@ -9,8 +9,7 @@ start their main work.
 """
 
 from __future__ import annotations
-
-import logging
+from typing import Any
 
 import anyio
 
@@ -80,7 +79,7 @@ async def run_startup_hooks(ctx: HookContext) -> list[SetupSummary]:
 
     # Call all hooks with timeout
     timeout = config.timeout_seconds()
-    results: list[tuple[str, any, Exception | None]] = []
+    results: list[tuple[str, Any, Exception | None]] = []
 
     try:
         with anyio.move_on_after(timeout) as cancel_scope:

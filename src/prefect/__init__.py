@@ -65,6 +65,64 @@ __ui_static_path__: pathlib.Path = __module_path__ / "server" / "ui"
 
 del _build_info, pathlib
 
+
+def _initialize_plugins() -> None:
+    """
+    Initialize the experimental plugin system if enabled.
+
+    This runs automatically when Prefect is imported and plugins are enabled
+    via PREFECT_EXPERIMENTAL_PLUGINS=1. Errors are logged but don't prevent
+    Prefect from loading.
+    """
+    import os
+
+    if os.getenv("PREFECT_EXPERIMENTAL_PLUGINS") != "1":
+        return
+
+    try:
+        # Import here to avoid circular imports and defer cost until needed
+        import anyio
+
+        from prefect._experimental.plugins import run_startup_hooks
+        from prefect._experimental.plugins.spec import HookContext
+        from prefect.logging import get_logger
+
+        def _logger_factory(name: str):
+            return get_logger(name)
+
+        def _make_ctx() -> HookContext:
+            from prefect.settings import PREFECT_API_URL
+
+            return HookContext(
+                prefect_version=__version__,
+                api_url=str(PREFECT_API_URL.value())
+                if PREFECT_API_URL.value()
+                else None,
+                logger_factory=_logger_factory,
+            )
+
+        # Run plugin hooks synchronously during import
+        anyio.run(run_startup_hooks, _make_ctx())
+    except SystemExit:
+        # Re-raise SystemExit from strict mode
+        raise
+    except Exception as e:
+        # Log but don't crash on plugin errors
+        try:
+            from prefect.logging import get_logger
+
+            logger = get_logger("prefect.plugins")
+            logger.exception("Failed to initialize plugins: %s", e)
+        except Exception:
+            # If even logging fails, print to stderr and continue
+            import sys
+
+            print(f"Failed to initialize plugins: {e}", file=sys.stderr)
+
+
+# Initialize plugins on import if enabled
+_initialize_plugins()
+
 _public_api: dict[str, tuple[Optional[str], str]] = {
     "allow_failure": (__spec__.parent, ".main"),
     "aserve": (__spec__.parent, ".main"),
