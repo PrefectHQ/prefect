@@ -85,8 +85,10 @@ class HookSpec(Protocol):
 
 * **Entry point group:** `prefect.plugins`
   (Though the runtime lives in `_experimental`, we purposefully use the final group name; we can alias later.)
-* Plugins are classes/objects exposing `setup_environment`.
-* Optional attribute on plugin object: `PREFECT_PLUGIN_API_REQUIRES` (PEP 440 range; default `>=0.1,<1`).
+* Plugins can be:
+  * **Modules** with decorated functions (recommended - simplest)
+  * Classes/objects exposing `setup_environment` methods
+* Optional attribute on plugin module/object: `PREFECT_PLUGIN_API_REQUIRES` (PEP 440 range; default `>=0.1,<1`).
 
 **Implementation:**
 
@@ -342,10 +344,10 @@ You may wire this into an existing “experimental” CLI group.
 [project]
 name = "prefect-aws-setup"
 version = "0.1.0"
-dependencies = ["prefect>=3.4", "pluggy>=1.5", "botocore>=1.34"]
+dependencies = ["prefect>=3.4", "botocore>=1.34"]
 
 [project.entry-points."prefect.plugins"]
-aws_setup = "prefect_aws_setup:Plugin"
+aws_setup = "prefect_aws_setup"
 ```
 
 **prefect_aws_setup/**init**.py**
@@ -355,31 +357,45 @@ from __future__ import annotations
 import os
 from datetime import timezone
 import botocore.session
-from prefect._experimental.plugins.spec import HookContext, SetupResult
+from prefect._experimental.plugins import register_hook, HookContext, SetupResult
 
 PREFECT_PLUGIN_API_REQUIRES = ">=0.1,<1"
 
-class Plugin:
-    async def setup_environment(self, *, ctx: HookContext):
-        role_arn = os.getenv("PREFECT_AWS_SETUP_ROLE_ARN")
-        if not role_arn:
-            return None
 
-        bc = botocore.session.Session(profile=os.getenv("PREFECT_AWS_SETUP_PROFILE"))
-        sts = bc.create_client("sts", region_name=os.getenv("AWS_REGION") or "us-east-1")
-        resp = sts.assume_role(RoleArn=role_arn, RoleSessionName="prefect-setup", DurationSeconds=int(os.getenv("PREFECT_AWS_SETUP_DURATION", "3600")))
-        c = resp["Credentials"]
-        return SetupResult(
-            env={
-                "AWS_ACCESS_KEY_ID": c["AccessKeyId"],
-                "AWS_SECRET_ACCESS_KEY": c["SecretAccessKey"],
-                "AWS_SESSION_TOKEN": c["SessionToken"],
-                "AWS_REGION": os.getenv("AWS_REGION") or "us-east-1",
-            },
-            note=f"assumed {role_arn.split('/')[-1]}",
-            expires_at=c["Expiration"].astimezone(timezone.utc),
-            required=bool(os.getenv("PREFECT_AWS_SETUP_REQUIRED")),
-        )
+@register_hook
+async def setup_environment(*, ctx: HookContext):
+    """Assume AWS IAM role and provide temporary credentials."""
+    logger = ctx.logger_factory("prefect-aws-setup")
+
+    role_arn = os.getenv("PREFECT_AWS_SETUP_ROLE_ARN")
+    if not role_arn:
+        logger.debug("PREFECT_AWS_SETUP_ROLE_ARN not set, skipping")
+        return None
+
+    profile = os.getenv("PREFECT_AWS_SETUP_PROFILE")
+    region = os.getenv("AWS_REGION", "us-east-1")
+    duration = int(os.getenv("PREFECT_AWS_SETUP_DURATION", "3600"))
+
+    session = botocore.session.Session(profile=profile)
+    sts = session.create_client("sts", region_name=region)
+    resp = sts.assume_role(
+        RoleArn=role_arn,
+        RoleSessionName="prefect-plugin",
+        DurationSeconds=duration
+    )
+
+    credentials = resp["Credentials"]
+    return SetupResult(
+        env={
+            "AWS_ACCESS_KEY_ID": credentials["AccessKeyId"],
+            "AWS_SECRET_ACCESS_KEY": credentials["SecretAccessKey"],
+            "AWS_SESSION_TOKEN": credentials["SessionToken"],
+            "AWS_REGION": region,
+        },
+        note=f"assumed {role_arn.split('/')[-1]}",
+        expires_at=credentials["Expiration"].astimezone(timezone.utc),
+        required=bool(os.getenv("PREFECT_AWS_SETUP_REQUIRED")),
+    )
 ```
 
 ---

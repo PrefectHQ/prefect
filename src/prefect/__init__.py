@@ -86,23 +86,16 @@ def _initialize_plugins() -> None:
         from prefect._experimental.plugins import run_startup_hooks
         from prefect._experimental.plugins.spec import HookContext
         from prefect.logging import get_logger
+        from prefect.settings import get_current_settings
 
-        def _logger_factory(name: str):
-            return get_logger(name)
-
-        def _make_ctx() -> HookContext:
-            from prefect.settings import PREFECT_API_URL
-
-            return HookContext(
-                prefect_version=__version__,
-                api_url=str(PREFECT_API_URL.value())
-                if PREFECT_API_URL.value()
-                else None,
-                logger_factory=_logger_factory,
-            )
+        ctx = HookContext(
+            prefect_version=__version__,
+            api_url=get_current_settings().api.url,
+            logger_factory=get_logger,
+        )
 
         # Run plugin hooks synchronously during import
-        anyio.run(run_startup_hooks, _make_ctx())
+        anyio.run(run_startup_hooks, ctx)
     except SystemExit:
         # Re-raise SystemExit from strict mode
         raise

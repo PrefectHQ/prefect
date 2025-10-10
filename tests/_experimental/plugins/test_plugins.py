@@ -233,6 +233,57 @@ class TestPluginManager:
         assert bad_result[1] is None
         assert isinstance(bad_result[2], ValueError)
 
+    @pytest.mark.asyncio
+    async def test_function_based_plugin_sync(self, mock_ctx: HookContext):
+        """Test that function-based plugins work (sync)."""
+        from types import ModuleType
+
+        # Create a mock module with a function-based plugin
+        plugin_module = ModuleType("test_plugin")
+
+        @register_hook
+        def setup_environment(*, ctx: HookContext):
+            return SetupResult(env={"FUNC_PLUGIN": "sync_value"})
+
+        # Add the function to the module
+        plugin_module.setup_environment = setup_environment
+
+        pm = build_manager(HookSpec)
+        pm.register(plugin_module, name="func-plugin")
+
+        results = await call_async_hook(pm, "setup_environment", ctx=mock_ctx)
+        assert len(results) == 1
+        name, result, error = results[0]
+        assert name == "func-plugin"
+        assert error is None
+        assert result.env["FUNC_PLUGIN"] == "sync_value"
+
+    @pytest.mark.asyncio
+    async def test_function_based_plugin_async(self, mock_ctx: HookContext):
+        """Test that function-based plugins work (async)."""
+        from types import ModuleType
+
+        # Create a mock module with an async function-based plugin
+        plugin_module = ModuleType("test_plugin")
+
+        @register_hook
+        async def setup_environment(*, ctx: HookContext):
+            await asyncio.sleep(0.001)
+            return SetupResult(env={"FUNC_PLUGIN": "async_value"})
+
+        # Add the function to the module
+        plugin_module.setup_environment = setup_environment
+
+        pm = build_manager(HookSpec)
+        pm.register(plugin_module, name="func-plugin")
+
+        results = await call_async_hook(pm, "setup_environment", ctx=mock_ctx)
+        assert len(results) == 1
+        name, result, error = results[0]
+        assert name == "func-plugin"
+        assert error is None
+        assert result.env["FUNC_PLUGIN"] == "async_value"
+
     def test_load_entry_point_plugins_with_allow_list(self):
         """Test that allow list filters plugins."""
         pm = build_manager(HookSpec)

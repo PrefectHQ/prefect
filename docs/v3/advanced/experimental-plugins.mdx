@@ -46,22 +46,28 @@ Here's a minimal example plugin that sets environment variables:
 # my_plugin/__init__.py
 from prefect._experimental.plugins import register_hook, HookContext, SetupResult
 
-class Plugin:
-    @register_hook
-    def setup_environment(self, *, ctx: HookContext):
-        """Configure environment before Prefect starts."""
-        # Perform authentication or configuration
-        credentials = fetch_credentials()
+PREFECT_PLUGIN_API_REQUIRES = ">=0.1,<1"
 
-        return SetupResult(
-            env={
-                "MY_SERVICE_TOKEN": credentials.token,
-                "MY_SERVICE_URL": "https://api.example.com",
-            },
-            note="Configured my-service credentials",
-            expires_at=credentials.expires_at,
-            required=True  # Abort if this plugin fails in strict mode
-        )
+
+@register_hook
+def setup_environment(*, ctx: HookContext) -> SetupResult:
+    """Configure environment before Prefect starts."""
+    logger = ctx.logger_factory("my-plugin")
+
+    # Perform authentication or configuration
+    credentials = fetch_credentials()
+    logger.info("Configured credentials")
+
+    return SetupResult(
+        env={
+            "MY_SERVICE_TOKEN": credentials.token,
+            "MY_SERVICE_URL": "https://api.example.com",
+        },
+        note="Configured my-service credentials",
+        expires_at=credentials.expires_at,
+        required=True  # Abort if this plugin fails in strict mode
+    )
+
 
 def fetch_credentials():
     # Your authentication logic here
@@ -71,8 +77,19 @@ def fetch_credentials():
 Register the plugin in your `pyproject.toml`:
 
 ```toml
+[project]
+name = "my-plugin"
+version = "0.1.0"
+dependencies = ["prefect>=3.4"]
+
 [project.entry-points."prefect.plugins"]
-my_plugin = "my_plugin:Plugin"
+my_plugin = "my_plugin"
+```
+
+**Install the plugin:**
+
+```bash
+pip install -e .
 ```
 
 ## Configuration
@@ -116,42 +133,66 @@ export PREFECT_EXPERIMENTS_PLUGINS_SAFE_MODE=1
 
 ### Hook Specification
 
-Plugins implement the `setup_environment` hook to configure the environment:
+Plugins implement the `setup_environment` hook to configure the environment. The simplest approach is to use a decorated function:
 
 ```python
 from prefect._experimental.plugins import register_hook, HookContext, SetupResult
 
-class MyPlugin:
-    @register_hook
-    def setup_environment(self, *, ctx: HookContext) -> SetupResult | None:
-        """
-        Prepare process environment for Prefect.
+PREFECT_PLUGIN_API_REQUIRES = ">=0.1,<1"
 
-        Args:
-            ctx: Context with Prefect version, API URL, and logger factory
 
-        Returns:
-            SetupResult with environment variables, or None for no changes
-        """
-        logger = ctx.logger_factory("my-plugin")
-        logger.info(f"Running with Prefect {ctx.prefect_version}")
+@register_hook
+def setup_environment(*, ctx: HookContext) -> SetupResult | None:
+    """
+    Prepare process environment for Prefect.
 
-        # Return None if no setup needed
-        if not should_configure():
-            return None
+    Args:
+        ctx: Context with Prefect version, API URL, and logger factory
 
-        # Return SetupResult with configuration
-        return SetupResult(
-            env={"KEY": "value"},
-            note="Short description",
-            expires_at=datetime,  # Optional
-            required=False  # Optional
-        )
+    Returns:
+        SetupResult with environment variables, or None for no changes
+    """
+    logger = ctx.logger_factory("my-plugin")
+    logger.info(f"Running with Prefect {ctx.prefect_version}")
+
+    # Return None if no setup needed
+    if not should_configure():
+        return None
+
+    # Return SetupResult with configuration
+    return SetupResult(
+        env={"KEY": "value"},
+        note="Short description",
+        expires_at=datetime,  # Optional
+        required=False  # Optional
+    )
 ```
 
 <Note>
-The `@register_hook` decorator is **required** to mark your method as a plugin hook implementation. Without it, your plugin methods will not be discovered by the plugin system.
+**Required Decorator**: The `@register_hook` decorator is **required** to mark your function as a plugin hook implementation. Without it, your plugin will not be discovered by the plugin system.
+
+**Entry Point**: When using the function-based pattern, your entry point should reference the module (e.g., `"my_plugin"`) rather than a specific class or instance.
 </Note>
+
+**Alternative: Class-Based Plugins**
+
+For plugins that need to maintain state, you can also use a class-based approach:
+
+```python
+class MyPlugin:
+    def __init__(self):
+        self.state = {}
+
+    @register_hook
+    def setup_environment(self, *, ctx: HookContext) -> SetupResult | None:
+        # Access instance state
+        return SetupResult(env={"KEY": "value"})
+
+# Create instance at module level
+Plugin = MyPlugin()
+```
+
+Entry point: `"my_plugin:Plugin"`
 
 ### HookContext
 
@@ -195,50 +236,49 @@ from prefect._experimental.plugins import register_hook, HookContext, SetupResul
 PREFECT_PLUGIN_API_REQUIRES = ">=0.1,<1"
 
 
-class Plugin:
-    @register_hook
-    def setup_environment(self, *, ctx: HookContext) -> SetupResult | None:
-        """Assume AWS IAM role and provide temporary credentials."""
-        logger = ctx.logger_factory("prefect-aws-setup")
+@register_hook
+def setup_environment(*, ctx: HookContext) -> SetupResult | None:
+    """Assume AWS IAM role and provide temporary credentials."""
+    logger = ctx.logger_factory("prefect-aws-setup")
 
-        role_arn = os.getenv("PREFECT_AWS_SETUP_ROLE_ARN")
-        if not role_arn:
-            logger.debug("PREFECT_AWS_SETUP_ROLE_ARN not set, skipping")
-            return None
+    role_arn = os.getenv("PREFECT_AWS_SETUP_ROLE_ARN")
+    if not role_arn:
+        logger.debug("PREFECT_AWS_SETUP_ROLE_ARN not set, skipping")
+        return None
 
-        profile = os.getenv("PREFECT_AWS_SETUP_PROFILE")
-        region = os.getenv("AWS_REGION", "us-east-1")
-        duration = int(os.getenv("PREFECT_AWS_SETUP_DURATION", "3600"))
+    profile = os.getenv("PREFECT_AWS_SETUP_PROFILE")
+    region = os.getenv("AWS_REGION", "us-east-1")
+    duration = int(os.getenv("PREFECT_AWS_SETUP_DURATION", "3600"))
 
-        try:
-            # Create AWS session and assume role
-            session = botocore.session.Session(profile=profile)
-            sts = session.create_client("sts", region_name=region)
+    try:
+        # Create AWS session and assume role
+        session = botocore.session.Session(profile=profile)
+        sts = session.create_client("sts", region_name=region)
 
-            response = sts.assume_role(
-                RoleArn=role_arn,
-                RoleSessionName="prefect-plugin",
-                DurationSeconds=duration
-            )
+        response = sts.assume_role(
+            RoleArn=role_arn,
+            RoleSessionName="prefect-plugin",
+            DurationSeconds=duration
+        )
 
-            credentials = response["Credentials"]
+        credentials = response["Credentials"]
 
-            return SetupResult(
-                env={
-                    "AWS_ACCESS_KEY_ID": credentials["AccessKeyId"],
-                    "AWS_SECRET_ACCESS_KEY": credentials["SecretAccessKey"],
-                    "AWS_SESSION_TOKEN": credentials["SessionToken"],
-                    "AWS_REGION": region,
-                },
-                note=f"Assumed role {role_arn.split('/')[-1]}",
-                expires_at=credentials["Expiration"].astimezone(timezone.utc),
-                required=bool(os.getenv("PREFECT_AWS_SETUP_REQUIRED")),
-            )
-        except Exception as e:
-            logger.exception("Failed to assume AWS role")
-            if os.getenv("PREFECT_AWS_SETUP_REQUIRED"):
-                raise
-            return None
+        return SetupResult(
+            env={
+                "AWS_ACCESS_KEY_ID": credentials["AccessKeyId"],
+                "AWS_SECRET_ACCESS_KEY": credentials["SecretAccessKey"],
+                "AWS_SESSION_TOKEN": credentials["SessionToken"],
+                "AWS_REGION": region,
+            },
+            note=f"Assumed role {role_arn.split('/')[-1]}",
+            expires_at=credentials["Expiration"].astimezone(timezone.utc),
+            required=bool(os.getenv("PREFECT_AWS_SETUP_REQUIRED")),
+        )
+    except Exception:
+        logger.exception("Failed to assume AWS role")
+        if os.getenv("PREFECT_AWS_SETUP_REQUIRED"):
+            raise
+        return None
 ```
 
 **Package configuration:**
@@ -251,7 +291,13 @@ version = "0.1.0"
 dependencies = ["prefect>=3.4", "botocore>=1.34"]
 
 [project.entry-points."prefect.plugins"]
-aws_setup = "prefect_aws_setup:Plugin"
+aws_setup = "prefect_aws_setup"
+```
+
+**Installation:**
+
+```bash
+pip install -e .
 ```
 
 **Usage:**
@@ -376,20 +422,20 @@ If plugin initialization fails (and strict mode is disabled), Prefect will log t
 Plugins can be either synchronous or asynchronous:
 
 ```python
-from prefect._experimental.plugins import register_hook
+from prefect._experimental.plugins import register_hook, HookContext, SetupResult
 
-class SyncPlugin:
-    @register_hook
-    def setup_environment(self, *, ctx: HookContext):
-        # Synchronous implementation
-        return SetupResult(env={"KEY": "value"})
+# Synchronous plugin
+@register_hook
+def setup_environment(*, ctx: HookContext) -> SetupResult:
+    # Synchronous implementation
+    return SetupResult(env={"KEY": "value"})
 
-class AsyncPlugin:
-    @register_hook
-    async def setup_environment(self, *, ctx: HookContext):
-        # Asynchronous implementation
-        await fetch_data()
-        return SetupResult(env={"KEY": "value"})
+# Asynchronous plugin
+@register_hook
+async def setup_environment(*, ctx: HookContext) -> SetupResult:
+    # Asynchronous implementation
+    data = await fetch_data()
+    return SetupResult(env={"KEY": data})
 ```
 
 ### Idempotence
