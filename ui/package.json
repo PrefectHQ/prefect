@@ -19,7 +19,7 @@
     "lodash.debounce": "4.0.8",
     "lodash.merge": "^4.6.2",
     "tailwindcss": "3.4.16",
-    "vue": "3.5.21",
+    "vue": "3.5.22",
     "vue-router": "4.5.0"
   },
   "devDependencies": {
