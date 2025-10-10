@@ -20,7 +20,7 @@ PREFECT_PLUGIN_API_VERSION = "0.1"
 hookspec = pluggy.HookspecMarker("prefect-experimental")
 
 
-@dataclass(slots=True)
+@dataclass
 class HookContext:
     """
     Context provided to plugin hooks at startup.
@@ -38,7 +38,7 @@ class HookContext:
     # Future: async Prefect client getter, settings snapshot, etc.
 
 
-@dataclass(slots=True)
+@dataclass
 class SetupResult:
     """
     Result returned by a plugin's setup_environment hook.

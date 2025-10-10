@@ -13,14 +13,14 @@ from prefect._experimental.plugins.manager import ENTRYPOINTS_GROUP
 from prefect.cli._types import PrefectTyper
 from prefect.cli.root import app
 
-experimental_app = PrefectTyper(
+experimental_app: PrefectTyper = PrefectTyper(
     name="experimental",
     help="Access experimental features (subject to change).",
     hidden=True,  # Hidden from main help, but accessible
 )
 app.add_typer(experimental_app)
 
-plugins_app = PrefectTyper(
+plugins_app: PrefectTyper = PrefectTyper(
     name="plugins",
     help="Plugin system diagnostics.",
 )
