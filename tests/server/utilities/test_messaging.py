@@ -600,3 +600,133 @@ async def test_concurrent_consumers_process_messages(
         assert actual_indices == expected_indices, (
             f"Consumer {consumer_id} should process messages {expected_indices}"
         )
+
+
+async def test_subscription_queues_have_bounded_sizes(broker: str):
+    """Test that subscription queues have maxsize set to prevent unbounded growth"""
+    from prefect.server.utilities.messaging.memory import Topic
+
+    topic = Topic.by_name("test-bounded-queues")
+    subscription = topic.subscribe()
+
+    # Check that queues have bounded sizes
+    assert subscription._queue.maxsize == 10000
+    assert subscription._retry.maxsize == 1000
+
+
+async def test_full_queue_drops_messages_with_warning(
+    broker: str, publisher: Publisher, caplog: pytest.LogCaptureFixture
+):
+    """Test that messages are dropped when the queue is full and a warning is logged"""
+    from prefect.server.utilities.messaging.memory import Topic
+
+    topic = Topic.by_name("my-topic")
+    # Create a subscription with a very small queue for testing
+    subscription = topic.subscribe()
+    subscription._queue = asyncio.Queue(maxsize=2)
+
+    # Fill the queue to capacity
+    async with publisher as p:
+        await p.publish_data(b"message-1", {"id": "1"})
+        await p.publish_data(b"message-2", {"id": "2"})
+        # Wait a bit for messages to be delivered
+        await asyncio.sleep(0.1)
+
+        # This message should be dropped since queue is full
+        await p.publish_data(b"message-3", {"id": "3"})
+
+    # Check that warning was logged
+    assert any(
+        "Subscription queue is full, dropping message" in record.message
+        for record in caplog.records
+    )
+
+
+async def test_consumer_cleanup_unsubscribes_from_topic(broker: str):
+    """Test that consumer.cleanup() properly unsubscribes from the topic"""
+    from prefect.server.utilities.messaging.memory import Topic
+
+    consumer = create_consumer("test-cleanup-topic", concurrency=1)
+    topic = Topic.by_name("test-cleanup-topic")
+
+    # Consumer should have created a subscription
+    assert len(topic._subscriptions) == 1
+    assert consumer.subscription in topic._subscriptions
+
+    # Cleanup should remove the subscription
+    await consumer.cleanup()
+
+    assert len(topic._subscriptions) == 0
+    assert consumer.subscription not in topic._subscriptions
+
+
+async def test_consumer_cleanup_prevents_memory_leak(broker: str):
+    """Test that cleanup prevents memory leaks from orphaned subscriptions"""
+    from prefect.server.utilities.messaging.memory import Topic
+
+    topic = Topic.by_name("test-memory-leak-prevention")
+
+    # Create multiple consumers and clean them up one by one
+    for i in range(10):
+        # Start with 0 subscriptions
+        assert len(topic._subscriptions) == 0
+
+        # Create consumer adds 1 subscription
+        consumer = create_consumer("test-memory-leak-prevention", concurrency=1)
+        assert len(topic._subscriptions) == 1
+
+        # Cleanup removes the subscription
+        await consumer.cleanup()
+        assert len(topic._subscriptions) == 0
+
+    # Verify final state is clean
+    assert len(topic._subscriptions) == 0
+
+
+async def test_multiple_consumers_can_subscribe_and_cleanup(
+    broker: str, publisher: Publisher
+):
+    """Test that multiple consumers can subscribe and cleanup independently"""
+    from prefect.server.utilities.messaging.memory import Topic
+
+    topic = Topic.by_name("my-topic")
+
+    # Create multiple consumers
+    consumer1 = create_consumer("my-topic", concurrency=1)
+    consumer2 = create_consumer("my-topic", concurrency=1)
+    consumer3 = create_consumer("my-topic", concurrency=1)
+
+    assert len(topic._subscriptions) == 3
+
+    # Cleanup one consumer at a time
+    await consumer2.cleanup()
+    assert len(topic._subscriptions) == 2
+    assert consumer1.subscription in topic._subscriptions
+    assert consumer2.subscription not in topic._subscriptions
+    assert consumer3.subscription in topic._subscriptions
+
+    await consumer1.cleanup()
+    assert len(topic._subscriptions) == 1
+    assert consumer3.subscription in topic._subscriptions
+
+    await consumer3.cleanup()
+    assert len(topic._subscriptions) == 0
+
+
+async def test_cleanup_logs_debug_message(
+    broker: str, caplog: pytest.LogCaptureFixture
+):
+    """Test that cleanup logs a debug message"""
+    import logging
+
+    caplog.set_level(logging.DEBUG)
+
+    consumer = create_consumer("test-cleanup-logging", concurrency=1)
+    await consumer.cleanup()
+
+    # Check that debug message was logged
+    assert any(
+        "Unsubscribed from topic=" in record.message
+        and "test-cleanup-logging" in record.message
+        for record in caplog.records
+    )

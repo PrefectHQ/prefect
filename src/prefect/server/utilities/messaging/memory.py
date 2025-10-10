@@ -110,8 +110,8 @@ class Subscription:
             if dead_letter_queue_path
             else get_current_settings().home / "dlq"
         )
-        self._queue: asyncio.Queue[MemoryMessage] = asyncio.Queue()
-        self._retry: asyncio.Queue[MemoryMessage] = asyncio.Queue()
+        self._queue: asyncio.Queue[MemoryMessage] = asyncio.Queue(maxsize=10000)
+        self._retry: asyncio.Queue[MemoryMessage] = asyncio.Queue(maxsize=1000)
 
     async def deliver(self, message: MemoryMessage) -> None:
         """
@@ -120,14 +120,22 @@ class Subscription:
         Args:
             message: The message to deliver.
         """
-        await self._queue.put(message)
-        await update_metric(self.topic.name, "published")
-        logger.debug(
-            "Delivered message to topic=%r queue_size=%d retry_queue_size=%d",
-            self.topic.name,
-            self._queue.qsize(),
-            self._retry.qsize(),
-        )
+        try:
+            self._queue.put_nowait(message)
+            await update_metric(self.topic.name, "published")
+            logger.debug(
+                "Delivered message to topic=%r queue_size=%d retry_queue_size=%d",
+                self.topic.name,
+                self._queue.qsize(),
+                self._retry.qsize(),
+            )
+        except asyncio.QueueFull:
+            logger.warning(
+                "Subscription queue is full, dropping message for topic=%r queue_size=%d retry_queue_size=%d",
+                self.topic.name,
+                self._queue.qsize(),
+                self._retry.qsize(),
+            )
 
     async def retry(self, message: MemoryMessage) -> None:
         """
@@ -349,6 +357,16 @@ class Consumer(_Consumer):
                 return  # Exit cleanly when all tasks stop
             # Re-raise if any non-StopConsumer exceptions
             raise group
+
+    async def cleanup(self) -> None:
+        """
+        Cleanup resources by unsubscribing from the topic.
+
+        This should be called when the consumer is no longer needed to prevent
+        memory leaks from orphaned subscriptions.
+        """
+        self.topic.unsubscribe(self.subscription)
+        logger.debug("Unsubscribed from topic=%r", self.topic.name)
 
     async def _consume_loop(self, handler: MessageHandler) -> None:
         while True:
