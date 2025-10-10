@@ -71,16 +71,16 @@ def _initialize_plugins() -> None:
     Initialize the experimental plugin system if enabled.
 
     This runs automatically when Prefect is imported and plugins are enabled
-    via PREFECT_EXPERIMENTAL_PLUGINS=1. Errors are logged but don't prevent
+    via experiments.plugins.enabled setting. Errors are logged but don't prevent
     Prefect from loading.
     """
-    import os
-
-    if os.getenv("PREFECT_EXPERIMENTAL_PLUGINS") != "1":
-        return
-
     try:
         # Import here to avoid circular imports and defer cost until needed
+        from prefect._experimental.plugins import config
+
+        if not config.enabled():
+            return
+
         import anyio
 
         from prefect._experimental.plugins import run_startup_hooks

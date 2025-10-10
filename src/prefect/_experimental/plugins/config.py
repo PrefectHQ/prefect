@@ -4,7 +4,26 @@ Configuration and feature flags for the experimental plugin system.
 
 from __future__ import annotations
 
-import os
+from prefect.settings.models.root import Settings
+
+
+def _get_settings():
+    """
+    Get settings, creating a fresh instance to pick up environment changes.
+
+    This uses Settings() directly rather than get_current_settings() to ensure
+    we always read from the current environment, which is important for testing
+    with settings context managers like temporary_settings.
+    """
+    from prefect.context import SettingsContext
+
+    # If we're in a settings context, use those settings
+    # Otherwise create a fresh Settings object from environment
+    settings_context = SettingsContext.get()
+    if settings_context is not None:
+        return settings_context.settings
+
+    return Settings()
 
 
 def enabled() -> bool:
@@ -12,9 +31,9 @@ def enabled() -> bool:
     Check if the experimental plugin system is enabled.
 
     Returns:
-        True if PREFECT_EXPERIMENTAL_PLUGINS is set to "1"
+        True if experiments.plugins.enabled is True
     """
-    return os.getenv("PREFECT_EXPERIMENTAL_PLUGINS") == "1"
+    return _get_settings().experiments.plugins.enabled
 
 
 def timeout_seconds() -> float:
@@ -24,7 +43,7 @@ def timeout_seconds() -> float:
     Returns:
         Timeout in seconds (default: 20)
     """
-    return float(os.getenv("PREFECT_PLUGINS_SETUP_TIMEOUT_SECONDS", "20"))
+    return _get_settings().experiments.plugins.setup_timeout_seconds
 
 
 def lists() -> tuple[set[str] | None, set[str] | None]:
@@ -34,8 +53,9 @@ def lists() -> tuple[set[str] | None, set[str] | None]:
     Returns:
         Tuple of (allow_set, deny_set). Either may be None if not configured.
     """
-    allow = os.getenv("PREFECT_PLUGINS_ALLOW")
-    deny = os.getenv("PREFECT_PLUGINS_DENY")
+    settings = _get_settings().experiments.plugins
+    allow = settings.allow
+    deny = settings.deny
     return (
         set(a.strip() for a in allow.split(",") if a.strip()) if allow else None,
         set(d.strip() for d in deny.split(",") if d.strip()) if deny else None,
@@ -49,9 +69,9 @@ def strict() -> bool:
     In strict mode, any plugin error marked required=True will abort Prefect startup.
 
     Returns:
-        True if PREFECT_PLUGINS_STRICT is set to "1"
+        True if experiments.plugins.strict is True
     """
-    return os.getenv("PREFECT_PLUGINS_STRICT") == "1"
+    return _get_settings().experiments.plugins.strict
 
 
 def safe_mode() -> bool:
@@ -61,6 +81,6 @@ def safe_mode() -> bool:
     In safe mode, plugins are loaded but hooks are not called. Useful for debugging.
 
     Returns:
-        True if PREFECT_PLUGINS_SAFE_MODE is set to "1"
+        True if experiments.plugins.safe_mode is True
     """
-    return os.getenv("PREFECT_PLUGINS_SAFE_MODE") == "1"
+    return _get_settings().experiments.plugins.safe_mode

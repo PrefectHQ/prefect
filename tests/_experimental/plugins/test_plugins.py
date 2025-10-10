@@ -22,6 +22,7 @@ from prefect._experimental.plugins.manager import (
     load_entry_point_plugins,
 )
 from prefect._experimental.plugins.spec import HookContext, HookSpec, SetupResult
+from prefect.settings import temporary_settings
 
 
 @pytest.fixture
@@ -54,12 +55,13 @@ class TestPluginConfig:
 
         assert config.enabled() is False
 
-    def test_feature_flag_on(self, clean_env, monkeypatch):
+    def test_feature_flag_on(self, clean_env):
         """Test that plugins can be enabled."""
         from prefect._experimental.plugins import config
+        from prefect.settings import PREFECT_EXPERIMENTAL_PLUGINS
 
-        monkeypatch.setenv("PREFECT_EXPERIMENTAL_PLUGINS", "1")
-        assert config.enabled() is True
+        with temporary_settings(updates={PREFECT_EXPERIMENTAL_PLUGINS: True}):
+            assert config.enabled() is True
 
     def test_timeout_default(self, clean_env):
         """Test default timeout value."""
@@ -67,37 +69,66 @@ class TestPluginConfig:
 
         assert config.timeout_seconds() == 20.0
 
-    def test_timeout_custom(self, clean_env, monkeypatch):
+    def test_timeout_custom(self, clean_env):
         """Test custom timeout value."""
         from prefect._experimental.plugins import config
+        from prefect.settings import (
+            Settings,
+            _get_settings_fields,
+        )
 
-        monkeypatch.setenv("PREFECT_PLUGINS_SETUP_TIMEOUT_SECONDS", "10")
-        assert config.timeout_seconds() == 10.0
+        fields = _get_settings_fields(Settings)
+        timeout_setting = fields["PREFECT_EXPERIMENTS_PLUGINS_SETUP_TIMEOUT_SECONDS"]
 
-    def test_allow_deny_lists(self, clean_env, monkeypatch):
+        with temporary_settings(updates={timeout_setting: 10.0}):
+            assert config.timeout_seconds() == 10.0
+
+    def test_allow_deny_lists(self, clean_env):
         """Test allow and deny list parsing."""
         from prefect._experimental.plugins import config
+        from prefect.settings import (
+            Settings,
+            _get_settings_fields,
+        )
 
-        monkeypatch.setenv("PREFECT_PLUGINS_ALLOW", "plugin1,plugin2")
-        monkeypatch.setenv("PREFECT_PLUGINS_DENY", "plugin3")
+        fields = _get_settings_fields(Settings)
+        allow_setting = fields["PREFECT_EXPERIMENTS_PLUGINS_ALLOW"]
+        deny_setting = fields["PREFECT_EXPERIMENTS_PLUGINS_DENY"]
 
-        allow, deny = config.lists()
-        assert allow == {"plugin1", "plugin2"}
-        assert deny == {"plugin3"}
+        with temporary_settings(
+            updates={allow_setting: "plugin1,plugin2", deny_setting: "plugin3"}
+        ):
+            allow, deny = config.lists()
+            assert allow == {"plugin1", "plugin2"}
+            assert deny == {"plugin3"}
 
-    def test_strict_mode(self, clean_env, monkeypatch):
+    def test_strict_mode(self, clean_env):
         """Test strict mode flag."""
         from prefect._experimental.plugins import config
+        from prefect.settings import (
+            Settings,
+            _get_settings_fields,
+        )
 
-        monkeypatch.setenv("PREFECT_PLUGINS_STRICT", "1")
-        assert config.strict() is True
+        fields = _get_settings_fields(Settings)
+        strict_setting = fields["PREFECT_EXPERIMENTS_PLUGINS_STRICT"]
 
-    def test_safe_mode(self, clean_env, monkeypatch):
+        with temporary_settings(updates={strict_setting: True}):
+            assert config.strict() is True
+
+    def test_safe_mode(self, clean_env):
         """Test safe mode flag."""
         from prefect._experimental.plugins import config
+        from prefect.settings import (
+            Settings,
+            _get_settings_fields,
+        )
 
-        monkeypatch.setenv("PREFECT_PLUGINS_SAFE_MODE", "1")
-        assert config.safe_mode() is True
+        fields = _get_settings_fields(Settings)
+        safe_mode_setting = fields["PREFECT_EXPERIMENTS_PLUGINS_SAFE_MODE"]
+
+        with temporary_settings(updates={safe_mode_setting: True}):
+            assert config.safe_mode() is True
 
 
 class TestRedaction:
@@ -275,20 +306,35 @@ class TestStartupHooks:
         assert summaries == []
 
     @pytest.mark.asyncio
-    async def test_safe_mode_no_execution(self, clean_env, monkeypatch, mock_ctx):
+    async def test_safe_mode_no_execution(self, clean_env, mock_ctx):
         """Test that safe mode loads plugins but doesn't execute hooks."""
-        monkeypatch.setenv("PREFECT_EXPERIMENTAL_PLUGINS", "1")
-        monkeypatch.setenv("PREFECT_PLUGINS_SAFE_MODE", "1")
+        from prefect.settings import (
+            PREFECT_EXPERIMENTAL_PLUGINS,
+            Settings,
+            _get_settings_fields,
+        )
 
-        summaries = await run_startup_hooks(mock_ctx)
-        # Should return empty list in safe mode
-        assert summaries == []
+        fields = _get_settings_fields(Settings)
+        safe_mode_setting = fields["PREFECT_EXPERIMENTS_PLUGINS_SAFE_MODE"]
+
+        with temporary_settings(
+            updates={PREFECT_EXPERIMENTAL_PLUGINS: True, safe_mode_setting: True}
+        ):
+            summaries = await run_startup_hooks(mock_ctx)
+            # Should return empty list in safe mode
+            assert summaries == []
 
     @pytest.mark.asyncio
-    async def test_timeout_handling(self, clean_env, monkeypatch, mock_ctx):
+    async def test_timeout_handling(self, clean_env, mock_ctx):
         """Test that slow plugins time out gracefully."""
-        monkeypatch.setenv("PREFECT_EXPERIMENTAL_PLUGINS", "1")
-        monkeypatch.setenv("PREFECT_PLUGINS_SETUP_TIMEOUT_SECONDS", "0.1")
+        from prefect.settings import (
+            PREFECT_EXPERIMENTAL_PLUGINS,
+            Settings,
+            _get_settings_fields,
+        )
+
+        fields = _get_settings_fields(Settings)
+        timeout_setting = fields["PREFECT_EXPERIMENTS_PLUGINS_SETUP_TIMEOUT_SECONDS"]
 
         class SlowPlugin:
             async def setup_environment(self, *, ctx: HookContext):
@@ -298,19 +344,28 @@ class TestStartupHooks:
         pm = build_manager(HookSpec)
         pm.register(SlowPlugin(), name="slow-plugin")
 
-        with patch("prefect._experimental.plugins.build_manager", return_value=pm):
-            with patch(
-                "prefect._experimental.plugins.manager.load_entry_point_plugins"
-            ):
-                summaries = await run_startup_hooks(mock_ctx)
-                # Should complete without crashing
-                assert isinstance(summaries, list)
+        with temporary_settings(
+            updates={PREFECT_EXPERIMENTAL_PLUGINS: True, timeout_setting: 0.1}
+        ):
+            with patch("prefect._experimental.plugins.build_manager", return_value=pm):
+                with patch(
+                    "prefect._experimental.plugins.manager.load_entry_point_plugins"
+                ):
+                    summaries = await run_startup_hooks(mock_ctx)
+                    # Should complete without crashing
+                    assert isinstance(summaries, list)
 
     @pytest.mark.asyncio
-    async def test_strict_mode_required_failure(self, clean_env, monkeypatch, mock_ctx):
+    async def test_strict_mode_required_failure(self, clean_env, mock_ctx):
         """Test that strict mode exits on required plugin failure."""
-        monkeypatch.setenv("PREFECT_EXPERIMENTAL_PLUGINS", "1")
-        monkeypatch.setenv("PREFECT_PLUGINS_STRICT", "1")
+        from prefect.settings import (
+            PREFECT_EXPERIMENTAL_PLUGINS,
+            Settings,
+            _get_settings_fields,
+        )
+
+        fields = _get_settings_fields(Settings)
+        strict_setting = fields["PREFECT_EXPERIMENTS_PLUGINS_STRICT"]
 
         class RequiredPlugin:
             @hookimpl
@@ -320,17 +375,20 @@ class TestStartupHooks:
         pm = build_manager(HookSpec)
         pm.register(RequiredPlugin(), name="required-plugin")
 
-        with patch("prefect._experimental.plugins.build_manager", return_value=pm):
-            with patch(
-                "prefect._experimental.plugins.manager.load_entry_point_plugins"
-            ):
-                with pytest.raises(SystemExit):
-                    await run_startup_hooks(mock_ctx)
+        with temporary_settings(
+            updates={PREFECT_EXPERIMENTAL_PLUGINS: True, strict_setting: True}
+        ):
+            with patch("prefect._experimental.plugins.build_manager", return_value=pm):
+                with patch(
+                    "prefect._experimental.plugins.manager.load_entry_point_plugins"
+                ):
+                    with pytest.raises(SystemExit):
+                        await run_startup_hooks(mock_ctx)
 
     @pytest.mark.asyncio
-    async def test_successful_plugin_execution(self, clean_env, monkeypatch, mock_ctx):
+    async def test_successful_plugin_execution(self, clean_env, mock_ctx):
         """Test that successful plugins apply environment variables."""
-        monkeypatch.setenv("PREFECT_EXPERIMENTAL_PLUGINS", "1")
+        from prefect.settings import PREFECT_EXPERIMENTAL_PLUGINS
 
         class TestPlugin:
             @hookimpl
@@ -344,25 +402,26 @@ class TestStartupHooks:
         pm = build_manager(HookSpec)
         pm.register(TestPlugin(), name="test-plugin")
 
-        with patch("prefect._experimental.plugins.build_manager", return_value=pm):
-            with patch(
-                "prefect._experimental.plugins.manager.load_entry_point_plugins"
-            ):
-                summaries = await run_startup_hooks(mock_ctx)
+        with temporary_settings(updates={PREFECT_EXPERIMENTAL_PLUGINS: True}):
+            with patch("prefect._experimental.plugins.build_manager", return_value=pm):
+                with patch(
+                    "prefect._experimental.plugins.manager.load_entry_point_plugins"
+                ):
+                    summaries = await run_startup_hooks(mock_ctx)
 
-                assert len(summaries) == 1
-                assert summaries[0].plugin == "test-plugin"
-                assert summaries[0].error is None
-                assert summaries[0].note == "Test plugin ran"
-                assert "TEST_VAR" in summaries[0].env_preview
+                    assert len(summaries) == 1
+                    assert summaries[0].plugin == "test-plugin"
+                    assert summaries[0].error is None
+                    assert summaries[0].note == "Test plugin ran"
+                    assert "TEST_VAR" in summaries[0].env_preview
 
-                # Check that env var was actually set
-                assert os.environ.get("TEST_VAR") == "test_value"
+                    # Check that env var was actually set
+                    assert os.environ.get("TEST_VAR") == "test_value"
 
     @pytest.mark.asyncio
-    async def test_plugin_returning_none(self, clean_env, monkeypatch, mock_ctx):
+    async def test_plugin_returning_none(self, clean_env, mock_ctx):
         """Test that plugins can return None to indicate no changes."""
-        monkeypatch.setenv("PREFECT_EXPERIMENTAL_PLUGINS", "1")
+        from prefect.settings import PREFECT_EXPERIMENTAL_PLUGINS
 
         class NoOpPlugin:
             @hookimpl
@@ -372,16 +431,17 @@ class TestStartupHooks:
         pm = build_manager(HookSpec)
         pm.register(NoOpPlugin(), name="noop-plugin")
 
-        with patch("prefect._experimental.plugins.build_manager", return_value=pm):
-            with patch(
-                "prefect._experimental.plugins.manager.load_entry_point_plugins"
-            ):
-                summaries = await run_startup_hooks(mock_ctx)
+        with temporary_settings(updates={PREFECT_EXPERIMENTAL_PLUGINS: True}):
+            with patch("prefect._experimental.plugins.build_manager", return_value=pm):
+                with patch(
+                    "prefect._experimental.plugins.manager.load_entry_point_plugins"
+                ):
+                    summaries = await run_startup_hooks(mock_ctx)
 
-                assert len(summaries) == 1
-                assert summaries[0].plugin == "noop-plugin"
-                assert summaries[0].error is None
-                assert summaries[0].env_preview == {}
+                    assert len(summaries) == 1
+                    assert summaries[0].plugin == "noop-plugin"
+                    assert summaries[0].error is None
+                    assert summaries[0].env_preview == {}
 
 
 class TestSetupSummary:
