@@ -563,23 +563,23 @@ def cancel_sync_after(timeout: Optional[float], name: Optional[str] = None):
     Yields a `CancelContext`.
     """
 
-    if sys.platform.startswith("win"):
-        yield NullCancelScope(reason="cancellation is not supported on Windows")
-        return
-
     thread = threading.current_thread()
-    existing_alarm_handler = signal.getsignal(signal.SIGALRM) != signal.SIG_DFL
 
+    # On Windows, we can't use signals (SIGALRM), but we can still use the threading-based approach
+    # which should work on all platforms including Windows
     if (
-        thread is threading.main_thread()
-        # Avoid nested alarm handlers; it's hard to follow and they will interfere with
-        # each other
-        and not existing_alarm_handler
-        # Avoid using an alarm when there is no timeout; it's better saved for that case
+        not sys.platform.startswith("win")
+        and thread is threading.main_thread()
         and timeout is not None
     ):
-        scope = AlarmCancelScope(name=name, timeout=timeout)
+        # Only use AlarmCancelScope (signal-based) on non-Windows platforms
+        existing_alarm_handler = signal.getsignal(signal.SIGALRM) != signal.SIG_DFL
+        if not existing_alarm_handler:
+            scope = AlarmCancelScope(name=name, timeout=timeout)
+        else:
+            scope = WatcherThreadCancelScope(name=name, timeout=timeout)
     else:
+        # Use WatcherThreadCancelScope (threading-based) for Windows or when alarm is unavailable
         scope = WatcherThreadCancelScope(name=name, timeout=timeout)
 
     with scope:
