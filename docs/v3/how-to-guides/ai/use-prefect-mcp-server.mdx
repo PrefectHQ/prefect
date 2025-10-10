@@ -51,8 +51,12 @@ Deploy the MCP server to [FastMCP Cloud](https://fastmcp.cloud) for remote acces
 5. Get your server URL (e.g., `https://your-server-name.fastmcp.app/mcp`)
 
 <Note>
-When deploying to FastMCP Cloud, you **must** provide credentials via environment variables since the server has no access to your local Prefect configuration.
+When deploying to FastMCP Cloud, environment variables are configured on the FastMCP Cloud server itself (step 4 above), not in your client configuration. FastMCP's authentication secures access to your MCP server, while the MCP server uses your Prefect API key to access your Prefect instance.
 </Note>
+
+<Tip>
+Prefect Cloud users on Team, Pro, and Enterprise plans can use service accounts for API authentication. Pro and Enterprise users can restrict service accounts to read-only access (only `see_*` permissions) since the Prefect MCP server requires no write permissions.
+</Tip>
 
 ## Client setup
 
@@ -85,10 +89,7 @@ claude mcp add prefect \
   -- uvx --from prefect-mcp prefect-mcp-server
 
 # With FastMCP Cloud deployment (HTTP transport)
-claude mcp add prefect \
-  -e PREFECT_API_URL=https://api.prefect.cloud/api/accounts/[ACCOUNT_ID]/workspaces/[WORKSPACE_ID] \
-  -e PREFECT_API_KEY=your-cloud-api-key \
-  --transport http https://your-server-name.fastmcp.app/mcp
+claude mcp add prefect --transport http https://your-server-name.fastmcp.app/mcp
 ```
 
 </Accordion>
@@ -153,6 +154,70 @@ args = ["--from", "prefect-mcp", "prefect-mcp-server"]
 [mcp.prefect.env]
 PREFECT_API_URL = "https://api.prefect.cloud/api/accounts/[ACCOUNT_ID]/workspaces/[WORKSPACE_ID]"
 PREFECT_API_KEY = "your-cloud-api-key"
+```
+
+</Accordion>
+
+<Accordion title="Gemini CLI">
+
+Add the Prefect MCP server to Gemini CLI using the CLI:
+
+```bash
+# STDIO transport - runs locally with uvx
+gemini mcp add prefect uvx --from prefect-mcp prefect-mcp-server
+
+# With explicit Prefect Cloud credentials
+gemini mcp add prefect \
+  -e PREFECT_API_URL=https://api.prefect.cloud/api/accounts/[ACCOUNT_ID]/workspaces/[WORKSPACE_ID] \
+  -e PREFECT_API_KEY=your-cloud-api-key \
+  uvx --from prefect-mcp prefect-mcp-server
+
+# HTTP transport - for FastMCP Cloud deployment
+gemini mcp add prefect --transport http https://your-server-name.fastmcp.app/mcp
+```
+
+Alternatively, edit `~/.gemini/settings.json` directly:
+
+**For STDIO transport (local):**
+
+```json
+{
+  "mcpServers": {
+    "prefect": {
+      "command": "uvx",
+      "args": ["--from", "prefect-mcp", "prefect-mcp-server"]
+    }
+  }
+}
+```
+
+**For STDIO transport with explicit credentials:**
+
+```json
+{
+  "mcpServers": {
+    "prefect": {
+      "command": "uvx",
+      "args": ["--from", "prefect-mcp", "prefect-mcp-server"],
+      "env": {
+        "PREFECT_API_URL": "https://api.prefect.cloud/api/accounts/[ACCOUNT_ID]/workspaces/[WORKSPACE_ID]",
+        "PREFECT_API_KEY": "your-cloud-api-key"
+      }
+    }
+  }
+}
+```
+
+**For HTTP transport (FastMCP Cloud):**
+
+```json
+{
+  "mcpServers": {
+    "prefect": {
+      "httpUrl": "https://your-server-name.fastmcp.app/mcp"
+    }
+  }
+}
 ```
 
 </Accordion>
