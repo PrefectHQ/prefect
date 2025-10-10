@@ -18,6 +18,7 @@ import prefect.cli.deploy
 import prefect.cli.deployment
 import prefect.cli.dev
 import prefect.cli.events
+import prefect.cli.experimental
 import prefect.cli.flow
 import prefect.cli.flow_run
 import prefect.cli.global_concurrency_limit
