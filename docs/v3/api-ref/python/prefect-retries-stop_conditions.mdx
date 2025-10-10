@@ -1,0 +1,208 @@
+---
+title: stop_conditions
+sidebarTitle: stop_conditions
+---
+
+# `prefect.retries.stop_conditions`
+
+## Classes
+
+### `StopCondition` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/retries/stop_conditions.py#L10" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+A protocol that defines a stopping condition for an attempting generator.
+
+
+**Methods:**
+
+#### `is_met` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/retries/stop_conditions.py#L16" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+is_met(self, context: AttemptState | None) -> bool
+```
+
+Checks if execution should stop.
+
+**Args:**
+- `context`: The current attempt context.
+
+**Returns:**
+- True if the stopping condition is met, False otherwise.
+
+
+### `NoException` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/retries/stop_conditions.py#L43" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+A StopCondition implementation that stops if no exception is raised in the attempt
+context.
+
+
+**Methods:**
+
+#### `is_met` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/retries/stop_conditions.py#L49" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+is_met(self, context: AttemptState | None) -> bool
+```
+
+#### `is_met` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/retries/stop_conditions.py#L16" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+is_met(self, context: AttemptState | None) -> bool
+```
+
+Checks if execution should stop.
+
+**Args:**
+- `context`: The current attempt context.
+
+**Returns:**
+- True if the stopping condition is met, False otherwise.
+
+
+### `ExceptionMatches` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/retries/stop_conditions.py#L55" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+A StopCondition implementation that stops if the exception matches the given type.
+
+
+**Methods:**
+
+#### `is_met` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/retries/stop_conditions.py#L63" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+is_met(self, context: AttemptState | None) -> bool
+```
+
+#### `is_met` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/retries/stop_conditions.py#L16" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+is_met(self, context: AttemptState | None) -> bool
+```
+
+Checks if execution should stop.
+
+**Args:**
+- `context`: The current attempt context.
+
+**Returns:**
+- True if the stopping condition is met, False otherwise.
+
+
+### `AttemptsExhausted` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/retries/stop_conditions.py#L69" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+A StopCondition implementation that stops after a fixed number of attempts.
+
+
+**Methods:**
+
+#### `is_met` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/retries/stop_conditions.py#L83" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+is_met(self, context: AttemptState | None) -> bool
+```
+
+#### `is_met` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/retries/stop_conditions.py#L16" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+is_met(self, context: AttemptState | None) -> bool
+```
+
+Checks if execution should stop.
+
+**Args:**
+- `context`: The current attempt context.
+
+**Returns:**
+- True if the stopping condition is met, False otherwise.
+
+
+### `IntersectionStopCondition` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/retries/stop_conditions.py#L89" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+A StopCondition implementation that stops if all of the given StopCondition
+instances are met.
+
+
+**Methods:**
+
+#### `is_met` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/retries/stop_conditions.py#L98" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+is_met(self, context: AttemptState | None) -> bool
+```
+
+#### `is_met` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/retries/stop_conditions.py#L16" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+is_met(self, context: AttemptState | None) -> bool
+```
+
+Checks if execution should stop.
+
+**Args:**
+- `context`: The current attempt context.
+
+**Returns:**
+- True if the stopping condition is met, False otherwise.
+
+
+### `UnionStopCondition` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/retries/stop_conditions.py#L102" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+A StopCondition implementation that stops if any of the given StopCondition
+instances are met.
+
+
+**Methods:**
+
+#### `is_met` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/retries/stop_conditions.py#L111" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+is_met(self, context: AttemptState | None) -> bool
+```
+
+#### `is_met` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/retries/stop_conditions.py#L16" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+is_met(self, context: AttemptState | None) -> bool
+```
+
+Checks if execution should stop.
+
+**Args:**
+- `context`: The current attempt context.
+
+**Returns:**
+- True if the stopping condition is met, False otherwise.
+
+
+### `InvertedStopCondition` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/retries/stop_conditions.py#L115" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+A StopCondition implementation that inverts the given StopCondition.
+
+
+**Methods:**
+
+#### `is_met` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/retries/stop_conditions.py#L123" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+is_met(self, context: AttemptState | None) -> bool
+```
+
+#### `is_met` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/retries/stop_conditions.py#L16" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+is_met(self, context: AttemptState | None) -> bool
+```
+
+Checks if execution should stop.
+
+**Args:**
+- `context`: The current attempt context.
+
+**Returns:**
+- True if the stopping condition is met, False otherwise.
+
