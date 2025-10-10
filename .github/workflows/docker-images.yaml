@@ -168,7 +168,7 @@ jobs:
     needs: publish-docker-images
     runs-on: ubuntu-latest
     steps:
-      - name: Trigger luster-deployment workflow
+      - name: Trigger cluster-deployment workflow
         run: |
           # Construct the Kubernetes image tag (e.g., 3.4.16-python3.11-kubernetes)
           IMAGE_TAG="${{ github.ref_name }}-python3.11-kubernetes"
