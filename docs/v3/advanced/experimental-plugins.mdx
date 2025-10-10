@@ -179,6 +179,8 @@ def setup_environment(*, ctx: HookContext) -> SetupResult | None:
 For plugins that need to maintain state, you can also use a class-based approach:
 
 ```python
+from prefect._experimental.plugins import register_hook, HookContext, SetupResult
+
 class MyPlugin:
     def __init__(self):
         self.state = {}
@@ -199,6 +201,10 @@ Entry point: `"my_plugin:Plugin"`
 The context object passed to plugins:
 
 ```python
+from dataclasses import dataclass
+from typing import Callable
+import logging
+
 @dataclass
 class HookContext:
     prefect_version: str  # e.g., "3.0.0"
@@ -211,6 +217,10 @@ class HookContext:
 The result returned by plugins:
 
 ```python
+from dataclasses import dataclass
+from typing import Mapping
+from datetime import datetime
+
 @dataclass
 class SetupResult:
     env: Mapping[str, str]           # Environment variables to set
@@ -449,6 +459,8 @@ Plugins should be idempotent - multiple invocations should produce the same resu
 Plugins should declare their API version compatibility using the `PREFECT_PLUGIN_API_REQUIRES` attribute:
 
 ```python
+from prefect._experimental.plugins import register_hook, HookContext
+
 # At module level in your plugin
 PREFECT_PLUGIN_API_REQUIRES = ">=0.1,<1"  # Supports API version 0.1.x
 
