@@ -398,14 +398,62 @@ Plugins should be idempotent - multiple invocations should produce the same resu
 
 ## Version Compatibility
 
-Specify API version requirements in your plugin:
+### Specifying Version Requirements
+
+Plugins should declare their API version compatibility using the `PREFECT_PLUGIN_API_REQUIRES` attribute:
 
 ```python
-# Require plugin API version 0.1.x
-PREFECT_PLUGIN_API_REQUIRES = ">=0.1,<1"
+# At module level in your plugin
+PREFECT_PLUGIN_API_REQUIRES = ">=0.1,<1"  # Supports API version 0.1.x
+
+class Plugin:
+    @register_hook
+    def setup_environment(self, *, ctx: HookContext):
+        # Your plugin implementation
+        pass
 ```
 
-The current plugin API version is `0.1`. This will be incremented when breaking changes are made.
+The version specifier follows [PEP 440](https://peps.python.org/pep-0440/) syntax:
+- `">=0.1,<1"` - Compatible with 0.1.x releases, incompatible with 1.0+
+- `">=0.1"` - Compatible with 0.1 and all future versions
+- `"==0.1"` - Only compatible with exactly version 0.1
+
+The current plugin API version is `0.1`. This will be incremented when breaking changes are made to the plugin interface.
+
+### Version Validation
+
+When Prefect loads plugins, it automatically validates version compatibility:
+
+1. **Compatible versions**: Plugin loads normally and executes
+2. **Incompatible versions**: Plugin is skipped with a warning log message
+3. **Invalid specifiers**: Warning is logged, but plugin loads anyway (best-effort)
+4. **Missing attribute**: Defaults to `">=0.1,<1"` if not specified
+
+**Example logs:**
+
+```
+# Incompatible version
+WARNING: Skipping plugin my-plugin: requires API version >=1.0, current version is 0.1
+
+# Invalid specifier
+DEBUG: Plugin my-plugin has invalid version specifier 'not-valid', ignoring version check
+```
+
+### Checking Compatibility
+
+Use the diagnostics command to see plugin version requirements:
+
+```bash
+prefect experimental plugins diagnose
+```
+
+Output shows API requirements for each plugin:
+
+```
+  • my-plugin: active
+    Module: my_plugin:Plugin
+    API requirement: >=0.1,<1
+```
 
 ## Troubleshooting
 
@@ -441,6 +489,28 @@ The current plugin API version is `0.1`. This will be incremented when breaking 
 3. Test plugin in isolation:
    ```bash
    PREFECT_PLUGINS_ALLOW="your-plugin" prefect experimental plugins diagnose
+   ```
+
+### Version Compatibility Issues
+
+If a plugin isn't loading due to version mismatch:
+
+1. Check the plugin's API requirement:
+   ```bash
+   prefect experimental plugins diagnose
+   ```
+   Look for warnings about incompatible API versions
+
+2. Update the plugin to a version compatible with your Prefect installation, or update Prefect to match the plugin's requirements
+
+3. If you're developing a plugin, adjust `PREFECT_PLUGIN_API_REQUIRES` to match the current API version:
+   ```python
+   PREFECT_PLUGIN_API_REQUIRES = ">=0.1,<1"  # Current API version is 0.1
+   ```
+
+4. Enable debug logging to see detailed version validation:
+   ```bash
+   PREFECT_LOGGING_LEVEL=DEBUG prefect --version
    ```
 
 ### Timeout Issues
