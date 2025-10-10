@@ -1,11 +1,13 @@
 from __future__ import annotations
 
-from typing import ClassVar, Optional
+from functools import partial
+from typing import Annotated, ClassVar, Union
 
-from pydantic import AliasChoices, AliasPath, Field
+from pydantic import AliasChoices, AliasPath, BeforeValidator, Field
 from pydantic_settings import SettingsConfigDict
 
 from prefect.settings.base import PrefectBaseSettings, build_settings_config
+from prefect.types import validate_set_T_from_delim_string
 
 
 class PluginsSettings(PrefectBaseSettings):
@@ -22,12 +24,18 @@ class PluginsSettings(PrefectBaseSettings):
         description="Enable the experimental plugin system.",
     )
 
-    allow: Optional[str] = Field(
+    allow: Annotated[
+        Union[str, list[str], None],
+        BeforeValidator(partial(validate_set_T_from_delim_string, type_=str)),
+    ] = Field(
         default=None,
         description="Comma-separated list of plugin names to allow. If set, only these plugins will be loaded.",
     )
 
-    deny: Optional[str] = Field(
+    deny: Annotated[
+        Union[str, list[str], None],
+        BeforeValidator(partial(validate_set_T_from_delim_string, type_=str)),
+    ] = Field(
         default=None,
         description="Comma-separated list of plugin names to deny. These plugins will not be loaded.",
     )

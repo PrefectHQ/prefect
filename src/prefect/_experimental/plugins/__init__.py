@@ -13,8 +13,8 @@ from typing import Any
 
 import anyio
 
-from prefect._experimental.plugins import config
 from prefect._experimental.plugins.apply import apply_setup_result, summarize_env
+from prefect._experimental.plugins.config import parse_plugin_lists
 from prefect._experimental.plugins.diagnostics import SetupSummary
 from prefect._experimental.plugins.manager import (
     build_manager,
@@ -28,6 +28,7 @@ from prefect._experimental.plugins.spec import (
     HookSpec,
     SetupResult,
 )
+from prefect.settings import get_current_settings
 
 __all__ = [
     "run_startup_hooks",
@@ -61,24 +62,25 @@ async def run_startup_hooks(ctx: HookContext) -> list[SetupSummary]:
         SystemExit: In strict mode, if a required plugin fails
     """
     logger = ctx.logger_factory("prefect.plugins")
+    settings = get_current_settings().experiments.plugins
 
-    if not config.enabled():
+    if not settings.enabled:
         logger.debug("Experimental plugins not enabled")
         return []
 
     logger.debug("Initializing experimental plugin system")
     pm = build_manager(HookSpec)
-    allow, deny = config.lists()
+    allow, deny = parse_plugin_lists()
     load_entry_point_plugins(pm, allow=allow, deny=deny, logger=logger)
 
     summaries: list[SetupSummary] = []
 
-    if config.safe_mode():
+    if settings.safe_mode:
         logger.info("Safe mode enabled - plugins loaded but hooks not called")
         return summaries
 
     # Call all hooks with timeout
-    timeout = config.timeout_seconds()
+    timeout = settings.setup_timeout_seconds
     results: list[tuple[str, Any, Exception | None]] = []
 
     try:
@@ -119,7 +121,7 @@ async def run_startup_hooks(ctx: HookContext) -> list[SetupSummary]:
             summaries.append(SetupSummary(name, {}, None, None, error=str(e)))
 
     # Strict failure policy
-    if config.strict():
+    if settings.strict:
         for name, res, err in results:
             if err:
                 raise SystemExit(f"[plugins] required plugin '{name}' failed: {err}")

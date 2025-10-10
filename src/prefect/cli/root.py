@@ -93,9 +93,6 @@ def main(
     if sys.platform == "win32":
         asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
 
-    # Note: Plugin startup hooks run automatically when Prefect is imported
-    # (see prefect.__init__.py). No need to call them here.
-
 
 @app.command()
 async def version(

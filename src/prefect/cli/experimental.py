@@ -8,10 +8,11 @@ from __future__ import annotations
 
 import importlib.metadata as md
 
-from prefect._experimental.plugins import config as plugin_config
+from prefect._experimental.plugins.config import parse_plugin_lists
 from prefect._experimental.plugins.manager import ENTRYPOINTS_GROUP
 from prefect.cli._types import PrefectTyper
 from prefect.cli.root import app
+from prefect.settings import get_current_settings
 
 experimental_app: PrefectTyper = PrefectTyper(
     name="experimental",
@@ -42,12 +43,12 @@ async def diagnose():
     without executing hooks.
     """
     from prefect._experimental.plugins import run_startup_hooks
-    from prefect.cli._bootstrap import _make_ctx
 
     app.console.print("\n[bold]Prefect Experimental Plugin System Diagnostics[/bold]\n")
 
     # Check if enabled
-    enabled = plugin_config.enabled()
+    settings = get_current_settings().experiments.plugins
+    enabled = settings.enabled
     app.console.print(f"Enabled: [{'green' if enabled else 'red'}]{enabled}[/]")
 
     if not enabled:
@@ -58,10 +59,10 @@ async def diagnose():
         return
 
     # Show configuration
-    timeout = plugin_config.timeout_seconds()
-    allow, deny = plugin_config.lists()
-    strict = plugin_config.strict()
-    safe = plugin_config.safe_mode()
+    timeout = settings.setup_timeout_seconds
+    allow, deny = parse_plugin_lists()
+    strict = settings.strict
+    safe = settings.safe_mode
 
     app.console.print(f"Timeout: {timeout}s")
     app.console.print(f"Strict mode: {strict}")
@@ -111,7 +112,16 @@ async def diagnose():
     # Run startup hooks to show what they do
     if not safe:
         app.console.print("[bold]Running Startup Hooks[/bold]\n")
-        ctx = _make_ctx()
+
+        from prefect import __version__
+        from prefect._experimental.plugins.spec import HookContext
+        from prefect.logging import get_logger
+
+        ctx = HookContext(
+            prefect_version=__version__,
+            api_url=get_current_settings().api.url,
+            logger_factory=get_logger,
+        )
         summaries = await run_startup_hooks(ctx)
 
         if summaries:

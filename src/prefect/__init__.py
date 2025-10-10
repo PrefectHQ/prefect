@@ -76,9 +76,9 @@ def _initialize_plugins() -> None:
     """
     try:
         # Import here to avoid circular imports and defer cost until needed
-        from prefect._experimental.plugins import config
+        from prefect.settings import get_current_settings
 
-        if not config.enabled():
+        if not get_current_settings().experiments.plugins.enabled:
             return
 
         import anyio

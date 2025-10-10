@@ -13,7 +13,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from prefect._experimental.plugins import config, run_startup_hooks
+from prefect._experimental.plugins import run_startup_hooks
 from prefect._experimental.plugins.apply import redact, summarize_env
 from prefect._experimental.plugins.diagnostics import SetupSummary
 from prefect._experimental.plugins.manager import (
@@ -31,6 +31,7 @@ from prefect.settings import (
     PREFECT_EXPERIMENTS_PLUGINS_SAFE_MODE,
     PREFECT_EXPERIMENTS_PLUGINS_SETUP_TIMEOUT_SECONDS,
     PREFECT_EXPERIMENTS_PLUGINS_STRICT,
+    get_current_settings,
     temporary_settings,
 )
 
@@ -83,21 +84,21 @@ class TestPluginConfig:
     @pytest.mark.usefixtures("clean_env")
     def test_feature_flag_off(self):
         """Test that plugins are disabled by default."""
-        from prefect._experimental.plugins import config
-
-        assert config.enabled() is False
+        settings = get_current_settings().experiments.plugins
+        assert settings.enabled is False
 
     @pytest.mark.usefixtures("clean_env")
     def test_feature_flag_on(self):
         """Test that plugins can be enabled."""
-
         with temporary_settings(updates={PREFECT_EXPERIMENTS_PLUGINS_ENABLED: True}):
-            assert config.enabled() is True
+            settings = get_current_settings().experiments.plugins
+            assert settings.enabled is True
 
     @pytest.mark.usefixtures("clean_env")
     def test_timeout_default(self):
         """Test default timeout value."""
-        assert config.timeout_seconds() == 20.0
+        settings = get_current_settings().experiments.plugins
+        assert settings.setup_timeout_seconds == 20.0
 
     @pytest.mark.usefixtures("clean_env")
     def test_timeout_custom(self):
@@ -105,19 +106,21 @@ class TestPluginConfig:
         with temporary_settings(
             updates={PREFECT_EXPERIMENTS_PLUGINS_SETUP_TIMEOUT_SECONDS: 10.0}
         ):
-            assert config.timeout_seconds() == 10.0
+            settings = get_current_settings().experiments.plugins
+            assert settings.setup_timeout_seconds == 10.0
 
     @pytest.mark.usefixtures("clean_env")
-    def test_allow_deny_lists(self):
-        """Test allow and deny list parsing."""
-
+    def test_parse_plugin_lists(self):
+        """Test plugin allow and deny list parsing."""
         with temporary_settings(
             updates={
                 PREFECT_EXPERIMENTS_PLUGINS_ALLOW: "plugin1,plugin2",
                 PREFECT_EXPERIMENTS_PLUGINS_DENY: "plugin3",
             }
         ):
-            allow, deny = config.lists()
+            settings = get_current_settings().experiments.plugins
+            allow = settings.allow
+            deny = settings.deny
             assert allow == {"plugin1", "plugin2"}
             assert deny == {"plugin3"}
 
@@ -125,13 +128,15 @@ class TestPluginConfig:
     def test_strict_mode(self):
         """Test strict mode flag."""
         with temporary_settings(updates={PREFECT_EXPERIMENTS_PLUGINS_STRICT: True}):
-            assert config.strict() is True
+            settings = get_current_settings().experiments.plugins
+            assert settings.strict is True
 
     @pytest.mark.usefixtures("clean_env")
     def test_safe_mode(self):
         """Test safe mode flag."""
         with temporary_settings(updates={PREFECT_EXPERIMENTS_PLUGINS_SAFE_MODE: True}):
-            assert config.safe_mode() is True
+            settings = get_current_settings().experiments.plugins
+            assert settings.safe_mode is True
 
 
 class TestRedaction:
