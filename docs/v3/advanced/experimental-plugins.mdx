@@ -133,7 +133,7 @@ export PREFECT_EXPERIMENTS_PLUGINS_SAFE_MODE=1
 
 ### Hook Specification
 
-Plugins implement the `setup_environment` hook to configure the environment. The simplest approach is to use a decorated function:
+Plugins implement the `setup_environment` hook to configure the environment or run code on startup. The simplest approach is to use a decorated function:
 
 ```python
 from prefect._experimental.plugins import register_hook, HookContext, SetupResult
@@ -219,7 +219,7 @@ class SetupResult:
     required: bool = False            # Abort in strict mode if fails
 ```
 
-## Real-World Example: AWS Credentials Plugin
+## Example: AWS Credentials Plugin
 
 Here's a complete example of a plugin that assumes an AWS IAM role and provides temporary credentials:
 
@@ -567,43 +567,3 @@ export PREFECT_EXPERIMENTS_PLUGINS_SETUP_TIMEOUT_SECONDS=60
 ```
 
 Or optimize plugin startup time by deferring expensive operations.
-
-## Migration & Future Changes
-
-<Info>
-The plugin system is experimental and APIs may change. Future improvements may include:
-
-- Additional hook types (`refresh_environment`, `register_blocks`, etc.)
-- Per-plugin timeouts and priorities
-- Persistent caching of plugin results
-- Enhanced error types and diagnostics
-- Migration path to stable API
-</Info>
-
-When the plugin system stabilizes, plugins will be able to migrate from `_experimental` to a stable API with a clear deprecation path.
-
-## FAQ
-
-**Q: When should I use plugins vs. environment variables?**
-
-A: Use plugins when you need dynamic, short-lived credentials or complex setup logic. Use environment variables for static configuration.
-
-**Q: Can plugins access the Prefect client?**
-
-A: Not in the current version. Plugins run before Prefect is fully initialized. Future versions may provide client access.
-
-**Q: How do I share data between plugins?**
-
-A: Use environment variables. Plugins can read variables set by earlier plugins.
-
-**Q: Are plugins loaded in workers and agents?**
-
-A: Yes, when the feature flag is enabled. The same hooks run in CLI, workers, and agents.
-
-**Q: Can I use plugins without the `@register_hook` decorator?**
-
-A: No, the `@register_hook` decorator is required. Plugin methods without this decorator will not be discovered or called by the plugin system.
-
-## Examples Repository
-
-Find more plugin examples in the [Prefect Examples Repository](https://github.com/PrefectHQ/prefect/tree/main/examples).
