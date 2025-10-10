@@ -7,6 +7,7 @@ from __future__ import annotations
 import importlib.metadata as md
 import inspect
 import logging
+import sys
 from typing import Any
 
 import pluggy
@@ -51,7 +52,14 @@ def load_entry_point_plugins(
         deny: If set, skip plugins with names in this set
         logger: Logger for reporting load failures
     """
-    for ep in md.entry_points(group=ENTRYPOINTS_GROUP):
+    # Python 3.10+ supports group parameter, 3.9 requires dict access
+    if sys.version_info >= (3, 10):
+        entry_points_list = md.entry_points(group=ENTRYPOINTS_GROUP)
+    else:
+        # Python 3.9 returns a dict-like object
+        entry_points_list = md.entry_points().get(ENTRYPOINTS_GROUP, [])
+
+    for ep in entry_points_list:
         if allow and ep.name not in allow:
             logger.debug("Skipping plugin %s (not in allow list)", ep.name)
             continue
