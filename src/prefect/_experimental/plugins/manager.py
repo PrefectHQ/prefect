@@ -10,6 +10,7 @@ import logging
 from typing import Any
 
 import pluggy
+from packaging.specifiers import InvalidSpecifier, SpecifierSet
 
 from prefect._experimental.plugins.spec import PREFECT_PLUGIN_API_VERSION
 
@@ -61,8 +62,25 @@ def load_entry_point_plugins(
             plugin = ep.load()
             # Version fence (best effort)
             requires = getattr(plugin, "PREFECT_PLUGIN_API_REQUIRES", ">=0.1,<1")
-            # TODO: Optional: validate `requires` against PREFECT_PLUGIN_API_VERSION
-            # using packaging.specifiers
+
+            # Validate plugin API version requirement
+            try:
+                spec = SpecifierSet(requires)
+                if PREFECT_PLUGIN_API_VERSION not in spec:
+                    logger.warning(
+                        "Skipping plugin %s: requires API version %s, current version is %s",
+                        ep.name,
+                        requires,
+                        PREFECT_PLUGIN_API_VERSION,
+                    )
+                    continue
+            except InvalidSpecifier:
+                logger.debug(
+                    "Plugin %s has invalid version specifier %r, ignoring version check",
+                    ep.name,
+                    requires,
+                )
+
             pm.register(plugin, name=ep.name)
             logger.debug(
                 "Loaded plugin %s (requires API %s, current %s)",

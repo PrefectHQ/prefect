@@ -239,13 +239,17 @@ class TestPluginManager:
         logger = logging.getLogger("test")
 
         # Mock entry points
+        mock_plugin1 = Mock()
+        mock_plugin1.PREFECT_PLUGIN_API_REQUIRES = ">=0.1,<1"
         mock_ep1 = Mock()
         mock_ep1.name = "plugin1"
-        mock_ep1.load.return_value = Mock()
+        mock_ep1.load.return_value = mock_plugin1
 
+        mock_plugin2 = Mock()
+        mock_plugin2.PREFECT_PLUGIN_API_REQUIRES = ">=0.1,<1"
         mock_ep2 = Mock()
         mock_ep2.name = "plugin2"
-        mock_ep2.load.return_value = Mock()
+        mock_ep2.load.return_value = mock_plugin2
 
         with patch(
             "importlib.metadata.entry_points", return_value=[mock_ep1, mock_ep2]
@@ -261,13 +265,17 @@ class TestPluginManager:
         logger = logging.getLogger("test")
 
         # Mock entry points
+        mock_plugin1 = Mock()
+        mock_plugin1.PREFECT_PLUGIN_API_REQUIRES = ">=0.1,<1"
         mock_ep1 = Mock()
         mock_ep1.name = "plugin1"
-        mock_ep1.load.return_value = Mock()
+        mock_ep1.load.return_value = mock_plugin1
 
+        mock_plugin2 = Mock()
+        mock_plugin2.PREFECT_PLUGIN_API_REQUIRES = ">=0.1,<1"
         mock_ep2 = Mock()
         mock_ep2.name = "plugin2"
-        mock_ep2.load.return_value = Mock()
+        mock_ep2.load.return_value = mock_plugin2
 
         with patch(
             "importlib.metadata.entry_points", return_value=[mock_ep1, mock_ep2]
@@ -275,6 +283,63 @@ class TestPluginManager:
             load_entry_point_plugins(pm, allow=None, deny={"plugin2"}, logger=logger)
 
         # Only plugin1 should be registered
+        assert len(pm.get_plugins()) == 1
+
+    def test_load_entry_point_plugins_version_validation_compatible(self):
+        """Test that plugins with compatible API versions are loaded."""
+        pm = build_manager(HookSpec)
+        logger = logging.getLogger("test")
+
+        # Mock a plugin with compatible version requirement
+        mock_plugin = Mock()
+        mock_plugin.PREFECT_PLUGIN_API_REQUIRES = ">=0.1,<1"
+
+        mock_ep = Mock()
+        mock_ep.name = "compatible-plugin"
+        mock_ep.load.return_value = mock_plugin
+
+        with patch("importlib.metadata.entry_points", return_value=[mock_ep]):
+            load_entry_point_plugins(pm, allow=None, deny=None, logger=logger)
+
+        # Plugin should be registered
+        assert len(pm.get_plugins()) == 1
+
+    def test_load_entry_point_plugins_version_validation_incompatible(self):
+        """Test that plugins with incompatible API versions are skipped."""
+        pm = build_manager(HookSpec)
+        logger = logging.getLogger("test")
+
+        # Mock a plugin with incompatible version requirement
+        mock_plugin = Mock()
+        mock_plugin.PREFECT_PLUGIN_API_REQUIRES = ">=1.0"
+
+        mock_ep = Mock()
+        mock_ep.name = "incompatible-plugin"
+        mock_ep.load.return_value = mock_plugin
+
+        with patch("importlib.metadata.entry_points", return_value=[mock_ep]):
+            load_entry_point_plugins(pm, allow=None, deny=None, logger=logger)
+
+        # Plugin should NOT be registered due to version mismatch
+        assert len(pm.get_plugins()) == 0
+
+    def test_load_entry_point_plugins_invalid_version_specifier(self):
+        """Test that plugins with invalid version specifiers are loaded with warning."""
+        pm = build_manager(HookSpec)
+        logger = logging.getLogger("test")
+
+        # Mock a plugin with invalid version specifier
+        mock_plugin = Mock()
+        mock_plugin.PREFECT_PLUGIN_API_REQUIRES = "this-is-not-valid"
+
+        mock_ep = Mock()
+        mock_ep.name = "invalid-spec-plugin"
+        mock_ep.load.return_value = mock_plugin
+
+        with patch("importlib.metadata.entry_points", return_value=[mock_ep]):
+            load_entry_point_plugins(pm, allow=None, deny=None, logger=logger)
+
+        # Plugin should still be registered (we log but don't block)
         assert len(pm.get_plugins()) == 1
 
 

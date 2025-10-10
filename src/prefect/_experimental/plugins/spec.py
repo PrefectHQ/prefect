@@ -14,7 +14,7 @@ from typing import Callable, Mapping, Optional
 
 import pluggy
 
-# Bump this when breaking the experimental hook contract
+# Bump this when breaking the hook contract
 PREFECT_PLUGIN_API_VERSION = "0.1"
 
 hookspec = pluggy.HookspecMarker("prefect-experimental")
