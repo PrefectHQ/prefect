@@ -9,7 +9,7 @@ from __future__ import annotations
 import importlib.metadata as md
 
 from prefect._experimental.plugins import config as plugin_config
-from prefect._experimental.plugins.manager import EP_GROUP
+from prefect._experimental.plugins.manager import ENTRYPOINTS_GROUP
 from prefect.cli._types import PrefectTyper
 from prefect.cli.root import app
 
@@ -71,10 +71,10 @@ async def diagnose():
 
     # Discover entry points
     app.console.print(
-        f"\n[bold]Discoverable Plugins (entry point group: {EP_GROUP})[/bold]\n"
+        f"\n[bold]Discoverable Plugins (entry point group: {ENTRYPOINTS_GROUP})[/bold]\n"
     )
 
-    entry_points = list(md.entry_points(group=EP_GROUP))
+    entry_points = list(md.entry_points(group=ENTRYPOINTS_GROUP))
 
     if not entry_points:
         app.console.print("[yellow]No plugins found.[/yellow]\n")

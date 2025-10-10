@@ -12,17 +12,25 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from prefect._experimental.plugins import run_startup_hooks
+from prefect._experimental.plugins import config, run_startup_hooks
 from prefect._experimental.plugins.apply import redact, summarize_env
 from prefect._experimental.plugins.diagnostics import SetupSummary
 from prefect._experimental.plugins.manager import (
     build_manager,
     call_async_hook,
-    hookimpl,
     load_entry_point_plugins,
+    register_hook,
 )
 from prefect._experimental.plugins.spec import HookContext, HookSpec, SetupResult
-from prefect.settings import temporary_settings
+from prefect.settings import (
+    PREFECT_EXPERIMENTAL_PLUGINS,
+    PREFECT_EXPERIMENTS_PLUGINS_ALLOW,
+    PREFECT_EXPERIMENTS_PLUGINS_DENY,
+    PREFECT_EXPERIMENTS_PLUGINS_SAFE_MODE,
+    PREFECT_EXPERIMENTS_PLUGINS_SETUP_TIMEOUT_SECONDS,
+    PREFECT_EXPERIMENTS_PLUGINS_STRICT,
+    temporary_settings,
+)
 
 
 @pytest.fixture
@@ -36,7 +44,7 @@ def mock_ctx():
 
 
 @pytest.fixture
-def clean_env(monkeypatch):
+def clean_env(monkeypatch: pytest.MonkeyPatch):
     """Clean environment variables for plugin tests."""
     monkeypatch.delenv("PREFECT_EXPERIMENTAL_PLUGINS", raising=False)
     monkeypatch.delenv("PREFECT_PLUGINS_ALLOW", raising=False)
@@ -49,85 +57,59 @@ def clean_env(monkeypatch):
 class TestPluginConfig:
     """Tests for plugin configuration."""
 
-    def test_feature_flag_off(self, clean_env):
+    @pytest.mark.usefixtures("clean_env")
+    def test_feature_flag_off(self):
         """Test that plugins are disabled by default."""
         from prefect._experimental.plugins import config
 
         assert config.enabled() is False
 
-    def test_feature_flag_on(self, clean_env):
+    @pytest.mark.usefixtures("clean_env")
+    def test_feature_flag_on(self):
         """Test that plugins can be enabled."""
-        from prefect._experimental.plugins import config
+
         from prefect.settings import PREFECT_EXPERIMENTAL_PLUGINS
 
         with temporary_settings(updates={PREFECT_EXPERIMENTAL_PLUGINS: True}):
             assert config.enabled() is True
 
-    def test_timeout_default(self, clean_env):
+    @pytest.mark.usefixtures("clean_env")
+    def test_timeout_default(self):
         """Test default timeout value."""
-        from prefect._experimental.plugins import config
-
         assert config.timeout_seconds() == 20.0
 
-    def test_timeout_custom(self, clean_env):
+    @pytest.mark.usefixtures("clean_env")
+    def test_timeout_custom(self):
         """Test custom timeout value."""
-        from prefect._experimental.plugins import config
-        from prefect.settings import (
-            Settings,
-            _get_settings_fields,
-        )
-
-        fields = _get_settings_fields(Settings)
-        timeout_setting = fields["PREFECT_EXPERIMENTS_PLUGINS_SETUP_TIMEOUT_SECONDS"]
-
-        with temporary_settings(updates={timeout_setting: 10.0}):
+        with temporary_settings(
+            updates={PREFECT_EXPERIMENTS_PLUGINS_SETUP_TIMEOUT_SECONDS: 10.0}
+        ):
             assert config.timeout_seconds() == 10.0
 
-    def test_allow_deny_lists(self, clean_env):
+    @pytest.mark.usefixtures("clean_env")
+    def test_allow_deny_lists(self):
         """Test allow and deny list parsing."""
-        from prefect._experimental.plugins import config
-        from prefect.settings import (
-            Settings,
-            _get_settings_fields,
-        )
-
-        fields = _get_settings_fields(Settings)
-        allow_setting = fields["PREFECT_EXPERIMENTS_PLUGINS_ALLOW"]
-        deny_setting = fields["PREFECT_EXPERIMENTS_PLUGINS_DENY"]
 
         with temporary_settings(
-            updates={allow_setting: "plugin1,plugin2", deny_setting: "plugin3"}
+            updates={
+                PREFECT_EXPERIMENTS_PLUGINS_ALLOW: "plugin1,plugin2",
+                PREFECT_EXPERIMENTS_PLUGINS_DENY: "plugin3",
+            }
         ):
             allow, deny = config.lists()
             assert allow == {"plugin1", "plugin2"}
             assert deny == {"plugin3"}
 
-    def test_strict_mode(self, clean_env):
+    @pytest.mark.usefixtures("clean_env")
+    def test_strict_mode(self):
         """Test strict mode flag."""
-        from prefect._experimental.plugins import config
-        from prefect.settings import (
-            Settings,
-            _get_settings_fields,
-        )
-
-        fields = _get_settings_fields(Settings)
-        strict_setting = fields["PREFECT_EXPERIMENTS_PLUGINS_STRICT"]
-
-        with temporary_settings(updates={strict_setting: True}):
+        with temporary_settings(updates={PREFECT_EXPERIMENTS_PLUGINS_STRICT: True}):
             assert config.strict() is True
 
-    def test_safe_mode(self, clean_env):
+    @pytest.mark.usefixtures("clean_env")
+    def test_safe_mode(self):
         """Test safe mode flag."""
-        from prefect._experimental.plugins import config
-        from prefect.settings import (
-            Settings,
-            _get_settings_fields,
-        )
-
-        fields = _get_settings_fields(Settings)
-        safe_mode_setting = fields["PREFECT_EXPERIMENTS_PLUGINS_SAFE_MODE"]
-
-        with temporary_settings(updates={safe_mode_setting: True}):
+        with temporary_settings(updates={PREFECT_EXPERIMENTS_PLUGINS_SAFE_MODE: True}):
             assert config.safe_mode() is True
 
 
@@ -182,11 +164,11 @@ class TestPluginManager:
         assert pm.project_name == "prefect-experimental"
 
     @pytest.mark.asyncio
-    async def test_async_hook_call_sync(self, mock_ctx):
+    async def test_async_hook_call_sync(self, mock_ctx: HookContext):
         """Test calling a sync hook implementation."""
 
         class TestPlugin:
-            @hookimpl
+            @register_hook
             def setup_environment(self, *, ctx: HookContext):
                 return SetupResult(env={"TEST": "value"})
 
@@ -201,11 +183,11 @@ class TestPluginManager:
         assert result.env["TEST"] == "value"
 
     @pytest.mark.asyncio
-    async def test_async_hook_call_async(self, mock_ctx):
+    async def test_async_hook_call_async(self, mock_ctx: HookContext):
         """Test calling an async hook implementation."""
 
         class TestPlugin:
-            @hookimpl
+            @register_hook
             async def setup_environment(self, *, ctx: HookContext):
                 await asyncio.sleep(0.001)
                 return SetupResult(env={"TEST": "async_value"})
@@ -221,16 +203,16 @@ class TestPluginManager:
         assert result.env["TEST"] == "async_value"
 
     @pytest.mark.asyncio
-    async def test_hook_error_handling(self, mock_ctx):
+    async def test_hook_error_handling(self, mock_ctx: HookContext):
         """Test that hook errors are captured per plugin."""
 
         class GoodPlugin:
-            @hookimpl
+            @register_hook
             def setup_environment(self, *, ctx: HookContext):
                 return SetupResult(env={"GOOD": "value"})
 
         class BadPlugin:
-            @hookimpl
+            @register_hook
             def setup_environment(self, *, ctx: HookContext):
                 raise ValueError("Plugin failed!")
 
@@ -299,26 +281,21 @@ class TestPluginManager:
 class TestStartupHooks:
     """Tests for the full startup hook system."""
 
-    @pytest.mark.asyncio
-    async def test_disabled_plugins_no_execution(self, clean_env, mock_ctx):
+    @pytest.mark.usefixtures("clean_env")
+    async def test_disabled_plugins_no_execution(self, mock_ctx: HookContext):
         """Test that plugins don't run when disabled."""
         summaries = await run_startup_hooks(mock_ctx)
         assert summaries == []
 
-    @pytest.mark.asyncio
-    async def test_safe_mode_no_execution(self, clean_env, mock_ctx):
+    @pytest.mark.usefixtures("clean_env")
+    async def test_safe_mode_no_execution(self, mock_ctx: HookContext):
         """Test that safe mode loads plugins but doesn't execute hooks."""
-        from prefect.settings import (
-            PREFECT_EXPERIMENTAL_PLUGINS,
-            Settings,
-            _get_settings_fields,
-        )
-
-        fields = _get_settings_fields(Settings)
-        safe_mode_setting = fields["PREFECT_EXPERIMENTS_PLUGINS_SAFE_MODE"]
 
         with temporary_settings(
-            updates={PREFECT_EXPERIMENTAL_PLUGINS: True, safe_mode_setting: True}
+            updates={
+                PREFECT_EXPERIMENTAL_PLUGINS: True,
+                PREFECT_EXPERIMENTS_PLUGINS_SAFE_MODE: True,
+            }
         ):
             summaries = await run_startup_hooks(mock_ctx)
             # Should return empty list in safe mode
@@ -368,7 +345,7 @@ class TestStartupHooks:
         strict_setting = fields["PREFECT_EXPERIMENTS_PLUGINS_STRICT"]
 
         class RequiredPlugin:
-            @hookimpl
+            @register_hook
             def setup_environment(self, *, ctx: HookContext):
                 raise ValueError("Required plugin failed!")
 
@@ -391,7 +368,7 @@ class TestStartupHooks:
         from prefect.settings import PREFECT_EXPERIMENTAL_PLUGINS
 
         class TestPlugin:
-            @hookimpl
+            @register_hook
             def setup_environment(self, *, ctx: HookContext):
                 return SetupResult(
                     env={"TEST_VAR": "test_value"},
@@ -424,7 +401,7 @@ class TestStartupHooks:
         from prefect.settings import PREFECT_EXPERIMENTAL_PLUGINS
 
         class NoOpPlugin:
-            @hookimpl
+            @register_hook
             def setup_environment(self, *, ctx: HookContext):
                 return None
 

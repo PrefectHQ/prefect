@@ -14,13 +14,9 @@ import pluggy
 from prefect._experimental.plugins.spec import PREFECT_PLUGIN_API_VERSION
 
 PM_PROJECT_NAME = "prefect-experimental"
-EP_GROUP = "prefect.plugins"
+ENTRYPOINTS_GROUP = "prefect.plugins"
 
-# Create a hookimpl marker for plugins to optionally use
-hookimpl = pluggy.HookimplMarker(PM_PROJECT_NAME)
-
-# User-friendly alias for hookimpl
-register_hook = hookimpl
+register_hook = pluggy.HookimplMarker(PM_PROJECT_NAME)
 
 
 def build_manager(hookspecs: type) -> pluggy.PluginManager:
@@ -35,8 +31,6 @@ def build_manager(hookspecs: type) -> pluggy.PluginManager:
     """
     pm = pluggy.PluginManager(PM_PROJECT_NAME)
     pm.add_hookspecs(hookspecs)
-    # Allow plugins to work without @hookimpl decorator
-    pm.trace.root.setwriter(lambda *args, **kwargs: None)
     return pm
 
 
@@ -56,7 +50,7 @@ def load_entry_point_plugins(
         deny: If set, skip plugins with names in this set
         logger: Logger for reporting load failures
     """
-    for ep in md.entry_points(group=EP_GROUP):
+    for ep in md.entry_points(group=ENTRYPOINTS_GROUP):
         if allow and ep.name not in allow:
             logger.debug("Skipping plugin %s (not in allow list)", ep.name)
             continue

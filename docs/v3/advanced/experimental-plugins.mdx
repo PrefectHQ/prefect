@@ -150,7 +150,7 @@ class MyPlugin:
 ```
 
 <Note>
-The `@register_hook` decorator marks your method as a plugin hook implementation. While the decorator is recommended for clarity, it's not strictly required for the plugin system to discover your hooks.
+The `@register_hook` decorator is **required** to mark your method as a plugin hook implementation. Without it, your plugin methods will not be discovered by the plugin system.
 </Note>
 
 ### HookContext
@@ -486,7 +486,7 @@ A: Yes, when the feature flag is enabled. The same hooks run in CLI, workers, an
 
 **Q: Can I use plugins without the `@register_hook` decorator?**
 
-A: The `@register_hook` decorator is recommended but not strictly required for the plugin system to discover your hooks.
+A: No, the `@register_hook` decorator is required. Plugin methods without this decorator will not be discovered or called by the plugin system.
 
 ## Examples Repository
 
