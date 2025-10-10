@@ -57,7 +57,12 @@ def load_entry_point_plugins(
         entry_points_list = md.entry_points(group=ENTRYPOINTS_GROUP)
     else:
         # Python 3.9 returns a dict-like object
-        entry_points_list = md.entry_points().get(ENTRYPOINTS_GROUP, [])
+        eps = md.entry_points()
+        # Handle both real entry_points() return (dict-like) and mocked return (list)
+        if isinstance(eps, list):
+            entry_points_list = eps
+        else:
+            entry_points_list = eps.get(ENTRYPOINTS_GROUP, [])
 
     for ep in entry_points_list:
         if allow and ep.name not in allow:
