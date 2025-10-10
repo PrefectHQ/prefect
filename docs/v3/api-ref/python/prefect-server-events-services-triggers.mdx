@@ -112,7 +112,7 @@ stop(self) -> None
 Stop the service
 
 
-### `ProactiveTriggers` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/services/triggers.py#L64" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `ProactiveTriggers` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/services/triggers.py#L65" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Evaluates proactive automation triggers
@@ -120,7 +120,7 @@ Evaluates proactive automation triggers
 
 **Methods:**
 
-#### `run_once` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/services/triggers.py#L80" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `run_once` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/services/triggers.py#L81" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 run_once(self) -> None
@@ -141,7 +141,7 @@ instead of `LoopService().run_once()`, because this method will not invoke setup
 and teardown methods properly.
 
 
-#### `service_settings` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/services/triggers.py#L68" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `service_settings` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/services/triggers.py#L69" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 service_settings(cls) -> ServicesBaseSetting
