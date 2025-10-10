@@ -93,6 +93,11 @@ def main(
     if sys.platform == "win32":
         asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
 
+    # Run plugin startup hooks if experimental plugins are enabled
+    from prefect.cli._bootstrap import run_with_plugins
+
+    run_with_plugins()
+
 
 @app.command()
 async def version(

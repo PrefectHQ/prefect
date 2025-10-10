@@ -1,0 +1,133 @@
+"""
+Experimental plugin system for Prefect.
+
+This module provides a startup hook system that allows third-party packages
+to run initialization code before Prefect CLI commands, workers, or agents
+start their main work.
+
+**Note: This is an experimental API and is subject to change.**
+"""
+
+from __future__ import annotations
+
+import logging
+
+import anyio
+
+from prefect._experimental.plugins import config
+from prefect._experimental.plugins.apply import apply_setup_result, summarize_env
+from prefect._experimental.plugins.diagnostics import SetupSummary
+from prefect._experimental.plugins.manager import (
+    build_manager,
+    call_async_hook,
+    hookimpl,
+    load_entry_point_plugins,
+)
+from prefect._experimental.plugins.spec import (
+    PREFECT_PLUGIN_API_VERSION,
+    HookContext,
+    HookSpec,
+    SetupResult,
+)
+
+__all__ = [
+    "run_startup_hooks",
+    "HookContext",
+    "SetupResult",
+    "HookSpec",
+    "SetupSummary",
+    "PREFECT_PLUGIN_API_VERSION",
+    "hookimpl",
+]
+
+
+async def run_startup_hooks(ctx: HookContext) -> list[SetupSummary]:
+    """
+    Run all registered plugin startup hooks.
+
+    This is the main entry point for the plugin system. It:
+    1. Checks if plugins are enabled via configuration
+    2. Discovers and loads plugins from entry points
+    3. Calls setup_environment hooks (respecting timeouts)
+    4. Applies environment changes from successful hooks
+    5. Returns diagnostic summaries
+
+    Args:
+        ctx: Context object with Prefect version, API URL, and logger factory
+
+    Returns:
+        List of SetupSummary objects describing what each plugin did
+
+    Raises:
+        SystemExit: In strict mode, if a required plugin fails
+    """
+    logger = ctx.logger_factory("prefect.plugins")
+
+    if not config.enabled():
+        logger.debug("Experimental plugins not enabled")
+        return []
+
+    logger.debug("Initializing experimental plugin system")
+    pm = build_manager(HookSpec)
+    allow, deny = config.lists()
+    load_entry_point_plugins(pm, allow=allow, deny=deny, logger=logger)
+
+    summaries: list[SetupSummary] = []
+
+    if config.safe_mode():
+        logger.info("Safe mode enabled - plugins loaded but hooks not called")
+        return summaries
+
+    # Call all hooks with timeout
+    timeout = config.timeout_seconds()
+    results: list[tuple[str, any, Exception | None]] = []
+
+    try:
+        with anyio.move_on_after(timeout) as cancel_scope:
+            results = await call_async_hook(pm, "setup_environment", ctx=ctx)
+
+        if cancel_scope.cancel_called:
+            logger.warning("Plugin setup timed out after %.1fs", timeout)
+    except Exception as e:
+        logger.exception("Unexpected error during plugin setup: %s", e)
+
+    # Process results
+    for name, res, err in results:
+        if err:
+            logger.error("Plugin %s failed: %s", name, err)
+            summaries.append(SetupSummary(name, {}, None, None, error=str(err)))
+            continue
+
+        if res is None:
+            logger.debug("Plugin %s returned no changes", name)
+            summaries.append(SetupSummary(name, {}, None, None, error=None))
+            continue
+
+        try:
+            apply_setup_result(res, logger)
+            summaries.append(
+                SetupSummary(
+                    name,
+                    summarize_env(dict(res.env)),
+                    res.note,
+                    res.expires_at,
+                    error=None,
+                )
+            )
+            logger.debug("Plugin %s completed successfully", name)
+        except Exception as e:
+            logger.exception("Failed to apply result from plugin %s", name)
+            summaries.append(SetupSummary(name, {}, None, None, error=str(e)))
+
+    # Strict failure policy
+    if config.strict():
+        for name, res, err in results:
+            if err:
+                raise SystemExit(f"[plugins] required plugin '{name}' failed: {err}")
+            if res and getattr(res, "required", False) and not res.env:
+                raise SystemExit(
+                    f"[plugins] required plugin '{name}' returned no environment"
+                )
+
+    logger.info("Plugin system initialization complete (%d plugins)", len(summaries))
+    return summaries
