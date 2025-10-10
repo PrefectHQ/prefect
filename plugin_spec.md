@@ -32,7 +32,7 @@ Everything else is internal.
 
 ## 2) Configuration & feature flag
 
-* **Env flag:** `PREFECT_EXPERIMENTAL_PLUGINS=1` (default: off).
+* **Env flag:** `PREFECT_EXPERIMENTS_PLUGINS_ENABLED=1` (default: off).
   If not set, the system does nothing and loads no plugins.
 * **Optional allow/deny lists:**
 
@@ -179,7 +179,7 @@ def summarize_env(env: dict[str, str]) -> dict[str, str]:
 import os
 
 def enabled() -> bool:
-    return os.getenv("PREFECT_EXPERIMENTAL_PLUGINS") == "1"
+    return os.getenv("PREFECT_EXPERIMENTS_PLUGINS_ENABLED") == "1"
 
 def timeout_seconds() -> float:
     return float(os.getenv("PREFECT_PLUGINS_SETUP_TIMEOUT_SECONDS", "20"))
@@ -392,7 +392,7 @@ class Plugin:
 * **No secrets in logs:** All diagnostics redact value by key name heuristics.
 * **Async OK:** Hooks may be `async`. The bridge awaits them.
 * **Timeouts:** Global timeout (move-on-after) around the entire hook phase.
-* **Opt-in:** Entire subsystem gated by `PREFECT_EXPERIMENTAL_PLUGINS=1`.
+* **Opt-in:** Entire subsystem gated by `PREFECT_EXPERIMENTS_PLUGINS_ENABLED=1`.
 
 ---
 
@@ -448,7 +448,7 @@ class Plugin:
 ## 15) Definition of Done
 
 * Code merged under `prefect/_experimental/plugins/…`.
-* CLI/worker entrypoints call `run_startup_hooks` when `PREFECT_EXPERIMENTAL_PLUGINS=1`.
+* CLI/worker entrypoints call `run_startup_hooks` when `PREFECT_EXPERIMENTS_PLUGINS_ENABLED=1`.
 * At least 10 unit tests above are implemented and pass.
 * Hidden `prefect experimental plugins diagnose` prints usable output.
 * Docs page added with clear “experimental/unstable” banner.

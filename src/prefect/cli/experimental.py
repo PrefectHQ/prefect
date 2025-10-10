@@ -53,7 +53,7 @@ async def diagnose():
     if not enabled:
         app.console.print("\n[yellow]Plugin system is disabled.[/yellow]")
         app.console.print(
-            "Set [cyan]PREFECT_EXPERIMENTAL_PLUGINS=1[/cyan] to enable.\n"
+            "Set [cyan]PREFECT_EXPERIMENTS_PLUGINS_ENABLED=1[/cyan] to enable.\n"
         )
         return
 

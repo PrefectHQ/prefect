@@ -27,7 +27,7 @@ The plugin system is designed for scenarios where you need to:
 The plugin system is opt-in and disabled by default. Enable it by setting the environment variable:
 
 ```bash
-export PREFECT_EXPERIMENTAL_PLUGINS=1
+export PREFECT_EXPERIMENTS_PLUGINS_ENABLED=1
 ```
 
 Once enabled, plugins will automatically run whenever Prefect is imported - this includes:
@@ -83,33 +83,33 @@ Configure the plugin system with these environment variables:
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `PREFECT_EXPERIMENTAL_PLUGINS` | Enable/disable the plugin system | `0` (disabled) |
-| `PREFECT_PLUGINS_ALLOW` | Comma-separated list of allowed plugin names | None (all allowed) |
-| `PREFECT_PLUGINS_DENY` | Comma-separated list of denied plugin names | None (none denied) |
-| `PREFECT_PLUGINS_SETUP_TIMEOUT_SECONDS` | Maximum time for all plugins to complete | `20` |
-| `PREFECT_PLUGINS_STRICT` | Exit if a required plugin fails | `0` (disabled) |
-| `PREFECT_PLUGINS_SAFE_MODE` | Load plugins without executing hooks | `0` (disabled) |
+| `PREFECT_EXPERIMENTS_PLUGINS_ENABLED` | Enable/disable the plugin system | `0` (disabled) |
+| `PREFECT_EXPERIMENTS_PLUGINS_ALLOW` | Comma-separated list of allowed plugin names | None (all allowed) |
+| `PREFECT_EXPERIMENTS_PLUGINS_DENY` | Comma-separated list of denied plugin names | None (none denied) |
+| `PREFECT_EXPERIMENTS_PLUGINS_SETUP_TIMEOUT_SECONDS` | Maximum time for all plugins to complete | `20` |
+| `PREFECT_EXPERIMENTS_PLUGINS_STRICT` | Exit if a required plugin fails | `0` (disabled) |
+| `PREFECT_EXPERIMENTS_PLUGINS_SAFE_MODE` | Load plugins without executing hooks | `0` (disabled) |
 
 ### Examples
 
 **Allow only specific plugins:**
 ```bash
-export PREFECT_PLUGINS_ALLOW="aws-plugin,gcp-plugin"
+export PREFECT_EXPERIMENTS_PLUGINS_ALLOW="aws-plugin,gcp-plugin"
 ```
 
 **Deny problematic plugins:**
 ```bash
-export PREFECT_PLUGINS_DENY="legacy-plugin"
+export PREFECT_EXPERIMENTS_PLUGINS_DENY="legacy-plugin"
 ```
 
 **Enable strict mode for production:**
 ```bash
-export PREFECT_PLUGINS_STRICT=1
+export PREFECT_EXPERIMENTS_PLUGINS_STRICT=1
 ```
 
 **Debug plugins without execution:**
 ```bash
-export PREFECT_PLUGINS_SAFE_MODE=1
+export PREFECT_EXPERIMENTS_PLUGINS_SAFE_MODE=1
 ```
 
 ## Plugin API
@@ -264,7 +264,7 @@ export AWS_REGION="us-west-2"
 export PREFECT_AWS_SETUP_REQUIRED=1
 
 # Enable plugins
-export PREFECT_EXPERIMENTAL_PLUGINS=1
+export PREFECT_EXPERIMENTS_PLUGINS_ENABLED=1
 
 # Run Prefect commands - credentials are automatically configured
 prefect deploy --all
@@ -315,7 +315,7 @@ Running Startup Hooks
 
 - Only install plugins from trusted sources
 - Review plugin source code before installation
-- Use `PREFECT_PLUGINS_DENY` to quarantine known-bad plugins
+- Use `PREFECT_EXPERIMENTS_PLUGINS_DENY` to quarantine known-bad plugins
 - Sensitive values are automatically redacted in logs and diagnostics
 - Plugins run with the same permissions as Prefect
 </Warning>
@@ -461,7 +461,7 @@ Output shows API requirements for each plugin:
 
 1. Verify plugins are enabled:
    ```bash
-   echo $PREFECT_EXPERIMENTAL_PLUGINS
+   echo $PREFECT_EXPERIMENTS_PLUGINS_ENABLED
    ```
 
 2. Check plugin is discoverable:
@@ -478,7 +478,7 @@ Output shows API requirements for each plugin:
 
 1. Enable safe mode to test loading without execution:
    ```bash
-   PREFECT_PLUGINS_SAFE_MODE=1 prefect experimental plugins diagnose
+   PREFECT_EXPERIMENTS_PLUGINS_SAFE_MODE=1 prefect experimental plugins diagnose
    ```
 
 2. Check plugin logs:
@@ -488,7 +488,7 @@ Output shows API requirements for each plugin:
 
 3. Test plugin in isolation:
    ```bash
-   PREFECT_PLUGINS_ALLOW="your-plugin" prefect experimental plugins diagnose
+   PREFECT_EXPERIMENTS_PLUGINS_ALLOW="your-plugin" prefect experimental plugins diagnose
    ```
 
 ### Version Compatibility Issues
@@ -517,7 +517,7 @@ If a plugin isn't loading due to version mismatch:
 
 Increase the timeout for slow operations:
 ```bash
-export PREFECT_PLUGINS_SETUP_TIMEOUT_SECONDS=60
+export PREFECT_EXPERIMENTS_PLUGINS_SETUP_TIMEOUT_SECONDS=60
 ```
 
 Or optimize plugin startup time by deferring expensive operations.

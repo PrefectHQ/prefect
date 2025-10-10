@@ -20,11 +20,6 @@ class PluginsSettings(PrefectBaseSettings):
     enabled: bool = Field(
         default=False,
         description="Enable the experimental plugin system.",
-        validation_alias=AliasChoices(
-            AliasPath("enabled"),
-            "prefect_experimental_plugins",
-            "prefect_plugins_enabled",
-        ),
     )
 
     allow: Optional[str] = Field(
