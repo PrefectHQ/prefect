@@ -7,6 +7,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+import sys
 from datetime import datetime, timezone
 from unittest.mock import Mock, patch
 
@@ -16,6 +17,7 @@ from prefect._experimental.plugins import config, run_startup_hooks
 from prefect._experimental.plugins.apply import redact, summarize_env
 from prefect._experimental.plugins.diagnostics import SetupSummary
 from prefect._experimental.plugins.manager import (
+    ENTRYPOINTS_GROUP,
     build_manager,
     call_async_hook,
     load_entry_point_plugins,
@@ -31,6 +33,25 @@ from prefect.settings import (
     PREFECT_EXPERIMENTS_PLUGINS_STRICT,
     temporary_settings,
 )
+
+
+def mock_entry_points(entry_points_list):
+    """
+    Create a mock for importlib.metadata.entry_points that behaves correctly
+    for the current Python version.
+
+    Args:
+        entry_points_list: List of entry point mocks to return
+
+    Returns:
+        A mock object that behaves like entry_points() for the current Python version
+    """
+    if sys.version_info >= (3, 10):
+        # Python 3.10+: entry_points(group=...) returns list directly
+        return Mock(return_value=entry_points_list)
+    else:
+        # Python 3.9: entry_points() returns dict-like object
+        return Mock(return_value={ENTRYPOINTS_GROUP: entry_points_list})
 
 
 @pytest.fixture
@@ -303,7 +324,8 @@ class TestPluginManager:
         mock_ep2.load.return_value = mock_plugin2
 
         with patch(
-            "importlib.metadata.entry_points", return_value=[mock_ep1, mock_ep2]
+            "importlib.metadata.entry_points",
+            mock_entry_points([mock_ep1, mock_ep2]),
         ):
             load_entry_point_plugins(pm, allow={"plugin1"}, deny=None, logger=logger)
 
@@ -329,7 +351,8 @@ class TestPluginManager:
         mock_ep2.load.return_value = mock_plugin2
 
         with patch(
-            "importlib.metadata.entry_points", return_value=[mock_ep1, mock_ep2]
+            "importlib.metadata.entry_points",
+            mock_entry_points([mock_ep1, mock_ep2]),
         ):
             load_entry_point_plugins(pm, allow=None, deny={"plugin2"}, logger=logger)
 
@@ -349,7 +372,7 @@ class TestPluginManager:
         mock_ep.name = "compatible-plugin"
         mock_ep.load.return_value = mock_plugin
 
-        with patch("importlib.metadata.entry_points", return_value=[mock_ep]):
+        with patch("importlib.metadata.entry_points", mock_entry_points([mock_ep])):
             load_entry_point_plugins(pm, allow=None, deny=None, logger=logger)
 
         # Plugin should be registered
@@ -368,7 +391,7 @@ class TestPluginManager:
         mock_ep.name = "incompatible-plugin"
         mock_ep.load.return_value = mock_plugin
 
-        with patch("importlib.metadata.entry_points", return_value=[mock_ep]):
+        with patch("importlib.metadata.entry_points", mock_entry_points([mock_ep])):
             load_entry_point_plugins(pm, allow=None, deny=None, logger=logger)
 
         # Plugin should NOT be registered due to version mismatch
@@ -387,7 +410,7 @@ class TestPluginManager:
         mock_ep.name = "invalid-spec-plugin"
         mock_ep.load.return_value = mock_plugin
 
-        with patch("importlib.metadata.entry_points", return_value=[mock_ep]):
+        with patch("importlib.metadata.entry_points", mock_entry_points([mock_ep])):
             load_entry_point_plugins(pm, allow=None, deny=None, logger=logger)
 
         # Plugin should still be registered (we log but don't block)
