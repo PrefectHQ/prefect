@@ -458,6 +458,30 @@ class TestProcessPoolTaskRunner:
         assert runner1 != runner3
         assert runner1 != "not a runner"
 
+    def test_submit_with_wait_for(self):
+        """
+        Regression test for https://github.com/PrefectHQ/prefect/issues/19147.
+
+        This test ensures that ProcessPoolTaskRunner can handle wait_for dependencies
+        without trying to pickle PrefectFuture objects, which would fail with
+        "TypeError: cannot pickle '_thread.RLock' object".
+        """
+        with ProcessPoolTaskRunner() as runner:
+            # Submit first task
+            future1 = runner.submit(my_test_task, {"param1": 1, "param2": 2})
+
+            # Submit second task that waits for the first
+            future2 = runner.submit(
+                my_test_task, {"param1": 3, "param2": 4}, wait_for=[future1]
+            )
+
+            # Both should complete successfully
+            result1 = future1.result()
+            result2 = future2.result()
+
+            assert result1 == (1, 2)
+            assert result2 == (3, 4)
+
     def test_handles_recursively_submitted_tasks(self):
         """
         Test similar to ThreadPoolTaskRunner but adapted for ProcessPool.

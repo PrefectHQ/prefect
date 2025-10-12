@@ -689,6 +689,22 @@ class ProcessPoolTaskRunner(TaskRunner[PrefectConcurrentFuture[Any]]):
                 f"Submitting task {task.name} to process pool executor..."
             )
 
+        # Resolve wait_for dependencies in the main process before serialization
+        # PrefectFuture objects cannot be pickled, so we wait for them to complete
+        # here rather than passing them to the subprocess
+        if wait_for:
+            from prefect.utilities.collections import visit_collection
+            from prefect.utilities.engine import resolve_to_final_result
+
+            visit_collection(
+                wait_for,
+                visit_fn=resolve_to_final_result,
+                return_data=False,
+                max_depth=-1,
+                remove_annotations=True,
+                context={},
+            )
+
         # Serialize the current context for the subprocess
         from prefect.context import serialize_context
 
@@ -698,7 +714,7 @@ class ProcessPoolTaskRunner(TaskRunner[PrefectConcurrentFuture[Any]]):
             task=task,
             task_run_id=task_run_id,
             parameters=parameters,
-            wait_for=wait_for,
+            wait_for=None,  # Already resolved above, don't pass to subprocess
             return_type="state",
             dependencies=dependencies,
             context=context,
