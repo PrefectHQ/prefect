@@ -482,6 +482,34 @@ class TestProcessPoolTaskRunner:
             assert result1 == (1, 2)
             assert result2 == (3, 4)
 
+    def test_submit_with_future_as_parameter(self):
+        """
+        Regression test for https://github.com/PrefectHQ/prefect/issues/19147.
+
+        This test ensures that ProcessPoolTaskRunner can handle futures passed as
+        task parameters without trying to pickle PrefectFuture objects, which would
+        fail with "TypeError: cannot pickle '_thread.RLock' object".
+        """
+
+        @task
+        def return_value():
+            return "result from upstream"
+
+        @task
+        def consume_value(value):
+            return f"processed {value}"
+
+        with ProcessPoolTaskRunner() as runner:
+            # Submit upstream task
+            future1 = runner.submit(return_value, {})
+
+            # Submit downstream task with future as parameter
+            future2 = runner.submit(consume_value, {"value": future1})
+
+            # Result should be resolved value, not the future
+            result = future2.result()
+            assert result == "processed result from upstream"
+
     def test_handles_recursively_submitted_tasks(self):
         """
         Test similar to ThreadPoolTaskRunner but adapted for ProcessPool.

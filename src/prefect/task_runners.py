@@ -689,9 +689,18 @@ class ProcessPoolTaskRunner(TaskRunner[PrefectConcurrentFuture[Any]]):
                 f"Submitting task {task.name} to process pool executor..."
             )
 
-        # Resolve wait_for dependencies in the main process before serialization
-        # PrefectFuture objects cannot be pickled, so we wait for them to complete
-        # here rather than passing them to the subprocess
+        # Resolve futures in parameters and wait_for before serialization
+        # PrefectFuture objects cannot be pickled (they contain _thread.RLock),
+        # so we must resolve them in the main process before sending to subprocess.
+        # This is necessary because the task engine's _resolve_parameters() and
+        # _wait_for_dependencies() methods run INSIDE the subprocess, but we can't
+        # get there if pickling fails first.
+        from prefect.utilities.engine import resolve_inputs_sync
+
+        # Resolve any futures nested in parameters
+        parameters = resolve_inputs_sync(parameters, return_data=True, max_depth=-1)
+
+        # Resolve wait_for dependencies
         if wait_for:
             from prefect.utilities.collections import visit_collection
             from prefect.utilities.engine import resolve_to_final_result
