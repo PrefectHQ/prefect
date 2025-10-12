@@ -496,9 +496,17 @@ def _run_task_in_subprocess(
     # Wait for all dependencies to complete BEFORE starting the task engine
     # This is where dependency resolution happens - in the subprocess, non-blocking for main process
     if wait_for_files:
+        from prefect._internal.retries import exponential_backoff_with_jitter
+
         for filepath in wait_for_files:
+            attempt = 0
             while not Path(filepath).exists():
-                sleep(0.001)  # Poll every 1ms
+                sleep(
+                    exponential_backoff_with_jitter(
+                        attempt, base_delay=0.001, max_delay=0.05
+                    )
+                )
+                attempt += 1
 
     with hydrated_context(context):
         with handle_engine_signals(kwargs.get("task_run_id")):
