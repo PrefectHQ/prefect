@@ -5,11 +5,14 @@ import asyncio
 import concurrent.futures
 import multiprocessing
 import os
+import shutil
 import sys
+import tempfile
 import threading
 import uuid
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 from contextvars import copy_context
+from pathlib import Path
 from types import CoroutineType
 from typing import (
     TYPE_CHECKING,
@@ -40,7 +43,7 @@ from prefect.utilities.callables import (
     explode_variadic_parameter,
     get_parameter_defaults,
 )
-from prefect.utilities.collections import isiterable
+from prefect.utilities.collections import isiterable, visit_collection
 
 if TYPE_CHECKING:
     import logging
@@ -471,7 +474,14 @@ def _run_task_in_subprocess(
 ) -> Any:
     """
     Wrapper function to update environment variables and settings before running a task in a subprocess.
+
+    This function waits for completion files from wait_for dependencies before
+    proceeding with task execution, ensuring proper dependency ordering without blocking
+    the main process during submission.
     """
+    from pathlib import Path
+    from time import sleep
+
     from prefect.context import hydrated_context
     from prefect.engine import handle_engine_signals
     from prefect.task_engine import run_task_async, run_task_sync
@@ -479,8 +489,16 @@ def _run_task_in_subprocess(
     # Update environment variables
     os.environ.update(env or {})
 
-    # Extract context from kwargs
+    # Extract wait_for_files and context from kwargs
+    wait_for_files = kwargs.pop("wait_for_files", None)
     context = kwargs.pop("context", None)
+
+    # Wait for all dependencies to complete BEFORE starting the task engine
+    # This is where dependency resolution happens - in the subprocess, non-blocking for main process
+    if wait_for_files:
+        for filepath in wait_for_files:
+            while not Path(filepath).exists():
+                sleep(0.001)  # Poll every 1ms
 
     with hydrated_context(context):
         with handle_engine_signals(kwargs.get("task_run_id")):
@@ -622,6 +640,9 @@ class ProcessPoolTaskRunner(TaskRunner[PrefectConcurrentFuture[Any]]):
             or multiprocessing.cpu_count()
         )
         self._cancel_events: dict[uuid.UUID, multiprocessing.Event] = {}
+        self._coordination_dir: str | None = None
+        # Track completion files for each task so they can be passed to dependent tasks
+        self._completion_files: dict[uuid.UUID, str] = {}  # task_run_id -> filepath
 
     def duplicate(self) -> Self:
         return type(self)(max_workers=self._max_workers)
@@ -689,29 +710,35 @@ class ProcessPoolTaskRunner(TaskRunner[PrefectConcurrentFuture[Any]]):
                 f"Submitting task {task.name} to process pool executor..."
             )
 
-        # Resolve futures in parameters and wait_for before serialization
-        # PrefectFuture objects cannot be pickled (they contain _thread.RLock),
-        # so we must resolve them in the main process before sending to subprocess.
-        # This is necessary because the task engine's _resolve_parameters() and
-        # _wait_for_dependencies() methods run INSIDE the subprocess, but we can't
-        # get there if pickling fails first.
+        # Create a completion file path for this task that can be passed to dependent tasks
+        if self._coordination_dir is None:
+            raise RuntimeError("Coordination directory not initialized")
+
+        completion_file = os.path.join(
+            self._coordination_dir, f"task_{task_run_id}.complete"
+        )
+        self._completion_files[task_run_id] = completion_file
+
+        # Resolve any futures in parameters to their values (since futures can't be pickled)
         from prefect.utilities.engine import resolve_inputs_sync
 
-        # Resolve any futures nested in parameters
         parameters = resolve_inputs_sync(parameters, return_data=True, max_depth=-1)
 
-        # Resolve wait_for dependencies
+        # Extract completion file paths from wait_for futures
+        wait_for_files: list[str] = []
         if wait_for:
-            from prefect.utilities.collections import visit_collection
-            from prefect.utilities.engine import resolve_to_final_result
+
+            def extract_completion_file(obj: Any) -> Any:
+                if isinstance(obj, PrefectConcurrentFuture):
+                    # Get the completion file path for this future
+                    if filepath := self._completion_files.get(obj.task_run_id):
+                        wait_for_files.append(filepath)
+                return obj
 
             visit_collection(
                 wait_for,
-                visit_fn=resolve_to_final_result,
+                visit_fn=extract_completion_file,
                 return_data=False,
-                max_depth=-1,
-                remove_annotations=True,
-                context={},
             )
 
         # Serialize the current context for the subprocess
@@ -723,10 +750,11 @@ class ProcessPoolTaskRunner(TaskRunner[PrefectConcurrentFuture[Any]]):
             task=task,
             task_run_id=task_run_id,
             parameters=parameters,
-            wait_for=None,  # Already resolved above, don't pass to subprocess
+            wait_for=None,  # Don't pass futures to subprocess - we handle via wait_for_files
             return_type="state",
             dependencies=dependencies,
             context=context,
+            wait_for_files=wait_for_files,  # Pass file paths for coordination
         )
 
         # Prepare the cloudpickle wrapped call for subprocess execution
@@ -744,6 +772,13 @@ class ProcessPoolTaskRunner(TaskRunner[PrefectConcurrentFuture[Any]]):
         prefect_future: PrefectConcurrentFuture[R] = PrefectConcurrentFuture(
             task_run_id=task_run_id, wrapped_future=_UnpicklingFuture(raw_future)
         )
+
+        # Register callback to create completion file when task finishes
+        def _mark_complete(fut: Any) -> None:
+            Path(completion_file).touch()
+
+        raw_future.add_done_callback(_mark_complete)
+
         return prefect_future
 
     @overload
@@ -794,6 +829,8 @@ class ProcessPoolTaskRunner(TaskRunner[PrefectConcurrentFuture[Any]]):
         self._executor = ProcessPoolExecutor(
             max_workers=self._max_workers, mp_context=mp_context
         )
+        # Create temp directory for task coordination files
+        self._coordination_dir = tempfile.mkdtemp(prefix="prefect_processpool_")
         return self
 
     def __exit__(self, exc_type: Any, exc_value: Any, traceback: Any) -> None:
@@ -802,6 +839,11 @@ class ProcessPoolTaskRunner(TaskRunner[PrefectConcurrentFuture[Any]]):
         if self._executor is not None:
             self._executor.shutdown(cancel_futures=True, wait=True)
             self._executor = None
+        # Clean up coordination directory and files
+        if self._coordination_dir is not None:
+            shutil.rmtree(self._coordination_dir, ignore_errors=True)
+            self._coordination_dir = None
+        self._completion_files.clear()
         super().__exit__(exc_type, exc_value, traceback)
 
     def __eq__(self, value: object) -> bool:
