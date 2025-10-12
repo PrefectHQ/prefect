@@ -728,9 +728,34 @@ class ProcessPoolTaskRunner(TaskRunner[PrefectConcurrentFuture[Any]]):
         self._completion_files[task_run_id] = completion_file
 
         # Resolve any futures in parameters to their values (since futures can't be pickled)
-        from prefect.utilities.engine import resolve_inputs_sync
+        from prefect.utilities.engine import (
+            collect_task_run_inputs_sync,
+            resolve_inputs_sync,
+        )
 
         parameters = resolve_inputs_sync(parameters, return_data=True, max_depth=-1)
+
+        # Collect task run inputs from wait_for for UI dependency tracking
+        # Even though we can't pass the futures to the subprocess, we can extract
+        # metadata about them in the main process and pass via dependencies
+        wait_for_inputs = set()
+        if wait_for:
+            wait_for_inputs = collect_task_run_inputs_sync(
+                wait_for, future_cls=PrefectConcurrentFuture
+            )
+
+        # Merge wait_for metadata with existing dependencies
+        if wait_for_inputs:
+            if dependencies:
+                dependencies = {**dependencies}  # Copy to avoid mutation
+                if "wait_for" in dependencies:
+                    dependencies["wait_for"] = dependencies["wait_for"].union(
+                        wait_for_inputs
+                    )
+                else:
+                    dependencies["wait_for"] = wait_for_inputs
+            else:
+                dependencies = {"wait_for": wait_for_inputs}
 
         # Extract completion file paths from wait_for futures
         wait_for_files: list[str] = []

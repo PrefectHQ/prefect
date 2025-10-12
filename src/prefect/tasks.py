@@ -921,7 +921,7 @@ class Task(Generic[P, R]):
 
             # Join extra task inputs
             for k, extras in (extra_task_inputs or {}).items():
-                task_inputs[k] = task_inputs[k].union(extras)
+                task_inputs[k] = task_inputs.get(k, set()).union(extras)
 
             # create the task run
             task_run = client.create_task_run(
@@ -1026,7 +1026,7 @@ class Task(Generic[P, R]):
 
             # Join extra task inputs
             for k, extras in (extra_task_inputs or {}).items():
-                task_inputs[k] = task_inputs[k].union(extras)
+                task_inputs[k] = task_inputs.get(k, set()).union(extras)
 
             flow_run_id = (
                 getattr(flow_run_context.flow_run, "id", None)
