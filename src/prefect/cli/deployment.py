@@ -856,6 +856,11 @@ async def run(
         "--watch",
         help=("Whether to poll the flow run until a terminal state is reached."),
     ),
+    watch_interval: Optional[int] = typer.Option(
+        None,
+        "--watch-interval",
+        help=("How often to poll the flow run for state changes (in seconds)."),
+    ),
     watch_timeout: Optional[int] = typer.Option(
         None,
         "--watch-timeout",
@@ -1021,6 +1026,14 @@ async def run(
         soft_wrap=True,
     )
     if watch:
+        if watch_interval is not None:
+            warnings.warn(
+                "The --watch-interval flag is deprecated and has no effect. "
+                "Flow run watching now uses real-time event streaming.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+
         finished_flow_run = await watch_flow_run(
             flow_run.id, app.console, timeout=watch_timeout
         )
