@@ -32,6 +32,7 @@ export const createMockFlowRun = (overrides?: Partial<FlowRun>): FlowRun => ({
 	parent_task_run_id: null,
 	state_type: rand(["SCHEDULED", "PENDING", "RUNNING", "COMPLETED", "FAILED"]),
 	run_count: 0,
+	submission_count: 0,
 	expected_start_time: randPastDate().toISOString(),
 	next_scheduled_start_time: randPastDate().toISOString(),
 	start_time: randPastDate().toISOString(),

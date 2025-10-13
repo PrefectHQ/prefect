@@ -49,6 +49,7 @@ export const createFakeFlowRun = (overrides?: Partial<FlowRun>): FlowRun => {
 		state_type: state.type,
 		state_name: state.name,
 		run_count: 1,
+		submission_count: 1,
 		expected_start_time: randPastDate().toISOString(),
 		next_scheduled_start_time: null,
 		start_time: randPastDate({ years: 0.1 }).toISOString(),
