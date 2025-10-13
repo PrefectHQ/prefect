@@ -79,6 +79,7 @@ class GlobalFlowPolicy(BaseOrchestrationPolicy[orm_models.FlowRun, core.FlowRunP
         ) + [
             UpdateSubflowParentTask,
             UpdateSubflowStateDetails,
+            IncrementFlowRunSubmissionCount,
             IncrementFlowRunCount,
             RemoveResumingIndicator,
         ]
@@ -252,6 +253,27 @@ class IncrementRunTime(
                 context.run.total_run_time += (
                     context.proposed_state.timestamp - context.initial_state.timestamp
                 )
+
+
+class IncrementFlowRunSubmissionCount(
+    FlowRunUniversalTransform[orm_models.FlowRun, core.FlowRunPolicy]
+):
+    """
+    Records the number of times a run enters a pending state. For use with retries
+    before the run reaches running.
+    """
+
+    async def before_transition(
+        self, context: OrchestrationContext[orm_models.FlowRun, core.FlowRunPolicy]
+    ) -> None:
+        if self.nullified_transition():
+            return
+
+        if context.proposed_state is not None:
+            # if entering a pending state...
+            if context.proposed_state.is_pending():
+                # increment the submission count
+                context.run.submission_count += 1
 
 
 class IncrementFlowRunCount(
