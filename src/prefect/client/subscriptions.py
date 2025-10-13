@@ -11,7 +11,7 @@ from starlette.status import WS_1008_POLICY_VIOLATION
 from typing_extensions import Self
 
 from prefect._internal.schemas.bases import IDBaseModel
-from prefect.events.clients import websocket_connect
+from prefect._internal.websockets import websocket_connect
 from prefect.logging import get_logger
 from prefect.settings import get_current_settings
 
