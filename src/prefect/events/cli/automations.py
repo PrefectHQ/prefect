@@ -329,8 +329,18 @@ async def delete(
                 default=False,
             ):
                 exit_with_error("Deletion aborted.")
-            for automation in automations:
-                await client.delete_automation(automation.id)
+
+            import asyncio
+            from asyncio import gather
+
+            semaphore = asyncio.Semaphore(10)
+
+            async def limited_delete(automation_id):
+                async with semaphore:
+                    await client.delete_automation(automation_id)
+
+            await gather(*[limited_delete(automation.id) for automation in automations])
+
             plural = "" if len(automations) == 1 else "s"
             exit_with_success(f"Deleted {len(automations)} automation{plural}.")
 
