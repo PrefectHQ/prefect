@@ -1,0 +1,90 @@
+---
+title: flow_runs_watching
+sidebarTitle: flow_runs_watching
+---
+
+# `prefect.cli.flow_runs_watching`
+
+
+
+Utilities for following flow runs with interleaved events and logs
+
+
+## Functions
+
+### `watch_flow_run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/flow_runs_watching.py#L38" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+watch_flow_run(flow_run_id: UUID, console: Console, timeout: int | None = None) -> FlowRun
+```
+
+
+Watch a flow run, displaying interleaved events and logs until completion.
+
+**Args:**
+- `flow_run_id`: The ID of the flow run to watch
+- `console`: Rich console for output
+- `timeout`: Maximum time to wait for flow run completion in seconds.
+     If None, waits indefinitely.
+
+**Returns:**
+- The finished flow run
+
+**Raises:**
+- `FlowRunWaitTimeout`: If the flow run exceeds the timeout
+
+
+## Classes
+
+### `FlowRunFormatter` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/flow_runs_watching.py#L77" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+Handles formatting of logs and events for CLI display
+
+
+**Methods:**
+
+#### `format` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/flow_runs_watching.py#L122" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+format(self, item: Log | Event) -> str
+```
+
+Format a log or event for display
+
+
+#### `format_event` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/flow_runs_watching.py#L150" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+format_event(self, event: Event) -> str
+```
+
+Format an event
+
+
+#### `format_log` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/flow_runs_watching.py#L129" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+format_log(self, log: Log) -> str
+```
+
+Format a log entry
+
+
+#### `format_run_id` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/flow_runs_watching.py#L118" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+format_run_id(self, run_id_short: str) -> str
+```
+
+Format run ID
+
+
+#### `format_timestamp` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/flow_runs_watching.py#L84" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+format_timestamp(self, dt: datetime) -> str
+```
+
+Format timestamp with incremental display
+
