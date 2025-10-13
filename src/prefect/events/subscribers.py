@@ -2,9 +2,11 @@
 Flow run subscriber that interleaves events and logs from a flow run
 """
 
+from __future__ import annotations
+
 import asyncio
 from types import TracebackType
-from typing import Any, Optional, Union
+from typing import TYPE_CHECKING, Any, Optional, Union
 from uuid import UUID
 
 from typing_extensions import Self
@@ -12,9 +14,13 @@ from typing_extensions import Self
 from prefect.client.schemas.filters import LogFilter, LogFilterFlowRunId
 from prefect.client.schemas.objects import Log
 from prefect.events import Event
-from prefect.events.clients import PrefectEventSubscriber, get_events_subscriber
+from prefect.events.clients import get_events_subscriber
 from prefect.events.filters import EventAnyResourceFilter, EventFilter
-from prefect.logging.clients import PrefectLogsSubscriber, get_logs_subscriber
+from prefect.logging.clients import get_logs_subscriber
+
+if TYPE_CHECKING:
+    from prefect.events.clients import PrefectEventSubscriber
+    from prefect.logging.clients import PrefectLogsSubscriber
 
 TERMINAL_FLOW_RUN_EVENTS = {
     "prefect.flow-run.Completed",
@@ -47,15 +53,15 @@ class FlowRunSubscriber:
     """
 
     _flow_run_id: UUID
-    _queue: "asyncio.Queue[Union[Log, Event, None]]"
-    _tasks: list["asyncio.Task[None]"]
+    _queue: asyncio.Queue[Union[Log, Event, None]]
+    _tasks: list[asyncio.Task[None]]
     _flow_completed: bool
     _straggler_timeout: int
     _reconnection_attempts: int
     _log_filter: LogFilter
     _event_filter: EventFilter
-    _logs_subscriber: Union[PrefectLogsSubscriber, Any]
-    _events_subscriber: Union[PrefectEventSubscriber, Any]
+    _logs_subscriber: PrefectLogsSubscriber | Any
+    _events_subscriber: PrefectEventSubscriber | Any
     _sentinels_received: int
 
     def __init__(
