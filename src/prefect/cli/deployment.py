@@ -1028,7 +1028,7 @@ async def run(
     if watch:
         if watch_interval is not None:
             warnings.warn(
-                "The --watch-interval flag is deprecated and has no effect. "
+                "The --watch-interval flag is deprecated and will be removed in a future release. "
                 "Flow run watching now uses real-time event streaming.",
                 DeprecationWarning,
                 stacklevel=2,

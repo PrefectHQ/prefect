@@ -12,13 +12,27 @@ import anyio
 from rich.console import Console
 
 from prefect.client.orchestration import get_client
-from prefect.client.schemas.objects import Log
+from prefect.client.schemas.objects import Log, StateType
 from prefect.events import Event
 from prefect.events.subscribers import FlowRunSubscriber
 from prefect.exceptions import FlowRunWaitTimeout
 
 if TYPE_CHECKING:
     from prefect.client.schemas.objects import FlowRun
+
+
+# Color mapping for state types
+STATE_TYPE_COLORS: dict[StateType, str] = {
+    StateType.SCHEDULED: "yellow",
+    StateType.PENDING: "bright_black",
+    StateType.RUNNING: "blue",
+    StateType.COMPLETED: "green",
+    StateType.FAILED: "red",
+    StateType.CANCELLED: "bright_black",
+    StateType.CANCELLING: "bright_black",
+    StateType.CRASHED: "orange1",
+    StateType.PAUSED: "bright_black",
+}
 
 
 async def watch_flow_run(
@@ -156,38 +170,20 @@ class FlowRunFormatter:
         run_id_short = run_id[-12:] if run_id else "............"
         run_id_display = self.format_run_id(run_id_short)
 
-        state_colors = {
-            "prefect.flow-run.Scheduled": "yellow",
-            "prefect.flow-run.Late": "yellow",
-            "prefect.flow-run.Resuming": "yellow",
-            "prefect.flow-run.AwaitingRetry": "yellow",
-            "prefect.flow-run.AwaitingConcurrencySlot": "yellow",
-            "prefect.task-run.Scheduled": "yellow",
-            "prefect.task-run.AwaitingRetry": "yellow",
-            "prefect.flow-run.Pending": "bright_black",
-            "prefect.flow-run.Paused": "bright_black",
-            "prefect.flow-run.Suspended": "bright_black",
-            "prefect.task-run.Pending": "bright_black",
-            "prefect.flow-run.Running": "blue",
-            "prefect.flow-run.Retrying": "blue",
-            "prefect.task-run.Running": "blue",
-            "prefect.task-run.Retrying": "blue",
-            "prefect.flow-run.Completed": "green",
-            "prefect.flow-run.Cached": "green",
-            "prefect.task-run.Completed": "green",
-            "prefect.task-run.Cached": "green",
-            "prefect.flow-run.Cancelled": "bright_black",
-            "prefect.flow-run.Cancelling": "bright_black",
-            "prefect.task-run.Cancelled": "bright_black",
-            "prefect.task-run.Cancelling": "bright_black",
-            "prefect.flow-run.Crashed": "orange1",
-            "prefect.flow-run.Failed": "red",
-            "prefect.flow-run.TimedOut": "red",
-            "prefect.task-run.Failed": "red",
-            "prefect.task-run.TimedOut": "red",
-        }
+        # Get state type from event resource or payload
+        state_type_str = event.resource.get("prefect.state-type")
+        if not state_type_str and "validated_state" in event.payload:
+            state_type_str = event.payload["validated_state"].get("type")
 
-        color = state_colors.get(event.event, "bright_magenta")
+        # Map state type to color
+        color = "bright_magenta"  # default for unknown states
+        if state_type_str:
+            try:
+                state_type = StateType(state_type_str)
+                color = STATE_TYPE_COLORS.get(state_type, "bright_magenta")
+            except ValueError:
+                pass
+
         name = event.resource.get("prefect.resource.name") or event.resource.id
         return (
             f"[{color}]●[/{color}] {timestamp} [dim]{run_id_display}[/dim] "

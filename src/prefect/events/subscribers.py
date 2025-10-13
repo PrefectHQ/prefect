@@ -12,7 +12,7 @@ from uuid import UUID
 from typing_extensions import Self
 
 from prefect.client.schemas.filters import LogFilter, LogFilterFlowRunId
-from prefect.client.schemas.objects import Log
+from prefect.client.schemas.objects import TERMINAL_STATES, Log, StateType
 from prefect.events import Event
 from prefect.events.clients import get_events_subscriber
 from prefect.events.filters import EventAnyResourceFilter, EventFilter
@@ -21,12 +21,6 @@ from prefect.logging.clients import get_logs_subscriber
 if TYPE_CHECKING:
     from prefect.events.clients import PrefectEventSubscriber
     from prefect.logging.clients import PrefectLogsSubscriber
-
-TERMINAL_FLOW_RUN_EVENTS = {
-    "prefect.flow-run.Completed",
-    "prefect.flow-run.Failed",
-    "prefect.flow-run.Crashed",
-}
 
 
 class FlowRunSubscriber:
@@ -171,12 +165,21 @@ class FlowRunSubscriber:
             async for event in self._events_subscriber:
                 await self._queue.put(event)
 
-                if (
-                    event.event in TERMINAL_FLOW_RUN_EVENTS
-                    and event.resource.id == f"prefect.flow-run.{self._flow_run_id}"
-                ):
-                    self._flow_completed = True
-                    break
+                # Check if this is a terminal state event for our flow run
+                if event.resource.id == f"prefect.flow-run.{self._flow_run_id}":
+                    # Get state type from event resource or payload
+                    state_type_str = event.resource.get("prefect.state-type")
+                    if not state_type_str and "validated_state" in event.payload:
+                        state_type_str = event.payload["validated_state"].get("type")
+
+                    if state_type_str:
+                        try:
+                            state_type = StateType(state_type_str)
+                            if state_type in TERMINAL_STATES:
+                                self._flow_completed = True
+                                break
+                        except ValueError:
+                            pass
         except Exception:
             pass
         finally:

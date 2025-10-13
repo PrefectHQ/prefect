@@ -43,7 +43,7 @@ from .actions import (
     DeclareIncident,
 )
 from .clients import get_events_client, get_events_subscriber
-from .subscribers import FlowRunSubscriber, TERMINAL_FLOW_RUN_EVENTS
+from .subscribers import FlowRunSubscriber
 from .utilities import emit_event
 
 __all__ = [
@@ -92,5 +92,4 @@ __all__ = [
     "get_events_client",
     "get_events_subscriber",
     "FlowRunSubscriber",
-    "TERMINAL_FLOW_RUN_EVENTS",
 ]
