@@ -88,6 +88,7 @@ async def test_instrumenting_a_flow_run_state_change(
             "prefect.resource.id": f"prefect.flow-run.{flow_run.id}",
             "prefect.resource.name": flow_run.name,
             "prefect.run-count": "0",
+            "prefect.submission-count": "0",
             "prefect.state-message": "",
             "prefect.state-name": "Running",
             "prefect.state-timestamp": context.proposed_state.timestamp.isoformat(),
@@ -349,6 +350,7 @@ async def test_instrumenting_a_flow_run_with_no_flow(
             "prefect.resource.id": f"prefect.flow-run.{flow_run.id}",
             "prefect.resource.name": flow_run.name,
             "prefect.run-count": "0",
+            "prefect.submission-count": "0",
             "prefect.state-message": "",
             "prefect.state-name": "Running",
             "prefect.state-timestamp": context.proposed_state.timestamp.isoformat(),
@@ -805,12 +807,60 @@ async def test_cancelling_to_cancelled_transitions(
             "prefect.resource.id": f"prefect.flow-run.{flow_run.id}",
             "prefect.resource.name": flow_run.name,
             "prefect.run-count": "0",
+            "prefect.submission-count": "0",
             "prefect.state-message": "",
             "prefect.state-name": "Cancelled",
             "prefect.state-timestamp": updated_flow_run.state.timestamp.isoformat(),
             "prefect.state-type": "CANCELLED",
         }
     )
+
+
+async def test_submission_count_increments_without_running(
+    session: AsyncSession,
+    flow_run: ORMFlowRun,
+    start_of_test: DateTime,
+):
+    """Test that submission_count increments when entering Pending state,
+    even if the run never reaches Running state. This is the motivating case
+    for tracking submission_count separately from run_count."""
+
+    # Use the full orchestration API to set the flow run to Pending state
+    # This will trigger GlobalFlowPolicy which increments submission_count
+    await flow_runs.set_flow_run_state(
+        session=session,
+        flow_run_id=flow_run.id,
+        state=State(type=StateType.PENDING),
+    )
+    await session.commit()
+
+    assert AssertingEventsClient.last
+    (pending_event,) = AssertingEventsClient.last.events
+
+    assert pending_event.event == "prefect.flow-run.Pending"
+    # After first transition to Pending, submission_count should be 1
+    assert pending_event.resource["prefect.submission-count"] == "1"
+    assert pending_event.resource["prefect.run-count"] == "0"
+
+    # Now transition directly to Failed without going through Running
+    # This simulates a crash before the run starts
+    await flow_runs.set_flow_run_state(
+        session=session,
+        flow_run_id=flow_run.id,
+        state=State(type=StateType.FAILED, message="Crashed before running"),
+    )
+    await session.commit()
+
+    assert AssertingEventsClient.last
+    (failed_event,) = AssertingEventsClient.last.events
+
+    assert failed_event.event == "prefect.flow-run.Failed"
+    # submission_count should still be 1, run_count should still be 0
+    assert failed_event.resource["prefect.run-count"] == "0"  # Never reached Running
+    assert (
+        failed_event.resource["prefect.submission-count"] == "1"
+    )  # Was submitted once
+    assert failed_event.resource["prefect.state-message"] == "Crashed before running"
 
 
 async def test_caches_resource_data(

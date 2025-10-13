@@ -246,6 +246,9 @@ class FlowRunResponse(ORMBaseModel):
     run_count: int = Field(
         default=0, description="The number of times the flow run was executed."
     )
+    submission_count: int = Field(
+        default=0, description="The number of times the flow run was submitted."
+    )
     expected_start_time: Optional[DateTime] = Field(
         default=None,
         description="The flow run's expected start time.",
