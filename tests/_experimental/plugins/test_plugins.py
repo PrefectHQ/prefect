@@ -119,10 +119,8 @@ class TestPluginConfig:
             }
         ):
             settings = get_current_settings().experiments.plugins
-            allow = settings.allow
-            deny = settings.deny
-            assert allow == {"plugin1", "plugin2"}
-            assert deny == {"plugin3"}
+            assert settings.allow == {"plugin1", "plugin2"}
+            assert settings.deny == {"plugin3"}
 
     @pytest.mark.usefixtures("clean_env")
     def test_strict_mode(self):

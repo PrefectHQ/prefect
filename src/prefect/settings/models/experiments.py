@@ -25,7 +25,7 @@ class PluginsSettings(PrefectBaseSettings):
     )
 
     allow: Annotated[
-        Union[list[str], None],
+        Union[set[str], None],
         BeforeValidator(partial(validate_set_T_from_delim_string, type_=str)),
     ] = Field(
         default=None,
@@ -33,7 +33,7 @@ class PluginsSettings(PrefectBaseSettings):
     )
 
     deny: Annotated[
-        Union[list[str], None],
+        Union[set[str], None],
         BeforeValidator(partial(validate_set_T_from_delim_string, type_=str)),
     ] = Field(
         default=None,
