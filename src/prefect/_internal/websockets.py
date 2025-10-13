@@ -7,6 +7,7 @@ to avoid duplication between events and logs clients.
 
 import ssl
 import warnings
+from functools import wraps
 from typing import Any, Optional
 from urllib.parse import urlparse
 
@@ -37,6 +38,7 @@ def create_ssl_context_for_websocket(uri: str) -> Optional[ssl.SSLContext]:
         return ssl.create_default_context(cafile=cert_file)
 
 
+@wraps(connect)
 def websocket_connect(uri: str, **kwargs: Any) -> connect:
     """
     Create a WebSocket connection with proxy and SSL support.

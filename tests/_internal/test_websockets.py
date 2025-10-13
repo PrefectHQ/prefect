@@ -2,6 +2,8 @@ import ssl
 import warnings
 from unittest.mock import patch
 
+from websockets.asyncio.client import connect
+
 from prefect._internal.websockets import (
     create_ssl_context_for_websocket,
     websocket_connect,
@@ -16,8 +18,6 @@ from prefect.settings import (
 
 def test_websocket_connect_factory():
     """Test that websocket_connect returns a connect instance"""
-    from websockets.asyncio.client import connect
-
     connector = websocket_connect("wss://example.com")
     assert isinstance(connector, connect)
 
@@ -50,8 +50,6 @@ def test_websocket_connect_ssl_integration():
     """Test that websocket_connect integrates with SSL context creation"""
     with temporary_settings({PREFECT_API_TLS_INSECURE_SKIP_VERIFY: True}):
         connector = websocket_connect("wss://example.com")
-        from websockets.asyncio.client import connect
-
         assert isinstance(connector, connect)
         # Verify SSL context is configured
         assert "ssl" in connector.connection_kwargs
@@ -63,8 +61,6 @@ def test_websocket_connect_ssl_integration():
 def test_websocket_connect_no_ssl_for_ws():
     """Test that websocket_connect doesn't add SSL for ws:// URLs"""
     connector = websocket_connect("ws://example.com")
-    from websockets.asyncio.client import connect
-
     assert isinstance(connector, connect)
     # Verify SSL is not configured for ws:// URLs
     assert "ssl" not in connector.connection_kwargs
@@ -76,8 +72,6 @@ def test_websocket_connect_kwargs_preservation():
     connector = websocket_connect(
         "wss://example.com", additional_headers=additional_headers
     )
-    from websockets.asyncio.client import connect
-
     assert isinstance(connector, connect)
     # Verify headers are preserved
     assert connector.additional_headers == additional_headers
@@ -104,8 +98,6 @@ def test_websocket_custom_headers():
 
     with temporary_settings({PREFECT_CLIENT_CUSTOM_HEADERS: custom_headers}):
         connector = websocket_connect("wss://example.com")
-        from websockets.asyncio.client import connect
-
         assert isinstance(connector, connect)
         # Verify custom headers are added
         assert connector.additional_headers["X-Custom-Header"] == "test-value"
@@ -122,8 +114,6 @@ def test_websocket_custom_headers_merge_with_existing():
         connector = websocket_connect(
             "wss://example.com", additional_headers=existing_headers
         )
-        from websockets.asyncio.client import connect
-
         assert isinstance(connector, connect)
         # Verify both custom and existing headers are present
         assert connector.additional_headers["X-Custom-Header"] == "test-value"
@@ -161,8 +151,6 @@ def test_websocket_custom_headers_empty_settings():
 
     with temporary_settings({PREFECT_CLIENT_CUSTOM_HEADERS: {}}):
         connector = websocket_connect("wss://example.com")
-        from websockets.asyncio.client import connect
-
         assert isinstance(connector, connect)
         # Verify no additional headers when settings are empty (should be None or empty dict)
         assert (
