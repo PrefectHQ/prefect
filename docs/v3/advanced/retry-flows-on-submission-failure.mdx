@@ -1,0 +1,176 @@
+---
+title: How to retry flows that fail during submission
+sidebarTitle: Retry Submission Failures
+description: Learn how to use automations to retry flow runs that crash before reaching the running state.
+---
+
+## Overview
+
+Sometimes flow runs fail before they even start executing—they might crash during submission, infrastructure provisioning, or other pre-execution steps. Unlike regular retries which handle failures during execution, these submission failures require special handling because the flow never reaches the `Running` state.
+
+Prefect tracks submission attempts separately from execution attempts using the `submission_count` field. This enables you to create automations that retry flows based on how many times they've been submitted, not just how many times they've run.
+
+## Use case: Retry infrastructure failures
+
+A common scenario is when flow runs fail due to transient infrastructure issues during submission:
+
+- Worker is temporarily unavailable
+- Network connectivity problems
+- Infrastructure provisioning failures
+- Resource constraints during submission
+
+These failures occur before the flow reaches `Running` state, so the `run_count` stays at 0 while `submission_count` increments.
+
+## Creating a submission retry automation
+
+Here's how to create an automation that retries flows that fail during submission:
+
+```python retry_submission_failures.py
+from prefect.events import Automation
+from prefect.events.actions import RunDeployment
+from prefect.events.schemas.automations import EventTrigger, Posture
+
+# Create an automation that triggers when a flow run fails
+# with submission_count > 0 but run_count = 0
+submission_retry = Automation(
+    name="Retry submission failures",
+    description="Retry flows that crash before running (max 3 submission attempts)",
+    trigger=EventTrigger(
+        expect={"prefect.flow-run.Failed"},
+        match_related={
+            # Only match flows that were submitted but never ran
+            "prefect.resource.run-count": "0",
+        },
+        # Only retry if submission_count < 3
+        match={
+            "prefect.resource.submission-count": ["1", "2"],
+        },
+        posture=Posture.Reactive,
+    ),
+    actions=[
+        RunDeployment(
+            # Re-run the same deployment
+            source="inferred",
+            # Inherit parameters from the failed run
+            parameters=None,
+        )
+    ],
+    enabled=True,
+)
+
+# Deploy the automation
+if __name__ == "__main__":
+    submission_retry.create()
+    print(f"Created automation: {submission_retry.name}")
+```
+
+<Tip>
+**Understanding the trigger**
+
+The automation triggers when:
+- A flow run fails (`prefect.flow-run.Failed`)
+- The run count is 0 (never started running)
+- The submission count is 1 or 2 (limit retries to 3 total attempts)
+
+This ensures you retry submission failures without creating infinite loops.
+</Tip>
+
+## Testing the automation
+
+Create a test flow that fails during submission:
+
+```python test_submission_failure.py
+from prefect import flow
+from prefect.deployments import serve
+import sys
+
+@flow
+def submission_test_flow():
+    """A flow that crashes before running."""
+    # Simulate a submission failure by exiting
+    # before the flow actually starts
+    sys.exit(1)
+
+if __name__ == "__main__":
+    submission_test_flow.serve(name="submission-test")
+```
+
+## Monitoring submission attempts
+
+You can view submission counts in the Prefect UI or via the API:
+
+```python check_submission_count.py
+from prefect import get_client
+import asyncio
+
+async def check_counts():
+    async with get_client() as client:
+        # Get recent flow runs
+        flow_runs = await client.read_flow_runs(
+            limit=10,
+            sort="CREATED_DESC"
+        )
+
+        for run in flow_runs:
+            print(f"Flow Run: {run.name}")
+            print(f"  State: {run.state_type}")
+            print(f"  Submission Count: {run.submission_count}")
+            print(f"  Run Count: {run.run_count}")
+            print()
+
+asyncio.run(check_counts())
+```
+
+## Advanced: Exponential backoff
+
+For more sophisticated retry logic, you can create multiple automations with delays:
+
+```python exponential_backoff.py
+from prefect.events import Automation
+from prefect.events.actions import RunDeployment
+from prefect.events.schemas.automations import EventTrigger, Posture
+
+# First retry: immediate
+first_retry = Automation(
+    name="Submission retry 1 (immediate)",
+    trigger=EventTrigger(
+        expect={"prefect.flow-run.Failed"},
+        match_related={"prefect.resource.run-count": "0"},
+        match={"prefect.resource.submission-count": "1"},
+        posture=Posture.Reactive,
+    ),
+    actions=[RunDeployment(source="inferred")],
+)
+
+# Second retry: 5 minute delay
+second_retry = Automation(
+    name="Submission retry 2 (5 min delay)",
+    trigger=EventTrigger(
+        expect={"prefect.flow-run.Failed"},
+        match_related={"prefect.resource.run-count": "0"},
+        match={"prefect.resource.submission-count": "2"},
+        posture=Posture.Reactive,
+        after=["prefect.flow-run.Failed"],
+        within=300,  # 5 minutes
+    ),
+    actions=[RunDeployment(source="inferred")],
+)
+```
+
+## Key differences: submission_count vs run_count
+
+| Field | Increments when | Use case |
+|-------|----------------|----------|
+| `submission_count` | Flow enters `Pending` state | Retry infrastructure/submission failures |
+| `run_count` | Flow enters `Running` state | Retry execution failures |
+
+<Warning>
+**Avoid infinite loops**
+
+Always set a maximum on `submission_count` in your automation triggers to prevent infinite retry loops. A good default is 3 attempts.
+</Warning>
+
+## Related resources
+
+- [Custom events and triggers](/v3/advanced/use-custom-event-grammar)
+- [Automations API reference](/v3/api-ref/python/prefect-events-schemas-automations)
