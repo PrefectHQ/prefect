@@ -301,6 +301,7 @@ async def pause(
 async def delete(
     name: Optional[str] = typer.Argument(None, help="An automation's name"),
     id: Optional[str] = typer.Option(None, "--id", help="An automation's id"),
+    _all: bool = typer.Option(False, "--all", help="Delete all automations"),
 ):
     """Delete an automation.
 
@@ -311,9 +312,28 @@ async def delete(
     Examples:
         `$ prefect automation delete "my-automation"`
         `$ prefect automation delete --id "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"`
+        `$ prefect automation delete --all`
     """
 
     async with get_client() as client:
+        if _all:
+            if name is not None or id is not None:
+                exit_with_error(
+                    "Cannot provide an automation name or id when deleting all automations."
+                )
+            automations = await client.read_automations()
+            if len(automations) == 0:
+                exit_with_success("No automations found.")
+            if is_interactive() and not typer.confirm(
+                f"Are you sure you want to delete all {len(automations)} automations?",
+                default=False,
+            ):
+                exit_with_error("Deletion aborted.")
+            for automation in automations:
+                await client.delete_automation(automation.id)
+            plural = "" if len(automations) == 1 else "s"
+            exit_with_success(f"Deleted {len(automations)} automation{plural}.")
+
         if not id and not name:
             exit_with_error("Please provide either a name or an id.")
 
