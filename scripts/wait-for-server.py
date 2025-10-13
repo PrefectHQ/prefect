@@ -31,25 +31,30 @@ async def main(timeout):
     with anyio.move_on_after(timeout):
         print("Retrieving client...")
         async with get_client() as client:
-            print("Connecting", end="")
+            print("Waiting for server to be ready", end="")
+            readiness_exc = None
             while True:
                 print(".", end="", flush=True)
-                healthcheck_exc = await client.api_healthcheck()
-                if healthcheck_exc is not None:
-                    await anyio.sleep(1)
-                else:
-                    print(" Successful!")
-                    break
-            if healthcheck_exc is not None:
+                try:
+                    # Check /ready endpoint which verifies lifespan completion
+                    response = await client._client.get("/ready")
+                    if response.status_code == 200 and response.json() is True:
+                        print(" Server ready!")
+                        readiness_exc = None
+                        break
+                except Exception as exc:
+                    readiness_exc = exc
+                await anyio.sleep(1)
+            if readiness_exc is not None:
                 raise RuntimeError(
-                    "Timed out while attempting to connect to compatibility test"
-                    " server."
+                    "Timed out while waiting for server to complete initialization."
                 )
 
 
 if __name__ == "__main__":
     try:
-        anyio.run(main, sys.argv[1] if len(sys.argv) > 1 else DEFAULT_TIMEOUT_SECONDS)
+        timeout = float(sys.argv[1]) if len(sys.argv) > 1 else DEFAULT_TIMEOUT_SECONDS
+        anyio.run(main, timeout)
     except Exception as exc:
         print(exc)
         exit(1)

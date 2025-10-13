@@ -84,6 +84,8 @@ API_VERSION: str = prefect.__version__
 # migrations should run only once per app start; the ephemeral API can potentially
 # create multiple apps in a single process
 LIFESPAN_RAN_FOR_APP: set[Any] = set()
+# track which apps have completed their full lifespan startup (migrations, blocks, services)
+SERVER_READY_FOR_APP: set[Any] = set()
 
 logger: "logging.Logger" = get_logger("server")
 
@@ -386,6 +388,11 @@ def create_api_app(
     @api_app.get(health_check_path, tags=["Root"])
     async def health_check() -> bool:  # type: ignore[reportUnusedFunction]
         return True
+
+    @api_app.get("/ready", tags=["Root"])
+    async def readiness_check() -> bool:  # type: ignore[reportUnusedFunction]
+        """Check if server initialization (migrations, blocks, services) is complete."""
+        return bool(SERVER_READY_FOR_APP)
 
     @api_app.get(version_check_path, tags=["Root"])
     async def server_version() -> str:  # type: ignore[reportUnusedFunction]
@@ -698,6 +705,7 @@ def create_app(
             if Services:
                 await stack.enter_async_context(Services.running())
             LIFESPAN_RAN_FOR_APP.add(app)
+            SERVER_READY_FOR_APP.add(app)
             yield
 
     def on_service_exit(service: Service, task: asyncio.Task[None]) -> None:
