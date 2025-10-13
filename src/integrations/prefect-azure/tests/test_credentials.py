@@ -6,8 +6,8 @@ from conftest import CosmosClientMock
 from prefect_azure.credentials import (
     AzureBlobStorageCredentials,
     AzureCosmosDbCredentials,
+    AzureDevopsCredentials,
     AzureMlCredentials,
-    AzureDevopsCredentials
 )
 from pydantic import SecretStr
 
@@ -136,6 +136,8 @@ def test_get_workspace(monkeypatch):
         assert isinstance(workspace, MagicMock)
 
     test_flow()
+
+
 def test_get_azuredevops_auth_header_valid_token():
     @flow
     def test_flow():
@@ -143,6 +145,7 @@ def test_get_azuredevops_auth_header_valid_token():
         auth_header = creds.get_auth_header()
 
         import base64
+
         expected_token = base64.b64encode(b":fake-pat").decode()
         assert auth_header == {"Authorization": f"Basic {expected_token}"}
 

@@ -1,13 +1,11 @@
-import os
 import urllib.parse
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
 import pytest
-from pydantic import SecretStr
-
 from prefect_azure.credentials import AzureDevopsCredentials
 from prefect_azure.repository import AzureDevopsRepository
+from pydantic import SecretStr
 
 from prefect.testing.utilities import AsyncMock
 
@@ -47,7 +45,7 @@ class TestAzureDevopsRepository:
 
     def test_token_url_encoding(self):
         token = "my:we!rd@tok#en"
-        encoded_token = urllib.parse.quote(token, safe='')
+        encoded_token = urllib.parse.quote(token, safe="")
 
         repo_url = "https://fake@example.com/org/project/_git/repo"
         credentials = AzureDevopsCredentials(token=SecretStr(token))
@@ -64,7 +62,6 @@ class TestAzureDevopsRepository:
         with pytest.raises(ValueError, match="SSH URLs are not supported"):
             AzureDevopsRepository(repository=ssh_url)._create_repo_url()
 
-
     async def test_get_directory_executes_clone(self, monkeypatch):
         mock_process = AsyncMock()
         mock_process.return_value.returncode = 0
@@ -76,7 +73,6 @@ class TestAzureDevopsRepository:
         assert mock_process.await_count == 1
         assert "git" in mock_process.await_args[0][0]
 
-    
     async def test_get_directory_raises_on_failed_clone(self, monkeypatch):
         class FakeProcess:
             returncode = 1
@@ -91,7 +87,6 @@ class TestAzureDevopsRepository:
         with pytest.raises(OSError, match="Failed to pull from remote"):
             await repo.get_directory()
 
-    
     async def test_get_directory_retries_on_failure(self, monkeypatch):
         call_counter = {"count": 0}
 
@@ -111,13 +106,13 @@ class TestAzureDevopsRepository:
 
         assert call_counter["count"] == 3  # MAX_CLONE_ATTEMPTS
 
-    
     async def test_directory_contents_are_copied(self, monkeypatch):
         class FakeProcess:
             returncode = 0
 
         monkeypatch.setattr(
-            "prefect_azure.repository.run_process", AsyncMock(return_value=FakeProcess())
+            "prefect_azure.repository.run_process",
+            AsyncMock(return_value=FakeProcess()),
         )
 
         repo = AzureDevopsRepository(repository="https://example.com/repo.git")
@@ -127,6 +122,7 @@ class TestAzureDevopsRepository:
             test_file.write_text("hello world")
 
             with TemporaryDirectory() as tmp_dst:
+
                 class MockTmpDir:
                     def __init__(self, *args, **kwargs):
                         pass
@@ -137,7 +133,10 @@ class TestAzureDevopsRepository:
                     def __exit__(self, *args):
                         pass
 
-                monkeypatch.setattr("prefect_azure.repository.TemporaryDirectory", lambda *a, **kw: MockTmpDir())
+                monkeypatch.setattr(
+                    "prefect_azure.repository.TemporaryDirectory",
+                    lambda *a, **kw: MockTmpDir(),
+                )
 
                 await repo.get_directory(local_path=tmp_dst)
 

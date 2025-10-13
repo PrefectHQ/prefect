@@ -1,7 +1,7 @@
 """Credential classes used to perform authenticated interactions with Azure"""
 
-import functools
 import base64
+import functools
 from typing import TYPE_CHECKING, Any, Dict, Optional
 
 from azure.identity import ClientSecretCredential, DefaultAzureCredential
@@ -600,10 +600,11 @@ class AzureContainerInstanceCredentials(Block):
             **self.credential_kwargs,
         )
 
+
 class AzureDevopsCredentials(Block):
     """
     Block used to authenticate with Azure DevOps using a Personal Access Token.
-    
+
     Attributes:
         token: A Personal Access Token generated from Azure DevOps.
 
@@ -617,15 +618,15 @@ class AzureDevopsCredentials(Block):
     """
 
     _block_type_name = "AzureDevops Credentials"
-    _logo_url = "https://cdn.sanity.io/images/3ugk85nk/production/54e3fa7e00197a4fbd1d82ed62494cb58d08c96a-250x250.png" # noqa
+    _logo_url = "https://cdn.sanity.io/images/3ugk85nk/production/54e3fa7e00197a4fbd1d82ed62494cb58d08c96a-250x250.png"  # noqa
     _documentation_url = "https://docs.prefect.io/integrations/prefect-azure"
 
     token: Optional[SecretStr] = Field(
         title="AzureDevops Personal Access Token",
-        default=None, 
-        description="A Personal Access token to authenticate with AzureDevops"
+        default=None,
+        description="A Personal Access token to authenticate with AzureDevops.",
     )
-    
+
     def get_auth_header(self) -> Dict[str, str]:
         """
         Returns an HTTP Authorization header using the stored PAT.
@@ -635,9 +636,4 @@ class AzureDevopsCredentials(Block):
             raise ValueError("Azure DevOps Personal Access Token (token) is not set.")
         pat = self.token.get_secret_value()
         basic_auth = base64.b64encode(f":{pat}".encode()).decode()
-        return {
-            "Authorization": f"Basic {basic_auth}"
-        }
-
-
-
+        return {"Authorization": f"Basic {basic_auth}"}

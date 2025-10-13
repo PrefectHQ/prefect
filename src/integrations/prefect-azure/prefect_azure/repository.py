@@ -6,17 +6,16 @@ from tempfile import TemporaryDirectory
 from typing import Optional, Tuple, Union
 
 from pydantic import Field
-from prefect._internal.retries import retry_async_fn
 
+from prefect._internal.retries import retry_async_fn
 from prefect.filesystems import ReadableDeploymentStorage
 from prefect.utilities.processutils import run_process
 from prefect_azure import AzureDevopsCredentials
 
-MAX_CLONE_ATTEMPTS = 3 
-CLONE_RETRY_MIN_DELAY_SECONDS = 1 
-CLONE_RETRY_MIN_DELAY_JITTER_SECONDS = 0 
+MAX_CLONE_ATTEMPTS = 3
+CLONE_RETRY_MIN_DELAY_SECONDS = 1
+CLONE_RETRY_MIN_DELAY_JITTER_SECONDS = 0
 CLONE_RETRY_MAX_DELAY_JITTER_SECONDS = 3
-
 
 
 class AzureDevopsRepository(ReadableDeploymentStorage):
@@ -27,6 +26,7 @@ class AzureDevopsRepository(ReadableDeploymentStorage):
     _block_type_name = "Azure DevOps Repository"
     _logo_url = "https://cdn.sanity.io/images/3ugk85nk/production/54e3fa7e00197a4fbd1d82ed62494cb58d08c96a-250x250.png"
     _description = "Interact with files stored in Azure DevOps repositories."
+    _documentation_url = "https://docs.prefect.io/integrations/prefect-azure"
 
     repository: str = Field(
         default=...,
@@ -43,19 +43,19 @@ class AzureDevopsRepository(ReadableDeploymentStorage):
     )
     credentials: Optional[AzureDevopsCredentials] = Field(
         default=None,
-        title= "Credentials",
+        title="Credentials",
         description="Azure DevOps Credentials block to authenticate with azuredevops private repositories",
     )
 
     def _create_repo_url(self) -> str:
         if self.repository.startswith("git@"):
             raise ValueError(
-            "SSH URLs are not supported. Please provide an HTTPS URL for the repository."
-        )
+                "SSH URLs are not supported. Please provide an HTTPS URL for the repository."
+            )
         url_components = urllib.parse.urlparse(self.repository)
         if self.credentials is not None and self.credentials.token is not None:
             token = self.credentials.token.get_secret_value()
-            token = urllib.parse.quote(token, safe='') 
+            token = urllib.parse.quote(token, safe="")
             if url_components.username:
                 user_info = f"{url_components.username}:{token}"
             else:
@@ -83,13 +83,12 @@ class AzureDevopsRepository(ReadableDeploymentStorage):
             content_source = content_source.joinpath(sub_directory)
         return str(content_source), str(content_destination)
 
-    
     @retry_async_fn(
-    max_attempts=MAX_CLONE_ATTEMPTS,
-    base_delay=CLONE_RETRY_MIN_DELAY_SECONDS,
-    max_delay=CLONE_RETRY_MIN_DELAY_SECONDS + CLONE_RETRY_MAX_DELAY_JITTER_SECONDS,
-    operation_name="clone_repository"
-)
+        max_attempts=MAX_CLONE_ATTEMPTS,
+        base_delay=CLONE_RETRY_MIN_DELAY_SECONDS,
+        max_delay=CLONE_RETRY_MIN_DELAY_SECONDS + CLONE_RETRY_MAX_DELAY_JITTER_SECONDS,
+        operation_name="clone_repository",
+    )
     async def get_directory(
         self, from_path: Optional[str] = None, local_path: Optional[str] = None
     ) -> None:
