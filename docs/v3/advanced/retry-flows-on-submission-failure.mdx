@@ -26,9 +26,7 @@ These failures occur before the flow reaches `Running` state, so the `run_count`
 Here's how to create an automation that retries flows that fail during submission:
 
 ```python retry_submission_failures.py
-from prefect.events import Automation
-from prefect.events.actions import RunDeployment
-from prefect.events.schemas.automations import EventTrigger, Posture
+from prefect.automations import Automation, EventTrigger, Posture, RunDeployment
 
 # Create an automation that triggers when a flow run fails
 # with submission_count > 0 but run_count = 0
@@ -129,9 +127,7 @@ For more sophisticated retry logic, you can create multiple automations with del
 
 ```python exponential_backoff.py
 from datetime import timedelta
-from prefect.events import Automation
-from prefect.events.actions import RunDeployment
-from prefect.events.schemas.automations import EventTrigger, Posture
+from prefect.automations import Automation, EventTrigger, Posture, RunDeployment
 
 # First retry: immediate
 first_retry = Automation(
