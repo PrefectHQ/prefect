@@ -854,9 +854,7 @@ async def run(
     watch: bool = typer.Option(
         False,
         "--watch",
-        help=(
-            "Stream live logs and events until the flow run reaches a terminal state."
-        ),
+        help=("Whether to poll the flow run until a terminal state is reached."),
     ),
     watch_timeout: Optional[int] = typer.Option(
         None,
@@ -872,7 +870,7 @@ async def run(
 
     The flow run will be scheduled to run immediately unless `--start-in` or `--start-at` is specified.
     The flow run will not execute until a worker starts.
-    To stream live logs and events until the flow run reaches a terminal state, use the `--watch` flag.
+    To watch the flow run until it reaches a terminal state, use the `--watch` flag.
     """
     import dateparser
 

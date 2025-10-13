@@ -25,13 +25,13 @@ async def watch_flow_run(
     flow_run_id: UUID, console: Console, timeout: int | None = None
 ) -> FlowRun:
     """
-    Follow a flow run, displaying interleaved events and logs until completion.
+    Watch a flow run, displaying interleaved events and logs until completion.
 
     Args:
-        flow_run_id: The ID of the flow run to follow
+        flow_run_id: The ID of the flow run to watch
         console: Rich console for output
         timeout: Maximum time to wait for flow run completion in seconds.
-                 Defaults to 10800 (3 hours) if not specified.
+                 If None, waits indefinitely.
 
     Returns:
         The finished flow run
@@ -39,20 +39,22 @@ async def watch_flow_run(
     Raises:
         FlowRunWaitTimeout: If the flow run exceeds the timeout
     """
-    if timeout is None:
-        timeout = 10800
-
     formatter = FlowRunFormatter()
 
-    with anyio.move_on_after(timeout) as cancel_scope:
+    if timeout is not None:
+        with anyio.move_on_after(timeout) as cancel_scope:
+            async with FlowRunSubscriber(flow_run_id=flow_run_id) as subscriber:
+                async for item in subscriber:
+                    console.print(formatter.format(item))
+
+        if cancel_scope.cancelled_caught:
+            raise FlowRunWaitTimeout(
+                f"Flow run with ID {flow_run_id} exceeded watch timeout of {timeout} seconds"
+            )
+    else:
         async with FlowRunSubscriber(flow_run_id=flow_run_id) as subscriber:
             async for item in subscriber:
                 console.print(formatter.format(item))
-
-    if cancel_scope.cancelled_caught:
-        raise FlowRunWaitTimeout(
-            f"Flow run with ID {flow_run_id} exceeded watch timeout of {timeout} seconds"
-        )
 
     async with get_client() as client:
         return await client.read_flow_run(flow_run_id)
