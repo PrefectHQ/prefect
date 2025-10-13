@@ -2,6 +2,7 @@
 Command line interface for working with automations.
 """
 
+import asyncio
 import functools
 from pathlib import Path
 from typing import Any, Callable, Optional, Type
@@ -330,16 +331,15 @@ async def delete(
             ):
                 exit_with_error("Deletion aborted.")
 
-            import asyncio
-            from asyncio import gather
-
             semaphore = asyncio.Semaphore(10)
 
             async def limited_delete(automation_id):
                 async with semaphore:
                     await client.delete_automation(automation_id)
 
-            await gather(*[limited_delete(automation.id) for automation in automations])
+            await asyncio.gather(
+                *[limited_delete(automation.id) for automation in automations]
+            )
 
             plural = "" if len(automations) == 1 else "s"
             exit_with_success(f"Deleted {len(automations)} automation{plural}.")
