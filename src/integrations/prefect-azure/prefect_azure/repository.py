@@ -6,17 +6,17 @@ from tempfile import TemporaryDirectory
 from typing import Optional, Tuple, Union
 
 from pydantic import Field
-from tenacity import retry, stop_after_attempt, wait_fixed, wait_random
+from prefect._internal.retries import retry_async_fn
 
 from prefect.filesystems import ReadableDeploymentStorage
-from prefect.utilities.asyncutils import sync_compatible
 from prefect.utilities.processutils import run_process
 from prefect_azure import AzureDevopsCredentials
 
-MAX_CLONE_ATTEMPTS = 3
-CLONE_RETRY_MIN_DELAY_SECONDS = 1
-CLONE_RETRY_MIN_DELAY_JITTER_SECONDS = 0
+MAX_CLONE_ATTEMPTS = 3 
+CLONE_RETRY_MIN_DELAY_SECONDS = 1 
+CLONE_RETRY_MIN_DELAY_JITTER_SECONDS = 0 
 CLONE_RETRY_MAX_DELAY_JITTER_SECONDS = 3
+
 
 
 class AzureDevopsRepository(ReadableDeploymentStorage):
@@ -30,8 +30,7 @@ class AzureDevopsRepository(ReadableDeploymentStorage):
 
     repository: str = Field(
         default=...,
-        description=("The full HTTPS URL of the Azure DevOps repository."
-        ),
+        description="The full HTTPS URL of the Azure DevOps repository.",
     )
     reference: Optional[str] = Field(
         default=None,
@@ -54,7 +53,7 @@ class AzureDevopsRepository(ReadableDeploymentStorage):
             "SSH URLs are not supported. Please provide an HTTPS URL for the repository."
         )
         url_components = urllib.parse.urlparse(self.repository)
-        if self.credentials.token is not None and self.credentials is not None:
+        if self.credentials is not None and self.credentials.token is not None:
             token = self.credentials.token.get_secret_value()
             token = urllib.parse.quote(token, safe='') 
             if url_components.username:
@@ -84,16 +83,13 @@ class AzureDevopsRepository(ReadableDeploymentStorage):
             content_source = content_source.joinpath(sub_directory)
         return str(content_source), str(content_destination)
 
-    @sync_compatible
-    @retry(
-        stop=stop_after_attempt(MAX_CLONE_ATTEMPTS),
-        wait=wait_fixed(CLONE_RETRY_MIN_DELAY_SECONDS)
-        + wait_random(
-            CLONE_RETRY_MIN_DELAY_JITTER_SECONDS,
-            CLONE_RETRY_MAX_DELAY_JITTER_SECONDS,
-        ),
-        reraise=True,
-    )
+    
+    @retry_async_fn(
+    max_attempts=MAX_CLONE_ATTEMPTS,
+    base_delay=CLONE_RETRY_MIN_DELAY_SECONDS,
+    max_delay=CLONE_RETRY_MIN_DELAY_SECONDS + CLONE_RETRY_MAX_DELAY_JITTER_SECONDS,
+    operation_name="clone_repository"
+)
     async def get_directory(
         self, from_path: Optional[str] = None, local_path: Optional[str] = None
     ) -> None:

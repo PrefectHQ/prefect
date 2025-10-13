@@ -64,7 +64,7 @@ class TestAzureDevopsRepository:
         with pytest.raises(ValueError, match="SSH URLs are not supported"):
             AzureDevopsRepository(repository=ssh_url)._create_repo_url()
 
-    @pytest.mark.asyncio
+
     async def test_get_directory_executes_clone(self, monkeypatch):
         mock_process = AsyncMock()
         mock_process.return_value.returncode = 0
@@ -76,7 +76,7 @@ class TestAzureDevopsRepository:
         assert mock_process.await_count == 1
         assert "git" in mock_process.await_args[0][0]
 
-    @pytest.mark.asyncio
+    
     async def test_get_directory_raises_on_failed_clone(self, monkeypatch):
         class FakeProcess:
             returncode = 1
@@ -91,7 +91,7 @@ class TestAzureDevopsRepository:
         with pytest.raises(OSError, match="Failed to pull from remote"):
             await repo.get_directory()
 
-    @pytest.mark.asyncio
+    
     async def test_get_directory_retries_on_failure(self, monkeypatch):
         call_counter = {"count": 0}
 
@@ -111,7 +111,7 @@ class TestAzureDevopsRepository:
 
         assert call_counter["count"] == 3  # MAX_CLONE_ATTEMPTS
 
-    @pytest.mark.asyncio
+    
     async def test_directory_contents_are_copied(self, monkeypatch):
         class FakeProcess:
             returncode = 0
