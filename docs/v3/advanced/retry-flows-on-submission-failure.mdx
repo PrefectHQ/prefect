@@ -28,13 +28,13 @@ Here's how to create an automation that retries flows that fail during submissio
 ```python retry_submission_failures.py
 from prefect.automations import Automation, EventTrigger, Posture, RunDeployment
 
-# Create an automation that triggers when a flow run fails
+# Create an automation that triggers when a flow run crashes
 # with submission_count > 0 but run_count = 0
 submission_retry = Automation(
     name="Retry submission failures",
     description="Retry flows that crash before running (max 3 submission attempts)",
     trigger=EventTrigger(
-        expect={"prefect.flow-run.Failed"},
+        expect={"prefect.flow-run.Crashed"},
         match_related={
             # Only match flows that were submitted but never ran
             "prefect.resource.run-count": "0",
@@ -66,7 +66,7 @@ if __name__ == "__main__":
 **Understanding the trigger**
 
 The automation triggers when:
-- A flow run fails (`prefect.flow-run.Failed`)
+- A flow run crashes (`prefect.flow-run.Crashed`)
 - The run count is 0 (never started running)
 - The submission count is 1 or 2 (limit retries to 3 total attempts)
 
@@ -108,41 +108,6 @@ async def check_counts():
             print()
 
 asyncio.run(check_counts())
-```
-
-## Advanced: Exponential backoff
-
-For more sophisticated retry logic, you can create multiple automations with delays:
-
-```python exponential_backoff.py
-from datetime import timedelta
-from prefect.automations import Automation, EventTrigger, Posture, RunDeployment
-
-# First retry: immediate
-first_retry = Automation(
-    name="Submission retry 1 (immediate)",
-    trigger=EventTrigger(
-        expect={"prefect.flow-run.Failed"},
-        match_related={"prefect.resource.run-count": "0"},
-        match={"prefect.resource.submission-count": "1"},
-        posture=Posture.Reactive,
-    ),
-    actions=[RunDeployment(source="inferred")],
-)
-
-# Second retry: 5 minute delay
-second_retry = Automation(
-    name="Submission retry 2 (5 min delay)",
-    trigger=EventTrigger(
-        expect={"prefect.flow-run.Failed"},
-        match_related={"prefect.resource.run-count": "0"},
-        match={"prefect.resource.submission-count": "2"},
-        posture=Posture.Reactive,
-        after=["prefect.flow-run.Failed"],
-        within=timedelta(minutes=5),
-    ),
-    actions=[RunDeployment(source="inferred")],
-)
 ```
 
 ## Key differences: submission_count vs run_count
