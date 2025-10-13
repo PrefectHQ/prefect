@@ -389,11 +389,6 @@ def create_api_app(
     async def health_check() -> bool:  # type: ignore[reportUnusedFunction]
         return True
 
-    @api_app.get("/ready", tags=["Root"])
-    async def readiness_check() -> bool:  # type: ignore[reportUnusedFunction]
-        """Check if server initialization (migrations, blocks, services) is complete."""
-        return bool(SERVER_READY_FOR_APP)
-
     @api_app.get(version_check_path, tags=["Root"])
     async def server_version() -> str:  # type: ignore[reportUnusedFunction]
         return SERVER_API_VERSION
@@ -687,6 +682,8 @@ def create_app(
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         if app in LIFESPAN_RAN_FOR_APP:
+            # App already ran lifespan, it's ready
+            SERVER_READY_FOR_APP.add(app)
             yield
             return
 

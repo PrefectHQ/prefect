@@ -24,6 +24,22 @@ async def hello() -> str:
 async def perform_readiness_check(
     db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> JSONResponse:
+    # Import here to avoid circular dependency
+    from prefect.server.api.server import SERVER_READY_FOR_APP
+
+    # Check if lifespan has completed (only in production, not test mode)
+    # In test mode with ASGITransport, lifespan never runs, so we skip this check
+    settings = get_current_settings()
+    if not settings.testing.test_mode:
+        # In production mode, verify that lifespan has completed
+        # SERVER_READY_FOR_APP will be empty until lifespan completes
+        if not SERVER_READY_FOR_APP:
+            return JSONResponse(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                content={"message": "Server is still starting up"},
+            )
+
+    # Check database connectivity
     is_db_connectable = await db.is_db_connectable()
 
     if is_db_connectable:

@@ -36,12 +36,14 @@ async def main(timeout):
             while True:
                 print(".", end="", flush=True)
                 try:
-                    # Check /ready endpoint which verifies lifespan completion
+                    # Check /ready endpoint which verifies lifespan completion and db connectivity
                     response = await client._client.get("/ready")
-                    if response.status_code == 200 and response.json() is True:
-                        print(" Server ready!")
-                        readiness_exc = None
-                        break
+                    if response.status_code == 200:
+                        data = response.json()
+                        if data.get("message") == "OK":
+                            print(" Server ready!")
+                            readiness_exc = None
+                            break
                 except Exception as exc:
                     readiness_exc = exc
                 await anyio.sleep(1)
