@@ -45,7 +45,6 @@ from prefect.exceptions import (
     ObjectNotFound,
     PrefectHTTPStatusError,
 )
-from prefect.flow_runs import wait_for_flow_run
 from prefect.states import Scheduled
 from prefect.types._datetime import (
     DateTime,
@@ -854,23 +853,14 @@ async def run(
     watch: bool = typer.Option(
         False,
         "--watch",
-        help=("Whether to poll the flow run until a terminal state is reached."),
-    ),
-    watch_interval: Optional[int] = typer.Option(
-        None,
-        "--watch-interval",
-        help=("How often to poll the flow run for state changes (in seconds)."),
+        help=(
+            "Stream live logs and events until the flow run reaches a terminal state."
+        ),
     ),
     watch_timeout: Optional[int] = typer.Option(
         None,
         "--watch-timeout",
         help=("Timeout for --watch."),
-    ),
-    follow: bool = typer.Option(
-        False,
-        "--follow",
-        "-f",
-        help=("Stream live logs and events from the flow run until completion."),
     ),
     flow_run_name: Optional[str] = typer.Option(
         None, "--flow-run-name", help="Custom name to give the flow run."
@@ -881,8 +871,7 @@ async def run(
 
     The flow run will be scheduled to run immediately unless `--start-in` or `--start-at` is specified.
     The flow run will not execute until a worker starts.
-    To watch the flow run until it reaches a terminal state, use the `--watch` flag.
-    To stream live logs and events from the flow run, use the `--follow` flag.
+    To stream live logs and events until the flow run reaches a terminal state, use the `--watch` flag.
     """
     import dateparser
 
@@ -899,10 +888,6 @@ async def run(
             multi_params = json.loads(multiparams)
         except ValueError as exc:
             exit_with_error(f"Failed to parse JSON: {exc}")
-        if watch_interval and not watch:
-            exit_with_error(
-                "`--watch-interval` can only be used with `--watch`.",
-            )
     cli_params: dict[str, Any] = _load_json_key_values(params or [], "parameter")
     conflicting_keys = set(cli_params.keys()).intersection(multi_params.keys())
     if conflicting_keys:
@@ -1036,21 +1021,11 @@ async def run(
         ).strip(),
         soft_wrap=True,
     )
-    if watch and follow:
-        exit_with_error("Cannot use both --watch and --follow.")
-
-    if follow:
-        from prefect.cli.flow_runs_following import follow_flow_run
-
-        await follow_flow_run(flow_run.id, app.console)
-
     if watch:
-        app.console.print(f"Watching flow run {flow_run.name!r}...")
-        finished_flow_run = await wait_for_flow_run(
-            flow_run.id,
-            timeout=watch_timeout,
-            poll_interval=watch_interval,
-            log_states=True,
+        from prefect.cli.flow_runs_watching import watch_flow_run
+
+        finished_flow_run = await watch_flow_run(
+            flow_run.id, app.console, timeout=watch_timeout
         )
         finished_flow_run_state = finished_flow_run.state
         if finished_flow_run_state is None:

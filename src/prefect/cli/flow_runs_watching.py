@@ -5,28 +5,57 @@ Utilities for following flow runs with interleaved events and logs
 from __future__ import annotations
 
 from datetime import datetime
+from typing import TYPE_CHECKING
 from uuid import UUID
 
+import anyio
 from rich.console import Console
 
+from prefect.client.orchestration import get_client
 from prefect.client.schemas.objects import Log
 from prefect.events import Event
 from prefect.events.subscribers import FlowRunSubscriber
+from prefect.exceptions import FlowRunWaitTimeout
+
+if TYPE_CHECKING:
+    from prefect.client.schemas.objects import FlowRun
 
 
-async def follow_flow_run(flow_run_id: UUID, console: Console) -> None:
+async def watch_flow_run(
+    flow_run_id: UUID, console: Console, timeout: int | None = None
+) -> FlowRun:
     """
     Follow a flow run, displaying interleaved events and logs until completion.
 
     Args:
         flow_run_id: The ID of the flow run to follow
         console: Rich console for output
+        timeout: Maximum time to wait for flow run completion in seconds.
+                 Defaults to 10800 (3 hours) if not specified.
+
+    Returns:
+        The finished flow run
+
+    Raises:
+        FlowRunWaitTimeout: If the flow run exceeds the timeout
     """
+    if timeout is None:
+        timeout = 10800
+
     formatter = FlowRunFormatter()
 
-    async with FlowRunSubscriber(flow_run_id=flow_run_id) as subscriber:
-        async for item in subscriber:
-            console.print(formatter.format(item))
+    with anyio.move_on_after(timeout) as cancel_scope:
+        async with FlowRunSubscriber(flow_run_id=flow_run_id) as subscriber:
+            async for item in subscriber:
+                console.print(formatter.format(item))
+
+    if cancel_scope.cancelled_caught:
+        raise FlowRunWaitTimeout(
+            f"Flow run with ID {flow_run_id} exceeded watch timeout of {timeout} seconds"
+        )
+
+    async with get_client() as client:
+        return await client.read_flow_run(flow_run_id)
 
 
 class FlowRunFormatter:
