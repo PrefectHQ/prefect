@@ -3,16 +3,20 @@
 from __future__ import annotations
 
 import asyncio
+from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
+from unittest.mock import AsyncMock
 from uuid import uuid4
 
 import pytest
 from rich.console import Console
 from typing_extensions import Self
 
+import prefect.cli.flow_runs_watching
 from prefect.cli.flow_runs_watching import watch_flow_run
-from prefect.client.schemas.objects import Log
+from prefect.client.schemas.objects import FlowRun, Log
 from prefect.events import Event, Resource
+from prefect.states import Completed, Failed
 
 pytestmark = pytest.mark.usefixtures("disable_hosted_api_server")
 
@@ -43,11 +47,6 @@ class MockFlowRunSubscriber:
 
 async def test_watch_flow_run_exits_after_terminal_event(monkeypatch):
     """Test that watch_flow_run exits after receiving a terminal event"""
-    from unittest.mock import AsyncMock
-
-    from prefect.client.schemas.objects import FlowRun
-    from prefect.states import Completed
-
     flow_run_id = uuid4()
 
     log1 = Log(
@@ -127,11 +126,6 @@ async def test_watch_flow_run_exits_after_terminal_event(monkeypatch):
 
 async def test_watch_flow_run_handles_empty_stream(monkeypatch):
     """Test that watch_flow_run handles empty stream gracefully"""
-    from unittest.mock import AsyncMock
-
-    from prefect.client.schemas.objects import FlowRun
-    from prefect.states import Completed
-
     flow_run_id = uuid4()
 
     mock_subscriber = MockFlowRunSubscriber([])
@@ -145,13 +139,9 @@ async def test_watch_flow_run_handles_empty_stream(monkeypatch):
     mock_client.__aenter__ = AsyncMock(return_value=mock_client)
     mock_client.__aexit__ = AsyncMock(return_value=None)
 
-    import prefect.cli.flow_runs_watching
-
     monkeypatch.setattr(
         prefect.cli.flow_runs_watching, "FlowRunSubscriber", mock_flow_run_subscriber
     )
-
-    from contextlib import asynccontextmanager
 
     @asynccontextmanager
     async def mock_get_client_ctx(*args, **kwargs):
@@ -169,11 +159,6 @@ async def test_watch_flow_run_handles_empty_stream(monkeypatch):
 
 async def test_watch_flow_run_with_failed_state(monkeypatch):
     """Test that watch_flow_run returns flow run with failed state"""
-    from unittest.mock import AsyncMock
-
-    from prefect.client.schemas.objects import FlowRun
-    from prefect.states import Failed
-
     flow_run_id = uuid4()
 
     terminal_event = Event(
@@ -197,13 +182,9 @@ async def test_watch_flow_run_with_failed_state(monkeypatch):
     mock_client.__aenter__ = AsyncMock(return_value=mock_client)
     mock_client.__aexit__ = AsyncMock(return_value=None)
 
-    import prefect.cli.flow_runs_watching
-
     monkeypatch.setattr(
         prefect.cli.flow_runs_watching, "FlowRunSubscriber", mock_flow_run_subscriber
     )
-
-    from contextlib import asynccontextmanager
 
     @asynccontextmanager
     async def mock_get_client_ctx(*args, **kwargs):

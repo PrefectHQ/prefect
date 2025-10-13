@@ -7,8 +7,10 @@ from uuid import UUID, uuid4
 import pytest
 from typing_extensions import Self
 
+import prefect.events.subscribers
 from prefect.client.schemas.objects import Log
 from prefect.events import Event, Resource
+from prefect.events.subscribers import FlowRunSubscriber
 
 TERMINAL_FLOW_RUN_EVENTS = {
     "prefect.flow-run.Completed",
@@ -140,7 +142,6 @@ def straggler_log(flow_run_id: UUID) -> Log:
 @pytest.fixture
 def setup_mocks(monkeypatch):
     """Setup mocks for get_events_subscriber and get_logs_subscriber"""
-    import prefect.events.subscribers
 
     def create_mocks(events: list[Event], logs: list[Log]):
         mock_events = MockEventSubscriber(events)
@@ -174,8 +175,6 @@ async def test_flow_run_subscriber_basic_interleaving(
     """Test that FlowRunSubscriber interleaves logs and events"""
     setup_mocks([sample_event1], [sample_log1, sample_log2])
 
-    from prefect.events.subscribers import FlowRunSubscriber
-
     items: list[Log | Event] = []
     async with FlowRunSubscriber(flow_run_id=flow_run_id) as subscriber:
         async for item in subscriber:
@@ -200,8 +199,6 @@ async def test_flow_run_subscriber_terminal_event_stops_events(
 ):
     """Test that terminal events stop event consumption but allow log stragglers"""
     setup_mocks([sample_event1, terminal_event], [sample_log1, straggler_log])
-
-    from prefect.events.subscribers import FlowRunSubscriber
 
     items: list[Log | Event] = []
     async with FlowRunSubscriber(
@@ -231,8 +228,6 @@ async def test_flow_run_subscriber_straggler_timeout(
     monkeypatch,
 ):
     """Test that straggler timeout works after terminal event"""
-    import prefect.events.subscribers
-    from prefect.events.subscribers import FlowRunSubscriber
 
     class SlowMockLogsSubscriber:
         """Mock logs subscriber that delays to simulate stragglers"""
@@ -287,8 +282,6 @@ async def test_flow_run_subscriber_empty_streams(flow_run_id: UUID, setup_mocks)
     """Test that FlowRunSubscriber handles empty streams"""
     setup_mocks([], [])
 
-    from prefect.events.subscribers import FlowRunSubscriber
-
     items: list[Log | Event] = []
     async with FlowRunSubscriber(flow_run_id=flow_run_id) as subscriber:
         async for item in subscriber:
@@ -301,8 +294,6 @@ async def test_flow_run_subscriber_context_manager_cleanup(
     flow_run_id: UUID, monkeypatch
 ):
     """Test that FlowRunSubscriber properly cleans up resources"""
-    import prefect.events.subscribers
-    from prefect.events.subscribers import FlowRunSubscriber
 
     events_entered = False
     events_exited = False
@@ -390,8 +381,6 @@ async def test_flow_run_subscriber_only_terminal_events_stop_consumption(
 
     setup_mocks([non_terminal_event, another_event], [])
 
-    from prefect.events.subscribers import FlowRunSubscriber
-
     items: list[Log | Event] = []
     async with FlowRunSubscriber(flow_run_id=flow_run_id) as subscriber:
         async for item in subscriber:
@@ -438,8 +427,6 @@ async def test_flow_run_subscriber_terminal_event_for_different_flow_run(
     )
 
     setup_mocks([event1, other_terminal, event2], [])
-
-    from prefect.events.subscribers import FlowRunSubscriber
 
     items: list[Log | Event] = []
     async with FlowRunSubscriber(flow_run_id=flow_run_id) as subscriber:
