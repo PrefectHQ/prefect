@@ -1,0 +1,121 @@
+import io
+import shutil
+import urllib.parse
+from pathlib import Path
+from tempfile import TemporaryDirectory
+from typing import Optional, Tuple, Union
+
+from pydantic import Field
+from tenacity import retry, stop_after_attempt, wait_fixed, wait_random
+
+from prefect.filesystems import ReadableDeploymentStorage
+from prefect.utilities.asyncutils import sync_compatible
+from prefect.utilities.processutils import run_process
+from prefect_azure import AzureDevopsCredentials
+
+MAX_CLONE_ATTEMPTS = 3
+CLONE_RETRY_MIN_DELAY_SECONDS = 1
+CLONE_RETRY_MIN_DELAY_JITTER_SECONDS = 0
+CLONE_RETRY_MAX_DELAY_JITTER_SECONDS = 3
+
+
+class AzureDevopsRepository(ReadableDeploymentStorage):
+    """
+    Interact with files stored in Azure DevOps Git repositories.
+    """
+
+    _block_type_name = "Azure DevOps Repository"
+    _logo_url = "https://cdn.sanity.io/images/3ugk85nk/production/54e3fa7e00197a4fbd1d82ed62494cb58d08c96a-250x250.png"
+    _description = "Interact with files stored in Azure DevOps repositories."
+
+    repository: str = Field(
+        default=...,
+        description=("The full HTTPS URL of the Azure DevOps repository."
+        ),
+    )
+    reference: Optional[str] = Field(
+        default=None,
+        description="Optional branch or tag name.",
+    )
+    git_depth: Optional[int] = Field(
+        default=1,
+        gte=1,
+        description="Depth of git history to fetch.",
+    )
+    credentials: Optional[AzureDevopsCredentials] = Field(
+        default=None,
+        title= "Credentials",
+        description="Azure DevOps Credentials block to authenticate with azuredevops private repositories",
+    )
+
+    def _create_repo_url(self) -> str:
+        if self.repository.startswith("git@"):
+            raise ValueError(
+            "SSH URLs are not supported. Please provide an HTTPS URL for the repository."
+        )
+        url_components = urllib.parse.urlparse(self.repository)
+        if self.credentials.token is not None and self.credentials is not None:
+            token = self.credentials.token.get_secret_value()
+            token = urllib.parse.quote(token, safe='') 
+            if url_components.username:
+                user_info = f"{url_components.username}:{token}"
+            else:
+                user_info = f":{token}"
+            netloc = user_info + "@" + url_components.hostname
+            if url_components.port:
+                netloc += f":{url_components.port}"
+            updated_components = url_components._replace(netloc=netloc)
+            full_url = urllib.parse.urlunparse(updated_components)
+        else:
+            full_url = self.repository
+        return full_url
+
+    @staticmethod
+    def _get_paths(
+        dst_dir: Union[str, None], src_dir: str, sub_directory: Optional[str]
+    ) -> Tuple[str, str]:
+        if dst_dir is None:
+            content_destination = Path(".").absolute()
+        else:
+            content_destination = Path(dst_dir)
+        content_source = Path(src_dir)
+        if sub_directory:
+            content_destination = content_destination.joinpath(sub_directory)
+            content_source = content_source.joinpath(sub_directory)
+        return str(content_source), str(content_destination)
+
+    @sync_compatible
+    @retry(
+        stop=stop_after_attempt(MAX_CLONE_ATTEMPTS),
+        wait=wait_fixed(CLONE_RETRY_MIN_DELAY_SECONDS)
+        + wait_random(
+            CLONE_RETRY_MIN_DELAY_JITTER_SECONDS,
+            CLONE_RETRY_MAX_DELAY_JITTER_SECONDS,
+        ),
+        reraise=True,
+    )
+    async def get_directory(
+        self, from_path: Optional[str] = None, local_path: Optional[str] = None
+    ) -> None:
+        cmd = ["git", "clone", self._create_repo_url()]
+        if self.reference:
+            cmd += ["-b", self.reference]
+        if self.git_depth is not None:
+            cmd += ["--depth", f"{self.git_depth}"]
+
+        with TemporaryDirectory(suffix="prefect") as tmp_dir:
+            cmd.append(tmp_dir)
+
+            err_stream = io.StringIO()
+            out_stream = io.StringIO()
+            process = await run_process(cmd, stream_output=(out_stream, err_stream))
+            if process.returncode != 0:
+                err_stream.seek(0)
+                raise OSError(f"Failed to pull from remote:\n {err_stream.read()}")
+
+            content_source, content_destination = self._get_paths(
+                dst_dir=local_path, src_dir=tmp_dir, sub_directory=from_path
+            )
+            shutil.copytree(
+                src=content_source, dst=content_destination, dirs_exist_ok=True
+            )

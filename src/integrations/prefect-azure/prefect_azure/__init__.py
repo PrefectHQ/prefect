@@ -3,10 +3,11 @@ from .credentials import (  # noqa
     AzureCosmosDbCredentials,
     AzureMlCredentials,
     AzureContainerInstanceCredentials,
+    AzureDevopsCredentials
 )
 from .workers.container_instance import AzureContainerWorker  # noqa
 from .blob_storage import AzureBlobStorageContainer  # noqa
-
+from .repository import AzureDevopsRepository
 __all__ = [
     "AzureBlobStorageCredentials",
     "AzureCosmosDbCredentials",
@@ -14,6 +15,8 @@ __all__ = [
     "AzureContainerInstanceCredentials",
     "AzureContainerWorker",
     "AzureBlobStorageContainer",
+    "AzureDevopsCredentials",
+    "AzureDevopsRepository"
 ]
 
 try:
