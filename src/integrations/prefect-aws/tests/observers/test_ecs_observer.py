@@ -343,6 +343,172 @@ class TestSqsSubscriber:
         # Note: delete may not be called if we break immediately after yield
         # The generator is interrupted before the delete after yield can execute
 
+    @patch("prefect_aws.observers.ecs.aiobotocore.session.get_session")
+    @patch("prefect_aws.observers.ecs.asyncio.sleep")
+    async def test_stream_messages_backoff_after_consecutive_failures(
+        self, mock_sleep, mock_get_session, subscriber
+    ):
+        """Test that backoff is triggered after 3 consecutive failures."""
+        mock_session = Mock()
+        mock_sqs_client = AsyncMock()
+        mock_client_context = AsyncMock()
+        mock_client_context.__aenter__.return_value = mock_sqs_client
+        mock_session.create_client.return_value = mock_client_context
+        mock_get_session.return_value = mock_session
+
+        mock_sqs_client.get_queue_url.return_value = {
+            "QueueUrl": "https://sqs.us-east-1.amazonaws.com/123456789/test-queue"
+        }
+
+        # Simulate 3 consecutive failures, then success
+        failure_exception = Exception("Temporary AWS error")
+        mock_sqs_client.receive_message.side_effect = [
+            failure_exception,
+            failure_exception,
+            failure_exception,
+            {"Messages": [{"Body": "message1", "ReceiptHandle": "handle1"}]},
+        ]
+
+        messages = []
+        message_generator = subscriber.stream_messages()
+        async for message in message_generator:
+            messages.append(message)
+            await message_generator.aclose()
+            break
+
+        # Should have triggered one backoff with delay of 2 seconds (2^1 * 1)
+        mock_sleep.assert_called_once_with(2)
+        assert len(messages) == 1
+
+    @patch("prefect_aws.observers.ecs.aiobotocore.session.get_session")
+    @patch("prefect_aws.observers.ecs.asyncio.sleep")
+    async def test_stream_messages_exponential_backoff(
+        self, mock_sleep, mock_get_session, subscriber
+    ):
+        """Test that backoff uses exponential delays."""
+        mock_session = Mock()
+        mock_sqs_client = AsyncMock()
+        mock_client_context = AsyncMock()
+        mock_client_context.__aenter__.return_value = mock_sqs_client
+        mock_session.create_client.return_value = mock_client_context
+        mock_get_session.return_value = mock_session
+
+        mock_sqs_client.get_queue_url.return_value = {
+            "QueueUrl": "https://sqs.us-east-1.amazonaws.com/123456789/test-queue"
+        }
+
+        # Simulate multiple rounds of 3 consecutive failures
+        failure_exception = Exception("Temporary AWS error")
+        mock_sqs_client.receive_message.side_effect = [
+            # First round: 3 failures -> backoff with 2s
+            failure_exception,
+            failure_exception,
+            failure_exception,
+            # Second round: 3 failures -> backoff with 4s
+            failure_exception,
+            failure_exception,
+            failure_exception,
+            # Third round: 3 failures -> backoff with 8s
+            failure_exception,
+            failure_exception,
+            failure_exception,
+            # Success
+            {"Messages": [{"Body": "message1", "ReceiptHandle": "handle1"}]},
+        ]
+
+        messages = []
+        message_generator = subscriber.stream_messages()
+        async for message in message_generator:
+            messages.append(message)
+            await message_generator.aclose()
+            break
+
+        # Should have triggered 3 backoffs with exponential delays: 2s, 4s, 8s
+        assert mock_sleep.call_count == 3
+        sleep_calls = [call.args[0] for call in mock_sleep.call_args_list]
+        assert sleep_calls == [2, 4, 8]
+
+    @patch("prefect_aws.observers.ecs.aiobotocore.session.get_session")
+    @patch("prefect_aws.observers.ecs.asyncio.sleep")
+    async def test_stream_messages_raises_after_max_backoff_attempts(
+        self, mock_sleep, mock_get_session, subscriber
+    ):
+        """Test that RuntimeError is raised after exceeding max backoff attempts."""
+        mock_session = Mock()
+        mock_sqs_client = AsyncMock()
+        mock_client_context = AsyncMock()
+        mock_client_context.__aenter__.return_value = mock_sqs_client
+        mock_session.create_client.return_value = mock_client_context
+        mock_get_session.return_value = mock_session
+
+        mock_sqs_client.get_queue_url.return_value = {
+            "QueueUrl": "https://sqs.us-east-1.amazonaws.com/123456789/test-queue"
+        }
+
+        # Simulate continuous failures (3 failures * 6 rounds = 18 failures)
+        failure_exception = Exception("Persistent AWS error")
+        mock_sqs_client.receive_message.side_effect = [failure_exception] * 18
+
+        message_generator = subscriber.stream_messages()
+
+        with pytest.raises(
+            RuntimeError, match="SQS polling failed after 5 backoff attempts"
+        ):
+            async for _ in message_generator:
+                pass
+
+        # Should have attempted 5 backoffs before giving up
+        assert mock_sleep.call_count == 5
+        sleep_calls = [call.args[0] for call in mock_sleep.call_args_list]
+        assert sleep_calls == [2, 4, 8, 16, 32]
+
+    @patch("prefect_aws.observers.ecs.aiobotocore.session.get_session")
+    @patch("prefect_aws.observers.ecs.asyncio.sleep")
+    async def test_stream_messages_resets_backoff_on_success(
+        self, mock_sleep, mock_get_session, subscriber
+    ):
+        """Test that successful message reception resets the backoff counter."""
+        mock_session = Mock()
+        mock_sqs_client = AsyncMock()
+        mock_client_context = AsyncMock()
+        mock_client_context.__aenter__.return_value = mock_sqs_client
+        mock_session.create_client.return_value = mock_client_context
+        mock_get_session.return_value = mock_session
+
+        mock_sqs_client.get_queue_url.return_value = {
+            "QueueUrl": "https://sqs.us-east-1.amazonaws.com/123456789/test-queue"
+        }
+
+        failure_exception = Exception("Temporary AWS error")
+        mock_sqs_client.receive_message.side_effect = [
+            # First round: 3 failures -> backoff with 2s
+            failure_exception,
+            failure_exception,
+            failure_exception,
+            # Success (resets backoff counter)
+            {"Messages": [{"Body": "message1", "ReceiptHandle": "handle1"}]},
+            # Second round: 3 failures -> should restart at 2s, not 4s
+            failure_exception,
+            failure_exception,
+            failure_exception,
+            # Success
+            {"Messages": [{"Body": "message2", "ReceiptHandle": "handle2"}]},
+        ]
+
+        messages = []
+        message_generator = subscriber.stream_messages()
+        async for message in message_generator:
+            messages.append(message)
+            if len(messages) >= 2:
+                await message_generator.aclose()
+                break
+
+        # Should have triggered 2 backoffs, both with 2s delay (counter reset after first success)
+        assert mock_sleep.call_count == 2
+        sleep_calls = [call.args[0] for call in mock_sleep.call_args_list]
+        assert sleep_calls == [2, 2]
+        assert len(messages) == 2
+
 
 class TestEcsObserver:
     @pytest.fixture

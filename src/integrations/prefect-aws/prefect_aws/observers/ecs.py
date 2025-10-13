@@ -181,6 +181,10 @@ class EcsTaskTagsReader:
 SQS_MEMORY = 10
 SQS_CONSECUTIVE_FAILURES = 3
 SQS_BACKOFF = 1
+SQS_MAX_BACKOFF_ATTEMPTS = 5
+
+OBSERVER_RESTART_BASE_DELAY = 30
+OBSERVER_MAX_RESTART_ATTEMPTS = 5
 
 
 class SqsSubscriber:
@@ -255,16 +259,26 @@ class SqsSubscriber:
                 if not any(track_record):
                     backoff_count += 1
 
-                    if backoff_count >= SQS_BACKOFF:
-                        raise RuntimeError("SQS exceeded error threshold.")
+                    if backoff_count > SQS_MAX_BACKOFF_ATTEMPTS:
+                        logger.error(
+                            "SQS polling exceeded maximum backoff attempts (%s). "
+                            "Last %s errors: %s",
+                            SQS_MAX_BACKOFF_ATTEMPTS,
+                            len(failures),
+                            [str(e) for e, _ in failures],
+                        )
+                        raise RuntimeError(
+                            f"SQS polling failed after {SQS_MAX_BACKOFF_ATTEMPTS} backoff attempts"
+                        )
 
                     track_record.extend([True] * SQS_CONSECUTIVE_FAILURES)
                     failures.clear()
+                    backoff_seconds = SQS_BACKOFF * 2**backoff_count
                     logger.debug(
                         "Backing off due to consecutive errors, using increased interval of %s seconds.",
-                        SQS_BACKOFF * 2**backoff_count,
+                        backoff_seconds,
                     )
-                    await asyncio.sleep(SQS_BACKOFF * 2**backoff_count)
+                    await asyncio.sleep(backoff_seconds)
 
 
 class EcsObserver:
@@ -571,34 +585,99 @@ async def deregister_task_definition(event: dict[str, Any], tags: dict[str, str]
 
 
 _observer_task: asyncio.Task[None] | None = None
+_observer_restart_count: int = 0
+_observer_restart_task: asyncio.Task[None] | None = None
+
+
+async def _restart_observer_after_delay(delay: int):
+    """Restart the observer after a delay."""
+    global _observer_task, _observer_restart_count, _observer_restart_task
+
+    logger.info(
+        "ECS observer will restart in %s seconds (attempt %s of %s)",
+        delay,
+        _observer_restart_count,
+        OBSERVER_MAX_RESTART_ATTEMPTS,
+    )
+    await asyncio.sleep(delay)
+
+    # Start the observer again
+    _observer_task = asyncio.create_task(ecs_observer.run())
+    _observer_task.add_done_callback(_observer_task_done)
+    _observer_restart_task = None
+    logger.info("ECS observer restarted")
 
 
 def _observer_task_done(task: asyncio.Task[None]):
+    global _observer_restart_count, _observer_restart_task
+
     if task.cancelled():
         logger.debug("ECS observer task cancelled")
+        _observer_restart_count = 0
     elif task.exception():
         logger.error("ECS observer task crashed", exc_info=task.exception())
+        _observer_restart_count += 1
+
+        if _observer_restart_count <= OBSERVER_MAX_RESTART_ATTEMPTS:
+            # Schedule a restart with exponential backoff
+            delay = OBSERVER_RESTART_BASE_DELAY * (2 ** (_observer_restart_count - 1))
+            try:
+                loop = asyncio.get_event_loop()
+                _observer_restart_task = loop.create_task(
+                    _restart_observer_after_delay(delay)
+                )
+            except RuntimeError:
+                logger.error(
+                    "Cannot schedule observer restart: no event loop available"
+                )
+        else:
+            logger.error(
+                "ECS observer has crashed %s times, giving up on automatic restarts",
+                _observer_restart_count,
+            )
     else:
         logger.debug("ECS observer task completed")
+        _observer_restart_count = 0
 
 
 async def start_observer():
-    global _observer_task
+    global _observer_task, _observer_restart_count, _observer_restart_task
     if _observer_task:
         return
 
+    # Cancel any pending restart task
+    if _observer_restart_task and not _observer_restart_task.done():
+        _observer_restart_task.cancel()
+        try:
+            await _observer_restart_task
+        except asyncio.CancelledError:
+            pass
+        _observer_restart_task = None
+
+    _observer_restart_count = 0
     _observer_task = asyncio.create_task(ecs_observer.run())
     _observer_task.add_done_callback(_observer_task_done)
     logger.debug("ECS observer started")
 
 
 async def stop_observer():
-    global _observer_task
+    global _observer_task, _observer_restart_count, _observer_restart_task
+
+    # Cancel any pending restart task
+    if _observer_restart_task and not _observer_restart_task.done():
+        _observer_restart_task.cancel()
+        try:
+            await _observer_restart_task
+        except asyncio.CancelledError:
+            pass
+        _observer_restart_task = None
+
     if not _observer_task:
         return
 
     task = _observer_task
     _observer_task = None
+    _observer_restart_count = 0
 
     task.cancel()
     try:
