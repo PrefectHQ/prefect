@@ -75,22 +75,12 @@ This ensures you retry submission failures without creating infinite loops.
 
 ## Testing the automation
 
-Create a test flow that fails during submission:
+To test this automation, you need a scenario where infrastructure fails during submission, such as:
+- A deployment with a failing pull step (e.g., non-existent git repository)
+- Worker unavailability during flow run submission
+- Network failures during infrastructure provisioning
 
-```python test_submission_failure.py
-from prefect import flow
-import sys
-
-@flow
-def submission_test_flow():
-    """A flow that crashes before running."""
-    # Simulate a submission failure by exiting
-    # before the flow actually starts
-    sys.exit(1)
-
-if __name__ == "__main__":
-    submission_test_flow.serve(name="submission-test")
-```
+The automation will detect when `submission_count > 0` but `run_count = 0`, indicating the flow was submitted but never started running.
 
 ## Monitoring submission attempts
 
