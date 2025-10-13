@@ -866,6 +866,12 @@ async def run(
         "--watch-timeout",
         help=("Timeout for --watch."),
     ),
+    follow: bool = typer.Option(
+        False,
+        "--follow",
+        "-f",
+        help=("Stream live logs and events from the flow run until completion."),
+    ),
     flow_run_name: Optional[str] = typer.Option(
         None, "--flow-run-name", help="Custom name to give the flow run."
     ),
@@ -876,6 +882,7 @@ async def run(
     The flow run will be scheduled to run immediately unless `--start-in` or `--start-at` is specified.
     The flow run will not execute until a worker starts.
     To watch the flow run until it reaches a terminal state, use the `--watch` flag.
+    To stream live logs and events from the flow run, use the `--follow` flag.
     """
     import dateparser
 
@@ -1029,6 +1036,14 @@ async def run(
         ).strip(),
         soft_wrap=True,
     )
+    if watch and follow:
+        exit_with_error("Cannot use both --watch and --follow.")
+
+    if follow:
+        from prefect.cli.flow_runs_following import follow_flow_run
+
+        await follow_flow_run(flow_run.id, app.console)
+
     if watch:
         app.console.print(f"Watching flow run {flow_run.name!r}...")
         finished_flow_run = await wait_for_flow_run(
