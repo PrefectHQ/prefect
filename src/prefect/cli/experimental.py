@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import importlib.metadata as md
 
-from prefect._experimental.plugins.config import parse_plugin_lists
 from prefect._experimental.plugins.manager import ENTRYPOINTS_GROUP
 from prefect.cli._types import PrefectTyper
 from prefect.cli.root import app
@@ -60,7 +59,8 @@ async def diagnose():
 
     # Show configuration
     timeout = settings.setup_timeout_seconds
-    allow, deny = parse_plugin_lists()
+    allow = settings.allow
+    deny = settings.deny
     strict = settings.strict
     safe = settings.safe_mode
 
@@ -83,6 +83,7 @@ async def diagnose():
 
     for ep in entry_points:
         filtered = False
+        reason = None
         if allow and ep.name not in allow:
             filtered = True
             reason = "not in allow list"
@@ -96,7 +97,7 @@ async def diagnose():
         app.console.print(f"  • {ep.name}: {status}")
         app.console.print(f"    Module: {ep.value}")
 
-        if filtered:
+        if filtered and reason:
             app.console.print(f"    Reason: {reason}")
 
         # Try to load and get version requirement

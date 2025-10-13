@@ -14,7 +14,6 @@ from typing import Any
 import anyio
 
 from prefect._experimental.plugins.apply import apply_setup_result, summarize_env
-from prefect._experimental.plugins.config import parse_plugin_lists
 from prefect._experimental.plugins.diagnostics import SetupSummary
 from prefect._experimental.plugins.manager import (
     build_manager,
@@ -70,7 +69,8 @@ async def run_startup_hooks(ctx: HookContext) -> list[SetupSummary]:
 
     logger.debug("Initializing experimental plugin system")
     pm = build_manager(HookSpec)
-    allow, deny = parse_plugin_lists()
+    allow = settings.allow
+    deny = settings.deny
     load_entry_point_plugins(pm, allow=allow, deny=deny, logger=logger)
 
     summaries: list[SetupSummary] = []
