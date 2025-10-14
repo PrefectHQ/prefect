@@ -253,6 +253,18 @@ SUPPORTED_SETTINGS = {
     "PREFECT_EVENTS_WEBSOCKET_BACKFILL_PAGE_SIZE": {"test_value": 10, "legacy": True},
     "PREFECT_EXPERIMENTAL_WARN": {"test_value": True, "legacy": True},
     "PREFECT_EXPERIMENTS_WARN": {"test_value": True},
+    "PREFECT_EXPERIMENTS_PLUGINS_ALLOW": {
+        "test_value": "plugin1,plugin2",
+        "expected_value": {"plugin1", "plugin2"},
+    },
+    "PREFECT_EXPERIMENTS_PLUGINS_DENY": {
+        "test_value": "plugin3",
+        "expected_value": {"plugin3"},
+    },
+    "PREFECT_EXPERIMENTS_PLUGINS_ENABLED": {"test_value": True},
+    "PREFECT_EXPERIMENTS_PLUGINS_SAFE_MODE": {"test_value": True},
+    "PREFECT_EXPERIMENTS_PLUGINS_SETUP_TIMEOUT_SECONDS": {"test_value": 30.0},
+    "PREFECT_EXPERIMENTS_PLUGINS_STRICT": {"test_value": True},
     "PREFECT_FLOW_DEFAULT_RETRIES": {"test_value": 10, "legacy": True},
     "PREFECT_FLOWS_DEFAULT_RETRIES": {"test_value": 10},
     "PREFECT_FLOW_DEFAULT_RETRY_DELAY_SECONDS": {"test_value": 10, "legacy": True},
@@ -2350,9 +2362,15 @@ class TestSettingValues:
                 monkeypatch.delenv(env_var, raising=False)
 
     @pytest.fixture(scope="function", params=list(SUPPORTED_SETTINGS.keys()))
-    def setting_and_value(self, request: pytest.FixtureRequest) -> tuple[str, Any]:
+    def setting_and_value_and_expected_value(
+        self, request: pytest.FixtureRequest
+    ) -> tuple[str, Any, Any]:
         setting = request.param
-        return setting, SUPPORTED_SETTINGS[setting]["test_value"]
+        return (
+            setting,
+            SUPPORTED_SETTINGS[setting]["test_value"],
+            SUPPORTED_SETTINGS[setting].get("expected_value", ...),
+        )
 
     @pytest.fixture(autouse=True)
     def temporary_profiles_path(
@@ -2366,6 +2384,7 @@ class TestSettingValues:
         self,
         setting: str,
         value: Any,
+        expected_value: Any = ...,
     ):
         # create new root context to pick up the env var changes
         warnings.filterwarnings("ignore", category=UserWarning)
@@ -2397,24 +2416,26 @@ class TestSettingValues:
                 # get value from legacy setting object
                 assert getattr(prefect.settings, setting).value() == json.loads(value)
             else:
-                assert settings_value == value
+                if expected_value is ...:
+                    expected_value = value
+                assert settings_value == expected_value
                 # get value from legacy setting object
-                assert getattr(prefect.settings, setting).value() == value
+                assert getattr(prefect.settings, setting).value() == expected_value
                 # ensure the value gets added to the environment variables, but "legacy" will use
                 # their updated name
                 if not SUPPORTED_SETTINGS[setting].get("legacy"):
                     assert current_settings.to_environment_variables(
                         exclude_unset=True
                     )[setting] == _to_environment_variable_value(
-                        to_jsonable_python(value)
+                        to_jsonable_python(expected_value)
                     )
 
     def test_set_via_env_var(
         self,
-        setting_and_value: tuple[str, Any],
+        setting_and_value_and_expected_value: tuple[str, Any, Any],
         monkeypatch: pytest.MonkeyPatch,
     ):
-        setting, value = setting_and_value
+        setting, value, expected_value = setting_and_value_and_expected_value
 
         if (
             setting == "PREFECT_TEST_SETTING"
@@ -2425,15 +2446,15 @@ class TestSettingValues:
         # mock set the env var
         monkeypatch.setenv(setting, _to_environment_variable_value(value))
 
-        self.check_setting_value(setting, value)
+        self.check_setting_value(setting, value, expected_value)
 
     def test_set_via_profile(
         self,
         temporary_profiles_path: Path,
-        setting_and_value: tuple[str, Any],
+        setting_and_value_and_expected_value: tuple[str, Any, Any],
         monkeypatch: pytest.MonkeyPatch,
     ):
-        setting, value = setting_and_value
+        setting, value, expected_value = setting_and_value_and_expected_value
         if setting == "PREFECT_PROFILES_PATH":
             pytest.skip("Profiles path cannot be set via a profile")
         if (
@@ -2453,15 +2474,15 @@ class TestSettingValues:
                 f,
             )
 
-        self.check_setting_value(setting, value)
+        self.check_setting_value(setting, value, expected_value)
 
     def test_set_via_dot_env_file(
         self,
-        setting_and_value: tuple[str, Any],
+        setting_and_value_and_expected_value: tuple[str, Any, Any],
         temporary_env_file: Callable[[str], None],
         monkeypatch: pytest.MonkeyPatch,
     ):
-        setting, value = setting_and_value
+        setting, value, expected_value = setting_and_value_and_expected_value
         if setting == "PREFECT_PROFILES_PATH":
             monkeypatch.delenv("PREFECT_PROFILES_PATH", raising=False)
         if (
@@ -2472,15 +2493,15 @@ class TestSettingValues:
 
         temporary_env_file(f"{setting}={_to_environment_variable_value(value)}")
 
-        self.check_setting_value(setting, value)
+        self.check_setting_value(setting, value, expected_value)
 
     def test_set_via_prefect_toml_file(
         self,
-        setting_and_value: tuple[str, Any],
+        setting_and_value_and_expected_value: tuple[str, Any, Any],
         temporary_toml_file: Callable[[dict[str, Any], Path], None],
         monkeypatch: pytest.MonkeyPatch,
     ):
-        setting, value = setting_and_value
+        setting, value, expected_value = setting_and_value_and_expected_value
         if setting == "PREFECT_PROFILES_PATH":
             monkeypatch.delenv("PREFECT_PROFILES_PATH", raising=False)
         if (
@@ -2496,15 +2517,15 @@ class TestSettingValues:
         )
         temporary_toml_file(toml_dict)
 
-        self.check_setting_value(setting, value)
+        self.check_setting_value(setting, value, expected_value)
 
     def test_set_via_pyproject_toml_file(
         self,
-        setting_and_value: tuple[str, Any],
+        setting_and_value_and_expected_value: tuple[str, Any, Any],
         temporary_toml_file: Callable[[dict[str, Any], Path], None],
         monkeypatch: pytest.MonkeyPatch,
     ):
-        setting, value = setting_and_value
+        setting, value, expected_value = setting_and_value_and_expected_value
         if setting == "PREFECT_PROFILES_PATH":
             monkeypatch.delenv("PREFECT_PROFILES_PATH", raising=False)
         if (
@@ -2522,7 +2543,7 @@ class TestSettingValues:
         )
         temporary_toml_file(toml_dict, path=Path("pyproject.toml"))
 
-        self.check_setting_value(setting, value)
+        self.check_setting_value(setting, value, expected_value)
 
 
 class TestClientCustomHeadersSetting:
