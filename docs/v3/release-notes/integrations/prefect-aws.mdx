@@ -2,7 +2,21 @@
 title: prefect-aws
 ---
 
+## 0.6.0
+
+_Released on October 14, 2025_
+
+With this release the ECS worker now uses an event-based architecture that receives task state changes via EventBridge and SQS, replacing the previous polling-based design. This dramatically improves crash detection responsiveness and reduces API overhead. The worker gracefully degrades to limited functionality if SQS is unavailable, ensuring continued operation even during infrastructure issues.
+
+See the [ECS worker documentation](/integrations/prefect-aws/ecs-worker) for setup instructions.
+
+**Features**
+
+- Move ECS worker to event-based crash detection [#18804](https://github.com/PrefectHQ/prefect/pull/18804) by [@desertaxle](https://github.com/desertaxle)
+
 ## 0.5.16
+
+_Released on August 27, 2025_
 
 **Bug Fixes**
 
