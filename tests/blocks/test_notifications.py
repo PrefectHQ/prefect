@@ -1,3 +1,4 @@
+import sys
 import urllib
 from importlib import reload
 from typing import Type
@@ -500,6 +501,10 @@ class TestTwilioSMS:
             "?format=text&overflow=upstream&method=sms"
         )
 
+    @pytest.mark.skipif(
+        sys.version_info < (3, 9),
+        reason="Apprise URL format differs on Python 3.8 (no longer supported)",
+    )
     async def test_twilio_notify_async(self, valid_apprise_url):
         with patch("apprise.Apprise", autospec=True) as AppriseMock:
             reload_modules()
@@ -525,6 +530,10 @@ class TestTwilioSMS:
                 notify_type=PREFECT_NOTIFY_TYPE_DEFAULT,
             )
 
+    @pytest.mark.skipif(
+        sys.version_info < (3, 9),
+        reason="Apprise URL format differs on Python 3.8 (no longer supported)",
+    )
     def test_twilio_notify_sync(self, valid_apprise_url):
         with patch("apprise.Apprise", autospec=True) as AppriseMock:
             reload_modules()
@@ -901,6 +910,10 @@ class TestSendgridEmail:
 class TestMicrosoftTeamsWebhook:
     SAMPLE_URL = "https://prod-NO.LOCATION.logic.azure.com:443/workflows/WFID/triggers/manual/paths/invoke?sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=SIGNATURE"
 
+    @pytest.mark.skipif(
+        sys.version_info < (3, 9),
+        reason="Apprise URL format differs on Python 3.8 (no longer supported)",
+    )
     async def test_notify_async(self):
         with patch("apprise.Apprise", autospec=True) as AppriseMock:
             apprise_instance_mock = AppriseMock.return_value
@@ -919,6 +932,10 @@ class TestMicrosoftTeamsWebhook:
                 body="test", title=None, notify_type=PREFECT_NOTIFY_TYPE_DEFAULT
             )
 
+    @pytest.mark.skipif(
+        sys.version_info < (3, 9),
+        reason="Apprise URL format differs on Python 3.8 (no longer supported)",
+    )
     def test_notify_sync(self):
         with patch("apprise.Apprise", autospec=True) as AppriseMock:
             apprise_instance_mock = AppriseMock.return_value
