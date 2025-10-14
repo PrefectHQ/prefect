@@ -1,3 +1,54 @@
+"""Interact with files stored in Azure DevOps Git repositories.
+
+The `AzureDevopsRepository` class in this module is a storage block that lets Prefect
+agents pull Prefect flow code from Azure DevOps repositories.
+
+The `AzureDevopsRepository` block is ideally configured via the Prefect UI, but can
+also be used in Python as the following examples demonstrate.
+
+Examples:
+    Load a configured Azure DevOps repository block:
+    ```python
+    from prefect_azure.repository import AzureDevopsRepository
+
+    azuredevops_repository_block = AzureDevopsRepository.load("BLOCK_NAME")
+    ```
+
+    Clone a public Azure DevOps repository:
+    ```python
+    from prefect_azure.repository import AzureDevopsRepository
+
+    public_repo = AzureDevopsRepository(
+        repository="https://dev.azure.com/myorg/myproject/_git/myrepo"
+    )
+    public_repo.save(name="my-azuredevops-block")
+    ```
+
+    Clone a specific branch or tag:
+    ```python
+    from prefect_azure.repository import AzureDevopsRepository
+
+    branch_repo = AzureDevopsRepository(
+        repository="https://dev.azure.com/myorg/myproject/_git/myrepo",
+        reference="develop"
+    )
+    branch_repo.save(name="my-azuredevops-branch-block")
+    ```
+
+    Clone a private Azure DevOps repository:
+    ```python
+    from prefect_azure import AzureDevopsCredentials, AzureDevopsRepository
+
+    azuredevops_credentials_block = AzureDevopsCredentials.load("my-azuredevops-credentials")
+
+    private_repo = AzureDevopsRepository(
+        repository="https://dev.azure.com/myorg/myproject/_git/myrepo",
+        credentials=azuredevops_credentials_block
+    )
+    private_repo.save(name="my-private-azuredevops-block")
+    ```
+"""
+
 import io
 import shutil
 import urllib.parse
@@ -93,6 +144,16 @@ class AzureDevopsRepository(ReadableDeploymentStorage):
     async def aget_directory(
         self, from_path: Optional[str] = None, local_path: Optional[str] = None
     ) -> None:
+        """Asynchronously clones an Azure DevOps repository.
+
+        This defaults to cloning the repository reference configured on the
+        Block to the present working directory.
+
+        Args:
+            from_path: If provided, interpreted as a subdirectory of the underlying
+                repository that will be copied to the provided local path.
+            local_path: A local path to clone to; defaults to present working directory.
+        """
         cmd = ["git", "clone", self._create_repo_url()]
         if self.reference:
             cmd += ["-b", self.reference]
