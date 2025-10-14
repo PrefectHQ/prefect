@@ -2010,6 +2010,7 @@ async def orchestrate_task_run(
         else PREFECT_TASKS_REFRESH_CACHE.value()
     )
 
+    # Emit an event to capture that the task run was in the `PENDING` state.
     with task_run_context:
         last_event = emit_task_run_state_change_event(
             task_run=task_run, initial_state=None, validated_state=task_run.state
@@ -2107,6 +2108,7 @@ async def orchestrate_task_run(
             else:
                 break
 
+    # Emit an event to capture the result of proposing a `RUNNING` state.
     with task_run_context:
         last_event = emit_task_run_state_change_event(
             task_run=task_run,
