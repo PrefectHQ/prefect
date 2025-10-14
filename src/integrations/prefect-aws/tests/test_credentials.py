@@ -1,7 +1,7 @@
 import pytest
 from boto3.session import Session
 from botocore.client import BaseClient
-from moto import mock_s3
+from moto import mock_aws
 from prefect_aws.credentials import (
     AwsCredentials,
     ClientType,
@@ -16,7 +16,7 @@ def test_aws_credentials_get_boto3_session():
     authenticated boto3 session.
     """
 
-    with mock_s3():
+    with mock_aws():
         aws_credentials_block = AwsCredentials()
         boto3_session = aws_credentials_block.get_boto3_session()
         assert isinstance(boto3_session, Session)
@@ -46,7 +46,7 @@ def test_minio_credentials_get_boto3_session():
 )
 @pytest.mark.parametrize("client_type", ["s3", ClientType.S3])
 def test_credentials_get_client(credentials, client_type):
-    with mock_s3():
+    with mock_aws():
         assert isinstance(credentials.get_client(client_type), BaseClient)
 
 

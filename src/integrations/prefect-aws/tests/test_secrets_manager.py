@@ -2,7 +2,7 @@ from datetime import timedelta
 
 import boto3
 import pytest
-from moto import mock_secretsmanager
+from moto import mock_aws
 from prefect_aws.secrets_manager import (
     AwsSecret,
     create_secret,
@@ -15,7 +15,7 @@ from prefect.types._datetime import now
 
 @pytest.fixture
 def secretsmanager_client():
-    with mock_secretsmanager():
+    with mock_aws():
         yield boto3.client("secretsmanager", "us-east-1")
 
 
