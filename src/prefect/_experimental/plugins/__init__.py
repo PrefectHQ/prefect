@@ -127,7 +127,9 @@ async def run_startup_hooks(ctx: HookContext) -> list[SetupSummary]:
                 raise SystemExit(f"[plugins] required plugin '{name}' failed: {err}")
             if res and getattr(res, "required", False) and not res.env:
                 raise SystemExit(
-                    f"[plugins] required plugin '{name}' returned no environment"
+                    f"[plugins] required plugin '{name}' returned SetupResult with "
+                    f"required=True but empty env. If no changes are needed, return "
+                    f"None instead of SetupResult."
                 )
 
     logger.info("Plugin system initialization complete (%d plugins)", len(summaries))

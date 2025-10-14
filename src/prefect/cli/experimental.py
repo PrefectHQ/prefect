@@ -38,7 +38,7 @@ async def diagnose():
     - Current configuration (timeouts, allow/deny lists)
 
     Note: This runs the plugin discovery but does not execute hooks.
-    Use safe mode (PREFECT_PLUGINS_SAFE_MODE=1) to test plugin loading
+    Use safe mode (PREFECT_EXPERIMENTS_PLUGINS_SAFE_MODE=1) to test plugin loading
     without executing hooks.
     """
     from prefect._experimental.plugins import run_startup_hooks
@@ -154,5 +154,5 @@ async def diagnose():
             "\n[yellow]Safe mode enabled - skipping hook execution.[/yellow]"
         )
         app.console.print(
-            "Set [cyan]PREFECT_PLUGINS_SAFE_MODE=0[/cyan] to execute hooks.\n"
+            "Set [cyan]PREFECT_EXPERIMENTS_PLUGINS_SAFE_MODE=0[/cyan] to execute hooks.\n"
         )
