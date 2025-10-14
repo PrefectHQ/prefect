@@ -147,6 +147,62 @@ async def test_task_state_change_task_failure(
         last_state = task_run_state
 
 
+async def test_task_events_include_flow_run_and_flow_in_related_resources(
+    asserting_events_worker: EventsWorker,
+    reset_worker_events: None,
+    prefect_client: PrefectClient,
+):
+    """
+    Test that all task-run events include flow-run and flow in their related resources.
+
+    This validates the fix for the bug where Pending/Running events were missing
+    related resources when FlowRunContext was not available, because they were
+    emitted before TaskRunContext was entered.
+    """
+
+    @task
+    def simple_task():
+        return 42
+
+    @flow
+    def simple_flow():
+        return simple_task(return_state=True)
+
+    flow_state: State[State[int]] = simple_flow(return_state=True)
+    await flow_state.result()
+
+    flow_run_id = flow_state.state_details.flow_run_id
+
+    await asserting_events_worker.drain()
+    assert isinstance(asserting_events_worker._client, AssertingEventsClient)
+
+    events = [
+        e
+        for e in asserting_events_worker._client.events
+        if e.event.startswith("prefect.task-run.")
+    ]
+    assert len(events) == 3
+
+    pending, running, completed = events
+
+    # All three events should have flow-run in related resources
+    assert "flow-run" in pending.resource_in_role
+    assert pending.resource_in_role["flow-run"].id == f"prefect.flow-run.{flow_run_id}"
+
+    assert "flow-run" in running.resource_in_role
+    assert running.resource_in_role["flow-run"].id == f"prefect.flow-run.{flow_run_id}"
+
+    assert "flow-run" in completed.resource_in_role
+    assert (
+        completed.resource_in_role["flow-run"].id == f"prefect.flow-run.{flow_run_id}"
+    )
+
+    # All three events should have flow in related resources
+    assert "flow" in pending.resource_in_role
+    assert "flow" in running.resource_in_role
+    assert "flow" in completed.resource_in_role
+
+
 async def test_background_task_state_changes(
     asserting_events_worker: EventsWorker,
     reset_worker_events,

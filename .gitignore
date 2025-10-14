@@ -78,3 +78,7 @@ src/integrations/*/**/_version.py
 *.log
 
 docs/mkdocs/
+
+# Development files
+.envrc
+src/prefect/_build_info.py
