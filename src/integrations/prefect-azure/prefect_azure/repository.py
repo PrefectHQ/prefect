@@ -106,7 +106,16 @@ class AzureDevopsRepository(ReadableDeploymentStorage):
             process = await run_process(cmd, stream_output=(out_stream, err_stream))
             if process.returncode != 0:
                 err_stream.seek(0)
-                raise OSError(f"Failed to pull from remote:\n {err_stream.read()}")
+                error_output = err_stream.read()
+                if self.credentials and self.credentials.token:
+                    raw_token = self.credentials.token.get_secret_value()
+                    if raw_token:
+                        error_output = error_output.replace(raw_token, "[REDACTED]")
+                        repo_url_with_token = self._create_repo_url()
+                        error_output = error_output.replace(
+                            repo_url_with_token, "[REDACTED]"
+                        )
+                raise RuntimeError(f"Failed to pull from remote:\n {error_output}")
 
             content_source, content_destination = self._get_paths(
                 dst_dir=local_path, src_dir=tmp_dir, sub_directory=from_path

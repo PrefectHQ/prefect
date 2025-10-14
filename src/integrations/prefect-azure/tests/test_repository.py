@@ -84,7 +84,7 @@ class TestAzureDevopsRepository:
 
         repo = AzureDevopsRepository(repository="https://example.com/repo.git")
 
-        with pytest.raises(OSError, match="Failed to pull from remote"):
+        with pytest.raises(RuntimeError, match="Failed to pull from remote"):
             await repo.get_directory()
 
     async def test_get_directory_retries_on_failure(self, monkeypatch):
@@ -101,7 +101,7 @@ class TestAzureDevopsRepository:
 
         repo = AzureDevopsRepository(repository="https://example.com/repo.git")
 
-        with pytest.raises(OSError):
+        with pytest.raises(RuntimeError):
             await repo.get_directory()
 
         assert call_counter["count"] == 3  # MAX_CLONE_ATTEMPTS
