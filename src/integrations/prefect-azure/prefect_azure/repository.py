@@ -7,10 +7,11 @@ from typing import Optional, Tuple, Union
 
 from pydantic import Field
 
+from prefect._internal.compatibility.async_dispatch import async_dispatch
 from prefect._internal.retries import retry_async_fn
 from prefect.filesystems import ReadableDeploymentStorage
 from prefect.utilities.processutils import run_process
-from prefect_azure import AzureDevopsCredentials
+from prefect_azure.credentials import AzureDevopsCredentials
 
 MAX_CLONE_ATTEMPTS = 3
 CLONE_RETRY_MIN_DELAY_SECONDS = 1
@@ -38,7 +39,7 @@ class AzureDevopsRepository(ReadableDeploymentStorage):
     )
     git_depth: Optional[int] = Field(
         default=1,
-        gte=1,
+        ge=1,
         description="Depth of git history to fetch.",
     )
     credentials: Optional[AzureDevopsCredentials] = Field(
@@ -89,7 +90,7 @@ class AzureDevopsRepository(ReadableDeploymentStorage):
         max_delay=CLONE_RETRY_MIN_DELAY_SECONDS + CLONE_RETRY_MAX_DELAY_JITTER_SECONDS,
         operation_name="clone_repository",
     )
-    async def get_directory(
+    async def aget_directory(
         self, from_path: Optional[str] = None, local_path: Optional[str] = None
     ) -> None:
         cmd = ["git", "clone", self._create_repo_url()]
@@ -107,6 +108,42 @@ class AzureDevopsRepository(ReadableDeploymentStorage):
             if process.returncode != 0:
                 err_stream.seek(0)
                 raise OSError(f"Failed to pull from remote:\n {err_stream.read()}")
+
+            content_source, content_destination = self._get_paths(
+                dst_dir=local_path, src_dir=tmp_dir, sub_directory=from_path
+            )
+            shutil.copytree(
+                src=content_source, dst=content_destination, dirs_exist_ok=True
+            )
+
+    @async_dispatch(aget_directory)
+    def get_directory(
+        self, from_path: Optional[str] = None, local_path: Optional[str] = None
+    ) -> None:
+        """Clones an Azure DevOps project within `from_path` to the provided `local_path`.
+
+        This defaults to cloning the repository reference configured on the
+        Block to the present working directory.
+
+        Args:
+            from_path: If provided, interpreted as a subdirectory of the underlying
+                repository that will be copied to the provided local path.
+            local_path: A local path to clone to; defaults to present working directory.
+        """
+        import subprocess
+
+        cmd = ["git", "clone", self._create_repo_url()]
+        if self.reference:
+            cmd += ["-b", self.reference]
+        if self.git_depth is not None:
+            cmd += ["--depth", f"{self.git_depth}"]
+
+        with TemporaryDirectory(suffix="prefect") as tmp_dir:
+            cmd.append(tmp_dir)
+
+            process = subprocess.run(cmd, capture_output=True, text=True, check=False)
+            if process.returncode != 0:
+                raise OSError(f"Failed to pull from remote:\n {process.stderr}")
 
             content_source, content_destination = self._get_paths(
                 dst_dir=local_path, src_dir=tmp_dir, sub_directory=from_path
