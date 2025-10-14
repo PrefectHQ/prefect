@@ -141,3 +141,93 @@ class TestAzureDevopsRepository:
                 await repo.get_directory(local_path=tmp_dst)
 
                 assert (Path(tmp_dst) / "file.txt").exists()
+
+    def test_get_directory_sync(self, monkeypatch):
+        """Test that get_directory works in sync context"""
+        import subprocess
+        from unittest.mock import MagicMock
+
+        mock_result = MagicMock()
+        mock_result.returncode = 0
+        mock_result.stderr = ""
+
+        mock_run = MagicMock(return_value=mock_result)
+        monkeypatch.setattr(subprocess, "run", mock_run)
+
+        repo = AzureDevopsRepository(repository="https://example.com/repo.git")
+
+        with TemporaryDirectory() as tmp_src:
+            test_file = Path(tmp_src) / "file.txt"
+            test_file.write_text("sync test")
+
+            with TemporaryDirectory() as tmp_dst:
+
+                class MockTmpDir:
+                    def __init__(self, *args, **kwargs):
+                        pass
+
+                    def __enter__(self):
+                        return tmp_src
+
+                    def __exit__(self, *args):
+                        pass
+
+                monkeypatch.setattr(
+                    "prefect_azure.repository.TemporaryDirectory",
+                    lambda *a, **kw: MockTmpDir(),
+                )
+
+                # Call without await - should use sync implementation
+                repo.get_directory(local_path=tmp_dst)
+
+                assert mock_run.call_count == 1
+                assert "git" in mock_run.call_args[0][0]
+                assert (Path(tmp_dst) / "file.txt").exists()
+
+    async def test_get_directory_force_sync_from_async(self, monkeypatch):
+        """Test that _sync=True forces sync execution from async context"""
+        import subprocess
+        from unittest.mock import MagicMock
+
+        mock_result = MagicMock()
+        mock_result.returncode = 0
+        mock_result.stderr = ""
+
+        mock_run = MagicMock(return_value=mock_result)
+        monkeypatch.setattr(subprocess, "run", mock_run)
+
+        # Also mock run_process to ensure it's NOT called
+        mock_run_process = AsyncMock()
+        monkeypatch.setattr("prefect_azure.repository.run_process", mock_run_process)
+
+        repo = AzureDevopsRepository(repository="https://example.com/repo.git")
+
+        with TemporaryDirectory() as tmp_src:
+            test_file = Path(tmp_src) / "file.txt"
+            test_file.write_text("force sync")
+
+            with TemporaryDirectory() as tmp_dst:
+
+                class MockTmpDir:
+                    def __init__(self, *args, **kwargs):
+                        pass
+
+                    def __enter__(self):
+                        return tmp_src
+
+                    def __exit__(self, *args):
+                        pass
+
+                monkeypatch.setattr(
+                    "prefect_azure.repository.TemporaryDirectory",
+                    lambda *a, **kw: MockTmpDir(),
+                )
+
+                # Force sync execution with _sync=True
+                repo.get_directory(local_path=tmp_dst, _sync=True)
+
+                # subprocess.run should be called (sync path)
+                assert mock_run.call_count == 1
+                # run_process should NOT be called (async path)
+                assert mock_run_process.await_count == 0
+                assert (Path(tmp_dst) / "file.txt").exists()
