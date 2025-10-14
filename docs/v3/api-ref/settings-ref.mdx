@@ -504,6 +504,13 @@ If `True`, warn on usage of experimental features.
 **Supported environment variables**:
 `PREFECT_EXPERIMENTS_WARN`, `PREFECT_EXPERIMENTAL_WARN`
 
+### `plugins`
+Settings for the experimental plugin system
+
+**Type**: [PluginsSettings](#pluginssettings)
+
+**TOML dotted key path**: `experiments.plugins`
+
 ---
 ## FlowsSettings
 Settings for controlling flow behavior
@@ -719,6 +726,81 @@ The maximum size in bytes for a single log.
 
 **Supported environment variables**:
 `PREFECT_LOGGING_TO_API_WHEN_MISSING_FLOW`
+
+---
+## PluginsSettings
+Settings for configuring the experimental plugin system
+### `enabled`
+Enable the experimental plugin system.
+
+**Type**: `boolean`
+
+**Default**: `False`
+
+**TOML dotted key path**: `experiments.plugins.enabled`
+
+**Supported environment variables**:
+`PREFECT_EXPERIMENTS_PLUGINS_ENABLED`
+
+### `allow`
+Comma-separated list of plugin names to allow. If set, only these plugins will be loaded.
+
+**Type**: `array | None`
+
+**Default**: `None`
+
+**TOML dotted key path**: `experiments.plugins.allow`
+
+**Supported environment variables**:
+`PREFECT_EXPERIMENTS_PLUGINS_ALLOW`
+
+### `deny`
+Comma-separated list of plugin names to deny. These plugins will not be loaded.
+
+**Type**: `array | None`
+
+**Default**: `None`
+
+**TOML dotted key path**: `experiments.plugins.deny`
+
+**Supported environment variables**:
+`PREFECT_EXPERIMENTS_PLUGINS_DENY`
+
+### `setup_timeout_seconds`
+Maximum time in seconds for all plugins to complete their setup hooks.
+
+**Type**: `number`
+
+**Default**: `20.0`
+
+**TOML dotted key path**: `experiments.plugins.setup_timeout_seconds`
+
+**Supported environment variables**:
+`PREFECT_EXPERIMENTS_PLUGINS_SETUP_TIMEOUT_SECONDS`
+
+### `strict`
+If True, exit if a required plugin fails during setup.
+
+**Type**: `boolean`
+
+**Default**: `False`
+
+**TOML dotted key path**: `experiments.plugins.strict`
+
+**Supported environment variables**:
+`PREFECT_EXPERIMENTS_PLUGINS_STRICT`
+
+### `safe_mode`
+If True, load plugins but do not execute their hooks. Useful for testing.
+
+**Type**: `boolean`
+
+**Default**: `False`
+
+**TOML dotted key path**: `experiments.plugins.safe_mode`
+
+**Supported environment variables**:
+`PREFECT_EXPERIMENTS_PLUGINS_SAFE_MODE`
 
 ---
 ## ResultsSettings

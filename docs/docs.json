@@ -869,6 +869,7 @@
                       "v3/api-ref/python/prefect-cli-deployment",
                       "v3/api-ref/python/prefect-cli-dev",
                       "v3/api-ref/python/prefect-cli-events",
+                      "v3/api-ref/python/prefect-cli-experimental",
                       "v3/api-ref/python/prefect-cli-flow",
                       "v3/api-ref/python/prefect-cli-flow_run",
                       "v3/api-ref/python/prefect-cli-flow_runs_watching",
