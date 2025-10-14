@@ -482,9 +482,21 @@ class KubernetesWorkerJobConfiguration(BaseJobConfiguration):
         # we need to prepend our environment variables to the list to ensure Prefect
         # setting propagation.
         if isinstance(template_env, list):
+            # Get the names of env vars we're about to add
+            transformed_env_names = {env["name"] for env in transformed_env}
+
+            # Filter out any env vars from template_env that are duplicates
+            # (these came from template rendering of work pool variables)
+            # Keep only user-hardcoded vars (not in transformed_env)
+            unique_template_env = [
+                env
+                for env in template_env
+                if env.get("name") not in transformed_env_names
+            ]
+
             self.job_manifest["spec"]["template"]["spec"]["containers"][0]["env"] = [
                 *transformed_env,
-                *template_env,
+                *unique_template_env,
             ]
         # Current templating adds `env` as a dict when the kubernetes manifest requires
         # a list of dicts. Might be able to improve this in the future with a better
