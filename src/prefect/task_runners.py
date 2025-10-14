@@ -496,6 +496,51 @@ def _run_task_in_subprocess(
                 return run_task_sync(*args, **kwargs)
 
 
+class _ChainedFuture(concurrent.futures.Future[bytes]):
+    """Wraps a future-of-future and unwraps the result."""
+
+    def __init__(
+        self,
+        resolution_future: concurrent.futures.Future[concurrent.futures.Future[bytes]],
+    ):
+        super().__init__()
+        self._resolution_future = resolution_future
+        self._process_future: concurrent.futures.Future[bytes] | None = None
+
+        # When resolution completes, hook up to the process future
+        def on_resolution_done(
+            fut: concurrent.futures.Future[concurrent.futures.Future[bytes]],
+        ) -> None:
+            try:
+                self._process_future = fut.result()
+
+                # Forward process future result to this future
+                def on_process_done(
+                    process_fut: concurrent.futures.Future[bytes],
+                ) -> None:
+                    try:
+                        result = process_fut.result()
+                        self.set_result(result)
+                    except Exception as e:
+                        self.set_exception(e)
+
+                self._process_future.add_done_callback(on_process_done)
+            except Exception as e:
+                self.set_exception(e)
+
+        resolution_future.add_done_callback(on_resolution_done)
+
+    def cancel(self) -> bool:
+        if self._process_future:
+            return self._process_future.cancel()
+        return self._resolution_future.cancel()
+
+    def cancelled(self) -> bool:
+        if self._process_future:
+            return self._process_future.cancelled()
+        return self._resolution_future.cancelled()
+
+
 class _UnpicklingFuture(concurrent.futures.Future[R]):
     """Wrapper for a Future that unpickles the result returned by cloudpickle_wrapped_call."""
 
@@ -634,7 +679,6 @@ class ProcessPoolTaskRunner(TaskRunner[PrefectConcurrentFuture[Any]]):
         parameters: dict[str, Any],
         wait_for: Iterable[PrefectFuture[Any]] | None,
         dependencies: dict[str, set[RunInput]] | None,
-        cancel_event: multiprocessing.Event,
         context: dict[str, Any],
         env: dict[str, str],
     ) -> concurrent.futures.Future[bytes]:
@@ -733,8 +777,6 @@ class ProcessPoolTaskRunner(TaskRunner[PrefectConcurrentFuture[Any]]):
         from prefect.context import FlowRunContext
 
         task_run_id = uuid7()
-        cancel_event = multiprocessing.Event()
-        self._cancel_events[task_run_id] = cancel_event
 
         flow_run_ctx = FlowRunContext.get()
         if flow_run_ctx:
@@ -764,59 +806,12 @@ class ProcessPoolTaskRunner(TaskRunner[PrefectConcurrentFuture[Any]]):
             parameters=parameters,
             wait_for=wait_for,
             dependencies=dependencies,
-            cancel_event=cancel_event,
             context=context,
             env=env,
         )
 
         # Create a future that chains: thread resolution -> process execution -> unpickling
         # We need to wrap the resolution_future's result (which will be a process future)
-        class _ChainedFuture(concurrent.futures.Future[R]):
-            """Wraps a future-of-future and unwraps the result."""
-
-            def __init__(
-                self,
-                resolution_future: concurrent.futures.Future[
-                    concurrent.futures.Future[bytes]
-                ],
-            ):
-                super().__init__()
-                self._resolution_future = resolution_future
-                self._process_future: concurrent.futures.Future[bytes] | None = None
-
-                # When resolution completes, hook up to the process future
-                def on_resolution_done(
-                    fut: concurrent.futures.Future[concurrent.futures.Future[bytes]],
-                ) -> None:
-                    try:
-                        self._process_future = fut.result()
-
-                        # Forward process future result to this future
-                        def on_process_done(
-                            process_fut: concurrent.futures.Future[bytes],
-                        ) -> None:
-                            try:
-                                result = process_fut.result()
-                                self.set_result(result)
-                            except Exception as e:
-                                self.set_exception(e)
-
-                        self._process_future.add_done_callback(on_process_done)
-                    except Exception as e:
-                        self.set_exception(e)
-
-                resolution_future.add_done_callback(on_resolution_done)
-
-            def cancel(self) -> bool:
-                if self._process_future:
-                    return self._process_future.cancel()
-                return self._resolution_future.cancel()
-
-            def cancelled(self) -> bool:
-                if self._process_future:
-                    return self._process_future.cancelled()
-                return self._resolution_future.cancelled()
-
         chained_future = _ChainedFuture(resolution_future)
 
         # Create a PrefectConcurrentFuture that handles unpickling
