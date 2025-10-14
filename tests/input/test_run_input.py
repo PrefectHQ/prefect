@@ -742,3 +742,41 @@ def test_receive_can_raise_timeout_errors_as_generator_sync(flow_run):
                 pass
 
         test_flow()
+
+
+def test_with_initial_data_preserves_optional_type_annotations():
+    """Test that with_initial_data preserves union types like str | None."""
+
+    class FormInput(RunInput):
+        """A form with optional fields."""
+
+        name: str | None = None
+        email: str | None = None
+        age: int | None = None
+
+    # Create a model with initial data
+    initial_data = {"name": "Alice", "email": "alice@example.com", "age": 30}
+    PrepopulatedForm = FormInput.with_initial_data(**initial_data)
+
+    # Check that the original field annotations are preserved
+    assert PrepopulatedForm.model_fields["name"].annotation == str | None
+    assert PrepopulatedForm.model_fields["email"].annotation == str | None
+    assert PrepopulatedForm.model_fields["age"].annotation == int | None
+
+    # Verify that we can create instances with the initial data
+    instance = PrepopulatedForm()
+    assert instance.name == "Alice"
+    assert instance.email == "alice@example.com"
+    assert instance.age == 30
+
+    # Verify that we can override with None (clearing the field)
+    instance_with_none = PrepopulatedForm(name=None, email=None, age=None)
+    assert instance_with_none.name is None
+    assert instance_with_none.email is None
+    assert instance_with_none.age is None
+
+    # Verify that we can override with other values
+    instance_overridden = PrepopulatedForm(name="Bob", email="bob@example.com", age=25)
+    assert instance_overridden.name == "Bob"
+    assert instance_overridden.email == "bob@example.com"
+    assert instance_overridden.age == 25
