@@ -1,3 +1,54 @@
+"""Interact with files stored in Azure DevOps Git repositories.
+
+The `AzureDevopsRepository` class in this module is a storage block that lets Prefect
+agents pull Prefect flow code from Azure DevOps repositories.
+
+The `AzureDevopsRepository` block is ideally configured via the Prefect UI, but can
+also be used in Python as the following examples demonstrate.
+
+Examples:
+    Load a configured Azure DevOps repository block:
+    ```python
+    from prefect_azure.repository import AzureDevopsRepository
+
+    azuredevops_repository_block = AzureDevopsRepository.load("BLOCK_NAME")
+    ```
+
+    Clone a public Azure DevOps repository:
+    ```python
+    from prefect_azure.repository import AzureDevopsRepository
+
+    public_repo = AzureDevopsRepository(
+        repository="https://dev.azure.com/myorg/myproject/_git/myrepo"
+    )
+    public_repo.save(name="my-azuredevops-block")
+    ```
+
+    Clone a specific branch or tag:
+    ```python
+    from prefect_azure.repository import AzureDevopsRepository
+
+    branch_repo = AzureDevopsRepository(
+        repository="https://dev.azure.com/myorg/myproject/_git/myrepo",
+        reference="develop"
+    )
+    branch_repo.save(name="my-azuredevops-branch-block")
+    ```
+
+    Clone a private Azure DevOps repository:
+    ```python
+    from prefect_azure import AzureDevopsCredentials, AzureDevopsRepository
+
+    azuredevops_credentials_block = AzureDevopsCredentials.load("my-azuredevops-credentials")
+
+    private_repo = AzureDevopsRepository(
+        repository="https://dev.azure.com/myorg/myproject/_git/myrepo",
+        credentials=azuredevops_credentials_block
+    )
+    private_repo.save(name="my-private-azuredevops-block")
+    ```
+"""
+
 import io
 import shutil
 import urllib.parse
@@ -7,10 +58,11 @@ from typing import Optional, Tuple, Union
 
 from pydantic import Field
 
+from prefect._internal.compatibility.async_dispatch import async_dispatch
 from prefect._internal.retries import retry_async_fn
 from prefect.filesystems import ReadableDeploymentStorage
 from prefect.utilities.processutils import run_process
-from prefect_azure import AzureDevopsCredentials
+from prefect_azure.credentials import AzureDevopsCredentials
 
 MAX_CLONE_ATTEMPTS = 3
 CLONE_RETRY_MIN_DELAY_SECONDS = 1
@@ -38,7 +90,7 @@ class AzureDevopsRepository(ReadableDeploymentStorage):
     )
     git_depth: Optional[int] = Field(
         default=1,
-        gte=1,
+        ge=1,
         description="Depth of git history to fetch.",
     )
     credentials: Optional[AzureDevopsCredentials] = Field(
@@ -89,9 +141,19 @@ class AzureDevopsRepository(ReadableDeploymentStorage):
         max_delay=CLONE_RETRY_MIN_DELAY_SECONDS + CLONE_RETRY_MAX_DELAY_JITTER_SECONDS,
         operation_name="clone_repository",
     )
-    async def get_directory(
+    async def aget_directory(
         self, from_path: Optional[str] = None, local_path: Optional[str] = None
     ) -> None:
+        """Asynchronously clones an Azure DevOps repository.
+
+        This defaults to cloning the repository reference configured on the
+        Block to the present working directory.
+
+        Args:
+            from_path: If provided, interpreted as a subdirectory of the underlying
+                repository that will be copied to the provided local path.
+            local_path: A local path to clone to; defaults to present working directory.
+        """
         cmd = ["git", "clone", self._create_repo_url()]
         if self.reference:
             cmd += ["-b", self.reference]
@@ -123,3 +185,23 @@ class AzureDevopsRepository(ReadableDeploymentStorage):
             shutil.copytree(
                 src=content_source, dst=content_destination, dirs_exist_ok=True
             )
+
+    @async_dispatch(aget_directory)
+    def get_directory(
+        self, from_path: Optional[str] = None, local_path: Optional[str] = None
+    ) -> None:
+        """Clones an Azure DevOps project within `from_path` to the provided `local_path`.
+
+        This defaults to cloning the repository reference configured on the
+        Block to the present working directory.
+
+        Args:
+            from_path: If provided, interpreted as a subdirectory of the underlying
+                repository that will be copied to the provided local path.
+            local_path: A local path to clone to; defaults to present working directory.
+        """
+        from prefect.utilities.asyncutils import run_coro_as_sync
+
+        run_coro_as_sync(
+            self.aget_directory(from_path=from_path, local_path=local_path)
+        )
