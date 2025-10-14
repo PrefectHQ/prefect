@@ -922,3 +922,95 @@ def test_creating_multiple_automations_with_partial_failure(
     )
 
     assert create_automation.await_count == 2
+
+
+def test_deleting_all_automations(
+    delete_automation: mock.AsyncMock,
+    read_automations: mock.AsyncMock,
+    various_automations: List[Automation],
+):
+    read_automations.return_value = various_automations
+    invoke_and_assert(
+        ["automations", "delete", "--all"],
+        prompts_and_responses=[
+            (
+                f"Are you sure you want to delete all {len(various_automations)} automations?",
+                "y",
+            )
+        ],
+        expected_code=0,
+        expected_output_contains=[f"Deleted {len(various_automations)} automations."],
+    )
+
+    assert delete_automation.await_count == len(various_automations)
+
+
+def test_deleting_all_automations_aborted(
+    delete_automation: mock.AsyncMock,
+    read_automations: mock.AsyncMock,
+    various_automations: List[Automation],
+):
+    read_automations.return_value = various_automations
+    invoke_and_assert(
+        ["automations", "delete", "--all"],
+        prompts_and_responses=[
+            (
+                f"Are you sure you want to delete all {len(various_automations)} automations?",
+                "n",
+            )
+        ],
+        expected_code=1,
+        expected_output_contains=["Deletion aborted."],
+    )
+
+    delete_automation.assert_not_called()
+
+
+def test_deleting_all_automations_when_none_exist(
+    delete_automation: mock.AsyncMock,
+    read_automations: mock.AsyncMock,
+):
+    read_automations.return_value = []
+    invoke_and_assert(
+        ["automations", "delete", "--all"],
+        expected_code=0,
+        expected_output_contains=["No automations found."],
+    )
+
+    delete_automation.assert_not_called()
+
+
+def test_deleting_all_automations_with_name_errors(
+    delete_automation: mock.AsyncMock,
+    read_automations: mock.AsyncMock,
+):
+    invoke_and_assert(
+        ["automations", "delete", "some-name", "--all"],
+        expected_code=1,
+        expected_output_contains=[
+            "Cannot provide an automation name or id when deleting all automations."
+        ],
+    )
+
+    delete_automation.assert_not_called()
+
+
+def test_deleting_all_automations_with_id_errors(
+    delete_automation: mock.AsyncMock,
+    read_automations: mock.AsyncMock,
+):
+    invoke_and_assert(
+        [
+            "automations",
+            "delete",
+            "--id",
+            "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+            "--all",
+        ],
+        expected_code=1,
+        expected_output_contains=[
+            "Cannot provide an automation name or id when deleting all automations."
+        ],
+    )
+
+    delete_automation.assert_not_called()
