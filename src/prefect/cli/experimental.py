@@ -141,8 +141,6 @@ async def diagnose():
 
                     if summary.note:
                         app.console.print(f"    Note: {summary.note}")
-                    if summary.expires_at:
-                        app.console.print(f"    Expires: {summary.expires_at}")
                 else:
                     app.console.print("    No changes")
 

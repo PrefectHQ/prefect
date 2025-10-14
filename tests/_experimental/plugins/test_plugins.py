@@ -8,7 +8,6 @@ import asyncio
 import logging
 import os
 import sys
-from datetime import datetime, timezone
 from unittest.mock import Mock, patch
 
 import pytest
@@ -506,7 +505,6 @@ class TestStartupHooks:
                 return SetupResult(
                     env={"TEST_VAR": "test_value"},
                     note="Test plugin ran",
-                    expires_at=datetime.now(timezone.utc),
                 )
 
         pm = build_manager(HookSpec)
@@ -562,7 +560,6 @@ class TestSetupSummary:
             plugin="test-plugin",
             env_preview={"KEY": "value"},
             note="Test note",
-            expires_at=None,
             error=None,
         )
         assert summary.plugin == "test-plugin"

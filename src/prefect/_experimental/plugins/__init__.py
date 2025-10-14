@@ -111,7 +111,6 @@ async def run_startup_hooks(ctx: HookContext) -> list[SetupSummary]:
                     name,
                     summarize_env(dict(res.env)),
                     res.note,
-                    res.expires_at,
                     error=None,
                 )
             )

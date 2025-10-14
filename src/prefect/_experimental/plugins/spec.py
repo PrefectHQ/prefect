@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from datetime import datetime
 from typing import Callable, Mapping, Optional
 
 import pluggy
@@ -46,13 +45,11 @@ class SetupResult:
     Attributes:
         env: Environment variables to set (e.g., AWS_* variables)
         note: Short, non-secret human-readable hint about what was configured
-        expires_at: When the credentials/configuration expire (for diagnostics)
         required: If True and hook fails, abort in strict mode
     """
 
     env: Mapping[str, str]  # e.g. AWS_* variables
     note: Optional[str] = None  # short, non-secret human hint
-    expires_at: Optional[datetime] = None  # for diagnostics / refresh UIs
     required: bool = False  # if True and hook fails -> abort (in strict mode)
 
 

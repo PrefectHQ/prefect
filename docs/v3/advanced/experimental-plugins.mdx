@@ -64,7 +64,6 @@ def setup_environment(*, ctx: HookContext) -> SetupResult:
             "MY_SERVICE_URL": "https://api.example.com",
         },
         note="Configured my-service credentials",
-        expires_at=credentials.expires_at,
         required=True  # Abort if this plugin fails in strict mode
     )
 
@@ -163,7 +162,6 @@ def setup_environment(*, ctx: HookContext) -> SetupResult | None:
     return SetupResult(
         env={"KEY": "value"},
         note="Short description",
-        expires_at=datetime,  # Optional
         required=False  # Optional
     )
 ```
@@ -225,7 +223,6 @@ from datetime import datetime
 class SetupResult:
     env: Mapping[str, str]           # Environment variables to set
     note: str | None = None           # Human-readable description
-    expires_at: datetime | None = None  # When credentials expire
     required: bool = False            # Abort in strict mode if fails
 ```
 
@@ -281,7 +278,6 @@ def setup_environment(*, ctx: HookContext) -> SetupResult | None:
                 "AWS_REGION": region,
             },
             note=f"Assumed role {role_arn.split('/')[-1]}",
-            expires_at=credentials["Expiration"].astimezone(timezone.utc),
             required=bool(os.getenv("PREFECT_AWS_SETUP_REQUIRED")),
         )
     except Exception:
