@@ -283,7 +283,8 @@
             "pages": [
               "v3/advanced/api-client",
               "v3/advanced/custom-blocks",
-              "v3/advanced/developing-a-custom-worker"
+              "v3/advanced/developing-a-custom-worker",
+              "v3/advanced/experimental-plugins"
             ]
           }
         ],

@@ -65,6 +65,57 @@ __ui_static_path__: pathlib.Path = __module_path__ / "server" / "ui"
 
 del _build_info, pathlib
 
+
+def _initialize_plugins() -> None:
+    """
+    Initialize the experimental plugin system if enabled.
+
+    This runs automatically when Prefect is imported and plugins are enabled
+    via experiments.plugins.enabled setting. Errors are logged but don't prevent
+    Prefect from loading.
+    """
+    try:
+        # Import here to avoid circular imports and defer cost until needed
+        from prefect.settings import get_current_settings
+
+        if not get_current_settings().experiments.plugins.enabled:
+            return
+
+        import anyio
+
+        from prefect._experimental.plugins import run_startup_hooks
+        from prefect._experimental.plugins.spec import HookContext
+        from prefect.logging import get_logger
+        from prefect.settings import get_current_settings
+
+        ctx = HookContext(
+            prefect_version=__version__,
+            api_url=get_current_settings().api.url,
+            logger_factory=get_logger,
+        )
+
+        # Run plugin hooks synchronously during import
+        anyio.run(run_startup_hooks, ctx)
+    except SystemExit:
+        # Re-raise SystemExit from strict mode
+        raise
+    except Exception as e:
+        # Log but don't crash on plugin errors
+        try:
+            from prefect.logging import get_logger
+
+            logger = get_logger("prefect.plugins")
+            logger.exception("Failed to initialize plugins: %s", e)
+        except Exception:
+            # If even logging fails, print to stderr and continue
+            import sys
+
+            print(f"Failed to initialize plugins: {e}", file=sys.stderr)
+
+
+# Initialize plugins on import if enabled
+_initialize_plugins()
+
 _public_api: dict[str, tuple[Optional[str], str]] = {
     "allow_failure": (__spec__.parent, ".main"),
     "aserve": (__spec__.parent, ".main"),
