@@ -96,12 +96,16 @@ async def run_startup_hooks(ctx: HookContext) -> list[SetupSummary]:
     for name, res, err in results:
         if err:
             logger.error("Plugin %s failed: %s", name, err)
-            summaries.append(SetupSummary(name, {}, None, None, error=str(err)))
+            summaries.append(
+                SetupSummary(plugin=name, env_preview={}, note=None, error=str(err))
+            )
             continue
 
         if res is None:
             logger.debug("Plugin %s returned no changes", name)
-            summaries.append(SetupSummary(name, {}, None, None, error=None))
+            summaries.append(
+                SetupSummary(plugin=name, env_preview={}, note=None, error=None)
+            )
             continue
 
         try:

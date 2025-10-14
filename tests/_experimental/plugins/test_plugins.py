@@ -186,7 +186,6 @@ class TestPluginManager:
         assert pm is not None
         assert pm.project_name == "prefect-experimental"
 
-    @pytest.mark.asyncio
     async def test_async_hook_call_sync(self, mock_ctx: HookContext):
         """Test calling a sync hook implementation."""
 
@@ -205,7 +204,6 @@ class TestPluginManager:
         assert error is None
         assert result.env["TEST"] == "value"
 
-    @pytest.mark.asyncio
     async def test_async_hook_call_async(self, mock_ctx: HookContext):
         """Test calling an async hook implementation."""
 
@@ -225,7 +223,6 @@ class TestPluginManager:
         assert error is None
         assert result.env["TEST"] == "async_value"
 
-    @pytest.mark.asyncio
     async def test_hook_error_handling(self, mock_ctx: HookContext):
         """Test that hook errors are captured per plugin."""
 
@@ -256,7 +253,6 @@ class TestPluginManager:
         assert bad_result[1] is None
         assert isinstance(bad_result[2], ValueError)
 
-    @pytest.mark.asyncio
     async def test_function_based_plugin_sync(self, mock_ctx: HookContext):
         """Test that function-based plugins work (sync)."""
         from types import ModuleType
@@ -281,7 +277,6 @@ class TestPluginManager:
         assert error is None
         assert result.env["FUNC_PLUGIN"] == "sync_value"
 
-    @pytest.mark.asyncio
     async def test_function_based_plugin_async(self, mock_ctx: HookContext):
         """Test that function-based plugins work (async)."""
         from types import ModuleType
@@ -442,7 +437,6 @@ class TestStartupHooks:
             # Should return empty list in safe mode
             assert summaries == []
 
-    @pytest.mark.asyncio
     async def test_timeout_handling(self, clean_env, mock_ctx):
         """Test that slow plugins time out gracefully."""
         from prefect.settings import Settings, _get_settings_fields
@@ -469,7 +463,6 @@ class TestStartupHooks:
                     # Should complete without crashing
                     assert isinstance(summaries, list)
 
-    @pytest.mark.asyncio
     async def test_strict_mode_required_failure(self, clean_env, mock_ctx):
         """Test that strict mode exits on required plugin failure."""
         from prefect.settings import Settings, _get_settings_fields
@@ -495,7 +488,6 @@ class TestStartupHooks:
                     with pytest.raises(SystemExit):
                         await run_startup_hooks(mock_ctx)
 
-    @pytest.mark.asyncio
     async def test_successful_plugin_execution(self, clean_env, mock_ctx):
         """Test that successful plugins apply environment variables."""
 
@@ -526,7 +518,6 @@ class TestStartupHooks:
                     # Check that env var was actually set
                     assert os.environ.get("TEST_VAR") == "test_value"
 
-    @pytest.mark.asyncio
     async def test_plugin_returning_none(self, clean_env, mock_ctx):
         """Test that plugins can return None to indicate no changes."""
 
