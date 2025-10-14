@@ -30,6 +30,7 @@ from prefect.futures import (
     PrefectDistributedFuture,
     PrefectFuture,
     PrefectFutureList,
+    wait,
 )
 from prefect.logging.loggers import get_logger, get_run_logger
 from prefect.settings.context import get_current_settings
@@ -496,6 +497,51 @@ def _run_task_in_subprocess(
                 return run_task_sync(*args, **kwargs)
 
 
+class _ChainedFuture(concurrent.futures.Future[bytes]):
+    """Wraps a future-of-future and unwraps the result."""
+
+    def __init__(
+        self,
+        resolution_future: concurrent.futures.Future[concurrent.futures.Future[bytes]],
+    ):
+        super().__init__()
+        self._resolution_future = resolution_future
+        self._process_future: concurrent.futures.Future[bytes] | None = None
+
+        # When resolution completes, hook up to the process future
+        def on_resolution_done(
+            fut: concurrent.futures.Future[concurrent.futures.Future[bytes]],
+        ) -> None:
+            try:
+                self._process_future = fut.result()
+
+                # Forward process future result to this future
+                def on_process_done(
+                    process_fut: concurrent.futures.Future[bytes],
+                ) -> None:
+                    try:
+                        result = process_fut.result()
+                        self.set_result(result)
+                    except Exception as e:
+                        self.set_exception(e)
+
+                self._process_future.add_done_callback(on_process_done)
+            except Exception as e:
+                self.set_exception(e)
+
+        resolution_future.add_done_callback(on_resolution_done)
+
+    def cancel(self) -> bool:
+        if self._process_future:
+            return self._process_future.cancel()
+        return self._resolution_future.cancel()
+
+    def cancelled(self) -> bool:
+        if self._process_future:
+            return self._process_future.cancelled()
+        return self._resolution_future.cancelled()
+
+
 class _UnpicklingFuture(concurrent.futures.Future[R]):
     """Wrapper for a Future that unpickles the result returned by cloudpickle_wrapped_call."""
 
@@ -616,6 +662,7 @@ class ProcessPoolTaskRunner(TaskRunner[PrefectConcurrentFuture[Any]]):
         super().__init__()
         current_settings = get_current_settings()
         self._executor: ProcessPoolExecutor | None = None
+        self._resolver_executor: ThreadPoolExecutor | None = None
         self._max_workers = (
             max_workers
             or current_settings.tasks.runner.process_pool_max_workers
@@ -625,6 +672,56 @@ class ProcessPoolTaskRunner(TaskRunner[PrefectConcurrentFuture[Any]]):
 
     def duplicate(self) -> Self:
         return type(self)(max_workers=self._max_workers)
+
+    def _resolve_futures_and_submit(
+        self,
+        task: "Task[P, R | CoroutineType[Any, Any, R]]",
+        task_run_id: uuid.UUID,
+        parameters: dict[str, Any],
+        wait_for: Iterable[PrefectFuture[Any]] | None,
+        dependencies: dict[str, set[RunInput]] | None,
+        context: dict[str, Any],
+        env: dict[str, str],
+    ) -> concurrent.futures.Future[bytes]:
+        """
+        Helper method that:
+        1. Waits for all futures in wait_for to complete
+        2. Resolves any futures in parameters to their actual values
+        3. Submits the task to the ProcessPoolExecutor with resolved values
+
+        This method runs in a background thread to keep submit() non-blocking.
+        """
+        from prefect.utilities.engine import resolve_inputs_sync
+
+        # Wait for all futures in wait_for to complete
+        if wait_for:
+            wait(list(wait_for))
+
+        # Resolve any futures in parameters to their actual values
+        resolved_parameters = resolve_inputs_sync(
+            parameters, return_data=True, max_depth=-1
+        )
+
+        # Now submit to the process pool with resolved values
+        submit_kwargs: dict[str, Any] = dict(
+            task=task,
+            task_run_id=task_run_id,
+            parameters=resolved_parameters,
+            wait_for=None,  # Already waited, no need to pass futures to subprocess
+            return_type="state",
+            dependencies=dependencies,
+            context=context,
+        )
+
+        # Prepare the cloudpickle wrapped call for subprocess execution
+        wrapped_call = cloudpickle_wrapped_call(
+            _run_task_in_subprocess,
+            env=env,
+            **submit_kwargs,
+        )
+
+        # Submit to executor
+        return self._executor.submit(wrapped_call)
 
     @overload
     def submit(
@@ -664,7 +761,11 @@ class ProcessPoolTaskRunner(TaskRunner[PrefectConcurrentFuture[Any]]):
             A future object that can be used to wait for the task to complete and
             retrieve the result.
         """
-        if not self._started or self._executor is None:
+        if (
+            not self._started
+            or self._executor is None
+            or self._resolver_executor is None
+        ):
             raise RuntimeError("Task runner is not started")
 
         if wait_for and task.tags and (self._max_workers <= len(task.tags)):
@@ -676,8 +777,6 @@ class ProcessPoolTaskRunner(TaskRunner[PrefectConcurrentFuture[Any]]):
         from prefect.context import FlowRunContext
 
         task_run_id = uuid7()
-        cancel_event = multiprocessing.Event()
-        self._cancel_events[task_run_id] = cancel_event
 
         flow_run_ctx = FlowRunContext.get()
         if flow_run_ctx:
@@ -693,31 +792,31 @@ class ProcessPoolTaskRunner(TaskRunner[PrefectConcurrentFuture[Any]]):
         from prefect.context import serialize_context
 
         context = serialize_context()
+        env = (
+            get_current_settings().to_environment_variables(exclude_unset=True)
+            | os.environ
+        )
 
-        submit_kwargs: dict[str, Any] = dict(
+        # Submit the resolution and subprocess execution to a background thread
+        # This keeps submit() non-blocking while still resolving futures before pickling
+        resolution_future = self._resolver_executor.submit(
+            self._resolve_futures_and_submit,
             task=task,
             task_run_id=task_run_id,
             parameters=parameters,
             wait_for=wait_for,
-            return_type="state",
             dependencies=dependencies,
             context=context,
+            env=env,
         )
 
-        # Prepare the cloudpickle wrapped call for subprocess execution
-        wrapped_call = cloudpickle_wrapped_call(
-            _run_task_in_subprocess,
-            env=get_current_settings().to_environment_variables(exclude_unset=True)
-            | os.environ,
-            **submit_kwargs,
-        )
-
-        # Submit to executor and create a wrapper that unpickles the result
-        raw_future = self._executor.submit(wrapped_call)
+        # Create a future that chains: thread resolution -> process execution -> unpickling
+        # We need to wrap the resolution_future's result (which will be a process future)
+        chained_future = _ChainedFuture(resolution_future)
 
         # Create a PrefectConcurrentFuture that handles unpickling
         prefect_future: PrefectConcurrentFuture[R] = PrefectConcurrentFuture(
-            task_run_id=task_run_id, wrapped_future=_UnpicklingFuture(raw_future)
+            task_run_id=task_run_id, wrapped_future=_UnpicklingFuture(chained_future)
         )
         return prefect_future
 
@@ -769,6 +868,8 @@ class ProcessPoolTaskRunner(TaskRunner[PrefectConcurrentFuture[Any]]):
         self._executor = ProcessPoolExecutor(
             max_workers=self._max_workers, mp_context=mp_context
         )
+        # Create a thread pool for resolving futures before submitting to process pool
+        self._resolver_executor = ThreadPoolExecutor(max_workers=self._max_workers)
         return self
 
     def __exit__(self, exc_type: Any, exc_value: Any, traceback: Any) -> None:
@@ -777,6 +878,9 @@ class ProcessPoolTaskRunner(TaskRunner[PrefectConcurrentFuture[Any]]):
         if self._executor is not None:
             self._executor.shutdown(cancel_futures=True, wait=True)
             self._executor = None
+        if self._resolver_executor is not None:
+            self._resolver_executor.shutdown(cancel_futures=True, wait=True)
+            self._resolver_executor = None
         super().__exit__(exc_type, exc_value, traceback)
 
     def __eq__(self, value: object) -> bool:
