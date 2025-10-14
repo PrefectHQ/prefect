@@ -249,7 +249,10 @@ class BaseRunInput(pydantic.BaseModel):
         """
         fields: Dict[str, Any] = {}
         for key, value in kwargs.items():
-            fields[key] = (type(value), value)
+            original_field = cls.model_fields.get(key)
+            # Use the original field annotation if it exists, otherwise infer from value
+            field_type = original_field.annotation if original_field else type(value)
+            fields[key] = (field_type, value)
         model = pydantic.create_model(cls.__name__, **fields, __base__=cls)
 
         if description is not None:
