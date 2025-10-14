@@ -1,6 +1,4 @@
-from __future__ import annotations
-
-from typing import Tuple
+from typing import Tuple, Union
 from uuid import uuid4
 
 import orjson
@@ -752,18 +750,18 @@ def test_with_initial_data_preserves_optional_type_annotations():
     class FormInput(RunInput):
         """A form with optional fields."""
 
-        name: str | None = None
-        email: str | None = None
-        age: int | None = None
+        name: Union[str, None] = None
+        email: Union[str, None] = None
+        age: Union[int, None] = None
 
     # Create a model with initial data
     initial_data = {"name": "Alice", "email": "alice@example.com", "age": 30}
     PrepopulatedForm = FormInput.with_initial_data(**initial_data)
 
     # Check that the original field annotations are preserved
-    assert PrepopulatedForm.model_fields["name"].annotation == str | None
-    assert PrepopulatedForm.model_fields["email"].annotation == str | None
-    assert PrepopulatedForm.model_fields["age"].annotation == int | None
+    assert PrepopulatedForm.model_fields["name"].annotation == Union[str, None]
+    assert PrepopulatedForm.model_fields["email"].annotation == Union[str, None]
+    assert PrepopulatedForm.model_fields["age"].annotation == Union[int, None]
 
     # Verify that we can create instances with the initial data
     instance = PrepopulatedForm()
