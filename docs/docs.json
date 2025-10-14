@@ -217,6 +217,12 @@
             ]
           },
           {
+            "group": "AI",
+            "pages": [
+              "v3/how-to-guides/ai/use-prefect-mcp-server"
+            ]
+          },
+          {
             "group": "Migrate",
             "pages": [
               "v3/how-to-guides/migrate/airflow",
@@ -288,10 +294,11 @@
           {
             "group": "Examples",
             "pages": [
-              "v3/examples/simple-web-scraper",
-              "v3/examples/run-dbt-with-prefect",
               "v3/examples/hello-world",
-              "v3/examples/run-api-sourced-etl"
+              "v3/examples/run-api-sourced-etl",
+              "v3/examples/run-dbt-with-prefect",
+              "v3/examples/atproto-dashboard-with-prefect-assets",
+              "v3/examples/simple-web-scraper"
             ]
           }
         ],
@@ -842,6 +849,7 @@
                     "group": "prefect.cli",
                     "pages": [
                       "v3/api-ref/python/prefect-cli-__init__",
+                      "v3/api-ref/python/prefect-cli-api",
                       "v3/api-ref/python/prefect-cli-artifact",
                       "v3/api-ref/python/prefect-cli-block",
                       {
@@ -861,6 +869,7 @@
                       "v3/api-ref/python/prefect-cli-events",
                       "v3/api-ref/python/prefect-cli-flow",
                       "v3/api-ref/python/prefect-cli-flow_run",
+                      "v3/api-ref/python/prefect-cli-flow_runs_watching",
                       "v3/api-ref/python/prefect-cli-global_concurrency_limit",
                       "v3/api-ref/python/prefect-cli-profile",
                       "v3/api-ref/python/prefect-cli-root",
@@ -986,6 +995,7 @@
                           "v3/api-ref/python/prefect-events-schemas-labelling"
                         ]
                       },
+                      "v3/api-ref/python/prefect-events-subscribers",
                       "v3/api-ref/python/prefect-events-utilities",
                       "v3/api-ref/python/prefect-events-worker"
                     ]

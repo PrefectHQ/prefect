@@ -134,6 +134,7 @@ class EventPersister(RunInEphemeralServers, Service):
         except asyncio.CancelledError:
             pass
         finally:
+            await self.consumer.cleanup()
             self.consumer_task = None
             if self.started_event:
                 self.started_event.clear()
