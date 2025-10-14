@@ -631,7 +631,10 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
             if lease_id := self.state.state_details.deployment_concurrency_lease_id:
                 stack.enter_context(
                     maintain_concurrency_lease(
-                        lease_id, 300, raise_on_lease_renewal_failure=True
+                        lease_id,
+                        300,
+                        raise_on_lease_renewal_failure=True,
+                        should_raise_on_missing_lease=lambda: not self.flow_run.state.is_final(),
                     )
                 )
 
@@ -1201,7 +1204,10 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
             if lease_id := self.state.state_details.deployment_concurrency_lease_id:
                 await stack.enter_async_context(
                     amaintain_concurrency_lease(
-                        lease_id, 300, raise_on_lease_renewal_failure=True
+                        lease_id,
+                        300,
+                        raise_on_lease_renewal_failure=True,
+                        should_raise_on_missing_lease=lambda: not self.flow_run.state.is_final(),
                     )
                 )
 
