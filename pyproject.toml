@@ -81,6 +81,7 @@ dependencies = [
     "whenever>=0.7.3,<0.10.0; python_version>='3.13'",
     "uv>=0.6.0",
     "semver>=3.0.4",
+    "pluggy>=1.6.0",
 ]
 [project.urls]
 Changelog = "https://github.com/PrefectHQ/prefect/releases"
