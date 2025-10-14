@@ -30,6 +30,7 @@ from prefect.futures import (
     PrefectDistributedFuture,
     PrefectFuture,
     PrefectFutureList,
+    wait,
 )
 from prefect.logging.loggers import get_logger, get_run_logger
 from prefect.settings.context import get_current_settings
@@ -694,8 +695,7 @@ class ProcessPoolTaskRunner(TaskRunner[PrefectConcurrentFuture[Any]]):
 
         # Wait for all futures in wait_for to complete
         if wait_for:
-            for future in wait_for:
-                future.wait()
+            wait(list(wait_for))
 
         # Resolve any futures in parameters to their actual values
         resolved_parameters = resolve_inputs_sync(
