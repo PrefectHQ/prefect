@@ -6,7 +6,7 @@ from unittest.mock import Mock, patch
 
 import boto3
 import pytest
-from moto import mock_cloudformation, mock_ec2, mock_ecs, mock_sts
+from moto import mock_aws
 from prefect_aws._cli.main import app
 from prefect_aws.workers import ECSWorker
 from typer.testing import CliRunner
@@ -27,7 +27,7 @@ def aws_credentials(monkeypatch):
 @pytest.fixture
 def mock_aws_resources():
     """Create common AWS resources for testing."""
-    with mock_ecs(), mock_ec2(), mock_cloudformation(), mock_sts():
+    with mock_aws():
         # Create VPC
         ec2 = boto3.client("ec2", region_name="us-east-1")
         vpc_response = ec2.create_vpc(CidrBlock="10.0.0.0/16")
@@ -258,7 +258,7 @@ class TestECSWorkerCLI:
 
     def test_list_stacks(self, aws_credentials):
         """Test list stacks command."""
-        with mock_cloudformation(), mock_sts():
+        with mock_aws():
             # Create a test stack with CLI tags
             cf = boto3.client("cloudformation", region_name="us-east-1")
             cf.create_stack(
@@ -281,7 +281,7 @@ class TestECSWorkerCLI:
 
     def test_list_stacks_json_format(self, aws_credentials):
         """Test list stacks command with JSON output."""
-        with mock_cloudformation(), mock_sts():
+        with mock_aws():
             # Create a test stack with CLI tags
             cf = boto3.client("cloudformation", region_name="us-east-1")
             cf.create_stack(
@@ -304,7 +304,7 @@ class TestECSWorkerCLI:
 
     def test_stack_status(self, aws_credentials):
         """Test stack status command."""
-        with mock_cloudformation(), mock_sts():
+        with mock_aws():
             # Create a test stack with CLI tags
             cf = boto3.client("cloudformation", region_name="us-east-1")
             cf.create_stack(
@@ -326,7 +326,7 @@ class TestECSWorkerCLI:
 
     def test_stack_status_not_cli_managed(self, aws_credentials):
         """Test stack status command for non-CLI managed stack."""
-        with mock_cloudformation(), mock_sts():
+        with mock_aws():
             # Create a test stack without CLI tags
             cf = boto3.client("cloudformation", region_name="us-east-1")
             cf.create_stack(
@@ -350,7 +350,7 @@ class TestECSWorkerCLI:
 
     def test_delete_stack_force(self, aws_credentials):
         """Test delete stack command with force flag."""
-        with mock_cloudformation(), mock_sts():
+        with mock_aws():
             # Create a test stack with CLI tags
             cf = boto3.client("cloudformation", region_name="us-east-1")
             cf.create_stack(
@@ -379,7 +379,7 @@ class TestECSWorkerCLI:
 
     def test_delete_stack_no_wait(self, aws_credentials):
         """Test delete stack command with --no-wait flag."""
-        with mock_cloudformation(), mock_sts():
+        with mock_aws():
             # Create a test stack with CLI tags
             cf = boto3.client("cloudformation", region_name="us-east-1")
             cf.create_stack(

@@ -5,7 +5,7 @@ from unittest.mock import patch
 
 import boto3
 import pytest
-from moto import mock_s3
+from moto import mock_aws
 from prefect_aws import AwsCredentials
 from prefect_aws.deployments.steps import get_s3_client, pull_from_s3, push_to_s3
 
@@ -22,7 +22,7 @@ def set_custom_endpoint():
 
 @pytest.fixture
 def s3_setup():
-    with mock_s3():
+    with mock_aws():
         bucket_name = "my-test-bucket"
         s3 = boto3.client("s3")
         s3.create_bucket(Bucket=bucket_name)
