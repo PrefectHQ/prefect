@@ -191,24 +191,8 @@ class AzureDevopsRepository(ReadableDeploymentStorage):
                 repository that will be copied to the provided local path.
             local_path: A local path to clone to; defaults to present working directory.
         """
-        import subprocess
+        from prefect.utilities.asyncutils import run_coro_as_sync
 
-        cmd = ["git", "clone", self._create_repo_url()]
-        if self.reference:
-            cmd += ["-b", self.reference]
-        if self.git_depth is not None:
-            cmd += ["--depth", f"{self.git_depth}"]
-
-        with TemporaryDirectory(suffix="prefect") as tmp_dir:
-            cmd.append(tmp_dir)
-
-            process = subprocess.run(cmd, capture_output=True, text=True, check=False)
-            if process.returncode != 0:
-                raise OSError(f"Failed to pull from remote:\n {process.stderr}")
-
-            content_source, content_destination = self._get_paths(
-                dst_dir=local_path, src_dir=tmp_dir, sub_directory=from_path
-            )
-            shutil.copytree(
-                src=content_source, dst=content_destination, dirs_exist_ok=True
-            )
+        run_coro_as_sync(
+            self.aget_directory(from_path=from_path, local_path=local_path)
+        )
