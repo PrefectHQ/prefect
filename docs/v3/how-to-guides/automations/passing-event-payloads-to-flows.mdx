@@ -11,11 +11,13 @@ When you emit custom events with payloads, you can pass that payload data to flo
 Create a flow that accepts a dictionary payload:
 
 ```python
+from typing import Any
+
 from prefect import flow
 
 
 @flow(log_prints=True)
-def process_webhook(payload: dict):
+def process_webhook(payload: dict[str, Any]):
     """Process data from a custom event"""
     print(f"User: {payload.get('user_id')}")
     print(f"Action: {payload.get('action')}")
@@ -121,12 +123,14 @@ This allows your flow to receive the payload as a `dict` type rather than a stri
 You can define the flow and trigger entirely in Python using `DeploymentEventTrigger`:
 
 ```python event_payload_example.py
+from typing import Any
+
 from prefect import flow, serve
 from prefect.events import DeploymentEventTrigger
 
 
 @flow(log_prints=True)
-def process_webhook(payload: dict):
+def process_webhook(payload: dict[str, Any]):
     """Process data from a custom event"""
     print(f"User: {payload.get('user_id')}")
     print(f"Action: {payload.get('action')}")
