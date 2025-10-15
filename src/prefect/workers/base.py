@@ -1334,10 +1334,20 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
     def _release_limit_slot(self, flow_run_id: UUID) -> None:
         """
         Frees up a slot taken by the given flow run id.
+
+        This method gracefully handles cases where the slot has already been released
+        to prevent worker crashes from double-release scenarios.
         """
         if self._limiter:
-            self._limiter.release_on_behalf_of(flow_run_id)
-            self._logger.debug("Limit slot released for flow run '%s'", flow_run_id)
+            try:
+                self._limiter.release_on_behalf_of(flow_run_id)
+                self._logger.debug("Limit slot released for flow run '%s'", flow_run_id)
+            except RuntimeError:
+                # Slot was already released - this can happen in certain error paths
+                # where multiple cleanup attempts occur. Log it but don't crash.
+                self._logger.debug(
+                    "Limit slot for flow run '%s' was already released", flow_run_id
+                )
 
     def get_status(self) -> dict[str, Any]:
         """
