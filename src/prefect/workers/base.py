@@ -1464,6 +1464,11 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
         except Abort:
             # Flow run already marked as failed
             pass
+        except ObjectNotFound:
+            # Flow run was deleted - log it but don't crash the worker
+            run_logger.debug(
+                f"Flow run '{flow_run.id}' was deleted before state could be updated"
+            )
         except Exception:
             run_logger.exception(f"Failed to update state of flow run '{flow_run.id}'")
         else:
@@ -1486,7 +1491,14 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
             # does not need to explicitly set the type
             state = Cancelled(**state_updates)
 
-        await self.client.set_flow_run_state(flow_run.id, state, force=True)
+        try:
+            await self.client.set_flow_run_state(flow_run.id, state, force=True)
+        except ObjectNotFound:
+            # Flow run was deleted - log it but don't crash the worker
+            run_logger = self.get_flow_run_logger(flow_run)
+            run_logger.debug(
+                f"Flow run '{flow_run.id}' was deleted before it could be marked as cancelled"
+            )
 
         # Do not remove the flow run from the cancelling set immediately because
         # the API caches responses for the `read_flow_runs` and we do not want to
