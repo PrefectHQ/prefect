@@ -418,7 +418,8 @@ async def renew_concurrency_lease(
         ttl=timedelta(seconds=lease_duration),
     )
 
-    if not renewed:
+    # None is treated as success for backwards compatibility with older implementations
+    if renewed is False:
         raise HTTPException(
             status_code=status.HTTP_410_GONE,
             detail="Lease not found - it may have expired or been revoked",
