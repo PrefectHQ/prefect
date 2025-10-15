@@ -6,6 +6,7 @@ from conftest import CosmosClientMock
 from prefect_azure.credentials import (
     AzureBlobStorageCredentials,
     AzureCosmosDbCredentials,
+    AzureDevopsCredentials,
     AzureMlCredentials,
 )
 from pydantic import SecretStr
@@ -135,3 +136,27 @@ def test_get_workspace(monkeypatch):
         assert isinstance(workspace, MagicMock)
 
     test_flow()
+
+
+def test_get_azuredevops_auth_header_valid_token():
+    @flow
+    def test_flow():
+        creds = AzureDevopsCredentials(token=SecretStr("fake-pat"))
+        auth_header = creds.get_auth_header()
+
+        import base64
+
+        expected_token = base64.b64encode(b":fake-pat").decode()
+        assert auth_header == {"Authorization": f"Basic {expected_token}"}
+
+    test_flow()
+
+
+def test_get_azuredevops_auth_header_missing_token():
+    @flow
+    def test_flow():
+        creds = AzureDevopsCredentials(token=None)
+        creds.get_auth_header()
+
+    with pytest.raises(ValueError, match="Azure DevOps Personal Access Token.*not set"):
+        test_flow()
