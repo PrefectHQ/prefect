@@ -48,7 +48,7 @@ jobs:
           version: latest
 
       - name: Set up node
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v6
         if: ${{ steps.package_name.outputs.PACKAGE_NAME }} == 'prefect-aws'
         with:
           node-version-file: "src/integrations/prefect-aws/infra/.nvmrc"
