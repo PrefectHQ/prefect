@@ -230,9 +230,16 @@ def run_async_in_new_loop(__fn: Callable[..., Awaitable[T]], *args: Any, **kwarg
 
 def in_async_worker_thread() -> bool:
     try:
-        anyio.from_thread.threadlocals.current_async_backend
+        # Try the new anyio 4.x attribute first
+        anyio.from_thread.threadlocals.current_token
     except AttributeError:
-        return False
+        # Fall back to the old anyio 3.x attribute
+        try:
+            anyio.from_thread.threadlocals.current_async_backend
+        except AttributeError:
+            return False
+        else:
+            return True
     else:
         return True
 
