@@ -39,7 +39,19 @@ class ConcurrencyLeaseStorage(LeaseStorage[ConcurrencyLimitLeaseMetadata]):
         self, lease_id: UUID
     ) -> ResourceLease[ConcurrencyLimitLeaseMetadata] | None: ...
 
-    async def renew_lease(self, lease_id: UUID, ttl: timedelta) -> None: ...
+    async def renew_lease(self, lease_id: UUID, ttl: timedelta) -> bool:
+        """
+        Renew a resource lease.
+
+        Args:
+            lease_id: The ID of the lease to renew.
+            ttl: The new amount of time the lease should be held for.
+
+        Returns:
+            True if the lease was successfully renewed, False if the lease
+            does not exist or has already expired.
+        """
+        ...
 
     async def revoke_lease(self, lease_id: UUID) -> None: ...
 

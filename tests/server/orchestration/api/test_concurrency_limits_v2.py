@@ -926,4 +926,4 @@ async def test_renew_concurrency_lease_not_found(
         f"/v2/concurrency_limits/leases/{uuid.uuid4()}/renew",
         json={"lease_duration": 600},
     )
-    assert response.status_code == 404, response.text
+    assert response.status_code == 410, response.text

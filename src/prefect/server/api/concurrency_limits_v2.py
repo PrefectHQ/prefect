@@ -411,13 +411,15 @@ async def renew_concurrency_lease(
     ),
 ) -> None:
     lease_storage = get_concurrency_lease_storage()
-    lease = await lease_storage.read_lease(lease_id)
-    if not lease:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Lease not found"
-        )
 
-    await lease_storage.renew_lease(
+    # Atomically renew the lease (checks existence and updates index in single operation)
+    renewed = await lease_storage.renew_lease(
         lease_id=lease_id,
         ttl=timedelta(seconds=lease_duration),
     )
+
+    if not renewed:
+        raise HTTPException(
+            status_code=status.HTTP_410_GONE,
+            detail="Lease not found - it may have expired or been revoked",
+        )
