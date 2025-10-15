@@ -2011,9 +2011,11 @@ async def orchestrate_task_run(
     )
 
     # Emit an event to capture that the task run was in the `PENDING` state.
-    last_event = emit_task_run_state_change_event(
-        task_run=task_run, initial_state=None, validated_state=task_run.state
-    )
+    with task_run_context:
+        last_event = emit_task_run_state_change_event(
+            task_run=task_run, initial_state=None, validated_state=task_run.state
+        )
+
     last_state = (
         Pending()
         if flow_run_context and flow_run_context.autonomous_task_run
@@ -2107,13 +2109,14 @@ async def orchestrate_task_run(
                 break
 
     # Emit an event to capture the result of proposing a `RUNNING` state.
-    last_event = emit_task_run_state_change_event(
-        task_run=task_run,
-        initial_state=last_state,
-        validated_state=state,
-        follows=last_event,
-    )
-    last_state = state
+    with task_run_context:
+        last_event = emit_task_run_state_change_event(
+            task_run=task_run,
+            initial_state=last_state,
+            validated_state=state,
+            follows=last_event,
+        )
+        last_state = state
 
     # flag to ensure we only update the task run name once
     run_name_set = False
