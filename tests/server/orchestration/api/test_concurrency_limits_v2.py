@@ -926,4 +926,63 @@ async def test_renew_concurrency_lease_not_found(
         f"/v2/concurrency_limits/leases/{uuid.uuid4()}/renew",
         json={"lease_duration": 600},
     )
-    assert response.status_code == 404, response.text
+    assert response.status_code == 410, response.text
+
+
+async def test_renew_concurrency_lease_with_legacy_implementation(
+    expiring_concurrency_lease: ResourceLease[ConcurrencyLimitLeaseMetadata],
+    client: AsyncClient,
+    monkeypatch,
+):
+    """Test that None return value from legacy implementations is treated as success when lease exists."""
+
+    # Get the original implementation
+    lease_storage = get_concurrency_lease_storage()
+    original_renew = lease_storage.renew_lease
+
+    # Create a wrapper that calls the original but returns None (simulating legacy behavior)
+    async def legacy_renew_wrapper(lease_id, ttl):
+        # Call the original to actually renew the lease
+        await original_renew(lease_id, ttl)
+        # But return None like legacy implementations
+        return None
+
+    # Patch the renew_lease method on the storage instance
+    monkeypatch.setattr(lease_storage, "renew_lease", legacy_renew_wrapper)
+
+    # Should succeed (204) even though implementation returned None, because lease exists
+    response = await client.post(
+        f"/v2/concurrency_limits/leases/{expiring_concurrency_lease.id}/renew",
+        json={"lease_duration": 600},
+    )
+    assert response.status_code == 204, response.text
+
+    # Verify the lease was actually renewed
+    lease = await lease_storage.read_lease(expiring_concurrency_lease.id)
+    assert lease is not None
+    assert lease.expiration > expiring_concurrency_lease.expiration
+
+
+async def test_renew_concurrency_lease_with_legacy_implementation_not_found(
+    client: AsyncClient,
+    monkeypatch,
+):
+    """Test that None return value from legacy implementations is treated as error when lease doesn't exist."""
+
+    # Get the lease storage
+    lease_storage = get_concurrency_lease_storage()
+
+    # Create a mock that always returns None (simulating legacy behavior)
+    async def legacy_renew_returns_none(lease_id, ttl):
+        # Legacy implementation returns None regardless of success
+        return None
+
+    # Patch the renew_lease method
+    monkeypatch.setattr(lease_storage, "renew_lease", legacy_renew_returns_none)
+
+    # Should return 410 GONE because lease doesn't exist (even though renew returned None)
+    response = await client.post(
+        f"/v2/concurrency_limits/leases/{uuid.uuid4()}/renew",
+        json={"lease_duration": 600},
+    )
+    assert response.status_code == 410, response.text
