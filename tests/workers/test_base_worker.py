@@ -476,6 +476,36 @@ async def test_worker_releases_limit_slot_when_aborting_a_change_to_pending(
     release_mock.assert_called_once_with(flow_run.id)
 
 
+async def test_worker_handles_double_release_gracefully(
+    prefect_client: PrefectClient,
+    worker_deployment_wq1: WorkQueue,
+    work_pool: WorkPool,
+):
+    """Regression test for https://github.com/PrefectHQ/prefect/issues/19157"""
+
+    def create_run_with_deployment(state: State):
+        return prefect_client.create_flow_run_from_deployment(
+            worker_deployment_wq1.id, state=state
+        )
+
+    flow_run = await create_run_with_deployment(
+        Scheduled(scheduled_time=now_fn("UTC") - timedelta(days=1))
+    )
+
+    async with WorkerTestImpl(work_pool_name=work_pool.name, limit=1) as worker:
+        worker.run = AsyncMock(side_effect=Exception("Docker API error"))
+        worker._work_pool = work_pool
+
+        # Attempt to submit the flow run - should handle double-release gracefully
+        await worker.get_and_submit_flow_runs()
+
+    # After exiting the context, all tasks should be complete and token released
+    # Verify the flow run ended up in a crashed state
+    updated_flow_run = await prefect_client.read_flow_run(flow_run.id)
+    assert updated_flow_run.state is not None
+    assert updated_flow_run.state.is_crashed()
+
+
 async def test_worker_with_work_pool_and_limit(
     prefect_client: PrefectClient,
     worker_deployment_wq1: WorkQueue,
