@@ -23,7 +23,7 @@ export const ArtifactDataDisplay = ({ artifact }: ArtifactDataDisplayProps) => {
 		highlightActiveLineGutter: false,
 	};
 	const { setContainer } = useCodeMirror({
-		container: editor.current,
+		container: null,
 		extensions: [EditorView.lineWrapping],
 		value: String(artifact.data),
 		indentWithTab: false,

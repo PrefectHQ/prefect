@@ -45,6 +45,14 @@ export default tseslint.config(
 			...react.configs["jsx-runtime"].rules,
 			// TypeScript provides type checking; prop-types are unnecessary
 			"react/prop-types": "off",
+			// Suppress React Compiler warning for TanStack Table's useReactTable hook.
+			// TanStack Table v8 has known incompatibility with React Compiler due to
+			// its function-based API that cannot be safely memoized. This is being
+			// addressed in v9 (currently in alpha). See:
+			// - https://github.com/TanStack/table/issues/5903
+			// - https://github.com/facebook/react/issues/33057
+			// - https://github.com/TanStack/table/discussions/5834
+			"react-hooks/incompatible-library": "off",
 		},
 	},
 	...pluginQuery.configs["flat/recommended"],

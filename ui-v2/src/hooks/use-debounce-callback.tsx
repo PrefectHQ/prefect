@@ -1,4 +1,4 @@
-import { useCallback, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 
 /**
  * A custom hook that returns a debounced version of the callback function.
@@ -22,7 +22,9 @@ const useDebounceCallback = <Args extends unknown[], R>(
 	const leadingCallRef = useRef<boolean>(true);
 
 	// Update the callback reference when it changes
-	callbackRef.current = callback;
+	useEffect(() => {
+		callbackRef.current = callback;
+	}, [callback]);
 
 	return useCallback(
 		(...args: Args) => {

@@ -49,7 +49,7 @@ export const PythonInput = React.forwardRef<HTMLDivElement, PythonInputProps>(
 			};
 		}
 		const { setContainer } = useCodeMirror({
-			container: editor.current,
+			container: null,
 			extensions,
 			value,
 			onChange,

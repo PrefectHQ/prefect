@@ -53,7 +53,7 @@ export const JsonInput = React.forwardRef<HTMLDivElement, JsonInputProps>(
 			};
 		}
 		const { setContainer } = useCodeMirror({
-			container: editor.current,
+			container: null,
 			extensions,
 			value,
 			onChange,

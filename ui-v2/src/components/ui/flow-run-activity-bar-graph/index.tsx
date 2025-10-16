@@ -206,6 +206,9 @@ export const FlowRunActivityBarChart = ({
 }: FlowRunActivityBarChartProps) => {
 	const [isTooltipActive, setIsTooltipActive] = useIsTooltipActive(chartId);
 	const containerRef = useRef<HTMLDivElement>(null);
+	const [containerHeight, setContainerHeight] = useState<number | undefined>(
+		undefined,
+	);
 
 	const buckets = organizeFlowRunsWithGaps(
 		enrichedFlowRuns,
@@ -220,7 +223,12 @@ export const FlowRunActivityBarChart = ({
 		stateType: flowRun?.state_type,
 		flowRun,
 	}));
-	const containerHeight = containerRef.current?.getBoundingClientRect().height;
+
+	useEffect(() => {
+		if (containerRef.current) {
+			setContainerHeight(containerRef.current.getBoundingClientRect().height);
+		}
+	}, []);
 	return (
 		<ChartContainer
 			ref={containerRef}

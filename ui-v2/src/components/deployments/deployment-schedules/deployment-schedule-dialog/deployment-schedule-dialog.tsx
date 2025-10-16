@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useMemo, useState } from "react";
 import type { DeploymentSchedule } from "@/api/deployments";
 import {
 	Dialog,
@@ -28,22 +28,22 @@ export const DeploymentScheduleDialog = ({
 	scheduleToEdit,
 	onSubmit,
 }: DeploymentScheduleDialogProps) => {
-	const [scheduleTab, setScheduleTab] = useState<ScheduleTypes>("interval");
-
-	// sync tab with scheduleToEdit
-	useEffect(() => {
+	// Derive initial tab from scheduleToEdit
+	const initialTab = useMemo(() => {
 		if (!scheduleToEdit) {
-			return;
+			return "interval";
 		}
 		const { schedule } = scheduleToEdit;
 		if ("interval" in schedule) {
-			setScheduleTab("interval");
-		} else if ("cron" in schedule) {
-			setScheduleTab("cron");
-		} else {
-			setScheduleTab("rrule");
+			return "interval";
 		}
+		if ("cron" in schedule) {
+			return "cron";
+		}
+		return "rrule";
 	}, [scheduleToEdit]);
+
+	const [scheduleTab, setScheduleTab] = useState<ScheduleTypes>(initialTab);
 
 	const SCHEDULE_TAB_OPTIONS = [
 		{
@@ -73,7 +73,10 @@ export const DeploymentScheduleDialog = ({
 
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
-			<DialogContent aria-describedby={undefined}>
+			<DialogContent
+				aria-describedby={undefined}
+				key={scheduleToEdit?.id ?? "new"}
+			>
 				<DialogHeader>
 					<DialogTitle>{scheduleToEdit ? "Edit" : "Add"} Schedule</DialogTitle>
 				</DialogHeader>

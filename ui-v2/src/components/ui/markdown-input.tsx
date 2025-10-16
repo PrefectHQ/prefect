@@ -52,7 +52,7 @@ export const MarkdownInput = React.forwardRef<
 			};
 		}
 		const { setContainer } = useCodeMirror({
-			container: editor.current,
+			container: null,
 			extensions,
 			value,
 			onChange,
