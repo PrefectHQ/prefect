@@ -21,6 +21,9 @@ from prefect.states import (
     Running,
     State,
     StateGroup,
+    aget_state_exception,
+    araise_state_exception,
+    get_state_exception,
     is_state_iterable,
     raise_state_exception,
     return_value_to_state,
@@ -131,6 +134,48 @@ class TestRaiseStateException:
         actual = test_flow()
         assert isinstance(actual, quote)
         assert isinstance(actual.unquote(), State)
+
+    async def test_aget_state_exception_from_result_record_metadata(self, state_cls):
+        store = ResultStore()
+        exception = ValueError("persisted error")
+        record = store.create_result_record(exception)
+        await store.apersist_result_record(record)
+        state = state_cls(data=record.metadata)
+
+        result = await aget_state_exception(state)
+        assert isinstance(result, ValueError)
+        assert str(result) == "persisted error"
+
+    def test_get_state_exception_from_result_record_metadata(self, state_cls):
+        store = ResultStore()
+        exception = ValueError("persisted error")
+        record = store.create_result_record(exception)
+        store.persist_result_record(record)
+        state = state_cls(data=record.metadata)
+
+        result = get_state_exception(state)
+        assert isinstance(result, ValueError)
+        assert str(result) == "persisted error"
+
+    async def test_araise_state_exception_from_result_record_metadata(self, state_cls):
+        store = ResultStore()
+        exception = ValueError("persisted error")
+        record = store.create_result_record(exception)
+        await store.apersist_result_record(record)
+        state = state_cls(data=record.metadata)
+
+        with pytest.raises(ValueError, match="persisted error"):
+            await araise_state_exception(state)
+
+    def test_raise_state_exception_from_result_record_metadata(self, state_cls):
+        store = ResultStore()
+        exception = ValueError("persisted error")
+        record = store.create_result_record(exception)
+        store.persist_result_record(record)
+        state = state_cls(data=record.metadata)
+
+        with pytest.raises(ValueError, match="persisted error"):
+            raise_state_exception(state)
 
 
 class TestReturnValueToState:
