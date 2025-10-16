@@ -1373,10 +1373,19 @@ class Runner:
                 f"Flow run process exited with non-zero status code {exit_code}.",
             )
 
-        api_flow_run = await self._client.read_flow_run(flow_run_id=flow_run.id)
-        terminal_state = api_flow_run.state
-        if terminal_state and terminal_state.is_crashed():
-            await self._run_on_crashed_hooks(flow_run=flow_run, state=terminal_state)
+        try:
+            api_flow_run = await self._client.read_flow_run(flow_run_id=flow_run.id)
+            terminal_state = api_flow_run.state
+            if terminal_state and terminal_state.is_crashed():
+                await self._run_on_crashed_hooks(
+                    flow_run=flow_run, state=terminal_state
+                )
+        except ObjectNotFound:
+            # Flow run was deleted - log it but don't crash the runner
+            run_logger = self._get_flow_run_logger(flow_run)
+            run_logger.debug(
+                f"Flow run '{flow_run.id}' was deleted before final state could be checked"
+            )
 
         return exit_code
 
@@ -1444,6 +1453,11 @@ class Runner:
         except Abort:
             # Flow run already marked as failed
             pass
+        except ObjectNotFound:
+            # Flow run was deleted - log it but don't crash the runner
+            run_logger.debug(
+                f"Flow run '{flow_run.id}' was deleted before state could be updated"
+            )
         except Exception:
             run_logger.exception(f"Failed to update state of flow run '{flow_run.id}'")
         else:
@@ -1468,7 +1482,14 @@ class Runner:
             )
             return
 
-        await self._client.set_flow_run_state(flow_run.id, state, force=True)
+        try:
+            await self._client.set_flow_run_state(flow_run.id, state, force=True)
+        except ObjectNotFound:
+            # Flow run was deleted - log it but don't crash the runner
+            run_logger = self._get_flow_run_logger(flow_run)
+            run_logger.debug(
+                f"Flow run '{flow_run.id}' was deleted before it could be marked as cancelled"
+            )
 
     async def _run_on_cancellation_hooks(
         self,
