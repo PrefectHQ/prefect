@@ -256,6 +256,7 @@
             "group": "Automations",
             "pages": [
               "v3/advanced/detect-zombie-flows",
+              "v3/advanced/retry-flows-on-submission-failure",
               "v3/advanced/use-custom-event-grammar"
             ]
           },
