@@ -2936,6 +2936,35 @@ class TestRunnerDeployment:
         )
         assert deployment2.name == "flow-from-my.python.module"
 
+    def test_deployment_name_with_dots_from_storage(self, temp_storage: MockStorage):
+        # regression test for deployment name truncation in from_storage
+        # names with dots like "v2.0.1" should not be truncated to "v2"
+        deployment = RunnerDeployment.from_storage(
+            storage=temp_storage,
+            entrypoint="flows.py:test_flow",
+            name="pricing-subflow-v2.0.1",
+        )
+        assert deployment.name == "pricing-subflow-v2.0.1"
+
+        # test with multiple dots
+        deployment2 = RunnerDeployment.from_storage(
+            storage=temp_storage,
+            entrypoint="flows.py:test_flow",
+            name="my-flow-v1.2.3.4",
+        )
+        assert deployment2.name == "my-flow-v1.2.3.4"
+
+    async def test_deployment_name_with_dots_from_storage_async(
+        self, temp_storage: MockStorage
+    ):
+        # regression test for deployment name truncation in afrom_storage
+        deployment = await RunnerDeployment.afrom_storage(
+            storage=temp_storage,
+            entrypoint="flows.py:test_flow",
+            name="pricing-subflow-v2.0.1",
+        )
+        assert deployment.name == "pricing-subflow-v2.0.1"
+
     async def test_from_flow_with_frozen_parameters(
         self, prefect_client: PrefectClient
     ):
