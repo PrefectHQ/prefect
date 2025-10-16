@@ -215,30 +215,66 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
             logger.error(f"Failed to read lease {lease_id}: {e}")
             raise
 
-    async def renew_lease(self, lease_id: UUID, ttl: timedelta) -> None:
+    async def renew_lease(self, lease_id: UUID, ttl: timedelta) -> bool:
+        """
+        Atomically renew a concurrency lease by updating its expiration.
+
+        Uses a Lua script to atomically check if the lease exists, update its expiration
+        in the lease data, and update the index - all in a single atomic operation,
+        preventing race conditions from creating orphaned index entries.
+
+        Args:
+            lease_id: The ID of the lease to renew
+            ttl: The new time-to-live duration
+
+        Returns:
+            True if the lease was renewed, False if it didn't exist
+        """
         try:
             lease_key = self._lease_key(lease_id)
-
-            # Get the existing lease
-            data = await self.redis_client.get(lease_key)
-            if data is None:
-                return
-
-            lease = self._deserialize_lease(data)
-
-            # Update expiration
             new_expiration = datetime.now(timezone.utc) + ttl
-            lease.expiration = new_expiration
-            serialized_lease = self._serialize_lease(lease)
+            new_expiration_iso = new_expiration.isoformat()
+            new_expiration_timestamp = new_expiration.timestamp()
 
-            # Use pipeline for atomic operations
-            pipe = self.redis_client.pipeline()
-            pipe.set(lease_key, serialized_lease)
-            pipe.zadd(
+            # Lua script to atomically get, update, and store lease + index
+            # All operations are atomic - no TOCTOU race condition possible
+            renew_lease_script = """
+            local lease_key = KEYS[1]
+            local expirations_key = KEYS[2]
+            local lease_id = ARGV[1]
+            local new_expiration_timestamp = tonumber(ARGV[2])
+            local new_expiration_iso = ARGV[3]
+
+            -- Get existing lease data
+            local serialized_lease = redis.call('get', lease_key)
+            if not serialized_lease then
+                -- Lease doesn't exist - clean up any orphaned index entry
+                redis.call('zrem', expirations_key, lease_id)
+                return 0
+            end
+
+            -- Parse lease data, update expiration, and save back
+            local lease_data = cjson.decode(serialized_lease)
+            lease_data['expiration'] = new_expiration_iso
+            redis.call('set', lease_key, cjson.encode(lease_data))
+
+            -- Update the expiration index
+            redis.call('zadd', expirations_key, new_expiration_timestamp, lease_id)
+            return 1
+            """
+
+            # Execute the atomic Lua script
+            result = await self.redis_client.eval(
+                renew_lease_script,
+                2,  # number of keys
+                lease_key,
                 self.expirations_key,
-                {str(lease_id): new_expiration.timestamp()},
+                str(lease_id),
+                new_expiration_timestamp,
+                new_expiration_iso,
             )
-            await pipe.execute()
+
+            return bool(result)
         except RedisError as e:
             logger.error(f"Failed to renew lease {lease_id}: {e}")
             raise

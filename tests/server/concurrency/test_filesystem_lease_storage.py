@@ -236,7 +236,9 @@ class TestFilesystemConcurrencyLeaseStorage:
 
         # Renew the lease
         new_ttl = timedelta(minutes=10)
-        await storage.renew_lease(lease_id, new_ttl)
+        renewed = await storage.renew_lease(lease_id, new_ttl)
+
+        assert renewed is True
 
         # Check that expiration was updated
         with open(lease_files[0], "r") as f:
@@ -247,8 +249,8 @@ class TestFilesystemConcurrencyLeaseStorage:
 
     async def test_renew_lease_non_existing(self, storage: ConcurrencyLeaseStorage):
         non_existing_id = uuid4()
-        # Should not raise an exception
-        await storage.renew_lease(non_existing_id, timedelta(minutes=5))
+        renewed = await storage.renew_lease(non_existing_id, timedelta(minutes=5))
+        assert renewed is False
 
     async def test_renew_lease_corrupted_file(
         self, storage: ConcurrencyLeaseStorage, sample_resource_ids: list[UUID]
@@ -268,8 +270,9 @@ class TestFilesystemConcurrencyLeaseStorage:
         with open(lease_files[0], "w") as f:
             f.write("invalid json content")
 
-        # Renewing should clean up the corrupted file
-        await storage.renew_lease(lease_id, timedelta(minutes=10))
+        # Renewing should clean up the corrupted file and return False
+        renewed = await storage.renew_lease(lease_id, timedelta(minutes=10))
+        assert renewed is False
 
         # File should be cleaned up (excluding expiration index)
         lease_files = [

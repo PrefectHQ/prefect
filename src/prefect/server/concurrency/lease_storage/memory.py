@@ -53,8 +53,27 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
     ) -> ResourceLease[ConcurrencyLimitLeaseMetadata] | None:
         return self.leases.get(lease_id)
 
-    async def renew_lease(self, lease_id: UUID, ttl: timedelta) -> None:
+    async def renew_lease(self, lease_id: UUID, ttl: timedelta) -> bool:
+        """
+        Atomically renew a concurrency lease by updating its expiration.
+
+        Checks if the lease exists before updating the expiration index,
+        preventing orphaned index entries.
+
+        Args:
+            lease_id: The ID of the lease to renew
+            ttl: The new time-to-live duration
+
+        Returns:
+            True if the lease was renewed, False if it didn't exist
+        """
+        if lease_id not in self.leases:
+            # Clean up any orphaned expiration entry
+            self.expirations.pop(lease_id, None)
+            return False
+
         self.expirations[lease_id] = datetime.now(timezone.utc) + ttl
+        return True
 
     async def revoke_lease(self, lease_id: UUID) -> None:
         self.leases.pop(lease_id, None)
