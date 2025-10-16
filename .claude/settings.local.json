@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -m pytest tests/server/concurrency/test_memory_lease_storage.py::TestMemoryConcurrencyLeaseStorage::test_renew_lease -xvs)",
+      "Bash(python -m pytest:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

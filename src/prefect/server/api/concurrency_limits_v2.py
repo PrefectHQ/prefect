@@ -418,8 +418,16 @@ async def renew_concurrency_lease(
         ttl=timedelta(seconds=lease_duration),
     )
 
-    # None is treated as success for backwards compatibility with older implementations
-    if renewed is False:
+    # Handle the three possible return values:
+    # - True: lease successfully renewed
+    # - False: lease not found or expired
+    # - None: legacy implementation (check lease existence to determine success)
+    lease = None
+    if renewed is None:
+        # Legacy implementation returned None - check if lease actually exists
+        lease = await lease_storage.read_lease(lease_id)
+
+    if renewed is False or (renewed is None and lease is None):
         raise HTTPException(
             status_code=status.HTTP_410_GONE,
             detail="Lease not found - it may have expired or been revoked",
