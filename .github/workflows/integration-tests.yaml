@@ -87,7 +87,7 @@ jobs:
           PREFECT_SERVER_CONCURRENCY_LEASE_STORAGE: "prefect.server.concurrency.lease_storage.filesystem"
           SERVER_VERSION: ${{ matrix.server-version.version }}
         run: >
-          uv run pytest integration-tests/ -n auto -vv
+          uv run pytest integration-tests/ -vv
 
       - name: Show server logs
         if: always()
