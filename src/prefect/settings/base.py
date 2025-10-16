@@ -268,7 +268,7 @@ def _to_environment_variable_value(
     value: list[object] | set[object] | tuple[object] | Any,
 ) -> str:
     if isinstance(value, (list, set, tuple)):
-        return ",".join(str(v) for v in value)
+        return ",".join(str(v) for v in sorted(value, key=str))
     if isinstance(value, dict):
         return json.dumps(value)
     return str(value)
