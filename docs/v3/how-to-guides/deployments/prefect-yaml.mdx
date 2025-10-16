@@ -171,6 +171,29 @@ In the build step example above, you relied on the `prefect-docker` package; in 
 additional required packages are auto-installed for you.
 </Note>
 
+<Tip>
+**Passing Docker build arguments**
+
+The `build_docker_image` step accepts any keyword arguments supported by the Docker Python SDK's [`build` method](https://docker-py.readthedocs.io/en/stable/images.html#docker.models.images.ImageCollection.build). This allows you to customize the Docker build process beyond the explicitly documented parameters.
+
+Common examples:
+
+```yaml
+build:
+  - prefect_docker.deployments.steps.build_docker_image:
+      image_name: my-repo/my-image
+      tag: my-tag
+      dockerfile: auto
+      nocache: true           # Disable Docker layer caching (--no-cache)
+      pull: true              # Always pull the latest base image
+      platform: linux/amd64   # Specify target platform
+      buildargs:              # Pass build-time variables
+        MY_ARG: value
+```
+
+Note: `ignore_cache` is a separate parameter that controls **Prefect's step-level caching** (whether to reuse the entire build step result across `prefect deploy --all` runs), not Docker's layer caching.
+</Tip>
+
 **Pass output to downstream steps**
 
 Each deployment action can be composed of multiple steps. For example, to build a Docker image tagged with the
