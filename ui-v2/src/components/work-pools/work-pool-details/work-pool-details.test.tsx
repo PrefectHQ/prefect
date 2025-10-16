@@ -1,6 +1,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor } from "@testing-library/react";
 import { buildApiUrl } from "@tests/utils/handlers";
+import { subYears } from "date-fns";
 import { HttpResponse, http } from "msw";
 import { setupServer } from "msw/node";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
@@ -8,14 +9,17 @@ import type { WorkPool } from "@/api/work-pools";
 import { createFakeWorkPoolWorker } from "@/mocks";
 import { WorkPoolDetails } from "./work-pool-details";
 
+// Create a date that's exactly 1.5 years ago to ensure it formats as "over 1 year ago"
+const overOneYearAgo = subYears(new Date(), 1.5).toISOString();
+
 const mockWorkers = [
 	createFakeWorkPoolWorker({
 		name: "worker-1",
-		last_heartbeat_time: "2024-01-15T14:30:00Z",
+		last_heartbeat_time: overOneYearAgo,
 	}),
 	createFakeWorkPoolWorker({
 		name: "worker-2",
-		last_heartbeat_time: "2024-01-15T14:00:00Z",
+		last_heartbeat_time: overOneYearAgo,
 	}),
 ];
 
@@ -26,8 +30,8 @@ const mockWorkPool: WorkPool = {
 	type: "docker",
 	status: "READY",
 	concurrency_limit: 10,
-	created: "2024-01-15T10:00:00Z",
-	updated: "2024-01-15T12:00:00Z",
+	created: overOneYearAgo,
+	updated: overOneYearAgo,
 	is_paused: false,
 	base_job_template: {
 		job_configuration: {
