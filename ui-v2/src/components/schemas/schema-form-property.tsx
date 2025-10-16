@@ -1,5 +1,12 @@
 import type { ReferenceObject, SchemaObject } from "openapi-typescript";
-import { useCallback, useEffect, useId, useMemo, useState } from "react";
+import {
+	useCallback,
+	useEffect,
+	useId,
+	useMemo,
+	useRef,
+	useState,
+} from "react";
 import { DropdownMenuItem } from "../ui/dropdown-menu";
 import { SchemaFormInput } from "./schema-form-input";
 import { SchemaFormPropertyDescription } from "./schema-form-property-description";
@@ -53,10 +60,34 @@ export function SchemaFormProperty({
 		);
 	}, [errors]);
 
-	const [initialized, setInitialized] = useState(false);
+	function getInitialValue() {
+		if (isDefined(value)) {
+			return value;
+		}
+
+		if (isDefined(property.default) && !skipDefaultValueInitialization) {
+			return property.default;
+		}
+
+		return undefined;
+	}
+
+	const initializedRef = useRef(false);
 	const [internalValue, setInternalValue] = useState(getInitialValue);
 	const [omitted, setOmitted] = useState(false);
 	const id = useId();
+
+	// Initialize default value only once
+	// biome-ignore lint/correctness/useExhaustiveDependencies: Intentionally runs only once on mount
+	useEffect(() => {
+		if (!initializedRef.current && !skipDefaultValueInitialization) {
+			if (isDefined(property.default) && !isDefined(value)) {
+				queueMicrotask(() => onValueChange(property.default));
+			}
+			initializedRef.current = true;
+		}
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, []); // Empty deps - only run once on mount
 
 	const handleValueChange = useCallback(
 		(value: unknown) => {
@@ -72,36 +103,6 @@ export function SchemaFormProperty({
 		setOmitted(isOmitted);
 		onValueChange(isOmitted ? undefined : internalValue);
 	}, [omitted, onValueChange, internalValue]);
-
-	useEffect(() => {
-		if (initialized || skipDefaultValueInitialization) {
-			return;
-		}
-
-		if (isDefined(property.default) && !isDefined(value)) {
-			onValueChange(property.default);
-		}
-
-		setInitialized(true);
-	}, [
-		initialized,
-		skipDefaultValueInitialization,
-		onValueChange,
-		property.default,
-		value,
-	]);
-
-	function getInitialValue() {
-		if (isDefined(value)) {
-			return value;
-		}
-
-		if (isDefined(property.default) && !skipDefaultValueInitialization) {
-			return property.default;
-		}
-
-		return undefined;
-	}
 
 	return (
 		<div className="flex flex-col gap-2 group">

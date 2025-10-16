@@ -54,15 +54,18 @@ const SearchInput = React.forwardRef<HTMLInputElement, SearchInputProps>(
 		}>({ value });
 		const debouncedValue = useDebounce(state.value, debounceMs);
 
+		// Sync external value changes
+		useEffect(() => {
+			if (value !== state.value) {
+				queueMicrotask(() => setState((prev) => ({ ...prev, value })));
+			}
+		}, [value, state.value]);
+
 		useEffect(() => {
 			if (debouncedValue && state.event) {
 				onChange?.(state.event);
 			}
 		}, [debouncedValue, onChange, state.event]);
-
-		useEffect(() => {
-			setState({ value });
-		}, [value]);
 
 		return (
 			<IconInput

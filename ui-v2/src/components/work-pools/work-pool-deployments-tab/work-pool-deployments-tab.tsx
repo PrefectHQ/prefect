@@ -103,7 +103,7 @@ export const WorkPoolDeploymentsTab = ({
 			...deployment,
 			flow: flowMap.get(deployment.flow_id),
 		}));
-	}, [paginatedData?.results, flows]);
+	}, [paginatedData, flows]);
 
 	const handlePaginationChange = useCallback(
 		(newPagination: PaginationState) => {

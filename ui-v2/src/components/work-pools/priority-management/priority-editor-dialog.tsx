@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import type { WorkPoolQueue } from "@/api/work-pool-queues";
 import { Button } from "@/components/ui/button";
@@ -29,21 +29,28 @@ export const PriorityEditorDialog = ({
 	onOpenChange,
 	onUpdated,
 }: PriorityEditorDialogProps) => {
-	const [priorities, setPriorities] = useState<Record<string, number>>({});
+	// Initialize priorities from queues when dialog opens
+	const getInitialPriorities = useCallback(() => {
+		return queues.reduce(
+			(acc, queue) => {
+				acc[queue.id] = queue.priority ?? 1;
+				return acc;
+			},
+			{} as Record<string, number>,
+		);
+	}, [queues]);
+
+	const [priorities, setPriorities] =
+		useState<Record<string, number>>(getInitialPriorities);
 	const updatePrioritiesMutation = useBulkUpdatePrioritiesMutation();
 
+	// Reset priorities when dialog opens
 	useEffect(() => {
 		if (open) {
-			const initialPriorities = queues.reduce(
-				(acc, queue) => {
-					acc[queue.id] = queue.priority ?? 1;
-					return acc;
-				},
-				{} as Record<string, number>,
-			);
-			setPriorities(initialPriorities);
+			const initialPriorities = getInitialPriorities();
+			queueMicrotask(() => setPriorities(initialPriorities));
 		}
-	}, [open, queues]);
+	}, [open, getInitialPriorities]);
 
 	const handleSave = () => {
 		const updates = queues.map((queue) => ({

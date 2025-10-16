@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { buildPaginateFlowRunsQuery } from "@/api/flow-runs";
 import {
 	Combobox,
@@ -63,17 +63,22 @@ export function FlowRunTagsSelect({
 		[onChange, value],
 	);
 
-	// Add on trailing comma for quick entry (matches common tags UX)
-	useEffect(() => {
-		const trimmed = search.trim();
-		if (trimmed.endsWith(",")) {
-			const tag = trimmed.replace(/,+$/, "").trim();
-			if (tag) {
-				addFreeformTag(tag);
+	// Handle search changes and detect trailing comma for quick entry
+	const handleSearchChange = useCallback(
+		(newSearch: string) => {
+			const trimmed = newSearch.trim();
+			if (trimmed.endsWith(",")) {
+				const tag = trimmed.replace(/,+$/, "").trim();
+				if (tag) {
+					addFreeformTag(tag);
+				}
+				setSearch("");
+			} else {
+				setSearch(newSearch);
 			}
-			setSearch("");
-		}
-	}, [search, addFreeformTag]);
+		},
+		[addFreeformTag],
+	);
 
 	const triggerLabel = (
 		<span className="text-muted-foreground">
@@ -104,7 +109,7 @@ export function FlowRunTagsSelect({
 				<ComboboxContent>
 					<ComboboxCommandInput
 						value={search}
-						onValueChange={setSearch}
+						onValueChange={handleSearchChange}
 						placeholder="Search or enter new tag"
 						onKeyDown={(e) => {
 							const query = search.trim();

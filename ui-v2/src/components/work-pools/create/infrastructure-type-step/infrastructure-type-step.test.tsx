@@ -62,8 +62,8 @@ describe("InfrastructureTypeStep", () => {
 			mockWorkersResponse,
 		);
 
+		const QueryWrapper = createWrapper({ queryClient });
 		const Wrapper = ({ children }: { children: React.ReactNode }) => {
-			const QueryWrapper = createWrapper({ queryClient });
 			return (
 				<QueryWrapper>
 					<TestWrapper>{children}</TestWrapper>

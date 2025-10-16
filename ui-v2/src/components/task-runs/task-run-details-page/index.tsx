@@ -54,28 +54,26 @@ export const TaskRunDetailsPage = ({
 	tab,
 	onTabChange,
 }: TaskRunDetailsPageProps) => {
-	const [refetchInterval, setRefetchInterval] = useState<number | false>(false);
+	const [shouldRefetch, setShouldRefetch] = useState(true);
 	const { data: taskRun } = useSuspenseQuery({
 		...buildGetTaskRunDetailsQuery(id),
-		refetchInterval,
+		// Derive refetchInterval directly from the query data
+		refetchInterval: (data) => {
+			if (!shouldRefetch) return false;
+			return data?.state_type === "RUNNING" || data?.state_type === "PENDING"
+				? 5000
+				: false;
+		},
 	});
 	const { deleteTaskRun } = useDeleteTaskRun();
 	const { navigate } = useRouter();
-
-	useEffect(() => {
-		if (taskRun.state_type === "RUNNING" || taskRun.state_type === "PENDING") {
-			setRefetchInterval(5000);
-		} else {
-			setRefetchInterval(false);
-		}
-	}, [taskRun]);
 
 	const onDeleteRunClicked = () => {
 		deleteTaskRun(
 			{ id: taskRun.id },
 			{
 				onSuccess: () => {
-					setRefetchInterval(false);
+					setShouldRefetch(false);
 					toast.success("Task run deleted");
 					if (taskRun.flow_run_id) {
 						void navigate({

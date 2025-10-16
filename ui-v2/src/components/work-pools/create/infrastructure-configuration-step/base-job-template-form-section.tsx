@@ -34,7 +34,7 @@ export function BaseJobTemplateFormSection({
 			variablesSchema?.properties &&
 			Object.keys(variablesSchema.properties).length > 0
 		);
-	}, [variablesSchema?.properties]);
+	}, [variablesSchema]);
 
 	// Get default values from schema properties
 	const defaultValues = useMemo<SchemaFormValues>(() => {
@@ -47,7 +47,7 @@ export function BaseJobTemplateFormSection({
 			}
 		});
 		return defaults;
-	}, [variablesSchema?.properties]);
+	}, [variablesSchema]);
 
 	const [schemaValues, setSchemaValues] = useSchemaFormValues(defaultValues);
 	const [schemaErrors] = useSchemaFormErrors([]);

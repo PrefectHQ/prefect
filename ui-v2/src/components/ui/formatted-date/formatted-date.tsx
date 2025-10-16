@@ -29,17 +29,21 @@ export const FormattedDate = ({
 	}
 
 	// Parse the date
-	let parsedDate: Date;
+	let parsedDate: Date | null = null;
+	let isInvalidDate = false;
 	try {
-		parsedDate = typeof date === "string" ? parseISO(date) : date;
-		if (!isValid(parsedDate)) {
-			return (
-				<span className={cn("text-muted-foreground", className)}>
-					Invalid date
-				</span>
-			);
+		const temp = typeof date === "string" ? parseISO(date) : date;
+		if (!isValid(temp)) {
+			isInvalidDate = true;
+		} else {
+			parsedDate = temp;
 		}
 	} catch {
+		isInvalidDate = true;
+	}
+
+	// Handle invalid date outside try/catch
+	if (isInvalidDate || !parsedDate) {
 		return (
 			<span className={cn("text-muted-foreground", className)}>
 				Invalid date

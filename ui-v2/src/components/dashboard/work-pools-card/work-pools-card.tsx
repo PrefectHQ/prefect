@@ -105,7 +105,7 @@ const DashboardWorkPoolCard = ({
 						},
 					}
 				: undefined,
-		[filter?.startDate, filter?.endDate, workPool.id],
+		[filter, workPool.id],
 	);
 
 	return (
@@ -495,7 +495,7 @@ const WorkPoolMiniBarChart = ({
 						},
 					}
 				: undefined,
-		[filter?.startDate, filter?.endDate, workPool.id],
+		[filter, workPool.id],
 	);
 
 	const { data: flowRuns } = useQuery({

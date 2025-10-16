@@ -171,7 +171,7 @@ export const WorkPoolFlowRunsTab = ({
 				};
 			})
 			.filter((flowRun) => flowRun !== null) as FlowRunWithFlow[];
-	}, [paginatedData?.results, flows]);
+	}, [paginatedData, flows]);
 
 	const handleSearchChange = useCallback(
 		(event: React.ChangeEvent<HTMLInputElement>) => {

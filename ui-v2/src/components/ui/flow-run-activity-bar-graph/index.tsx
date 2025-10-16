@@ -119,24 +119,39 @@ const useIsTooltipActive = (
 	const { currentHolder, takeCurrentHolder, releaseCurrentHolder } = useContext(
 		FlowRunActivityBarGraphTooltipContext,
 	);
+	const timerRef = useRef<NodeJS.Timeout | null>(null);
 
 	useEffect(() => {
+		// Clear any pending timer
+		if (timerRef.current) {
+			clearTimeout(timerRef.current);
+			timerRef.current = null;
+		}
+
 		if (currentHolder && chartId !== currentHolder) {
-			setExternalValue(false);
+			// Another chart is active, hide this tooltip
+			queueMicrotask(() => setExternalValue(false));
 		} else if (internalValue) {
+			// This tooltip is becoming active
 			if (chartId) {
 				takeCurrentHolder(chartId);
 			}
-			setExternalValue(true);
+			queueMicrotask(() => setExternalValue(true));
 		} else {
-			const timer = setTimeout(() => {
+			// Hide tooltip with delay
+			timerRef.current = setTimeout(() => {
 				setExternalValue(undefined);
 				if (chartId) {
 					releaseCurrentHolder(chartId);
 				}
 			}, leaveDelay);
-			return () => clearTimeout(timer);
 		}
+
+		return () => {
+			if (timerRef.current) {
+				clearTimeout(timerRef.current);
+			}
+		};
 	}, [
 		internalValue,
 		leaveDelay,

@@ -54,37 +54,32 @@ function SelectedCount({
 
 	const selectedRowsList = Array.from(selectedRows);
 
-	const ToggleCheckbox = () => {
-		const isAllRowsSelected = resultsIds.every((id) => selectedRows.has(id));
-		const isSomeRowsSelected = resultsIds.some((id) => selectedRows.has(id));
-		let checkedState: CheckedState = false;
-		if (isAllRowsSelected) {
-			checkedState = true;
-		} else if (isSomeRowsSelected) {
-			checkedState = "indeterminate";
-		}
-		return (
-			<Checkbox
-				className="block"
-				checked={checkedState}
-				onCheckedChange={(checked) => {
-					if (checked) {
-						setSelectedRows(new Set(resultsIds));
-					} else {
-						setSelectedRows(new Set());
-					}
-				}}
-				aria-label="Toggle all"
-			/>
-		);
-	};
+	const isAllRowsSelected = resultsIds.every((id) => selectedRows.has(id));
+	const isSomeRowsSelected = resultsIds.some((id) => selectedRows.has(id));
+	let checkedState: CheckedState = false;
+	if (isAllRowsSelected) {
+		checkedState = true;
+	} else if (isSomeRowsSelected) {
+		checkedState = "indeterminate";
+	}
 
 	// If has selected rows
 	if (selectedRows.size > 0)
 		return (
 			<>
 				<div className="flex items-center gap-2">
-					<ToggleCheckbox />
+					<Checkbox
+						className="block"
+						checked={checkedState}
+						onCheckedChange={(checked) => {
+							if (checked) {
+								setSelectedRows(new Set(resultsIds));
+							} else {
+								setSelectedRows(new Set());
+							}
+						}}
+						aria-label="Toggle all"
+					/>
 					<Typography variant="bodySmall" className="text-muted-foreground">
 						{selectedRowsList.length} selected
 					</Typography>
