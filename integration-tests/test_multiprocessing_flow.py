@@ -2,23 +2,23 @@
 Regression test for https://github.com/PrefectHQ/prefect/issues/9329#issuecomment-2423021074
 """
 
+import asyncio
 import multiprocessing as mp
-import signal
-from datetime import timedelta
 
 from prefect import flow, get_client
 from prefect.client.schemas.filters import DeploymentFilter, DeploymentFilterTags
-from prefect.settings import PREFECT_RUNNER_POLL_FREQUENCY, temporary_settings
+from prefect.client.schemas.objects import FlowRun
+from prefect.runner.runner import Runner
 
 
-def read_flow_runs(tags):
+def read_flow_runs(tags: list[str]) -> list[FlowRun]:
     with get_client(sync_client=True) as client:
         return client.read_flow_runs(
             deployment_filter=DeploymentFilter(tags=DeploymentFilterTags(all_=tags))
         )
 
 
-def _task(i):
+def _task(i: int) -> None:
     pass
 
 
@@ -28,29 +28,12 @@ def main():
         pool.map(_task, range(5))
 
 
-def _handler(signum, frame):
-    raise KeyboardInterrupt("Simulating user interruption")
-
-
 def test_multiprocessing_flow():
-    TIMEOUT: int = 15
-    INTERVAL_SECONDS: int = 3
     TAGS = ["unique", "integration"]
 
-    signal.signal(signal.SIGALRM, _handler)
-    signal.alarm(TIMEOUT)
-
-    with temporary_settings({PREFECT_RUNNER_POLL_FREQUENCY: 1}):
-        try:
-            main.serve(
-                name="mp-integration",
-                interval=timedelta(seconds=INTERVAL_SECONDS),
-                tags=TAGS,
-            )
-        except KeyboardInterrupt as e:
-            print(str(e))
-        finally:
-            signal.alarm(0)
+    runner = Runner()
+    runner.add_flow(main, tags=TAGS)
+    asyncio.run(runner.start(run_once=True))
 
     runs = read_flow_runs(TAGS)
     assert len(runs) >= 1
