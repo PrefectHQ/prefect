@@ -4,17 +4,20 @@ Regression test for https://github.com/PrefectHQ/prefect/issues/9329#issuecommen
 
 import asyncio
 import multiprocessing as mp
+from uuid import UUID
 
 from prefect import flow, get_client
-from prefect.client.schemas.filters import DeploymentFilter, DeploymentFilterTags
+from prefect.client.schemas.filters import DeploymentFilter, DeploymentFilterId
 from prefect.client.schemas.objects import FlowRun
 from prefect.runner.runner import Runner
 
 
-def read_flow_runs(tags: list[str]) -> list[FlowRun]:
+def read_flow_runs(deployment_id: UUID) -> list[FlowRun]:
     with get_client(sync_client=True) as client:
         return client.read_flow_runs(
-            deployment_filter=DeploymentFilter(tags=DeploymentFilterTags(all_=tags))
+            deployment_filter=DeploymentFilter(
+                id=DeploymentFilterId(any_=[deployment_id])
+            )
         )
 
 
@@ -31,12 +34,18 @@ def main():
 def test_multiprocessing_flow():
     TAGS = ["unique", "integration"]
 
-    runner = Runner()
-    runner.add_flow(main, tags=TAGS)
-    asyncio.run(runner.start(run_once=True))
+    with get_client(sync_client=True) as client:
+        runner = Runner()
+        deployment_id = runner.add_flow(main, tags=TAGS)
+        client.create_flow_run_from_deployment(deployment_id)
+        asyncio.run(runner.start(run_once=True))
 
-    runs = read_flow_runs(TAGS)
-    assert len(runs) >= 1
-    assert [run.state.is_completed() for run in runs]
+        runs = client.read_flow_runs(
+            deployment_filter=DeploymentFilter(
+                id=DeploymentFilterId(any_=[deployment_id])
+            )
+        )
+        assert len(runs) >= 1
+        assert [run.state.is_completed() for run in runs]
 
-    print("Successfully ran a multiprocessing flow")
+        print("Successfully ran a multiprocessing flow")
