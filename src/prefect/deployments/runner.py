@@ -861,7 +861,7 @@ class RunnerDeployment(BaseModel):
             concurrency_options = None
 
         deployment = cls(
-            name=Path(name).stem,
+            name=name,
             flow_name=flow_name or flow.name,
             schedules=constructed_schedules,
             concurrency_limit=concurrency_limit,
@@ -982,7 +982,7 @@ class RunnerDeployment(BaseModel):
             )
 
         deployment = cls(
-            name=Path(name).stem,
+            name=name,
             flow_name=flow_name or flow.name,
             schedules=constructed_schedules,
             concurrency_limit=concurrency_limit,
@@ -1106,7 +1106,7 @@ class RunnerDeployment(BaseModel):
             flow = load_flow_from_entrypoint(full_entrypoint)
 
         deployment = cls(
-            name=Path(name).stem,
+            name=name,
             flow_name=flow_name or flow.name,
             schedules=constructed_schedules,
             concurrency_limit=concurrency_limit,
