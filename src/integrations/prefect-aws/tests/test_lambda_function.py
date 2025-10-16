@@ -7,7 +7,7 @@ from typing import Optional
 import boto3
 import pytest
 from botocore.response import StreamingBody
-from moto import mock_iam, mock_lambda
+from moto import mock_aws
 from prefect_aws.credentials import AwsCredentials
 from prefect_aws.lambda_function import LambdaFunction
 from pydantic_core import from_json, to_json
@@ -17,7 +17,7 @@ from prefect import flow
 
 @pytest.fixture
 def lambda_mock(aws_credentials: AwsCredentials):
-    with mock_lambda():
+    with mock_aws():
         yield boto3.client(
             "lambda",
             region_name=aws_credentials.region_name,
@@ -26,7 +26,7 @@ def lambda_mock(aws_credentials: AwsCredentials):
 
 @pytest.fixture
 def iam_mock(aws_credentials: AwsCredentials):
-    with mock_iam():
+    with mock_aws():
         yield boto3.client(
             "iam",
             region_name=aws_credentials.region_name,

@@ -5,6 +5,7 @@
 # dependencies: ["prefect", "prefect-dbt>=0.7.0rc1", "dbt-core", "dbt-duckdb"]
 # keywords: ["dbt", "materialization", "tasks", "analytics"]
 # draft: false
+# order: 3
 # ---
 #
 # **Transform unreliable dbt scripts into production-grade data pipelines with enterprise observability, automatic failure recovery, and zero-downtime deployments.**

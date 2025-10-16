@@ -478,6 +478,94 @@ class TestProcessPoolTaskRunner:
 
         assert test_flow().result() == 0
 
+    def test_submit_with_wait_for(self):
+        """
+        Test for issue #19113: ProcessPoolTaskRunner should handle wait_for without pickle errors.
+        This ensures futures can be passed via wait_for and are resolved before subprocess execution.
+        """
+
+        @task
+        def add_one(x: int) -> int:
+            return x + 1
+
+        @flow(task_runner=ProcessPoolTaskRunner(max_workers=2))
+        def test_flow():
+            future_a = add_one.submit(1)
+            future_b = add_one.submit(2, wait_for=[future_a])
+            future_c = add_one.submit(3, wait_for=[future_b])
+            return future_a.result(), future_b.result(), future_c.result()
+
+        result = test_flow()
+        assert result == (2, 3, 4)
+
+    def test_submit_with_future_as_parameter(self):
+        """
+        Test for issue #19113: ProcessPoolTaskRunner should handle futures as parameters.
+        This ensures futures can be passed as task parameters and are resolved before subprocess execution.
+        """
+
+        @task
+        def multiply_by_two(x: int) -> int:
+            return x * 2
+
+        @flow(task_runner=ProcessPoolTaskRunner(max_workers=2))
+        def test_flow():
+            future_a = multiply_by_two.submit(5)
+            future_b = multiply_by_two.submit(future_a)  # Pass future as parameter
+            return future_a.result(), future_b.result()
+
+        result = test_flow()
+        assert result == (10, 20)
+
+    def test_submit_with_multiple_futures_as_parameters(self):
+        """
+        Test futures as parameters with multiple dependencies.
+        Ensures complex future resolution works correctly.
+        """
+
+        @task
+        def add(x: int, y: int) -> int:
+            return x + y
+
+        @flow(task_runner=ProcessPoolTaskRunner(max_workers=2))
+        def test_flow():
+            future_a = add.submit(1, 2)
+            future_b = add.submit(3, 4)
+            future_c = add.submit(future_a, future_b)  # Both params are futures
+            return future_a.result(), future_b.result(), future_c.result()
+
+        result = test_flow()
+        assert result == (3, 7, 10)
+
+    def test_submit_remains_non_blocking(self):
+        """
+        Test that submit() returns immediately even when waiting for futures.
+        This ensures the fix maintains non-blocking behavior.
+        """
+
+        @task
+        def slow_add(x: int, y: int) -> int:
+            time.sleep(0.5)
+            return x + y
+
+        @flow(task_runner=ProcessPoolTaskRunner(max_workers=2))
+        def test_flow():
+            import time
+
+            start = time.time()
+            future_a = slow_add.submit(1, 2)
+            future_b = slow_add.submit(3, 4, wait_for=[future_a])
+
+            # submit() should return quickly, even though future_a hasn't completed
+            submit_duration = time.time() - start
+            assert submit_duration < 0.5, "submit() should be non-blocking"
+
+            # Now wait for results
+            return future_a.result(), future_b.result()
+
+        result = test_flow()
+        assert result == (3, 7)
+
 
 class TestPrefectTaskRunner:
     @pytest.fixture(autouse=True)

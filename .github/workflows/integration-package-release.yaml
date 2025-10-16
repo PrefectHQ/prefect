@@ -42,13 +42,13 @@ jobs:
           cache-dependency-path: "requirements*.txt"
 
       - name: Set up uv
-        uses: astral-sh/setup-uv@v6
+        uses: astral-sh/setup-uv@v7
         if: ${{ steps.package_name.outputs.PACKAGE_NAME }} == 'prefect-aws'
         with:
           version: latest
 
       - name: Set up node
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v6
         if: ${{ steps.package_name.outputs.PACKAGE_NAME }} == 'prefect-aws'
         with:
           node-version-file: "src/integrations/prefect-aws/infra/.nvmrc"

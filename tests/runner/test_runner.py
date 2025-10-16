@@ -1771,6 +1771,115 @@ class TestRunner:
         # Directory should be cleaned up after exiting context
         assert not runner._tmp_dir.exists()
 
+    async def test_runner_handles_deleted_flow_run_in_propose_crashed_state(
+        self, prefect_client: PrefectClient, monkeypatch: pytest.MonkeyPatch
+    ):
+        """
+        Regression test for https://github.com/PrefectHQ/prefect/issues/19141
+
+        Ensures the runner doesn't crash when trying to propose a crashed state
+        for a flow run that has been deleted.
+        """
+        from prefect.exceptions import ObjectNotFound
+
+        runner = Runner()
+
+        deployment_id = await (await dummy_flow_1.to_deployment(__file__)).apply()
+
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            deployment_id=deployment_id
+        )
+
+        # Mock propose_state to raise ObjectNotFound (simulating a deleted flow run)
+        original_propose_state = prefect.runner.runner.propose_state
+
+        async def mock_propose_state(*args, **kwargs):
+            if kwargs.get("flow_run_id") == flow_run.id:
+                raise ObjectNotFound(
+                    Exception("Flow run not found"), help_message="Flow run was deleted"
+                )
+            return await original_propose_state(*args, **kwargs)
+
+        monkeypatch.setattr(prefect.runner.runner, "propose_state", mock_propose_state)
+
+        async with runner:
+            # This should not crash the runner
+            await runner._propose_crashed_state(flow_run, "Test crash message")
+
+        # Runner should continue running without crashing
+
+    async def test_runner_handles_deleted_flow_run_in_mark_as_cancelled(
+        self, prefect_client: PrefectClient, monkeypatch: pytest.MonkeyPatch
+    ):
+        """
+        Regression test for https://github.com/PrefectHQ/prefect/issues/19141
+
+        Ensures the runner doesn't crash when trying to mark a deleted flow run
+        as cancelled.
+        """
+        from prefect.exceptions import ObjectNotFound
+
+        runner = Runner()
+
+        deployment_id = await (await dummy_flow_1.to_deployment(__file__)).apply()
+
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            deployment_id=deployment_id
+        )
+
+        async with runner:
+            # Mock set_flow_run_state to raise ObjectNotFound
+            async def mock_set_state(*args, **kwargs):
+                raise ObjectNotFound(
+                    Exception("Flow run not found"), help_message="Flow run was deleted"
+                )
+
+            monkeypatch.setattr(runner._client, "set_flow_run_state", mock_set_state)
+
+            # This should not crash the runner
+            await runner._mark_flow_run_as_cancelled(flow_run)
+
+        # Runner should continue running without crashing
+
+    async def test_runner_handles_deleted_flow_run_after_completion(
+        self, prefect_client: PrefectClient, monkeypatch: pytest.MonkeyPatch
+    ):
+        """
+        Regression test for https://github.com/PrefectHQ/prefect/issues/19141
+
+        Ensures the runner doesn't crash when trying to read a flow run after
+        completion if the flow run has been deleted.
+        """
+        from prefect.exceptions import ObjectNotFound
+
+        runner = Runner()
+
+        deployment_id = await (await dummy_flow_1.to_deployment(__file__)).apply()
+
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            deployment_id=deployment_id
+        )
+
+        # Mock read_flow_run to raise ObjectNotFound after the process completes
+        original_read = prefect_client.read_flow_run
+        call_count = {"count": 0}
+
+        async def mock_read_flow_run(*args, **kwargs):
+            call_count["count"] += 1
+            # First call succeeds (for initial read), second call fails (after completion)
+            if call_count["count"] > 1:
+                raise ObjectNotFound(
+                    Exception("Flow run not found"), help_message="Flow run was deleted"
+                )
+            return await original_read(*args, **kwargs)
+
+        monkeypatch.setattr(prefect_client, "read_flow_run", mock_read_flow_run)
+
+        # This should not crash the runner - it should complete successfully
+        await runner.execute_flow_run(flow_run_id=flow_run.id)
+
+        # Runner should have handled the ObjectNotFound gracefully
+
     class TestRunnerBundleExecution:
         @pytest.fixture(autouse=True)
         def mock_subprocess_check_call(self, monkeypatch: pytest.MonkeyPatch):
@@ -2935,6 +3044,35 @@ class TestRunnerDeployment:
             dummy_flow_1, name="flow-from-my.python.module"
         )
         assert deployment2.name == "flow-from-my.python.module"
+
+    def test_deployment_name_with_dots_from_storage(self, temp_storage: MockStorage):
+        # regression test for deployment name truncation in from_storage
+        # names with dots like "v2.0.1" should not be truncated to "v2"
+        deployment = RunnerDeployment.from_storage(
+            storage=temp_storage,
+            entrypoint="flows.py:test_flow",
+            name="pricing-subflow-v2.0.1",
+        )
+        assert deployment.name == "pricing-subflow-v2.0.1"
+
+        # test with multiple dots
+        deployment2 = RunnerDeployment.from_storage(
+            storage=temp_storage,
+            entrypoint="flows.py:test_flow",
+            name="my-flow-v1.2.3.4",
+        )
+        assert deployment2.name == "my-flow-v1.2.3.4"
+
+    async def test_deployment_name_with_dots_from_storage_async(
+        self, temp_storage: MockStorage
+    ):
+        # regression test for deployment name truncation in afrom_storage
+        deployment = await RunnerDeployment.afrom_storage(
+            storage=temp_storage,
+            entrypoint="flows.py:test_flow",
+            name="pricing-subflow-v2.0.1",
+        )
+        assert deployment.name == "pricing-subflow-v2.0.1"
 
     async def test_from_flow_with_frozen_parameters(
         self, prefect_client: PrefectClient

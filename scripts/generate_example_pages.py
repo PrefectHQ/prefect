@@ -28,6 +28,7 @@ class Example:
     description: str
     icon: str
     keywords: list[str]
+    order: int | None = None
 
 
 class Frontmatter(TypedDict, total=False):
@@ -35,6 +36,7 @@ class Frontmatter(TypedDict, total=False):
     description: str
     icon: str
     keywords: list[str]
+    order: int
 
 
 async def get_examples() -> list[Example]:
@@ -52,8 +54,16 @@ async def get_examples() -> list[Example]:
                     description=example_frontmatter.get("description", ""),
                     icon=example_frontmatter.get("icon", ""),
                     keywords=example_frontmatter.get("keywords", []),
+                    order=example_frontmatter.get("order"),
                 )
             )
+    # Sort examples by order field (if present), then by filename
+    examples.sort(
+        key=lambda ex: (
+            ex.order if ex.order is not None else float("inf"),
+            ex.path.name,
+        )
+    )
     return examples
 
 
@@ -160,7 +170,7 @@ Have an example to share? Check out our [contributing guide](/contribute/docs-co
         <Card title="{example.title}" icon="{example.icon}" href="/v3/examples/{slugify(example.path.stem)}">
             {example.description}
         </Card>
-        """
+"""
             for example in examples
         )
         + BOTTOM

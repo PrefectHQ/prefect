@@ -47,13 +47,18 @@ class LeaseStorage(Protocol[T]):
         """
         ...
 
-    async def renew_lease(self, lease_id: UUID, ttl: timedelta) -> None:
+    async def renew_lease(self, lease_id: UUID, ttl: timedelta) -> bool | None:
         """
         Renew a resource lease.
 
         Args:
             lease_id: The ID of the lease to renew.
             ttl: The new amount of time the lease should be held for.
+
+        Returns:
+            True if the lease was successfully renewed, False if the lease
+            does not exist or has already expired. None may be returned by
+            legacy implementations for backwards compatibility (treated as success).
         """
         ...
 
