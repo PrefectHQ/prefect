@@ -30,7 +30,7 @@ Create a new resource lease.
 - A ResourceLease object representing the lease.
 
 
-#### `read_expired_lease_ids` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/leasing.py#L69" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `read_expired_lease_ids` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/leasing.py#L74" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_expired_lease_ids(self, limit: int = 100) -> list[UUID]
@@ -63,7 +63,7 @@ Read a resource lease.
 #### `renew_lease` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/leasing.py#L50" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-renew_lease(self, lease_id: UUID, ttl: timedelta) -> None
+renew_lease(self, lease_id: UUID, ttl: timedelta) -> bool | None
 ```
 
 Renew a resource lease.
@@ -72,8 +72,13 @@ Renew a resource lease.
 - `lease_id`: The ID of the lease to renew.
 - `ttl`: The new amount of time the lease should be held for.
 
+**Returns:**
+- True if the lease was successfully renewed, False if the lease
+- does not exist or has already expired. None may be returned by
+- legacy implementations for backwards compatibility (treated as success).
 
-#### `revoke_lease` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/leasing.py#L60" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+#### `revoke_lease` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/leasing.py#L65" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 revoke_lease(self, lease_id: UUID) -> None
