@@ -2,6 +2,53 @@
 title: 3.4
 ---
 
+## 3.4.24 - The Un-Crashening
+
+*Released on October 16, 2025*
+
+**Enhancements ➕➕**
+
+* Add flow run watching with interleaved events and logs by [@chrisguidry](https://github.com/chrisguidry) in [#19158](https://github.com/PrefectHQ/prefect/pull/19158)
+* Use shared websocket utilities for Subscription SSL and proxy support by [@chrisguidry](https://github.com/chrisguidry) in [#19159](https://github.com/PrefectHQ/prefect/pull/19159)
+* Add `--all` flag to `prefect automation delete` by [@zzstoatzz](https://github.com/zzstoatzz) in [#19164](https://github.com/PrefectHQ/prefect/pull/19164)
+
+**Experimental 🧪**
+
+* Introduce [experimental plugin system](/v3/advanced/experimental-plugins) by [@desertaxle](https://github.com/desertaxle) in [#19145](https://github.com/PrefectHQ/prefect/pull/19145)
+
+**Bug Fixes 🐞**
+
+* Mitigate memory leak in in-memory messaging system by [@desertaxle](https://github.com/desertaxle) in [#19136](https://github.com/PrefectHQ/prefect/pull/19136)
+* Fix duplicate env vars from work pools in Kubernetes jobs by [@zzstoatzz](https://github.com/zzstoatzz) in [#19171](https://github.com/PrefectHQ/prefect/pull/19171)
+* Fix `ProcessPoolTaskRunner` when submitting with `wait_for` by [@desertaxle](https://github.com/desertaxle) in [#19172](https://github.com/PrefectHQ/prefect/pull/19172)
+* Fix deployment name truncation in `from_storage` and `afrom_storage` by [@zzstoatzz](https://github.com/zzstoatzz) in [#19179](https://github.com/PrefectHQ/prefect/pull/19179)
+* Avoid transitioning flow run to crashed when user code has already finished successfully by [@desertaxle](https://github.com/desertaxle) in [#19181](https://github.com/PrefectHQ/prefect/pull/19181)
+* Fix worker crash from double-release of concurrency limiter token by [@desertaxle](https://github.com/desertaxle) in [#19188](https://github.com/PrefectHQ/prefect/pull/19188)
+* Fix worker/runner crashes when flow runs are deleted by [@desertaxle](https://github.com/desertaxle) in [#19189](https://github.com/PrefectHQ/prefect/pull/19189)
+* Fix race conditions in concurrency lease renewal by [@bunchesofdonald](https://github.com/bunchesofdonald) in [#19187](https://github.com/PrefectHQ/prefect/pull/19187)
+* Fix `RunInput.with_initial_data` to preserve type annotations by [@zzstoatzz](https://github.com/zzstoatzz) in [#19176](https://github.com/PrefectHQ/prefect/pull/19176)
+
+**Development & Tidiness 🧹**
+
+* Use canonical `websocket_connect` import in proxy test script by [@zzstoatzz](https://github.com/zzstoatzz) in [#19161](https://github.com/PrefectHQ/prefect/pull/19161)
+* De-flake integration tests by [@desertaxle](https://github.com/desertaxle) in [#19191](https://github.com/PrefectHQ/prefect/pull/19191)
+* Migrate `prefect.states` exception handlers to `async_dispatch` by [@zzstoatzz](https://github.com/zzstoatzz) in [#19170](https://github.com/PrefectHQ/prefect/pull/19170)
+* Update downstream repo reference for image automation by [@jamiezieziula](https://github.com/jamiezieziula) in [#19139](https://github.com/PrefectHQ/prefect/pull/19139)
+
+**Documentation 📓**
+
+* Improve Prefect MCP server documentation by [@zzstoatzz](https://github.com/zzstoatzz) in [#19142](https://github.com/PrefectHQ/prefect/pull/19142)
+* Clarify install instructions by [@zzstoatzz](https://github.com/zzstoatzz) in [#19165](https://github.com/PrefectHQ/prefect/pull/19165)
+* Create release notes entry for `prefect-aws==0.6.0` by [@desertaxle](https://github.com/desertaxle) in [#19168](https://github.com/PrefectHQ/prefect/pull/19168)
+* Add documentation for passing event payloads to flows by [@zzstoatzz](https://github.com/zzstoatzz) in [#19174](https://github.com/PrefectHQ/prefect/pull/19174)
+* Clarify `build_docker_image` accepts all Docker SDK kwargs by [@zzstoatzz](https://github.com/zzstoatzz) in [#19194](https://github.com/PrefectHQ/prefect/pull/19194)
+
+
+**Full Changelog**: https://github.com/PrefectHQ/prefect/compare/3.4.23...3.4.24
+
+
+---
+
 ## 3.4.23 - Would you like some API in your CLI?
 
 *Released on October 09, 2025*
