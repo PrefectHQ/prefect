@@ -1,7 +1,7 @@
 ---
 title: AI-Powered Data Analyst
 description: Build a resilient AI data analyst using Prefect and `pydantic-ai` to analyze datasets, detect anomalies, and generate insights.
-icon: chart-line
+icon: robot
 keywords: ["ai", "agents", "pydantic-ai", "data-analysis", "llm", "durable-execution"]
 ---
 
@@ -164,7 +164,8 @@ def create_data_analyst_agent() -> PrefectAgent[pd.DataFrame, DataAnalysis]:
     # Create the base pydantic-ai agent
     agent = Agent(
         "openai:gpt-4o",
-        result_type=DataAnalysis,
+        name="data-analyst-agent",
+        output_type=DataAnalysis,
         deps_type=pd.DataFrame,
         system_prompt=(
             "You are an expert data analyst. Analyze the provided dataset using "
@@ -208,7 +209,8 @@ def create_sample_dataset() -> pd.DataFrame:
     In production, you'd load real data from a file, database, or API."""
     data = {
         "product": ["Widget", "Gadget", "Doohickey", "Widget", "Gadget"] * 20,
-        "sales": [100, 150, 200, 110, 145] * 18 + [1000, 2000],  # Last 2 are anomalies
+        "sales": [100, 150, 200, 110, 145] * 19
+        + [100, 150, 200, 1000, 2000],  # Last 2 are anomalies
         "region": ["North", "South", "East", "West", "Central"] * 20,
         "month": [1, 2, 3, 4, 5] * 20,
     }
@@ -250,27 +252,40 @@ async def analyze_dataset_with_ai() -> DataAnalysis:
     )
 
     # Display results
-    print("\n" + "=" * 80)
-    print("ANALYSIS RESULTS")
-    print("=" * 80)
-    print(f"\n📋 Summary:\n{result.data.summary}\n")
-    print("🔑 Key Findings:")
-    for i, finding in enumerate(result.data.key_findings, 1):
-        print(f"  {i}. {finding}")
-    print("\n💡 Recommendations:")
-    for i, rec in enumerate(result.data.recommendations, 1):
-        print(f"  {i}. {rec}")
-    print(f"\n📊 Columns Analyzed: {', '.join(result.data.columns_analyzed)}")
-    print("=" * 80)
+    findings = "\n".join(
+        f"  {i}. {finding}" for i, finding in enumerate(result.output.key_findings, 1)
+    )
+    recommendations = "\n".join(
+        f"  {i}. {rec}" for i, rec in enumerate(result.output.recommendations, 1)
+    )
 
-    return result.data
+    output = f"""
+{"=" * 80}
+ANALYSIS RESULTS
+{"=" * 80}
+
+📋 Summary:
+{result.output.summary}
+
+🔑 Key Findings:
+{findings}
+
+💡 Recommendations:
+{recommendations}
+
+📊 Columns Analyzed: {", ".join(result.output.columns_analyzed)}
+{"=" * 80}
+"""
+    print(output)
+
+    return result.output
 
 
 ```
 
 ## Deploy the Flow
 
-To get full durable execution with automatic idempotency, deploy the flow.
+To get full durable execution with automatic idempotency, serve the flow to create a deployment.
 Deployed flows enable Prefect's transactional semantics for agent operations.
 
 ```python
@@ -306,9 +321,9 @@ Once served, trigger runs via:
 prefect deployment run ai-data-analyst/ai-data-analyst-deployment --watch
 ```
 
-## Local Testing (Optional)
+## Local Testing
 
-For quick local testing without deployment (no automatic idempotency):
+For quick local testing without deployment:
 ```python
 import asyncio
 asyncio.run(analyze_dataset_with_ai())
@@ -324,22 +339,19 @@ When you serve and trigger this flow, Prefect and `pydantic-ai` work together to
    - Tool calls retry up to 2 times
    - All operations respect 60s timeout
 3. **Tool Observability** – Each time the AI calls a tool (`get_column_info`, `calculate_statistics`, `detect_anomalies`),
-   Prefect logs it as a separate task run
+   the call is run as a Prefect task
 4. **Structured Results** – Pydantic validates the AI's output, ensuring it matches the expected schema
 5. **Automatic Idempotency** – When a deployed flow run is retried, Prefect's transactional semantics ensure that
    completed tasks are skipped and only failed operations are re-executed. This prevents duplicate API calls and
-   wasted compute. Note: Idempotency requires a deployment - ad-hoc runs without deployments don't support this.
+   wasted compute.
 
-If an LLM call fails (rate limit, network error, etc.), Prefect automatically retries it.
-If a tool call fails (invalid data, computation error), it retries independently.
-If you retry a failed flow run from the UI, already-completed tasks won't re-execute.
 
 ## Key Takeaways
 
-* **Deploy for Durability** – Use `flow.serve()` to unlock automatic idempotency and transactional semantics
+* **Deploy for Durability** – Use `flow.serve()` or `flow.deploy()` to unlock automatic idempotency and transactional semantics
 * **Retry Intelligence** – Failed flow runs can be retried from the UI, skipping already-completed tasks
 * **Tool Observability** – Every AI decision and tool call is tracked, logged, and independently retryable
-* **Zero Boilerplate** – Just wrap your pydantic-ai agent with `PrefectAgent` and deploy
+* **Zero Boilerplate** – Just wrap your pydantic-ai agent with `PrefectAgent`
 * **Customizable Policies** – Fine-tune retries, timeouts, and error handling per operation type
 
 **Try it yourself:**
