@@ -4,6 +4,7 @@
 # icon: chart-line
 # dependencies: ["prefect", "pydantic-ai[prefect]", "pandas"]
 # keywords: ["ai", "agents", "pydantic-ai", "data-analysis", "llm", "durable-execution"]
+# order: 6
 # ---
 #
 # This example shows how to build resilient AI workflows using Prefect and `pydantic-ai`.
