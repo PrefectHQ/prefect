@@ -75,7 +75,9 @@ def calculate_statistics(ctx: RunContext[pd.DataFrame], column: str) -> dict[str
     stats = df[column].describe().to_dict()
     stats["missing_count"] = int(df[column].isna().sum())
     stats["unique_count"] = int(df[column].nunique())
-    return {k: (float(v) if isinstance(v, (int, float)) else v) for k, v in stats.items()}
+    return {
+        k: (float(v) if isinstance(v, (int, float)) else v) for k, v in stats.items()
+    }
 
 
 def detect_anomalies(
@@ -100,7 +102,11 @@ def detect_anomalies(
 
     anomalies = df[abs(df[column] - mean) > (threshold * std)]
     return [
-        {"index": int(idx), "value": float(row[column]), "z_score": float((row[column] - mean) / std)}
+        {
+            "index": int(idx),
+            "value": float(row[column]),
+            "z_score": float((row[column] - mean) / std),
+        }
         for idx, row in anomalies.head(10).iterrows()
     ]
 
@@ -345,5 +351,5 @@ If you retry a failed flow run from the UI, already-completed tasks won't re-exe
 
 For more on AI orchestration with Prefect:
 - [pydantic-ai + Prefect documentation](https://ai.pydantic.dev/durable_execution/prefect/)
-- [Task configuration and retries](/v3/develop/write-tasks#retries)
-- [Workflow deployments](/v3/deploy/)
+- [Task configuration and retries](/v3/how-to-guides/workflows/write-and-run#task-configuration)
+- [Workflow deployments](/v3/how-to-guides/deployments/create-deployments)
