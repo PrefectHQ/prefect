@@ -1,7 +1,7 @@
 # ---
 # title: AI-Powered Data Analyst
 # description: Build a resilient AI data analyst using Prefect and `pydantic-ai` to analyze datasets, detect anomalies, and generate insights.
-# icon: chart-line
+# icon: robot
 # dependencies: ["prefect", "pydantic-ai[prefect]", "pandas"]
 # keywords: ["ai", "agents", "pydantic-ai", "data-analysis", "llm", "durable-execution"]
 # order: 6
