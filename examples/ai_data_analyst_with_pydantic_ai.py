@@ -152,7 +152,8 @@ def create_data_analyst_agent() -> PrefectAgent[pd.DataFrame, DataAnalysis]:
     # Create the base pydantic-ai agent
     agent = Agent(
         "openai:gpt-4o",
-        result_type=DataAnalysis,
+        name="data-analyst-agent",
+        output_type=DataAnalysis,
         deps_type=pd.DataFrame,
         system_prompt=(
             "You are an expert data analyst. Analyze the provided dataset using "
@@ -194,7 +195,8 @@ def create_sample_dataset() -> pd.DataFrame:
     In production, you'd load real data from a file, database, or API."""
     data = {
         "product": ["Widget", "Gadget", "Doohickey", "Widget", "Gadget"] * 20,
-        "sales": [100, 150, 200, 110, 145] * 18 + [1000, 2000],  # Last 2 are anomalies
+        "sales": [100, 150, 200, 110, 145] * 19
+        + [100, 150, 200, 1000, 2000],  # Last 2 are anomalies
         "region": ["North", "South", "East", "West", "Central"] * 20,
         "month": [1, 2, 3, 4, 5] * 20,
     }
@@ -234,25 +236,38 @@ async def analyze_dataset_with_ai() -> DataAnalysis:
     )
 
     # Display results
-    print("\n" + "=" * 80)
-    print("ANALYSIS RESULTS")
-    print("=" * 80)
-    print(f"\n📋 Summary:\n{result.data.summary}\n")
-    print("🔑 Key Findings:")
-    for i, finding in enumerate(result.data.key_findings, 1):
-        print(f"  {i}. {finding}")
-    print("\n💡 Recommendations:")
-    for i, rec in enumerate(result.data.recommendations, 1):
-        print(f"  {i}. {rec}")
-    print(f"\n📊 Columns Analyzed: {', '.join(result.data.columns_analyzed)}")
-    print("=" * 80)
+    findings = "\n".join(
+        f"  {i}. {finding}" for i, finding in enumerate(result.output.key_findings, 1)
+    )
+    recommendations = "\n".join(
+        f"  {i}. {rec}" for i, rec in enumerate(result.output.recommendations, 1)
+    )
 
-    return result.data
+    output = f"""
+{"=" * 80}
+ANALYSIS RESULTS
+{"=" * 80}
+
+📋 Summary:
+{result.output.summary}
+
+🔑 Key Findings:
+{findings}
+
+💡 Recommendations:
+{recommendations}
+
+📊 Columns Analyzed: {", ".join(result.output.columns_analyzed)}
+{"=" * 80}
+"""
+    print(output)
+
+    return result.output
 
 
 # ## Deploy the Flow
 #
-# To get full durable execution with automatic idempotency, deploy the flow.
+# To get full durable execution with automatic idempotency, serve the flow to create a deployment.
 # Deployed flows enable Prefect's transactional semantics for agent operations.
 
 if __name__ == "__main__":
@@ -315,10 +330,10 @@ if __name__ == "__main__":
 #
 # ## Key Takeaways
 #
-# * **Deploy for Durability** – Use `flow.serve()` to unlock automatic idempotency and transactional semantics
+# * **Deploy for Durability** – Use `flow.serve()` or `flow.deploy()` to unlock automatic idempotency and transactional semantics
 # * **Retry Intelligence** – Failed flow runs can be retried from the UI, skipping already-completed tasks
 # * **Tool Observability** – Every AI decision and tool call is tracked, logged, and independently retryable
-# * **Zero Boilerplate** – Just wrap your pydantic-ai agent with `PrefectAgent` and deploy
+# * **Zero Boilerplate** – Just wrap your pydantic-ai agent with `PrefectAgent`
 # * **Customizable Policies** – Fine-tune retries, timeouts, and error handling per operation type
 #
 # **Try it yourself:**
