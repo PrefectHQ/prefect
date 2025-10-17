@@ -4,6 +4,29 @@ ARG SQLITE_VERSION=3.50.4
 ARG SQLITE_YEAR=2025
 ARG SQLITE_FILE_VERSION=3500400
 
+# Build SQLite from source to address CVE-2025-6965
+# This stage is cached separately to avoid recompiling on every build
+FROM python:${PYTHON_VERSION}-slim AS sqlite-builder
+
+ARG SQLITE_VERSION
+ARG SQLITE_YEAR
+ARG SQLITE_FILE_VERSION
+
+RUN apt-get update && \
+    apt-get install --no-install-recommends -y \
+    build-essential \
+    wget \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+RUN wget -q https://sqlite.org/${SQLITE_YEAR}/sqlite-autoconf-${SQLITE_FILE_VERSION}.tar.gz && \
+    tar xzf sqlite-autoconf-${SQLITE_FILE_VERSION}.tar.gz && \
+    cd sqlite-autoconf-${SQLITE_FILE_VERSION} && \
+    ./configure --prefix=/usr/local && \
+    make -j$(nproc) && \
+    make install && \
+    cd .. && \
+    rm -rf sqlite-autoconf-${SQLITE_FILE_VERSION} sqlite-autoconf-${SQLITE_FILE_VERSION}.tar.gz
+
 # Build the Python distributable.
 # Without this build step, versioningit cannot infer the version without git
 FROM python:${PYTHON_VERSION}-slim AS python-builder
@@ -62,20 +85,14 @@ WORKDIR /opt/prefect
 RUN apt-get update && \
     apt-get install --no-install-recommends -y \
     git=1:2.* \
-    build-essential \
-    wget \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Install SQLite ${SQLITE_VERSION} to address CVE-2025-6965
-RUN wget -q https://sqlite.org/${SQLITE_YEAR}/sqlite-autoconf-${SQLITE_FILE_VERSION}.tar.gz && \
-    tar xzf sqlite-autoconf-${SQLITE_FILE_VERSION}.tar.gz && \
-    cd sqlite-autoconf-${SQLITE_FILE_VERSION} && \
-    ./configure --prefix=/usr/local && \
-    make -j$(nproc) && \
-    make install && \
-    cd .. && \
-    rm -rf sqlite-autoconf-${SQLITE_FILE_VERSION} sqlite-autoconf-${SQLITE_FILE_VERSION}.tar.gz && \
-    ldconfig
+# Copy pre-compiled SQLite ${SQLITE_VERSION} from sqlite-builder stage
+COPY --from=sqlite-builder /usr/local/lib/libsqlite3* /usr/local/lib/
+COPY --from=sqlite-builder /usr/local/include/sqlite3*.h /usr/local/include/
+COPY --from=sqlite-builder /usr/local/bin/sqlite3 /usr/local/bin/
+COPY --from=sqlite-builder /usr/local/lib/pkgconfig/sqlite3.pc /usr/local/lib/pkgconfig/
+RUN ldconfig
 
 # Install UV from official image - pin to specific version for build caching
 COPY --from=ghcr.io/astral-sh/uv:0.5.30 /uv /bin/uv
