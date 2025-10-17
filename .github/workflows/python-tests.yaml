@@ -76,6 +76,7 @@ jobs:
           - "3.11"
           - "3.12"
           - "3.13"
+          - "3.14"
         exclude:
           - database: "sqlite"
             test-type:
@@ -183,6 +184,8 @@ jobs:
           - "3.10"
           - "3.11"
           - "3.12"
+          - "3.13"
+          - "3.14"
 
       fail-fast: false
 
