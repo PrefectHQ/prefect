@@ -9,7 +9,11 @@ ARG BASE_IMAGE=python:${PYTHON_VERSION}-slim
 # The version used to build the Python distributable.
 ARG BUILD_PYTHON_VERSION=3.9
 # THe version used to build the UI distributable.
-ARG NODE_VERSION=18.18.0
+ARG NODE_VERSION=20.19.0
+# SQLite version to install (format: X.YY.Z becomes XYYZZOO in filename)
+ARG SQLITE_VERSION=3.50.4
+ARG SQLITE_YEAR=2025
+ARG SQLITE_FILE_VERSION=3500400
 # Any extra Python requirements to install
 ARG EXTRA_PIP_PACKAGES=""
 
@@ -77,6 +81,12 @@ SHELL ["/bin/bash", "--login", "-c"]
 # Build the final image with Prefect installed and our entrypoint configured
 FROM ${BASE_IMAGE} AS final
 
+# Redeclare ARGs needed in this stage
+ARG PYTHON_VERSION
+ARG SQLITE_VERSION
+ARG SQLITE_YEAR
+ARG SQLITE_FILE_VERSION
+
 ENV LC_ALL=C.UTF-8
 ENV LANG=C.UTF-8
 
@@ -84,8 +94,12 @@ ENV UV_COMPILE_BYTECODE=1
 ENV UV_LINK_MODE=copy
 ENV UV_SYSTEM_PYTHON=1
 
+# Ensure Python uses the upgraded SQLite library
+ENV LD_LIBRARY_PATH=/usr/local/lib
+
 LABEL maintainer="help@prefect.io" \
     io.prefect.python-version=${PYTHON_VERSION} \
+    io.prefect.sqlite-version=${SQLITE_VERSION} \
     org.label-schema.schema-version="1.0" \
     org.label-schema.name="prefect" \
     org.label-schema.url="https://www.prefect.io/"
@@ -98,7 +112,19 @@ RUN apt-get update && \
     tini=0.19.* \
     build-essential \
     git>=1:2.47.3 \
+    wget \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# Install SQLite ${SQLITE_VERSION} to address CVE-2025-6965
+RUN wget -q https://sqlite.org/${SQLITE_YEAR}/sqlite-autoconf-${SQLITE_FILE_VERSION}.tar.gz && \
+    tar xzf sqlite-autoconf-${SQLITE_FILE_VERSION}.tar.gz && \
+    cd sqlite-autoconf-${SQLITE_FILE_VERSION} && \
+    ./configure --prefix=/usr/local && \
+    make -j$(nproc) && \
+    make install && \
+    cd .. && \
+    rm -rf sqlite-autoconf-${SQLITE_FILE_VERSION} sqlite-autoconf-${SQLITE_FILE_VERSION}.tar.gz && \
+    ldconfig
 
 # Install UV from official image - pin to specific version for build caching
 COPY --from=ghcr.io/astral-sh/uv:0.6.17 /uv /bin/uv
