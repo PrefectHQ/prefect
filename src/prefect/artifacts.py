@@ -249,6 +249,57 @@ class Artifact(ArtifactRequest):
     def format(self) -> str | float | int | dict[str, Any]:
         return json.dumps(self.data)
 
+    async def aupdate(
+        self,
+        artifact_id: UUID,
+        client: "PrefectClient | None" = None,
+    ) -> None:
+        """
+        Placeholder method for updating an artifact.
+
+        This method is not yet implemented and will raise NotImplementedError.
+        The implementation will allow updating artifacts mid-flow run.
+
+        Related issue: https://github.com/PrefectHQ/prefect/issues/10955
+
+        Arguments:
+            artifact_id: The ID of the artifact to update.
+            client: The PrefectClient
+
+        Raises:
+            NotImplementedError: This method is not yet implemented.
+        """
+        raise NotImplementedError(
+            "Artifact update functionality is not yet implemented. "
+            "See https://github.com/PrefectHQ/prefect/issues/10955 for more information."
+        )
+
+    @async_dispatch(aupdate)
+    def update(
+        self,
+        artifact_id: UUID,
+        client: "PrefectClient | None" = None,
+    ) -> None:
+        """
+        Placeholder method for updating an artifact.
+
+        This method is not yet implemented and will raise NotImplementedError.
+        The implementation will allow updating artifacts mid-flow run.
+
+        Related issue: https://github.com/PrefectHQ/prefect/issues/10955
+
+        Arguments:
+            artifact_id: The ID of the artifact to update.
+            client: The PrefectClient
+
+        Raises:
+            NotImplementedError: This method is not yet implemented.
+        """
+        raise NotImplementedError(
+            "Artifact update functionality is not yet implemented. "
+            "See https://github.com/PrefectHQ/prefect/issues/10955 for more information."
+        )
+
 
 class LinkArtifact(Artifact):
     link: str
