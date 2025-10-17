@@ -1,0 +1,63 @@
+name: Reproduce Issue #18956 - future.wait timeout
+
+on:
+  workflow_dispatch: {}
+  push:
+    paths:
+      - "examples/reproduce_18956_future_wait_timeout.py"
+      - ".github/workflows/reproduce-issue-18956.yaml"
+
+permissions: {}
+
+jobs:
+  reproduce-timeout-issue:
+    name: Reproduce future.wait timeout issue on Windows
+    runs-on: windows-latest
+    timeout-minutes: 15
+
+    env:
+      # enable colored output
+      PY_COLORS: 1
+      # ensure we can see all output
+      PYTHONUNBUFFERED: 1
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Set up uv and Python 3.12
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          python-version: "3.12"
+          cache-dependency-glob: "pyproject.toml"
+
+      - name: Run reproduction script
+        run: |
+          echo "Running reproduction script for issue #18956..."
+          echo "Current time: $(date)"
+          echo "Working directory: $(pwd)"
+          echo "Python version: $(python --version)"
+          echo "Prefect version: $(python -c 'import prefect; print(prefect.__version__)')"
+          echo ""
+          echo "=== Running the minimal reproduction script ==="
+          uv run examples/reproduce_18956_future_wait_timeout.py
+        shell: bash
+
+      - name: Run with explicit stdout capture
+        run: |
+          echo "=== Running with explicit stdout/stderr redirection ==="
+          uv run python -u examples/reproduce_18956_future_wait_timeout.py 2>&1
+        shell: bash
+
+      - name: Archive logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: issue-18956-logs
+          path: |
+            *.log
+            **/*.log
