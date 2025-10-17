@@ -1613,6 +1613,47 @@ class TestJsonFormatter:
         assert deserialized["exc_info"]["traceback"] is not None
         assert len(deserialized["exc_info"]["traceback"]) > 0
 
+    def test_json_log_formatter_with_non_serializable_attributes(self):
+        """
+        Test that JsonFormatter handles non-serializable objects gracefully.
+
+        This reproduces an issue where kopf's ObjectLogger adds non-serializable
+        objects (like ThreadPoolExecutor) to log records, causing TypeError when
+        JsonFormatter tries to serialize them.
+        """
+        from concurrent.futures import ThreadPoolExecutor
+
+        formatter = JsonFormatter("default", None, "%")
+        record = logging.LogRecord(
+            name="kopf.handlers",
+            level=logging.INFO,
+            pathname="/observer.py",
+            lineno=330,
+            msg="Handler succeeded.",
+            args=(),
+            exc_info=None,
+        )
+
+        # Simulate kopf or other libraries adding non-serializable objects
+        executor = ThreadPoolExecutor(max_workers=2)
+        try:
+            record.executor = executor  # type: ignore
+            record.serializable_attr = "this is fine"
+
+            # Should not raise an error
+            formatted = formatter.format(record)
+            deserialized = json.loads(formatted)
+
+            # Check that serializable attributes are preserved
+            assert deserialized["name"] == "kopf.handlers"
+            assert deserialized["msg"] == "Handler succeeded."
+            assert deserialized["serializable_attr"] == "this is fine"
+
+            # Non-serializable attribute should be replaced with a placeholder
+            assert deserialized["executor"] == "<non-serializable: ThreadPoolExecutor>"
+        finally:
+            executor.shutdown(wait=False)
+
 
 class TestObfuscateApiKeyFilter:
     def test_filters_current_api_key(self):

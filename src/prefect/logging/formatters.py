@@ -66,11 +66,37 @@ class JsonFormatter(logging.Formatter):
         if record.exc_info:
             record_dict["exc_info"] = format_exception_info(record.exc_info)
 
-        log_json_bytes = self.serializer.dumps(record_dict)
+        # Try to serialize the record dict. If it fails, filter out non-serializable
+        # attributes and try again with string representations.
+        try:
+            log_json_bytes = self.serializer.dumps(record_dict)
+        except (TypeError, ValueError):
+            # Serialization failed - likely due to non-serializable objects in the record.
+            # Filter the record dict to include only serializable attributes.
+            filtered_dict = self._filter_record_dict(record_dict)
+            log_json_bytes = self.serializer.dumps(filtered_dict)
 
         # JSONSerializer returns bytes; decode to string to conform to
         # the `logging.Formatter.format` interface
         return log_json_bytes.decode()
+
+    def _filter_record_dict(self, record_dict: dict[str, Any]) -> dict[str, Any]:
+        """
+        Filter a record dictionary to include only JSON-serializable attributes.
+
+        Attempts to serialize each attribute individually. If an attribute fails to
+        serialize, it's replaced with its string representation.
+        """
+        filtered: dict[str, Any] = {}
+        for key, value in record_dict.items():
+            try:
+                # Test if this individual value is serializable
+                self.serializer.dumps({key: value})
+                filtered[key] = value
+            except (TypeError, ValueError):
+                # If not serializable, use string representation
+                filtered[key] = f"<non-serializable: {type(value).__name__}>"
+        return filtered
 
 
 class PrefectFormatter(logging.Formatter):

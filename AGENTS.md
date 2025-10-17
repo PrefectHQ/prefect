@@ -12,7 +12,7 @@ Components:
 - `src/prefect/engine.py` (@src/prefect/engine.py): Engine - orchestration entrypoint
 - `src/prefect/client/` (@src/prefect/client/, @tests/client/): Client SDK - client, schemas, utilities
 - `src/prefect/server/` (@src/prefect/server/, @tests/server/): Orchestration server - API, database, scheduling
-- `src/integrations/` (@src/integrations/: External service integrations
+- `src/integrations/` (@src/integrations/): External service integrations
 
 ## Essential Commands
 
@@ -24,6 +24,7 @@ uv run pytest -n4              # Run tests in parallel
 uv run pytest tests/some_file.py -k test_name  # Run specific test
 prefect server start           # Start local server
 prefect config view            # Inspect configuration
+uv run --with src/integrations/prefect-kubernetes/ some_script_needing_editable_integration_version.py
 ```
 
 ## Tech Stack
