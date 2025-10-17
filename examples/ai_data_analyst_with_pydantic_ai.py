@@ -300,9 +300,9 @@ if __name__ == "__main__":
 # prefect deployment run ai-data-analyst/ai-data-analyst-deployment --watch
 # ```
 #
-# ## Local Testing (Optional)
+# ## Local Testing
 #
-# For quick local testing without deployment (no automatic idempotency):
+# For quick local testing without deployment:
 # ```python
 # import asyncio
 # asyncio.run(analyze_dataset_with_ai())
@@ -318,15 +318,12 @@ if __name__ == "__main__":
 #    - Tool calls retry up to 2 times
 #    - All operations respect 60s timeout
 # 3. **Tool Observability** – Each time the AI calls a tool (`get_column_info`, `calculate_statistics`, `detect_anomalies`),
-#    Prefect logs it as a separate task run
+#    the call is run as a Prefect task
 # 4. **Structured Results** – Pydantic validates the AI's output, ensuring it matches the expected schema
 # 5. **Automatic Idempotency** – When a deployed flow run is retried, Prefect's transactional semantics ensure that
 #    completed tasks are skipped and only failed operations are re-executed. This prevents duplicate API calls and
-#    wasted compute. Note: Idempotency requires a deployment - ad-hoc runs without deployments don't support this.
-#
-# If an LLM call fails (rate limit, network error, etc.), Prefect automatically retries it.
-# If a tool call fails (invalid data, computation error), it retries independently.
-# If you retry a failed flow run from the UI, already-completed tasks won't re-execute.
+#    wasted compute.
+
 #
 # ## Key Takeaways
 #
