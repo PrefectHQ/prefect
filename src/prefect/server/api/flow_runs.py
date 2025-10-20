@@ -602,6 +602,53 @@ async def delete_flow_run_logs(db: PrefectDBInterface, flow_run_id: UUID) -> Non
         )
 
 
+@router.post("/bulk_delete")
+async def bulk_delete_flow_runs(
+    background_tasks: BackgroundTasks,
+    flow_runs: schemas.filters.FlowRunFilter = Body(
+        ..., description="Filter to identify flow runs to delete"
+    ),
+    limit: int = Body(
+        200, le=200, ge=1, description="Maximum number of flow runs to delete"
+    ),
+    db: PrefectDBInterface = Depends(provide_database_interface),
+) -> schemas.responses.FlowRunBulkDeleteResponse:
+    """
+    Bulk delete flow runs using a filter.
+
+    This endpoint deletes flow runs matching the provided filter criteria
+    and cleans up related resources such as concurrency slots.
+    """
+    result = schemas.responses.FlowRunBulkDeleteResponse()
+
+    async with db.session_context() as session:
+        # Query for matching flow runs
+        runs = await models.flow_runs.read_flow_runs(
+            session=session,
+            flow_run_filter=flow_runs,
+            limit=limit,
+        )
+
+        flow_run_ids = [run.id for run in runs]
+
+    if not flow_run_ids:
+        return result
+
+    # Delete flow runs
+    async with db.session_context(begin_transaction=True) as session:
+        deleted_ids = await models.flow_runs.bulk_delete_flow_runs(
+            session=session,
+            flow_run_ids=flow_run_ids,
+        )
+        result.deleted = deleted_ids
+
+    # Schedule log cleanup in background
+    for flow_run_id in result.deleted:
+        background_tasks.add_task(delete_flow_run_logs, db, flow_run_id)
+
+    return result
+
+
 @router.post("/{id:uuid}/set_state")
 async def set_flow_run_state(
     response: Response,

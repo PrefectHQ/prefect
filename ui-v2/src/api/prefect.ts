@@ -362,6 +362,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/flow_runs/bulk_delete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Bulk Delete Flow Runs
+         * @description Bulk delete flow runs using a filter.
+         *
+         *     This endpoint deletes flow runs matching the provided filter criteria
+         *     and cleans up related resources such as concurrency slots.
+         */
+        post: operations["bulk_delete_flow_runs_flow_runs_bulk_delete_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/flow_runs/{id}/set_state": {
         parameters: {
             query?: never;
@@ -4079,6 +4102,17 @@ export interface components {
              */
             lease_id: string;
         };
+        /** Body_bulk_delete_flow_runs_flow_runs_bulk_delete_post */
+        Body_bulk_delete_flow_runs_flow_runs_bulk_delete_post: {
+            /** @description Filter to identify flow runs to delete */
+            flow_runs: components["schemas"]["FlowRunFilter"];
+            /**
+             * Limit
+             * @description Maximum number of flow runs to delete
+             * @default 200
+             */
+            limit: number;
+        };
         /** Body_bulk_increment_active_slots_v2_concurrency_limits_increment_post */
         Body_bulk_increment_active_slots_v2_concurrency_limits_increment_post: {
             /** Slots */
@@ -6754,6 +6788,17 @@ export interface components {
             job_variables?: {
                 [key: string]: unknown;
             } | null;
+        };
+        /**
+         * FlowRunBulkDeleteResponse
+         * @description Response from bulk flow run deletion operation.
+         */
+        FlowRunBulkDeleteResponse: {
+            /**
+             * Deleted
+             * @description List of flow run IDs that were successfully deleted
+             */
+            deleted?: string[];
         };
         /**
          * FlowRunCreate
@@ -10851,6 +10896,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["FlowRunResponse"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    bulk_delete_flow_runs_flow_runs_bulk_delete_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-prefect-api-version"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Body_bulk_delete_flow_runs_flow_runs_bulk_delete_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FlowRunBulkDeleteResponse"];
                 };
             };
             /** @description Validation Error */

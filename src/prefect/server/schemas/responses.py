@@ -668,3 +668,12 @@ SchemaValueError = Union[str, SchemaValuePropertyError, SchemaValueIndexError]
 class SchemaValuesValidationResponse(BaseModel):
     errors: List[SchemaValueError]
     valid: bool
+
+
+class FlowRunBulkDeleteResponse(PrefectBaseModel):
+    """Response from bulk flow run deletion operation."""
+
+    deleted: List[UUID] = Field(
+        default_factory=list,
+        description="List of flow run IDs that were successfully deleted",
+    )
