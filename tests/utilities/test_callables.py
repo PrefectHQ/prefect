@@ -1579,3 +1579,23 @@ class TestEntrypointToSchema:
             "type": "object",
             "definitions": {},
         }
+
+
+class TestCloudpickleWrappedCall:
+    def test_raises_helpful_error_for_unpicklable_thread_lock(self):
+        """Test that unpicklable _thread.lock objects raise a helpful error."""
+        import threading
+
+        class UnpicklableObject:
+            def __init__(self):
+                self.lock = threading.Lock()
+
+        def my_function(obj):
+            return obj
+
+        unpicklable = UnpicklableObject()
+
+        with pytest.raises(
+            TypeError, match=r"MemoryLockManager.*FileSystemLockManager"
+        ):
+            callables.cloudpickle_wrapped_call(my_function, unpicklable)

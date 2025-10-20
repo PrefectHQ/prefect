@@ -221,7 +221,25 @@ def cloudpickle_wrapped_call(
     built-in pickler (e.g. `anyio.to_process` and `multiprocessing`) but may require
     a wider range of pickling support.
     """
-    payload = cloudpickle.dumps((__fn, args, kwargs))  # type: ignore   # no stubs available
+    try:
+        payload = cloudpickle.dumps((__fn, args, kwargs))  # type: ignore   # no stubs available
+    except TypeError as exc:
+        if "_thread.lock" in str(exc):
+            raise TypeError(
+                f"Failed to pickle function for subprocess execution: {exc}\n\n"
+                "This often occurs when using MemoryLockManager in a cache policy. "
+                "MemoryLockManager cannot be pickled and will not work correctly across "
+                "separate processes (such as when using .serve()).\n\n"
+                "If you're using MemoryLockManager, switch to FileSystemLockManager or "
+                "RedisLockManager:\n\n"
+                "  from prefect.locking.filesystem import FileSystemLockManager\n"
+                "  from prefect.transactions import IsolationLevel\n\n"
+                "  cache_policy = YOUR_POLICY.configure(\n"
+                "      isolation_level=IsolationLevel.SERIALIZABLE,\n"
+                "      lock_manager=FileSystemLockManager(),\n"
+                "  )"
+            ) from exc
+        raise
     return partial(_run_serialized_call, payload)
 
 
