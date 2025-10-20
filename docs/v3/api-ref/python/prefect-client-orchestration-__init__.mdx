@@ -2226,6 +2226,30 @@ Creates a work pool with the provided configuration.
 - Information about the newly created work pool.
 
 
+#### `create_work_queue` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/__init__.py#L1629" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+create_work_queue(self, name: str, description: Optional[str] = None, is_paused: Optional[bool] = None, concurrency_limit: Optional[int] = None, priority: Optional[int] = None, work_pool_name: Optional[str] = None) -> WorkQueue
+```
+
+Create a work queue.
+
+**Args:**
+- `name`: a unique name for the work queue
+- `description`: An optional description for the work queue.
+- `is_paused`: Whether or not the work queue is paused.
+- `concurrency_limit`: An optional concurrency limit for the work queue.
+- `priority`: The queue's priority. Lower values are higher priority (1 is the highest).
+- `work_pool_name`: The name of the work pool to use for this queue.
+
+**Raises:**
+- `prefect.exceptions.ObjectAlreadyExists`: If request returns 409
+- `httpx.RequestError`: If request fails
+
+**Returns:**
+- The created work queue
+
+
 #### `decrement_v1_concurrency_slots` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_concurrency_limits/client.py#L212" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
@@ -2379,6 +2403,22 @@ delete_global_concurrency_limit_by_name(self, name: str) -> 'Response'
 delete_resource_owned_automations(self, resource_id: str) -> None
 ```
 
+#### `delete_task_run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/__init__.py#L1611" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+delete_task_run(self, task_run_id: UUID) -> None
+```
+
+Delete a task run by id.
+
+**Args:**
+- `task_run_id`: the task run ID of interest
+
+Raises:
+    prefect.exceptions.ObjectNotFound: If request returns 404
+    httpx.RequestError: If requests fails
+
+
 #### `delete_variable_by_name` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_variables/client.py#L83" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
@@ -2398,6 +2438,22 @@ Deletes a work pool.
 
 **Args:**
 - `work_pool_name`: Name of the work pool to delete.
+
+
+#### `delete_work_queue_by_id` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/__init__.py#L1872" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+delete_work_queue_by_id(self, id: UUID) -> None
+```
+
+Delete a work queue by its ID.
+
+**Args:**
+- `id`: the id of the work queue to delete
+
+**Raises:**
+- `prefect.exceptions.ObjectNotFound`: If request returns 404
+- `httpx.RequestError`: If requests fails
 
 
 #### `filter_flow_run_input` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_flow_runs/client.py#L471" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
@@ -2428,6 +2484,28 @@ Fetches the most recent block schema for a specified block type ID.
 
 **Returns:**
 - The most recent block schema or None.
+
+
+#### `get_runs_in_work_queue` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/__init__.py#L1744" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+get_runs_in_work_queue(self, id: UUID, limit: int = 10, scheduled_before: Optional[datetime.datetime] = None) -> list[FlowRun]
+```
+
+Read flow runs off a work queue.
+
+**Args:**
+- `id`: the id of the work queue to read from
+- `limit`: a limit on the number of runs to return
+- `scheduled_before`: a timestamp; only runs scheduled before this time will be returned.
+Defaults to now.
+
+**Raises:**
+- `prefect.exceptions.ObjectNotFound`: If request returns 404
+- `httpx.RequestError`: If request fails
+
+**Returns:**
+- List[FlowRun]: a list of FlowRun objects read from the queue
 
 
 #### `get_scheduled_flow_runs_for_deployments` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_deployments/client.py#L590" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
@@ -2507,6 +2585,23 @@ Increment concurrency limit slots for the specified limits.
 **Args:**
 - `names`: A list of limit names for which to increment limits.
 - `task_run_id`: The task run ID incrementing the limits.
+
+
+#### `match_work_queues` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/__init__.py#L1836" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+match_work_queues(self, prefixes: list[str], work_pool_name: Optional[str] = None) -> list[WorkQueue]
+```
+
+Query the Prefect API for work queues with names with a specific prefix.
+
+**Args:**
+- `prefixes`: a list of strings used to match work queue name prefixes
+- `work_pool_name`: an optional work pool name to scope the query to
+
+**Returns:**
+- a list of WorkQueue model representations
+of the work queues
 
 
 #### `pause_automation` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_automations/client.py#L127" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
@@ -3075,6 +3170,92 @@ Reads work pools.
 - A list of work pools.
 
 
+#### `read_work_queue` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/__init__.py#L1784" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+read_work_queue(self, id: UUID) -> WorkQueue
+```
+
+Read a work queue.
+
+**Args:**
+- `id`: the id of the work queue to load
+
+**Raises:**
+- `prefect.exceptions.ObjectNotFound`: If request returns 404
+- `httpx.RequestError`: If request fails
+
+**Returns:**
+- an instantiated WorkQueue object
+
+
+#### `read_work_queue_by_name` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/__init__.py#L1683" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+read_work_queue_by_name(self, name: str, work_pool_name: Optional[str] = None) -> WorkQueue
+```
+
+Read a work queue by name.
+
+**Args:**
+- `name`: a unique name for the work queue
+- `work_pool_name`: the name of the work pool
+the queue belongs to.
+
+**Raises:**
+- `prefect.exceptions.ObjectNotFound`: if no work queue is found
+- `httpx.HTTPStatusError`: other status errors
+
+**Returns:**
+- a work queue API object
+
+
+#### `read_work_queue_status` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/__init__.py#L1810" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+read_work_queue_status(self, id: UUID) -> WorkQueueStatusDetail
+```
+
+Read a work queue status.
+
+**Args:**
+- `id`: the id of the work queue to load
+
+**Raises:**
+- `prefect.exceptions.ObjectNotFound`: If request returns 404
+- `httpx.RequestError`: If request fails
+
+**Returns:**
+- an instantiated WorkQueueStatus object
+
+
+#### `read_work_queues` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/__init__.py#L1896" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+read_work_queues(self, work_pool_name: Optional[str] = None, work_queue_filter: Optional[WorkQueueFilter] = None, limit: Optional[int] = None, offset: Optional[int] = None) -> list[WorkQueue]
+```
+
+Retrieves queues for a work pool.
+
+**Args:**
+- `work_pool_name`: Name of the work pool for which to get queues.
+- `work_queue_filter`: Criteria by which to filter queues.
+- `limit`: Limit for the queue query.
+- `offset`: Limit for the queue query.
+
+**Returns:**
+- List of queues for the specified work pool.
+
+
+#### `read_worker_metadata` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/__init__.py#L1941" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+read_worker_metadata(self) -> dict[str, Any]
+```
+
+Reads worker metadata stored in Prefect collection registry.
+
+
 #### `read_workers_for_work_pool` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_work_pools/client.py#L82" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
@@ -3390,6 +3571,24 @@ Updates a work pool.
 **Args:**
 - `work_pool_name`: Name of the work pool to update.
 - `work_pool`: Fields to update in the work pool.
+
+
+#### `update_work_queue` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/__init__.py#L1718" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+update_work_queue(self, id: UUID, **kwargs: Any) -> None
+```
+
+Update properties of a work queue.
+
+**Args:**
+- `id`: the ID of the work queue to update
+- `**kwargs`: the fields to update
+
+**Raises:**
+- `ValueError`: if no kwargs are provided
+- `prefect.exceptions.ObjectNotFound`: if request returns 404
+- `httpx.RequestError`: if the request fails
 
 
 #### `upsert_global_concurrency_limit_by_name` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_concurrency_limits/client.py#L429" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
