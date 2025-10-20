@@ -103,6 +103,13 @@ class MockCredentials(Block):
     password: Optional[SecretStr] = None
 
 
+class MockGitLabCredentials(Block):
+    """Mock GitLab credentials block for testing."""
+
+    _block_type_slug = "gitlab-credentials"
+    token: Optional[SecretStr] = None
+
+
 class TestGitRepository:
     def test_adheres_to_runner_storage_interface(self):
         assert isinstance(GitRepository, RunnerStorage)
@@ -654,6 +661,95 @@ class TestGitRepository:
                     "git",
                     "clone",
                     expected_url,
+                    "--depth",
+                    "1",
+                    str(Path.cwd() / "repo"),
+                ],
+            )
+
+        async def test_git_clone_with_gitlab_credentials_block_self_hosted(
+            self, mock_run_process: AsyncMock
+        ):
+            """
+            Test that GitLabCredentials block works with self-hosted GitLab URLs
+            that don't contain 'gitlab' in the hostname.
+
+            Regression test for https://github.com/PrefectHQ/prefect/issues/16836
+            """
+            credentials = MockGitLabCredentials(token="example-token")
+
+            repo = GitRepository(
+                url="https://git.company.com/org/repo.git",
+                credentials=credentials,
+            )
+
+            await repo.pull_code()
+
+            # Should use oauth2: prefix even though URL doesn't contain "gitlab"
+            mock_run_process.assert_awaited_once_with(
+                [
+                    "git",
+                    "clone",
+                    "https://oauth2:example-token@git.company.com/org/repo.git",
+                    "--depth",
+                    "1",
+                    str(Path.cwd() / "repo"),
+                ],
+            )
+
+        async def test_git_clone_with_gitlab_credentials_block_deploy_token(
+            self, mock_run_process: AsyncMock
+        ):
+            """
+            Test that GitLabCredentials block with deploy tokens (username:token format)
+            does not get oauth2: prefix.
+
+            Deploy tokens in oauth2: format are rejected by GitLab 16.3.4+
+            Regression test for https://github.com/PrefectHQ/prefect/issues/10832
+            """
+            # Deploy token format: username:token
+            credentials = MockGitLabCredentials(token="deploy-user:deploy-token-value")
+
+            repo = GitRepository(
+                url="https://gitlab.com/org/repo.git",
+                credentials=credentials,
+            )
+
+            await repo.pull_code()
+
+            # Should NOT add oauth2: prefix for deploy tokens
+            mock_run_process.assert_awaited_once_with(
+                [
+                    "git",
+                    "clone",
+                    "https://deploy-user:deploy-token-value@gitlab.com/org/repo.git",
+                    "--depth",
+                    "1",
+                    str(Path.cwd() / "repo"),
+                ],
+            )
+
+        async def test_git_clone_with_gitlab_credentials_block_already_prefixed(
+            self, mock_run_process: AsyncMock
+        ):
+            """
+            Test that GitLabCredentials block doesn't double-prefix oauth2:
+            """
+            credentials = MockGitLabCredentials(token="oauth2:example-token")
+
+            repo = GitRepository(
+                url="https://git.company.com/org/repo.git",
+                credentials=credentials,
+            )
+
+            await repo.pull_code()
+
+            # Should not double-prefix
+            mock_run_process.assert_awaited_once_with(
+                [
+                    "git",
+                    "clone",
+                    "https://oauth2:example-token@git.company.com/org/repo.git",
                     "--depth",
                     "1",
                     str(Path.cwd() / "repo"),
