@@ -166,7 +166,8 @@
               "v3/how-to-guides/automations/creating-automations",
               "v3/how-to-guides/automations/creating-deployment-triggers",
               "v3/how-to-guides/automations/chaining-deployments-with-events",
-              "v3/how-to-guides/automations/access-parameters-in-templates"
+              "v3/how-to-guides/automations/access-parameters-in-templates",
+              "v3/how-to-guides/automations/passing-event-payloads-to-flows"
             ]
           },
           {
@@ -282,7 +283,8 @@
             "pages": [
               "v3/advanced/api-client",
               "v3/advanced/custom-blocks",
-              "v3/advanced/developing-a-custom-worker"
+              "v3/advanced/developing-a-custom-worker",
+              "v3/advanced/experimental-plugins"
             ]
           }
         ],
@@ -298,7 +300,8 @@
               "v3/examples/run-api-sourced-etl",
               "v3/examples/run-dbt-with-prefect",
               "v3/examples/atproto-dashboard-with-prefect-assets",
-              "v3/examples/simple-web-scraper"
+              "v3/examples/simple-web-scraper",
+              "v3/examples/ai-data-analyst-with-pydantic-ai"
             ]
           }
         ],
@@ -867,6 +870,7 @@
                       "v3/api-ref/python/prefect-cli-deployment",
                       "v3/api-ref/python/prefect-cli-dev",
                       "v3/api-ref/python/prefect-cli-events",
+                      "v3/api-ref/python/prefect-cli-experimental",
                       "v3/api-ref/python/prefect-cli-flow",
                       "v3/api-ref/python/prefect-cli-flow_run",
                       "v3/api-ref/python/prefect-cli-flow_runs_watching",
