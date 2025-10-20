@@ -37,11 +37,11 @@ def test_execute_bundle_from_gcs_success(
     bucket = "test-bucket"
     key = "test-key.json"
 
-    def mock_download_to_file(path: str) -> None:
+    def mock_download_to_filename(path: str) -> None:
         Path(path).write_bytes(to_json(mock_bundle_data))
 
     # wow, i love mocking so much
-    gcp_credentials.get_cloud_storage_client.return_value.bucket.return_value.blob.return_value.download_to_file.side_effect = mock_download_to_file
+    gcp_credentials.get_cloud_storage_client.return_value.bucket.return_value.blob.return_value.download_to_filename.side_effect = mock_download_to_filename
 
     execute_bundle_from_gcs(
         bucket=bucket,
@@ -53,7 +53,7 @@ def test_execute_bundle_from_gcs_success(
     gcs_client = gcp_credentials.get_cloud_storage_client()
     gcs_client.bucket.assert_called_once_with(bucket)
     gcs_client.bucket(bucket).blob.assert_called_once_with(key)
-    gcs_client.bucket(bucket).blob(key).download_to_file.assert_called_once()
+    gcs_client.bucket(bucket).blob(key).download_to_filename.assert_called_once()
 
     # Verify the Runner was called correctly
     mock_runner.execute_bundle.assert_called_once_with(mock_bundle_data)
@@ -78,11 +78,11 @@ def test_execute_bundle_from_gcs_with_default_credentials(
     bucket = "test-bucket"
     key = "test-key.json"
 
-    def mock_download_to_file(path: str) -> None:
+    def mock_download_to_filename(path: str) -> None:
         Path(path).write_bytes(to_json(mock_bundle_data))
 
-    # Set up the mock for download_to_file
-    gcp_credentials.get_cloud_storage_client.return_value.bucket.return_value.blob.return_value.download_to_file.side_effect = mock_download_to_file
+    # Set up the mock for download_to_filename
+    gcp_credentials.get_cloud_storage_client.return_value.bucket.return_value.blob.return_value.download_to_filename.side_effect = mock_download_to_filename
 
     execute_bundle_from_gcs(
         bucket=bucket,
@@ -93,7 +93,7 @@ def test_execute_bundle_from_gcs_with_default_credentials(
     gcs_client = gcp_credentials.get_cloud_storage_client()
     gcs_client.bucket.assert_called_once_with(bucket)
     gcs_client.bucket(bucket).blob.assert_called_once_with(key)
-    gcs_client.bucket(bucket).blob(key).download_to_file.assert_called_once()
+    gcs_client.bucket(bucket).blob(key).download_to_filename.assert_called_once()
 
     # Verify the Runner was called correctly
     mock_runner.execute_bundle.assert_called_once_with(mock_bundle_data)
@@ -115,7 +115,7 @@ def test_execute_bundle_from_gcs_download_failure(
 
     # Mock the GCS client to raise an exception
     gcs_client = gcp_credentials.get_cloud_storage_client()
-    gcs_client.bucket(bucket).blob(key).download_to_file.side_effect = Exception(
+    gcs_client.bucket(bucket).blob(key).download_to_filename.side_effect = Exception(
         "Download failed"
     )
 
@@ -150,11 +150,11 @@ def test_execute_bundle_from_gcs_execution_failure(
     bucket = "test-bucket"
     key = "test-key.json"
 
-    def mock_download_to_file(path: str) -> None:
+    def mock_download_to_filename(path: str) -> None:
         Path(path).write_bytes(to_json(mock_bundle_data))
 
-    # Set up the mock for download_to_file
-    gcp_credentials.get_cloud_storage_client.return_value.bucket.return_value.blob.return_value.download_to_file.side_effect = mock_download_to_file
+    # Set up the mock for download_to_filename
+    gcp_credentials.get_cloud_storage_client.return_value.bucket.return_value.blob.return_value.download_to_filename.side_effect = mock_download_to_filename
 
     # Call the function and expect it to raise a RuntimeError
     with pytest.raises(
