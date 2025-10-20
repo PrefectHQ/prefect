@@ -3182,3 +3182,25 @@ class TestPrefectClientWorkerHeartbeat:
                 "name": "test-worker",
                 "heartbeat_interval_seconds": 10,
             }
+
+
+class TestPrefectClientMethods:
+    """Tests that the sync and async clients contains the same methods"""
+
+    def test_methods(self):
+        sync_client_methods = set(dir(get_client(sync_client=True)))
+        async_client_methods = set(dir(get_client(sync_client=False)))
+
+        exclude_methods = {
+            "__aenter__",
+            "__aexit__",
+            "_ephemeral_lifespan",
+            "_exit_stack",
+            "_loop",
+            "loop",
+        }
+
+        assert (
+            async_client_methods - exclude_methods
+            == sync_client_methods - exclude_methods
+        )
