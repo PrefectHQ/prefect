@@ -241,6 +241,8 @@ jobs:
             NODE_VERSION=${{ steps.get_node_version.outputs.NODE_VERSION }}
           tags: prefecthq/prefect-dev:${{ steps.get_image_tag.outputs.image_tag }}
           outputs: type=docker,dest=/tmp/image.tar
+          cache-from: type=gha,scope=test-${{ matrix.python-version }}
+          cache-to: type=gha,mode=max,scope=test-${{ matrix.python-version }}
 
       - name: Test Docker image
         run: |

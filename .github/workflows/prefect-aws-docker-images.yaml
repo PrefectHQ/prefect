@@ -93,3 +93,5 @@ jobs:
           push: true
           pull: true
           provenance: false
+          cache-from: type=gha,scope=prefect-aws-${{ matrix.python-version }}
+          cache-to: type=gha,mode=max,scope=prefect-aws-${{ matrix.python-version }}

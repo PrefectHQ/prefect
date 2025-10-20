@@ -132,6 +132,8 @@ jobs:
           push: true
           pull: true
           provenance: false
+          cache-from: type=gha,scope=${{ matrix.image }}-${{ matrix.python-version }}${{ matrix.flavor }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.image }}-${{ matrix.python-version }}${{ matrix.flavor }}
 
   get-prefect-aws-version:
     name: Get latest prefect-aws version
