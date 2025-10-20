@@ -3188,8 +3188,8 @@ class TestPrefectClientMethods:
     """Tests that the sync and async clients contains the same methods"""
 
     def test_methods(self):
-        async_client_methods = set(dir(get_client(sync_client=True)))
-        sync_client_methods = set(dir(get_client(sync_client=False)))
+        sync_client_methods = set(dir(get_client(sync_client=True)))
+        async_client_methods = set(dir(get_client(sync_client=False)))
 
         exclude_methods = {
             "__aenter__",
