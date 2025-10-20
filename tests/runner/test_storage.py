@@ -109,6 +109,43 @@ class MockGitLabCredentials(Block):
     _block_type_slug = "gitlab-credentials"
     token: Optional[SecretStr] = None
 
+    def format_git_credentials(self, url: str) -> str:
+        """
+        Format GitLab credentials for git URLs.
+
+        Handles both personal access tokens and deploy tokens correctly:
+        - Personal access tokens: prefixed with "oauth2:"
+        - Deploy tokens (username:token format): used as-is
+        - Already prefixed tokens: not double-prefixed
+
+        Args:
+            url: Repository URL (provided for context, not used by GitLab)
+
+        Returns:
+            Formatted credentials string
+
+        Raises:
+            ValueError: If token is not configured
+        """
+        if not self.token:
+            raise ValueError("Token is required for GitLab authentication")
+
+        token_value = self.token.get_secret_value()
+
+        # Deploy token detection: contains ":" but not "oauth2:" prefix
+        # Deploy tokens should not have oauth2: prefix (GitLab 16.3.4+ rejects them)
+        # See: https://github.com/PrefectHQ/prefect/issues/10832
+        if ":" in token_value and not token_value.startswith("oauth2:"):
+            return token_value
+
+        # Personal access token: add oauth2: prefix
+        # See: https://github.com/PrefectHQ/prefect/issues/16836
+        if not token_value.startswith("oauth2:"):
+            return f"oauth2:{token_value}"
+
+        # Already prefixed
+        return token_value
+
 
 class TestGitRepository:
     def test_adheres_to_runner_storage_interface(self):
@@ -750,6 +787,76 @@ class TestGitRepository:
                     "git",
                     "clone",
                     "https://oauth2:example-token@git.company.com/org/repo.git",
+                    "--depth",
+                    "1",
+                    str(Path.cwd() / "repo"),
+                ],
+            )
+
+        async def test_protocol_block_uses_format_git_credentials_method(
+            self, mock_run_process: AsyncMock, monkeypatch
+        ):
+            """
+            Test that blocks implementing GitCredentialsFormatter protocol
+            use their format_git_credentials method instead of legacy logic.
+            """
+            credentials = MockGitLabCredentials(token="test-token")
+
+            # Spy on the format_git_credentials method
+            original_method = credentials.format_git_credentials
+            call_count = []
+
+            def spy_format(*args, **kwargs):
+                call_count.append(1)
+                return original_method(*args, **kwargs)
+
+            monkeypatch.setattr(credentials, "format_git_credentials", spy_format)
+
+            repo = GitRepository(
+                url="https://example.com/org/repo.git",
+                credentials=credentials,
+            )
+
+            await repo.pull_code()
+
+            # Verify format_git_credentials was called
+            assert len(call_count) == 1
+
+            # Verify the result uses the protocol's formatting (oauth2: prefix)
+            mock_run_process.assert_awaited_once_with(
+                [
+                    "git",
+                    "clone",
+                    "https://oauth2:test-token@example.com/org/repo.git",
+                    "--depth",
+                    "1",
+                    str(Path.cwd() / "repo"),
+                ],
+            )
+
+        async def test_non_protocol_block_uses_legacy_path(
+            self, mock_run_process: AsyncMock
+        ):
+            """
+            Test that blocks without format_git_credentials method
+            use the legacy credential formatting logic.
+            """
+            # MockCredentials doesn't implement GitCredentialsFormatter
+            credentials = MockCredentials(token="legacy-token")
+
+            repo = GitRepository(
+                url="https://gitlab.com/org/repo.git",
+                credentials=credentials,
+            )
+
+            await repo.pull_code()
+
+            # Legacy logic detects gitlab.com and adds oauth2: prefix
+            mock_run_process.assert_awaited_once_with(
+                [
+                    "git",
+                    "clone",
+                    "https://oauth2:legacy-token@gitlab.com/org/repo.git",
                     "--depth",
                     "1",
                     str(Path.cwd() / "repo"),

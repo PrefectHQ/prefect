@@ -57,3 +57,46 @@ def test_bitbucket_username_with_email_passes():
         token="dummy-token", username="devops.team+ci@scalefocus.com"
     )
     assert creds.username == "devops.team+ci@scalefocus.com"
+
+
+def test_format_git_credentials_cloud():
+    """Test that BitBucket Cloud credentials get x-token-auth: prefix."""
+    credentials = BitBucketCredentials(token="my-token")
+    result = credentials.format_git_credentials("https://bitbucket.org/org/repo.git")
+    assert result == "x-token-auth:my-token"
+
+
+def test_format_git_credentials_cloud_already_prefixed():
+    """Test that already-prefixed tokens are used as-is."""
+    credentials = BitBucketCredentials(token="x-token-auth:my-token")
+    result = credentials.format_git_credentials("https://bitbucket.org/org/repo.git")
+    assert result == "x-token-auth:my-token"
+
+
+def test_format_git_credentials_server():
+    """Test that BitBucket Server credentials use username:token format."""
+    credentials = BitBucketCredentials(token="my-token", username="myuser")
+    result = credentials.format_git_credentials(
+        "https://bitbucketserver.com/scm/project/repo.git"
+    )
+    assert result == "myuser:my-token"
+
+
+def test_format_git_credentials_server_no_username_raises():
+    """Test that BitBucket Server without username raises ValueError."""
+    credentials = BitBucketCredentials(token="my-token")
+    with pytest.raises(
+        ValueError, match="Username is required for BitBucket Server authentication"
+    ):
+        credentials.format_git_credentials(
+            "https://bitbucketserver.com/scm/project/repo.git"
+        )
+
+
+def test_format_git_credentials_no_token_raises():
+    """Test that missing token raises ValueError."""
+    credentials = BitBucketCredentials()
+    with pytest.raises(
+        ValueError, match="Token or password is required for BitBucket authentication"
+    ):
+        credentials.format_git_credentials("https://bitbucket.org/org/repo.git")

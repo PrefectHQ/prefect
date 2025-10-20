@@ -3,6 +3,7 @@
 import re
 from enum import Enum
 from typing import Optional, Union
+from urllib.parse import urlparse
 
 from pydantic import Field, SecretStr, field_validator
 
@@ -79,6 +80,52 @@ class BitBucketCredentials(CredentialsBlock):
         if len(value) > 100:
             raise ValueError("Username cannot be longer than 100 characters.")
         return value
+
+    def format_git_credentials(self, url: str) -> str:
+        """
+        Format BitBucket credentials for git URLs.
+
+        BitBucket has different authentication formats:
+        - BitBucket Server: username:token format required
+        - BitBucket Cloud: x-token-auth:token prefix
+
+        Args:
+            url: Repository URL (used to determine Server vs Cloud)
+
+        Returns:
+            Formatted credentials string
+
+        Raises:
+            ValueError: If credentials are not properly configured
+        """
+        netloc = urlparse(url).netloc
+
+        # Get the token (prefer token field, fall back to password)
+        token_value: Optional[str] = None
+        if self.token:
+            token_value = self.token.get_secret_value()
+        elif self.password:
+            token_value = self.password.get_secret_value()
+
+        if not token_value:
+            raise ValueError(
+                "Token or password is required for BitBucket authentication"
+            )
+
+        # BitBucket Server requires username:token format
+        if "bitbucketserver" in netloc:
+            if not self.username:
+                raise ValueError(
+                    "Username is required for BitBucket Server authentication"
+                )
+            return f"{self.username}:{token_value}"
+
+        # BitBucket Cloud uses x-token-auth: prefix
+        # If token already has a colon or prefix, use as-is
+        if ":" in token_value:
+            return token_value
+
+        return f"x-token-auth:{token_value}"
 
     def get_client(
         self, client_type: Union[str, ClientType], **client_kwargs

@@ -31,6 +31,26 @@ class GitHubCredentials(CredentialsBlock):
         default=None, description="A GitHub personal access token (PAT)."
     )
 
+    def format_git_credentials(self, url: str) -> str:
+        """
+        Format GitHub credentials for git URLs.
+
+        GitHub uses plain token format without any prefix.
+
+        Args:
+            url: Repository URL (provided for context, not used by GitHub)
+
+        Returns:
+            Formatted credentials string (plain token)
+
+        Raises:
+            ValueError: If token is not configured
+        """
+        if not self.token:
+            raise ValueError("Token is required for GitHub authentication")
+
+        return self.token.get_secret_value()
+
     def get_client(self) -> HTTPEndpoint:
         """
         Gets an authenticated GitHub GraphQL HTTPEndpoint client.

@@ -37,6 +37,43 @@ class GitLabCredentials(Block):
         default=None, title="URL", description="URL to self-hosted GitLab instances."
     )
 
+    def format_git_credentials(self, url: str) -> str:
+        """
+        Format GitLab credentials for git URLs.
+
+        Handles both personal access tokens and deploy tokens correctly:
+        - Personal access tokens: prefixed with "oauth2:"
+        - Deploy tokens (username:token format): used as-is
+        - Already prefixed tokens: not double-prefixed
+
+        Args:
+            url: Repository URL (provided for context, not used by GitLab)
+
+        Returns:
+            Formatted credentials string
+
+        Raises:
+            ValueError: If token is not configured
+        """
+        if not self.token:
+            raise ValueError("Token is required for GitLab authentication")
+
+        token_value = self.token.get_secret_value()
+
+        # Deploy token detection: contains ":" but not "oauth2:" prefix
+        # Deploy tokens should not have oauth2: prefix (GitLab 16.3.4+ rejects them)
+        # See: https://github.com/PrefectHQ/prefect/issues/10832
+        if ":" in token_value and not token_value.startswith("oauth2:"):
+            return token_value
+
+        # Personal access token: add oauth2: prefix
+        # See: https://github.com/PrefectHQ/prefect/issues/16836
+        if not token_value.startswith("oauth2:"):
+            return f"oauth2:{token_value}"
+
+        # Already prefixed
+        return token_value
+
     def get_client(self) -> Gitlab:
         """
         Gets an authenticated GitLab client.
