@@ -4653,6 +4653,32 @@ class TestFlowServe:
         self.flow.serve("etl-0.0.5")
         assert captured_name == "etl-0.0.5"
 
+    def test_serve_raises_error_with_memory_lock_manager(self):
+        """Test that serving a flow with MemoryLockManager raises a helpful error."""
+        from prefect import task
+        from prefect.cache_policies import RUN_ID
+        from prefect.locking.memory import MemoryLockManager
+        from prefect.transactions import IsolationLevel
+
+        cache_policy = RUN_ID.configure(
+            isolation_level=IsolationLevel.SERIALIZABLE,
+            lock_manager=MemoryLockManager(),
+        )
+
+        @task(cache_policy=cache_policy)
+        def cached_task(x: int) -> int:
+            return x + 1
+
+        @flow
+        def flow_with_memory_lock(x: int) -> int:
+            return cached_task(x)
+
+        with pytest.raises(
+            ValueError,
+            match=r"cannot be served because it contains a `MemoryLockManager`",
+        ):
+            flow_with_memory_lock.serve("test")
+
 
 class MockStorage:
     """

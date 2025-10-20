@@ -1089,6 +1089,29 @@ class Flow(Generic[P, R]):
         """
         from prefect.runner import Runner
 
+        # Validate that the flow can be pickled for subprocess execution
+        try:
+            import cloudpickle
+
+            cloudpickle.dumps(self)
+        except TypeError as exc:
+            if "_thread.lock" in str(exc):
+                raise ValueError(
+                    f"Flow '{self.name}' cannot be served because it contains a "
+                    "`MemoryLockManager`, which cannot be pickled for subprocess execution. "
+                    "`MemoryLockManager` requires shared memory space and will not work correctly "
+                    "across separate processes.\n\n"
+                    "To fix this, use `FileSystemLockManager` or `RedisLockManager` instead:\n\n"
+                    "  from prefect.locking.filesystem import FileSystemLockManager\n"
+                    "  from prefect.transactions import IsolationLevel\n\n"
+                    "  cache_policy = YOUR_POLICY.configure(\n"
+                    "      isolation_level=IsolationLevel.SERIALIZABLE,\n"
+                    "      lock_manager=FileSystemLockManager(),\n"
+                    "  )"
+                ) from exc
+            # Re-raise other TypeErrors
+            raise
+
         if not name:
             name = self.name
         else:
