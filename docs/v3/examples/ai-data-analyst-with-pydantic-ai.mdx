@@ -135,14 +135,43 @@ class DataAnalysis(BaseModel):
 
     summary: str = Field(description="High-level summary of the dataset")
     key_findings: list[str] = Field(
-        description="3-5 key insights discovered from the data"
+        description="Key findings discovered from the data", min_length=3, max_length=5
     )
     recommendations: list[str] = Field(
-        description="Actionable recommendations based on the analysis"
+        description="Actionable recommendations based on the findings",
+        min_length=3,
+        max_length=5,
     )
     columns_analyzed: list[str] = Field(
         description="List of columns that were analyzed"
     )
+
+    def __str__(self) -> str:
+        """Format the analysis results for clean display."""
+        findings = "\n".join(
+            f"  {i}. {finding}" for i, finding in enumerate(self.key_findings, 1)
+        )
+        recommendations = "\n".join(
+            f"  {i}. {rec}" for i, rec in enumerate(self.recommendations, 1)
+        )
+
+        return f"""
+{"=" * 80}
+ANALYSIS RESULTS
+{"=" * 80}
+
+📋 Summary:
+{self.summary}
+
+🔑 Key Findings:
+{findings}
+
+💡 Recommendations:
+{recommendations}
+
+📊 Columns Analyzed: {", ".join(self.columns_analyzed)}
+{"=" * 80}
+"""
 
 
 ```
@@ -167,6 +196,8 @@ def create_data_analyst_agent() -> PrefectAgent[pd.DataFrame, DataAnalysis]:
         name="data-analyst-agent",
         output_type=DataAnalysis,
         deps_type=pd.DataFrame,
+        # Register tools that the agent can use
+        tools=[calculate_statistics, detect_anomalies, get_column_info],
         system_prompt=(
             "You are an expert data analyst. Analyze the provided dataset using "
             "the available tools. Focus on finding meaningful patterns, anomalies, "
@@ -174,11 +205,6 @@ def create_data_analyst_agent() -> PrefectAgent[pd.DataFrame, DataAnalysis]:
             "structure with get_column_info."
         ),
     )
-
-    # Register tools that the agent can use
-    agent.tool(calculate_statistics)
-    agent.tool(detect_anomalies)
-    agent.tool(get_column_info)
 
     # Wrap with PrefectAgent for durable execution with custom retry policy
     return PrefectAgent(
@@ -252,38 +278,14 @@ async def analyze_dataset_with_ai() -> DataAnalysis:
     )
 
     # Display results
-    findings = "\n".join(
-        f"  {i}. {finding}" for i, finding in enumerate(result.output.key_findings, 1)
-    )
-    recommendations = "\n".join(
-        f"  {i}. {rec}" for i, rec in enumerate(result.output.recommendations, 1)
-    )
-
-    output = f"""
-{"=" * 80}
-ANALYSIS RESULTS
-{"=" * 80}
-
-📋 Summary:
-{result.output.summary}
-
-🔑 Key Findings:
-{findings}
-
-💡 Recommendations:
-{recommendations}
-
-📊 Columns Analyzed: {", ".join(result.output.columns_analyzed)}
-{"=" * 80}
-"""
-    print(output)
+    print(result.output)
 
     return result.output
 
 
 ```
 
-## Deploy the Flow
+## Serve the Flow
 
 To get full durable execution with automatic idempotency, serve the flow to create a deployment.
 Deployed flows enable Prefect's transactional semantics for agent operations.
@@ -344,7 +346,6 @@ When you serve and trigger this flow, Prefect and `pydantic-ai` work together to
 5. **Automatic Idempotency** – When a deployed flow run is retried, Prefect's transactional semantics ensure that
    completed tasks are skipped and only failed operations are re-executed. This prevents duplicate API calls and
    wasted compute.
-
 
 ## Key Takeaways
 
