@@ -1385,7 +1385,7 @@ class TestBulkDeleteFlowRuns:
         self,
         flow,
         client,
-        session: AsyncSession,
+        session,
     ):
         """Test bulk deleting flow runs by specific IDs."""
         from prefect.server import models
@@ -1441,7 +1441,7 @@ class TestBulkDeleteFlowRuns:
         self,
         flow,
         client,
-        session: AsyncSession,
+        session,
     ):
         """Test bulk deleting flow runs by tags."""
         from prefect.server import models
@@ -1499,7 +1499,7 @@ class TestBulkDeleteFlowRuns:
         self,
         flow,
         client,
-        session: AsyncSession,
+        session,
     ):
         """Test that the limit parameter is enforced."""
         from prefect.server import models
@@ -1572,7 +1572,7 @@ class TestBulkDeleteFlowRuns:
         self,
         flow,
         client,
-        session: AsyncSession,
+        session,
         deployment_with_concurrency_limit,
     ):
         """Test that concurrency slots are released when flow runs are deleted."""
