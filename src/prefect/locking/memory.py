@@ -266,4 +266,9 @@ class MemoryLockManager(LockManager):
         locks dictionary.
         """
         self.__dict__.update(state)
-        self.__init__()
+        # Handle case where the lock manager is being deserialized in the same process as the original instance
+        if self.__class__._initialized:
+            return
+        self._locks_dict_lock = threading.Lock()
+        self._locks: dict[str, _LockInfo] = {}
+        self.__class__._initialized = True
