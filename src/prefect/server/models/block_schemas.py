@@ -548,9 +548,9 @@ def _construct_block_schema_fields_with_block_references(
         parent_block_schema_id,
     ) in block_schemas_with_references:
         if parent_block_schema_id == parent_block_schema.id:
-            assert nested_block_schema.block_type, (
-                f"{nested_block_schema} has no block type"
-            )
+            assert (
+                nested_block_schema.block_type
+            ), f"{nested_block_schema} has no block type"
 
             new_block_schema_reference = {
                 "block_schema_checksum": nested_block_schema.checksum,
@@ -558,9 +558,9 @@ def _construct_block_schema_fields_with_block_references(
             }
             # A block reference for this key does not yet exist
             if name not in block_schema_fields_copy["block_schema_references"]:
-                block_schema_fields_copy["block_schema_references"][name] = (
-                    new_block_schema_reference
-                )
+                block_schema_fields_copy["block_schema_references"][
+                    name
+                ] = new_block_schema_reference
             else:
                 # List of block references for this key already exist and the block
                 # reference that we are attempting add isn't present

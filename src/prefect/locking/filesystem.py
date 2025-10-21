@@ -128,9 +128,9 @@ class FileSystemLockManager(LockManager):
                 pydantic_core.to_json(
                     {
                         "holder": holder,
-                        "expiration": str(expiration)
-                        if expiration is not None
-                        else None,
+                        "expiration": (
+                            str(expiration) if expiration is not None else None
+                        ),
                     },
                 )
             )
@@ -177,9 +177,9 @@ class FileSystemLockManager(LockManager):
                 pydantic_core.to_json(
                     {
                         "holder": holder,
-                        "expiration": str(expiration)
-                        if expiration is not None
-                        else None,
+                        "expiration": (
+                            str(expiration) if expiration is not None else None
+                        ),
                     },
                 )
             )

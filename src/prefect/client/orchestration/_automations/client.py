@@ -113,9 +113,11 @@ class AutomationClient(BaseClient):
             "/automations/filter",
             json={
                 "sort": AutomationSort.UPDATED_DESC,
-                "automations": automation_filter.model_dump(mode="json")
-                if automation_filter
-                else None,
+                "automations": (
+                    automation_filter.model_dump(mode="json")
+                    if automation_filter
+                    else None
+                ),
             },
         )
 
@@ -272,9 +274,11 @@ class AutomationAsyncClient(BaseAsyncClient):
             "/automations/filter",
             json={
                 "sort": AutomationSort.UPDATED_DESC,
-                "automations": automation_filter.model_dump(mode="json")
-                if automation_filter
-                else None,
+                "automations": (
+                    automation_filter.model_dump(mode="json")
+                    if automation_filter
+                    else None
+                ),
             },
         )
 

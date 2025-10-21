@@ -698,7 +698,9 @@ def sqlite_json_operators(
     if (handler := _sqlite_json_operator_map.get(operator)) is not None:
         return compiler.process(handler(element), **kwargs)
     # ignore reason: SQLA compilation hooks are not as well covered with type annotations
-    return compiler.visit_binary(element, override_operator=operator, **kwargs)  # pyright: ignore[reportUnknownMemberType,reportUnknownVariableType]
+    return compiler.visit_binary(
+        element, override_operator=operator, **kwargs
+    )  # pyright: ignore[reportUnknownMemberType,reportUnknownVariableType]
 
 
 class greatest(functions.ReturnTypeFromArgs[T]):

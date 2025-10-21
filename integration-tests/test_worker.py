@@ -71,9 +71,9 @@ def test_worker():
     except subprocess.CalledProcessError as e:
         # Check that the error message contains kubernetes worker type
         for type in ["process", "kubernetes"]:
-            assert type in str(e.output), (
-                f"Worker type {type!r} missing from output {e.output}"
-            )
+            assert type in str(
+                e.output
+            ), f"Worker type {type!r} missing from output {e.output}"
 
     subprocess.check_call(
         [
@@ -131,9 +131,9 @@ def test_worker():
         for e in events
         if e.event.startswith("prefect.worker.") and e.resource.name == WORKER_NAME
     ]
-    assert len(worker_events) == 2, (
-        f"Expected 2 worker events, got {len(worker_events)}"
-    )
+    assert (
+        len(worker_events) == 2
+    ), f"Expected 2 worker events, got {len(worker_events)}"
 
     start_events = [e for e in worker_events if e.event == "prefect.worker.started"]
     stop_events = [e for e in worker_events if e.event == "prefect.worker.stopped"]
@@ -143,6 +143,6 @@ def test_worker():
 
     print("Captured expected worker start and stop events!")
 
-    assert stop_events[0].follows == start_events[0].id, (
-        "Stop event should follow start event"
-    )
+    assert (
+        stop_events[0].follows == start_events[0].id
+    ), "Stop event should follow start event"

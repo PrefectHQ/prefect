@@ -60,9 +60,9 @@ async def test_failed_pod_start(
     # Allow both CRASHED and PENDING states - the important thing is
     # that the flow run didn't transition to RUNNING since the pod couldn't start
     acceptable_states = (StateType.CRASHED, StateType.PENDING)
-    assert state_type in acceptable_states, (
-        f"Expected flow run to be in one of {acceptable_states}, got {state_type}"
-    )
+    assert (
+        state_type in acceptable_states
+    ), f"Expected flow run to be in one of {acceptable_states}, got {state_type}"
 
     # Collect any events that were generated
     events = []
@@ -80,9 +80,9 @@ async def test_failed_pod_start(
     if events:
         event_types = {event.event for event in events}
         print(f"Found events: {event_types}")
-        assert "prefect.kubernetes.pod.pending" in event_types, (
-            f"Expected at least the 'pending' event, got: {event_types}"
-        )
+        assert (
+            "prefect.kubernetes.pod.pending" in event_types
+        ), f"Expected at least the 'pending' event, got: {event_types}"
 
 
 @pytest.mark.usefixtures("kind_cluster")
@@ -151,9 +151,9 @@ async def test_backoff_limit_exhausted(
             await asyncio.sleep(1)
 
     # Instead of expecting exactly 6 events, check for at least 5
-    assert len(events) >= 5, (
-        f"Expected at least 5 events, got {len(events)}: {[event.event for event in events]}"
-    )
+    assert (
+        len(events) >= 5
+    ), f"Expected at least 5 events, got {len(events)}: {[event.event for event in events]}"
 
     # Instead of checking exact order, check the event types
     event_types = {event.event for event in events}
@@ -173,6 +173,6 @@ async def test_backoff_limit_exhausted(
 
     # Verify the backoff retry happened
     total_events = pending_count + running_count + failed_count
-    assert total_events >= 4, (
-        f"Expected at least 4 events for retry, got {total_events}"
-    )
+    assert (
+        total_events >= 4
+    ), f"Expected at least 4 events for retry, got {total_events}"

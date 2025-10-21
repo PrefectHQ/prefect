@@ -412,7 +412,9 @@ async def test_inferring_deployment_requires_some_matching_resource(
     resume_their_deployment: TriggeredAction,
 ):
     assert resume_their_deployment.triggering_event
-    resume_their_deployment.triggering_event.related = []  # no relevant related resources
+    resume_their_deployment.triggering_event.related = (
+        []
+    )  # no relevant related resources
 
     action = resume_their_deployment.action
 

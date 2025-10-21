@@ -102,16 +102,16 @@ def test_schedule_statefulness(deployment_name: str):
         ),
     )
     schedules = check_deployment_schedules(f"my-flow/{deployment_name}")
-    assert any(s.schedule == CronSchedule(cron="0 9 * * *") for s in schedules), (
-        f"Expected schedule to persist: {schedules}"
-    )
+    assert any(
+        s.schedule == CronSchedule(cron="0 9 * * *") for s in schedules
+    ), f"Expected schedule to persist: {schedules}"
     run_serve_with_schedule(
         deployment_name, schedules=[], check_function=lambda schedules: not schedules
     )
     schedules = check_deployment_schedules(f"my-flow/{deployment_name}")
-    assert not schedules, (
-        f"Expected no schedules after removing unnamed schedule: {schedules}"
-    )
+    assert (
+        not schedules
+    ), f"Expected no schedules after removing unnamed schedule: {schedules}"
 
     # case 2: Schedule with slug
     print("\nTest case 2: Schedule with slug")
@@ -124,7 +124,7 @@ def test_schedule_statefulness(deployment_name: str):
     )
     run_serve_with_schedule(deployment_name, schedules=[])
     schedules = check_deployment_schedules(f"my-flow/{deployment_name}")
-    assert any(s.slug == "every-day-at-9am" for s in schedules), (
-        f"Expected named schedule to persist: {schedules}"
-    )
+    assert any(
+        s.slug == "every-day-at-9am" for s in schedules
+    ), f"Expected named schedule to persist: {schedules}"
     print("All tests passed!")

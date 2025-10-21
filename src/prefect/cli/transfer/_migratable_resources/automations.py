@@ -78,9 +78,9 @@ class MigratableAutomation(MigratableResource[Automation]):
                         self._dependencies[action.deployment_id] = dependency
                     else:
                         deployment = await client.read_deployment(action.deployment_id)
-                        self._dependencies[
-                            deployment.id
-                        ] = await construct_migratable_resource(deployment)
+                        self._dependencies[deployment.id] = (
+                            await construct_migratable_resource(deployment)
+                        )
                 elif (
                     isinstance(action, WorkPoolAction)
                     and action.work_pool_id is not None
@@ -97,9 +97,9 @@ class MigratableAutomation(MigratableResource[Automation]):
                             )
                         )
                         if work_pool:
-                            self._dependencies[
-                                work_pool[0].id
-                            ] = await construct_migratable_resource(work_pool[0])
+                            self._dependencies[work_pool[0].id] = (
+                                await construct_migratable_resource(work_pool[0])
+                            )
                 elif (
                     isinstance(action, WorkQueueAction)
                     and action.work_queue_id is not None
@@ -110,9 +110,9 @@ class MigratableAutomation(MigratableResource[Automation]):
                         self._dependencies[action.work_queue_id] = dependency
                     else:
                         work_queue = await client.read_work_queue(action.work_queue_id)
-                        self._dependencies[
-                            work_queue.id
-                        ] = await construct_migratable_resource(work_queue)
+                        self._dependencies[work_queue.id] = (
+                            await construct_migratable_resource(work_queue)
+                        )
                 elif (
                     isinstance(action, AutomationAction)
                     and action.automation_id is not None
@@ -124,9 +124,9 @@ class MigratableAutomation(MigratableResource[Automation]):
                     else:
                         automation = await client.find_automation(action.automation_id)
                         if automation:
-                            self._dependencies[
-                                automation.id
-                            ] = await construct_migratable_resource(automation)
+                            self._dependencies[automation.id] = (
+                                await construct_migratable_resource(automation)
+                            )
                 elif isinstance(action, CallWebhook):
                     if dependency := await MigratableBlockDocument.get_instance(
                         id=action.block_document_id
@@ -136,9 +136,9 @@ class MigratableAutomation(MigratableResource[Automation]):
                         block_document = await client.read_block_document(
                             action.block_document_id
                         )
-                        self._dependencies[
-                            block_document.id
-                        ] = await construct_migratable_resource(block_document)
+                        self._dependencies[block_document.id] = (
+                            await construct_migratable_resource(block_document)
+                        )
                 elif isinstance(action, SendNotification):
                     if dependency := await MigratableBlockDocument.get_instance(
                         id=action.block_document_id
@@ -148,9 +148,9 @@ class MigratableAutomation(MigratableResource[Automation]):
                         block_document = await client.read_block_document(
                             action.block_document_id
                         )
-                        self._dependencies[
-                            block_document.id
-                        ] = await construct_migratable_resource(block_document)
+                        self._dependencies[block_document.id] = (
+                            await construct_migratable_resource(block_document)
+                        )
         return list(self._dependencies.values())
 
     async def migrate(self) -> None:

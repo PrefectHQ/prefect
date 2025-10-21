@@ -243,9 +243,9 @@ async def test_worker_process_run_flow_run_with_env_variables_job_config_default
         work_pool_name=work_pool_with_default_env.name,
     ) as worker:
         configuration = await worker._get_configuration(flow_run)
-        assert configuration.working_dir is None, (
-            "This test assumes no configured working_dir"
-        )
+        assert (
+            configuration.working_dir is None
+        ), "This test assumes no configured working_dir"
         result = await worker.run(
             flow_run,
             configuration=configuration,
@@ -465,9 +465,9 @@ async def test_process_worker_executes_flow_run_with_runner(
 ):
     async with ProcessWorker(work_pool_name=process_work_pool.name) as worker:
         configuration = await worker._get_configuration(flow_run)
-        assert configuration.working_dir is None, (
-            "This test assumes no configured working_dir"
-        )
+        assert (
+            configuration.working_dir is None
+        ), "This test assumes no configured working_dir"
         result = await worker.run(
             flow_run=flow_run,
             configuration=configuration,

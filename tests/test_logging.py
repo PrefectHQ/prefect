@@ -387,12 +387,12 @@ def test_setup_logging_extra_loggers_does_not_modify_external_logger_level(
     external_logger = logging.getLogger(ext_name)
     assert external_logger.level == ext_level, "External logger level was not preserved"
     if ext_level > logging.NOTSET:
-        assert external_logger.isEnabledFor(ext_level), (
-            "External effective level was not preserved"
-        )
-    assert external_logger.propagate == ext_propagate, (
-        "External logger propagate was not preserved"
-    )
+        assert external_logger.isEnabledFor(
+            ext_level
+        ), "External effective level was not preserved"
+    assert (
+        external_logger.propagate == ext_propagate
+    ), "External logger propagate was not preserved"
 
 
 @pytest.fixture

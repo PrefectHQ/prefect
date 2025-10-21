@@ -261,7 +261,9 @@ def build_settings_config(
     )
 
 
-_build_settings_config = build_settings_config  # noqa # TODO: remove once all usage updated
+_build_settings_config = (
+    build_settings_config  # noqa # TODO: remove once all usage updated
+)
 
 
 def _to_environment_variable_value(

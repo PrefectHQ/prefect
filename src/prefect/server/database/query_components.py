@@ -330,15 +330,14 @@ class BaseQueryComponents(ABC):
                 sa.column("run_work_pool_id", UUIDTypeDecorator),
                 sa.column("run_work_queue_id", UUIDTypeDecorator),
                 FlowRun,
-            )
-            .from_statement(query)
+            ).from_statement(query)
             # indicate that the state relationship isn't being loaded
             .options(orm.noload(FlowRun.state))
         )
 
-        result: sa.Result[
-            tuple[UUID, UUID, orm_models.FlowRun]
-        ] = await session.execute(orm_query)
+        result: sa.Result[tuple[UUID, UUID, orm_models.FlowRun]] = (
+            await session.execute(orm_query)
+        )
 
         return [
             schemas.responses.WorkerFlowRunResponse(
@@ -523,7 +522,8 @@ class BaseQueryComponents(ABC):
                     # We're only using the data field for progress artifacts for now
                     data=artifact.data if artifact.type == "progress" else None,
                     is_latest=artifact.key is None
-                    or latest_in_collection_id is not None,  # pyright: ignore[reportUnnecessaryComparison]
+                    or latest_in_collection_id
+                    is not None,  # pyright: ignore[reportUnnecessaryComparison]
                 )
             )
 

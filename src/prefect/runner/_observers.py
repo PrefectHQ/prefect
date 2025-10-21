@@ -96,12 +96,14 @@ class FlowRunCancellingObserver:
                 )
             )
             self._polling_task.add_done_callback(
-                lambda task: self.logger.error(
-                    "Cancellation polling task failed. Execution will continue, but flow run cancellation will fail.",
-                    exc_info=task.exception(),
+                lambda task: (
+                    self.logger.error(
+                        "Cancellation polling task failed. Execution will continue, but flow run cancellation will fail.",
+                        exc_info=task.exception(),
+                    )
+                    if task.exception()
+                    else self.logger.debug("Polling task completed")
                 )
-                if task.exception()
-                else self.logger.debug("Polling task completed")
             )
 
     async def _check_for_cancelled_flow_runs(self):

@@ -532,7 +532,7 @@ class TestSMB:
         # This is the core of the test. The bug causes the full URI to be passed
         # to fsspec, which then prepends the host again, creating a malformed path.
         # e.g. \\my.smb.server.edu\smb:\\my.smb.server.edu\prefect\storage\test-dir
-        assert unc_path.count(smb_block.smb_host) == 1, (
-            "The host name should not be duplicated"
-        )
+        assert (
+            unc_path.count(smb_block.smb_host) == 1
+        ), "The host name should not be duplicated"
         assert unc_path == r"\\my.smb.server.edu\prefect\storage\test-dir"

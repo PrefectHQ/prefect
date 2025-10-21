@@ -338,9 +338,9 @@ class TestQueueLimit:
             )
             await asyncio.wait_for(queue.put(extra_task_run), timeout=0.01)
 
-        assert queue._scheduled_queue.qsize() == max_scheduled_size, (
-            "Queue size should be at its configured limit"
-        )
+        assert (
+            queue._scheduled_queue.qsize() == max_scheduled_size
+        ), "Queue size should be at its configured limit"
 
     async def test_task_queue_retry_size_limit(self):
         task_key = "test_retry_limit"
@@ -369,9 +369,9 @@ class TestQueueLimit:
             )
             await asyncio.wait_for(queue.retry(extra_task_run), timeout=0.01)
 
-        assert queue._retry_queue.qsize() == max_retry_size, (
-            "Retry queue size should be at its configured limit"
-        )
+        assert (
+            queue._retry_queue.qsize() == max_retry_size
+        ), "Retry queue size should be at its configured limit"
 
 
 @pytest.fixture

@@ -61,35 +61,46 @@ async def test_create_namespaced_crd(
     assert (
         _mock_api_custom_objects_client.return_value.create_namespaced_custom_object.call_args[
             1
-        ]["a"]
+        ][
+            "a"
+        ]
         == "test"
     )
 
     assert (
         _mock_api_custom_objects_client.return_value.create_namespaced_custom_object.call_args[
             1
-        ]["group"]
+        ][
+            "group"
+        ]
         == "my-group"
     )
     assert (
         _mock_api_custom_objects_client.return_value.create_namespaced_custom_object.call_args[
             1
-        ]["version"]
+        ][
+            "version"
+        ]
         == "v1"
     )
     assert (
         _mock_api_custom_objects_client.return_value.create_namespaced_custom_object.call_args[
             1
-        ]["plural"]
+        ][
+            "plural"
+        ]
         == "ops"
     )
     # We can't have models for Custom Resources.
-    assert (
-        _mock_api_custom_objects_client.return_value.create_namespaced_custom_object.call_args[
-            1
-        ]["body"]["metadata"]
-        == {"name": "test"}
-    )
+    assert _mock_api_custom_objects_client.return_value.create_namespaced_custom_object.call_args[
+        1
+    ][
+        "body"
+    ][
+        "metadata"
+    ] == {
+        "name": "test"
+    }
 
 
 async def test_get_namespaced_custom_object(
@@ -107,33 +118,43 @@ async def test_get_namespaced_custom_object(
     assert (
         _mock_api_custom_objects_client.return_value.get_namespaced_custom_object.call_args[
             1
-        ]["a"]
+        ][
+            "a"
+        ]
         == "test"
     )
 
     assert (
         _mock_api_custom_objects_client.return_value.get_namespaced_custom_object.call_args[
             1
-        ]["group"]
+        ][
+            "group"
+        ]
         == "my-group"
     )
     assert (
         _mock_api_custom_objects_client.return_value.get_namespaced_custom_object.call_args[
             1
-        ]["version"]
+        ][
+            "version"
+        ]
         == "v1"
     )
     assert (
         _mock_api_custom_objects_client.return_value.get_namespaced_custom_object.call_args[
             1
-        ]["plural"]
+        ][
+            "plural"
+        ]
         == "ops"
     )
     # We can't have models for Custom Resources.
     assert (
         _mock_api_custom_objects_client.return_value.get_namespaced_custom_object.call_args[
             1
-        ]["name"]
+        ][
+            "name"
+        ]
         == "test-name"
     )
 
@@ -153,33 +174,43 @@ async def test_get_namespaced_custom_object_status(
     assert (
         _mock_api_custom_objects_client.return_value.get_namespaced_custom_object_status.call_args[
             1
-        ]["a"]
+        ][
+            "a"
+        ]
         == "test"
     )
 
     assert (
         _mock_api_custom_objects_client.return_value.get_namespaced_custom_object_status.call_args[
             1
-        ]["group"]
+        ][
+            "group"
+        ]
         == "my-group"
     )
     assert (
         _mock_api_custom_objects_client.return_value.get_namespaced_custom_object_status.call_args[
             1
-        ]["version"]
+        ][
+            "version"
+        ]
         == "v1"
     )
     assert (
         _mock_api_custom_objects_client.return_value.get_namespaced_custom_object_status.call_args[
             1
-        ]["plural"]
+        ][
+            "plural"
+        ]
         == "ops"
     )
     # We can't have models for Custom Resources.
     assert (
         _mock_api_custom_objects_client.return_value.get_namespaced_custom_object_status.call_args[
             1
-        ]["name"]
+        ][
+            "name"
+        ]
         == "test-name"
     )
 
@@ -199,33 +230,43 @@ async def test_delete_namespaced_custom_object(
     assert (
         _mock_api_custom_objects_client.return_value.delete_namespaced_custom_object.call_args[
             1
-        ]["a"]
+        ][
+            "a"
+        ]
         == "test"
     )
 
     assert (
         _mock_api_custom_objects_client.return_value.delete_namespaced_custom_object.call_args[
             1
-        ]["group"]
+        ][
+            "group"
+        ]
         == "my-group"
     )
     assert (
         _mock_api_custom_objects_client.return_value.delete_namespaced_custom_object.call_args[
             1
-        ]["version"]
+        ][
+            "version"
+        ]
         == "v1"
     )
     assert (
         _mock_api_custom_objects_client.return_value.delete_namespaced_custom_object.call_args[
             1
-        ]["plural"]
+        ][
+            "plural"
+        ]
         == "ops"
     )
     # We can't have models for Custom Resources.
     assert (
         _mock_api_custom_objects_client.return_value.delete_namespaced_custom_object.call_args[
             1
-        ]["name"]
+        ][
+            "name"
+        ]
         == "test-name"
     )
 
@@ -244,26 +285,34 @@ async def test_list_namespaced_custom_object(
     assert (
         _mock_api_custom_objects_client.return_value.list_namespaced_custom_object.call_args[
             1
-        ]["a"]
+        ][
+            "a"
+        ]
         == "test"
     )
 
     assert (
         _mock_api_custom_objects_client.return_value.list_namespaced_custom_object.call_args[
             1
-        ]["group"]
+        ][
+            "group"
+        ]
         == "my-group"
     )
     assert (
         _mock_api_custom_objects_client.return_value.list_namespaced_custom_object.call_args[
             1
-        ]["version"]
+        ][
+            "version"
+        ]
         == "v1"
     )
     assert (
         _mock_api_custom_objects_client.return_value.list_namespaced_custom_object.call_args[
             1
-        ]["plural"]
+        ][
+            "plural"
+        ]
         == "ops"
     )
 
@@ -290,40 +339,53 @@ async def test_patch_namespaced_custom_object(
     assert (
         _mock_api_custom_objects_client.return_value.patch_namespaced_custom_object.call_args[
             1
-        ]["a"]
+        ][
+            "a"
+        ]
         == "test"
     )
 
     assert (
         _mock_api_custom_objects_client.return_value.patch_namespaced_custom_object.call_args[
             1
-        ]["group"]
+        ][
+            "group"
+        ]
         == "my-group"
     )
     assert (
         _mock_api_custom_objects_client.return_value.patch_namespaced_custom_object.call_args[
             1
-        ]["version"]
+        ][
+            "version"
+        ]
         == "v1"
     )
     assert (
         _mock_api_custom_objects_client.return_value.patch_namespaced_custom_object.call_args[
             1
-        ]["plural"]
+        ][
+            "plural"
+        ]
         == "ops"
     )
     assert (
         _mock_api_custom_objects_client.return_value.patch_namespaced_custom_object.call_args[
             1
-        ]["name"]
+        ][
+            "name"
+        ]
         == "test-name"
     )
-    assert (
-        _mock_api_custom_objects_client.return_value.patch_namespaced_custom_object.call_args[
-            1
-        ]["body"]["metadata"]
-        == {"name": "test"}
-    )
+    assert _mock_api_custom_objects_client.return_value.patch_namespaced_custom_object.call_args[
+        1
+    ][
+        "body"
+    ][
+        "metadata"
+    ] == {
+        "name": "test"
+    }
 
 
 async def test_replace_namespaced_custom_object(
@@ -348,37 +410,50 @@ async def test_replace_namespaced_custom_object(
     assert (
         _mock_api_custom_objects_client.return_value.replace_namespaced_custom_object.call_args[
             1
-        ]["a"]
+        ][
+            "a"
+        ]
         == "test"
     )
 
     assert (
         _mock_api_custom_objects_client.return_value.replace_namespaced_custom_object.call_args[
             1
-        ]["group"]
+        ][
+            "group"
+        ]
         == "my-group"
     )
     assert (
         _mock_api_custom_objects_client.return_value.replace_namespaced_custom_object.call_args[
             1
-        ]["version"]
+        ][
+            "version"
+        ]
         == "v1"
     )
     assert (
         _mock_api_custom_objects_client.return_value.replace_namespaced_custom_object.call_args[
             1
-        ]["plural"]
+        ][
+            "plural"
+        ]
         == "ops"
     )
     assert (
         _mock_api_custom_objects_client.return_value.replace_namespaced_custom_object.call_args[
             1
-        ]["name"]
+        ][
+            "name"
+        ]
         == "test-name"
     )
-    assert (
-        _mock_api_custom_objects_client.return_value.replace_namespaced_custom_object.call_args[
-            1
-        ]["body"]["metadata"]
-        == {"name": "test"}
-    )
+    assert _mock_api_custom_objects_client.return_value.replace_namespaced_custom_object.call_args[
+        1
+    ][
+        "body"
+    ][
+        "metadata"
+    ] == {
+        "name": "test"
+    }

@@ -67,7 +67,9 @@ class _QueueServiceBase(abc.ABC, Generic[T]):
         # failure to process items. This is particularly relevant for services
         # which use an httpx client. See related issue at
         # https://github.com/python/cpython/issues/86813
-        threading._register_atexit(self._at_exit)  # pyright: ignore[reportUnknownMemberType, reportAttributeAccessIssue]
+        threading._register_atexit(
+            self._at_exit
+        )  # pyright: ignore[reportUnknownMemberType, reportAttributeAccessIssue]
 
     def _at_exit(self) -> None:
         self.drain(at_exit=True)
@@ -208,9 +210,7 @@ class _QueueServiceBase(abc.ABC, Generic[T]):
             return future.result()
 
     @classmethod
-    def drain_all(
-        cls, timeout: Optional[float] = None, at_exit: bool = True
-    ) -> Union[
+    def drain_all(cls, timeout: Optional[float] = None, at_exit: bool = True) -> Union[
         tuple[
             set[concurrent.futures.Future[bool]], set[concurrent.futures.Future[bool]]
         ],

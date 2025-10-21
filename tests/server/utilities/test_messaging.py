@@ -581,15 +581,15 @@ async def test_concurrent_consumers_process_messages(
     # Verify all consumers processed equal number of messages
     messages_per_consumer = num_messages // concurrency
     for consumer_id in range(1, concurrency + 1):
-        assert len(processed_by_consumer[consumer_id]) == messages_per_consumer, (
-            f"Consumer {consumer_id} should process exactly {messages_per_consumer} messages"
-        )
+        assert (
+            len(processed_by_consumer[consumer_id]) == messages_per_consumer
+        ), f"Consumer {consumer_id} should process exactly {messages_per_consumer} messages"
 
     # Verify messages were processed in round-robin order
     expected_order = [(i % concurrency) + 1 for i in range(num_messages)]
-    assert processing_order == expected_order, (
-        "Messages should be distributed in round-robin fashion"
-    )
+    assert (
+        processing_order == expected_order
+    ), "Messages should be distributed in round-robin fashion"
 
     # Verify each consumer got the correct messages
     for consumer_id in range(1, concurrency + 1):
@@ -597,9 +597,9 @@ async def test_concurrent_consumers_process_messages(
         actual_indices = [
             int(msg.attributes["index"]) for msg in processed_by_consumer[consumer_id]
         ]
-        assert actual_indices == expected_indices, (
-            f"Consumer {consumer_id} should process messages {expected_indices}"
-        )
+        assert (
+            actual_indices == expected_indices
+        ), f"Consumer {consumer_id} should process messages {expected_indices}"
 
 
 async def test_subscription_queues_have_bounded_sizes(broker: str):

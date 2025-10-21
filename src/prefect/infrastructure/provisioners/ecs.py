@@ -340,9 +340,9 @@ class CredentialsBlockResource:
                     block_type_id=credentials_block_type.id
                 )
             )
-            assert credentials_block_schema is not None, (
-                f"Unable to find schema for block type {credentials_block_type.slug}"
-            )
+            assert (
+                credentials_block_schema is not None
+            ), f"Unable to find schema for block type {credentials_block_type.slug}"
 
             block_doc = await client.create_block_document(
                 block_document=BlockDocumentCreate(
@@ -596,9 +596,9 @@ class ClusterResource:
             )
             advance()
 
-        base_job_template["variables"]["properties"]["cluster"]["default"] = (
-            self._cluster_name
-        )
+        base_job_template["variables"]["properties"]["cluster"][
+            "default"
+        ] = self._cluster_name
 
     @property
     def next_steps(self) -> list[str]:

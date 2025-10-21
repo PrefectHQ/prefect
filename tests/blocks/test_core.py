@@ -765,9 +765,9 @@ class TestAPICompatibility:
 
         assert block_schema.checksum == test_block._calculate_schema_checksum()
         assert block_schema.fields == test_block.model_json_schema()
-        assert block_schema.capabilities == [], (
-            "No capabilities should be defined for this Block and defaults to []"
-        )
+        assert (
+            block_schema.capabilities == []
+        ), "No capabilities should be defined for this Block and defaults to []"
         assert block_schema.version == DEFAULT_BLOCK_SCHEMA_VERSION
 
     def test_create_block_schema_from_block_with_capabilities(
@@ -777,9 +777,9 @@ class TestAPICompatibility:
 
         assert block_schema.checksum == test_block._calculate_schema_checksum()
         assert block_schema.fields == test_block.model_json_schema()
-        assert block_schema.capabilities == [], (
-            "No capabilities should be defined for this Block and defaults to []"
-        )
+        assert (
+            block_schema.capabilities == []
+        ), "No capabilities should be defined for this Block and defaults to []"
         assert block_schema.version == DEFAULT_BLOCK_SCHEMA_VERSION
 
     def test_create_block_schema_with_no_version_specified(

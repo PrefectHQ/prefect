@@ -34,7 +34,9 @@ def dask_task_runner_with_existing_cluster(cluster: distributed.LocalCluster):  
 
 
 @pytest.fixture
-def dask_task_runner_with_existing_cluster_address(cluster: distributed.LocalCluster):  # noqa
+def dask_task_runner_with_existing_cluster_address(
+    cluster: distributed.LocalCluster,
+):  # noqa
     """
     Generate a dask task runner that's connected to a local cluster
     """

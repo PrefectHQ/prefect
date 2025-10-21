@@ -9,15 +9,15 @@ from prefect_aws.utilities import (
 class TestHashCollection:
     def test_simple_dict(self):
         simple_dict = {"key1": "value1", "key2": "value2"}
-        assert hash_collection(simple_dict) == hash_collection(simple_dict), (
-            "Simple dictionary hashing failed"
-        )
+        assert hash_collection(simple_dict) == hash_collection(
+            simple_dict
+        ), "Simple dictionary hashing failed"
 
     def test_nested_dict(self):
         nested_dict = {"key1": {"subkey1": "subvalue1"}, "key2": "value2"}
-        assert hash_collection(nested_dict) == hash_collection(nested_dict), (
-            "Nested dictionary hashing failed"
-        )
+        assert hash_collection(nested_dict) == hash_collection(
+            nested_dict
+        ), "Nested dictionary hashing failed"
 
     def test_complex_structure(self):
         complex_structure = {
@@ -57,9 +57,9 @@ class TestEnsurePathExists:
         doc = {"key1": {"subkey1": "value1"}}
         path = ["key1", "subkey1"]
         ensure_path_exists(doc, path)
-        assert doc == {"key1": {"subkey1": "value1"}}, (
-            "Existing path modification failed"
-        )
+        assert doc == {
+            "key1": {"subkey1": "value1"}
+        }, "Existing path modification failed"
 
     def test_new_path_object(self):
         doc = {}
@@ -77,14 +77,14 @@ class TestEnsurePathExists:
         doc = {"key1": [{"subkey1": "value1"}]}
         path = ["key1", "0", "subkey1"]
         ensure_path_exists(doc, path)
-        assert doc == {"key1": [{"subkey1": "value1"}]}, (
-            "Existing path modification for array failed"
-        )
+        assert doc == {
+            "key1": [{"subkey1": "value1"}]
+        }, "Existing path modification for array failed"
 
     def test_existing_path_array_index_out_of_range(self):
         doc = {"key1": []}
         path = ["key1", "0", "subkey1"]
         ensure_path_exists(doc, path)
-        assert doc == {"key1": [{"subkey1": {}}]}, (
-            "Existing path modification for array index out of range failed"
-        )
+        assert doc == {
+            "key1": [{"subkey1": {}}]
+        }, "Existing path modification for array index out of range failed"

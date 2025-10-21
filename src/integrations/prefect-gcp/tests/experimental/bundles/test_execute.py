@@ -41,7 +41,9 @@ def test_execute_bundle_from_gcs_success(
         Path(path).write_bytes(to_json(mock_bundle_data))
 
     # wow, i love mocking so much
-    gcp_credentials.get_cloud_storage_client.return_value.bucket.return_value.blob.return_value.download_to_file.side_effect = mock_download_to_file
+    gcp_credentials.get_cloud_storage_client.return_value.bucket.return_value.blob.return_value.download_to_file.side_effect = (
+        mock_download_to_file
+    )
 
     execute_bundle_from_gcs(
         bucket=bucket,
@@ -82,7 +84,9 @@ def test_execute_bundle_from_gcs_with_default_credentials(
         Path(path).write_bytes(to_json(mock_bundle_data))
 
     # Set up the mock for download_to_file
-    gcp_credentials.get_cloud_storage_client.return_value.bucket.return_value.blob.return_value.download_to_file.side_effect = mock_download_to_file
+    gcp_credentials.get_cloud_storage_client.return_value.bucket.return_value.blob.return_value.download_to_file.side_effect = (
+        mock_download_to_file
+    )
 
     execute_bundle_from_gcs(
         bucket=bucket,
@@ -154,7 +158,9 @@ def test_execute_bundle_from_gcs_execution_failure(
         Path(path).write_bytes(to_json(mock_bundle_data))
 
     # Set up the mock for download_to_file
-    gcp_credentials.get_cloud_storage_client.return_value.bucket.return_value.blob.return_value.download_to_file.side_effect = mock_download_to_file
+    gcp_credentials.get_cloud_storage_client.return_value.bucket.return_value.blob.return_value.download_to_file.side_effect = (
+        mock_download_to_file
+    )
 
     # Call the function and expect it to raise a RuntimeError
     with pytest.raises(

@@ -480,9 +480,11 @@ def create_ui_app(ephemeral: bool) -> FastAPI:
         return {
             "api_url": prefect.settings.PREFECT_UI_API_URL.value(),
             "csrf_enabled": prefect.settings.PREFECT_SERVER_CSRF_PROTECTION_ENABLED.value(),
-            "auth": "BASIC"
-            if prefect.settings.PREFECT_SERVER_API_AUTH_STRING.value()
-            else None,
+            "auth": (
+                "BASIC"
+                if prefect.settings.PREFECT_SERVER_API_AUTH_STRING.value()
+                else None
+            ),
             "flags": [],
         }
 
@@ -689,9 +691,7 @@ def create_app(
         Services: type[Service] | None = (
             RunInWebservers
             if webserver_only
-            else RunInEphemeralServers
-            if ephemeral
-            else Service
+            else RunInEphemeralServers if ephemeral else Service
         )
 
         async with AsyncExitStack() as stack:

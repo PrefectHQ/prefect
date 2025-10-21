@@ -200,6 +200,7 @@ class LocalFileSystem(WritableFileSystem, WritableDeploymentStorage):
                     f for f in files if str(relative_path / f) not in included_files
                 ]
                 return files_to_ignore
+
         else:
             ignore_func = None
 
@@ -285,6 +286,7 @@ class LocalFileSystem(WritableFileSystem, WritableDeploymentStorage):
                     f for f in files if str(relative_path / f) not in included_files
                 ]
                 return files_to_ignore
+
         else:
             ignore_func = None
 

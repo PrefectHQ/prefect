@@ -502,9 +502,9 @@ class KubernetesWorkerJobConfiguration(BaseJobConfiguration):
         # a list of dicts. Might be able to improve this in the future with a better
         # default `env` value and better typing.
         else:
-            self.job_manifest["spec"]["template"]["spec"]["containers"][0]["env"] = (
-                transformed_env
-            )
+            self.job_manifest["spec"]["template"]["spec"]["containers"][0][
+                "env"
+            ] = transformed_env
 
     def _update_prefect_api_url_if_local_server(self):
         """If the API URL has been set by the base environment rather than the by the

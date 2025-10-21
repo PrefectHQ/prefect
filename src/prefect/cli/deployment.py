@@ -750,9 +750,9 @@ async def ls(flow_name: Optional[list[str]] = None, by_created: bool = False):
     """
     async with get_client() as client:
         deployments = await client.read_deployments(
-            flow_filter=FlowFilter(name=FlowFilterName(any_=flow_name))
-            if flow_name
-            else None
+            flow_filter=(
+                FlowFilter(name=FlowFilterName(any_=flow_name)) if flow_name else None
+            )
         )
         flows = {
             flow.id: flow

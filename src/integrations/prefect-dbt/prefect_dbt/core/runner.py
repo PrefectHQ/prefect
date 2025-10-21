@@ -226,7 +226,9 @@ class PrefectDbtRunner:
         for depends_on_node in manifest_node.depends_on_nodes:  # type: ignore[reportUnknownMemberType]
             depends_manifest_node = self.manifest.nodes.get(
                 depends_on_node  # type: ignore[reportUnknownMemberType]
-            ) or self.manifest.sources.get(depends_on_node)  # type: ignore[reportUnknownMemberType]
+            ) or self.manifest.sources.get(
+                depends_on_node
+            )  # type: ignore[reportUnknownMemberType]
 
             if not depends_manifest_node:
                 continue
@@ -695,9 +697,9 @@ class PrefectDbtRunner:
                 f"Failed to invoke dbt command '{''.join(args_copy)}': {res.exception}"
             )
         elif not res.success and self.raise_on_failure:
-            assert isinstance(res.result, RunExecutionResult), (
-                "Expected run execution result from failed dbt invoke"
-            )
+            assert isinstance(
+                res.result, RunExecutionResult
+            ), "Expected run execution result from failed dbt invoke"
             failure_results = [
                 FAILURE_MSG.format(
                     resource_type=result.node.resource_type.title(),

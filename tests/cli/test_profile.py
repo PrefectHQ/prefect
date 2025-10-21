@@ -506,9 +506,9 @@ def test_rename_profile_renames_profile():
 
     profiles = load_profiles()
     assert "foo" not in profiles, "The original profile should not exist anymore"
-    assert profiles["bar"].settings == {PREFECT_API_KEY: "foo"}, (
-        "Settings should be retained"
-    )
+    assert profiles["bar"].settings == {
+        PREFECT_API_KEY: "foo"
+    }, "Settings should be retained"
     assert profiles.active_name != "bar", "The active profile should not be changed"
 
 
@@ -557,9 +557,9 @@ def test_rename_profile_warns_on_environment_variable_active_profile(
     )
 
     profiles = load_profiles()
-    assert profiles.active_name != "foo", (
-        "The active profile should not be updated in the file"
-    )
+    assert (
+        profiles.active_name != "foo"
+    ), "The active profile should not be updated in the file"
 
 
 def test_inspect_profile_unknown_name():

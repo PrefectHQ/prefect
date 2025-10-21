@@ -61,9 +61,7 @@ def stream_mock(
 @pytest.fixture
 def default_liberal_filter() -> LogFilter:
     """A filter that should match most logs"""
-    return LogFilter(
-        level=LogFilterLevel(ge_=1)  # Very low threshold
-    )
+    return LogFilter(level=LogFilterLevel(ge_=1))  # Very low threshold
 
 
 def test_streaming_requires_prefect_subprotocol(

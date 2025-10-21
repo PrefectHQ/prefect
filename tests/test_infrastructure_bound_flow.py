@@ -142,23 +142,33 @@ class TestInfrastructureBoundFlow:
             return "The works"
 
         @dragged_through_the_garden.on_completion
-        def on_completion(flow: Flow[Any, str], flow_run: FlowRun, state: State):  # pyright: ignore[reportUnusedFunction]
+        def on_completion(
+            flow: Flow[Any, str], flow_run: FlowRun, state: State
+        ):  # pyright: ignore[reportUnusedFunction]
             print(f"Flow run {flow_run.id} completed with state {state}")
 
         @dragged_through_the_garden.on_failure
-        def on_failure(flow: Flow[Any, str], flow_run: FlowRun, state: State):  # pyright: ignore[reportUnusedFunction]
+        def on_failure(
+            flow: Flow[Any, str], flow_run: FlowRun, state: State
+        ):  # pyright: ignore[reportUnusedFunction]
             print(f"Flow run {flow_run.id} failed with state {state}")
 
         @dragged_through_the_garden.on_cancellation
-        def on_cancellation(flow: Flow[Any, str], flow_run: FlowRun, state: State):  # pyright: ignore[reportUnusedFunction]
+        def on_cancellation(
+            flow: Flow[Any, str], flow_run: FlowRun, state: State
+        ):  # pyright: ignore[reportUnusedFunction]
             print(f"Flow run {flow_run.id} cancelled with state {state}")
 
         @dragged_through_the_garden.on_crashed
-        def on_crashed(flow: Flow[Any, str], flow_run: FlowRun, state: State):  # pyright: ignore[reportUnusedFunction]
+        def on_crashed(
+            flow: Flow[Any, str], flow_run: FlowRun, state: State
+        ):  # pyright: ignore[reportUnusedFunction]
             print(f"Flow run {flow_run.id} crashed with state {state}")
 
         @dragged_through_the_garden.on_running
-        def on_running(flow: Flow[Any, str], flow_run: FlowRun, state: State):  # pyright: ignore[reportUnusedFunction]
+        def on_running(
+            flow: Flow[Any, str], flow_run: FlowRun, state: State
+        ):  # pyright: ignore[reportUnusedFunction]
             print(f"Flow run {flow_run.id} is running with state {state}")
 
         infrastructure_bound_flow = bind_flow_to_infrastructure(
@@ -372,7 +382,9 @@ class TestInfrastructureBoundFlow:
             flow=my_flow, work_pool=work_pool.name, worker_cls=ProcessWorker
         )
 
-        future = infrastructure_bound_flow.submit(x=1, y="not an int")  # pyright: ignore[reportArgumentType] wrong type for test
+        future = infrastructure_bound_flow.submit(
+            x=1, y="not an int"
+        )  # pyright: ignore[reportArgumentType] wrong type for test
         with pytest.raises(TypeError):
             future.result()
 

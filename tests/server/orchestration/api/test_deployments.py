@@ -31,9 +31,9 @@ def assert_status_events(deployment_name: str, events: List[str]):
         if event.resource.name == deployment_name
     ]
 
-    assert len(events) == len(deployment_specific_events), (
-        f"Expected events {events}, but found {deployment_specific_events}"
-    )
+    assert len(events) == len(
+        deployment_specific_events
+    ), f"Expected events {events}, but found {deployment_specific_events}"
 
     for i, event in enumerate(events):
         assert event == deployment_specific_events[i].event
@@ -1099,9 +1099,9 @@ class TestCreateDeployment:
         assert response.status_code == status.HTTP_201_CREATED
 
         json_response = response.json()
-        assert json_response["concurrency_limit"] is None, (
-            "Deprecated int-only field should be None for backwards-compatibility"
-        )
+        assert (
+            json_response["concurrency_limit"] is None
+        ), "Deprecated int-only field should be None for backwards-compatibility"
 
         global_concurrency_limit = json_response.get("global_concurrency_limit")
         assert global_concurrency_limit is not None
@@ -1208,9 +1208,9 @@ class TestReadDeployment:
         assert response.status_code == status.HTTP_200_OK
 
         json_response = response.json()
-        assert json_response["concurrency_limit"] is None, (
-            "Deprecated int-only field should be None for backwards-compatibility"
-        )
+        assert (
+            json_response["concurrency_limit"] is None
+        ), "Deprecated int-only field should be None for backwards-compatibility"
 
         global_concurrency_limit = json_response.get("global_concurrency_limit")
         assert global_concurrency_limit is not None

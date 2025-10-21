@@ -439,18 +439,20 @@ class GitRepository:
             }
         }
         if self._include_submodules:
-            pull_step["prefect.deployments.steps.git_clone"]["include_submodules"] = (
-                self._include_submodules
-            )
+            pull_step["prefect.deployments.steps.git_clone"][
+                "include_submodules"
+            ] = self._include_submodules
         if self._commit_sha:
-            pull_step["prefect.deployments.steps.git_clone"]["commit_sha"] = (
-                self._commit_sha
-            )
+            pull_step["prefect.deployments.steps.git_clone"][
+                "commit_sha"
+            ] = self._commit_sha
         if isinstance(self._credentials, Block):
-            pull_step["prefect.deployments.steps.git_clone"]["credentials"] = (
-                f"{{{{ {self._credentials.get_block_placeholder()} }}}}"
-            )
-        elif isinstance(self._credentials, dict):  # pyright: ignore[reportUnnecessaryIsInstance]
+            pull_step["prefect.deployments.steps.git_clone"][
+                "credentials"
+            ] = f"{{{{ {self._credentials.get_block_placeholder()} }}}}"
+        elif isinstance(
+            self._credentials, dict
+        ):  # pyright: ignore[reportUnnecessaryIsInstance]
             if isinstance(
                 access_token := self._credentials.get("access_token"), Secret
             ):
@@ -561,7 +563,9 @@ class RemoteStorage:
             self._settings, replace_blocks_with_values, return_data=True
         )
 
-        return fsspec.filesystem(scheme, **settings_with_block_values)  # pyright: ignore[reportUnknownMemberType] missing type stubs
+        return fsspec.filesystem(
+            scheme, **settings_with_block_values
+        )  # pyright: ignore[reportUnknownMemberType] missing type stubs
 
     def set_base_path(self, path: Path) -> None:
         self._storage_base_path = path
@@ -643,9 +647,9 @@ class RemoteStorage:
             }
         }
         if required_package:
-            step["prefect.deployments.steps.pull_from_remote_storage"]["requires"] = (
-                required_package
-            )
+            step["prefect.deployments.steps.pull_from_remote_storage"][
+                "requires"
+            ] = required_package
         return step
 
     def __eq__(self, __value: Any) -> bool:

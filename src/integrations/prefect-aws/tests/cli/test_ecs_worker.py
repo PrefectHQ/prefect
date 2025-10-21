@@ -517,9 +517,9 @@ class TestWorkPoolDefaults:
         async with prefect.get_client() as client:
             work_pool = await client.read_work_pool(test_work_pool.name)
             base_template = work_pool.base_job_template
-            base_template["variables"]["properties"]["vpc_id"]["default"] = (
-                "existing-vpc"
-            )
+            base_template["variables"]["properties"]["vpc_id"][
+                "default"
+            ] = "existing-vpc"
             base_template["variables"]["properties"]["execution_role_arn"][
                 "default"
             ] = "existing-role"

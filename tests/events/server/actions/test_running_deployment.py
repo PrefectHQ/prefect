@@ -663,6 +663,6 @@ async def test_running_deployment_with_delay(
 
     # Allow 10 second tolerance for test execution time
     time_diff = abs((scheduled_time - expected_time).total_seconds())
-    assert time_diff < 10, (
-        f"Scheduled time {scheduled_time} not close enough to expected {expected_time}"
-    )
+    assert (
+        time_diff < 10
+    ), f"Scheduled time {scheduled_time} not close enough to expected {expected_time}"

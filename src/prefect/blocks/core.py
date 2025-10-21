@@ -292,14 +292,18 @@ def schema_extra(schema: dict[str, Any], model: type["Block"]) -> None:
         """Walk through the annotation and collect block schemas for any nested blocks."""
         if Block.is_block_class(annotation):
             if isinstance(refs.get(field_name), list):
-                refs[field_name].append(annotation._to_block_schema_reference_dict())  # pyright: ignore[reportPrivateUsage]
+                refs[field_name].append(
+                    annotation._to_block_schema_reference_dict()
+                )  # pyright: ignore[reportPrivateUsage]
             elif isinstance(refs.get(field_name), dict):
                 refs[field_name] = [
                     refs[field_name],
                     annotation._to_block_schema_reference_dict(),  # pyright: ignore[reportPrivateUsage]
                 ]
             else:
-                refs[field_name] = annotation._to_block_schema_reference_dict()  # pyright: ignore[reportPrivateUsage]
+                refs[field_name] = (
+                    annotation._to_block_schema_reference_dict()
+                )  # pyright: ignore[reportPrivateUsage]
 
         if get_origin(annotation) in NestedTypes:
             for type_ in get_args(annotation):

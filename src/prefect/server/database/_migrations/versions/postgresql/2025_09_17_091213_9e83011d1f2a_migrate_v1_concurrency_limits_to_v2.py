@@ -59,7 +59,8 @@ def upgrade():
 
             # Create V2 limit with the same ID
             connection.execute(
-                sa.text("""
+                sa.text(
+                    """
                     INSERT INTO concurrency_limit_v2 
                     (id, name, "limit", active, active_slots, denied_slots,
                      slot_decay_per_second, avg_slot_occupancy_seconds, 
@@ -67,7 +68,8 @@ def upgrade():
                     VALUES 
                     (:id, :name, :limit, :active, :active_slots, :denied_slots,
                      :decay, :avg_occupancy, :created, :updated)
-                """),
+                """
+                ),
                 {
                     "id": str(v2_id),
                     "name": v2_name,
@@ -165,11 +167,13 @@ def downgrade():
 
         # Restore with the same ID and recovered active_slots (or empty if couldn't recover)
         connection.execute(
-            sa.text("""
+            sa.text(
+                """
                 INSERT INTO concurrency_limit
                 (id, tag, concurrency_limit, active_slots, created, updated)
                 VALUES (:id, :tag, :limit, :slots, :created, :updated)
-            """),
+            """
+            ),
             {
                 "id": str(v2_limit.id),  # Preserve the same ID when downgrading
                 "tag": tag,

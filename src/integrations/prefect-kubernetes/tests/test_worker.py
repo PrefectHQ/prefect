@@ -273,11 +273,7 @@ from_template_and_values_cases = [
             pod_watch_timeout_seconds=60,
             stream_output=True,
         ),
-        lambda flow_run,
-        deployment,
-        flow,
-        work_pool,
-        worker_name: KubernetesWorkerJobConfiguration(
+        lambda flow_run, deployment, flow, work_pool, worker_name: KubernetesWorkerJobConfiguration(
             command="prefect flow-run execute",
             env={
                 **get_current_settings().to_environment_variables(exclude_unset=True),
@@ -589,11 +585,7 @@ from_template_and_values_cases = [
             pod_watch_timeout_seconds=60,
             stream_output=True,
         ),
-        lambda flow_run,
-        deployment,
-        flow,
-        work_pool,
-        worker_name: KubernetesWorkerJobConfiguration(
+        lambda flow_run, deployment, flow, work_pool, worker_name: KubernetesWorkerJobConfiguration(
             command="prefect flow-run execute",
             env={
                 **get_current_settings().to_environment_variables(exclude_unset=True),
@@ -778,11 +770,7 @@ from_template_and_values_cases = [
             pod_watch_timeout_seconds=90,
             stream_output=False,
         ),
-        lambda flow_run,
-        deployment,
-        flow,
-        work_pool,
-        worker_name: KubernetesWorkerJobConfiguration(
+        lambda flow_run, deployment, flow, work_pool, worker_name: KubernetesWorkerJobConfiguration(
             command="echo hello",
             env={
                 **get_current_settings().to_environment_variables(exclude_unset=True),
@@ -1099,11 +1087,7 @@ from_template_and_values_cases = [
             pod_watch_timeout_seconds=90,
             stream_output=True,
         ),
-        lambda flow_run,
-        deployment,
-        flow,
-        work_pool,
-        worker_name: KubernetesWorkerJobConfiguration(
+        lambda flow_run, deployment, flow, work_pool, worker_name: KubernetesWorkerJobConfiguration(
             command="echo hello",
             env={
                 **get_current_settings().to_environment_variables(exclude_unset=True),

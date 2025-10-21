@@ -621,9 +621,11 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
                         self.flow, _sync=True
                     ),
                     task_runner=task_runner,
-                    persist_result=self.flow.persist_result
-                    if self.flow.persist_result is not None
-                    else should_persist_result(),
+                    persist_result=(
+                        self.flow.persist_result
+                        if self.flow.persist_result is not None
+                        else should_persist_result()
+                    ),
                 )
             )
             stack.enter_context(ConcurrencyContextV1())
@@ -1191,9 +1193,11 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
                         self.flow, _sync=True
                     ),
                     task_runner=task_runner,
-                    persist_result=self.flow.persist_result
-                    if self.flow.persist_result is not None
-                    else should_persist_result(),
+                    persist_result=(
+                        self.flow.persist_result
+                        if self.flow.persist_result is not None
+                        else should_persist_result()
+                    ),
                 )
             )
             stack.enter_context(ConcurrencyContextV1())
@@ -1314,9 +1318,9 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
                         repr(self.state) if PREFECT_DEBUG_MODE else str(self.state)
                     )
                     self.logger.log(
-                        level=logging.INFO
-                        if self.state.is_completed()
-                        else logging.ERROR,
+                        level=(
+                            logging.INFO if self.state.is_completed() else logging.ERROR
+                        ),
                         msg=f"Finished in state {display_state}",
                     )
 

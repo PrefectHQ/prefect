@@ -1372,13 +1372,13 @@ class TestSubflowCalls:
         )
 
         assert parent_flow_run_task.task_version == "inner"
-        assert parent_flow_run_id != child_flow_run_id, (
-            "The subflow run and parent flow run are distinct"
-        )
+        assert (
+            parent_flow_run_id != child_flow_run_id
+        ), "The subflow run and parent flow run are distinct"
 
-        assert child_state.state_details.task_run_id == parent_flow_run_task.id, (
-            "The client subflow run state links to the parent task"
-        )
+        assert (
+            child_state.state_details.task_run_id == parent_flow_run_task.id
+        ), "The client subflow run state links to the parent task"
 
         assert all(
             state.state_details.task_run_id == parent_flow_run_task.id
@@ -1394,13 +1394,13 @@ class TestSubflowCalls:
             parent_flow_run_task.state.state_details.flow_run_id == parent_flow_run_id
         ), "The parent task belongs to the parent flow"
 
-        assert child_flow_run.parent_task_run_id == parent_flow_run_task.id, (
-            "The server subflow run links to the parent task"
-        )
+        assert (
+            child_flow_run.parent_task_run_id == parent_flow_run_task.id
+        ), "The server subflow run links to the parent task"
 
-        assert child_flow_run.id == child_flow_run_id, (
-            "The server subflow run id matches the client"
-        )
+        assert (
+            child_flow_run.id == child_flow_run_id
+        ), "The server subflow run id matches the client"
 
     @pytest.mark.skip(reason="Fails with new engine, passed on old engine")
     async def test_sync_flow_with_async_subflow_and_task_that_awaits_result(self):
@@ -2145,9 +2145,9 @@ class TestSubflowRunLogs:
         log_messages = [log.message for log in logs]
         assert all([log.task_run_id is None for log in logs])
         assert "Hello world!" in log_messages, "Parent log message is present"
-        assert logs[log_messages.index("Hello world!")].flow_run_id == flow_run_id, (
-            "Parent log message has correct id"
-        )
+        assert (
+            logs[log_messages.index("Hello world!")].flow_run_id == flow_run_id
+        ), "Parent log message has correct id"
         assert "Hello smaller world!" in log_messages, "Child log message is present"
         assert (
             logs[log_messages.index("Hello smaller world!")].flow_run_id
@@ -2610,9 +2610,9 @@ class TestFlowRetries:
 
         assert parent_flow() == "hello"
         assert flow_run_count == 2, "Parent flow should exhaust retries"
-        assert child_flow_run_count == 4, (
-            "Child flow should run 2 times for each parent run"
-        )
+        assert (
+            child_flow_run_count == 4
+        ), "Child flow should run 2 times for each parent run"
 
     def test_global_retry_config(self):
         with temporary_settings(updates={PREFECT_FLOW_DEFAULT_RETRIES: "1"}):
@@ -4639,7 +4639,8 @@ class TestFlowServe:
     ):
         """this is a regression test for https://github.com/PrefectHQ/prefect/issues/17446
 
-        Test that names like semantic version numbers in deployment names are preserved."""
+        Test that names like semantic version numbers in deployment names are preserved.
+        """
 
         captured_name = None
 

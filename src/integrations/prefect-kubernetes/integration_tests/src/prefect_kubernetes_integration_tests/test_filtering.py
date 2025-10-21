@@ -67,9 +67,9 @@ async def test_filter_by_namespace(
             worker_process.terminate()
 
     events = await prefect_core.read_pod_events_for_flow_run(flow_run.id)
-    assert len(events) == 0, (
-        f"Expected 0 events, got {len(events)}: {[event.event for event in events]}"
-    )
+    assert (
+        len(events) == 0
+    ), f"Expected 0 events, got {len(events)}: {[event.event for event in events]}"
 
 
 @pytest.mark.usefixtures("kind_cluster")
@@ -106,6 +106,6 @@ async def test_filter_by_label(work_pool_name: str, monkeypatch: pytest.MonkeyPa
             worker_process.terminate()
 
     events = await prefect_core.read_pod_events_for_flow_run(flow_run.id)
-    assert len(events) == 0, (
-        f"Expected 0 events, got {len(events)}: {[event.event for event in events]}"
-    )
+    assert (
+        len(events) == 0
+    ), f"Expected 0 events, got {len(events)}: {[event.event for event in events]}"

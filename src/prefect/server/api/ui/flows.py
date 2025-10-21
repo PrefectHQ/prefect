@@ -163,11 +163,13 @@ async def next_runs_by_flow(
                 name=result.name,
                 state_name=result.state_name,
                 state_type=result.state_type,
-                next_scheduled_start_time=parse_datetime(
-                    result.next_scheduled_start_time
-                ).replace(tzinfo=ZoneInfo("UTC"))
-                if isinstance(result.next_scheduled_start_time, str)
-                else result.next_scheduled_start_time,
+                next_scheduled_start_time=(
+                    parse_datetime(result.next_scheduled_start_time).replace(
+                        tzinfo=ZoneInfo("UTC")
+                    )
+                    if isinstance(result.next_scheduled_start_time, str)
+                    else result.next_scheduled_start_time
+                ),
             )
             for result in results.all()
         }

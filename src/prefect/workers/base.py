@@ -259,7 +259,9 @@ class BaseJobConfiguration(BaseModel):
         env = {
             **self._base_environment(),
             **self._base_flow_run_environment(flow_run),
-            **(self.env if isinstance(self.env, dict) else {}),  # pyright: ignore[reportUnnecessaryIsInstance]
+            **(
+                self.env if isinstance(self.env, dict) else {}
+            ),  # pyright: ignore[reportUnnecessaryIsInstance]
         }
         self.env = {key: value for key, value in env.items() if value is not None}
         self.labels = {
@@ -1038,7 +1040,9 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
         installed_integrations = load_prefect_collections().keys()
 
         integration_versions = [
-            Integration(name=dist.metadata["Name"], version=dist.version)  # pyright: ignore[reportOptionalSubscript]
+            Integration(
+                name=dist.metadata["Name"], version=dist.version
+            )  # pyright: ignore[reportOptionalSubscript]
             for dist in distributions()
             # PyPI packages often use dashes, but Python package names use underscores
             # because they must be valid identifiers.

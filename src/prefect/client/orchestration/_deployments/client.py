@@ -827,8 +827,9 @@ class DeploymentAsyncClient(BaseAsyncClient):
         try:
             response = await self.request("POST", "/deployments/", json=payload)
         except HTTPStatusError as e:
-            if e.response.status_code == 403 and "maximum number of deployments" in str(
-                e
+            if (
+                e.response.status_code == 403
+                and "maximum number of deployments" in str(e)
             ):
                 raise ObjectLimitReached(http_exc=e) from e
             if e.response.status_code == 409:

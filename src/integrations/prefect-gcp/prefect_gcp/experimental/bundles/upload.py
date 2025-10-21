@@ -67,7 +67,9 @@ def upload_bundle_to_gcs(
             bucket,
             key,
         )
-        gcs_client.bucket(bucket).blob(key).upload_from_file(local_filepath)  # pyright: ignore[reportUnknownMemberType] Incomplete type hints
+        gcs_client.bucket(bucket).blob(key).upload_from_file(
+            local_filepath
+        )  # pyright: ignore[reportUnknownMemberType] Incomplete type hints
     except Exception as e:
         raise RuntimeError(f"Failed to upload bundle to GCS: {e}")
 

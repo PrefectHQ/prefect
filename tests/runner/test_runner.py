@@ -1867,9 +1867,9 @@ class TestRunner:
             flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
             assert flow_run.state is not None
             while not flow_run.state.is_running():
-                assert not execution_task.done(), (
-                    "Execution ended earlier than expected"
-                )
+                assert (
+                    not execution_task.done()
+                ), "Execution ended earlier than expected"
                 flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
                 assert flow_run.state is not None
 

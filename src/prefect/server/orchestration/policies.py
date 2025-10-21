@@ -38,9 +38,9 @@ class BaseOrchestrationPolicy(ABC, Generic[T, RP]):
 
     @staticmethod
     @abstractmethod
-    def priority() -> list[
-        type[BaseUniversalTransform[T, RP] | BaseOrchestrationRule[T, RP]]
-    ]:
+    def priority() -> (
+        list[type[BaseUniversalTransform[T, RP] | BaseOrchestrationRule[T, RP]]]
+    ):
         """
         A list of orchestration rules in priority order.
         """

@@ -393,13 +393,13 @@ def cleanup(drain_log_workers: None, drain_events_workers: None):
 @pytest.fixture(scope="session", autouse=True)
 def safety_check_settings():
     # Safety check for connection to an external API
-    assert PREFECT_API_URL.value() is None, (
-        "Tests should not be run connected to an external API."
-    )
+    assert (
+        PREFECT_API_URL.value() is None
+    ), "Tests should not be run connected to an external API."
     # Safety check for home directory
-    assert str(PREFECT_HOME.value()) == TEST_PREFECT_HOME, (
-        "Tests should use the temporary test directory"
-    )
+    assert (
+        str(PREFECT_HOME.value()) == TEST_PREFECT_HOME
+    ), "Tests should use the temporary test directory"
 
 
 @pytest.fixture(scope="session", autouse=True)

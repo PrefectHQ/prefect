@@ -536,9 +536,9 @@ async def test_task_definition_arn(
 
     task = describe_task(ecs_client, task_arn)
     print(task)
-    assert task["taskDefinitionArn"] == task_definition_arn, (
-        "The task definition should be used without registering a new one"
-    )
+    assert (
+        task["taskDefinitionArn"] == task_definition_arn
+    ), "The task definition should be used without registering a new one"
 
     assert (
         "Skipping task definition construction since a task definition"
@@ -588,9 +588,9 @@ async def test_task_definition_arn_with_variables_that_are_ignored(
     _, task_arn = parse_identifier(result.identifier)
 
     task = describe_task(ecs_client, task_arn)
-    assert task["taskDefinitionArn"] == task_definition_arn, (
-        "A new task definition should not be registered"
-    )
+    assert (
+        task["taskDefinitionArn"] == task_definition_arn
+    ), "A new task definition should not be registered"
 
     assert (
         "Skipping task definition construction since a task definition"
@@ -629,9 +629,9 @@ async def test_environment_variables(
     prefect_container_definition = _get_container(
         task_definition["containerDefinitions"], ECS_DEFAULT_CONTAINER_NAME
     )
-    assert not prefect_container_definition["environment"], (
-        "Variables should not be passed until runtime"
-    )
+    assert not prefect_container_definition[
+        "environment"
+    ], "Variables should not be passed until runtime"
 
     prefect_container_overrides = _get_container(
         task["overrides"]["containerOverrides"], ECS_DEFAULT_CONTAINER_NAME
@@ -734,9 +734,9 @@ async def test_slugified_labels(
 
     # Check if the slugified tags are as expected
     for key, value in expected_tags.items():
-        assert actual_tags.get(key) == value, (
-            f"Failed for key: {key} with expected value: {value}, but got {actual_tags.get(key)}"
-        )
+        assert (
+            actual_tags.get(key) == value
+        ), f"Failed for key: {key} with expected value: {value}, but got {actual_tags.get(key)}"
 
 
 @pytest.mark.usefixtures("ecs_mocks")
@@ -1594,9 +1594,9 @@ async def test_worker_cache_miss_for_registered_task_definitions_clears_from_cac
     task_2 = describe_task(ecs_client, task_arn_2)
 
     assert task_1["taskDefinitionArn"] != task_2["taskDefinitionArn"]
-    assert task_1["taskDefinitionArn"] not in _TASK_DEFINITION_CACHE.values(), (
-        _TASK_DEFINITION_CACHE
-    )
+    assert (
+        task_1["taskDefinitionArn"] not in _TASK_DEFINITION_CACHE.values()
+    ), _TASK_DEFINITION_CACHE
 
 
 @pytest.mark.usefixtures("ecs_mocks")
@@ -1755,9 +1755,9 @@ async def test_worker_task_definition_cache_hit_on_config_changes(
     _, task_arn_2 = parse_identifier(result_2.identifier)
     task_2 = describe_task(ecs_client, task_arn_2)
 
-    assert task_1["taskDefinitionArn"] == task_2["taskDefinitionArn"], (
-        "The existing task definition should be used"
-    )
+    assert (
+        task_1["taskDefinitionArn"] == task_2["taskDefinitionArn"]
+    ), "The existing task definition should be used"
 
 
 @pytest.mark.usefixtures("ecs_mocks")
@@ -1873,12 +1873,12 @@ async def test_user_defined_container_in_task_definition_template(
     default_container_overrides = _get_container(
         container_overrides, ECS_DEFAULT_CONTAINER_NAME
     )
-    assert user_container_overrides, (
-        "The user defined container should be included in overrides"
-    )
-    assert default_container_overrides is None, (
-        "The default container should not be in overrides"
-    )
+    assert (
+        user_container_overrides
+    ), "The user defined container should be included in overrides"
+    assert (
+        default_container_overrides is None
+    ), "The default container should not be in overrides"
 
 
 @pytest.mark.usefixtures("ecs_mocks")
@@ -1915,9 +1915,9 @@ async def test_user_defined_container_image_in_task_definition_template(
     prefect_container = _get_container(
         task_definition["containerDefinitions"], ECS_DEFAULT_CONTAINER_NAME
     )
-    assert prefect_container["image"] == "use-this-image", (
-        "The image from the task definition should be used"
-    )
+    assert (
+        prefect_container["image"] == "use-this-image"
+    ), "The image from the task definition should be used"
 
 
 @pytest.mark.usefixtures("ecs_mocks")
@@ -2141,9 +2141,9 @@ async def test_user_defined_environment_variables_in_task_run_request_template(
         task_definition["containerDefinitions"], ECS_DEFAULT_CONTAINER_NAME
     )
 
-    assert prefect_container_definition["environment"] == [], (
-        "No environment variables in the task definition"
-    )
+    assert (
+        prefect_container_definition["environment"] == []
+    ), "No environment variables in the task definition"
 
     prefect_container_overrides = _get_container(
         task["overrides"]["containerOverrides"], ECS_DEFAULT_CONTAINER_NAME
@@ -2384,9 +2384,9 @@ async def test_task_definitions_equal_environment_variable_ordering():
             taskdef_generated, taskdef_from_aws, logger
         )
 
-        assert result is True, (
-            "Task definitions with reordered environment variables should be considered equal"
-        )
+        assert (
+            result is True
+        ), "Task definitions with reordered environment variables should be considered equal"
 
 
 async def test_task_definitions_equal_secrets_ordering():
@@ -2447,9 +2447,9 @@ async def test_task_definitions_equal_secrets_ordering():
         # This should return True since the task definitions are semantically identical
         result = worker._task_definitions_equal(taskdef_1, taskdef_2, logger)
 
-        assert result is True, (
-            "Task definitions with reordered secrets should be considered equal"
-        )
+        assert (
+            result is True
+        ), "Task definitions with reordered secrets should be considered equal"
 
 
 @pytest.mark.usefixtures("ecs_mocks", "prefect_api_key_setting")

@@ -767,14 +767,14 @@ class Task(Generic[P, R]):
             name=name or self.name,
             description=description or self.description,
             tags=tags or copy(self.tags),
-            cache_policy=cache_policy
-            if cache_policy is not NotSet
-            else self.cache_policy,
+            cache_policy=(
+                cache_policy if cache_policy is not NotSet else self.cache_policy
+            ),
             cache_key_fn=cache_key_fn or self.cache_key_fn,
             cache_expiration=cache_expiration or self.cache_expiration,
-            task_run_name=task_run_name
-            if task_run_name is not NotSet
-            else self.task_run_name,
+            task_run_name=(
+                task_run_name if task_run_name is not NotSet else self.task_run_name
+            ),
             retries=retries if retries is not NotSet else self.retries,
             retry_delay_seconds=(
                 retry_delay_seconds

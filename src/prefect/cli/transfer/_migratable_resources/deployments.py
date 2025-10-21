@@ -66,9 +66,9 @@ class MigratableDeployment(MigratableResource[DeploymentResponse]):
                 self._dependencies[self.source_deployment.flow_id] = dependency
             else:
                 flow = await client.read_flow(self.source_deployment.flow_id)
-                self._dependencies[
-                    self.source_deployment.flow_id
-                ] = await construct_migratable_resource(flow)
+                self._dependencies[self.source_deployment.flow_id] = (
+                    await construct_migratable_resource(flow)
+                )
             if self.source_deployment.work_queue_id is not None:
                 if dependency := await MigratableWorkQueue.get_instance(
                     id=self.source_deployment.work_queue_id
@@ -80,9 +80,9 @@ class MigratableDeployment(MigratableResource[DeploymentResponse]):
                     work_queue = await client.read_work_queue(
                         self.source_deployment.work_queue_id
                     )
-                    self._dependencies[
-                        work_queue.id
-                    ] = await construct_migratable_resource(work_queue)
+                    self._dependencies[work_queue.id] = (
+                        await construct_migratable_resource(work_queue)
+                    )
             if self.source_deployment.work_pool_name is not None:
                 if dependency := await MigratableWorkPool.get_instance_by_name(
                     name=self.source_deployment.work_pool_name
@@ -92,9 +92,9 @@ class MigratableDeployment(MigratableResource[DeploymentResponse]):
                     work_pool = await client.read_work_pool(
                         self.source_deployment.work_pool_name
                     )
-                    self._dependencies[
-                        work_pool.id
-                    ] = await construct_migratable_resource(work_pool)
+                    self._dependencies[work_pool.id] = (
+                        await construct_migratable_resource(work_pool)
+                    )
             if self.source_deployment.storage_document_id is not None:
                 if dependency := await MigratableBlockDocument.get_instance(
                     id=self.source_deployment.storage_document_id
@@ -106,9 +106,9 @@ class MigratableDeployment(MigratableResource[DeploymentResponse]):
                     storage_document = await client.read_block_document(
                         self.source_deployment.storage_document_id
                     )
-                    self._dependencies[
-                        storage_document.id
-                    ] = await construct_migratable_resource(storage_document)
+                    self._dependencies[storage_document.id] = (
+                        await construct_migratable_resource(storage_document)
+                    )
             if self.source_deployment.infrastructure_document_id is not None:
                 if dependency := await MigratableBlockDocument.get_instance(
                     id=self.source_deployment.infrastructure_document_id
@@ -120,9 +120,9 @@ class MigratableDeployment(MigratableResource[DeploymentResponse]):
                     infrastructure_document = await client.read_block_document(
                         self.source_deployment.infrastructure_document_id
                     )
-                    self._dependencies[
-                        infrastructure_document.id
-                    ] = await construct_migratable_resource(infrastructure_document)
+                    self._dependencies[infrastructure_document.id] = (
+                        await construct_migratable_resource(infrastructure_document)
+                    )
             if self.source_deployment.pull_steps:
                 # TODO: Figure out how to find block document references in pull steps
                 pass

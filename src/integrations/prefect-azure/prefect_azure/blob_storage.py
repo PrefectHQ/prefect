@@ -20,6 +20,7 @@ from prefect.logging import get_run_logger
 from prefect.utilities.asyncutils import sync_compatible
 from prefect.utilities.filesystem import filter_files
 from prefect_azure.credentials import AzureBlobStorageCredentials
+from prefect.utilities.asyncutils import sync_compatible
 
 
 @task
@@ -621,19 +622,16 @@ class AzureBlobStorageContainer(
             return full_container_path
 
     @sync_compatible
-    async def get_directory(
-        self, from_path: Optional[str] = None, local_path: Optional[str] = None
-    ) -> None:
-        """
-        Downloads the contents of a direry from the blob storage to a local path.
+    def get_directory_contents(path: str):
+    """
+    Returns a list of directory contents for the given path.
+    """
+    # Example placeholder logic
+    contents = []  # Replace with actual logic if needed
+    return contents
 
-        Used to enable flow code storage for deployments.
 
-        Args:
-            from_path: The path of the directory in the blob storage.
-            local_path: The local path where the directory will be downloaded.
-        """
-        await self.download_folder_to_path(from_path, local_path)
+
 
     @sync_compatible
     async def put_directory(

@@ -556,7 +556,8 @@ class TestProjectDeploy:
             ),
             user_input=(
                 # don't save the deployment configuration
-                "n" + readchar.key.ENTER
+                "n"
+                + readchar.key.ENTER
             ),
             expected_code=0,
             expected_output_does_not_contain=[
@@ -1114,7 +1115,8 @@ class TestProjectDeploy:
                 expected_code=0,
                 user_input=(
                     # Decline pulling from remote storage
-                    "n" + readchar.key.ENTER
+                    "n"
+                    + readchar.key.ENTER
                 ),
                 expected_output_contains=[
                     "prefect deployment run 'An important name/test-name'"
@@ -2638,9 +2640,9 @@ class TestSchedules:
         with prefect_file.open(mode="r") as f:
             deploy_config = yaml.safe_load(f)
 
-        deploy_config["deployments"][0]["schedule"]["rrule"] = (
-            "DTSTART:20220910T110000\nRRULE:FREQ=HOURLY;BYDAY=MO,TU,WE,TH,FR,SA;BYHOUR=9,10,11,12,13,14,15,16,17"
-        )
+        deploy_config["deployments"][0]["schedule"][
+            "rrule"
+        ] = "DTSTART:20220910T110000\nRRULE:FREQ=HOURLY;BYDAY=MO,TU,WE,TH,FR,SA;BYHOUR=9,10,11,12,13,14,15,16,17"
         deploy_config["deployments"][0]["schedule"]["parameters"] = {
             "number": 42,
         }
@@ -5570,7 +5572,8 @@ class TestDeployDockerBuildSteps:
             ),
             user_input=(
                 # Reject build custom docker image
-                "n" + readchar.key.ENTER
+                "n"
+                + readchar.key.ENTER
             ),
             expected_output_contains=[
                 "Would you like to build a custom Docker image",
@@ -5590,7 +5593,8 @@ class TestDeployDockerBuildSteps:
             ),
             user_input=(
                 # Reject build custom docker image
-                "n" + readchar.key.ENTER
+                "n"
+                + readchar.key.ENTER
             ),
             expected_output_contains=["Would you like to build a custom Docker image"],
         )

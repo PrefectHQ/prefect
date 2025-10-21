@@ -54,7 +54,9 @@ async def upload_bundle_to_azure_blob_storage(
             key,
         )
         with open(local_filepath, "rb") as f:
-            await container_client.upload_blob(key, f)  # pyright: ignore[reportUnknownMemberType] Incomplete type hints
+            await container_client.upload_blob(
+                key, f
+            )  # pyright: ignore[reportUnknownMemberType] Incomplete type hints
     except Exception as e:
         raise RuntimeError(f"Failed to upload bundle to Azure Blob Storage: {e}")
 

@@ -270,9 +270,9 @@ class croniter(object):
         self.expanded, self.nth_weekday_of_month = self.expand(
             expr_format,
             hash_id=hash_id,
-            from_timestamp=self.dst_start_time
-            if self._expand_from_start_time
-            else None,
+            from_timestamp=(
+                self.dst_start_time if self._expand_from_start_time else None
+            ),
             second_at_beginning=second_at_beginning,
         )
         self.fields = CRON_FIELDS[len(self.expanded)]

@@ -276,19 +276,19 @@ class TestRedisLockManager:
         unpickled_manager: RedisLockManager = pickle.loads(pickled_manager)
 
         # Verify state after unpickling: clients should be NEW instances due to __setstate__ calling _init_clients()
-        assert unpickled_manager.client is not None, (
-            "Client should be re-initialized after unpickling, not None"
-        )
-        assert unpickled_manager.async_client is not None, (
-            "Async client should be re-initialized after unpickling, not None"
-        )
+        assert (
+            unpickled_manager.client is not None
+        ), "Client should be re-initialized after unpickling, not None"
+        assert (
+            unpickled_manager.async_client is not None
+        ), "Async client should be re-initialized after unpickling, not None"
 
-        assert id(unpickled_manager.client) != original_client_id, (
-            "Client should be a NEW instance after unpickling"
-        )
-        assert id(unpickled_manager.async_client) != original_async_client_id, (
-            "Async client should be a NEW instance after unpickling"
-        )
+        assert (
+            id(unpickled_manager.client) != original_client_id
+        ), "Client should be a NEW instance after unpickling"
+        assert (
+            id(unpickled_manager.async_client) != original_async_client_id
+        ), "Async client should be a NEW instance after unpickling"
 
         # _locks should be an empty dict after unpickling due to __setstate__
         assert (
@@ -305,12 +305,12 @@ class TestRedisLockManager:
             sync_key, holder=sync_holder, acquire_timeout=1, hold_timeout=5
         )
         assert acquired_sync, "Should acquire sync lock after unpickling"
-        assert unpickled_manager.client is not None, (
-            "Sync client should be initialized after use"
-        )
-        assert unpickled_manager.is_lock_holder(sync_key, sync_holder), (
-            "Should be sync lock holder"
-        )
+        assert (
+            unpickled_manager.client is not None
+        ), "Sync client should be initialized after use"
+        assert unpickled_manager.is_lock_holder(
+            sync_key, sync_holder
+        ), "Should be sync lock holder"
         unpickled_manager.release_lock(sync_key, sync_holder)
         assert not unpickled_manager.is_locked(sync_key), "Sync lock should be released"
 
@@ -326,9 +326,9 @@ class TestRedisLockManager:
             hold_timeout=hold_timeout_seconds,
         )
         assert acquired_async, "Should acquire async lock after unpickling"
-        assert unpickled_manager.async_client is not None, (
-            "Async client should be initialized after async use"
-        )
+        assert (
+            unpickled_manager.async_client is not None
+        ), "Async client should be initialized after async use"
 
         # Verify holder by re-acquiring (should succeed as it's the same holder and lock is fresh)
         assert await unpickled_manager.aacquire_lock(
@@ -351,6 +351,6 @@ class TestRedisLockManager:
             acquire_timeout=1,
             hold_timeout=hold_timeout_seconds,
         )
-        assert acquired_by_new, (
-            "Should acquire async lock with new holder after original lock expires"
-        )
+        assert (
+            acquired_by_new
+        ), "Should acquire async lock with new holder after original lock expires"

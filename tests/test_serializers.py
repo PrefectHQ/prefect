@@ -264,9 +264,9 @@ class TestJSONSerializer:
         serialized_data = serializer.dumps(data_with_stream)
 
         assert string_io.tell() == 0, "Stream pointer moved after dumps()"
-        assert string_io.read() == string_io_content, (
-            "Stream content changed or was consumed after dumps()"
-        )
+        assert (
+            string_io.read() == string_io_content
+        ), "Stream content changed or was consumed after dumps()"
         string_io.seek(0)
 
         deserialized_data = json.loads(serialized_data.decode())
@@ -298,18 +298,18 @@ class TestJSONSerializer:
         expected_placeholder_repr_info = f"repr={repr(string_io)}"
         expected_placeholder_suffix = "(original content not read)>"
 
-        assert expected_placeholder_prefix in placeholder_data_string, (
-            f"Placeholder prefix '{expected_placeholder_prefix}' missing in placeholder string: {placeholder_data_string}"
-        )
-        assert expected_placeholder_type_info in placeholder_data_string, (
-            f"Expected type info '{expected_placeholder_type_info}' not in placeholder string: {placeholder_data_string}"
-        )
-        assert expected_placeholder_repr_info in placeholder_data_string, (
-            f"Expected repr info '{expected_placeholder_repr_info}' not in placeholder string: {placeholder_data_string}"
-        )
-        assert expected_placeholder_suffix in placeholder_data_string, (
-            f"Placeholder suffix '{expected_placeholder_suffix}' missing in placeholder string: {placeholder_data_string}"
-        )
+        assert (
+            expected_placeholder_prefix in placeholder_data_string
+        ), f"Placeholder prefix '{expected_placeholder_prefix}' missing in placeholder string: {placeholder_data_string}"
+        assert (
+            expected_placeholder_type_info in placeholder_data_string
+        ), f"Expected type info '{expected_placeholder_type_info}' not in placeholder string: {placeholder_data_string}"
+        assert (
+            expected_placeholder_repr_info in placeholder_data_string
+        ), f"Expected repr info '{expected_placeholder_repr_info}' not in placeholder string: {placeholder_data_string}"
+        assert (
+            expected_placeholder_suffix in placeholder_data_string
+        ), f"Placeholder suffix '{expected_placeholder_suffix}' missing in placeholder string: {placeholder_data_string}"
 
         assert deserialized_data.get("other_data") == 123, "Other data was altered"
 

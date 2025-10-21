@@ -930,7 +930,9 @@ class RunDeployment(JinjaTemplateAction, DeploymentCommandAction):
                         cls._upgrade_v1_templates(item)
                     elif isinstance(item, str) and maybe_template(item):
                         value[i] = {"__prefect_kind": "jinja", "template": item}
-            elif isinstance(value, str) and maybe_template(value):  # pyright: ignore[reportUnnecessaryIsInstance]
+            elif isinstance(value, str) and maybe_template(
+                value
+            ):  # pyright: ignore[reportUnnecessaryIsInstance]
                 parameters[key] = {"__prefect_kind": "jinja", "template": value}
 
     def _collect_placeholders(

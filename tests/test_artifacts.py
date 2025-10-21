@@ -739,7 +739,9 @@ class TestCreateArtifacts:
 
     async def test_creating_artifact_outside_of_flow_run_context_warns(self):
         with pytest.warns(FutureWarning):
-            create_link_artifact("https://www.google.com", "Google", _sync=True)  # pyright: ignore[reportCallIssue]
+            create_link_artifact(
+                "https://www.google.com", "Google", _sync=True
+            )  # pyright: ignore[reportCallIssue]
 
         with pytest.warns(FutureWarning):
             await acreate_link_artifact("https://www.google.com", "Google")
@@ -958,7 +960,9 @@ class TestArtifact:
         formatted_data = await artifact.aformat()
         assert formatted_data == '{"key": "value"}'
 
-        sync_formatted = cast(str, artifact.format(_sync=True))  # pyright: ignore[reportCallIssue]
+        sync_formatted = cast(
+            str, artifact.format(_sync=True)
+        )  # pyright: ignore[reportCallIssue]
         assert sync_formatted == '{"key": "value"}'
 
     async def test_artifact_create_methods(self, prefect_client: PrefectClient):

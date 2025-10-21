@@ -83,9 +83,9 @@ def wrapper_func(concurrency_limit_name: str):
 
 async def test_async_concurrency_with_leases(concurrency_limit: GlobalConcurrencyLimit):
     lease_storage = get_concurrency_lease_storage()
-    assert isinstance(lease_storage, FileSystemConcurrencyLeaseStorage), (
-        "Set PREFECT_SERVER_CONCURRENCY_LEASE_STORAGE=prefect.server.concurrency.lease_storage.filesystem to run these tests"
-    )
+    assert isinstance(
+        lease_storage, FileSystemConcurrencyLeaseStorage
+    ), "Set PREFECT_SERVER_CONCURRENCY_LEASE_STORAGE=prefect.server.concurrency.lease_storage.filesystem to run these tests"
 
     # Start a process doomed to fail
     process = Process(
@@ -147,9 +147,9 @@ async def test_async_concurrency_with_lease_renewal_failure(
     concurrency_limit: GlobalConcurrencyLimit,
 ):
     lease_storage = get_concurrency_lease_storage()
-    assert isinstance(lease_storage, FileSystemConcurrencyLeaseStorage), (
-        "Set PREFECT_SERVER_CONCURRENCY_LEASE_STORAGE=prefect.server.concurrency.lease_storage.filesystem to run these tests"
-    )
+    assert isinstance(
+        lease_storage, FileSystemConcurrencyLeaseStorage
+    ), "Set PREFECT_SERVER_CONCURRENCY_LEASE_STORAGE=prefect.server.concurrency.lease_storage.filesystem to run these tests"
 
     # Start a process with some bad luck
     process = Process(
@@ -181,9 +181,9 @@ async def test_async_concurrency_with_lease_renewal_failure(
 
 async def test_sync_concurrency_with_leases(concurrency_limit: GlobalConcurrencyLimit):
     lease_storage = get_concurrency_lease_storage()
-    assert isinstance(lease_storage, FileSystemConcurrencyLeaseStorage), (
-        "Set PREFECT_SERVER_CONCURRENCY_LEASE_STORAGE=prefect.server.concurrency.lease_storage.filesystem to run these tests"
-    )
+    assert isinstance(
+        lease_storage, FileSystemConcurrencyLeaseStorage
+    ), "Set PREFECT_SERVER_CONCURRENCY_LEASE_STORAGE=prefect.server.concurrency.lease_storage.filesystem to run these tests"
 
     # Start a process doomed to fail
     process = Process(
@@ -245,9 +245,9 @@ async def test_sync_concurrency_with_lease_renewal_failure(
     concurrency_limit: GlobalConcurrencyLimit,
 ):
     lease_storage = get_concurrency_lease_storage()
-    assert isinstance(lease_storage, FileSystemConcurrencyLeaseStorage), (
-        "Set PREFECT_SERVER_CONCURRENCY_LEASE_STORAGE=prefect.server.concurrency.lease_storage.filesystem to run these tests"
-    )
+    assert isinstance(
+        lease_storage, FileSystemConcurrencyLeaseStorage
+    ), "Set PREFECT_SERVER_CONCURRENCY_LEASE_STORAGE=prefect.server.concurrency.lease_storage.filesystem to run these tests"
 
     # Start a process with some bad luck
     process = Process(

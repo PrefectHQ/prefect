@@ -223,7 +223,9 @@ class Flow(Generic[P, R]):
         on_crashed: Optional[list[FlowStateHook[P, R]]] = None,
         on_running: Optional[list[FlowStateHook[P, R]]] = None,
     ):
-        if name is not None and not isinstance(name, str):  # pyright: ignore[reportUnnecessaryIsInstance]
+        if name is not None and not isinstance(
+            name, str
+        ):  # pyright: ignore[reportUnnecessaryIsInstance]
             raise TypeError(
                 "Expected string for flow parameter 'name'; got {} instead. {}".format(
                     type(name).__name__,
@@ -2384,9 +2386,9 @@ class InfrastructureBoundFlow(Flow[P, R]):
             new_flow,
             self.work_pool,
             self.worker_cls,
-            job_variables=job_variables
-            if job_variables is not None
-            else self.job_variables,
+            job_variables=(
+                job_variables if job_variables is not None else self.job_variables
+            ),
         )
         return new_infrastructure_bound_flow
 
@@ -2500,7 +2502,9 @@ def load_flow_from_entrypoint(
     else:
         path, func_name = entrypoint.rsplit(".", maxsplit=1)
     try:
-        flow: Flow[P, Any] = import_object(entrypoint)  # pyright: ignore[reportRedeclaration]
+        flow: Flow[P, Any] = import_object(
+            entrypoint
+        )  # pyright: ignore[reportRedeclaration]
     except AttributeError as exc:
         raise MissingFlowError(
             f"Flow function with name {func_name!r} not found in {path!r}. "

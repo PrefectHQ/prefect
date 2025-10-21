@@ -1199,9 +1199,9 @@ class TestTaskRetries:
 
             if i > 0:
                 last_start_time = start_times[i - 1]
-                assert last_start_time < start_times[i], (
-                    "Timestamps should be increasing"
-                )
+                assert (
+                    last_start_time < start_times[i]
+                ), "Timestamps should be increasing"
 
     async def test_global_task_retry_config(self):
         with temporary_settings(updates={PREFECT_TASK_DEFAULT_RETRIES: "1"}):
@@ -2078,9 +2078,9 @@ class TestCachePolicy:
         second_state = await async_task(return_state=True)
         assert second_state.is_completed()
 
-        assert await first_state.result() != await second_state.result(), (
-            "Cache did not expire"
-        )
+        assert (
+            await first_state.result() != await second_state.result()
+        ), "Cache did not expire"
 
     async def test_none_policy_with_persist_result_false(self, prefect_client):
         @task(cache_policy=None, result_storage_key=None, persist_result=False)

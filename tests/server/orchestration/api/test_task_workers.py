@@ -26,9 +26,11 @@ async def test_read_task_workers(
 
     response = test_client.post(
         "api/task_workers/filter",
-        json={"task_worker_filter": {"task_keys": certain_tasks}}
-        if certain_tasks
-        else None,
+        json=(
+            {"task_worker_filter": {"task_keys": certain_tasks}}
+            if certain_tasks
+            else None
+        ),
     )
 
     assert response.status_code == 200

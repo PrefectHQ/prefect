@@ -187,9 +187,9 @@ async def test_get_job_service_async_client_cached(
         project=project,
     )
 
-    assert _get_job_service_async_client_cached.cache_info().hits == 0, (
-        "Initial call count should be 0"
-    )
+    assert (
+        _get_job_service_async_client_cached.cache_info().hits == 0
+    ), "Initial call count should be 0"
 
     credentials.get_job_service_async_client(client_options={})
     credentials.get_job_service_async_client(client_options={})
@@ -214,9 +214,9 @@ async def test_get_job_service_async_client_cached_from_file(
         project=project,
     )
 
-    assert _get_job_service_async_client_cached.cache_info().hits == 0, (
-        "Initial call count should be 0"
-    )
+    assert (
+        _get_job_service_async_client_cached.cache_info().hits == 0
+    ), "Initial call count should be 0"
 
     credentials.get_job_service_async_client(client_options={})
     credentials.get_job_service_async_client(client_options={})

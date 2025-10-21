@@ -130,9 +130,9 @@ async def test_default_pod_eviction(
                 updated_flow_run = await client.read_flow_run(flow_run.id)
                 display.print_flow_run_result(updated_flow_run)
 
-                assert updated_flow_run.state is not None, (
-                    "Flow run state should not be None"
-                )
+                assert (
+                    updated_flow_run.state is not None
+                ), "Flow run state should not be None"
 
                 # For test stability, accept various states as long as we have the events
                 # The main point is that the pod was evicted and events were generated
@@ -149,9 +149,7 @@ async def test_default_pod_eviction(
                         assert updated_flow_run.state.type not in (
                             StateType.FAILED,
                             StateType.CRASHED,
-                        ), (
-                            f"Expected flow run not to be FAILED or CRASHED, got {updated_flow_run.state.type}"
-                        )
+                        ), f"Expected flow run not to be FAILED or CRASHED, got {updated_flow_run.state.type}"
                     else:
                         # If we don't have the basic events, we should be in SCHEDULED or COMPLETED
                         assert updated_flow_run.state.type in (
@@ -192,9 +190,9 @@ async def test_default_pod_eviction(
     }
     expected_complete = expected_minimum | {"prefect.kubernetes.pod.succeeded"}
 
-    assert len(events) >= 2, (
-        f"Expected at least 2 events, got {len(events)}: {[event.event for event in events]}"
-    )
+    assert (
+        len(events) >= 2
+    ), f"Expected at least 2 events, got {len(events)}: {[event.event for event in events]}"
 
     assert (event_types == expected_complete) or (
         expected_minimum.issubset(event_types)
@@ -302,9 +300,9 @@ async def test_pod_eviction_with_backoff_limit(
             async with get_client() as client:
                 updated_flow_run = await client.read_flow_run(flow_run.id)
 
-                assert updated_flow_run.state is not None, (
-                    "Flow run state should not be None"
-                )
+                assert (
+                    updated_flow_run.state is not None
+                ), "Flow run state should not be None"
 
                 # We expect COMPLETED state, but we'll continue with the test if
                 # the flow run is still in RUNNING state but we've collected enough events
@@ -321,9 +319,9 @@ async def test_pod_eviction_with_backoff_limit(
             worker_process.terminate()
 
     # Check event count - minimum is now 4 events
-    assert len(events) >= 4, (
-        f"Expected at least 4 events, got {len(events)}: {[event.event for event in events]}"
-    )
+    assert (
+        len(events) >= 4
+    ), f"Expected at least 4 events, got {len(events)}: {[event.event for event in events]}"
 
     # Instead of checking exact order, check that we have the required event types
     event_types = {event.event for event in events}
@@ -343,9 +341,7 @@ async def test_pod_eviction_with_backoff_limit(
             "prefect.kubernetes.pod.pending",
             "prefect.kubernetes.pod.running",
             "prefect.kubernetes.pod.succeeded",
-        ], (
-            f"Expected events to be in the correct order, got: {[event.event for event in events]}"
-        )
+        ], f"Expected events to be in the correct order, got: {[event.event for event in events]}"
     else:
         # Otherwise just ensure we have the minimum required events
         print(

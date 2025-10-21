@@ -184,9 +184,9 @@ async def test_backfill_state_name(db, flow):
                 (str(flow_run_id), "foo", "My Custom Name"),
                 (str(null_state_flow_run_id), "null state", None),
             ]
-            assert expected_flow_runs == flow_runs, (
-                "state_name is backfilled for flow runs"
-            )
+            assert (
+                expected_flow_runs == flow_runs
+            ), "state_name is backfilled for flow runs"
 
             task_runs = [
                 (str(tr[0]), tr[1], tr[2])
@@ -202,9 +202,9 @@ async def test_backfill_state_name(db, flow):
                 (str(task_run_id), "foo-task", "My Custom Name"),
                 (str(null_state_task_run_id), "null-state-task", None),
             ]
-            assert expected_task_runs == task_runs, (
-                "state_name is backfilled for task runs"
-            )
+            assert (
+                expected_task_runs == task_runs
+            ), "state_name is backfilled for task runs"
 
     finally:
         await run_sync_in_worker_thread(alembic_upgrade)
@@ -325,9 +325,9 @@ async def test_backfill_artifacts(db):
                     artifact["type"],
                     artifact["description"],
                 )
-                assert result == expected_result, (
-                    "data migration populates artifact_collection table"
-                )
+                assert (
+                    result == expected_result
+                ), "data migration populates artifact_collection table"
 
     finally:
         await run_sync_in_worker_thread(alembic_upgrade)
@@ -914,13 +914,15 @@ async def test_migrate_flow_run_notifications_to_automations(db: PrefectDBInterf
             )
             assert enabled_actions == [
                 {
-                    "body": textwrap.dedent("""
+                    "body": textwrap.dedent(
+                        """
                         Flow run {{ flow.name }}/{{ flow_run.name }} observed in state `{{ flow_run.state.name }}` at {{ flow_run.state.timestamp }}.
                         Flow ID: {{ flow_run.flow_id }}
                         Flow run ID: {{ flow_run.id }}
                         Flow run URL: {{ flow_run|ui_url }}
                         State message: {{ flow_run.state.message }}
-                        """),
+                        """
+                    ),
                     "type": "send-notification",
                     "subject": "Prefect flow run notification",
                     "block_document_id": str(block_document_id),

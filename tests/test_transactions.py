@@ -728,9 +728,9 @@ class TestWithResultStore:
 
             # Second transaction - should recognize the file as already committed
             with transaction(key=transaction_key, store=result_store) as txn:
-                assert txn.is_committed(), (
-                    "Transaction should correctly identify existing file after replacing NullFileSystem"
-                )
+                assert (
+                    txn.is_committed()
+                ), "Transaction should correctly identify existing file after replacing NullFileSystem"
 
         def test_competing_read_transaction(self, result_store: ResultStore):
             write_transaction_open = threading.Event()
@@ -830,9 +830,9 @@ class TestWithResultStore:
 
             # Second transaction - should recognize the file as already committed
             async with atransaction(key=transaction_key, store=result_store) as txn:
-                assert txn.is_committed(), (
-                    "Transaction should correctly identify existing file after replacing NullFileSystem"
-                )
+                assert (
+                    txn.is_committed()
+                ), "Transaction should correctly identify existing file after replacing NullFileSystem"
 
         async def test_competing_read_transaction(self, result_store: ResultStore):
             write_transaction_open = asyncio.Event()

@@ -26,6 +26,6 @@ def test_server_routes_match_openapi_schema():
             print()  # Add blank line between routes for readability
 
     # Assert ServerRoutes are subset of OpenAPI paths
-    assert not missing_routes, (
-        f"{len(missing_routes)} routes are missing from OpenAPI schema"
-    )
+    assert (
+        not missing_routes
+    ), f"{len(missing_routes)} routes are missing from OpenAPI schema"

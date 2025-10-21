@@ -27,12 +27,12 @@ class BlockStandardTestSuite(ABC):
                 # block fields are currently excluded from this test. Once block field
                 # descriptions are supported by the UI, remove this clause.
                 continue
-            assert field.description, (
-                f"{block.__name__} is missing a description on {name}"
-            )
-            assert field.description.endswith("."), (
-                f"{name} description on {block.__name__} does not end with a period"
-            )
+            assert (
+                field.description
+            ), f"{block.__name__} is missing a description on {name}"
+            assert field.description.endswith(
+                "."
+            ), f"{name} description on {block.__name__} does not end with a period"
 
     def test_has_a_valid_code_example(self, block: type[Block]) -> None:
         code_example = block.get_code_example()
@@ -57,11 +57,11 @@ class BlockStandardTestSuite(ABC):
 
     def test_has_a_valid_image(self, block: type[Block]) -> None:
         logo_url = block._logo_url
-        assert logo_url is not None, (
-            f"{block.__name__} is missing a value for _logo_url"
-        )
+        assert (
+            logo_url is not None
+        ), f"{block.__name__} is missing a value for _logo_url"
         img = Image.open(urlopen(str(logo_url)))
         assert img.width == img.height, "Logo should be a square image"
-        assert 1000 > img.width > 45, (
-            f"Logo should be between 200px and 1000px wid, but is {img.width}px wide"
-        )
+        assert (
+            1000 > img.width > 45
+        ), f"Logo should be between 200px and 1000px wid, but is {img.width}px wide"

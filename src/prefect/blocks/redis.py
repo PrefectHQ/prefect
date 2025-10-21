@@ -101,7 +101,9 @@ class RedisStorageContainer(WritableFileSystem):
     @asynccontextmanager
     async def _client(self) -> AsyncGenerator[redis.Redis, None]:
         if self.connection_string:
-            client = redis.Redis.from_url(self.connection_string.get_secret_value())  # pyright: ignore[reportUnknownMemberType] incomplete typing for redis-py
+            client = redis.Redis.from_url(
+                self.connection_string.get_secret_value()
+            )  # pyright: ignore[reportUnknownMemberType] incomplete typing for redis-py
         else:
             assert self.host
             client = redis.Redis(
