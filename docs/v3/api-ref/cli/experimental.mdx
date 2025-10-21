@@ -1,0 +1,74 @@
+---
+title: " "
+sidebarTitle: prefect experimental
+---
+
+# `prefect experimental`
+
+
+
+```command
+prefect experimental [OPTIONS] COMMAND [ARGS]...
+```
+
+
+
+<Info>
+Access experimental features (subject to change).
+</Info>
+
+
+
+
+
+
+
+
+## `prefect experimental plugins`
+
+
+
+```command
+prefect experimental plugins [OPTIONS] COMMAND [ARGS]...
+```
+
+
+
+<Info>
+Plugin system diagnostics.
+</Info>
+
+
+
+
+
+
+
+
+### `prefect experimental plugins diagnose`
+
+
+
+```command
+prefect experimental plugins diagnose [OPTIONS]
+```
+
+
+
+<Info>
+Diagnose the experimental plugin system.
+
+This command provides information about:
+- Whether the plugin system is enabled
+- What plugins are discoverable via entry points
+- Current configuration (timeouts, allow/deny lists)
+
+Note: This runs the plugin discovery but does not execute hooks.
+Use safe mode (PREFECT_EXPERIMENTS_PLUGINS_SAFE_MODE=1) to test plugin loading
+without executing hooks.
+</Info>
+
+
+
+
+

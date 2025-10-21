@@ -87,7 +87,7 @@ async def start(
         None,
         "-l",
         "--limit",
-        help="Maximum number of flow runs to start simultaneously.",
+        help="Maximum number of flow runs to execute concurrently.",
     ),
     with_healthcheck: bool = typer.Option(
         False, help="Start a healthcheck server for the worker."

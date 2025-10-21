@@ -437,13 +437,13 @@ Delete a deployment schedule.
 
 
 ```command
-prefect deployment schedule pause [OPTIONS] DEPLOYMENT_NAME SCHEDULE_ID
+prefect deployment schedule pause [OPTIONS] [DEPLOYMENT_NAME] [SCHEDULE_ID]
 ```
 
 
 
 <Info>
-Pause a deployment schedule.
+Pause deployment schedules.
 </Info>
 
 
@@ -455,17 +455,37 @@ Pause a deployment schedule.
 
 
 <Accordion title="Arguments" defaultOpen>
-<ResponseField name="DEPLOYMENT_NAME" type="string" required>
-    \[required]
+<ResponseField name="DEPLOYMENT_NAME" type="string">
+    
 </ResponseField>
-<ResponseField name="SCHEDULE_ID" type="string" required>
-    \[required]
+<ResponseField name="SCHEDULE_ID" type="string">
+    
 </ResponseField>
 </Accordion>
 
 
 
+<Accordion title="Options" defaultOpen>
+
+<ResponseField name="--all">
+    Pause all deployment schedules
+</ResponseField>
+
+</Accordion>
+
 </AccordionGroup>
+
+
+<Note>
+**Example:**
+
+Pause a specific schedule:
+    $ prefect deployment schedule pause my-flow/my-deployment abc123-...
+
+Pause all schedules:
+    $ prefect deployment schedule pause --all
+</Note>
+
 
 
 
@@ -474,13 +494,13 @@ Pause a deployment schedule.
 
 
 ```command
-prefect deployment schedule resume [OPTIONS] DEPLOYMENT_NAME SCHEDULE_ID
+prefect deployment schedule resume [OPTIONS] [DEPLOYMENT_NAME] [SCHEDULE_ID]
 ```
 
 
 
 <Info>
-Resume a deployment schedule.
+Resume deployment schedules.
 </Info>
 
 
@@ -492,17 +512,37 @@ Resume a deployment schedule.
 
 
 <Accordion title="Arguments" defaultOpen>
-<ResponseField name="DEPLOYMENT_NAME" type="string" required>
-    \[required]
+<ResponseField name="DEPLOYMENT_NAME" type="string">
+    
 </ResponseField>
-<ResponseField name="SCHEDULE_ID" type="string" required>
-    \[required]
+<ResponseField name="SCHEDULE_ID" type="string">
+    
 </ResponseField>
 </Accordion>
 
 
 
+<Accordion title="Options" defaultOpen>
+
+<ResponseField name="--all">
+    Resume all deployment schedules
+</ResponseField>
+
+</Accordion>
+
 </AccordionGroup>
+
+
+<Note>
+**Example:**
+
+Resume a specific schedule:
+    $ prefect deployment schedule resume my-flow/my-deployment abc123-...
+
+Resume all schedules:
+    $ prefect deployment schedule resume --all
+</Note>
+
 
 
 
