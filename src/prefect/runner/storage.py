@@ -82,7 +82,7 @@ class GitCredentials(TypedDict, total=False):
 
 
 @runtime_checkable
-class GitCredentialsFormatter(Protocol):
+class _GitCredentialsFormatter(Protocol):
     """
     Protocol for credential blocks that can format themselves for git URLs.
 
@@ -860,7 +860,7 @@ def _format_token_from_credentials(
     """
     Formats the credentials block for the git provider.
 
-    If the block implements GitCredentialsFormatter protocol, delegates to it.
+    If the block implements _GitCredentialsFormatter protocol, delegates to it.
     Otherwise, uses legacy provider-specific logic for backward compatibility.
 
     Args:
@@ -872,13 +872,10 @@ def _format_token_from_credentials(
         git clone "https://x-token-auth:{token}@bitbucket.org/yourRepoOwnerHere/RepoNameHere"
         git clone https://username:<token>@bitbucketserver.com/scm/projectname/teamsinspace.git
     """
-    # NEW: Check if block implements GitCredentialsFormatter protocol
-    if block is not None and isinstance(block, GitCredentialsFormatter):
+    if block is not None and isinstance(block, _GitCredentialsFormatter):
         # Reconstruct full URL for context (scheme doesn't matter for formatting)
         url = f"https://{netloc}"
         return block.format_git_credentials(url)
-
-    # LEGACY: Existing logic for backward compatibility
     username = credentials.get("username") if credentials else None
     password = credentials.get("password") if credentials else None
     token = credentials.get("token") if credentials else None
@@ -900,7 +897,6 @@ def _format_token_from_credentials(
 
     # Check if this is a GitLab credentials block by inspecting the block type
     # This handles self-hosted GitLab instances that don't have "gitlab" in the hostname
-    # TODO: Remove after all credential blocks implement GitCredentialsFormatter
     if block is not None:
         block_type_slug = getattr(block, "get_block_type_slug", lambda: None)()
         if block_type_slug == "gitlab-credentials":
