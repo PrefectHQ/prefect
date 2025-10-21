@@ -7,9 +7,11 @@ from typing import Any, TypedDict
 
 from typing_extensions import Self
 
+from prefect.logging.loggers import get_logger
+
 from .protocol import LockManager
 
-logger: logging.Logger = logging.getLogger(__name__)
+logger: logging.Logger = get_logger("locking.memory")
 
 
 class _LockInfo(TypedDict):
