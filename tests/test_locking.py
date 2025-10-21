@@ -1,5 +1,7 @@
 import queue
 import threading
+from concurrent.futures import ProcessPoolExecutor
+from functools import partial
 from time import sleep
 from uuid import uuid4
 
@@ -9,6 +11,7 @@ import pytest
 from prefect.locking.filesystem import FileSystemLockManager
 from prefect.locking.memory import MemoryLockManager
 from prefect.results import ResultStore
+from prefect.utilities.callables import cloudpickle_wrapped_call
 
 
 class TestMemoryLockManager:
@@ -185,7 +188,7 @@ class TestMemoryLockManager:
             for record in caplog.records
         )
 
-    def test_deserialized_manager_has_no_lock_information(self):
+    def test_deserialized_manager_get_singleton_lock_information(self):
         """Test that lock information is not preserved after deserialization."""
         key = str(uuid4())
         manager = MemoryLockManager()
@@ -197,9 +200,33 @@ class TestMemoryLockManager:
         serialized = cloudpickle.dumps(manager)
         deserialized = cloudpickle.loads(serialized)
 
-        # Lock information should not be preserved
-        assert not deserialized.is_locked(key)
-        assert not deserialized.is_lock_holder(key, holder="holder1")
+        # Lock information should be loaded from the singleton instance
+        assert deserialized.is_locked(key)
+        assert deserialized.is_lock_holder(key, holder="holder1")
+
+    def test_manager_has_no_lock_information_when_deserialized_in_new_process(self):
+        """Test that lock information is not preserved after deserialization in a new process."""
+        key = str(uuid4())
+        manager = MemoryLockManager()
+        assert manager.acquire_lock(key, holder="holder1")
+        assert manager.is_locked(key)
+        assert manager.is_lock_holder(key, holder="holder1")
+
+        # Serialize and deserialize in a new process
+        serialized = cloudpickle.dumps(manager)
+
+        def deserialize_manager(serialized: bytes, key: str, holder: str):
+            deserialized = cloudpickle.loads(serialized)
+            assert not deserialized.is_locked(key)
+            assert not deserialized.is_lock_holder(key, holder=holder)
+
+        with ProcessPoolExecutor(max_workers=1) as executor:
+            future = executor.submit(
+                cloudpickle_wrapped_call(
+                    partial(deserialize_manager, serialized, key, "holder1")
+                )
+            )
+            future.result()
 
     def test_singleton_behavior_after_deserialization(self):
         """Test that singleton behavior is maintained after deserialization."""
@@ -207,12 +234,12 @@ class TestMemoryLockManager:
         manager1 = MemoryLockManager()
         assert manager1.acquire_lock(key, holder="holder1")
 
-        # Serialize and deserialize
+        # Serialize and deserialize while making sure lock info isn't lost on the original manager
         serialized = cloudpickle.dumps(manager1)
-
         assert manager1.is_locked(key)
 
         deserialized = cloudpickle.loads(serialized)
+        assert manager1.is_locked(key)
 
         # Deserialized manager should be the same singleton instance
         manager2 = MemoryLockManager()

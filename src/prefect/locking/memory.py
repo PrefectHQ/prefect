@@ -254,7 +254,7 @@ class MemoryLockManager(LockManager):
         # The _locks_dict_lock will be recreated in __setstate__
         state.pop("_locks_dict_lock", None)
         # Clear all locks since threading.Lock objects cannot be pickled
-        state["_locks"] = {}
+        state.pop("_locks", None)
 
         return state
 
@@ -266,7 +266,4 @@ class MemoryLockManager(LockManager):
         locks dictionary.
         """
         self.__dict__.update(state)
-        # Recreate the lock for the locks dictionary
-        self._locks_dict_lock = threading.Lock()
-        # Ensure _locks is empty (it should already be from __getstate__)
-        self._locks = {}
+        self.__init__()
