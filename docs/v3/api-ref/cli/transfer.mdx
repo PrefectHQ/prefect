@@ -1,0 +1,52 @@
+---
+title: " "
+sidebarTitle: prefect transfer
+---
+
+# `prefect transfer`
+
+
+
+```command
+prefect transfer [OPTIONS]
+```
+
+
+
+<Info>
+Transfer resources from one Prefect profile to another.
+
+Automatically handles dependencies between resources and transfers them
+in the correct order.
+
+
+Examples:
+    
+    Transfer all resources from staging to production:
+    
+    \$ prefect transfer --from staging --to prod
+</Info>
+
+
+
+
+
+
+<AccordionGroup>
+
+
+
+
+<Accordion title="Options" defaultOpen>
+
+<ResponseField name="--from">
+    Source profile to transfer resources from
+</ResponseField>
+
+<ResponseField name="--to">
+    Target profile to transfer resources to
+</ResponseField>
+
+</Accordion>
+
+</AccordionGroup>
