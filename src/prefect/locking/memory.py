@@ -9,7 +9,7 @@ from typing_extensions import Self
 
 from .protocol import LockManager
 
-logger = logging.getLogger(__name__)
+logger: logging.Logger = logging.getLogger(__name__)
 
 
 class _LockInfo(TypedDict):
