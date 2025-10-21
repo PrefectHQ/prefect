@@ -1,3 +1,4 @@
+import multiprocessing
 import queue
 import threading
 from concurrent.futures import ProcessPoolExecutor
@@ -205,7 +206,7 @@ class TestMemoryLockManager:
         assert deserialized.is_lock_holder(key, holder="holder1")
 
     def test_manager_has_no_lock_information_when_deserialized_in_new_process(self):
-        """Test that lock information is not preserved after deserialization in a new process."""
+        """Test that lock information is not preserved after deserialization in a new process with spawn."""
         key = str(uuid4())
         manager = MemoryLockManager()
         assert manager.acquire_lock(key, holder="holder1")
@@ -220,7 +221,41 @@ class TestMemoryLockManager:
             assert not deserialized.is_locked(key)
             assert not deserialized.is_lock_holder(key, holder=holder)
 
-        with ProcessPoolExecutor(max_workers=1) as executor:
+        with ProcessPoolExecutor(
+            # need to spawn because lock info will get reloaded if we fork instead,
+            # which is cool, but not what we want for this test
+            max_workers=1,
+            mp_context=multiprocessing.get_context("spawn"),
+        ) as executor:
+            future = executor.submit(
+                cloudpickle_wrapped_call(
+                    partial(deserialize_manager, serialized, key, "holder1")
+                )
+            )
+            future.result()
+
+    def test_manager_has_lock_information_when_deserialized_in_new_process_with_fork(
+        self,
+    ):
+        """Test that lock information is preserved after deserialization in a new process with fork."""
+        key = str(uuid4())
+        manager = MemoryLockManager()
+        assert manager.acquire_lock(key, holder="holder1")
+        assert manager.is_locked(key)
+        assert manager.is_lock_holder(key, holder="holder1")
+
+        # Serialize and deserialize in a new process with fork
+        serialized = cloudpickle.dumps(manager)
+
+        def deserialize_manager(serialized: bytes, key: str, holder: str):
+            deserialized = cloudpickle.loads(serialized)
+            # Running in a forked process, so lock info should be reloaded from the singleton instance
+            assert deserialized.is_locked(key)
+            assert deserialized.is_lock_holder(key, holder=holder)
+
+        with ProcessPoolExecutor(
+            max_workers=1, mp_context=multiprocessing.get_context("fork")
+        ) as executor:
             future = executor.submit(
                 cloudpickle_wrapped_call(
                     partial(deserialize_manager, serialized, key, "holder1")
