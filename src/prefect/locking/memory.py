@@ -1,12 +1,15 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 import threading
 from typing import Any, TypedDict
 
 from typing_extensions import Self
 
 from .protocol import LockManager
+
+logger = logging.getLogger(__name__)
 
 
 class _LockInfo(TypedDict):
@@ -227,3 +230,41 @@ class MemoryLockManager(LockManager):
                 lock_info["lock"].release()
             return lock_acquired
         return True
+
+    def __getstate__(self) -> dict[str, Any]:
+        """
+        Prepare the lock manager for serialization.
+
+        If there are any locks held, log a warning that lock information will not
+        be available after deserialization.
+        """
+        state = self.__dict__.copy()
+
+        # Check if there are any locks held
+        if self._locks:
+            logger.warning(
+                "Serializing MemoryLockManager with %d active lock(s). "
+                "Lock information will not be available after deserialization.",
+                len(self._locks),
+            )
+
+        # Remove unpicklable objects
+        # The _locks_dict_lock will be recreated in __setstate__
+        state.pop("_locks_dict_lock", None)
+        # Clear all locks since threading.Lock objects cannot be pickled
+        state["_locks"] = {}
+
+        return state
+
+    def __setstate__(self, state: dict[str, Any]) -> None:
+        """
+        Restore the lock manager after deserialization.
+
+        Reinitializes the lock manager with empty locks and a new lock for the
+        locks dictionary.
+        """
+        self.__dict__.update(state)
+        # Recreate the lock for the locks dictionary
+        self._locks_dict_lock = threading.Lock()
+        # Ensure _locks is empty (it should already be from __getstate__)
+        self._locks = {}

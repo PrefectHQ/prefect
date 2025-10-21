@@ -3,6 +3,7 @@ import threading
 from time import sleep
 from uuid import uuid4
 
+import cloudpickle
 import pytest
 
 from prefect.locking.filesystem import FileSystemLockManager
@@ -158,6 +159,69 @@ class TestMemoryLockManager:
 
         # the lock should have been acquired by the thread
         assert manager.is_locked(key)
+
+    def test_serialize_with_no_locks(self):
+        """Test that MemoryLockManager can be serialized when no locks are held."""
+        manager = MemoryLockManager()
+        # Should be able to serialize and deserialize
+        serialized = cloudpickle.dumps(manager)
+        deserialized = cloudpickle.loads(serialized)
+        assert isinstance(deserialized, MemoryLockManager)
+
+    def test_serialize_with_active_locks_logs_warning(self, caplog):
+        """Test that serializing with active locks logs a warning."""
+        key = str(uuid4())
+        manager = MemoryLockManager()
+        assert manager.acquire_lock(key, holder="holder1")
+        assert manager.is_locked(key)
+
+        # Serializing should log a warning about losing lock information
+        cloudpickle.dumps(manager)
+
+        # Check that a warning was logged
+        assert any(
+            "lock information will not be available after deserialization"
+            in record.message.lower()
+            for record in caplog.records
+        )
+
+    def test_deserialized_manager_has_no_lock_information(self):
+        """Test that lock information is not preserved after deserialization."""
+        key = str(uuid4())
+        manager = MemoryLockManager()
+        assert manager.acquire_lock(key, holder="holder1")
+        assert manager.is_locked(key)
+        assert manager.is_lock_holder(key, holder="holder1")
+
+        # Serialize and deserialize
+        serialized = cloudpickle.dumps(manager)
+        deserialized = cloudpickle.loads(serialized)
+
+        # Lock information should not be preserved
+        assert not deserialized.is_locked(key)
+        assert not deserialized.is_lock_holder(key, holder="holder1")
+
+    def test_singleton_behavior_after_deserialization(self):
+        """Test that singleton behavior is maintained after deserialization."""
+        key = str(uuid4())
+        manager1 = MemoryLockManager()
+        assert manager1.acquire_lock(key, holder="holder1")
+
+        # Serialize and deserialize
+        serialized = cloudpickle.dumps(manager1)
+
+        assert manager1.is_locked(key)
+
+        deserialized = cloudpickle.loads(serialized)
+
+        # Deserialized manager should be the same singleton instance
+        manager2 = MemoryLockManager()
+        assert deserialized is manager2
+
+        # The deserialized manager should be able to acquire new locks
+        key2 = str(uuid4())
+        assert deserialized.acquire_lock(key2, holder="holder2")
+        assert deserialized.is_locked(key2)
 
 
 class TestFileSystemLockManager:
