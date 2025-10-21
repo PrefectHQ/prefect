@@ -79,7 +79,7 @@ Configuration parameters you can specify when starting a worker include:
 | `--type`, `-t`                                    | The type of worker to start. If not provided, the worker type is inferred from the work pool.                                          |
 | <span class="no-wrap">`--prefetch-seconds`</span> | The amount of time before a flow run's scheduled start time to begin submission. Default is the value of `PREFECT_WORKER_PREFETCH_SECONDS`. |
 | `--run-once`                                      | Only run worker polling once. By default, the worker runs forever.                                                                          |
-| `--limit`, `-l`                                   | The maximum number of flow runs to start simultaneously.                                                                                    |
+| `--limit`, `-l`                                   | The maximum number of flow runs to execute concurrently.                                                                                    |
 | `--with-healthcheck`                                   | Start a healthcheck server for the worker.                                                                                    |
 | `--install-policy`                                   | Install policy to use workers from Prefect integration packages.                                                                                    |
 
