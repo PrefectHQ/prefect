@@ -58,7 +58,7 @@ from prefect.settings import (
 from prefect.types._datetime import now
 from prefect.utilities.math import clamped_poisson_interval
 
-from .instrumentation_policies import InstrumentFlowRunStateTransitions
+from .instrumentation_policies import InstrumentFlowRunStateTransitions, FlowRunStateTransitionLogger, TaskRunStateTransitionLogger
 
 logger: logging.Logger = get_logger(__name__)
 
@@ -99,6 +99,7 @@ class CoreFlowPolicy(FlowRunOrchestrationPolicy):
                 CopyScheduledTime,
                 WaitForScheduledTime,
                 RetryFailedFlows,
+                FlowRunStateTransitionLogger,
                 InstrumentFlowRunStateTransitions,
                 ReleaseFlowConcurrencySlots,
             ],
@@ -136,6 +137,7 @@ class CoreTaskPolicy(TaskRunOrchestrationPolicy):
                 RetryFailedTasks,
                 RenameReruns,
                 UpdateFlowRunTrackerOnTasks,
+                TaskRunStateTransitionLogger,
                 CacheInsertion,
                 ReleaseTaskConcurrencySlots,
             ],
@@ -173,6 +175,7 @@ class ClientSideTaskOrchestrationPolicy(TaskRunOrchestrationPolicy):
                 RetryFailedTasks,
                 RenameReruns,
                 UpdateFlowRunTrackerOnTasks,
+                TaskRunStateTransitionLogger,
                 CacheInsertion,
                 ReleaseTaskConcurrencySlots,
             ],
@@ -209,6 +212,7 @@ class BackgroundTaskPolicy(TaskRunOrchestrationPolicy):
                 RetryFailedTasks,
                 RenameReruns,
                 UpdateFlowRunTrackerOnTasks,
+                TaskRunStateTransitionLogger,
                 CacheInsertion,
                 ReleaseTaskConcurrencySlots,
                 EnqueueScheduledTasks,
@@ -226,6 +230,7 @@ class MinimalFlowPolicy(FlowRunOrchestrationPolicy):
     ]:
         return [
             BypassCancellingFlowRunsWithNoInfra,  # cancel scheduled or suspended runs from the UI
+            FlowRunStateTransitionLogger,
             InstrumentFlowRunStateTransitions,
             ReleaseFlowConcurrencySlots,
         ]
@@ -241,6 +246,7 @@ class MarkLateRunsPolicy(FlowRunOrchestrationPolicy):
     ]:
         return [
             EnsureOnlyScheduledFlowsMarkedLate,
+            FlowRunStateTransitionLogger,
             InstrumentFlowRunStateTransitions,
         ]
 
@@ -254,6 +260,7 @@ class MinimalTaskPolicy(TaskRunOrchestrationPolicy):
         ]
     ]:
         return [
+            TaskRunStateTransitionLogger,
             ReleaseTaskConcurrencySlots,  # always release concurrency slots
         ]
 

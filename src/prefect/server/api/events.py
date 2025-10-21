@@ -54,6 +54,18 @@ async def create_events(
 
     For more information, see https://docs.prefect.io/v3/concepts/events.
     """
+    logger.debug(
+        f"STLOGGING: EVENTS API: Received batch of {len(events)} events, "
+        f"ephemeral_request={ephemeral_request}"
+    )
+    
+    for event in events:
+        logger.debug(
+            f"STLOGGING: EVENTS API: Processing event: type='{event.event}', "
+            f"id={event.id}, resource_id='{event.resource.get('prefect.resource.id', 'unknown')}', "
+            f"occurred={event.occurred.isoformat() if event.occurred else 'None'}"
+        )
+    
     if ephemeral_request:
         await EventsPipeline().process_events(events)
     else:
@@ -71,6 +83,12 @@ async def stream_events_in(websocket: WebSocket) -> None:
         async with messaging.create_event_publisher() as publisher:
             async for event_json in websocket.iter_text():
                 event = Event.model_validate_json(event_json)
+                logger.debug(
+                    f"STLOGGING: EVENTS WEBSOCKET: Received event via WebSocket: "
+                    f"type='{event.event}', id={event.id}, "
+                    f"resource_id='{event.resource.get('prefect.resource.id', 'unknown')}', "
+                    f"occurred={event.occurred.isoformat() if event.occurred else 'None'}"
+                )
                 await publisher.publish_event(event.receive())
     except subscriptions.NORMAL_DISCONNECT_EXCEPTIONS:  # pragma: no cover
         pass  # it's fine if a client disconnects either normally or abnormally

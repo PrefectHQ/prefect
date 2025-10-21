@@ -316,6 +316,12 @@ async def set_task_run_state(
 ) -> OrchestrationResult:
     """Set a task run state, invoking any orchestration rules."""
 
+    # Log the API request
+    logger.debug(
+        f"STLOGGING: API: Task run {task_run_id} set_state request: "
+        f"type={state.type}, name='{state.name}', force={force}"
+    )
+
     right_now = now("UTC")
 
     # create the state
@@ -332,6 +338,15 @@ async def set_task_run_state(
             task_policy=CoreTaskPolicy,
             orchestration_parameters=orchestration_parameters,
         )
+
+    # Log the API response
+    result_state = orchestration_result.state
+    logger.debug(
+        f"STLOGGING: API: Task run {task_run_id} set_state response: "
+        f"type={result_state.type if result_state else 'None'}, "
+        f"name='{result_state.name if result_state else 'None'}', "
+        f"status={orchestration_result.status}"
+    )
 
     # set the 201 if a new state was created
     if orchestration_result.state and orchestration_result.state.timestamp >= right_now:

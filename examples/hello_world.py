@@ -20,6 +20,7 @@
 # We start by importing the essential `flow` decorator from Prefect.
 
 from prefect import flow, tags
+from prefect.tasks import task
 
 # ## Defining a flow
 
@@ -29,11 +30,14 @@ from prefect import flow, tags
 #
 # To make this function work with Prefect, we just wrap it in the `@flow` decorator.
 
+@task
+def hello_task(name: str):
+    print(f"Hello, {name}!")
 
 @flow(log_prints=True)
 def hello(name: str = "Marvin") -> None:
     """Log a friendly greeting."""
-    print(f"Hello, {name}!")
+    hello_task(name)
 
 
 # ## Running our flow locally and with parameters

@@ -626,6 +626,13 @@ async def set_flow_run_state(
 ) -> OrchestrationResult:
     """Set a flow run state, invoking any orchestration rules."""
 
+    # Log the API request
+    logger.debug(
+        f"STLOGGING: API: Flow run {flow_run_id} set_state request: "
+        f"type={state.type}, name='{state.name}', force={force}, "
+        f"client_version={client_version}, api_version={api_version}"
+    )
+
     # pass the request version to the orchestration engine to support compatibility code
     orchestration_parameters.update({"api-version": api_version})
 
@@ -645,6 +652,15 @@ async def set_flow_run_state(
             orchestration_parameters=orchestration_parameters,
             client_version=client_version,
         )
+
+    # Log the API response
+    result_state = orchestration_result.state
+    logger.debug(
+        f"STLOGGING: API: Flow run {flow_run_id} set_state response: "
+        f"type={result_state.type if result_state else 'None'}, "
+        f"name='{result_state.name if result_state else 'None'}', "
+        f"status={orchestration_result.status}"
+    )
 
     # set the 201 if a new state was created
     if orchestration_result.state and orchestration_result.state.timestamp >= right_now:

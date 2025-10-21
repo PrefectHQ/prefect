@@ -332,9 +332,27 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
         if self.short_circuit:
             return self.state
 
+        # Get the previous state for logging
+        previous_state = self.flow_run.state if hasattr(self.flow_run, 'state') else None
+        
+        # Log the state transition attempt
+        self.logger.debug(
+            f"STLOGGING: Flow run {self.flow_run.id} attempting state transition: "
+            f"{previous_state.type if previous_state else 'None'} -> {state.type} "
+            f"(force={force})"
+        )
+
         state = propose_state_sync(
             self.client, state, flow_run_id=self.flow_run.id, force=force
         )  # type: ignore
+        
+        # Log the actual state transition result
+        self.logger.debug(
+            f"STLOGGING: Flow run {self.flow_run.id} state transition result: "
+            f"{previous_state.type if previous_state else 'None'} -> {state.type} "
+            f"(state_name='{state.name}', message='{state.message or 'None'}')"
+        )
+        
         self.flow_run.state = state  # type: ignore
         self.flow_run.state_name = state.name  # type: ignore
         self.flow_run.state_type = state.type  # type: ignore
@@ -912,9 +930,27 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
         if self.short_circuit:
             return self.state
 
+        # Get the previous state for logging
+        previous_state = self.flow_run.state if hasattr(self.flow_run, 'state') else None
+        
+        # Log the state transition attempt
+        self.logger.debug(
+            f"STLOGGING: Flow run {self.flow_run.id} attempting state transition: "
+            f"{previous_state.type if previous_state else 'None'} -> {state.type} "
+            f"(force={force})"
+        )
+
         state = await propose_state(
             self.client, state, flow_run_id=self.flow_run.id, force=force
         )  # type: ignore
+        
+        # Log the actual state transition result
+        self.logger.debug(
+            f"STLOGGING: Flow run {self.flow_run.id} state transition result: "
+            f"{previous_state.type if previous_state else 'None'} -> {state.type} "
+            f"(state_name='{state.name}', message='{state.message or 'None'}')"
+        )
+        
         self.flow_run.state = state  # type: ignore
         self.flow_run.state_name = state.name  # type: ignore
         self.flow_run.state_type = state.type  # type: ignore

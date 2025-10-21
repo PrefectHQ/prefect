@@ -491,6 +491,8 @@ async def set_task_run_state(
         OrchestrationResult object
     """
 
+    logger = get_logger(__name__)
+
     # load the task run
     run = await models.task_runs.read_task_run(session=session, task_run_id=task_run_id)
 
@@ -501,6 +503,19 @@ async def set_task_run_state(
     initial_state_type = initial_state.type if initial_state else None
     proposed_state_type = state.type if state else None
     intended_transition = (initial_state_type, proposed_state_type)
+
+    # Log the orchestration request at server level
+    logger.debug(
+        f"STLOGGING: Task run {task_run_id}, flow_run_id {run.flow_run_id} (name='{run.name}') orchestration requested: "
+        f"{initial_state_type} -> {proposed_state_type} "
+        f"(force={force}, deferred={state.state_details.deferred if state.state_details else False})"
+    )
+    
+    if initial_state:
+        logger.debug(
+            f"STLOGGING: Task run {task_run_id}, flow_run_id {run.flow_run_id} current state details: "
+            f"name='{initial_state.name}', message='{initial_state.message or 'None'}'"
+        )
 
     if state.state_details.deferred:
         task_policy = BackgroundTaskPolicy  # CoreTaskPolicy + prevent `Running` -> `Running` transition
@@ -535,7 +550,26 @@ async def set_task_run_state(
         await context.validate_proposed_state()
 
     if context.orchestration_error is not None:
+        logger.debug(
+            f"STLOGGING: Task run {task_run_id}, flow_run_id {run.flow_run_id} orchestration error: {context.orchestration_error}"
+        )
         raise context.orchestration_error
+
+    # Log the orchestration result
+    final_state = context.validated_state
+    final_state_type = final_state.type if final_state else None
+    
+    logger.debug(
+        f"STLOGGING: Task run {task_run_id}, flow_run_id {run.flow_run_id} orchestration completed: "
+        f"{initial_state_type} -> {final_state_type} "
+        f"(status={context.response_status})"
+    )
+    
+    if final_state:
+        logger.debug(
+            f"STLOGGING: Task run {task_run_id}, flow_run_id {run.flow_run_id} final state details: "
+            f"name='{final_state.name}', message='{final_state.message or 'None'}'"
+        )
 
     result = OrchestrationResult(
         state=context.validated_state,

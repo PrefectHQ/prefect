@@ -94,6 +94,17 @@ def emit_event(
                 event_kwargs["follows"] = follows.id
 
         event_obj = Event(**event_kwargs)
+        
+        # Log detailed event emission information
+        logger.debug(
+            f"STLOGGING: CLIENT: Emitting event: type='{event}', "
+            f"id={event_obj.id}, resource_id='{resource.get('prefect.resource.id', 'unknown')}', "
+            f"occurred={occurred.isoformat() if occurred else 'None'}, "
+            f"follows={event_kwargs.get('follows', 'None')}, "
+            f"payload_keys={list(payload.keys()) if payload else 'None'}, "
+            f"related_count={len(related) if related else 0}"
+        )
+        
         worker_instance.send(event_obj)
 
         return event_obj
