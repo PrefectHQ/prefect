@@ -417,8 +417,9 @@ class KubernetesWorkerJobConfiguration(BaseJobConfiguration):
         """
         Configures eviction handling for the job pod. Needs to run before
 
-        If `backoffLimit` is set to 0, we'll tell the Runner to reschedule
-        its flow run when it receives a SIGTERM.
+        If `backoffLimit` is set to 0 and `PREFECT_FLOW_RUN_EXECUTE_SIGTERM_BEHAVIOR` is
+        not set in env, we'll tell the Runner to reschedule its flow run when it receives
+        a SIGTERM.
 
         If `backoffLimit` is set to a positive number, we'll ensure that the
         reschedule SIGTERM handling is not set. Having both a `backoffLimit` and
@@ -428,7 +429,8 @@ class KubernetesWorkerJobConfiguration(BaseJobConfiguration):
         # its flow run when it receives a SIGTERM.
         if self.job_manifest["spec"].get("backoffLimit") == 0:
             if isinstance(self.env, dict):
-                self.env["PREFECT_FLOW_RUN_EXECUTE_SIGTERM_BEHAVIOR"] = "reschedule"
+                if not self.env.get("PREFECT_FLOW_RUN_EXECUTE_SIGTERM_BEHAVIOR"):
+                    self.env["PREFECT_FLOW_RUN_EXECUTE_SIGTERM_BEHAVIOR"] = "reschedule"
             elif not any(
                 v.get("name") == "PREFECT_FLOW_RUN_EXECUTE_SIGTERM_BEHAVIOR"
                 for v in self.env
@@ -646,7 +648,9 @@ class KubernetesWorkerVariables(BaseVariables):
         title="Backoff Limit",
         description=(
             "The number of times Kubernetes will retry a job after pod eviction. "
-            "If set to 0, Prefect will reschedule the flow run when the pod is evicted."
+            "If set to 0, Prefect will reschedule the flow run when the pod is evicted "
+            "unless PREFECT_FLOW_RUN_EXECUTE_SIGTERM_BEHAVIOR is set to value "
+            "different from 'reschedule'."
         ),
     )
     finished_job_ttl: Optional[int] = Field(

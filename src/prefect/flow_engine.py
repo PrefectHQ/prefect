@@ -733,9 +733,16 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
                     # Do not capture generator exits as crashes
                     raise
                 except BaseException as exc:
-                    # BaseExceptions are caught and handled as crashes
-                    self.handle_crash(exc)
-                    raise
+                    # We don't want to crash a flow run if the user code finished executing
+                    if self.flow_run.state and not self.flow_run.state.is_final():
+                        # BaseExceptions are caught and handled as crashes
+                        self.handle_crash(exc)
+                        raise
+                    else:
+                        self.logger.debug(
+                            "BaseException was raised after user code finished executing",
+                            exc_info=exc,
+                        )
                 finally:
                     # If debugging, use the more complete `repr` than the usual `str` description
                     display_state = (
@@ -1309,9 +1316,16 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
                     # Do not capture generator exits as crashes
                     raise
                 except BaseException as exc:
-                    # BaseExceptions are caught and handled as crashes
-                    await self.handle_crash(exc)
-                    raise
+                    # We don't want to crash a flow run if the user code finished executing
+                    if self.flow_run.state and not self.flow_run.state.is_final():
+                        # BaseExceptions are caught and handled as crashes
+                        await self.handle_crash(exc)
+                        raise
+                    else:
+                        self.logger.debug(
+                            "BaseException was raised after user code finished executing",
+                            exc_info=exc,
+                        )
                 finally:
                     # If debugging, use the more complete `repr` than the usual `str` description
                     display_state = (

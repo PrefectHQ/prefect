@@ -46,9 +46,17 @@ def execute_bundle_from_gcs(
                 key,
                 local_path,
             )
-            gcs_client.bucket(bucket).blob(key).download_to_file(
+            logger.debug(
+                "Downloading bundle from GCS bucket %s with key %s to local path %s",
+                bucket,
+                key,
+                local_path,
+            )
+
+            gcs_client.bucket(bucket).blob(key).download_to_filename(
                 str(local_path)
             )  # pyright: ignore[reportUnknownMemberType] Incomplete type hints
+
             bundle = from_json(local_path.read_bytes())
 
             logger.debug("Executing bundle")

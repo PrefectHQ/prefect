@@ -1338,10 +1338,20 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
     def _release_limit_slot(self, flow_run_id: UUID) -> None:
         """
         Frees up a slot taken by the given flow run id.
+
+        This method gracefully handles cases where the slot has already been released
+        to prevent worker crashes from double-release scenarios.
         """
         if self._limiter:
-            self._limiter.release_on_behalf_of(flow_run_id)
-            self._logger.debug("Limit slot released for flow run '%s'", flow_run_id)
+            try:
+                self._limiter.release_on_behalf_of(flow_run_id)
+                self._logger.debug("Limit slot released for flow run '%s'", flow_run_id)
+            except RuntimeError:
+                # Slot was already released - this can happen in certain error paths
+                # where multiple cleanup attempts occur. Log it but don't crash.
+                self._logger.debug(
+                    "Limit slot for flow run '%s' was already released", flow_run_id
+                )
 
     def get_status(self) -> dict[str, Any]:
         """
@@ -1468,6 +1478,11 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
         except Abort:
             # Flow run already marked as failed
             pass
+        except ObjectNotFound:
+            # Flow run was deleted - log it but don't crash the worker
+            run_logger.debug(
+                f"Flow run '{flow_run.id}' was deleted before state could be updated"
+            )
         except Exception:
             run_logger.exception(f"Failed to update state of flow run '{flow_run.id}'")
         else:
@@ -1490,7 +1505,14 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
             # does not need to explicitly set the type
             state = Cancelled(**state_updates)
 
-        await self.client.set_flow_run_state(flow_run.id, state, force=True)
+        try:
+            await self.client.set_flow_run_state(flow_run.id, state, force=True)
+        except ObjectNotFound:
+            # Flow run was deleted - log it but don't crash the worker
+            run_logger = self.get_flow_run_logger(flow_run)
+            run_logger.debug(
+                f"Flow run '{flow_run.id}' was deleted before it could be marked as cancelled"
+            )
 
         # Do not remove the flow run from the cancelling set immediately because
         # the API caches responses for the `read_flow_runs` and we do not want to

@@ -184,7 +184,11 @@ class GitRepository:
             elif isinstance(v, SecretStr):
                 credentials[k] = v.get_secret_value()
 
-        return _format_token_from_credentials(urlparse(self._url).netloc, credentials)
+        # Pass the original Block (if it is one) so we can detect its type
+        block = self._credentials if isinstance(self._credentials, Block) else None
+        return _format_token_from_credentials(
+            urlparse(self._url).netloc, credentials, block
+        )
 
     def _add_credentials_to_url(self, url: str) -> str:
         """Add credentials to given url if possible."""
@@ -818,10 +822,17 @@ def create_storage_from_source(
 
 
 def _format_token_from_credentials(
-    netloc: str, credentials: dict[str, Any] | GitCredentials
+    netloc: str,
+    credentials: dict[str, Any] | GitCredentials,
+    block: Block | None = None,
 ) -> str:
     """
     Formats the credentials block for the git provider.
+
+    Args:
+        netloc: The network location (hostname) of the git repository
+        credentials: Dictionary containing credential information
+        block: Optional Block object to determine credential type
 
     BitBucket supports the following syntax:
         git clone "https://x-token-auth:{token}@bitbucket.org/yourRepoOwnerHere/RepoNameHere"
@@ -845,6 +856,26 @@ def _format_token_from_credentials(
 
     if username:
         return f"{username}:{user_provided_token}"
+
+    # Check if this is a GitLab credentials block by inspecting the block type
+    # This handles self-hosted GitLab instances that don't have "gitlab" in the hostname
+    if block is not None:
+        block_type_slug = getattr(block, "get_block_type_slug", lambda: None)()
+        if block_type_slug == "gitlab-credentials":
+            # If token already contains ":", it's likely a deploy token in username:token format
+            # Deploy tokens should not have oauth2: prefix (GitLab 16.3.4+ rejects them)
+            # See: https://github.com/PrefectHQ/prefect/issues/10832
+            if ":" in user_provided_token and not user_provided_token.startswith(
+                "oauth2:"
+            ):
+                return user_provided_token
+
+            # For personal access tokens, add oauth2: prefix
+            return (
+                f"oauth2:{user_provided_token}"
+                if not user_provided_token.startswith("oauth2:")
+                else user_provided_token
+            )
 
     if "bitbucketserver" in netloc:
         # If they pass a BitBucketCredentials block and we don't have both a username and at
