@@ -8,7 +8,7 @@ compatible with Python 3.14+ (no Pydantic v1 dependency).
 from __future__ import annotations
 
 import inspect
-from typing import TYPE_CHECKING, Any, Callable, ClassVar, Optional
+from typing import Any, Callable, ClassVar, Optional
 
 from pydantic import (
     BaseModel,
@@ -18,12 +18,6 @@ from pydantic import (
     create_model,
     field_validator,
 )
-
-if TYPE_CHECKING:
-    from typing import TypeAlias
-
-    ConfigType: TypeAlias = ConfigDict | dict[str, Any] | None
-
 
 # Special field names for validation
 # These match pydantic.v1.decorator constants for compatibility
@@ -61,7 +55,7 @@ class ValidatedFunction:
     def __init__(
         self,
         function: Callable[..., Any],
-        config: ConfigType = None,
+        config: ConfigDict | None = None,
     ):
         """
         Initialize the validated function.
@@ -159,7 +153,7 @@ class ValidatedFunction:
         fields: dict[str, Any],
         takes_args: bool,
         takes_kwargs: bool,
-        config: ConfigType,
+        config: ConfigDict | None,
     ) -> None:
         """Create the Pydantic validation model."""
         pos_args = len(self.arg_mapping)
@@ -168,14 +162,11 @@ class ValidatedFunction:
         # Note: ConfigDict is a TypedDict, so we can't use isinstance() in Python 3.14
         # Instead, check if it's a dict-like object and merge with defaults
         if config is None:
-            config_dict = {"extra": "forbid"}
-        elif isinstance(config, dict):  # pyright: ignore[reportUnnecessaryIsInstance]
-            # Merge user config with defaults
-            config_dict = config
+            config_dict = ConfigDict(extra="forbid")
+        else:
+            config_dict = config.copy()
             if "extra" not in config_dict:
                 config_dict["extra"] = "forbid"
-        else:
-            raise TypeError(f"config must be None or a dict, got {type(config)}")
 
         # Create base model with validators
         class DecoratorBaseModel(BaseModel):
