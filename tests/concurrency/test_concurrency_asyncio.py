@@ -33,11 +33,11 @@ async def test_concurrency_orchestrates_api(concurrency_limit: ConcurrencyLimitV
     assert not executed
 
     with mock.patch(
-        "prefect.concurrency.asyncio.aacquire_concurrency_slots_with_lease",
+        "prefect.concurrency._asyncio.aacquire_concurrency_slots_with_lease",
         wraps=aacquire_concurrency_slots_with_lease,
     ) as acquire_spy:
         with mock.patch(
-            "prefect.concurrency.asyncio.arelease_concurrency_slots_with_lease",
+            "prefect.concurrency._asyncio.arelease_concurrency_slots_with_lease",
             wraps=arelease_concurrency_slots_with_lease,
         ) as release_spy:
             await resource_heavy()
@@ -388,11 +388,11 @@ async def test_concurrency_without_limit_names(names):
     assert not executed
 
     with mock.patch(
-        "prefect.concurrency.asyncio.aacquire_concurrency_slots_with_lease",
+        "prefect.concurrency._asyncio.aacquire_concurrency_slots_with_lease",
         wraps=lambda *args, **kwargs: None,
     ) as acquire_spy:
         with mock.patch(
-            "prefect.concurrency.asyncio.arelease_concurrency_slots_with_lease",
+            "prefect.concurrency._asyncio.arelease_concurrency_slots_with_lease",
             wraps=lambda *args, **kwargs: None,
         ) as release_spy:
             await resource_heavy()

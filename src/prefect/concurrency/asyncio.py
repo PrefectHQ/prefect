@@ -2,24 +2,19 @@ from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from typing import TYPE_CHECKING, Optional, Union
 
-import anyio
-
-from prefect.concurrency._leases import amaintain_concurrency_lease
-
 from ._asyncio import (
     AcquireConcurrencySlotTimeoutError as AcquireConcurrencySlotTimeoutError,
 )
 from ._asyncio import ConcurrencySlotAcquisitionError as ConcurrencySlotAcquisitionError
 from ._asyncio import (
     aacquire_concurrency_slots,
-    aacquire_concurrency_slots_with_lease,
-    arelease_concurrency_slots_with_lease,
+)
+from ._asyncio import (
+    concurrency as _concurrency_internal,
 )
 from ._events import (
     emit_concurrency_acquisition_events,
-    emit_concurrency_release_events,
 )
-from .context import ConcurrencyContext
 
 if TYPE_CHECKING:
     from prefect.client.schemas.objects import ConcurrencyLeaseHolder
@@ -34,7 +29,6 @@ async def concurrency(
     lease_duration: float = 300,
     strict: bool = False,
     holder: "Optional[ConcurrencyLeaseHolder]" = None,
-    suppress_warnings: bool = False,
 ) -> AsyncGenerator[None, None]:
     """A
     context manager that acquires and releases concurrency slots from the
@@ -69,45 +63,17 @@ async def concurrency(
         await resource_heavy()
     ```
     """
-    if not names:
-        yield
-        return
-
-    names = names if isinstance(names, list) else [names]
-
-    response = await aacquire_concurrency_slots_with_lease(
+    async with _concurrency_internal(
         names=names,
-        slots=occupy,
+        occupy=occupy,
         timeout_seconds=timeout_seconds,
         max_retries=max_retries,
         lease_duration=lease_duration,
         strict=strict,
         holder=holder,
-        suppress_warnings=suppress_warnings,
-    )
-    emitted_events = emit_concurrency_acquisition_events(response.limits, occupy)
-
-    try:
-        async with amaintain_concurrency_lease(
-            response.lease_id,
-            lease_duration,
-            raise_on_lease_renewal_failure=strict,
-            suppress_warnings=suppress_warnings,
-        ):
-            yield
-    finally:
-        try:
-            await arelease_concurrency_slots_with_lease(
-                lease_id=response.lease_id,
-            )
-        except anyio.get_cancelled_exc_class():
-            # The task was cancelled before it could release the lease. Add the
-            # lease ID to the cleanup list so it can be released when the
-            # concurrency context is exited.
-            if ctx := ConcurrencyContext.get():
-                ctx.cleanup_lease_ids.append(response.lease_id)
-
-        emit_concurrency_release_events(response.limits, occupy, emitted_events)
+        suppress_warnings=False,
+    ):
+        yield
 
 
 async def rate_limit(
