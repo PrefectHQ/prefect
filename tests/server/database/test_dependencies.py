@@ -1,4 +1,5 @@
 import asyncio
+import inspect
 from uuid import UUID
 
 import pytest
@@ -207,5 +208,5 @@ class TestDBInject:
         ) -> PrefectDBInterface:
             return db
 
-        assert asyncio.iscoroutinefunction(coroutine_with_injected_db)
+        assert inspect.iscoroutinefunction(coroutine_with_injected_db)
         assert asyncio.run(coroutine_with_injected_db(42)) is self.db

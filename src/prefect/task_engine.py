@@ -339,7 +339,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                 data=exc_or_state,
                 message=f"Task run encountered unexpected {failure_type}: {repr(exc_or_state)}",
             )
-            if asyncio.iscoroutinefunction(retry_condition):
+            if inspect.iscoroutinefunction(retry_condition):
                 should_retry = run_coro_as_sync(
                     retry_condition(self.task, self.task_run, state)
                 )
@@ -919,7 +919,7 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                 data=exc_or_state,
                 message=f"Task run encountered unexpected {failure_type}: {repr(exc_or_state)}",
             )
-            if asyncio.iscoroutinefunction(retry_condition):
+            if inspect.iscoroutinefunction(retry_condition):
                 should_retry = await retry_condition(self.task, self.task_run, state)
             elif inspect.isfunction(retry_condition):
                 should_retry = retry_condition(self.task, self.task_run, state)
