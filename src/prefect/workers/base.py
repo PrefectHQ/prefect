@@ -400,6 +400,8 @@ class BaseVariables(BaseModel):
         ref_template: str = "#/definitions/{model}",
         schema_generator: Type[GenerateJsonSchema] = GenerateJsonSchema,
         mode: Literal["validation", "serialization"] = "validation",
+        *,
+        union_format: Literal["any_of", "primitive_type_array"] = "any_of",
     ) -> dict[str, Any]:
         """TODO: stop overriding this method - use GenerateSchema in ConfigDict instead?"""
         schema = super().model_json_schema(
