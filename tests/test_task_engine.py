@@ -2625,7 +2625,7 @@ class TestTaskConcurrencyLimits:
             task_run_id = TaskRunContext.get().task_run.id
             return 42
 
-        with mock.patch("prefect.task_engine.aconcurrency") as mock_aconcurrency:
+        with mock.patch("prefect.task_engine._aconcurrency") as mock_aconcurrency:
             # Set up the mock to act as an async context manager
             mock_aconcurrency.return_value.__aenter__ = mock.AsyncMock(
                 return_value=None
@@ -2653,7 +2653,7 @@ class TestTaskConcurrencyLimits:
             task_run_id = TaskRunContext.get().task_run.id
             return 42
 
-        with mock.patch("prefect.task_engine.concurrency") as mock_concurrency:
+        with mock.patch("prefect.task_engine._concurrency") as mock_concurrency:
             # Set up the mock to act as a context manager
             mock_concurrency.return_value.__enter__ = mock.Mock(return_value=None)
             mock_concurrency.return_value.__exit__ = mock.Mock(return_value=None)
@@ -2699,7 +2699,7 @@ class TestTaskConcurrencyLimits:
 
         # Mock the V2 concurrency function at the task_engine level
         with mock.patch(
-            "prefect.task_engine.concurrency",
+            "prefect.task_engine._concurrency",
             side_effect=side_effect,
         ):
             # The task call itself should raise because the mocked function raises
@@ -2749,7 +2749,7 @@ class TestTaskConcurrencyLimits:
 
         # Mock the V2 async concurrency function at the task_engine level
         with mock.patch(
-            "prefect.task_engine.aconcurrency",
+            "prefect.task_engine._aconcurrency",
             side_effect=side_effect,
         ):
             # The task call itself should raise because the mocked function raises
@@ -2779,7 +2779,7 @@ class TestTaskConcurrencyLimits:
             task_run_id = TaskRunContext.get().task_run.id
             return 42
 
-        with mock.patch("prefect.task_engine.concurrency") as mock_concurrency:
+        with mock.patch("prefect.task_engine._concurrency") as mock_concurrency:
             # Set up the mock to act as a context manager
             mock_concurrency.return_value.__enter__ = mock.Mock(return_value=None)
             mock_concurrency.return_value.__exit__ = mock.Mock(return_value=None)
@@ -2806,7 +2806,7 @@ class TestTaskConcurrencyLimits:
             task_run_id = TaskRunContext.get().task_run.id
             return 42
 
-        with mock.patch("prefect.task_engine.aconcurrency") as mock_aconcurrency:
+        with mock.patch("prefect.task_engine._aconcurrency") as mock_aconcurrency:
             # Set up the mock to act as an async context manager
             mock_aconcurrency.return_value.__aenter__ = mock.AsyncMock(
                 return_value=None
@@ -2831,7 +2831,7 @@ class TestTaskConcurrencyLimits:
         async def bar():
             return 42
 
-        with mock.patch("prefect.task_engine.aconcurrency") as mock_aconcurrency:
+        with mock.patch("prefect.task_engine._aconcurrency") as mock_aconcurrency:
             # Set up the mock to act as an async context manager
             mock_aconcurrency.return_value.__aenter__ = mock.AsyncMock(
                 return_value=None
@@ -2854,7 +2854,7 @@ class TestTaskConcurrencyLimits:
         def bar():
             return 42
 
-        with mock.patch("prefect.task_engine.concurrency") as mock_concurrency:
+        with mock.patch("prefect.task_engine._concurrency") as mock_concurrency:
             # Set up the mock to act as a sync context manager
             mock_concurrency.return_value.__enter__ = mock.MagicMock(return_value=None)
             mock_concurrency.return_value.__exit__ = mock.MagicMock(return_value=None)
@@ -2879,7 +2879,7 @@ class TestTaskConcurrencyLimits:
             task_run_id = TaskRunContext.get().task_run.id
             return 42
 
-        with mock.patch("prefect.task_engine.aconcurrency") as mock_aconcurrency:
+        with mock.patch("prefect.task_engine._aconcurrency") as mock_aconcurrency:
             # Set up the mock to act as an async context manager
             mock_aconcurrency.return_value.__aenter__ = mock.AsyncMock(
                 return_value=None
