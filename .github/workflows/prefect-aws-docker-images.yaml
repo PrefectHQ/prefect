@@ -52,8 +52,6 @@ jobs:
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
-        with:
-          driver-opts: image=moby/buildkit:v0.12.5
 
       - name: Login to DockerHub
         uses: docker/login-action@v3
@@ -94,3 +92,5 @@ jobs:
           push: true
           pull: true
           provenance: false
+          cache-from: type=gha,scope=prefect-aws-${{ matrix.python-version }},ignore-error=true
+          cache-to: type=gha,mode=max,scope=prefect-aws-${{ matrix.python-version }},ignore-error=true

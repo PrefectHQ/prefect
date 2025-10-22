@@ -7,7 +7,7 @@ sidebarTitle: storage
 
 ## Functions
 
-### `create_storage_from_source` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/runner/storage.py#L787" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `create_storage_from_source` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/runner/storage.py#L791" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 create_storage_from_source(source: str, pull_interval: Optional[int] = 60) -> RunnerStorage
@@ -129,7 +129,7 @@ await storage.pull_code()
 destination(self) -> Path
 ```
 
-#### `is_current_commit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/runner/storage.py#L246" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `is_current_commit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/runner/storage.py#L250" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 is_current_commit(self) -> bool
@@ -138,7 +138,7 @@ is_current_commit(self) -> bool
 Check if the current commit is the same as the commit SHA
 
 
-#### `is_shallow_clone` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/runner/storage.py#L233" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `is_shallow_clone` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/runner/storage.py#L237" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 is_shallow_clone(self) -> bool
@@ -147,7 +147,7 @@ is_shallow_clone(self) -> bool
 Check if the repository is a shallow clone
 
 
-#### `is_sparsely_checked_out` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/runner/storage.py#L221" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `is_sparsely_checked_out` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/runner/storage.py#L225" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 is_sparsely_checked_out(self) -> bool
@@ -156,7 +156,7 @@ is_sparsely_checked_out(self) -> bool
 Check if existing repo is sparsely checked out
 
 
-#### `pull_code` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/runner/storage.py#L261" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `pull_code` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/runner/storage.py#L265" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 pull_code(self) -> None
@@ -177,13 +177,13 @@ pull_interval(self) -> Optional[int]
 set_base_path(self, path: Path) -> None
 ```
 
-#### `to_pull_step` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/runner/storage.py#L434" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `to_pull_step` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/runner/storage.py#L438" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 to_pull_step(self) -> dict[str, Any]
 ```
 
-### `RemoteStorage` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/runner/storage.py#L472" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `RemoteStorage` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/runner/storage.py#L476" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Pulls the contents of a remote storage location to the local filesystem.
@@ -231,7 +231,7 @@ await storage.pull_code()
 
 **Methods:**
 
-#### `destination` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/runner/storage.py#L578" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `destination` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/runner/storage.py#L582" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 destination(self) -> Path
@@ -240,7 +240,7 @@ destination(self) -> Path
 The local file path to pull contents from remote storage to.
 
 
-#### `pull_code` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/runner/storage.py#L592" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `pull_code` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/runner/storage.py#L596" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 pull_code(self) -> None
@@ -249,7 +249,7 @@ pull_code(self) -> None
 Pulls contents from remote storage to the local filesystem.
 
 
-#### `pull_interval` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/runner/storage.py#L570" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `pull_interval` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/runner/storage.py#L574" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 pull_interval(self) -> Optional[int]
@@ -259,13 +259,13 @@ The interval at which contents from remote storage should be pulled to
 local storage. If None, remote storage will perform a one-time sync.
 
 
-#### `set_base_path` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/runner/storage.py#L566" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `set_base_path` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/runner/storage.py#L570" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 set_base_path(self, path: Path) -> None
 ```
 
-#### `to_pull_step` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/runner/storage.py#L622" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `to_pull_step` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/runner/storage.py#L626" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 to_pull_step(self) -> dict[str, Any]
@@ -275,7 +275,7 @@ Returns a dictionary representation of the storage object that can be
 used as a deployment pull step.
 
 
-### `BlockStorageAdapter` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/runner/storage.py#L663" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `BlockStorageAdapter` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/runner/storage.py#L667" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 A storage adapter for a storage block object to allow it to be used as a
@@ -284,37 +284,37 @@ runner storage object.
 
 **Methods:**
 
-#### `destination` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/runner/storage.py#L694" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `destination` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/runner/storage.py#L698" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 destination(self) -> Path
 ```
 
-#### `pull_code` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/runner/storage.py#L697" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `pull_code` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/runner/storage.py#L701" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 pull_code(self) -> None
 ```
 
-#### `pull_interval` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/runner/storage.py#L690" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `pull_interval` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/runner/storage.py#L694" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 pull_interval(self) -> Optional[int]
 ```
 
-#### `set_base_path` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/runner/storage.py#L686" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `set_base_path` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/runner/storage.py#L690" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 set_base_path(self, path: Path) -> None
 ```
 
-#### `to_pull_step` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/runner/storage.py#L702" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `to_pull_step` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/runner/storage.py#L706" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 to_pull_step(self) -> dict[str, Any]
 ```
 
-### `LocalStorage` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/runner/storage.py#L725" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `LocalStorage` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/runner/storage.py#L729" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Sets the working directory in the local filesystem.
@@ -332,31 +332,31 @@ Examples:
 
 **Methods:**
 
-#### `destination` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/runner/storage.py#L751" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `destination` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/runner/storage.py#L755" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 destination(self) -> Path
 ```
 
-#### `pull_code` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/runner/storage.py#L761" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `pull_code` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/runner/storage.py#L765" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 pull_code(self) -> None
 ```
 
-#### `pull_interval` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/runner/storage.py#L758" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `pull_interval` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/runner/storage.py#L762" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 pull_interval(self) -> Optional[int]
 ```
 
-#### `set_base_path` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/runner/storage.py#L754" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `set_base_path` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/runner/storage.py#L758" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 set_base_path(self, path: Path) -> None
 ```
 
-#### `to_pull_step` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/runner/storage.py#L766" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `to_pull_step` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/runner/storage.py#L770" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 to_pull_step(self) -> dict[str, Any]
