@@ -64,8 +64,6 @@ async def aacquire_concurrency_slots(
         except Exception:
             pass
         else:
-            # Note: This function is used by rate_limit which doesn't support suppress_warnings yet
-            # For consistency, we keep this as a warning since it's not called from the task engine
             logger.warning(
                 f"Concurrency limits {names!r} do not exist - skipping acquisition."
             )
