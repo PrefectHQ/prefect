@@ -819,6 +819,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                     occupy=1,
                     holder=ConcurrencyLeaseHolder(type="task_run", id=self.task_run.id),
                     lease_duration=60,
+                    suppress_warnings=True,
                 ):
                     self.begin_run()
                     try:
@@ -1413,6 +1414,7 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                     occupy=1,
                     holder=ConcurrencyLeaseHolder(type="task_run", id=self.task_run.id),
                     lease_duration=60,
+                    suppress_warnings=True,
                 ):
                     await self.begin_run()
                     try:

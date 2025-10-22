@@ -64,6 +64,8 @@ async def aacquire_concurrency_slots(
         except Exception:
             pass
         else:
+            # Note: This function is used by rate_limit which doesn't support suppress_warnings yet
+            # For consistency, we keep this as a warning since it's not called from the task engine
             logger.warning(
                 f"Concurrency limits {names!r} do not exist - skipping acquisition."
             )
@@ -80,6 +82,7 @@ async def aacquire_concurrency_slots_with_lease(
     lease_duration: float = 300,
     strict: bool = False,
     holder: "Optional[ConcurrencyLeaseHolder]" = None,
+    suppress_warnings: bool = False,
 ) -> ConcurrencyLimitWithLeaseResponse:
     try:
         # Use a run logger if available
@@ -108,9 +111,14 @@ async def aacquire_concurrency_slots_with_lease(
                                     f"Concurrency limits {names!r} must be created before acquiring slots"
                                 )
                             else:
-                                logger.warning(
-                                    f"Concurrency limits {names!r} do not exist - skipping acquisition."
-                                )
+                                if suppress_warnings:
+                                    logger.debug(
+                                        f"Concurrency limits {names!r} do not exist - skipping acquisition."
+                                    )
+                                else:
+                                    logger.warning(
+                                        f"Concurrency limits {names!r} do not exist - skipping acquisition."
+                                    )
 
                         return retval
                     except httpx.HTTPStatusError as exc:

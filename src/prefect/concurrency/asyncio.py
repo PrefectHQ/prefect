@@ -34,6 +34,7 @@ async def concurrency(
     lease_duration: float = 300,
     strict: bool = False,
     holder: "Optional[ConcurrencyLeaseHolder]" = None,
+    suppress_warnings: bool = False,
 ) -> AsyncGenerator[None, None]:
     """A
     context manager that acquires and releases concurrency slots from the
@@ -82,12 +83,16 @@ async def concurrency(
         lease_duration=lease_duration,
         strict=strict,
         holder=holder,
+        suppress_warnings=suppress_warnings,
     )
     emitted_events = emit_concurrency_acquisition_events(response.limits, occupy)
 
     try:
         async with amaintain_concurrency_lease(
-            response.lease_id, lease_duration, raise_on_lease_renewal_failure=strict
+            response.lease_id,
+            lease_duration,
+            raise_on_lease_renewal_failure=strict,
+            suppress_warnings=suppress_warnings,
         ):
             yield
     finally:

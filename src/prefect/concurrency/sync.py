@@ -57,6 +57,7 @@ def _acquire_concurrency_slots_with_lease(
     lease_duration: float = 300,
     strict: bool = False,
     holder: "Optional[ConcurrencyLeaseHolder]" = None,
+    suppress_warnings: bool = False,
 ) -> ConcurrencyLimitWithLeaseResponse:
     result = run_coro_as_sync(
         aacquire_concurrency_slots_with_lease(
@@ -68,6 +69,7 @@ def _acquire_concurrency_slots_with_lease(
             lease_duration,
             strict,
             holder,
+            suppress_warnings,
         )
     )
     return result
@@ -82,6 +84,7 @@ def concurrency(
     lease_duration: float = 300,
     strict: bool = False,
     holder: "Optional[ConcurrencyLeaseHolder]" = None,
+    suppress_warnings: bool = False,
 ) -> Generator[None, None, None]:
     """A context manager that acquires and releases concurrency slots from the
     given concurrency limits.
@@ -129,6 +132,7 @@ def concurrency(
         lease_duration=lease_duration,
         max_retries=max_retries,
         holder=holder,
+        suppress_warnings=suppress_warnings,
     )
     emitted_events = emit_concurrency_acquisition_events(
         acquisition_response.limits, occupy
@@ -139,6 +143,7 @@ def concurrency(
             acquisition_response.lease_id,
             lease_duration,
             raise_on_lease_renewal_failure=strict,
+            suppress_warnings=suppress_warnings,
         ):
             yield
     finally:
