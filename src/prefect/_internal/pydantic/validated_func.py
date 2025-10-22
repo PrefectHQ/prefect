@@ -26,8 +26,9 @@ if TYPE_CHECKING:
 
 
 # Special field names for validation
-V_ARGS_NAME = "args"
-V_KWARGS_NAME = "kwargs"
+# These match pydantic.v1.decorator constants for compatibility
+V_ARGS_NAME = "v__args"
+V_KWARGS_NAME = "v__kwargs"
 V_POSITIONAL_ONLY_NAME = "v__positional_only"
 V_DUPLICATE_KWARGS = "v__duplicate_kwargs"
 
@@ -68,6 +69,9 @@ class ValidatedFunction:
         Args:
             function: The function to validate arguments for
             config: Optional Pydantic ConfigDict or dict configuration
+
+        Raises:
+            ValueError: If function parameters conflict with internal field names
         """
         self.raw_function = function
         self.signature = inspect.signature(function)
@@ -75,6 +79,21 @@ class ValidatedFunction:
         self.positional_only_args: set[str] = set()
         self.v_args_name = V_ARGS_NAME
         self.v_kwargs_name = V_KWARGS_NAME
+
+        # Check for conflicts with internal field names
+        reserved_names = {
+            V_ARGS_NAME,
+            V_KWARGS_NAME,
+            V_POSITIONAL_ONLY_NAME,
+            V_DUPLICATE_KWARGS,
+        }
+        param_names = set(self.signature.parameters.keys())
+        conflicts = reserved_names & param_names
+        if conflicts:
+            raise ValueError(
+                f"Function parameters conflict with internal field names: {conflicts}. "
+                f"These names are reserved: {reserved_names}"
+            )
 
         # Build the validation model
         fields, takes_args, takes_kwargs = self._build_fields()

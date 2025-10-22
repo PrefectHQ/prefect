@@ -43,7 +43,6 @@ from uuid import UUID
 
 import pydantic
 from exceptiongroup import BaseExceptionGroup, ExceptionGroup
-from pydantic.validate_call_decorator import validate_call
 from rich.console import Console
 from typing_extensions import Literal, ParamSpec
 
@@ -360,9 +359,7 @@ class Flow(Generic[P, R]):
             # We cannot, however, store the validated function on the flow because it
             # is not picklable in some environments
             try:
-                validate_call(config=pydantic.ConfigDict(arbitrary_types_allowed=True))(
-                    self.fn
-                )
+                ValidatedFunction(self.fn, config={"arbitrary_types_allowed": True})
             except Exception as exc:
                 raise ValueError(
                     "Flow function is not compatible with `validate_parameters`. "

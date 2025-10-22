@@ -367,3 +367,47 @@ class TestEdgeCases:
         result = vf.validate_call_args((), {})
 
         assert result == {"kwargs": {}}
+
+    def test_reserved_parameter_name_v__args(self):
+        """Test that using reserved parameter name v__args raises ValueError."""
+
+        def func(v__args):
+            return v__args
+
+        with pytest.raises(
+            ValueError, match="Function parameters conflict with internal field names"
+        ):
+            ValidatedFunction(func)
+
+    def test_reserved_parameter_name_v__kwargs(self):
+        """Test that using reserved parameter name v__kwargs raises ValueError."""
+
+        def func(v__kwargs):
+            return v__kwargs
+
+        with pytest.raises(
+            ValueError, match="Function parameters conflict with internal field names"
+        ):
+            ValidatedFunction(func)
+
+    def test_reserved_parameter_name_v__positional_only(self):
+        """Test that using reserved parameter name v__positional_only raises ValueError."""
+
+        def func(v__positional_only):
+            return v__positional_only
+
+        with pytest.raises(
+            ValueError, match="Function parameters conflict with internal field names"
+        ):
+            ValidatedFunction(func)
+
+    def test_reserved_parameter_name_v__duplicate_kwargs(self):
+        """Test that using reserved parameter name v__duplicate_kwargs raises ValueError."""
+
+        def func(v__duplicate_kwargs):
+            return v__duplicate_kwargs
+
+        with pytest.raises(
+            ValueError, match="Function parameters conflict with internal field names"
+        ):
+            ValidatedFunction(func)

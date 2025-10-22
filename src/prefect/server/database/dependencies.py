@@ -2,6 +2,7 @@
 Injected database interface dependencies
 """
 
+import sys
 from collections.abc import Generator
 from contextlib import ExitStack, contextmanager
 from functools import wraps
@@ -231,6 +232,20 @@ class _FuncWrapper(Generic[P, R]):
 
         def __delattr__(self, name: str) -> None:
             delattr(self._func, name)
+
+        if sys.version_info < (3, 10):
+            # Python 3.9 inspect.iscoroutinefunction tests are not flexible
+            # enough to accept this decorator, unfortunately enough. But
+            # asyncio.iscoroutinefunction does check for a marker object that,
+            # when found as func._is_coroutine lets you pass the test anyway.
+
+            @property
+            def _is_coroutine(self):
+                """Python 3.9 asyncio.iscoroutinefunction work-around"""
+                from asyncio import coroutines, iscoroutinefunction
+
+                if iscoroutinefunction(self._func):
+                    return getattr(coroutines, "_is_coroutine", None)
 
 
 # Descriptor object responsible for injecting the PrefectDBInterface instance.
