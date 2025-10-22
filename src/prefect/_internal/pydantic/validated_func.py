@@ -168,12 +168,12 @@ class ValidatedFunction:
         # Note: ConfigDict is a TypedDict, so we can't use isinstance() in Python 3.14
         # Instead, check if it's a dict-like object and merge with defaults
         if config is None:
-            config_dict: ConfigDict = {"extra": "forbid"}  # type: ignore[assignment]
-        elif isinstance(config, dict):
+            config_dict = {"extra": "forbid"}
+        elif isinstance(config, dict):  # pyright: ignore[reportUnnecessaryIsInstance]
             # Merge user config with defaults
-            config_dict = dict(config)  # type: ignore[assignment]
+            config_dict = config
             if "extra" not in config_dict:
-                config_dict["extra"] = "forbid"  # type: ignore[typeddict-item]
+                config_dict["extra"] = "forbid"
         else:
             raise TypeError(f"config must be None or a dict, got {type(config)}")
 
