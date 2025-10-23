@@ -7,13 +7,13 @@ sidebarTitle: transactions
 
 ## Functions
 
-### `get_transaction` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/transactions.py#L658" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `get_transaction` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/transactions.py#L657" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_transaction() -> BaseTransaction | None
 ```
 
-### `transaction` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/transactions.py#L663" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `transaction` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/transactions.py#L662" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 transaction(key: str | None = None, store: ResultStore | None = None, commit_mode: CommitMode | None = None, isolation_level: IsolationLevel | None = None, overwrite: bool = False, write_on_commit: bool = True, logger: logging.Logger | LoggingAdapter | None = None) -> Generator[Transaction, None, None]
@@ -34,7 +34,7 @@ will default will be determined by the current run context. If no run context is
 available, the value of `PREFECT_RESULTS_PERSIST_BY_DEFAULT` will be used.
 
 
-### `atransaction` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/transactions.py#L715" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `atransaction` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/transactions.py#L714" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 atransaction(key: str | None = None, store: ResultStore | None = None, commit_mode: CommitMode | None = None, isolation_level: IsolationLevel | None = None, overwrite: bool = False, write_on_commit: bool = True, logger: logging.Logger | LoggingAdapter | None = None) -> AsyncGenerator[AsyncTransaction, None]
@@ -57,7 +57,7 @@ available, the value of `PREFECT_RESULTS_PERSIST_BY_DEFAULT` will be used.
 
 ## Classes
 
-### `IsolationLevel` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/transactions.py#L49" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `IsolationLevel` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/transactions.py#L48" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 **Methods:**
 
@@ -70,7 +70,7 @@ auto() -> str
 Exposes `enum.auto()` to avoid requiring a second import to use `AutoEnum`
 
 
-### `CommitMode` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/transactions.py#L54" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `CommitMode` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/transactions.py#L53" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 **Methods:**
 
@@ -83,7 +83,7 @@ auto() -> str
 Exposes `enum.auto()` to avoid requiring a second import to use `AutoEnum`
 
 
-### `TransactionState` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/transactions.py#L60" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `TransactionState` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/transactions.py#L59" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 **Methods:**
 
@@ -96,7 +96,7 @@ auto() -> str
 Exposes `enum.auto()` to avoid requiring a second import to use `AutoEnum`
 
 
-### `BaseTransaction` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/transactions.py#L68" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `BaseTransaction` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/transactions.py#L67" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 A base model for transaction state.
@@ -104,13 +104,13 @@ A base model for transaction state.
 
 **Methods:**
 
-#### `add_child` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/transactions.py#L218" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `add_child` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/transactions.py#L217" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 add_child(self, transaction: Self) -> None
 ```
 
-#### `get` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/transactions.py#L110" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/transactions.py#L109" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get(self, name: str, default: Any = NotSet) -> Any
@@ -173,43 +173,43 @@ get(cls: type[Self]) -> Optional[Self]
 Get the current context instance
 
 
-#### `get_active` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/transactions.py#L251" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get_active` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/transactions.py#L250" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_active(cls: Type[Self]) -> Optional[Self]
 ```
 
-#### `get_parent` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/transactions.py#L221" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get_parent` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/transactions.py#L220" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_parent(self) -> Self | None
 ```
 
-#### `is_active` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/transactions.py#L184" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `is_active` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/transactions.py#L183" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 is_active(self) -> bool
 ```
 
-#### `is_committed` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/transactions.py#L172" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `is_committed` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/transactions.py#L171" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 is_committed(self) -> bool
 ```
 
-#### `is_pending` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/transactions.py#L181" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `is_pending` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/transactions.py#L180" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 is_pending(self) -> bool
 ```
 
-#### `is_rolled_back` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/transactions.py#L175" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `is_rolled_back` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/transactions.py#L174" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 is_rolled_back(self) -> bool
 ```
 
-#### `is_staged` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/transactions.py#L178" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `is_staged` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/transactions.py#L177" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 is_staged(self) -> bool
@@ -227,7 +227,7 @@ Duplicate the context model, optionally choosing which fields to include, exclud
 - A new model instance.
 
 
-#### `prepare_transaction` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/transactions.py#L187" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `prepare_transaction` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/transactions.py#L186" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 prepare_transaction(self) -> None
@@ -245,7 +245,7 @@ serialize(self, include_secrets: bool = True) -> dict[str, Any]
 Serialize the context model to a dictionary that can be pickled with cloudpickle.
 
 
-#### `set` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/transactions.py#L91" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `set` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/transactions.py#L90" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 set(self, name: str, value: Any) -> None
@@ -268,7 +268,7 @@ with transaction() as txn:
 ```
 
 
-#### `stage` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/transactions.py#L232" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `stage` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/transactions.py#L231" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 stage(self, value: Any, on_rollback_hooks: Optional[list[Callable[..., Any]]] = None, on_commit_hooks: Optional[list[Callable[..., Any]]] = None) -> None
@@ -277,7 +277,7 @@ stage(self, value: Any, on_rollback_hooks: Optional[list[Callable[..., Any]]] = 
 Stage a value to be committed later.
 
 
-### `Transaction` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/transactions.py#L260" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `Transaction` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/transactions.py#L259" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 A model representing the state of a transaction.
@@ -285,25 +285,25 @@ A model representing the state of a transaction.
 
 **Methods:**
 
-#### `add_child` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/transactions.py#L218" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `add_child` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/transactions.py#L217" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 add_child(self, transaction: Self) -> None
 ```
 
-#### `begin` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/transactions.py#L300" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `begin` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/transactions.py#L299" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 begin(self) -> None
 ```
 
-#### `commit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/transactions.py#L336" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `commit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/transactions.py#L335" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 commit(self) -> bool
 ```
 
-#### `get` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/transactions.py#L110" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/transactions.py#L109" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get(self, name: str, default: Any = NotSet) -> Any
@@ -357,49 +357,49 @@ with transaction() as txn:
 ```
 
 
-#### `get_active` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/transactions.py#L251" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get_active` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/transactions.py#L250" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_active(cls: Type[Self]) -> Optional[Self]
 ```
 
-#### `get_parent` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/transactions.py#L221" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get_parent` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/transactions.py#L220" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_parent(self) -> Self | None
 ```
 
-#### `is_active` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/transactions.py#L184" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `is_active` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/transactions.py#L183" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 is_active(self) -> bool
 ```
 
-#### `is_committed` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/transactions.py#L172" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `is_committed` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/transactions.py#L171" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 is_committed(self) -> bool
 ```
 
-#### `is_pending` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/transactions.py#L181" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `is_pending` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/transactions.py#L180" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 is_pending(self) -> bool
 ```
 
-#### `is_rolled_back` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/transactions.py#L175" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `is_rolled_back` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/transactions.py#L174" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 is_rolled_back(self) -> bool
 ```
 
-#### `is_staged` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/transactions.py#L178" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `is_staged` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/transactions.py#L177" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 is_staged(self) -> bool
 ```
 
-#### `prepare_transaction` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/transactions.py#L187" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `prepare_transaction` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/transactions.py#L186" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 prepare_transaction(self) -> None
@@ -408,31 +408,31 @@ prepare_transaction(self) -> None
 Helper method to prepare transaction state and validate configuration.
 
 
-#### `read` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/transactions.py#L316" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `read` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/transactions.py#L315" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read(self) -> ResultRecord[Any] | None
 ```
 
-#### `reset` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/transactions.py#L321" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `reset` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/transactions.py#L320" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 reset(self) -> None
 ```
 
-#### `rollback` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/transactions.py#L419" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `rollback` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/transactions.py#L418" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 rollback(self) -> bool
 ```
 
-#### `run_hook` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/transactions.py#L394" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `run_hook` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/transactions.py#L393" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 run_hook(self, hook: Callable[..., Any], hook_type: str) -> None
 ```
 
-#### `set` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/transactions.py#L91" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `set` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/transactions.py#L90" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 set(self, name: str, value: Any) -> None
@@ -455,7 +455,7 @@ with transaction() as txn:
 ```
 
 
-#### `stage` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/transactions.py#L232" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `stage` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/transactions.py#L231" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 stage(self, value: Any, on_rollback_hooks: Optional[list[Callable[..., Any]]] = None, on_commit_hooks: Optional[list[Callable[..., Any]]] = None) -> None
@@ -464,7 +464,7 @@ stage(self, value: Any, on_rollback_hooks: Optional[list[Callable[..., Any]]] = 
 Stage a value to be committed later.
 
 
-### `AsyncTransaction` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/transactions.py#L453" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `AsyncTransaction` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/transactions.py#L452" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 A model representing the state of an asynchronous transaction.
@@ -472,25 +472,25 @@ A model representing the state of an asynchronous transaction.
 
 **Methods:**
 
-#### `add_child` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/transactions.py#L218" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `add_child` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/transactions.py#L217" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 add_child(self, transaction: Self) -> None
 ```
 
-#### `begin` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/transactions.py#L458" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `begin` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/transactions.py#L457" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 begin(self) -> None
 ```
 
-#### `commit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/transactions.py#L496" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `commit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/transactions.py#L495" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 commit(self) -> bool
 ```
 
-#### `get` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/transactions.py#L110" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/transactions.py#L109" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get(self, name: str, default: Any = NotSet) -> Any
@@ -544,49 +544,49 @@ with transaction() as txn:
 ```
 
 
-#### `get_active` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/transactions.py#L251" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get_active` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/transactions.py#L250" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_active(cls: Type[Self]) -> Optional[Self]
 ```
 
-#### `get_parent` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/transactions.py#L221" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get_parent` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/transactions.py#L220" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_parent(self) -> Self | None
 ```
 
-#### `is_active` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/transactions.py#L184" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `is_active` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/transactions.py#L183" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 is_active(self) -> bool
 ```
 
-#### `is_committed` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/transactions.py#L172" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `is_committed` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/transactions.py#L171" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 is_committed(self) -> bool
 ```
 
-#### `is_pending` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/transactions.py#L181" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `is_pending` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/transactions.py#L180" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 is_pending(self) -> bool
 ```
 
-#### `is_rolled_back` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/transactions.py#L175" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `is_rolled_back` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/transactions.py#L174" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 is_rolled_back(self) -> bool
 ```
 
-#### `is_staged` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/transactions.py#L178" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `is_staged` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/transactions.py#L177" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 is_staged(self) -> bool
 ```
 
-#### `prepare_transaction` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/transactions.py#L187" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `prepare_transaction` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/transactions.py#L186" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 prepare_transaction(self) -> None
@@ -595,31 +595,31 @@ prepare_transaction(self) -> None
 Helper method to prepare transaction state and validate configuration.
 
 
-#### `read` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/transactions.py#L474" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `read` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/transactions.py#L473" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read(self) -> ResultRecord[Any] | None
 ```
 
-#### `reset` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/transactions.py#L479" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `reset` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/transactions.py#L478" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 reset(self) -> None
 ```
 
-#### `rollback` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/transactions.py#L579" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `rollback` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/transactions.py#L578" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 rollback(self) -> bool
 ```
 
-#### `run_hook` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/transactions.py#L554" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `run_hook` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/transactions.py#L553" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 run_hook(self, hook: Callable[..., Any], hook_type: str) -> None
 ```
 
-#### `set` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/transactions.py#L91" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `set` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/transactions.py#L90" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 set(self, name: str, value: Any) -> None
@@ -642,7 +642,7 @@ with transaction() as txn:
 ```
 
 
-#### `stage` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/transactions.py#L232" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `stage` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/transactions.py#L231" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 stage(self, value: Any, on_rollback_hooks: Optional[list[Callable[..., Any]]] = None, on_commit_hooks: Optional[list[Callable[..., Any]]] = None) -> None
