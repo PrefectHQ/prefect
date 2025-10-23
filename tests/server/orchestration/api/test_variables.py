@@ -182,7 +182,7 @@ class TestCreateVariable:
         )
         assert res
         assert res.status_code == 422
-        assert "String should have at most" in res.json()["exception_detail"][0]["msg"]
+        assert "Value should have at most" in res.json()["exception_detail"][0]["msg"]
 
     async def test_value_max_length(
         self,

@@ -7,7 +7,7 @@ name = "prefect"
 dynamic = ["version"]
 description = "Workflow orchestration and management."
 readme = "README.md"
-requires-python = ">=3.9,<3.14"
+requires-python = ">=3.9,<3.15"
 license = { text = "Apache-2.0" }
 authors = [{ name = "Prefect Technologies, Inc.", email = "help@prefect.io" }]
 classifiers = [
@@ -21,6 +21,7 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Topic :: Software Development :: Libraries",
 ]
 dependencies = [
@@ -130,14 +131,14 @@ render_swagger = "prefect.utilities.render_swagger:SwaggerPlugin"
 
 [dependency-groups]
 dev = [
-    "cairosvg>=2.7.1",
+    "cairosvg>=2.7.1; python_version<'3.14'",
     "codespell>=2.2.6",
     "ipython",
     "jinja2>=3.1.6",
     "moto>=5",
     "numpy",
     "pendulum[test]>=3.0.0,<4; python_version<'3.13'",
-    "pillow>=11.1.0",
+    "pillow>=11.1.0; python_version<'3.14'",
     "pre-commit>=4.1.0",
     "pluggy>=1.5.0",
     "pyright>=1.1.390",
@@ -280,6 +281,7 @@ filterwarnings = [
     "ignore:datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version.:DeprecationWarning",
     "ignore::DeprecationWarning:pendulum.*",                                                                             # TODO: remove when pendulum is removed
     "ignore::DeprecationWarning:botocore.*",
+    "ignore::DeprecationWarning:coolname.*",
     "ignore::sqlalchemy.exc.SAWarning",
     "ignore::ResourceWarning",
     "ignore::pytest.PytestUnraisableExceptionWarning",

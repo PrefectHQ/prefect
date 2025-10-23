@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import abc
-import asyncio
 import copy
 import inspect
 import logging
@@ -400,7 +399,7 @@ class Transaction(BaseTransaction):
             self.logger.info(f"Running {hook_type} hook {hook_name!r}")
 
         try:
-            if asyncio.iscoroutinefunction(hook):
+            if inspect.iscoroutinefunction(hook):
                 run_coro_as_sync(hook(self))
             else:
                 hook(self)
@@ -560,7 +559,7 @@ class AsyncTransaction(BaseTransaction):
             self.logger.info(f"Running {hook_type} hook {hook_name!r}")
 
         try:
-            if asyncio.iscoroutinefunction(hook):
+            if inspect.iscoroutinefunction(hook):
                 await hook(self)
             else:
                 await anyio.to_thread.run_sync(hook, self)
