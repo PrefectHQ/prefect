@@ -96,22 +96,20 @@ class _GitCredentialsFormatter(Protocol):
 
     def format_git_credentials(self, url: str) -> str:
         """
-        Format credentials for insertion into a git URL.
+        Format and return the full git URL with credentials embedded.
 
         Args:
             url: The repository URL (e.g., "https://gitlab.com/org/repo.git").
-                 Provided as context for blocks that need to make decisions
-                 based on hostname or scheme.
 
         Returns:
-            Formatted credentials string to insert into URL auth section.
+            Complete URL with credentials embedded in the appropriate format for the provider.
 
         Examples:
-            - GitLab PAT: "oauth2:my-token"
-            - GitLab Deploy Token: "username:token"
-            - GitHub: "my-token"
-            - BitBucket Cloud: "x-token-auth:my-token"
-            - BitBucket Server: "username:token"
+            - GitLab PAT: "https://oauth2:my-token@gitlab.com/org/repo.git"
+            - GitLab Deploy Token: "https://username:token@gitlab.com/org/repo.git"
+            - GitHub: "https://my-token@github.com/org/repo.git"
+            - BitBucket Cloud: "https://x-token-auth:my-token@bitbucket.org/org/repo.git"
+            - BitBucket Server: "https://username:token@bitbucketserver.com/scm/project/repo.git"
         """
         ...
 
@@ -203,10 +201,16 @@ class GitRepository:
         return self._pull_interval
 
     @property
-    def _formatted_credentials(self) -> Optional[str]:
+    def _repository_url_with_credentials(self) -> str:
+        """Get the repository URL with credentials embedded."""
         if not self._credentials:
-            return None
+            return self._url
 
+        # If block implements the protocol, let it format the complete URL
+        if isinstance(self._credentials, _GitCredentialsFormatter):
+            return self._credentials.format_git_credentials(self._url)
+
+        # Otherwise, use legacy formatting for plain dict credentials
         credentials = (
             self._credentials.model_dump()
             if isinstance(self._credentials, Block)
@@ -219,27 +223,20 @@ class GitRepository:
             elif isinstance(v, SecretStr):
                 credentials[k] = v.get_secret_value()
 
-        # Pass the original Block (if it is one) so we can detect its type
+        # Get credential string for plain dict credentials
         block = self._credentials if isinstance(self._credentials, Block) else None
-        return _format_token_from_credentials(
+        credential_string = _format_token_from_credentials(
             urlparse(self._url).netloc, credentials, block
         )
 
-    def _add_credentials_to_url(self, url: str) -> str:
-        """Add credentials to given url if possible."""
-        components = urlparse(url)
-        credentials = self._formatted_credentials
-
-        if components.scheme != "https" or not credentials:
-            return url
+        # Insert credentials into URL
+        components = urlparse(self._url)
+        if components.scheme != "https":
+            return self._url
 
         return urlunparse(
-            components._replace(netloc=f"{credentials}@{components.netloc}")
+            components._replace(netloc=f"{credential_string}@{components.netloc}")
         )
-
-    @property
-    def _repository_url_with_credentials(self) -> str:
-        return self._add_credentials_to_url(self._url)
 
     @property
     def _git_config(self) -> list[str]:
@@ -249,11 +246,42 @@ class GitRepository:
         # Submodules can be private. The url in .gitmodules
         # will not include the credentials, we need to
         # propagate them down here if they exist.
-        if self._include_submodules and self._formatted_credentials:
-            base_url = urlparse(self._url)._replace(path="")
-            without_auth = urlunparse(base_url)
-            with_auth = self._add_credentials_to_url(without_auth)
-            config[f"url.{with_auth}.insteadOf"] = without_auth
+        if self._include_submodules and self._credentials:
+            # Get base URL (without path) with credentials
+            base_url_parsed = urlparse(self._url)._replace(path="")
+            base_url_without_auth = urlunparse(base_url_parsed)
+
+            # Create a temporary URL with just the base to get credentials formatting
+            if isinstance(self._credentials, _GitCredentialsFormatter):
+                base_url_with_auth = self._credentials.format_git_credentials(
+                    base_url_without_auth
+                )
+            else:
+                # Use legacy credential insertion
+                credentials_dict = (
+                    self._credentials.model_dump()
+                    if isinstance(self._credentials, Block)
+                    else deepcopy(self._credentials)
+                )
+                for k, v in credentials_dict.items():
+                    if isinstance(v, Secret):
+                        credentials_dict[k] = v.get()
+                    elif isinstance(v, SecretStr):
+                        credentials_dict[k] = v.get_secret_value()
+
+                block = (
+                    self._credentials if isinstance(self._credentials, Block) else None
+                )
+                credential_string = _format_token_from_credentials(
+                    base_url_parsed.netloc, credentials_dict, block
+                )
+                base_url_with_auth = urlunparse(
+                    base_url_parsed._replace(
+                        netloc=f"{credential_string}@{base_url_parsed.netloc}"
+                    )
+                )
+
+            config[f"url.{base_url_with_auth}.insteadOf"] = base_url_without_auth
 
         return ["-c", " ".join(f"{k}={v}" for k, v in config.items())] if config else []
 

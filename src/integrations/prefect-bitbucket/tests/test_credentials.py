@@ -60,26 +60,26 @@ def test_bitbucket_username_with_email_passes():
 
 
 def test_format_git_credentials_cloud():
-    """Test that BitBucket Cloud credentials get x-token-auth: prefix."""
+    """Test that BitBucket Cloud credentials get x-token-auth: prefix and are embedded in URL."""
     credentials = BitBucketCredentials(token="my-token")
     result = credentials.format_git_credentials("https://bitbucket.org/org/repo.git")
-    assert result == "x-token-auth:my-token"
+    assert result == "https://x-token-auth:my-token@bitbucket.org/org/repo.git"
 
 
 def test_format_git_credentials_cloud_already_prefixed():
-    """Test that already-prefixed tokens are used as-is."""
+    """Test that already-prefixed tokens are used as-is in URL."""
     credentials = BitBucketCredentials(token="x-token-auth:my-token")
     result = credentials.format_git_credentials("https://bitbucket.org/org/repo.git")
-    assert result == "x-token-auth:my-token"
+    assert result == "https://x-token-auth:my-token@bitbucket.org/org/repo.git"
 
 
 def test_format_git_credentials_server():
-    """Test that BitBucket Server credentials use username:token format."""
+    """Test that BitBucket Server credentials use username:token format in URL."""
     credentials = BitBucketCredentials(token="my-token", username="myuser")
     result = credentials.format_git_credentials(
         "https://bitbucketserver.com/scm/project/repo.git"
     )
-    assert result == "myuser:my-token"
+    assert result == "https://myuser:my-token@bitbucketserver.com/scm/project/repo.git"
 
 
 def test_format_git_credentials_server_no_username_raises():

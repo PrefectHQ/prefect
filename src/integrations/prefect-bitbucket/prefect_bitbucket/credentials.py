@@ -3,7 +3,7 @@
 import re
 from enum import Enum
 from typing import Optional, Union
-from urllib.parse import urlparse
+from urllib.parse import urlparse, urlunparse
 
 from pydantic import Field, SecretStr, field_validator
 
@@ -83,22 +83,22 @@ class BitBucketCredentials(CredentialsBlock):
 
     def format_git_credentials(self, url: str) -> str:
         """
-        Format BitBucket credentials for git URLs.
+        Format and return the full git URL with BitBucket credentials embedded.
 
         BitBucket has different authentication formats:
         - BitBucket Server: username:token format required
         - BitBucket Cloud: x-token-auth:token prefix
 
         Args:
-            url: Repository URL (used to determine Server vs Cloud)
+            url: Repository URL (e.g., "https://bitbucket.org/org/repo.git")
 
         Returns:
-            Formatted credentials string
+            Complete URL with credentials embedded
 
         Raises:
             ValueError: If credentials are not properly configured
         """
-        netloc = urlparse(url).netloc
+        parsed = urlparse(url)
 
         # Get the token (prefer token field, fall back to password)
         token_value: Optional[str] = None
@@ -113,19 +113,21 @@ class BitBucketCredentials(CredentialsBlock):
             )
 
         # BitBucket Server requires username:token format
-        if "bitbucketserver" in netloc:
+        if "bitbucketserver" in parsed.netloc:
             if not self.username:
                 raise ValueError(
                     "Username is required for BitBucket Server authentication"
                 )
-            return f"{self.username}:{token_value}"
-
+            credentials = f"{self.username}:{token_value}"
         # BitBucket Cloud uses x-token-auth: prefix
         # If token already has a colon or prefix, use as-is
-        if ":" in token_value:
-            return token_value
+        elif ":" in token_value:
+            credentials = token_value
+        else:
+            credentials = f"x-token-auth:{token_value}"
 
-        return f"x-token-auth:{token_value}"
+        # Insert credentials into URL
+        return urlunparse(parsed._replace(netloc=f"{credentials}@{parsed.netloc}"))
 
     def get_client(
         self, client_type: Union[str, ClientType], **client_kwargs

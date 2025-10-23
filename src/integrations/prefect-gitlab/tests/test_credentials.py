@@ -19,24 +19,24 @@ def test_gitlab_credentials_get_client(monkeypatch):
 
 
 def test_format_git_credentials_personal_access_token():
-    """Test that personal access tokens get oauth2: prefix."""
+    """Test that personal access tokens get oauth2: prefix and are embedded in URL."""
     credentials = GitLabCredentials(token="my-personal-token")
     result = credentials.format_git_credentials("https://gitlab.com/org/repo.git")
-    assert result == "oauth2:my-personal-token"
+    assert result == "https://oauth2:my-personal-token@gitlab.com/org/repo.git"
 
 
 def test_format_git_credentials_deploy_token():
-    """Test that deploy tokens (username:token format) are used as-is."""
+    """Test that deploy tokens (username:token format) are used as-is in URL."""
     credentials = GitLabCredentials(token="deploy-user:deploy-token-value")
     result = credentials.format_git_credentials("https://gitlab.com/org/repo.git")
-    assert result == "deploy-user:deploy-token-value"
+    assert result == "https://deploy-user:deploy-token-value@gitlab.com/org/repo.git"
 
 
 def test_format_git_credentials_already_prefixed():
-    """Test that already-prefixed tokens don't get double-prefixed."""
+    """Test that already-prefixed tokens don't get double-prefixed in URL."""
     credentials = GitLabCredentials(token="oauth2:my-token")
     result = credentials.format_git_credentials("https://gitlab.com/org/repo.git")
-    assert result == "oauth2:my-token"
+    assert result == "https://oauth2:my-token@gitlab.com/org/repo.git"
 
 
 def test_format_git_credentials_no_token_raises():

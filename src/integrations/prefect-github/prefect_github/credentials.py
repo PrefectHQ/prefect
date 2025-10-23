@@ -1,6 +1,7 @@
 """Credential classes used to perform authenticated interactions with GitHub"""
 
 from typing import Optional
+from urllib.parse import urlparse, urlunparse
 
 from pydantic import Field, SecretStr
 from sgqlc.endpoint.http import HTTPEndpoint
@@ -33,15 +34,15 @@ class GitHubCredentials(CredentialsBlock):
 
     def format_git_credentials(self, url: str) -> str:
         """
-        Format GitHub credentials for git URLs.
+        Format and return the full git URL with GitHub credentials embedded.
 
         GitHub uses plain token format without any prefix.
 
         Args:
-            url: Repository URL (provided for context, not used by GitHub)
+            url: Repository URL (e.g., "https://github.com/org/repo.git")
 
         Returns:
-            Formatted credentials string (plain token)
+            Complete URL with credentials embedded
 
         Raises:
             ValueError: If token is not configured
@@ -49,7 +50,10 @@ class GitHubCredentials(CredentialsBlock):
         if not self.token:
             raise ValueError("Token is required for GitHub authentication")
 
-        return self.token.get_secret_value()
+        # Insert token into URL
+        parsed = urlparse(url)
+        credentials = self.token.get_secret_value()
+        return urlunparse(parsed._replace(netloc=f"{credentials}@{parsed.netloc}"))
 
     def get_client(self) -> HTTPEndpoint:
         """

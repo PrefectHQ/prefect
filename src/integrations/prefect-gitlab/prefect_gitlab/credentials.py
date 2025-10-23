@@ -1,6 +1,7 @@
 """Module used to enable authenticated interactions with GitLab"""
 
 from typing import Optional
+from urllib.parse import urlparse, urlunparse
 
 from gitlab import Gitlab
 from pydantic import Field, SecretStr
@@ -39,7 +40,7 @@ class GitLabCredentials(Block):
 
     def format_git_credentials(self, url: str) -> str:
         """
-        Format GitLab credentials for git URLs.
+        Format and return the full git URL with GitLab credentials embedded.
 
         Handles both personal access tokens and deploy tokens correctly:
         - Personal access tokens: prefixed with "oauth2:"
@@ -47,10 +48,10 @@ class GitLabCredentials(Block):
         - Already prefixed tokens: not double-prefixed
 
         Args:
-            url: Repository URL (provided for context, not used by GitLab)
+            url: Repository URL (e.g., "https://gitlab.com/org/repo.git")
 
         Returns:
-            Formatted credentials string
+            Complete URL with credentials embedded
 
         Raises:
             ValueError: If token is not configured
@@ -64,15 +65,18 @@ class GitLabCredentials(Block):
         # Deploy tokens should not have oauth2: prefix (GitLab 16.3.4+ rejects them)
         # See: https://github.com/PrefectHQ/prefect/issues/10832
         if ":" in token_value and not token_value.startswith("oauth2:"):
-            return token_value
-
+            credentials = token_value
         # Personal access token: add oauth2: prefix
         # See: https://github.com/PrefectHQ/prefect/issues/16836
-        if not token_value.startswith("oauth2:"):
-            return f"oauth2:{token_value}"
+        elif not token_value.startswith("oauth2:"):
+            credentials = f"oauth2:{token_value}"
+        else:
+            # Already prefixed
+            credentials = token_value
 
-        # Already prefixed
-        return token_value
+        # Insert credentials into URL
+        parsed = urlparse(url)
+        return urlunparse(parsed._replace(netloc=f"{credentials}@{parsed.netloc}"))
 
     def get_client(self) -> Gitlab:
         """
