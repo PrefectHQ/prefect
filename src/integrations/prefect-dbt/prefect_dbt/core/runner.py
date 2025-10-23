@@ -647,11 +647,20 @@ class PrefectDbtRunner:
         )
 
         # Determine which command is being invoked
+        # For multi-word commands like "source freshness", we need to find the actual
+        # subcommand, not just the parent group
         command_name = None
-        for arg in args_copy:
+        subcommand_name = None
+        found_command = False
+        for i, arg in enumerate(args_copy):
             if not arg.startswith("-"):
-                command_name = arg
-                break
+                if not found_command:
+                    command_name = arg
+                    found_command = True
+                else:
+                    # This could be a subcommand
+                    subcommand_name = arg
+                    break
 
         # Build invoke_kwargs with only parameters valid for this command
         invoke_kwargs = {}
@@ -659,11 +668,24 @@ class PrefectDbtRunner:
         # Get valid parameters for the command if we can determine it
         valid_params = None
         if command_name:
+            import click
             from dbt.cli.main import cli
 
             command = cli.commands.get(command_name)
             if command:
-                valid_params = {p.name for p in command.params}
+                # Check if this is a group command with subcommands
+                if isinstance(command, click.Group) and subcommand_name:
+                    # Try to get the subcommand
+                    subcommand = command.commands.get(subcommand_name)
+                    if subcommand:
+                        # Use the subcommand's parameters instead
+                        valid_params = {p.name for p in subcommand.params}
+                    else:
+                        # Subcommand not found, use the group's params
+                        valid_params = {p.name for p in command.params}
+                else:
+                    # Not a group or no subcommand specified, use command's params
+                    valid_params = {p.name for p in command.params}
 
         # Add settings to kwargs only if they're valid for the command
         potential_kwargs = {

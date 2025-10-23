@@ -625,6 +625,31 @@ class TestPrefectDbtRunnerInvoke:
 
         mock_settings_context_manager.assert_called_once()
 
+    def test_invoke_handles_multi_word_commands(
+        self, mock_dbt_runner_class, mock_settings_context_manager
+    ):
+        """Test that multi-word commands like 'source freshness' include all necessary parameters."""
+        runner = PrefectDbtRunner()
+        mock_dbt_runner_class.return_value.invoke.return_value = Mock(
+            success=True, result=None
+        )
+
+        with patch("prefect_dbt.core.runner.serialize_context") as mock_context:
+            mock_context.return_value = {}
+            runner.invoke(["source", "freshness"])
+
+        # Verify that dbtRunner was called
+        mock_dbt_runner_class.assert_called_once()
+
+        # Get the actual args passed to dbtRunner.invoke()
+        call_args = mock_dbt_runner_class.return_value.invoke.call_args
+        invoked_args = call_args[0][0]  # First positional argument to invoke()
+
+        # Check that profiles_dir and project_dir are in the invoked args
+        # These should be included because 'source freshness' subcommand accepts them
+        assert "--profiles-dir" in invoked_args
+        assert "--project-dir" in invoked_args
+
 
 class TestPrefectDbtRunnerCallbackCreation:
     """Test callback creation functionality."""
