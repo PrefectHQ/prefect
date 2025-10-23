@@ -2,6 +2,44 @@
 title: 3.4
 ---
 
+## 3.4.25 - A slice of π-thon
+
+*Released on October 23, 2025*
+
+**Enhancements ➕➕**
+
+* Unify sync and async client methods by [@hanhwanglim](https://github.com/hanhwanglim) in [#19217](https://github.com/PrefectHQ/prefect/pull/19217)
+* Add Python 3.14 support by [@desertaxle](https://github.com/desertaxle) in [#19119](https://github.com/PrefectHQ/prefect/pull/19119)
+
+**Bug Fixes 🐞**
+
+* Upgrade Docker image SQLite to 3.50.4 to address CVE-2025-6965 by [@desertaxle](https://github.com/desertaxle) in [#19214](https://github.com/PrefectHQ/prefect/pull/19214)
+* Fix GitLab credentials for self-hosted instances and deploy tokens by [@zzstoatzz](https://github.com/zzstoatzz) in [#19227](https://github.com/PrefectHQ/prefect/pull/19227)
+* Make `MemoryLockManager` serializable with `cloudpickle` by [@desertaxle](https://github.com/desertaxle) in [#19246](https://github.com/PrefectHQ/prefect/pull/19246)
+* Suppress noisy concurrency warnings for automatic tag-based checks by [@desertaxle](https://github.com/desertaxle) in [#19254](https://github.com/PrefectHQ/prefect/pull/19254)
+* Fix work pool env vars being overwritten by variable defaults by [@desertaxle](https://github.com/desertaxle) in [#19258](https://github.com/PrefectHQ/prefect/pull/19258)
+
+**Development & Tidiness 🧹**
+
+* Fix non-deterministic test flake in PREFECT_EXPERIMENTS_PLUGINS_ALLOW tests by [@zzstoatzz](https://github.com/zzstoatzz) in [#19203](https://github.com/PrefectHQ/prefect/pull/19203)
+* Add `generate-cli-docs` to `justfile` by [@desertaxle](https://github.com/desertaxle) in [#19245](https://github.com/PrefectHQ/prefect/pull/19245)
+* Add `uv` and `gh` as allowed tools for Claude in GitHub Actions by [@desertaxle](https://github.com/desertaxle) in [#19210](https://github.com/PrefectHQ/prefect/pull/19210)
+* Refactor git credential formatting to fix leaky abstraction by [@zzstoatzz](https://github.com/zzstoatzz) in [#19236](https://github.com/PrefectHQ/prefect/pull/19236)
+
+**Documentation 📓**
+
+* Correct worker `--limit` argument documentation by [@desertaxle](https://github.com/desertaxle) in [#19244](https://github.com/PrefectHQ/prefect/pull/19244)
+* Add `pydantic-ai` data analyst example by [@desertaxle](https://github.com/desertaxle) in [#19209](https://github.com/PrefectHQ/prefect/pull/19209)
+* Update Prefect MCP status in docs by [@zzstoatzz](https://github.com/zzstoatzz) in [#19213](https://github.com/PrefectHQ/prefect/pull/19213)
+* Correct Modal dashboard link by [@jesse-c](https://github.com/jesse-c) in [#19240](https://github.com/PrefectHQ/prefect/pull/19240)
+* Fix repository name capitalization in README example by [@gowtham1412-p](https://github.com/gowtham1412-p) in [#19260](https://github.com/PrefectHQ/prefect/pull/19260)
+
+
+**Full Changelog**: https://github.com/PrefectHQ/prefect/compare/3.4.24...3.4.25
+
+
+---
+
 ## 3.4.24 - The Un-Crashening
 
 *Released on October 16, 2025*
