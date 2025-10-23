@@ -41,11 +41,11 @@ from prefect.client.orchestration import PrefectClient, SyncPrefectClient, get_c
 from prefect.client.schemas import FlowRun, TaskRun
 from prefect.client.schemas.filters import FlowRunFilter
 from prefect.client.schemas.sorting import FlowRunSort
-from prefect.concurrency.asyncio import (
+from prefect.concurrency._leases import (
     amaintain_concurrency_lease,
+    maintain_concurrency_lease,
 )
 from prefect.concurrency.context import ConcurrencyContext
-from prefect.concurrency.sync import maintain_concurrency_lease
 from prefect.concurrency.v1.context import ConcurrencyContext as ConcurrencyContextV1
 from prefect.context import (
     AsyncClientContext,

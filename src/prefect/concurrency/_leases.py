@@ -40,6 +40,7 @@ def maintain_concurrency_lease(
     lease_id: UUID,
     lease_duration: float,
     raise_on_lease_renewal_failure: bool = False,
+    suppress_warnings: bool = False,
 ) -> Generator[None, None, None]:
     """
     Maintain a concurrency lease for the given lease ID.
@@ -76,9 +77,14 @@ def maintain_concurrency_lease(
                     )
                     assert cancel_scope.cancel()
                 else:
-                    logger.warning(
-                        "Concurrency lease renewal failed - slots are no longer reserved. Execution will continue, but concurrency limits may be exceeded."
-                    )
+                    if suppress_warnings:
+                        logger.debug(
+                            "Concurrency lease renewal failed - slots are no longer reserved. Execution will continue, but concurrency limits may be exceeded."
+                        )
+                    else:
+                        logger.warning(
+                            "Concurrency lease renewal failed - slots are no longer reserved. Execution will continue, but concurrency limits may be exceeded."
+                        )
 
         lease_renewal_call.future.add_done_callback(handle_lease_renewal_failure)
 
@@ -94,6 +100,7 @@ async def amaintain_concurrency_lease(
     lease_id: UUID,
     lease_duration: float,
     raise_on_lease_renewal_failure: bool = False,
+    suppress_warnings: bool = False,
 ) -> AsyncGenerator[None, None]:
     """
     Maintain a concurrency lease for the given lease ID.
@@ -125,9 +132,14 @@ async def amaintain_concurrency_lease(
                     )
                     cancel_scope.cancel()
                 else:
-                    logger.warning(
-                        "Concurrency lease renewal failed - slots are no longer reserved. Execution will continue, but concurrency limits may be exceeded."
-                    )
+                    if suppress_warnings:
+                        logger.debug(
+                            "Concurrency lease renewal failed - slots are no longer reserved. Execution will continue, but concurrency limits may be exceeded."
+                        )
+                    else:
+                        logger.warning(
+                            "Concurrency lease renewal failed - slots are no longer reserved. Execution will continue, but concurrency limits may be exceeded."
+                        )
 
         # Add a callback to stop execution if the lease renewal fails and strict is True
         lease_renewal_task.add_done_callback(handle_lease_renewal_failure)
