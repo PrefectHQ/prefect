@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import sys
 import threading
 import uuid
 from datetime import datetime, timedelta, timezone
@@ -443,6 +444,28 @@ def start_observer():
             )
 
     logging.getLogger("kopf._core.reactor.running").addFilter(ThreadWarningFilter())
+
+    # Configure kopf logging to match Prefect's logging format
+    from prefect.logging.configuration import PROCESS_LOGGING_CONFIG
+
+    if PROCESS_LOGGING_CONFIG:
+        console_formatter = (
+            PROCESS_LOGGING_CONFIG.get("handlers", {})
+            .get("console", {})
+            .get("formatter")
+        )
+        if console_formatter == "json":
+            # Configure kopf to use its own JSON formatter instead of Prefect's
+            # which cannot serialize kopf internal objects
+            from prefect_kubernetes._logging import KopfObjectJsonFormatter
+
+            kopf_logger = logging.getLogger("kopf")
+            kopf_handler = logging.StreamHandler(sys.stderr)
+            kopf_handler.setFormatter(KopfObjectJsonFormatter())
+            kopf_logger.addHandler(kopf_handler)
+            # Turn off propagation to prevent kopf logs from being propagated to Prefect's JSON formatter
+            # which cannot serialize kopf internal objects
+            kopf_logger.propagate = False
 
     if _observer_thread is not None:
         return
