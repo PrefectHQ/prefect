@@ -180,10 +180,15 @@ class BaseJobConfiguration(BaseModel):
             variables_schema.get("properties", {})
         )
 
-        # copy variable defaults for `env` to base config before they're replaced by
+        # merge variable defaults for `env` into base config before they're replaced by
         # deployment overrides
         if variables.get("env"):
-            base_config["env"] = variables.get("env")
+            if isinstance(base_config.get("env"), dict):
+                # Merge: preserve env vars from job_configuration
+                base_config["env"] = base_config["env"] | variables.get("env")
+            else:
+                # Replace template with defaults
+                base_config["env"] = variables.get("env")
 
         variables.update(values)
 
