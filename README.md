@@ -94,7 +94,7 @@ def github_stars(repos: list[str]):
 
 # run the flow!
 if __name__ == "__main__":
-    github_stars(["PrefectHQ/Prefect"])
+    github_stars(["PrefectHQ/prefect"])
 ```
 
 Fire up a Prefect server and open the UI at http://localhost:4200 to see what happened:
