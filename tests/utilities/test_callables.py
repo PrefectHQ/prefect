@@ -1,4 +1,5 @@
 import datetime
+import sys
 from datetime import timezone
 from enum import Enum
 from pathlib import Path
@@ -471,6 +472,10 @@ class TestFunctionToSchema:
             "definitions": {},
         }
 
+    @pytest.mark.skipif(
+        sys.version_info >= (3, 14),
+        reason="pydantic v1 is not supported in Python 3.14+",
+    )
     def test_function_with_v1_secretstr_from_compat_module(self):
         import pydantic.v1 as pydantic
 
@@ -1355,6 +1360,10 @@ class TestEntrypointToSchema:
             "definitions": {},
         }
 
+    @pytest.mark.skipif(
+        sys.version_info >= (3, 14),
+        reason="pydantic v1 is not supported in Python 3.14+",
+    )
     def test_function_with_v1_secretstr_from_compat_module(self, tmp_path: Path):
         source_code = dedent(
             """

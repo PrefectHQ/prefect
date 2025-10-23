@@ -494,7 +494,7 @@ class TestTwilioSMS:
             "twilio://ACabcdefabcdefabcdefabcdef"
             ":XXXXXXXXXXXXXXXXXXXXXXXX"
             "@%2B15555555555/%2B15555555556/%2B15555555557/"
-            "?format=text&overflow=upstream"
+            "?format=text&overflow=upstream&method=sms"
         )
 
     async def test_twilio_notify_async(self, valid_apprise_url):
@@ -907,7 +907,7 @@ class TestMicrosoftTeamsWebhook:
             AppriseMock.assert_called_once()
             apprise_instance_mock.add.assert_called_once_with(
                 "workflow://prod-NO.LOCATION.logic.azure.com:443/WFID/SIGNATURE/"
-                "?image=yes&wrap=yes"
+                "?image=yes&wrap=yes&pa=no"
                 "&format=markdown&overflow=upstream"
             )
             apprise_instance_mock.async_notify.assert_awaited_once_with(
@@ -930,7 +930,7 @@ class TestMicrosoftTeamsWebhook:
             AppriseMock.assert_called_once()
             apprise_instance_mock.add.assert_called_once_with(
                 "workflow://prod-NO.LOCATION.logic.azure.com:443/WFID/SIGNATURE/"
-                "?image=yes&wrap=yes"
+                "?image=yes&wrap=yes&pa=no"
                 "&format=markdown&overflow=upstream"
             )
             apprise_instance_mock.async_notify.assert_called_once_with(

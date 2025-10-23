@@ -84,7 +84,7 @@ def is_async_fn(
     See https://github.com/microsoft/pyright/issues/2142 for an example use
     """
     func = inspect.unwrap(func)
-    return asyncio.iscoroutinefunction(func)
+    return inspect.iscoroutinefunction(func)
 
 
 def is_async_gen_fn(

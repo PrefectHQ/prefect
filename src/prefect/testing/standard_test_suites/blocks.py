@@ -3,9 +3,15 @@ from abc import ABC, abstractmethod
 from urllib.request import urlopen
 
 import pytest
-from PIL import Image
 
 from prefect.blocks.core import Block
+
+try:
+    from PIL import Image
+
+    HAS_PIL = True
+except ImportError:
+    HAS_PIL = False
 
 
 class BlockStandardTestSuite(ABC):
@@ -55,6 +61,7 @@ class BlockStandardTestSuite(ABC):
             f" matching the pattern {block_load_pattern}"
         )
 
+    @pytest.mark.skipif(not HAS_PIL, reason="PIL/Pillow is not available")
     def test_has_a_valid_image(self, block: type[Block]) -> None:
         logo_url = block._logo_url
         assert logo_url is not None, (
