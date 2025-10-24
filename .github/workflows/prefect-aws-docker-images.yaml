@@ -26,7 +26,6 @@ jobs:
   build-and-push:
     name: Build and push prefect-aws Docker images
     runs-on: ubuntu-latest
-    environment: prod
     strategy:
       fail-fast: false
       matrix:
@@ -57,7 +56,7 @@ jobs:
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          password: ${{ secrets.PREFECT_AWS_DOCKERHUB_TOKEN }}
 
       - name: Generate Docker metadata
         id: meta
