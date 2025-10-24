@@ -3,7 +3,7 @@ import shutil
 from pathlib import Path
 from textwrap import dedent
 from typing import Optional
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, MagicMock, call
 from urllib.parse import urlparse, urlunparse
 
 import pytest
@@ -21,7 +21,6 @@ from prefect.runner.storage import (
     RunnerStorage,
     create_storage_from_source,
 )
-from prefect.testing.utilities import MagicMock, call
 from prefect.utilities.filesystem import tmpchdir
 
 

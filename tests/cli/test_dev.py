@@ -1,10 +1,9 @@
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, MagicMock
 
 import watchfiles
 
 import prefect
 from prefect.testing.cli import invoke_and_assert
-from prefect.testing.utilities import MagicMock
 
 
 def test_dev_start_runs_all_services(monkeypatch):

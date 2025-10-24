@@ -6,7 +6,7 @@ import warnings
 from pathlib import Path
 from textwrap import dedent
 from typing import Optional
-from unittest.mock import ANY, AsyncMock, call
+from unittest.mock import ANY, AsyncMock, MagicMock, call
 
 import pytest
 import uv
@@ -19,7 +19,6 @@ from prefect.deployments.steps import run_step
 from prefect.deployments.steps.core import StepExecutionError, run_steps
 from prefect.deployments.steps.pull import agit_clone, set_working_directory
 from prefect.deployments.steps.utility import run_shell_script
-from prefect.testing.utilities import MagicMock
 from prefect.utilities.filesystem import tmpchdir
 
 
