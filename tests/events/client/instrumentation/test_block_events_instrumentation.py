@@ -1,4 +1,5 @@
 from unittest import mock
+from unittest.mock import AsyncMock
 
 from pydantic import SecretStr
 
@@ -7,7 +8,6 @@ from prefect.blocks.system import Secret
 from prefect.events.clients import AssertingEventsClient
 from prefect.events.worker import EventsWorker
 from prefect.flows import flow
-from prefect.testing.utilities import AsyncMock
 
 
 async def test_async_blocks_instrumented(

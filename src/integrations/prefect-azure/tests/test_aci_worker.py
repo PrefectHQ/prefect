@@ -2,7 +2,7 @@ import asyncio
 import datetime
 import uuid
 from typing import Dict, List, Tuple, Union
-from unittest.mock import MagicMock, Mock
+from unittest.mock import AsyncMock, MagicMock, Mock
 
 import dateutil.parser
 import prefect_azure.container_instance
@@ -29,7 +29,6 @@ from pydantic import SecretStr
 from prefect.client.schemas import FlowRun
 from prefect.server.schemas.core import Flow
 from prefect.settings import get_current_settings
-from prefect.testing.utilities import AsyncMock
 from prefect.utilities.dockerutils import get_prefect_image_name
 
 

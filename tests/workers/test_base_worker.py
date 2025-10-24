@@ -6,7 +6,7 @@ import uuid
 from datetime import timedelta
 from typing import Any, Dict, Optional, Type
 from unittest import mock
-from unittest.mock import ANY, MagicMock, Mock
+from unittest.mock import ANY, AsyncMock, MagicMock, Mock
 
 import anyio.abc
 import cloudpickle
@@ -66,7 +66,6 @@ from prefect.states import (
     Scheduled,
     State,
 )
-from prefect.testing.utilities import AsyncMock
 from prefect.types._datetime import now as now_fn
 from prefect.types._datetime import travel_to
 from prefect.utilities.pydantic import parse_obj_as

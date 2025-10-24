@@ -3,7 +3,7 @@ import datetime
 import random
 import sqlite3
 from itertools import product
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 import sqlalchemy.exc
@@ -26,7 +26,6 @@ from prefect.server.schemas.responses import (
     StateRejectDetails,
     StateWaitDetails,
 )
-from prefect.testing.utilities import AsyncMock
 from prefect.types._datetime import now
 
 # Convert constant from set to list for deterministic ordering of tests

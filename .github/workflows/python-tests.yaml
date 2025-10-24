@@ -71,7 +71,6 @@ jobs:
           - "postgres:14"
           - "sqlite"
         python-version:
-          - "3.9"
           - "3.10"
           - "3.11"
           - "3.12"
@@ -180,7 +179,6 @@ jobs:
         database:
           - "postgres:14"
         python-version:
-          - "3.9"
           - "3.10"
           - "3.11"
           - "3.12"

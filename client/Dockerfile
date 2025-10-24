@@ -1,4 +1,4 @@
-ARG PYTHON_VERSION=3.9
+ARG PYTHON_VERSION=3.10
 # SQLite version to install (format: X.YY.Z becomes XYYZZOO in filename)
 ARG SQLITE_VERSION=3.50.4
 ARG SQLITE_YEAR=2025

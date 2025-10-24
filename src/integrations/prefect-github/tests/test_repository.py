@@ -2,13 +2,12 @@ import os
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Tuple
+from unittest.mock import AsyncMock
 
 import prefect_github
 import pytest
 from prefect_github import GitHubCredentials
 from prefect_github.repository import GitHubRepository
-
-from prefect.testing.utilities import AsyncMock
 
 
 class TestGitHubRepository:

@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
 from textwrap import dedent
 from typing import List
+from unittest.mock import AsyncMock
 from uuid import uuid4
 
 import pytest
@@ -11,7 +12,6 @@ from prefect.blocks.core import Block
 from prefect.server import models, schemas
 from prefect.server.schemas.actions import BlockTypeCreate, BlockTypeUpdate
 from prefect.server.schemas.core import BlockDocument, BlockType
-from prefect.testing.utilities import AsyncMock
 from prefect.utilities.pydantic import parse_obj_as
 from prefect.utilities.slugify import slugify
 

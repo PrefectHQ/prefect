@@ -15,7 +15,7 @@ from pathlib import Path
 from textwrap import dedent
 from typing import Any, Dict, List, Optional
 from unittest import mock
-from unittest.mock import ANY, MagicMock, call, create_autospec
+from unittest.mock import ANY, AsyncMock, MagicMock, call, create_autospec
 from zoneinfo import ZoneInfo
 
 import anyio
@@ -83,7 +83,6 @@ from prefect.states import (
 )
 from prefect.task_runners import ThreadPoolTaskRunner
 from prefect.testing.utilities import (
-    AsyncMock,
     exceptions_equal,
     get_most_recent_flow_run,
 )

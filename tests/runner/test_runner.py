@@ -17,7 +17,7 @@ from textwrap import dedent
 from time import sleep
 from typing import TYPE_CHECKING, Any, Coroutine, Generator, List, Union
 from unittest import mock
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import anyio
 import pytest
@@ -71,7 +71,6 @@ from prefect.settings import (
     temporary_settings,
 )
 from prefect.states import Cancelling, Crashed
-from prefect.testing.utilities import AsyncMock
 from prefect.types._datetime import now
 from prefect.utilities import processutils
 from prefect.utilities.annotations import freeze

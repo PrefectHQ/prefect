@@ -43,7 +43,7 @@ prefect config view            # Inspect configuration
 
 ### Code Conventions
 
-- Python 3.9+ with modern typing (`list[int]`, `T | None`)
+- Python 3.10+ with modern typing (`list[int]`, `T | None`)
 - Private implementation details (`_private_method`)
 - No public API changes without approval
 - Use `uv` for dependency management, not `pip`
