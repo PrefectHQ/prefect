@@ -4,123 +4,54 @@ sidebarTitle: Apply global concurrency and rate limits
 description: Learn how to control concurrency and apply rate limits using Prefect's provided utilities.
 ---
 
-**Global concurrency limits** allow you to manage execution efficiently, controlling how many tasks, flows, or other operations can run simultaneously. 
-They are ideal for optimizing resource usage, preventing bottlenecks, and customizing task execution.
+Use global concurrency limits to control how many operations run simultaneously, and rate limits to control how frequently operations can start. This guide shows you how to create, manage, and use these limits in your workflows.
 
-<Tip>
-**Clarification on use of the term 'tasks'**
-
-In the context of global concurrency and rate limits, "tasks" doesn't specifically refer to Prefect tasks, but to concurrent units of work in 
-general—such as those managed by an event loop or `TaskGroup` in asynchronous programming. These general "tasks" could include Prefect 
-tasks when they are part of an asynchronous execution environment.
-</Tip>
-
-**Rate Limits** ensure system stability by governing the frequency of requests or operations. They are suitable for preventing overuse, ensuring 
-fairness, and handling errors gracefully.
-
-When selecting between global concurrency and rate limits, consider your primary goal:
-
-- Choose global concurrency limits for **resource optimization** and **task management**.
-
-- Choose rate limits to **maintain system stability** and **fair access** to services.
-
-The core difference between a rate limit and a concurrency limit is the way slots are released. With a rate limit, slots are released at a 
-controlled rate determined by `slot_decay_per_second`. With a concurrency limit, slots are released when the concurrency manager exits.
-
-<Note>
-**Concurrency slots have timed leases**
-
-Each time a concurrency slot is occupied, a countdown begins on the server.
-The length of this countdown is known as the concurrency slot's **lease duration**.
-While a concurrency slot is occupied, the Prefect client will periodically notify the server that the slot is still in use and restart the countdown.
-If the countdown concludes before the lease has been renewed, the concurrency slot is released.
-
-Lease expiration typically occurs when a process occupying a slot exits unexpectedly and is unable to notify the server that the slot should be released.
-This system exists to ensure that all concurrency slots are eventually released to prevent concurrency-related deadlocks.
-
-The default lease duration is 5 minutes, but custom durations with a minimum of 1 minute can be supplied to the concurrency context manager.
-</Note>
+For a deeper understanding of how global concurrency limits work and when to use them, see the [global concurrency limits concept page](/v3/concepts/global-concurrency-limits).
 
 ## Manage global concurrency and rate limits
 
-You can create, read, edit, and delete concurrency limits through the Prefect UI or Python SDK.
+You can create, read, edit, and delete concurrency limits through the Prefect UI, CLI, Python SDK, Terraform, or API.
 
-When creating a concurrency limit, you can specify the following parameters:
+When creating a concurrency limit, you can specify:
 
-- **Name**: The name of the concurrency limit. This name is also how you'll reference the concurrency limit in your code. Special characters, 
-such as `/`, `%`, `&`, `>`, `<`, are not allowed.
-- **Concurrency Limit**: The maximum number of slots that can be occupied on this concurrency limit.
-- **Slot Decay Per Second**: Controls the rate at which slots are released when the concurrency limit is used as a rate limit. You must 
-configure this value when using the `rate_limit` function.
-- **Active**: Whether or not the concurrency limit is in an active state.
+- **Name**: How you'll reference the limit in your code (no special characters like `/`, `%`, `&`, `>`, `<`)
+- **Concurrency Limit**: Maximum number of slots available
+- **Slot Decay Per Second**: Rate at which slots are released (required for rate limiting)
+- **Active**: Whether the limit is enforced (`true`) or disabled (`false`)
 
-### Active vs. inactive limits
+### Using the UI
 
-Global concurrency limits can be in an `active` or `inactive` state:
-
-- **Active**: In this state, slots can be occupied, and code execution is blocked when slots are unable to be acquired.
-- **Inactive**: In this state, slots are not occupied, and code execution is not blocked. Concurrency enforcement occurs only when 
-you activate the limit.
-
-### Slot decay
-To implement rate limiting, you can configure "slot decay", which determines how rapidly used slots are freed up for new tasks.
-
-When you set up a concurrency limit with slot decay:
-1. Each time a slot is occupied, it becomes unavailable for other tasks to use.
-2. The slot eventually becomes available again over time, based on the slot decay rate (with `slot_decay_per_second`).
-3. This creates a "rate limiting" effect, limiting how often slots can be used.
-
-To configure slot decay, set the `slot_decay_per_second` parameter when creating or updating a concurrency limit. This value determines how quickly slots refresh:
-
-- A higher value (for example, 5.0) means slots refresh quickly. Tasks can run more frequently, but with short pauses between them.
-- A lower value (for example, 0.1) means slots refresh slowly. Tasks run less frequently, with longer pauses between them.
-
-For example:
-
-- With a decay rate of 5.0, you could run a task roughly every 0.2 seconds.
-- With a decay rate of 0.1, you'd wait about 10 seconds between task runs.
-
-Choose a decay rate that balances your required frequency of task execution with the acceptable limit of overall system load. This allows you to fine-tune your workflow's performance and resource usage.
-
-### Through the UI
-
-You can manage global concurrency limits in the **Concurrency** section of the Prefect UI.
+Navigate to the **Concurrency** section in the Prefect UI to create, update, and delete concurrency limits.
 
 ![Concurrency limits in the UI](/images/gcl-1.png)
 
-
-### Through the CLI
+### Using the CLI
 
 import { CLI } from "/snippets/resource-management/cli.mdx"
 import { global_concurrency } from "/snippets/resource-management/vars.mdx"
 
 <CLI name="global concurrency" href={global_concurrency.cli} />
 
-To create a new concurrency limit, use the `prefect gcl create` command. You must specify a `--limit` argument, and can optionally specify a 
-`--slot-decay-per-second` and `--disable` argument.
+Create a new concurrency limit with the `prefect gcl create` command:
 
 ```bash
 prefect gcl create my-concurrency-limit --limit 5 --slot-decay-per-second 1.0
 ```
 
-Inspect the details of a concurrency limit using the `prefect gcl inspect` command:
+Inspect a concurrency limit:
 
 ```bash
 prefect gcl inspect my-concurrency-limit
 ```
 
-To update a concurrency limit, use the `prefect gcl update` command. You can update the `--limit`, `--slot-decay-per-second`, `--enable`, 
-and `--disable` arguments:
+Update a concurrency limit:
 
 ```bash
 prefect gcl update my-concurrency-limit --limit 10
-```
-
-```bash
 prefect gcl update my-concurrency-limit --disable
 ```
 
-To delete a concurrency limit, use the `prefect gcl delete` command:
+Delete a concurrency limit:
 
 ```bash
 prefect gcl delete my-concurrency-limit
@@ -128,33 +59,31 @@ Are you sure you want to delete global concurrency limit 'my-concurrency-limit'?
 Deleted global concurrency limit with name 'my-concurrency-limit'.
 ```
 
-See all available commands and options by running `prefect gcl --help`.
+See all available commands and options with `prefect gcl --help`.
 
-### Through Terraform
+### Using Terraform
 
 import { TF } from "/snippets/resource-management/terraform.mdx"
 
 <TF name="global concurrency" href={global_concurrency.tf} />
 
-### Through the API
+### Using the API
 
 import { API } from "/snippets/resource-management/api.mdx"
 
 <API name="global concurrency" href={global_concurrency.api} />
 
-## Using the `concurrency` context manager
+## Use the `concurrency` context manager
 
-The `concurrency`context manager allows control over the maximum number of concurrent operations. Select either the synchronous (`sync`) 
-or asynchronous (`async`) version, depending on your use case. Here's how to use it:
+Control concurrent operations using the `concurrency` context manager. Choose the synchronous or asynchronous version based on your code.
 
 <Tip>
-**Concurrency limits are not implicitly created**
+By default, if a concurrency limit doesn't exist or lease renewal fails, a warning is logged but execution continues.
 
-When using the `concurrency` context manager, if the provided `names` of the concurrency limits don't already exist, then no limiting is enforced and a warning will be logged.
-For stricter control, use `strict=True` to instead raise an error if no matching limits exist to block execution of the task.
+Use `strict=True` to raise an error instead. This ensures concurrency enforcement is guaranteed, useful for preventing resource exhaustion like database connection pool limits.
 </Tip>
 
-**Sync**
+### Synchronous usage
 
 ```python
 from prefect import flow, task
@@ -181,7 +110,7 @@ if __name__ == "__main__":
     my_flow()
 ```
 
-**Async**
+### Asynchronous usage
 
 ```python
 import asyncio
@@ -209,26 +138,36 @@ if __name__ == "__main__":
     asyncio.run(my_flow())
 ```
 
-1. The code imports the necessary modules and the concurrency context manager. Use the `prefect.concurrency.sync` module for sync usage 
-and the `prefect.concurrency.asyncio` module for async usage.
-2. It defines a `process_data` task, taking `x` and `y` as input arguments. Inside this task, the concurrency context manager controls 
-concurrency, using the `database` concurrency limit and occupying one slot. If another task attempts to run with the same limit and no 
-slots are available, that task is blocked until a slot becomes available.
-3. A flow named `my_flow` is defined. Within this flow, it iterates through a list of tuples, each containing pairs of x and y values. 
-For each pair, the `process_data` task is submitted with the corresponding x and y values for processing.
+In both examples, the `concurrency` context manager occupies one slot on the `database` concurrency limit. If no slots are available, execution blocks until a slot becomes available.
 
-## Using `rate_limit`
+### Using strict mode
 
-The Rate Limit feature provides control over the frequency of requests or operations, ensuring responsible usage and system stability. 
-Depending on your requirements, you can use `rate_limit` to govern both synchronous (sync) and asynchronous (async) operations. 
-Here's how to make the most of it:
+Enable strict mode to ensure errors are raised if the limit doesn't exist or if lease renewal fails:
+
+```python
+from prefect import flow, task
+from prefect.concurrency.sync import concurrency
+
+@task
+def process_critical_data(x, y):
+    # strict=True ensures this task fails fast if concurrency can't be enforced
+    with concurrency("database", occupy=1, strict=True):
+        return x + y
+
+@flow
+def critical_flow():
+    process_critical_data(1, 2)
+```
+
+## Use `rate_limit`
+
+Control the frequency of operations using the `rate_limit` function.
 
 <Tip>
-**Slot decay**
-When using the `rate_limit` function, the concurrency limit must have a slot decay configured.
+The concurrency limit must have `slot_decay_per_second` configured. Without it, `rate_limit` will fail.
 </Tip>
 
-**Sync**
+### Synchronous usage
 
 ```python
 from prefect import flow, task
@@ -251,7 +190,7 @@ if __name__ == "__main__":
     my_flow()
 ```
 
-**Async**
+### Asynchronous usage
 
 ```python
 import asyncio
@@ -276,14 +215,11 @@ if __name__ == "__main__":
     asyncio.run(my_flow())
 ```
 
-1. The code imports the necessary modules and the `rate_limit` function. Use the `prefect.concurrency.sync` module for sync usage and the 
-`prefect.concurrency.asyncio` module for async usage.
-2. It defines a `make_http_request` task. Inside this task, the `rate_limit` function ensures that the requests are made at a controlled pace.
-3. A flow named `my_flow` is defined. Within this flow the `make_http_request` task is submitted 10 times.
+The `rate_limit` function ensures requests are made at a controlled pace based on the concurrency limit's `slot_decay_per_second` setting.
 
-## Use `concurrency` and `rate_limit` outside of a flow
+## Use outside of flows
 
-Use`concurrency` and `rate_limit` outside of a flow to control concurrency and rate limits for any operation.
+You can use `concurrency` and `rate_limit` in any Python code, not just within flows.
 
 ```python
 import asyncio
@@ -302,14 +238,11 @@ if __name__ == "__main__":
     asyncio.run(main())
 ```
 
-## Use cases
+## Common patterns
 
-### Throttling task submission
+### Throttle task submission
 
-Throttling task submission helps avoid overloading resources, complying with external rate limits, or ensuring a steady, controlled flow of work.
-
-In this scenario the `rate_limit` function throttles the submission of tasks. The rate limit acts as a bottleneck, ensuring 
-that tasks are submitted at a controlled rate, governed by the `slot_decay_per_second` setting on the associated concurrency limit.
+Prevent overwhelming downstream systems by controlling how quickly tasks are submitted:
 
 ```python
 from prefect import flow, task
@@ -332,13 +265,9 @@ if __name__ == "__main__":
     my_flow()
 ```
 
-### Manage database connections
+### Limit database connections
 
-Manage the maximum number of concurrent database connections to avoid exhausting database resources.
-
-This scenario uses a concurrency limit named `database`. It has a maximum concurrency limit that matches the maximum number
-of database connections. The `concurrency` context manager controls the number of database connections
-allowed at any one time.
+Prevent exhausting your database connection pool by limiting concurrent queries:
 
 ```python
 from prefect import flow, task, concurrency
@@ -364,13 +293,9 @@ if __name__ == "__main__":
     my_flow()
 ```
 
-### Parallel data processing
+### Control parallel processing
 
-Limit the maximum number of parallel processing tasks.
-
-This scenario limits the number of `process_data` tasks to five at any one time. The `concurrency` 
-context manager requests five slots on the `data-processing` concurrency limit. This blocks until five slots are free and then
-submits five more tasks, ensuring that the maximum number of parallel processing tasks is never exceeded.
+Process data in controlled batches to avoid resource exhaustion:
 
 ```python
 import asyncio
@@ -401,13 +326,6 @@ if __name__ == "__main__":
     asyncio.run(main())
 ```
 
-## Other ways to limit concurrency
+## Next steps
 
-In addition to global concurrency limits, Prefect provides several other ways to limit concurrency for fine-grained control. 
-
-Unlike global concurrency limits, which are a more general way to control concurrency for any Python-based operation, the following concurrency limit options are specific to Prefect objects:
-
-- [Work pool flow run concurrency limits](/v3/concepts/work-pools#manage-concurrency)
-- [Work queue flow run concurrency limits](/v3/concepts/work-pools#queue-concurrency-limits)
-- [Deployment flow run concurrency limits](/v3/concepts/deployments#concurrency-limiting)
-- [Task run concurrency limits](/v3/how-to-guides/workflows/tag-based-concurrency-limits)
+For more information about how global concurrency limits work and when to use them versus other concurrency controls, see the [global concurrency limits concept page](/v3/concepts/global-concurrency-limits).
