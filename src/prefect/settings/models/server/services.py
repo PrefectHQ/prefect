@@ -44,6 +44,56 @@ class ServerServicesCancellationCleanupSettings(ServicesBaseSetting):
     )
 
 
+class ServerServicesDBVacuumSettings(ServicesBaseSetting):
+    """
+    Settings for controlling the DB Vacuum service
+    """
+
+    model_config: ClassVar[SettingsConfigDict] = build_settings_config(
+        ("server", "services", "db_vacuum")
+    )
+
+    enabled: bool = Field(
+        default=True,
+        description="Whether or not to start the DB Vacuum service in the server application.",
+        validation_alias=AliasChoices(
+            AliasPath("enabled"),
+            "prefect_server_services_db_vacuum_enabled",
+            "prefect_api_services_db_vacuum_enabled",
+        ),
+    )
+
+    loop_seconds: float = Field(
+        default=300,
+        description="The DB Vacuum service will delete old Prefect resources this often. Defaults to `300`.",
+        validation_alias=AliasChoices(
+            AliasPath("loop_seconds"),
+            "prefect_server_services_db_vacuum_loop_seconds",
+            "prefect_api_services_db_vacuum_loop_seconds",
+        ),
+    )
+
+    retention_days: float = Field(
+        default=90,
+        description="How many days Prefect resources will be retained for before being deleted. Defaults to `90`.",
+        validation_alias=AliasChoices(
+            AliasPath("retention_days"),
+            "prefect_server_services_db_vacuum_retention_days",
+            "prefect_api_services_db_vacuum_retention_days",
+        ),
+    )
+
+    batch_size: int = Field(
+        default=10000,
+        description="How many old Prefect resources the DB Vacuum service will delete at a time. Defaults to `10000`.",
+        validation_alias=AliasChoices(
+            AliasPath("batch_size"),
+            "prefect_server_services_db_vacuum_batch_size",
+            "prefect_api_services_db_vacuum_batch_size",
+        ),
+    )
+
+
 class ServerServicesEventPersisterSettings(ServicesBaseSetting):
     """
     Settings for controlling the event persister service
@@ -507,6 +557,10 @@ class ServerServicesSettings(PrefectBaseSettings):
     cancellation_cleanup: ServerServicesCancellationCleanupSettings = Field(
         default_factory=ServerServicesCancellationCleanupSettings,
         description="Settings for controlling the cancellation cleanup service",
+    )
+    db_vacuum: ServerServicesDBVacuumSettings = Field(
+        default_factory=ServerServicesDBVacuumSettings,
+        description="Settings for controlling the DB vacuum service",
     )
     event_persister: ServerServicesEventPersisterSettings = Field(
         default_factory=ServerServicesEventPersisterSettings,

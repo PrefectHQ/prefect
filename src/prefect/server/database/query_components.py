@@ -16,7 +16,7 @@ from uuid import UUID
 
 import sqlalchemy as sa
 from cachetools import Cache, TTLCache
-from jinja2 import Environment, PackageLoader, select_autoescape
+from jinja2 import Environment, PackageLoader, Template, select_autoescape
 from sqlalchemy import orm
 from sqlalchemy.dialects import postgresql, sqlite
 from sqlalchemy.exc import NoResultFound
@@ -113,6 +113,12 @@ class BaseQueryComponents(ABC):
         end_time: datetime.datetime,
         interval: datetime.timedelta,
     ) -> sa.Select[tuple[datetime.datetime, datetime.datetime]]: ...
+
+    def _get_jinja_template(self, template_path: str) -> Template:
+        return jinja_env.get_template(self._get_query_template_path(template_path))
+
+    @abstractmethod
+    def _get_query_template_path(self, template_path: str) -> str: ...
 
     @abstractmethod
     def set_state_id_on_inserted_flow_runs_statement(
@@ -538,6 +544,76 @@ class BaseQueryComponents(ABC):
             GraphState.model_validate(state, from_attributes=True) for state in states
         ]
 
+    async def delete_old_flow_runs(
+        self, session: AsyncSession, before: datetime.datetime, limit: int
+    ) -> tuple[int, int]:
+        """
+        Delete old flow runs and return counts.
+
+        Args:
+            session: Database session
+            before: Delete flow runs created before this timestamp
+            limit: Maximum number of task runs to delete (determines flow run count)
+
+        Returns:
+            Tuple of (flow_run_count, task_run_count)
+        """
+        query = sa.text(
+            self._get_jinja_template(
+                template_path="delete-old-flow-runs.sql.jinja"
+            ).render()
+        ).bindparams(
+            sa.bindparam("before", before, type_=Timestamp),
+            sa.bindparam("limit", limit, type_=sa.Integer),
+        )
+
+        result = await session.execute(query)
+
+        # The query returns a single row with two columns: flow_run_count, task_run_count
+        # If no rows were deleted, the query returns no results
+        row = result.one_or_none()
+        if row is None:
+            return (0, 0)
+        return (row.flow_run_count, row.task_run_count)
+
+    async def delete_old_logs(self, session: AsyncSession, limit: int) -> int:
+        """
+        Delete old logs.
+
+        Args:
+            session: Database session
+            limit: Maximum number of logs to delete
+
+        Returns:
+            Number of logs deleted
+        """
+        query = sa.text(
+            self._get_jinja_template(template_path="delete-old-logs.sql.jinja").render()
+        ).bindparams(limit=limit)
+
+        result = await session.execute(query)
+        return result.scalar_one_or_none() or 0
+
+    async def delete_old_artifacts(self, session: AsyncSession, limit: int) -> int:
+        """
+        Delete old artifacts that have no associated flow runs.
+
+        Args:
+            session: Database session
+            limit: Maximum number of artifacts to delete
+
+        Returns:
+            Number of artifacts deleted
+        """
+        query = sa.text(
+            self._get_jinja_template(
+                template_path="delete-old-artifacts.sql.jinja"
+            ).render()
+        ).bindparams(limit=limit)
+
+        result = await session.execute(query)
+        return result.scalar_one_or_none() or 0
+
 
 class AsyncPostgresQueryComponents(BaseQueryComponents):
     # --- Postgres-specific SqlAlchemy bindings
@@ -585,6 +661,9 @@ class AsyncPostgresQueryComponents(BaseQueryComponents):
             .limit(500)  # grab at most 500 intervals
         )
 
+    def _get_query_template_path(self, template_path: str) -> str:
+        return f"postgres/{template_path}"
+
     @db_injector
     def set_state_id_on_inserted_flow_runs_statement(
         self,
@@ -614,7 +693,7 @@ class AsyncPostgresQueryComponents(BaseQueryComponents):
         """
         Template for the query to get scheduled flow runs from a work pool
         """
-        return "postgres/get-runs-from-worker-queues.sql.jinja"
+        return self._get_query_template_path("get-runs-from-worker-queues.sql.jinja")
 
     @db_injector
     def _build_flow_run_graph_v2_query(
@@ -847,6 +926,9 @@ class AioSqliteQueryComponents(BaseQueryComponents):
 
         return sa.select(cte.c.interval_start, cte.c.interval_end)
 
+    def _get_query_template_path(self, template_path: str) -> str:
+        return f"sqlite/{template_path}"
+
     @db_injector
     def set_state_id_on_inserted_flow_runs_statement(
         self,
@@ -936,7 +1018,7 @@ class AioSqliteQueryComponents(BaseQueryComponents):
         """
         Template for the query to get scheduled flow runs from a work pool
         """
-        return "sqlite/get-runs-from-worker-queues.sql.jinja"
+        return self._get_query_template_path("get-runs-from-worker-queues.sql.jinja")
 
     @db_injector
     def _build_flow_run_graph_v2_query(

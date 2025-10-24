@@ -1,0 +1,21 @@
+-- Deletes logs in batch that have no associated flow runs with them - meaning their associated flow runs have been deleted.
+--
+-- SQLite version - has some limitations compared to PostgreSQL:
+-- - No DELETE...USING (uses WHERE IN with subquery instead)
+-- - No FOR UPDATE SKIP LOCKED (not needed for SQLite's locking model)
+-- - RETURNING is supported in SQLite 3.35+
+--
+-- Parameters:
+--   :limit  - Maximum number of logs to delete
+
+WITH doomed_logs AS (
+    SELECT log.id as id
+    FROM log
+    LEFT OUTER JOIN flow_run ON log.flow_run_id = flow_run.id
+    WHERE flow_run.id IS NULL
+    ORDER BY log.flow_run_id, log.created ASC
+    LIMIT :limit
+)
+DELETE FROM log
+WHERE id IN (SELECT id FROM doomed_logs)
+RETURNING (SELECT COUNT(*) FROM doomed_logs)

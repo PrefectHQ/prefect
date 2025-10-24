@@ -67,6 +67,8 @@ async def test_injecting_existing_query_components(QueryComponents):
 
 async def test_injecting_really_dumb_query_components():
     class ReallyBrokenQueries(BaseQueryComponents):
+        def _get_query_template_path(self, template_path: str) -> str: ...
+
         # --- dialect-specific SqlAlchemy bindings
 
         def insert(self, obj): ...
