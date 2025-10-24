@@ -556,11 +556,7 @@ class DeploymentFlowRunCreate(ActionBaseModel):
         """
 
         def convert_temporal(v: Any) -> Any:
-            if isinstance(v, datetime.datetime):
-                return v.isoformat()
-            elif isinstance(v, datetime.date):
-                return v.isoformat()
-            elif isinstance(v, datetime.time):
+            if isinstance(v, (datetime.datetime, datetime.date, datetime.time)):
                 return v.isoformat()
             elif isinstance(v, dict):
                 return {k: convert_temporal(val) for k, val in v.items()}
