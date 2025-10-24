@@ -3,11 +3,12 @@ Injected database interface dependencies
 """
 
 from collections.abc import Generator
-from contextlib import ExitStack, contextmanager
+from contextlib import ExitStack, asynccontextmanager, contextmanager
 from functools import wraps
 from typing import (
     TYPE_CHECKING,
     Any,
+    AsyncGenerator,
     Callable,
     Generic,
     Optional,
@@ -16,6 +17,7 @@ from typing import (
     overload,
 )
 
+from sqlalchemy.ext.asyncio import AsyncSession
 from typing_extensions import (
     Concatenate,
     Never,
@@ -137,6 +139,15 @@ def provide_database_interface() -> "PrefectDBInterface":
         query_components=query_components,
         orm=orm,
     )
+
+
+@asynccontextmanager
+async def provide_session(
+    begin_transaction: bool = False,
+) -> AsyncGenerator[AsyncSession, None]:
+    db = provide_database_interface()
+    async with db.session_context(begin_transaction=begin_transaction) as session:
+        yield session
 
 
 def inject_db(fn: Callable[P, R]) -> Callable[P, R]:

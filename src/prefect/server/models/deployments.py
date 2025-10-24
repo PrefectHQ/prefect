@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING, Any, Optional, TypeVar, cast
 from uuid import UUID
 
 import sqlalchemy as sa
+from docket import Depends
 from sqlalchemy import delete, or_, select
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -21,6 +22,7 @@ from prefect._internal.uuid7 import uuid7
 from prefect.logging import get_logger
 from prefect.server import models, schemas
 from prefect.server.database import PrefectDBInterface, db_injector, orm_models
+from prefect.server.database.dependencies import provide_database_interface
 from prefect.server.events.clients import PrefectServerEventsClient
 from prefect.server.exceptions import ObjectNotFoundError
 from prefect.server.models.events import deployment_status_event
@@ -1087,8 +1089,13 @@ async def delete_deployment_schedule(
     return result.rowcount > 0
 
 
+async def aprovide_database_interface() -> PrefectDBInterface:
+    return provide_database_interface()
+
+
 async def mark_deployments_ready(
-    db: PrefectDBInterface,
+    *,
+    db: PrefectDBInterface = Depends(aprovide_database_interface),
     deployment_ids: Optional[Iterable[UUID]] = None,
     work_queue_ids: Optional[Iterable[UUID]] = None,
 ) -> None:
