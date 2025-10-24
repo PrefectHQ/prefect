@@ -6,6 +6,7 @@ import sys
 from contextlib import contextmanager
 from typing import Any, AsyncGenerator, Callable, Generator, List, Optional, Union
 from unittest import mock
+from unittest.mock import AsyncMock
 from uuid import UUID
 
 import anyio
@@ -35,7 +36,6 @@ from prefect.settings import (
     get_current_settings,
     temporary_settings,
 )
-from prefect.testing.utilities import AsyncMock
 from prefect.types._datetime import DateTime, now
 from prefect.utilities.asyncutils import sync_compatible
 from prefect.utilities.processutils import open_process

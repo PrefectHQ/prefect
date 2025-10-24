@@ -2,6 +2,7 @@ import sys
 import uuid
 from datetime import timedelta
 from pathlib import Path
+from unittest.mock import AsyncMock
 
 import anyio
 import anyio.abc
@@ -20,7 +21,7 @@ from prefect.server.schemas.actions import (
     DeploymentUpdate,
     WorkPoolCreate,
 )
-from prefect.testing.utilities import AsyncMock, MagicMock
+from prefect.testing.utilities import MagicMock
 from prefect.types._datetime import now
 from prefect.workers.process import (
     ProcessWorker,
