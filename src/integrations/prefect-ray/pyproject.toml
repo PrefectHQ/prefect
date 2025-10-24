@@ -38,7 +38,7 @@ dev = [
   "pre-commit",
   "pytest-asyncio",
   "pytest >= 8.3",
-  "pytest-asyncio>=0.18.2,!=0.22.0,<0.23.0",
+  "pytest-asyncio>=0.25.3",
   "pytest-env",
   "pytest-xdist",
 ]
@@ -69,9 +69,6 @@ omit = ["tests/*", "prefect_ray/_version.py"]
 [tool.coverage.report]
 fail_under = 80
 show_missing = true
-
-[tool.uv.sources]
-prefect = { path = "../../../" }
 
 [tool.pytest.ini_options]
 asyncio_default_fixture_loop_scope = "session"
