@@ -12,7 +12,7 @@ description: Learn how to execute code in response to entering states in your wo
 | `on_failure` | ✓ | ✓ | Executes when a flow or task run enters a `Failed` state. |
 | <span class="no-wrap">`on_cancellation`</span> | ✓ | - | Executes when a flow run enters a `Cancelling` state. |
 | `on_crashed` | ✓ | - | Executes when a flow run enters a `Crashed` state. |
-| `on_running` | ✓ | - | Executes when a flow run enters a `Running` state. |
+| `on_running` | ✓ | ✓ | Executes when a flow or task run enters a `Running` state. |
 
 <Note>
 Note that the `on_rollback` hook for tasks is _not_ a proper state change hook but instead
@@ -65,6 +65,38 @@ Retries are configured in this example, so the `on_failure` hook will not run un
 
 State change hooks run in the same process as your workflow and execution cannot be guaranteed. For more robust execution of logic in response to state changes, use an Automation.
 </Warning>
+
+### Execute code when a task starts running
+
+The `on_running` hook executes when a task enters a `Running` state, before the task body executes. This is useful for logging, metrics, or setting up runtime state:
+
+```python
+from prefect import flow, task
+import time
+
+def record_start_time(task, task_run, state):
+    print(f"Task {task.name} started at {time.time()}")
+
+@task(on_running=[record_start_time])
+def my_task():
+    return "hello"
+
+# Or use the decorator pattern
+@task
+def another_task():
+    return "world"
+
+@another_task.on_running
+def log_start(task, task_run, state):
+    print(f"Starting {task.name}!")
+
+@flow
+def my_flow():
+    my_task()
+    another_task()
+```
+
+Note that `on_running` hooks execute **synchronously** before the task body runs. If your hook takes 10 seconds, the task waits 10 seconds before starting.
 
 ### Pass `kwargs` to state change hooks
 
