@@ -151,6 +151,7 @@ class TaskOptions(TypedDict, total=False):
     refresh_cache: Optional[bool]
     on_completion: Optional[list[StateHookCallable]]
     on_failure: Optional[list[StateHookCallable]]
+    on_running: Optional[list[StateHookCallable]]
     on_rollback: Optional[list[Callable[["Transaction"], None]]]
     on_commit: Optional[list[Callable[["Transaction"], None]]]
     retry_condition_fn: Optional[RetryConditionCallable]
@@ -402,6 +403,7 @@ class Task(Generic[P, R]):
         refresh_cache: Optional[bool] = None,
         on_completion: Optional[list[StateHookCallable]] = None,
         on_failure: Optional[list[StateHookCallable]] = None,
+        on_running: Optional[list[StateHookCallable]] = None,
         on_rollback: Optional[list[Callable[["Transaction"], None]]] = None,
         on_commit: Optional[list[Callable[["Transaction"], None]]] = None,
         retry_condition_fn: Optional[RetryConditionCallable] = None,
@@ -409,8 +411,8 @@ class Task(Generic[P, R]):
         asset_deps: Optional[list[Union[str, Asset]]] = None,
     ):
         # Validate if hook passed is list and contains callables
-        hook_categories = [on_completion, on_failure]
-        hook_names = ["on_completion", "on_failure"]
+        hook_categories = [on_completion, on_failure, on_running]
+        hook_names = ["on_completion", "on_failure", "on_running"]
         for hooks, hook_name in zip(hook_categories, hook_names):
             if hooks is not None:
                 try:
@@ -589,6 +591,7 @@ class Task(Generic[P, R]):
         self.on_commit_hooks: list[Callable[["Transaction"], None]] = on_commit or []
         self.on_completion_hooks: list[StateHookCallable] = on_completion or []
         self.on_failure_hooks: list[StateHookCallable] = on_failure or []
+        self.on_running_hooks: list[StateHookCallable] = on_running or []
 
         # retry_condition_fn must be a callable or None. If it is neither, raise a TypeError
         if retry_condition_fn is not None and not (callable(retry_condition_fn)):
@@ -674,6 +677,7 @@ class Task(Generic[P, R]):
         refresh_cache: Union[bool, type[NotSet]] = NotSet,
         on_completion: Optional[list[StateHookCallable]] = None,
         on_failure: Optional[list[StateHookCallable]] = None,
+        on_running: Optional[list[StateHookCallable]] = None,
         retry_condition_fn: Optional[RetryConditionCallable] = None,
         viz_return_value: Optional[Any] = None,
         asset_deps: Optional[list[Union[str, Asset]]] = None,
@@ -815,6 +819,7 @@ class Task(Generic[P, R]):
             ),
             on_completion=on_completion or self.on_completion_hooks,
             on_failure=on_failure or self.on_failure_hooks,
+            on_running=on_running or self.on_running_hooks,
             retry_condition_fn=retry_condition_fn or self.retry_condition_fn,
             viz_return_value=viz_return_value or self.viz_return_value,
             asset_deps=asset_deps or self.asset_deps,
@@ -826,6 +831,10 @@ class Task(Generic[P, R]):
 
     def on_failure(self, fn: StateHookCallable) -> StateHookCallable:
         self.on_failure_hooks.append(fn)
+        return fn
+
+    def on_running(self, fn: StateHookCallable) -> StateHookCallable:
+        self.on_running_hooks.append(fn)
         return fn
 
     def on_commit(
@@ -1786,6 +1795,7 @@ def task(
     refresh_cache: Optional[bool] = None,
     on_completion: Optional[list[StateHookCallable]] = None,
     on_failure: Optional[list[StateHookCallable]] = None,
+    on_running: Optional[list[StateHookCallable]] = None,
     retry_condition_fn: Optional[RetryConditionCallable] = None,
     viz_return_value: Any = None,
     asset_deps: Optional[list[Union[str, Asset]]] = None,
@@ -1822,6 +1832,7 @@ def task(
     refresh_cache: Optional[bool] = None,
     on_completion: Optional[list[StateHookCallable]] = None,
     on_failure: Optional[list[StateHookCallable]] = None,
+    on_running: Optional[list[StateHookCallable]] = None,
     retry_condition_fn: Optional[RetryConditionCallable] = None,
     viz_return_value: Any = None,
     asset_deps: Optional[list[Union[str, Asset]]] = None,
@@ -1859,6 +1870,7 @@ def task(
     refresh_cache: Optional[bool] = None,
     on_completion: Optional[list[StateHookCallable]] = None,
     on_failure: Optional[list[StateHookCallable]] = None,
+    on_running: Optional[list[StateHookCallable]] = None,
     retry_condition_fn: Optional[RetryConditionCallable] = None,
     viz_return_value: Any = None,
     asset_deps: Optional[list[Union[str, Asset]]] = None,
@@ -1893,6 +1905,7 @@ def task(
     refresh_cache: Optional[bool] = None,
     on_completion: Optional[list[StateHookCallable]] = None,
     on_failure: Optional[list[StateHookCallable]] = None,
+    on_running: Optional[list[StateHookCallable]] = None,
     retry_condition_fn: Optional[RetryConditionCallable] = None,
     viz_return_value: Any = None,
     asset_deps: Optional[list[Union[str, Asset]]] = None,
@@ -2043,6 +2056,7 @@ def task(
             refresh_cache=refresh_cache,
             on_completion=on_completion,
             on_failure=on_failure,
+            on_running=on_running,
             retry_condition_fn=retry_condition_fn,
             viz_return_value=viz_return_value,
             asset_deps=asset_deps,
@@ -2073,6 +2087,7 @@ def task(
                 refresh_cache=refresh_cache,
                 on_completion=on_completion,
                 on_failure=on_failure,
+                on_running=on_running,
                 retry_condition_fn=retry_condition_fn,
                 viz_return_value=viz_return_value,
                 asset_deps=asset_deps,
@@ -2119,6 +2134,7 @@ class MaterializingTask(Task[P, R]):
         param_to_attr = {
             "on_completion": "on_completion_hooks",
             "on_failure": "on_failure_hooks",
+            "on_running": "on_running_hooks",
             "on_rollback": "on_rollback_hooks",
             "on_commit": "on_commit_hooks",
         }
