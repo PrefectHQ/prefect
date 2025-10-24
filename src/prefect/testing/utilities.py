@@ -166,9 +166,11 @@ def prefect_test_harness(server_startup_timeout: int | None = 30):
         # start a subprocess server to test against
         test_server = SubprocessASGIServer()
         test_server.start(
-            timeout=server_startup_timeout
-            if server_startup_timeout is not None
-            else prefect.settings.PREFECT_SERVER_EPHEMERAL_STARTUP_TIMEOUT_SECONDS.value()
+            timeout=(
+                server_startup_timeout
+                if server_startup_timeout is not None
+                else prefect.settings.PREFECT_SERVER_EPHEMERAL_STARTUP_TIMEOUT_SECONDS.value()
+            )
         )
         stack.enter_context(
             prefect.settings.temporary_settings(
@@ -193,9 +195,9 @@ async def get_most_recent_flow_run(
     flow_runs = await client.read_flow_runs(
         sort=sorting.FlowRunSort.EXPECTED_START_TIME_ASC,
         limit=1,
-        flow_filter=FlowFilter(name=FlowFilterName(any_=[flow_name]))
-        if flow_name
-        else None,
+        flow_filter=(
+            FlowFilter(name=FlowFilterName(any_=[flow_name])) if flow_name else None
+        ),
     )
 
     return flow_runs[0]
@@ -204,9 +206,9 @@ async def get_most_recent_flow_run(
 def assert_blocks_equal(
     found: Block, expected: Block, exclude_private: bool = True, **kwargs: Any
 ) -> None:
-    assert isinstance(found, type(expected)), (
-        f"Unexpected type {type(found).__name__}, expected {type(expected).__name__}"
-    )
+    assert isinstance(
+        found, type(expected)
+    ), f"Unexpected type {type(found).__name__}, expected {type(expected).__name__}"
 
     if exclude_private:
         exclude = set(kwargs.pop("exclude", set()))

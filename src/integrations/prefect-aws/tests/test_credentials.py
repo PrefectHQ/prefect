@@ -108,9 +108,9 @@ def test_aws_credentials_change_causes_cache_miss(client_type):
 
     new_client = credentials.get_client(client_type)
 
-    assert initial_client is not new_client, (
-        "Client should be different after configuration change"
-    )
+    assert (
+        initial_client is not new_client
+    ), "Client should be different after configuration change"
 
     assert _get_client_cached.cache_info().misses == 2, "Cache should miss twice"
 
@@ -136,9 +136,9 @@ def test_minio_credentials_change_causes_cache_miss(client_type):
 
     new_client = credentials.get_client(client_type)
 
-    assert initial_client is not new_client, (
-        "Client should be different after configuration change"
-    )
+    assert (
+        initial_client is not new_client
+    ), "Client should be different after configuration change"
 
     assert _get_client_cached.cache_info().misses == 2, "Cache should miss twice"
 

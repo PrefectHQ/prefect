@@ -612,9 +612,9 @@ class TestSettingsClass:
                 updates={PREFECT_CLIENT_RETRY_EXTRA_CODES: "400,500"},
                 set_defaults={PREFECT_UNIT_TEST_MODE: False, PREFECT_API_KEY: "TEST"},
             )
-            assert new_settings.testing.unit_test_mode is True, (
-                "Not changed, existing value was not default"
-            )
+            assert (
+                new_settings.testing.unit_test_mode is True
+            ), "Not changed, existing value was not default"
             assert (
                 new_settings.api.key is not None
                 and new_settings.api.key.get_secret_value() == "TEST"
@@ -848,9 +848,7 @@ class TestSettingsClass:
     def test_valid_setting_names_matches_supported_settings(self):
         assert set(_get_valid_setting_names(Settings)) == set(
             SUPPORTED_SETTINGS.keys()
-        ), (
-            "valid_setting_names output did not match supported settings. Please update SUPPORTED_SETTINGS if you are adding or removing a setting."
-        )
+        ), "valid_setting_names output did not match supported settings. Please update SUPPORTED_SETTINGS if you are adding or removing a setting."
 
 
 class TestSettingAccess:
@@ -1342,9 +1340,9 @@ class TestTemporarySettings:
     def test_temporary_settings(self):
         assert PREFECT_TEST_MODE.value() is True
         with temporary_settings(updates={PREFECT_TEST_MODE: False}) as new_settings:
-            assert PREFECT_TEST_MODE.value_from(new_settings) is False, (
-                "Yields the new settings"
-            )
+            assert (
+                PREFECT_TEST_MODE.value_from(new_settings) is False
+            ), "Yields the new settings"
             assert PREFECT_TEST_MODE.value() is False
 
         assert PREFECT_TEST_MODE.value() is True
@@ -1373,9 +1371,9 @@ class TestTemporarySettings:
             with temporary_settings(updates={PREFECT_TEST_MODE: False}):
                 raise ValueError()
 
-        assert os.environ["PREFECT_TESTING_TEST_MODE"] == "1", (
-            "Does not alter os environ."
-        )
+        assert (
+            os.environ["PREFECT_TESTING_TEST_MODE"] == "1"
+        ), "Does not alter os environ."
         assert PREFECT_TEST_MODE.value() is True
 
 
@@ -2310,21 +2308,21 @@ class TestProfilesCollection:
 
         assert ProfilesCollection(
             profiles=[foo, bar], active=None
-        ) == ProfilesCollection(profiles=[foo, bar]), (
-            "Explicit and implicit null active should be equal"
-        )
+        ) == ProfilesCollection(
+            profiles=[foo, bar]
+        ), "Explicit and implicit null active should be equal"
 
         assert ProfilesCollection(
             profiles=[foo, bar], active="foo"
-        ) != ProfilesCollection(profiles=[foo, bar]), (
-            "One null active should be inequal"
-        )
+        ) != ProfilesCollection(
+            profiles=[foo, bar]
+        ), "One null active should be inequal"
 
         assert ProfilesCollection(
             profiles=[foo, bar], active="foo"
-        ) != ProfilesCollection(profiles=[foo, bar], active="bar"), (
-            "Different active should be inequal"
-        )
+        ) != ProfilesCollection(
+            profiles=[foo, bar], active="bar"
+        ), "Different active should be inequal"
 
         assert ProfilesCollection(profiles=[foo, bar]) == ProfilesCollection(
             profiles=[
@@ -2689,12 +2687,14 @@ class TestClientCustomHeadersSetting:
         monkeypatch.setenv("PREFECT_PROFILES_PATH", str(profiles_path))
 
         # Write a profile with the JSON string value, simulating what `prefect config set` does
-        profiles_path.write_text(f"""
+        profiles_path.write_text(
+            f"""
 active = "test"
 
 [profiles.test]
 PREFECT_CLIENT_CUSTOM_HEADERS = '{json_string}'
-""")
+"""
+        )
 
         # Create a new settings instance that will load from the profiles file
         settings = Settings()

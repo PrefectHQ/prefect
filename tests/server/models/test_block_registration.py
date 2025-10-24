@@ -50,9 +50,9 @@ class TestRunAutoRegistration:
         assert len(registered_blocks) == expected_number_of_registered_block_types
 
         registered_block_slugs = {b.slug for b in registered_blocks}
-        assert PROTECTED_BLOCKS.issubset(registered_block_slugs), (
-            "When changing protected blocks, edit PROTECTED_BLOCKS defined above"
-        )
+        assert PROTECTED_BLOCKS.issubset(
+            registered_block_slugs
+        ), "When changing protected blocks, edit PROTECTED_BLOCKS defined above"
         assert sum(b.is_protected for b in registered_blocks) == len(
             PROTECTED_BLOCKS
         ), "When changing protected blocks, edit PROTECTED_BLOCKS defined above"

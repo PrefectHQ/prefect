@@ -256,9 +256,9 @@ class TestBackgroundServer:
             expected_code=0,
         )
 
-        assert not (PREFECT_HOME.value() / "server.pid").exists(), (
-            "Server PID file exists"
-        )
+        assert not (
+            PREFECT_HOME.value() / "server.pid"
+        ).exists(), "Server PID file exists"
 
     def test_start_duplicate_background_server(
         self, unused_tcp_port_factory: Callable[[], int]
@@ -345,9 +345,9 @@ class TestBackgroundServer:
             expected_code=0,
         )
 
-        assert not (PREFECT_HOME.value() / "server.pid").exists(), (
-            "Server PID file exists"
-        )
+        assert not (
+            PREFECT_HOME.value() / "server.pid"
+        ).exists(), "Server PID file exists"
 
 
 @pytest.mark.service("process")
@@ -362,9 +362,9 @@ class TestUvicornSignalForwarding:
             with anyio.fail_after(SHUTDOWN_TIMEOUT):
                 exit_code = await server_process.wait()
 
-            assert exit_code == 0, (
-                "After one sigint, the process should exit successfully"
-            )
+            assert (
+                exit_code == 0
+            ), "After one sigint, the process should exit successfully"
 
             server_process.out.seek(0)
             out = server_process.out.read().decode()
@@ -384,9 +384,9 @@ class TestUvicornSignalForwarding:
             with anyio.fail_after(SHUTDOWN_TIMEOUT):
                 exit_code = await server_process.wait()
 
-            assert exit_code == -signal.SIGTERM, (
-                "After a sigterm, the server process should indicate it was terminated"
-            )
+            assert (
+                exit_code == -signal.SIGTERM
+            ), "After a sigterm, the server process should indicate it was terminated"
 
             server_process.out.seek(0)
             out = server_process.out.read().decode()
@@ -406,9 +406,9 @@ class TestUvicornSignalForwarding:
             with anyio.fail_after(SHUTDOWN_TIMEOUT):
                 exit_code = await server_process.wait()
 
-            assert exit_code == 0, (
-                "After a ctrl-break, the process should exit successfully"
-            )
+            assert (
+                exit_code == 0
+            ), "After a ctrl-break, the process should exit successfully"
 
             server_process.out.seek(0)
             out = server_process.out.read().decode()

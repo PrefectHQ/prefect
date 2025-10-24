@@ -423,8 +423,7 @@ class Run(Base):
             )
             # add a correlate statement so this can reuse the `FROM` clause
             # of any parent query
-            .correlate(cls)
-            .label("estimated_run_time")
+            .correlate(cls).label("estimated_run_time")
         )
 
     @hybrid_property

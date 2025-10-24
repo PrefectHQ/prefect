@@ -1215,9 +1215,9 @@ async def flow_run_task_artifacts(
     flow_run,  # db.FlowRun,
     flat_tasks,  # list[db.TaskRun],
 ):  # -> list[db.Artifact]:
-    assert len(flat_tasks) >= 5, (
-        "Setup error - this fixture expects to use at least 5 tasks"
-    )
+    assert (
+        len(flat_tasks) >= 5
+    ), "Setup error - this fixture expects to use at least 5 tasks"
 
     task_artifact = db.Artifact(
         flow_run_id=flow_run.id,
@@ -1333,14 +1333,14 @@ async def test_reading_graph_for_flow_run_with_artifacts(
             created=expected_top_level_artifact.created,
             key=expected_top_level_artifact.key,
             type=expected_top_level_artifact.type,
-            data=expected_top_level_artifact.data
-            if expected_top_level_artifact.type == "progress"
-            else None,
+            data=(
+                expected_top_level_artifact.data
+                if expected_top_level_artifact.type == "progress"
+                else None
+            ),
             is_latest=True,
         )
-    ], (
-        "Expected artifacts associated with the flow run but not with a task to be included at the roof of the graph."
-    )
+    ], "Expected artifacts associated with the flow run but not with a task to be included at the roof of the graph."
 
     expected_graph_artifacts = defaultdict(list)
     for task_artifact in flow_run_task_artifacts:
@@ -1375,9 +1375,9 @@ async def test_artifacts_on_flow_run_graph_limited_by_setting(
     flow_run_task_artifacts,  # List[db.Artifact],
 ):
     test_max_artifacts_setting = 2
-    assert len(flow_run_task_artifacts) > test_max_artifacts_setting, (
-        "Setup error - expected total # of graph artifacts to be greater than the limit being used for testing"
-    )
+    assert (
+        len(flow_run_task_artifacts) > test_max_artifacts_setting
+    ), "Setup error - expected total # of graph artifacts to be greater than the limit being used for testing"
 
     with temporary_settings(
         {PREFECT_API_MAX_FLOW_RUN_GRAPH_ARTIFACTS: test_max_artifacts_setting}

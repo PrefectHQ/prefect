@@ -1085,7 +1085,9 @@ async def listen_for_automation_changes() -> None:
             logger.info("Automation change listener cancelled")
             break
         except Exception as e:
-            reconnect_seconds = get_current_settings().server.services.triggers.pg_notify_reconnect_interval_seconds
+            reconnect_seconds = (
+                get_current_settings().server.services.triggers.pg_notify_reconnect_interval_seconds
+            )
             logger.error(
                 f"Error in automation change listener: {e}. Reconnecting in {reconnect_seconds}s...",
                 exc_info=True,

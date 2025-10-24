@@ -21,6 +21,6 @@ def test_clamped_poisson_intervals(clamping_factor):
 
     assert expected_average * 0.97 < observed_average < expected_average * 1.03
 
-    assert max(bunch_of_intervals) < expected_average * (1 + clamping_factor), (
-        "no intervals should exceed the upper clamp limit"
-    )
+    assert max(bunch_of_intervals) < expected_average * (
+        1 + clamping_factor
+    ), "no intervals should exceed the upper clamp limit"

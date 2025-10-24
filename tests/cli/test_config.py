@@ -129,9 +129,9 @@ def test_set_with_invalid_value_type():
     )
 
     profiles = load_profiles()
-    assert PREFECT_API_DATABASE_TIMEOUT not in profiles["foo"].settings, (
-        "The setting should not be saved"
-    )
+    assert (
+        PREFECT_API_DATABASE_TIMEOUT not in profiles["foo"].settings
+    ), "The setting should not be saved"
 
 
 def test_set_with_unparsable_setting():
@@ -363,9 +363,9 @@ def test_view_excludes_unset_settings_without_show_defaults_flag(monkeypatch):
     lines = res.stdout.splitlines()
     assert "PREFECT_PROFILE='foo'" in lines
 
-    assert len(expected) < len(_get_valid_setting_names(prefect.settings.Settings)), (
-        "All settings were not expected; we should only have a subset."
-    )
+    assert len(expected) < len(
+        _get_valid_setting_names(prefect.settings.Settings)
+    ), "All settings were not expected; we should only have a subset."
 
 
 @pytest.mark.skip("TODO")
@@ -380,9 +380,9 @@ def test_view_includes_unset_settings_with_show_defaults():
     printed_settings = {}
     for line in lines[1:]:
         setting, value = line.split("=", maxsplit=1)
-        assert setting not in printed_settings, (
-            f"Setting displayed multiple times: {setting}"
-        )
+        assert (
+            setting not in printed_settings
+        ), f"Setting displayed multiple times: {setting}"
         printed_settings[setting] = value
 
     assert printed_settings.keys() == _get_valid_setting_names(
@@ -396,11 +396,8 @@ def test_view_includes_unset_settings_with_show_defaults():
         ):  # TODO: clean this up
             continue
         assert value == (
-            expected_value
-            := f"'{expected_settings[prefect.settings.env_var_to_accessor(key)]}'"
-        ), (
-            f"Displayed setting does not match set value: {key} = {value} != {expected_value}"
-        )
+            expected_value := f"'{expected_settings[prefect.settings.env_var_to_accessor(key)]}'"
+        ), f"Displayed setting does not match set value: {key} = {value} != {expected_value}"
 
 
 @pytest.mark.parametrize(
@@ -434,9 +431,9 @@ def test_view_shows_setting_sources(monkeypatch, command):
 
     for line in lines[i + 1 :]:
         # Assert that each line ends with a source
-        assert any(line.endswith(s) for s in [FROM_DEFAULT, FROM_PROFILE, FROM_ENV]), (
-            f"Source missing from line: {line}"
-        )
+        assert any(
+            line.endswith(s) for s in [FROM_DEFAULT, FROM_PROFILE, FROM_ENV]
+        ), f"Source missing from line: {line}"
 
     # Assert that sources are correct
     assert f"PREFECT_API_DATABASE_TIMEOUT='2.0' {FROM_PROFILE}" in lines

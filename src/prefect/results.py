@@ -147,7 +147,9 @@ async def aresolve_result_storage(
         if TYPE_CHECKING:
             assert isinstance(block, WritableFileSystem)
         storage_block = block
-    elif isinstance(result_storage, UUID):  # pyright: ignore[reportUnnecessaryIsInstance]
+    elif isinstance(
+        result_storage, UUID
+    ):  # pyright: ignore[reportUnnecessaryIsInstance]
         block_document = await client.read_block_document(result_storage)
         from_block_document = methodcaller("_from_block_document", block_document)
         block = from_block_document(Block)
@@ -184,7 +186,9 @@ def resolve_result_storage(
         if TYPE_CHECKING:
             assert isinstance(block, WritableFileSystem)
         storage_block = block
-    elif isinstance(result_storage, UUID):  # pyright: ignore[reportUnnecessaryIsInstance]
+    elif isinstance(
+        result_storage, UUID
+    ):  # pyright: ignore[reportUnnecessaryIsInstance]
         block_document = client.read_block_document(result_storage)
         from_block_document = methodcaller("_from_block_document", block_document)
         block = from_block_document(Block)
@@ -583,9 +587,9 @@ class ResultStore(BaseModel):
                 {},
             )
             metadata = ResultRecordMetadata.load_bytes(metadata_content)
-            assert metadata.storage_key is not None, (
-                "Did not find storage key in metadata"
-            )
+            assert (
+                metadata.storage_key is not None
+            ), "Did not find storage key in metadata"
             result_content = await call_explicitly_async_block_method(
                 self.result_storage,
                 "read_path",
@@ -747,9 +751,9 @@ class ResultStore(BaseModel):
             result_record: The result record to persist.
             holder: The holder of the lock if a lock was set on the record.
         """
-        assert result_record.metadata.storage_key is not None, (
-            "Storage key is required on result record"
-        )
+        assert (
+            result_record.metadata.storage_key is not None
+        ), "Storage key is required on result record"
 
         key = result_record.metadata.storage_key
         if result_record.metadata.storage_block_id is None:

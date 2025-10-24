@@ -163,7 +163,9 @@ class TestGitLab:
         ]
         assert mock.await_args[0][0][: len(expected_cmd)] == expected_cmd
 
-    async def test_dir_contents_copied_correctly_with_get_directory(self, monkeypatch):  # noqa
+    async def test_dir_contents_copied_correctly_with_get_directory(
+        self, monkeypatch
+    ):  # noqa
         """Check that `get_directory` is able to correctly copy contents from src->dst"""  # noqa
 
         class p:

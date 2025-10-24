@@ -89,9 +89,9 @@ async def now_run(session, flow):
 async def test_marks_late_run(session, late_run):
     assert late_run.state.name == "Scheduled"
     st = late_run.state.state_details.scheduled_time
-    assert late_run.next_scheduled_start_time == st, (
-        "Next scheduled time is set by orchestration rules correctly"
-    )
+    assert (
+        late_run.next_scheduled_start_time == st
+    ), "Next scheduled time is set by orchestration rules correctly"
 
     await MarkLateRuns().start(loops=1)
 
@@ -104,9 +104,9 @@ async def test_marks_late_run(session, late_run):
 async def test_marks_late_run_at_buffer(session, late_run):
     assert late_run.state.name == "Scheduled"
     st = late_run.state.state_details.scheduled_time
-    assert late_run.next_scheduled_start_time == st, (
-        "Next scheduled time is set by orchestration rules correctly"
-    )
+    assert (
+        late_run.next_scheduled_start_time == st
+    ), "Next scheduled time is set by orchestration rules correctly"
 
     with temporary_settings(updates={PREFECT_API_SERVICES_LATE_RUNS_AFTER_SECONDS: 60}):
         await MarkLateRuns().start(loops=1)
@@ -120,9 +120,9 @@ async def test_marks_late_run_at_buffer(session, late_run):
 async def test_does_not_mark_run_late_if_within_buffer(session, late_run):
     assert late_run.state.name == "Scheduled"
     st = late_run.state.state_details.scheduled_time
-    assert late_run.next_scheduled_start_time == st, (
-        "Next scheduled time is set by orchestration rules correctly"
-    )
+    assert (
+        late_run.next_scheduled_start_time == st
+    ), "Next scheduled time is set by orchestration rules correctly"
 
     with temporary_settings(updates={PREFECT_API_SERVICES_LATE_RUNS_AFTER_SECONDS: 61}):
         await MarkLateRuns().start(loops=1)
@@ -136,9 +136,9 @@ async def test_does_not_mark_run_late_if_within_buffer(session, late_run):
 async def test_does_not_mark_run_late_if_in_future(session, future_run):
     assert future_run.state.name == "Scheduled"
     st = future_run.state.state_details.scheduled_time
-    assert future_run.next_scheduled_start_time == st, (
-        "Next scheduled time is set by orchestration rules correctly"
-    )
+    assert (
+        future_run.next_scheduled_start_time == st
+    ), "Next scheduled time is set by orchestration rules correctly"
 
     await MarkLateRuns().start(loops=1)
 
@@ -153,9 +153,9 @@ async def test_does_not_mark_run_late_if_now(session, now_run):
     # run, but it should still be within the 'mark late after' buffer.
     assert now_run.state.name == "Scheduled"
     st = now_run.state.state_details.scheduled_time
-    assert now_run.next_scheduled_start_time == st, (
-        "Next scheduled time is set by orchestration rules correctly"
-    )
+    assert (
+        now_run.next_scheduled_start_time == st
+    ), "Next scheduled time is set by orchestration rules correctly"
 
     await MarkLateRuns().start(loops=1)
 

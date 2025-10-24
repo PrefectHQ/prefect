@@ -131,9 +131,9 @@ class TestVertexAIWorkerJobConfiguration:
             "worker_pool_specs"
         ][0]["container_spec"]["command"]
 
-        job_config.job_spec["worker_pool_specs"][0]["container_spec"]["command"] = (
-            "echo -n hello"
-        )
+        job_config.job_spec["worker_pool_specs"][0]["container_spec"][
+            "command"
+        ] = "echo -n hello"
         job_config.prepare_for_flow_run(flow_run, None, None)
         assert ["echo", "-n", "hello"] == job_config.job_spec["worker_pool_specs"][0][
             "container_spec"
@@ -151,7 +151,9 @@ class TestVertexAIWorker:
             )
             custom_job_spec = job_config.credentials.job_service_async_client.create_custom_job.call_args[
                 1
-            ]["custom_job"].job_spec
+            ][
+                "custom_job"
+            ].job_spec
 
             assert custom_job_spec.service_account == "my-service-account"
 
@@ -200,7 +202,9 @@ class TestVertexAIWorker:
 
             custom_job_spec = job_config.credentials.job_service_async_client.create_custom_job.call_args[
                 1
-            ]["custom_job"].job_spec
+            ][
+                "custom_job"
+            ].job_spec
 
             # Assert scheduling parameters
             assert custom_job_spec.scheduling.timeout == scheduling.timeout

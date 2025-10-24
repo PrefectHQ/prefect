@@ -64,7 +64,9 @@ def _serialize_bundle_object(obj: Any) -> str:
     """
     Serializes an object to a string.
     """
-    return base64.b64encode(gzip.compress(cloudpickle.dumps(obj))).decode()  # pyright: ignore[reportUnknownMemberType]
+    return base64.b64encode(
+        gzip.compress(cloudpickle.dumps(obj))
+    ).decode()  # pyright: ignore[reportUnknownMemberType]
 
 
 def _deserialize_bundle_object(serialized_obj: str) -> Any:
@@ -304,7 +306,9 @@ def _pickle_local_modules_by_value(flow: Flow[Any, Any]):
         for module_name in local_modules:
             try:
                 module = importlib.import_module(module_name)
-                cloudpickle.register_pickle_by_value(module)  # pyright: ignore[reportUnknownMemberType] Missing stubs
+                cloudpickle.register_pickle_by_value(
+                    module
+                )  # pyright: ignore[reportUnknownMemberType] Missing stubs
                 registered_modules.append(module)
             except (ImportError, AttributeError) as e:
                 logger.debug(
@@ -319,7 +323,9 @@ def _pickle_local_modules_by_value(flow: Flow[Any, Any]):
         # Unregister all modules we registered
         for module in registered_modules:
             try:
-                cloudpickle.unregister_pickle_by_value(module)  # pyright: ignore[reportUnknownMemberType] Missing stubs
+                cloudpickle.unregister_pickle_by_value(
+                    module
+                )  # pyright: ignore[reportUnknownMemberType] Missing stubs
             except Exception as e:
                 logger.debug(
                     "Failed to unregister module %s from pickle-by-value: %s",

@@ -185,10 +185,12 @@ class BackgroundTaskPolicy(TaskRunOrchestrationPolicy):
     """
 
     @staticmethod
-    def priority() -> list[
-        type[BaseUniversalTransform[orm_models.TaskRun, core.TaskRunPolicy]]
-        | type[BaseOrchestrationRule[orm_models.TaskRun, core.TaskRunPolicy]]
-    ]:
+    def priority() -> (
+        list[
+            type[BaseUniversalTransform[orm_models.TaskRun, core.TaskRunPolicy]]
+            | type[BaseOrchestrationRule[orm_models.TaskRun, core.TaskRunPolicy]]
+        ]
+    ):
         return cast(
             list[
                 Union[
@@ -478,10 +480,10 @@ class ReleaseTaskConcurrencySlots(TaskRunUniversalTransform):
                 lease_ids_to_reconcile: set[UUID] = set()
                 for v2_limit in v2_limits:
                     # Find holders for this limit
-                    holders_with_leases: list[
-                        tuple[UUID, ConcurrencyLeaseHolder]
-                    ] = await lease_storage.list_holders_for_limit(
-                        limit_id=v2_limit.id,
+                    holders_with_leases: list[tuple[UUID, ConcurrencyLeaseHolder]] = (
+                        await lease_storage.list_holders_for_limit(
+                            limit_id=v2_limit.id,
+                        )
                     )
                     # Find leases that belong to this task run
                     for lease_id, holder in holders_with_leases:
@@ -1366,7 +1368,9 @@ class HandleTaskTerminalStateTransitions(TaskRunOrchestrationRule):
     which resets task run retries; this is particularly relevant for flow run retries.
     """
 
-    FROM_STATES: set[states.StateType | None] = TERMINAL_STATES  # pyright: ignore[reportAssignmentType] technically TERMINAL_STATES doesn't contain None
+    FROM_STATES: set[states.StateType | None] = (
+        TERMINAL_STATES  # pyright: ignore[reportAssignmentType] technically TERMINAL_STATES doesn't contain None
+    )
     TO_STATES: set[states.StateType | None] = ALL_ORCHESTRATION_STATES
 
     async def before_transition(
@@ -1431,7 +1435,9 @@ class HandleFlowTerminalStateTransitions(FlowRunOrchestrationRule):
     state. This resets pause behavior during manual flow run retries.
     """
 
-    FROM_STATES: set[states.StateType | None] = TERMINAL_STATES  # pyright: ignore[reportAssignmentType] technically TERMINAL_STATES doesn't contain None
+    FROM_STATES: set[states.StateType | None] = (
+        TERMINAL_STATES  # pyright: ignore[reportAssignmentType] technically TERMINAL_STATES doesn't contain None
+    )
     TO_STATES: set[states.StateType | None] = ALL_ORCHESTRATION_STATES
 
     async def before_transition(

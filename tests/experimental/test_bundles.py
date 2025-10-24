@@ -54,6 +54,7 @@ class TestExecuteBundleInSubprocess:
             )
             def simple_flow():
                 return "I'm a simple flow, and as a simple flow I believe in speaking plainly."
+
         else:
 
             @flow(
@@ -102,6 +103,7 @@ class TestExecuteBundleInSubprocess:
             @flow(name="TestExecuteBundleInSubprocess.test_flow_ends_in_failed[sync]")
             def foo():
                 raise ValueError("xyz")
+
         else:
 
             @flow(name="TestExecuteBundleInSubprocess.test_flow_ends_in_failed[async]")
@@ -131,6 +133,7 @@ class TestExecuteBundleInSubprocess:
             )
             def flow_with_parameters(x: int, y: str):
                 return f"x: {x}, y: {y}"
+
         else:
 
             @flow(
@@ -167,6 +170,7 @@ class TestExecuteBundleInSubprocess:
             )
             def context_flow():
                 return TagsContext.get().current_tags
+
         else:
 
             @flow(
@@ -205,6 +209,7 @@ class TestExecuteBundleInSubprocess:
             )
             def foo():
                 raise Abort()
+
         else:
 
             @flow(
@@ -237,6 +242,7 @@ class TestExecuteBundleInSubprocess:
             )
             def foo():
                 raise BaseException()
+
         else:
 
             @flow(
@@ -268,6 +274,7 @@ class TestExecuteBundleInSubprocess:
             )
             def foo():
                 signal.raise_signal(signal.SIGKILL)
+
         else:
 
             @flow(
@@ -306,6 +313,7 @@ class TestExecuteBundleInSubprocess:
             )
             def simple_flow():
                 return "test"
+
         else:
 
             @flow(
@@ -545,36 +553,44 @@ from my_package.submodule import function
         (module_d_pkg / "__init__.py").write_text("")
 
         # Create module_d with a simple function
-        (module_d_pkg / "utils.py").write_text("""
+        (module_d_pkg / "utils.py").write_text(
+            """
 def function_d():
     return "d"
-""")
+"""
+        )
 
         # Create module_c that imports from module_d
-        (module_c_pkg / "utils.py").write_text("""
+        (module_c_pkg / "utils.py").write_text(
+            """
 from module_d.utils import function_d
 
 def function_c():
     return function_d()
-""")
+"""
+        )
 
         # Create module_b that imports from module_c
-        (module_b_pkg / "utils.py").write_text("""
+        (module_b_pkg / "utils.py").write_text(
+            """
 from module_c.utils import function_c
 
 def function_b():
     return function_c()
-""")
+"""
+        )
 
         # Create flow_module that imports from module_b
-        (flow_pkg / "my_flow.py").write_text("""
+        (flow_pkg / "my_flow.py").write_text(
+            """
 from module_b.utils import function_b
 from prefect import flow
 
 @flow
 def test_flow():
     return function_b()
-""")
+"""
+        )
 
         # Add package_root to sys.path so modules can be imported
         sys.path.insert(0, str(package_root))
@@ -589,9 +605,9 @@ def test_flow():
             deps = _discover_local_dependencies(flow_obj)
 
             # All four modules should be discovered
-            assert "flow_module.my_flow" in deps, (
-                "Flow module itself should be discovered"
-            )
+            assert (
+                "flow_module.my_flow" in deps
+            ), "Flow module itself should be discovered"
             assert "module_b.utils" in deps, "First-level import should be discovered"
             assert "module_c.utils" in deps, "Second-level import should be discovered"
             assert "module_d.utils" in deps, "Third-level import should be discovered"

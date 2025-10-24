@@ -110,7 +110,9 @@ class TaskWorker:
             else:
                 self.tasks.append(t.with_options(persist_result=True))
 
-        self.task_keys: set[str] = set(t.task_key for t in tasks if isinstance(t, Task))  # pyright: ignore[reportUnnecessaryIsInstance]
+        self.task_keys: set[str] = set(
+            t.task_key for t in tasks if isinstance(t, Task)
+        )  # pyright: ignore[reportUnnecessaryIsInstance]
 
         self._started_at: Optional[DateTime] = None
         self.stopping: bool = False
@@ -259,9 +261,9 @@ class TaskWorker:
 
             token_acquired = await self._acquire_token(task_run.id)
             if token_acquired:
-                assert self._runs_task_group is not None, (
-                    "Task group was not initialized"
-                )
+                assert (
+                    self._runs_task_group is not None
+                ), "Task group was not initialized"
                 self._runs_task_group.start_soon(
                     self._safe_submit_scheduled_task_run, task_run
                 )

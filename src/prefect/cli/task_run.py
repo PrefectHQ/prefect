@@ -107,9 +107,11 @@ async def ls(
 
     if state or state_type:
         state_filter = TaskRunFilterState(
-            name=TaskRunFilterStateName(any_=[s.capitalize() for s in state])
-            if state
-            else None,
+            name=(
+                TaskRunFilterStateName(any_=[s.capitalize() for s in state])
+                if state
+                else None
+            ),
             type=TaskRunFilterStateType(any_=state_type) if state_type else None,
         )
     else:

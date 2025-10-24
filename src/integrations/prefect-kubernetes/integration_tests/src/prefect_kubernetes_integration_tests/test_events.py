@@ -63,13 +63,11 @@ async def test_happy_path_events(
         finally:
             worker_process.terminate()
 
-    assert len(events) == 3, (
-        f"Expected 3 events, got {len(events)}: {[event.event for event in events]}"
-    )
+    assert (
+        len(events) == 3
+    ), f"Expected 3 events, got {len(events)}: {[event.event for event in events]}"
     assert {event.event for event in events} == {
         "prefect.kubernetes.pod.pending",
         "prefect.kubernetes.pod.running",
         "prefect.kubernetes.pod.succeeded",
-    }, (
-        f"Expected events to be Pending, Running, and Succeeded, got: {[event.event for event in events]}"
-    )
+    }, f"Expected events to be Pending, Running, and Succeeded, got: {[event.event for event in events]}"

@@ -42,7 +42,9 @@ class AbstractAppriseNotificationBlock(NotificationBlock, ABC):
         )
 
         self._apprise_client = Apprise(asset=prefect_app_data)
-        self._apprise_client.add(servers=url.get_secret_value())  # pyright: ignore[reportUnknownMemberType]
+        self._apprise_client.add(
+            servers=url.get_secret_value()
+        )  # pyright: ignore[reportUnknownMemberType]
 
     def block_initialization(self) -> None:
         self._start_apprise_client(getattr(self, "url"))
@@ -96,7 +98,9 @@ class AppriseNotificationBlock(AbstractAppriseNotificationBlock, ABC):
                     raise NotificationError(str(exc))
                 raise
 
-        await super().notify(body, subject)  # pyright: ignore[reportGeneralTypeIssues] TODO: update to sync only once base class is updated
+        await super().notify(
+            body, subject
+        )  # pyright: ignore[reportGeneralTypeIssues] TODO: update to sync only once base class is updated
 
 
 # TODO: Move to prefect-slack once collection block auto-registration is
@@ -179,14 +183,18 @@ class MicrosoftTeamsWebhook(AppriseNotificationBlock):
         if not (
             parsed_url := cast(
                 dict[str, Any],
-                NotifyWorkflows.parse_native_url(self.url.get_secret_value()),  # pyright: ignore[reportUnknownMemberType] incomplete type hints in apprise
+                NotifyWorkflows.parse_native_url(
+                    self.url.get_secret_value()
+                ),  # pyright: ignore[reportUnknownMemberType] incomplete type hints in apprise
             )
         ):
             raise ValueError("Invalid Microsoft Teams Workflow URL provided.")
 
         parsed_url |= {"include_image": self.include_image, "wrap": self.wrap}
 
-        self._start_apprise_client(SecretStr(NotifyWorkflows(**parsed_url).url()))  # pyright: ignore[reportUnknownMemberType] incomplete type hints in apprise
+        self._start_apprise_client(
+            SecretStr(NotifyWorkflows(**parsed_url).url())
+        )  # pyright: ignore[reportUnknownMemberType] incomplete type hints in apprise
 
 
 class PagerDutyWebHook(AbstractAppriseNotificationBlock):
@@ -216,8 +224,10 @@ class PagerDutyWebHook(AbstractAppriseNotificationBlock):
     )
 
     # PagerDuty requires a valid severity level from its PAGERDUTY_SEVERITY_MAP
-    notify_type: Literal["info", "success", "warning", "failure"] = Field(  # pyright: ignore[reportIncompatibleVariableOverride]
-        default="info", description="The severity of the notification."
+    notify_type: Literal["info", "success", "warning", "failure"] = (
+        Field(  # pyright: ignore[reportIncompatibleVariableOverride]
+            default="info", description="The severity of the notification."
+        )
     )
 
     integration_key: SecretStr = Field(
@@ -325,7 +335,9 @@ class PagerDutyWebHook(AbstractAppriseNotificationBlock):
             body = " "
             self.block_initialization()
 
-        await super().notify(body, subject)  # pyright: ignore[reportGeneralTypeIssues] TODO: update to sync only once base class is updated
+        await super().notify(
+            body, subject
+        )  # pyright: ignore[reportGeneralTypeIssues] TODO: update to sync only once base class is updated
 
 
 class TwilioSMS(AbstractAppriseNotificationBlock):
@@ -845,7 +857,9 @@ class CustomWebhookNotificationBlock(NotificationBlock):
                     raise KeyError(f"{name}/{placeholder}")
 
     @sync_compatible
-    async def notify(self, body: str, subject: str | None = None) -> None:  # pyright: ignore[reportIncompatibleMethodOverride]
+    async def notify(
+        self, body: str, subject: str | None = None
+    ) -> None:  # pyright: ignore[reportIncompatibleMethodOverride]
         import httpx
 
         request_args = self._build_request_args(body, subject)

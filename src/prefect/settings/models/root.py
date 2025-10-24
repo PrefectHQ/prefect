@@ -224,15 +224,19 @@ class Settings(PrefectBaseSettings):
                 )
             db_url = db_url.replace(
                 "${PREFECT_API_DATABASE_PASSWORD}",
-                self.server.database.password.get_secret_value()
-                if self.server.database.password
-                else "",
+                (
+                    self.server.database.password.get_secret_value()
+                    if self.server.database.password
+                    else ""
+                ),
             )
             db_url = db_url.replace(
                 "${PREFECT_SERVER_DATABASE_PASSWORD}",
-                self.server.database.password.get_secret_value()
-                if self.server.database.password
-                else "",
+                (
+                    self.server.database.password.get_secret_value()
+                    if self.server.database.password
+                    else ""
+                ),
             )
             self.server.database.connection_url = SecretStr(db_url)
             self.server.database.__pydantic_fields_set__.remove("connection_url")

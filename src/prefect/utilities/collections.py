@@ -393,6 +393,7 @@ def visit_collection(
 
         def visit_expression(expr: Any) -> Any:
             return _callback(expr, context)
+
     else:
         _callback = cast(Callable[[Any], Any], visit_fn)
 

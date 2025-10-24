@@ -80,11 +80,11 @@ def serialize_context(
         "task_run_context": task_run_context.serialize() if task_run_context else {},
         "tags_context": tags_context.serialize() if tags_context else {},
         "settings_context": settings_context.serialize() if settings_context else {},
-        "asset_context": AssetContext.from_task_and_inputs(
-            **asset_ctx_kwargs
-        ).serialize()
-        if asset_ctx_kwargs
-        else {},
+        "asset_context": (
+            AssetContext.from_task_and_inputs(**asset_ctx_kwargs).serialize()
+            if asset_ctx_kwargs
+            else {}
+        ),
     }
 
 
@@ -543,16 +543,18 @@ class AssetContext(ContextModel):
                             upstream_assets.update(task_assets)
 
         ctx = cls(
-            direct_asset_dependencies=set(task.asset_deps)
-            if task.asset_deps
-            else set(),
-            downstream_assets=set(task.assets)
-            if isinstance(task, MaterializingTask) and task.assets
-            else set(),
+            direct_asset_dependencies=(
+                set(task.asset_deps) if task.asset_deps else set()
+            ),
+            downstream_assets=(
+                set(task.assets)
+                if isinstance(task, MaterializingTask) and task.assets
+                else set()
+            ),
             upstream_assets=upstream_assets,
-            materialized_by=task.materialized_by
-            if isinstance(task, MaterializingTask)
-            else None,
+            materialized_by=(
+                task.materialized_by if isinstance(task, MaterializingTask) else None
+            ),
             task_run_id=task_run_id,
             copy_to_child_ctx=copy_to_child_ctx,
         )

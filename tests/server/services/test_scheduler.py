@@ -130,9 +130,9 @@ async def test_create_schedules_from_deployment(
         expected_dates.update(await schedule.get_dates(service.min_runs))
     assert set(expected_dates) == {r.state.state_details.scheduled_time for r in runs}
 
-    assert all([r.state_name == "Scheduled" for r in runs]), (
-        "Scheduler sets flow_run.state_name"
-    )
+    assert all(
+        [r.state_name == "Scheduled" for r in runs]
+    ), "Scheduler sets flow_run.state_name"
 
 
 async def test_create_parametrized_schedules_from_deployment(
@@ -192,9 +192,9 @@ async def test_create_parametrized_schedules_from_deployment(
     run_params = {(r.parameters["name"], r.parameters["x"]) for r in runs}
     assert run_params == {("whoami", 11), ("whoami2", 11)}
 
-    assert all([r.state_name == "Scheduled" for r in runs]), (
-        "Scheduler sets flow_run.state_name"
-    )
+    assert all(
+        [r.state_name == "Scheduled" for r in runs]
+    ), "Scheduler sets flow_run.state_name"
 
 
 async def test_create_parametrized_schedules_with_slugs(

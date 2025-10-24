@@ -1,6 +1,7 @@
 """
 Utilities for Python version compatibility
 """
+
 # Please organize additions to this file by version
 
 import sys

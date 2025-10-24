@@ -435,7 +435,9 @@ async def test_inferring_automation_requires_some_matching_resource(
     turn_on_the_self_managing_automation: TriggeredAction,
 ):
     assert turn_on_the_self_managing_automation.triggering_event
-    turn_on_the_self_managing_automation.triggering_event.related = []  # no relevant related resources
+    turn_on_the_self_managing_automation.triggering_event.related = (
+        []
+    )  # no relevant related resources
 
     action = turn_on_the_self_managing_automation.action
 

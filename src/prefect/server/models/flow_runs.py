@@ -164,8 +164,7 @@ async def update_flow_run(
         bool: whether or not matching rows were found to update
     """
     update_stmt = (
-        sa.update(db.FlowRun)
-        .where(db.FlowRun.id == flow_run_id)
+        sa.update(db.FlowRun).where(db.FlowRun.id == flow_run_id)
         # exclude_unset=True allows us to only update values provided by
         # the user, ignoring any defaults on the model
         .values(**flow_run.model_dump_for_orm(exclude_unset=True))

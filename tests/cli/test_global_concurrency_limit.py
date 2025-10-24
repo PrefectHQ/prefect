@@ -394,9 +394,9 @@ async def test_update_gcl_active_slots(
         name=global_concurrency_limit.name
     )
 
-    assert client_res.active_slots == 10, (
-        f"Expected active slots to be 10, got {client_res.active_slots}"
-    )
+    assert (
+        client_res.active_slots == 10
+    ), f"Expected active slots to be 10, got {client_res.active_slots}"
 
 
 async def test_update_gcl_slot_decay_per_second(
@@ -421,9 +421,9 @@ async def test_update_gcl_slot_decay_per_second(
         name=global_concurrency_limit.name
     )
 
-    assert client_res.slot_decay_per_second == 0.5, (
-        f"Expected slot decay per second to be 0.5, got {client_res.slot_decay_per_second}"
-    )
+    assert (
+        client_res.slot_decay_per_second == 0.5
+    ), f"Expected slot decay per second to be 0.5, got {client_res.slot_decay_per_second}"
 
 
 async def test_update_gcl_multiple_fields(
@@ -452,12 +452,12 @@ async def test_update_gcl_multiple_fields(
         name=global_concurrency_limit.name
     )
 
-    assert client_res.active_slots == 10, (
-        f"Expected active slots to be 10, got {client_res.active_slots}"
-    )
-    assert client_res.slot_decay_per_second == 0.5, (
-        f"Expected slot decay per second to be 0.5, got {client_res.slot_decay_per_second}"
-    )
+    assert (
+        client_res.active_slots == 10
+    ), f"Expected active slots to be 10, got {client_res.active_slots}"
+    assert (
+        client_res.slot_decay_per_second == 0.5
+    ), f"Expected slot decay per second to be 0.5, got {client_res.slot_decay_per_second}"
 
 
 async def test_update_gcl_to_inactive(
@@ -481,9 +481,9 @@ async def test_update_gcl_to_inactive(
         name=global_concurrency_limit.name
     )
 
-    assert client_res.active is False, (
-        f"Expected active to be False, got {client_res.active}"
-    )
+    assert (
+        client_res.active is False
+    ), f"Expected active to be False, got {client_res.active}"
 
 
 async def test_update_gcl_to_active(
@@ -507,9 +507,9 @@ async def test_update_gcl_to_active(
         name=global_concurrency_limit.name
     )
 
-    assert client_res.active is True, (
-        f"Expected active to be True, got {client_res.active}"
-    )
+    assert (
+        client_res.active is True
+    ), f"Expected active to be True, got {client_res.active}"
 
 
 def test_update_gcl_not_found():
@@ -550,16 +550,16 @@ async def test_create_gcl(
 
     client_res = await prefect_client.read_global_concurrency_limit_by_name(name="test")
 
-    assert client_res.name == "test", (
-        f"Expected name to be 'test', got {client_res.name}"
-    )
+    assert (
+        client_res.name == "test"
+    ), f"Expected name to be 'test', got {client_res.name}"
     assert client_res.limit == 10, f"Expected limit to be 10, got {client_res.limit}"
-    assert client_res.active_slots == 10, (
-        f"Expected active slots to be 10, got {client_res.active_slots}"
-    )
-    assert client_res.slot_decay_per_second == 0.5, (
-        f"Expected slot decay per second to be 0.5, got {client_res.slot_decay_per_second}"
-    )
+    assert (
+        client_res.active_slots == 10
+    ), f"Expected active slots to be 10, got {client_res.active_slots}"
+    assert (
+        client_res.slot_decay_per_second == 0.5
+    ), f"Expected slot decay per second to be 0.5, got {client_res.slot_decay_per_second}"
 
 
 async def test_create_gcl_no_fields():
@@ -668,13 +668,13 @@ async def test_create_gcl_succeeds(
 
     client_res = await prefect_client.read_global_concurrency_limit_by_name(name="test")
 
-    assert client_res.name == "test", (
-        f"Expected name to be 'test', got {client_res.name}"
-    )
+    assert (
+        client_res.name == "test"
+    ), f"Expected name to be 'test', got {client_res.name}"
     assert client_res.limit == 10, f"Expected limit to be 10, got {client_res.limit}"
-    assert client_res.active_slots == 10, (
-        f"Expected active slots to be 10, got {client_res.active_slots}"
-    )
-    assert client_res.slot_decay_per_second == 0.5, (
-        f"Expected slot decay per second to be 0.5, got {client_res.slot_decay_per_second}"
-    )
+    assert (
+        client_res.active_slots == 10
+    ), f"Expected active slots to be 10, got {client_res.active_slots}"
+    assert (
+        client_res.slot_decay_per_second == 0.5
+    ), f"Expected slot decay per second to be 0.5, got {client_res.slot_decay_per_second}"

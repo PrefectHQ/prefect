@@ -31,13 +31,15 @@ from prefect.server.schemas import core
 from prefect.server.schemas.core import FlowRunPolicy
 
 
-def COMMON_GLOBAL_TRANSFORMS() -> list[
-    type[
-        BaseUniversalTransform[
-            orm_models.Run, Union[core.FlowRunPolicy, core.TaskRunPolicy]
+def COMMON_GLOBAL_TRANSFORMS() -> (
+    list[
+        type[
+            BaseUniversalTransform[
+                orm_models.Run, Union[core.FlowRunPolicy, core.TaskRunPolicy]
+            ]
         ]
     ]
-]:
+):
     return [
         SetRunStateType,
         SetRunStateName,

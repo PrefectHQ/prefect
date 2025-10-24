@@ -563,9 +563,9 @@ async def update_block_document(
             proposed_block_schema = await session.get(
                 db.BlockSchema, proposed_block_schema_id
             )
-            assert proposed_block_schema, (
-                f"Block schema {proposed_block_schema_id} not found"
-            )
+            assert (
+                proposed_block_schema
+            ), f"Block schema {proposed_block_schema_id} not found"
 
             # make sure the proposed schema is of the same block type as the current document
             if (

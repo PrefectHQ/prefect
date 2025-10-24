@@ -344,9 +344,9 @@ class TestVisitCollection:
             input_model, visit_fn=visit_even_numbers, return_data=True
         )
 
-        assert output_model.val == input_model.val, (
-            "The fields value should be used, not the default factory"
-        )
+        assert (
+            output_model.val == input_model.val
+        ), "The fields value should be used, not the default factory"
 
     @pytest.mark.parametrize(
         "input",
@@ -362,9 +362,9 @@ class TestVisitCollection:
         output_model = visit_collection(
             input_model, visit_fn=visit_even_numbers, return_data=True
         )
-        assert output_model.model_dump(exclude_unset=True) == input, (
-            "Unset fields values should be remembered and preserved"
-        )
+        assert (
+            output_model.model_dump(exclude_unset=True) == input
+        ), "Unset fields values should be remembered and preserved"
 
     @pytest.mark.parametrize("immutable", [True, False])
     def test_visit_collection_mutation_with_private_pydantic_attributes(
@@ -389,9 +389,9 @@ class TestVisitCollection:
 
         # Verify fields set indirectly by checking the expected fields are still set
         for field in model_instance.model_fields_set:
-            assert hasattr(result, field), (
-                f"The field '{field}' should be set in the result"
-            )
+            assert hasattr(
+                result, field
+            ), f"The field '{field}' should be set in the result"
 
     def test_visit_collection_recursive_1(self):
         obj = dict()

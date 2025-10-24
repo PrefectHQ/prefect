@@ -58,7 +58,9 @@ def to_state_create(state: State) -> "StateCreate":
     )
 
     if isinstance(state.data, ResultRecord) and should_persist_result():
-        data = state.data.metadata  # pyright: ignore[reportUnknownMemberType] unable to narrow ResultRecord type
+        data = (
+            state.data.metadata
+        )  # pyright: ignore[reportUnknownMemberType] unable to narrow ResultRecord type
     else:
         data = None
 

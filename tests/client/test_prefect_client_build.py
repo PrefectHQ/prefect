@@ -38,9 +38,9 @@ def test_client_dependency_matches_prefect(
     of the main `prefect` package."""
     dep_name, client_spec = client_dependency
 
-    assert dep_name in prefect_dependencies, (
-        f"Dependency '{dep_name}' exists in client but not in prefect"
-    )
+    assert (
+        dep_name in prefect_dependencies
+    ), f"Dependency '{dep_name}' exists in client but not in prefect"
     prefect_spec = prefect_dependencies[dep_name]
     assert client_spec == prefect_spec, (
         f"Dependency '{dep_name}' has different specifiers:\n"

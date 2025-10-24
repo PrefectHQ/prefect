@@ -145,9 +145,11 @@ def evict_pod(pod_name: str) -> None:
             "Name": pod.metadata.name,
             "Status": pod.status.phase,
             "Node": pod.spec.node_name,
-            "Container Status": "Running"
-            if pod.status.container_statuses[0].state.running
-            else "Not Running",
+            "Container Status": (
+                "Running"
+                if pod.status.container_statuses[0].state.running
+                else "Not Running"
+            ),
             "Image": pod.status.container_statuses[0].image,
             "Created": pod.metadata.creation_timestamp,
         }

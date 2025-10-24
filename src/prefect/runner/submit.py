@@ -147,7 +147,9 @@ async def submit_to_runner(
             each dictionary represents a discrete invocation of the callable
         retry_failed_submissions: Whether to retry failed submissions to the runner webserver.
     """
-    if not isinstance(prefect_callable, Flow):  # pyright: ignore[reportUnnecessaryIsInstance]
+    if not isinstance(
+        prefect_callable, Flow
+    ):  # pyright: ignore[reportUnnecessaryIsInstance]
         raise TypeError(
             "The `submit_to_runner` utility only supports submitting flows and tasks."
         )
