@@ -58,7 +58,7 @@
                     "Flows"
                 ],
                 "summary": "Create Flow",
-                "description": "Gracefully creates a new flow from the provided schema. If a flow with the\nsame name already exists, the existing flow is returned.\n\nFor more information, see https://docs.prefect.io/v3/concepts/flows.",
+                "description": "Creates a new flow from the provided schema. If a flow with the\nsame name already exists, the existing flow is returned.\n\nFor more information, see https://docs.prefect.io/v3/concepts/flows.",
                 "operationId": "create_flow_flows__post",
                 "parameters": [
                     {
@@ -2313,7 +2313,7 @@
                     "Deployments"
                 ],
                 "summary": "Create Deployment",
-                "description": "Gracefully creates a new deployment from the provided schema. If a deployment with\nthe same name and flow_id already exists, the deployment is updated.\n\nIf the deployment has an active schedule, flow runs will be scheduled.\nWhen upserting, any scheduled runs from the existing deployment will be deleted.\n\nFor more information, see https://docs.prefect.io/v3/concepts/deployments.",
+                "description": "Creates a new deployment from the provided schema. If a deployment with\nthe same name and flow_id already exists, the deployment is updated.\n\nIf the deployment has an active schedule, flow runs will be scheduled.\nWhen upserting, any scheduled runs from the existing deployment will be deleted.\n\nFor more information, see https://docs.prefect.io/v3/concepts/deployments.",
                 "operationId": "create_deployment_deployments__post",
                 "parameters": [
                     {
@@ -3354,7 +3354,7 @@
                     "SavedSearches"
                 ],
                 "summary": "Create Saved Search",
-                "description": "Gracefully creates a new saved search from the provided schema.\n\nIf a saved search with the same name already exists, the saved search's fields are\nreplaced.",
+                "description": "Creates a new saved search from the provided schema.\n\nIf a saved search with the same name already exists, the saved search's fields are\nreplaced.",
                 "operationId": "create_saved_search_saved_searches__put",
                 "parameters": [
                     {
