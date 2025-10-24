@@ -1,0 +1,22 @@
+-- Deletes logs in batch that have no associated flow runs with them - meaning their associated flow runs have been deleted.
+--
+-- The query attempts to make this deletion efficient by:
+-- - utilizing a FOR UPDATE SKIP LOCKED for concurrent worker safety
+-- - DELETE...USING for efficient JOIN (faster than WHERE IN)
+--
+-- Parameters:
+--   :limit  - Maximum number of logs to delete
+
+WITH doomed_logs AS (
+    SELECT logs.id as id
+    FROM logs
+    LEFT OUTER JOIN flow_run ON logs.flow_run_id = flow_run.id
+    WHERE flow_run.id IS NULL
+    LIMIT :limit
+    ORDER BY logs.flow_run_id, created ASC
+    FOR UPDATE SKIP LOCKED
+),
+DELETE FROM logs
+USING doomed_logs
+WHERE logs.id = doomed_logs.id
+RETURNING COUNT(*)
