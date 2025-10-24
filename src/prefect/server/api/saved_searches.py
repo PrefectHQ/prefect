@@ -23,7 +23,7 @@ async def create_saved_search(
     response: Response,
     db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> schemas.core.SavedSearch:
-    """Gracefully creates a new saved search from the provided schema.
+    """Creates a new saved search from the provided schema.
 
     If a saved search with the same name already exists, the saved search's fields are
     replaced.

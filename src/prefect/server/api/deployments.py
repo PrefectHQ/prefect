@@ -64,7 +64,7 @@ async def create_deployment(
     db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> schemas.responses.DeploymentResponse:
     """
-    Gracefully creates a new deployment from the provided schema. If a deployment with
+    Creates a new deployment from the provided schema. If a deployment with
     the same name and flow_id already exists, the deployment is updated.
 
     If the deployment has an active schedule, flow runs will be scheduled.
