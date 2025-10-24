@@ -955,6 +955,38 @@ class TaskRunFilterStartTime(PrefectFilterBaseModel):
         return filters
 
 
+class TaskRunFilterEndTime(PrefectFilterBaseModel):
+    """Filter by `TaskRun.end_time`."""
+
+    before_: Optional[DateTime] = Field(
+        default=None,
+        description="Only include task runs ending at or before this time",
+    )
+    after_: Optional[DateTime] = Field(
+        default=None,
+        description="Only include task runs ending at or after this time",
+    )
+    is_null_: Optional[bool] = Field(
+        default=None, description="If true, only return task runs without an end time"
+    )
+
+    def _get_filter_list(
+        self, db: "PrefectDBInterface"
+    ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
+        filters: list[sa.ColumnExpressionArgument[bool]] = []
+        if self.before_ is not None:
+            filters.append(db.TaskRun.end_time <= self.before_)
+        if self.after_ is not None:
+            filters.append(db.TaskRun.end_time >= self.after_)
+        if self.is_null_ is not None:
+            filters.append(
+                db.TaskRun.end_time.is_(None)
+                if self.is_null_
+                else db.TaskRun.end_time.is_not(None)
+            )
+        return filters
+
+
 class TaskRunFilterExpectedStartTime(PrefectFilterBaseModel):
     """Filter by `TaskRun.expected_start_time`."""
 
@@ -996,6 +1028,9 @@ class TaskRunFilter(PrefectOperatorFilterBaseModel):
     start_time: Optional[TaskRunFilterStartTime] = Field(
         default=None, description="Filter criteria for `TaskRun.start_time`"
     )
+    end_time: Optional[TaskRunFilterEndTime] = Field(
+        default=None, description="Filter criteria for `TaskRun.end_time`"
+    )
     expected_start_time: Optional[TaskRunFilterExpectedStartTime] = Field(
         default=None, description="Filter criteria for `TaskRun.expected_start_time`"
     )
@@ -1021,6 +1056,8 @@ class TaskRunFilter(PrefectOperatorFilterBaseModel):
             filters.append(self.state.as_sql_filter())
         if self.start_time is not None:
             filters.append(self.start_time.as_sql_filter())
+        if self.end_time is not None:
+            filters.append(self.end_time.as_sql_filter())
         if self.expected_start_time is not None:
             filters.append(self.expected_start_time.as_sql_filter())
         if self.subflow_runs is not None:
