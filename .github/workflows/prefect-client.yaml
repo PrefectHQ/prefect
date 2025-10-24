@@ -40,7 +40,7 @@ jobs:
         uses: astral-sh/setup-uv@v7
         with:
           enable-cache: true
-          python-version: "3.9"
+          python-version: "3.10"
           cache-dependency-glob: "pyproject.toml"
           activate-environment: true
 
