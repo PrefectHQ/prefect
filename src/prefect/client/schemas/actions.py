@@ -1,11 +1,18 @@
 from __future__ import annotations
 
+import datetime
 from copy import deepcopy
 from typing import TYPE_CHECKING, Any, Callable, Optional, TypeVar, Union
 from uuid import UUID, uuid4
 
 import jsonschema
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import (
+    BaseModel,
+    Field,
+    field_serializer,
+    field_validator,
+    model_validator,
+)
 
 import prefect.client.schemas.objects as objects
 from prefect._internal.schemas.bases import ActionBaseModel
@@ -537,6 +544,31 @@ class DeploymentFlowRunCreate(ActionBaseModel):
                 values["parameters"], convert_value, return_data=True
             )
         return values
+
+    @field_serializer("parameters", when_used="json")
+    def serialize_parameters(self, value: dict[str, Any]) -> dict[str, Any]:
+        """Serialize datetime types as ISO strings instead of timestamps.
+
+        PrefectBaseModel has ser_json_timedelta='float' to serialize timedeltas as floats,
+        but this also causes datetime/date/time to serialize as timestamps. This serializer
+        overrides that behavior for datetime types while preserving float serialization for
+        timedeltas.
+        """
+
+        def convert_temporal(v: Any) -> Any:
+            if isinstance(v, datetime.datetime):
+                return v.isoformat()
+            elif isinstance(v, datetime.date):
+                return v.isoformat()
+            elif isinstance(v, datetime.time):
+                return v.isoformat()
+            elif isinstance(v, dict):
+                return {k: convert_temporal(val) for k, val in v.items()}
+            elif isinstance(v, list):
+                return [convert_temporal(item) for item in v]
+            return v
+
+        return {k: convert_temporal(v) for k, v in value.items()}
 
 
 class SavedSearchCreate(ActionBaseModel):
