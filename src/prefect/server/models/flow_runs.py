@@ -504,6 +504,37 @@ async def delete_flow_run(
     return result.rowcount > 0
 
 
+@db_injector
+async def bulk_delete_flow_runs(
+    db: PrefectDBInterface,
+    session: AsyncSession,
+    flow_run_ids: list[UUID],
+) -> list[UUID]:
+    """
+    Bulk delete flow runs by ID.
+
+    Args:
+        session: A database session
+        flow_run_ids: List of flow run IDs to delete
+
+    Returns:
+        list[UUID]: IDs of successfully deleted flow runs
+    """
+    deleted_ids: list[UUID] = []
+
+    # Delete each flow run
+    for flow_run_id in flow_run_ids:
+        try:
+            # Use the existing delete_flow_run which handles cleanup
+            success = await delete_flow_run(session=session, flow_run_id=flow_run_id)
+            if success:
+                deleted_ids.append(flow_run_id)
+        except Exception as e:
+            logger.warning(f"Failed to delete flow run {flow_run_id}: {e}")
+
+    return deleted_ids
+
+
 async def set_flow_run_state(
     session: AsyncSession,
     flow_run_id: UUID,
