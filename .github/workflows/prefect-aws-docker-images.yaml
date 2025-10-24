@@ -26,7 +26,6 @@ jobs:
   build-and-push:
     name: Build and push prefect-aws Docker images
     runs-on: ubuntu-latest
-    environment: prod
     strategy:
       fail-fast: false
       matrix:
