@@ -1,0 +1,22 @@
+-- Deletes artifacts in batch that have no associated flow runs with them - meaning their associated flow runs have been deleted.
+--
+-- The query attempts to make this deletion efficient by:
+-- - utilizing a FOR UPDATE SKIP LOCKED for concurrent worker safety
+-- - DELETE...USING for efficient JOIN (faster than WHERE IN)
+--
+-- Parameters:
+--   :limit  - Maximum number of artifacts to delete
+
+WITH doomed_artifacts AS (
+    SELECT artifact.id as id
+    FROM artifact
+    LEFT OUTER JOIN flow_run ON artifact.flow_run_id = flow_run.id
+    WHERE flow_run.id IS NULL
+    ORDER BY artifact.flow_run_id, artifact.created ASC
+    LIMIT :limit
+    FOR UPDATE SKIP LOCKED
+)
+DELETE FROM artifact
+USING doomed_artifacts
+WHERE artifact.id = doomed_artifacts.id
+RETURNING COUNT(*)
