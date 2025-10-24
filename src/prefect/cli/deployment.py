@@ -24,6 +24,7 @@ import prefect.types._datetime
 from prefect.blocks.core import Block
 from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import exit_with_error, exit_with_success
+from prefect.cli.flow_runs_watching import watch_flow_run
 from prefect.cli.root import app, is_interactive
 from prefect.client.orchestration import get_client
 from prefect.client.schemas.filters import (
@@ -45,7 +46,6 @@ from prefect.exceptions import (
     ObjectNotFound,
     PrefectHTTPStatusError,
 )
-from prefect.flow_runs import wait_for_flow_run
 from prefect.states import Scheduled
 from prefect.types._datetime import (
     DateTime,
@@ -892,10 +892,6 @@ async def run(
             multi_params = json.loads(multiparams)
         except ValueError as exc:
             exit_with_error(f"Failed to parse JSON: {exc}")
-        if watch_interval and not watch:
-            exit_with_error(
-                "`--watch-interval` can only be used with `--watch`.",
-            )
     cli_params: dict[str, Any] = _load_json_key_values(params or [], "parameter")
     conflicting_keys = set(cli_params.keys()).intersection(multi_params.keys())
     if conflicting_keys:
@@ -1030,12 +1026,16 @@ async def run(
         soft_wrap=True,
     )
     if watch:
-        app.console.print(f"Watching flow run {flow_run.name!r}...")
-        finished_flow_run = await wait_for_flow_run(
-            flow_run.id,
-            timeout=watch_timeout,
-            poll_interval=watch_interval,
-            log_states=True,
+        if watch_interval is not None:
+            warnings.warn(
+                "The --watch-interval flag is deprecated and will be removed in a future release. "
+                "Flow run watching now uses real-time event streaming.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+
+        finished_flow_run = await watch_flow_run(
+            flow_run.id, app.console, timeout=watch_timeout
         )
         finished_flow_run_state = finished_flow_run.state
         if finished_flow_run_state is None:

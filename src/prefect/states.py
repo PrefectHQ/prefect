@@ -14,6 +14,7 @@ import httpx
 from opentelemetry import propagate
 from typing_extensions import TypeGuard
 
+from prefect._internal.compatibility.async_dispatch import async_dispatch
 from prefect.client.schemas.objects import State, StateDetails, StateType
 from prefect.exceptions import (
     CancelledRun,
@@ -28,7 +29,6 @@ from prefect.exceptions import (
 from prefect.logging.loggers import get_logger, get_run_logger
 from prefect.types._datetime import now
 from prefect.utilities.annotations import BaseAnnotation
-from prefect.utilities.asyncutils import sync_compatible
 from prefect.utilities.collections import ensure_iterable
 
 if TYPE_CHECKING:
@@ -154,7 +154,7 @@ async def _get_state_result(
     if raise_on_failure and (
         state.is_crashed() or state.is_failed() or state.is_cancelled()
     ):
-        raise await get_state_exception(state)
+        raise await aget_state_exception(state)
 
     if isinstance(state.data, ResultRecordMetadata):
         result = await _get_state_result_data_with_retries(
@@ -165,7 +165,7 @@ async def _get_state_result(
 
     elif state.data is None:
         if state.is_failed() or state.is_crashed() or state.is_cancelled():
-            return await get_state_exception(state)
+            return await aget_state_exception(state)
         else:
             raise MissingResult(
                 "State data is missing. "
@@ -442,9 +442,10 @@ async def return_value_to_state(
         return Completed(data=result_record)
 
 
-@sync_compatible
-async def get_state_exception(state: State) -> BaseException:
+async def aget_state_exception(state: State) -> BaseException:
     """
+    Get the exception from a state asynchronously.
+
     If not given a FAILED or CRASHED state, this raise a value error.
 
     If the state result is a state, its exception will be returned.
@@ -507,13 +508,13 @@ async def get_state_exception(state: State) -> BaseException:
 
     elif isinstance(result, State):
         # Return the exception from the inner state
-        return await get_state_exception(result)
+        return await aget_state_exception(result)
 
     elif is_state_iterable(result):
         # Return the first failure
         for state in result:
             if state.is_failed() or state.is_crashed() or state.is_cancelled():
-                return await get_state_exception(state)
+                return await aget_state_exception(state)
 
         raise ValueError(
             "Failed state result was an iterable of states but none were failed."
@@ -526,15 +527,126 @@ async def get_state_exception(state: State) -> BaseException:
         )
 
 
-@sync_compatible
-async def raise_state_exception(state: State) -> None:
+@async_dispatch(aget_state_exception)
+def get_state_exception(state: State) -> BaseException:
+    """
+    Get the exception from a state.
+
+    If not given a FAILED or CRASHED state, this raise a value error.
+
+    If the state result is a state, its exception will be returned.
+
+    If the state result is an iterable of states, the exception of the first failure
+    will be returned.
+
+    If the state result is a string, a wrapper exception will be returned with the
+    string as the message.
+
+    If the state result is null, a wrapper exception will be returned with the state
+    message attached.
+
+    If the state result is not of a known type, a `TypeError` will be returned.
+
+    When a wrapper exception is returned, the type will be:
+        - `FailedRun` if the state type is FAILED.
+        - `CrashedRun` if the state type is CRASHED.
+        - `CancelledRun` if the state type is CANCELLED.
+    """
+    from prefect._result_records import (
+        ResultRecord,
+        ResultRecordMetadata,
+    )
+    from prefect.results import ResultStore, resolve_result_storage
+
+    if state.is_failed():
+        wrapper = FailedRun
+        default_message = "Run failed."
+    elif state.is_crashed():
+        wrapper = CrashedRun
+        default_message = "Run crashed."
+    elif state.is_cancelled():
+        wrapper = CancelledRun
+        default_message = "Run cancelled."
+    else:
+        raise ValueError(f"Expected failed or crashed state got {state!r}.")
+
+    if isinstance(state.data, ResultRecord):
+        result = state.data.result
+    elif isinstance(state.data, ResultRecordMetadata):
+        # Inline sync version of _from_metadata
+        metadata = state.data
+        if metadata.storage_block_id is None:
+            storage_block = None
+        else:
+            storage_block = resolve_result_storage(
+                metadata.storage_block_id, _sync=True
+            )
+        store = ResultStore(
+            result_storage=storage_block, serializer=metadata.serializer
+        )
+        if metadata.storage_key is None:
+            raise ValueError(
+                "storage_key is required to hydrate a result record from metadata"
+            )
+        record = store.read(metadata.storage_key)
+        result = record.result
+    elif state.data is None:
+        result = None
+    else:
+        result = state.data
+
+    if result is None:
+        return wrapper(state.message or default_message)
+
+    if isinstance(result, Exception):
+        return result
+
+    elif isinstance(result, BaseException):
+        return result
+
+    elif isinstance(result, str):
+        return wrapper(result)
+
+    elif isinstance(result, State):
+        # Return the exception from the inner state
+        return get_state_exception(result)
+
+    elif is_state_iterable(result):
+        # Return the first failure
+        for state in result:
+            if state.is_failed() or state.is_crashed() or state.is_cancelled():
+                return get_state_exception(state)
+
+        raise ValueError(
+            "Failed state result was an iterable of states but none were failed."
+        )
+
+    else:
+        raise TypeError(
+            f"Unexpected result for failed state: {result!r} —— "
+            f"{type(result).__name__} cannot be resolved into an exception"
+        )
+
+
+async def araise_state_exception(state: State) -> None:
+    """
+    Given a FAILED or CRASHED state, raise the contained exception asynchronously.
+    """
+    if not (state.is_failed() or state.is_crashed() or state.is_cancelled()):
+        return None
+
+    raise await aget_state_exception(state)
+
+
+@async_dispatch(araise_state_exception)
+def raise_state_exception(state: State) -> None:
     """
     Given a FAILED or CRASHED state, raise the contained exception.
     """
     if not (state.is_failed() or state.is_crashed() or state.is_cancelled()):
         return None
 
-    raise await get_state_exception(state)
+    raise get_state_exception(state)
 
 
 def is_state_iterable(obj: Any) -> TypeGuard[Iterable[State]]:

@@ -6,14 +6,14 @@ from httpx import HTTPStatusError, Request, Response
 from starlette import status
 
 from prefect import flow, task
-from prefect.concurrency.asyncio import ConcurrencySlotAcquisitionError
-from prefect.concurrency.sync import (
-    _acquire_concurrency_slots,
-    _acquire_concurrency_slots_with_lease,
-    _release_concurrency_slots_with_lease,
+from prefect.concurrency._sync import (
+    acquire_concurrency_slots,
+    acquire_concurrency_slots_with_lease,
     concurrency,
-    rate_limit,
+    release_concurrency_slots_with_lease,
 )
+from prefect.concurrency.asyncio import ConcurrencySlotAcquisitionError
+from prefect.concurrency.sync import rate_limit
 from prefect.events.clients import AssertingEventsClient
 from prefect.events.worker import EventsWorker
 from prefect.server.schemas.core import ConcurrencyLimitV2
@@ -30,12 +30,12 @@ def test_concurrency_orchestrates_api(concurrency_limit: ConcurrencyLimitV2):
     assert not executed
 
     with mock.patch(
-        "prefect.concurrency.sync._acquire_concurrency_slots_with_lease",
-        wraps=_acquire_concurrency_slots_with_lease,
+        "prefect.concurrency._sync.acquire_concurrency_slots_with_lease",
+        wraps=acquire_concurrency_slots_with_lease,
     ) as acquire_spy:
         with mock.patch(
-            "prefect.concurrency.sync._release_concurrency_slots_with_lease",
-            wraps=_release_concurrency_slots_with_lease,
+            "prefect.concurrency._sync.release_concurrency_slots_with_lease",
+            wraps=release_concurrency_slots_with_lease,
         ) as release_spy:
             resource_heavy()
 
@@ -47,6 +47,7 @@ def test_concurrency_orchestrates_api(concurrency_limit: ConcurrencyLimitV2):
                 lease_duration=300,
                 strict=False,
                 holder=None,
+                suppress_warnings=False,
             )
 
             lease_id = release_spy.call_args[0][0]
@@ -183,11 +184,11 @@ def test_rate_limit_without_limit_names_sync(names):
     assert not executed
 
     with mock.patch(
-        "prefect.concurrency.sync._acquire_concurrency_slots_with_lease",
+        "prefect.concurrency._sync.acquire_concurrency_slots_with_lease",
         wraps=lambda *args, **kwargs: None,
     ) as acquire_spy:
         with mock.patch(
-            "prefect.concurrency.sync._release_concurrency_slots_with_lease",
+            "prefect.concurrency._sync.release_concurrency_slots_with_lease",
             wraps=lambda *args, **kwargs: None,
         ) as release_spy:
             resource_heavy()
@@ -257,7 +258,7 @@ def test_rate_limit_orchestrates_api(concurrency_limit_with_decay: ConcurrencyLi
 
     with mock.patch(
         "prefect.concurrency.sync._acquire_concurrency_slots",
-        wraps=_acquire_concurrency_slots,
+        wraps=acquire_concurrency_slots,
     ) as acquire_spy:
         resource_heavy()
 
@@ -426,11 +427,11 @@ def test_concurrency_without_limit_names_sync(names):
     assert not executed
 
     with mock.patch(
-        "prefect.concurrency.sync._acquire_concurrency_slots_with_lease",
+        "prefect.concurrency._sync.acquire_concurrency_slots_with_lease",
         wraps=lambda *args, **kwargs: None,
     ) as acquire_spy:
         with mock.patch(
-            "prefect.concurrency.sync._release_concurrency_slots_with_lease",
+            "prefect.concurrency._sync.release_concurrency_slots_with_lease",
             wraps=lambda *args, **kwargs: None,
         ) as release_spy:
             resource_heavy()

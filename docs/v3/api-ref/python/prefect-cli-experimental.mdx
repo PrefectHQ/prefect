@@ -1,0 +1,34 @@
+---
+title: experimental
+sidebarTitle: experimental
+---
+
+# `prefect.cli.experimental`
+
+
+
+Experimental CLI commands.
+
+These commands provide access to experimental features that are subject to change.
+
+
+## Functions
+
+### `diagnose` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/experimental.py#L31" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+diagnose()
+```
+
+
+Diagnose the experimental plugin system.
+
+This command provides information about:
+- Whether the plugin system is enabled
+- What plugins are discoverable via entry points
+- Current configuration (timeouts, allow/deny lists)
+
+Note: This runs the plugin discovery but does not execute hooks.
+Use safe mode (PREFECT_EXPERIMENTS_PLUGINS_SAFE_MODE=1) to test plugin loading
+without executing hooks.
+

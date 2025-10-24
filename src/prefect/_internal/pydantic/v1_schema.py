@@ -1,9 +1,9 @@
 import inspect
+import sys
 import typing
 import warnings
 
 import pydantic
-from pydantic.v1 import BaseModel as V1BaseModel
 
 
 def is_v1_model(v: typing.Any) -> bool:
@@ -11,6 +11,11 @@ def is_v1_model(v: typing.Any) -> bool:
         warnings.filterwarnings(
             "ignore", category=pydantic.warnings.PydanticDeprecatedSince20
         )
+
+        if sys.version_info >= (3, 14):  # Pydantic v1 is not supported in Python 3.14+
+            return False
+
+        from pydantic.v1 import BaseModel as V1BaseModel
 
         if isinstance(v, V1BaseModel):
             return True

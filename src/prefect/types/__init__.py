@@ -53,10 +53,10 @@ NonNegativeTimeDelta = Annotated[
 TimeZone = Annotated[
     str,
     Field(
-        default="UTC",
         pattern="|".join(
             [z for z in sorted(available_timezones()) if "localtime" not in z]
         ),
+        examples=["America/New_York"],
     ),
 ]
 

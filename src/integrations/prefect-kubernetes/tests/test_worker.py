@@ -2195,6 +2195,40 @@ class TestKubernetesWorker:
                 }.items()
             ]
 
+    async def test_does_not_overwrite_sigterm_behavior_env(
+        self,
+        flow_run,
+        mock_core_client,
+        mock_watch,
+        mock_pods_stream_that_returns_running_pod,
+        mock_batch_client,
+    ):
+        mock_watch.return_value.stream = mock_pods_stream_that_returns_running_pod
+
+        configuration = await KubernetesWorkerJobConfiguration.from_template_and_values(
+            KubernetesWorker.get_default_base_job_template(),
+            {"env": {"PREFECT_FLOW_RUN_EXECUTE_SIGTERM_BEHAVIOR": "die"}},
+        )
+        configuration.prepare_for_flow_run(flow_run)
+
+        async with KubernetesWorker(work_pool_name="test") as k8s_worker:
+            await k8s_worker.run(flow_run, configuration)
+            mock_batch_client.return_value.create_namespaced_job.assert_called_once()
+
+            manifest = mock_batch_client.return_value.create_namespaced_job.call_args[
+                0
+            ][1]
+            pod = manifest["spec"]["template"]["spec"]
+            env = pod["containers"][0]["env"]
+            assert env == [
+                {"name": key, "value": value}
+                for key, value in {
+                    **configuration._base_environment(),
+                    **configuration._base_flow_run_environment(flow_run),
+                    "PREFECT_FLOW_RUN_EXECUTE_SIGTERM_BEHAVIOR": "die",
+                }.items()
+            ]
+
     async def test_uses_custom_env_list_from_base_template(
         self,
         flow_run,
@@ -2339,6 +2373,46 @@ class TestKubernetesWorker:
             env = pod["containers"][0]["env"]
             env_names = {variable["name"] for variable in env}
             assert "PREFECT_TEST_MODE" not in env_names
+
+    async def test_env_vars_from_work_pool_not_duplicated(
+        self,
+        flow_run,
+        mock_core_client,
+        mock_watch,
+        mock_pods_stream_that_returns_running_pod,
+        mock_batch_client,
+    ):
+        """Test that environment variables set in work pool are not duplicated.
+
+        Regression test for https://github.com/PrefectHQ/prefect/issues/19167
+        """
+        mock_watch.return_value.stream = mock_pods_stream_that_returns_running_pod
+
+        # Create configuration with env vars set as work pool variables
+        # (this is what happens when you set env vars in the work pool UI)
+        configuration = await KubernetesWorkerJobConfiguration.from_template_and_values(
+            KubernetesWorker.get_default_base_job_template(),
+            {"env": [{"name": "TEST_VALUE", "value": "1"}]},
+        )
+        configuration.prepare_for_flow_run(flow_run)
+
+        async with KubernetesWorker(work_pool_name="test") as k8s_worker:
+            await k8s_worker.run(flow_run, configuration)
+            mock_batch_client.return_value.create_namespaced_job.assert_called_once()
+
+            manifest = mock_batch_client.return_value.create_namespaced_job.call_args[
+                0
+            ][1]
+            pod = manifest["spec"]["template"]["spec"]
+            env = pod["containers"][0]["env"]
+
+            # Count how many times TEST_VALUE appears
+            test_value_entries = [e for e in env if e.get("name") == "TEST_VALUE"]
+            assert len(test_value_entries) == 1, (
+                f"Expected TEST_VALUE to appear once, but it appeared "
+                f"{len(test_value_entries)} times: {test_value_entries}"
+            )
+            assert test_value_entries[0]["value"] == "1"
 
     @pytest.mark.parametrize(
         "given,expected",

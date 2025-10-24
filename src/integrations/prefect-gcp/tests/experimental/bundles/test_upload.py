@@ -38,7 +38,7 @@ def test_upload_bundle_to_gcs_success(
     gcs_client = gcp_credentials.get_cloud_storage_client()
     gcs_client.bucket.assert_called_once_with(bucket)
     gcs_client.bucket(bucket).blob.assert_called_once_with(key)
-    gcs_client.bucket(bucket).blob(key).upload_from_file.assert_called_once_with(
+    gcs_client.bucket(bucket).blob(key).upload_from_filename.assert_called_once_with(
         mock_bundle_file
     )
 
@@ -90,7 +90,7 @@ def test_upload_bundle_to_gcs_with_default_credentials(
 
     # Verify the GCS client was called correctly
     gcs_client = gcp_credentials.get_cloud_storage_client()
-    gcs_client.bucket(bucket).blob(key).upload_from_file.assert_called_once_with(
+    gcs_client.bucket(bucket).blob(key).upload_from_filename.assert_called_once_with(
         mock_bundle_file
     )
 
@@ -129,7 +129,7 @@ def test_upload_bundle_to_gcs_upload_failure(
 
     # Mock the upload to raise an exception
     gcs_client = gcp_credentials.get_cloud_storage_client()
-    gcs_client.bucket(bucket).blob(key).upload_from_file.side_effect = Exception(
+    gcs_client.bucket(bucket).blob(key).upload_from_filename.side_effect = Exception(
         "Upload failed"
     )
 

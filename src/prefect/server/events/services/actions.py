@@ -51,5 +51,6 @@ class Actions(RunInEphemeralServers, Service):
         except asyncio.CancelledError:
             pass
         finally:
+            await self.consumer.cleanup()
             self.consumer_task = None
         logger.debug("Actions stopped")

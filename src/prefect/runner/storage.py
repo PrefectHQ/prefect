@@ -81,6 +81,39 @@ class GitCredentials(TypedDict, total=False):
     access_token: str | Secret[str]
 
 
+@runtime_checkable
+class _GitCredentialsFormatter(Protocol):
+    """
+    Protocol for credential blocks that can format themselves for git URLs.
+
+    Implementing this protocol allows credential blocks to own their auth
+    formatting logic instead of having it centralized in core Prefect.
+
+    This enables proper separation of concerns where each git provider
+    (GitLab, GitHub, BitBucket) can handle their own authentication format
+    requirements without core needing provider-specific knowledge.
+    """
+
+    def format_git_credentials(self, url: str) -> str:
+        """
+        Format and return the full git URL with credentials embedded.
+
+        Args:
+            url: The repository URL (e.g., "https://gitlab.com/org/repo.git").
+
+        Returns:
+            Complete URL with credentials embedded in the appropriate format for the provider.
+
+        Examples:
+            - GitLab PAT: "https://oauth2:my-token@gitlab.com/org/repo.git"
+            - GitLab Deploy Token: "https://username:token@gitlab.com/org/repo.git"
+            - GitHub: "https://my-token@github.com/org/repo.git"
+            - BitBucket Cloud: "https://x-token-auth:my-token@bitbucket.org/org/repo.git"
+            - BitBucket Server: "https://username:token@bitbucketserver.com/scm/project/repo.git"
+        """
+        ...
+
+
 class GitRepository:
     """
     Pulls the contents of a git repository to the local filesystem.
@@ -168,10 +201,16 @@ class GitRepository:
         return self._pull_interval
 
     @property
-    def _formatted_credentials(self) -> Optional[str]:
+    def _repository_url_with_credentials(self) -> str:
+        """Get the repository URL with credentials embedded."""
         if not self._credentials:
-            return None
+            return self._url
 
+        # If block implements the protocol, let it format the complete URL
+        if isinstance(self._credentials, _GitCredentialsFormatter):
+            return self._credentials.format_git_credentials(self._url)
+
+        # Otherwise, use legacy formatting for plain dict credentials
         credentials = (
             self._credentials.model_dump()
             if isinstance(self._credentials, Block)
@@ -184,23 +223,20 @@ class GitRepository:
             elif isinstance(v, SecretStr):
                 credentials[k] = v.get_secret_value()
 
-        return _format_token_from_credentials(urlparse(self._url).netloc, credentials)
-
-    def _add_credentials_to_url(self, url: str) -> str:
-        """Add credentials to given url if possible."""
-        components = urlparse(url)
-        credentials = self._formatted_credentials
-
-        if components.scheme != "https" or not credentials:
-            return url
-
-        return urlunparse(
-            components._replace(netloc=f"{credentials}@{components.netloc}")
+        # Get credential string for plain dict credentials
+        block = self._credentials if isinstance(self._credentials, Block) else None
+        credential_string = _format_token_from_credentials(
+            urlparse(self._url).netloc, credentials, block
         )
 
-    @property
-    def _repository_url_with_credentials(self) -> str:
-        return self._add_credentials_to_url(self._url)
+        # Insert credentials into URL
+        components = urlparse(self._url)
+        if components.scheme != "https":
+            return self._url
+
+        return urlunparse(
+            components._replace(netloc=f"{credential_string}@{components.netloc}")
+        )
 
     @property
     def _git_config(self) -> list[str]:
@@ -210,11 +246,42 @@ class GitRepository:
         # Submodules can be private. The url in .gitmodules
         # will not include the credentials, we need to
         # propagate them down here if they exist.
-        if self._include_submodules and self._formatted_credentials:
-            base_url = urlparse(self._url)._replace(path="")
-            without_auth = urlunparse(base_url)
-            with_auth = self._add_credentials_to_url(without_auth)
-            config[f"url.{with_auth}.insteadOf"] = without_auth
+        if self._include_submodules and self._credentials:
+            # Get base URL (without path) with credentials
+            base_url_parsed = urlparse(self._url)._replace(path="")
+            base_url_without_auth = urlunparse(base_url_parsed)
+
+            # Create a temporary URL with just the base to get credentials formatting
+            if isinstance(self._credentials, _GitCredentialsFormatter):
+                base_url_with_auth = self._credentials.format_git_credentials(
+                    base_url_without_auth
+                )
+            else:
+                # Use legacy credential insertion
+                credentials_dict = (
+                    self._credentials.model_dump()
+                    if isinstance(self._credentials, Block)
+                    else deepcopy(self._credentials)
+                )
+                for k, v in credentials_dict.items():
+                    if isinstance(v, Secret):
+                        credentials_dict[k] = v.get()
+                    elif isinstance(v, SecretStr):
+                        credentials_dict[k] = v.get_secret_value()
+
+                block = (
+                    self._credentials if isinstance(self._credentials, Block) else None
+                )
+                credential_string = _format_token_from_credentials(
+                    base_url_parsed.netloc, credentials_dict, block
+                )
+                base_url_with_auth = urlunparse(
+                    base_url_parsed._replace(
+                        netloc=f"{credential_string}@{base_url_parsed.netloc}"
+                    )
+                )
+
+            config[f"url.{base_url_with_auth}.insteadOf"] = base_url_without_auth
 
         return ["-c", " ".join(f"{k}={v}" for k, v in config.items())] if config else []
 
@@ -814,15 +881,25 @@ def create_storage_from_source(
 
 
 def _format_token_from_credentials(
-    netloc: str, credentials: dict[str, Any] | GitCredentials
+    netloc: str,
+    credentials: dict[str, Any] | GitCredentials,
+    block: Block | None = None,
 ) -> str:
     """
     Formats the credentials block for the git provider.
 
-    BitBucket supports the following syntax:
-        git clone "https://x-token-auth:{token}@bitbucket.org/yourRepoOwnerHere/RepoNameHere"
-        git clone https://username:<token>@bitbucketserver.com/scm/projectname/teamsinspace.git
+    If the block implements _GitCredentialsFormatter protocol, delegates to it.
+    Otherwise, uses generic formatting for plain dict credentials.
+
+    Args:
+        netloc: The network location (hostname) of the git repository
+        credentials: Dictionary containing credential information
+        block: Optional Block object that may implement the formatter protocol
     """
+    if block is not None and isinstance(block, _GitCredentialsFormatter):
+        # Reconstruct full URL for context (scheme doesn't matter for formatting)
+        url = f"https://{netloc}"
+        return block.format_git_credentials(url)
     username = credentials.get("username") if credentials else None
     password = credentials.get("password") if credentials else None
     token = credentials.get("token") if credentials else None
@@ -842,38 +919,7 @@ def _format_token_from_credentials(
     if username:
         return f"{username}:{user_provided_token}"
 
-    if "bitbucketserver" in netloc:
-        # If they pass a BitBucketCredentials block and we don't have both a username and at
-        # least one of a password or token and they don't provide a header themselves,
-        # we can raise the appropriate error to avoid the wrong format for BitBucket Server.
-        if not username and ":" not in user_provided_token:
-            raise ValueError(
-                "Please provide a `username` and a `password` or `token` in your"
-                " BitBucketCredentials block to clone a repo from BitBucket Server."
-            )
-        # if username or if no username but it's provided in the token
-        return (
-            f"{username}:{user_provided_token}"
-            if username and username not in user_provided_token
-            else user_provided_token
-        )
-
-    elif "bitbucket" in netloc:
-        return (
-            user_provided_token
-            if user_provided_token.startswith("x-token-auth:")
-            or ":" in user_provided_token
-            else f"x-token-auth:{user_provided_token}"
-        )
-
-    elif "gitlab" in netloc:
-        return (
-            f"oauth2:{user_provided_token}"
-            if not user_provided_token.startswith("oauth2:")
-            else user_provided_token
-        )
-
-    # all other cases (GitHub, etc.)
+    # Fallback for plain dict credentials without a block
     return user_provided_token
 
 

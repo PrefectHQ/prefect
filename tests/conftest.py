@@ -227,13 +227,6 @@ def pytest_collection_modifyitems(
             item.add_marker(pytest.mark.clear_db)
 
 
-@pytest.fixture(scope="session")
-def event_loop_policy():
-    if sys.platform == "win32":
-        asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
-    return asyncio.get_event_loop_policy()
-
-
 @pytest.fixture(scope="session", autouse=True)
 async def setup_loop_debugging():
     loop = asyncio.get_event_loop()

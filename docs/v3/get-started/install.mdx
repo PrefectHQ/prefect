@@ -11,24 +11,33 @@ Prefect is published as a Python package, which requires Python 3.9 or newer. We
 
 To confirm that Prefect was installed successfully, run:
 
-```bash
+<CodeGroup>
+
+```bash pip
 prefect version
 ```
+
+```bash uv
+uv run prefect version
+```
+
+</CodeGroup>
 
 You should see output similar to:
 
 ```bash
-Version:             3.1.10
-API version:         0.8.4
-Python version:      3.12.2
-Git commit:          d6bdb075
-Built:               Thu, Apr 11, 2024 6:58 PM
-OS/Arch:             darwin/arm64
+Version:              3.4.24
+API version:          0.8.4
+Python version:       3.12.8
+Git commit:           2428894e
+Built:                Mon, Oct 13, 2025 07:16 PM
+OS/Arch:              darwin/arm64
 Profile:              local
-Server type:         ephemeral
+Server type:          server
+Pydantic version:     2.11.7
 Server:
-  Database:          sqlite
-  SQLite version:    3.45.2
+  Database:           sqlite
+  SQLite version:     3.47.1
 ```
 
 <Accordion title="More commands for power users">
@@ -45,11 +54,12 @@ uvx --python 3.12 --with prefect ipython
 install prefect into a `uv` virtual environment:
 
 ```bash
-uv venv --python 3.12 && source .venv/bin/activate
-uv pip install -U prefect
+uv venv --python 3.12
+source .venv/bin/activate
+uv add prefect
 ```
 
-add prefect to an active project:
+add prefect to a project:
 
 ```bash
 uv add prefect

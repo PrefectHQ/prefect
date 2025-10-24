@@ -476,6 +476,36 @@ async def test_worker_releases_limit_slot_when_aborting_a_change_to_pending(
     release_mock.assert_called_once_with(flow_run.id)
 
 
+async def test_worker_handles_double_release_gracefully(
+    prefect_client: PrefectClient,
+    worker_deployment_wq1: WorkQueue,
+    work_pool: WorkPool,
+):
+    """Regression test for https://github.com/PrefectHQ/prefect/issues/19157"""
+
+    def create_run_with_deployment(state: State):
+        return prefect_client.create_flow_run_from_deployment(
+            worker_deployment_wq1.id, state=state
+        )
+
+    flow_run = await create_run_with_deployment(
+        Scheduled(scheduled_time=now_fn("UTC") - timedelta(days=1))
+    )
+
+    async with WorkerTestImpl(work_pool_name=work_pool.name, limit=1) as worker:
+        worker.run = AsyncMock(side_effect=Exception("Docker API error"))
+        worker._work_pool = work_pool
+
+        # Attempt to submit the flow run - should handle double-release gracefully
+        await worker.get_and_submit_flow_runs()
+
+    # After exiting the context, all tasks should be complete and token released
+    # Verify the flow run ended up in a crashed state
+    updated_flow_run = await prefect_client.read_flow_run(flow_run.id)
+    assert updated_flow_run.state is not None
+    assert updated_flow_run.state.is_crashed()
+
+
 async def test_worker_with_work_pool_and_limit(
     prefect_client: PrefectClient,
     worker_deployment_wq1: WorkQueue,
@@ -1944,6 +1974,82 @@ async def test_env_merge_logic_is_deep(
 
     for key, value in expected_env.items():
         assert config.env[key] == value
+
+
+async def test_work_pool_env_from_job_configuration_merges_with_variable_defaults(
+    prefect_client, session, flow, work_pool
+):
+    """
+    Test for issue #19256: Work pool env vars should merge from both job_configuration
+    and variable defaults, then merge with deployment env vars.
+
+    When a work pool has env vars in BOTH job_configuration.env AND
+    variables.properties.env.default, they should all be merged together along with
+    deployment env vars.
+    """
+    # Configure work pool with env vars in BOTH places
+    base_job_template = {
+        "job_configuration": {
+            "env": {
+                "WORK_POOL_BASE_VAR": "from-job-config",  # Should NOT be lost
+            }
+        },
+        "variables": {
+            "properties": {
+                "env": {
+                    "type": "object",
+                    "default": {"WORK_POOL_DEFAULT_VAR": "from-variable-defaults"},
+                }
+            }
+        },
+    }
+
+    await models.workers.update_work_pool(
+        session=session,
+        work_pool_id=work_pool.id,
+        work_pool=ServerWorkPoolUpdate(
+            base_job_template=base_job_template,
+            description="test",
+            is_paused=False,
+            concurrency_limit=None,
+        ),
+    )
+    await session.commit()
+
+    # Create deployment with its own env vars
+    deployment = await models.deployments.create_deployment(
+        session=session,
+        deployment=Deployment(
+            name="env-testing-merge",
+            tags=["test"],
+            flow_id=flow.id,
+            path="./subdir",
+            entrypoint="/file.py:flow",
+            parameter_openapi_schema={"type": "object", "properties": {}},
+            job_variables={"env": {"DEPLOYMENT_VAR": "from-deployment"}},
+            work_queue_id=work_pool.default_queue_id,
+        ),
+    )
+    await session.commit()
+
+    flow_run = await prefect_client.create_flow_run_from_deployment(
+        deployment.id,
+        state=Pending(),
+    )
+
+    async with WorkerTestImpl(
+        name="test",
+        work_pool_name=work_pool.name,
+    ) as worker:
+        await worker.sync_with_backend()
+        config = await worker._get_configuration(
+            flow_run, schemas.responses.DeploymentResponse.model_validate(deployment)
+        )
+
+    # All env vars should be present: job_configuration + variable defaults + deployment
+    assert config.env["WORK_POOL_BASE_VAR"] == "from-job-config"
+    assert config.env["WORK_POOL_DEFAULT_VAR"] == "from-variable-defaults"
+    assert config.env["DEPLOYMENT_VAR"] == "from-deployment"
 
 
 class TestBaseWorkerHeartbeat:

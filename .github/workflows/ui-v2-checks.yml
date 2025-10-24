@@ -34,7 +34,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - uses: actions/setup-node@v5
+      - uses: actions/setup-node@v6
         with:
           node-version-file: "ui-v2/.nvmrc"
           cache-dependency-path: "**/package-lock.json"

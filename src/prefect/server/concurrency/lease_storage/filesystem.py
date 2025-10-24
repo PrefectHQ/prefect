@@ -163,11 +163,26 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
             await self._remove_from_expiration_index(lease_id)
             return None
 
-    async def renew_lease(self, lease_id: UUID, ttl: timedelta) -> None:
+    async def renew_lease(self, lease_id: UUID, ttl: timedelta) -> bool:
+        """
+        Atomically renew a concurrency lease by updating its expiration.
+
+        Checks if the lease exists and updates both the lease file and index,
+        preventing race conditions from creating orphaned index entries.
+
+        Args:
+            lease_id: The ID of the lease to renew
+            ttl: The new time-to-live duration
+
+        Returns:
+            True if the lease was renewed, False if it didn't exist
+        """
         lease_file = self._lease_file_path(lease_id)
 
         if not lease_file.exists():
-            return
+            # Clean up any orphaned index entry
+            await self._remove_from_expiration_index(lease_id)
+            return False
 
         try:
             with open(lease_file, "r") as f:
@@ -178,15 +193,25 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
             lease_data["expiration"] = new_expiration.isoformat()
 
             self._ensure_storage_path()
+
+            # Write updated lease file
             with open(lease_file, "w") as f:
                 json.dump(lease_data, f)
 
+            # Verify file still exists after write (could have been deleted)
+            if not lease_file.exists():
+                # Lease was deleted during update - clean up index
+                await self._remove_from_expiration_index(lease_id)
+                return False
+
             # Update expiration index
             await self._update_expiration_index(lease_id, new_expiration)
+            return True
         except (json.JSONDecodeError, KeyError, ValueError):
             # Clean up corrupted lease file
             lease_file.unlink(missing_ok=True)
             await self._remove_from_expiration_index(lease_id)
+            return False
 
     async def revoke_lease(self, lease_id: UUID) -> None:
         lease_file = self._lease_file_path(lease_id)

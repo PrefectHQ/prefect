@@ -1632,6 +1632,46 @@ async def test_prefect_api_ssl_cert_file_default_setting_fallback(
     assert verify_ctx == mock_context
 
 
+async def test_prefect_client_preserves_custom_ssl_context(monkeypatch):
+    custom_context = ssl.create_default_context()
+
+    monkeypatch.setattr(
+        "ssl.create_default_context",
+        Mock(side_effect=AssertionError("should not create a new SSL context")),
+    )
+
+    httpx_client_mock = Mock()
+    monkeypatch.setattr(
+        "prefect.client.orchestration.PrefectHttpxAsyncClient", httpx_client_mock
+    )
+
+    with temporary_settings(updates={PREFECT_API_TLS_INSECURE_SKIP_VERIFY: False}):
+        get_client(httpx_settings={"verify": custom_context})
+
+    call_kwargs = httpx_client_mock.call_args[1]
+    assert call_kwargs["verify"] is custom_context
+
+
+def test_sync_prefect_client_preserves_custom_ssl_context(monkeypatch):
+    custom_context = ssl.create_default_context()
+
+    monkeypatch.setattr(
+        "ssl.create_default_context",
+        Mock(side_effect=AssertionError("should not create a new SSL context")),
+    )
+
+    httpx_client_mock = Mock()
+    monkeypatch.setattr(
+        "prefect.client.orchestration.PrefectHttpxSyncClient", httpx_client_mock
+    )
+
+    with temporary_settings(updates={PREFECT_API_TLS_INSECURE_SKIP_VERIFY: False}):
+        get_client(sync_client=True, httpx_settings={"verify": custom_context})
+
+    call_kwargs = httpx_client_mock.call_args[1]
+    assert call_kwargs["verify"] is custom_context
+
+
 class TestClientAPIVersionRequests:
     @pytest.fixture
     def versions(self):
@@ -3142,3 +3182,25 @@ class TestPrefectClientWorkerHeartbeat:
                 "name": "test-worker",
                 "heartbeat_interval_seconds": 10,
             }
+
+
+class TestPrefectClientMethods:
+    """Tests that the sync and async clients contains the same methods"""
+
+    def test_methods(self):
+        sync_client_methods = set(dir(get_client(sync_client=True)))
+        async_client_methods = set(dir(get_client(sync_client=False)))
+
+        exclude_methods = {
+            "__aenter__",
+            "__aexit__",
+            "_ephemeral_lifespan",
+            "_exit_stack",
+            "_loop",
+            "loop",
+        }
+
+        assert (
+            async_client_methods - exclude_methods
+            == sync_client_methods - exclude_methods
+        )

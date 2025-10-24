@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import re
 from typing import Any, NoReturn, Optional, cast
 
@@ -185,6 +187,35 @@ class CloudClient:
 
     async def get(self, route: str, **kwargs: Any) -> Any:
         return await self.request("GET", route, **kwargs)
+
+    async def raw_request(
+        self,
+        method: str,
+        path: str,
+        params: dict[str, Any] | None = None,
+        path_params: dict[str, Any] | None = None,
+        **kwargs: Any,
+    ) -> httpx.Response:
+        """
+        Make a raw HTTP request and return the Response object.
+
+        Unlike request(), this does not parse JSON or raise special exceptions,
+        returning the raw httpx.Response for direct access to headers, status, etc.
+
+        Args:
+            method: HTTP method (GET, POST, etc.)
+            path: API path/route
+            params: Query parameters
+            path_params: Path parameters for formatting
+            **kwargs: Additional arguments passed to httpx (json, headers, etc.)
+
+        Returns:
+            Raw httpx.Response object
+        """
+        if path_params:
+            path = path.format(**path_params)
+        request = self._client.build_request(method, path, params=params, **kwargs)
+        return await self._client.send(request)
 
     async def request(self, method: str, route: str, **kwargs: Any) -> Any:
         try:

@@ -481,7 +481,7 @@ async def test_print_parameter_validation_error(
 
 
 @pytest.mark.parametrize(
-    "test_case, mock_wait_for_flow_run, timeout, expected_output, expected_code",
+    "test_case, mock_watch_flow_run, timeout, expected_output, expected_code",
     [
         (
             "pass",
@@ -513,14 +513,12 @@ async def test_run_deployment_watch(
     deployment_name: str,
     prefect_client: prefect.client.orchestration.PrefectClient,
     test_case: str,
-    mock_wait_for_flow_run: AsyncMock,
+    mock_watch_flow_run: AsyncMock,
     timeout: int | None,
     expected_output: str,
     expected_code: int,
 ):
-    monkeypatch.setattr(
-        "prefect.cli.deployment.wait_for_flow_run", mock_wait_for_flow_run
-    )
+    monkeypatch.setattr("prefect.cli.deployment.watch_flow_run", mock_watch_flow_run)
 
     deployment_run_with_watch_command = partial(
         invoke_and_assert,
@@ -544,11 +542,10 @@ async def test_run_deployment_watch(
     assert flow_run.state.is_scheduled()
 
     assert set(flow_run.tags) == set(["cool-tag", "test"])
-    mock_wait_for_flow_run.assert_awaited_once_with(
+    mock_watch_flow_run.assert_awaited_once_with(
         flow_run.id,
+        ANY,
         timeout=timeout,
-        poll_interval=ANY,
-        log_states=ANY,
     )
 
 
