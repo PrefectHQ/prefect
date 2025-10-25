@@ -87,7 +87,9 @@ def process_v2_params(
         json_schema_extra={
             "position": (
                 existing_field.json_schema_extra.get("position", position)
-                if existing_field and existing_field.json_schema_extra
+                if existing_field
+                and existing_field.json_schema_extra
+                and isinstance(existing_field.json_schema_extra, dict)
                 else position
             )
         },
