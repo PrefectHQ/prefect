@@ -5,6 +5,7 @@ import typing as t
 import pydantic
 from pydantic import BaseModel as V2BaseModel
 from pydantic import ConfigDict, PydanticUndefinedAnnotation, create_model
+from pydantic.fields import FieldInfo
 from pydantic.type_adapter import TypeAdapter
 
 from prefect._internal.pydantic.schemas import GenerateEmptySchemaForUserClasses
@@ -68,13 +69,30 @@ def process_v2_params(
 
     type_ = t.Any if param.annotation is inspect.Parameter.empty else param.annotation
 
+    existing_field = param.default if isinstance(param.default, FieldInfo) else None
     field = pydantic.Field(
-        default=... if param.default is param.empty else param.default,
+        default=(
+            ...
+            if (existing_field.default if existing_field else param.default)
+            is param.empty
+            else (existing_field.default if existing_field else param.default)
+        ),
         title=param.name,
-        description=docstrings.get(param.name, None),
+        description=(
+            existing_field.description or docstrings.get(param.name)
+            if existing_field
+            else docstrings.get(param.name, None)
+        ),
         alias=aliases.get(name),
-        json_schema_extra={"position": position},
+        json_schema_extra={
+            "position": (
+                existing_field.json_schema_extra.get("position", position)
+                if existing_field and existing_field.json_schema_extra
+                else position
+            )
+        },
     )
+
     return name, type_, field
 
 
