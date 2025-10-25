@@ -367,7 +367,9 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         if not task_run:
             raise ValueError("Task run is not set")
 
-        if state.is_failed() and task.on_failure_hooks:
+        if state.is_running() and task.on_running_hooks:
+            hooks = task.on_running_hooks
+        elif state.is_failed() and task.on_failure_hooks:
             hooks = task.on_failure_hooks
         elif state.is_completed() and task.on_completion_hooks:
             hooks = task.on_completion_hooks
@@ -428,6 +430,10 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             )
             time.sleep(interval)
             state = self.set_state(new_state)
+
+        # Call on_running hooks after successfully entering Running state
+        if state.is_running():
+            self.call_hooks(state)
 
     def set_state(self, state: State[R], force: bool = False) -> State[R]:
         last_state = self.state
@@ -570,6 +576,9 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             )
 
             self.set_state(new_state, force=True)
+            # Call on_running hooks if we transitioned to a Running state (immediate retry)
+            if new_state.is_running():
+                self.call_hooks(new_state)
             self.retries: int = self.retries + 1
             return True
         elif self.retries >= self.task.retries:
@@ -777,6 +786,9 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                 new_state,
                 force=True,
             )
+            # Call on_running hooks after transitioning to Running state (delayed retry)
+            if new_state.is_running():
+                self.call_hooks(new_state)
 
     # --------------------------
     #
@@ -947,7 +959,9 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         if not task_run:
             raise ValueError("Task run is not set")
 
-        if state.is_failed() and task.on_failure_hooks:
+        if state.is_running() and task.on_running_hooks:
+            hooks = task.on_running_hooks
+        elif state.is_failed() and task.on_failure_hooks:
             hooks = task.on_failure_hooks
         elif state.is_completed() and task.on_completion_hooks:
             hooks = task.on_completion_hooks
@@ -1022,6 +1036,10 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             )
             await anyio.sleep(interval)
             state = await self.set_state(new_state)
+
+        # Call on_running hooks after successfully entering Running state
+        if state.is_running():
+            await self.call_hooks(state)
 
     async def set_state(self, state: State, force: bool = False) -> State:
         last_state = self.state
@@ -1164,6 +1182,9 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             )
 
             await self.set_state(new_state, force=True)
+            # Call on_running hooks if we transitioned to a Running state (immediate retry)
+            if new_state.is_running():
+                await self.call_hooks(new_state)
             self.retries: int = self.retries + 1
             return True
         elif self.retries >= self.task.retries:
@@ -1370,6 +1391,9 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                 new_state,
                 force=True,
             )
+            # Call on_running hooks after transitioning to Running state (delayed retry)
+            if new_state.is_running():
+                await self.call_hooks(new_state)
 
     # --------------------------
     #
