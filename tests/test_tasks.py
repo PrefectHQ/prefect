@@ -5038,6 +5038,33 @@ class TestTaskHooksOnRunning:
         # Hook should fire twice: once on initial run, once on retry
         assert my_mock.call_args_list == [call("running"), call("running")]
 
+    @pytest.mark.parametrize(
+        "hook1, hook2",
+        [
+            (create_hook, create_hook),
+            (create_hook, create_async_hook),
+            (create_async_hook, create_hook),
+            (create_async_hook, create_async_hook),
+        ],
+    )
+    def test_on_running_hooks_work_with_sync_and_async(self, hook1, hook2):
+        """Test that on_running hooks work with both sync and async hook functions."""
+        my_mock = MagicMock()
+        hook1_with_mock = hook1(my_mock)
+        hook2_with_mock = hook2(my_mock)
+
+        @task(on_running=[hook1_with_mock, hook2_with_mock])
+        def my_task():
+            return "success"
+
+        @flow
+        def my_flow():
+            return my_task(return_state=True)
+
+        state = my_flow()
+        assert state.type == StateType.COMPLETED
+        assert my_mock.call_args_list == [call(), call()]
+
 
 class TestNestedTasks:
     def test_nested_task(self):
