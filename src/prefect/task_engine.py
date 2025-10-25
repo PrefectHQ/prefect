@@ -576,6 +576,9 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             )
 
             self.set_state(new_state, force=True)
+            # Call on_running hooks if we transitioned to a Running state (immediate retry)
+            if new_state.is_running():
+                self.call_hooks(new_state)
             self.retries: int = self.retries + 1
             return True
         elif self.retries >= self.task.retries:
@@ -783,6 +786,9 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                 new_state,
                 force=True,
             )
+            # Call on_running hooks if we transitioned to a Running state
+            if self.state.is_running():
+                self.call_hooks()
 
     # --------------------------
     #
@@ -1176,6 +1182,9 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             )
 
             await self.set_state(new_state, force=True)
+            # Call on_running hooks if we transitioned to a Running state (immediate retry)
+            if new_state.is_running():
+                await self.call_hooks(new_state)
             self.retries: int = self.retries + 1
             return True
         elif self.retries >= self.task.retries:
@@ -1382,6 +1391,9 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                 new_state,
                 force=True,
             )
+            # Call on_running hooks if we transitioned to a Running state
+            if self.state.is_running():
+                await self.call_hooks()
 
     # --------------------------
     #

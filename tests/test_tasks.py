@@ -5153,6 +5153,52 @@ class TestTaskHooksOnRunning:
         assert state.type == StateType.COMPLETED
         assert my_mock.call_args_list == [call(), call()]
 
+    def test_on_running_hooks_fire_on_retry_with_delay(self):
+        """Test that on_running hooks fire on initial run AND on retry with delay."""
+        my_mock = MagicMock()
+
+        def running_hook(task, task_run, state):
+            my_mock("running")
+
+        @task(on_running=[running_hook], retries=1, retry_delay_seconds=0.1)
+        def my_task():
+            # Fail on first run, succeed on retry
+            if my_mock.call_count < 2:
+                raise ValueError("failing")
+            return "success"
+
+        @flow
+        def my_flow():
+            return my_task(return_state=True)
+
+        state = my_flow()
+        assert state.type == StateType.COMPLETED
+        # Hook should fire twice: once on initial run, once on retry
+        assert my_mock.call_args_list == [call("running"), call("running")]
+
+    def test_on_running_hooks_fire_on_retry_without_delay(self):
+        """Test that on_running hooks fire on initial run AND on retry without delay."""
+        my_mock = MagicMock()
+
+        def running_hook(task, task_run, state):
+            my_mock("running")
+
+        @task(on_running=[running_hook], retries=1)
+        def my_task():
+            # Fail on first run, succeed on retry
+            if my_mock.call_count < 2:
+                raise ValueError("failing")
+            return "success"
+
+        @flow
+        def my_flow():
+            return my_task(return_state=True)
+
+        state = my_flow()
+        assert state.type == StateType.COMPLETED
+        # Hook should fire twice: once on initial run, once on retry
+        assert my_mock.call_args_list == [call("running"), call("running")]
+
     async def test_task_condition_fn_raises_when_not_a_callable(self):
         with pytest.raises(TypeError):
 
