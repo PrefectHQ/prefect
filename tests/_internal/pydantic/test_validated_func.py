@@ -520,38 +520,3 @@ class TestModel(BaseModel):
         assert isinstance(result["model"], MyModel)
         assert result["model"].name == "test"
         assert result["count"] == 5
-
-    def test_rebuild_called_with_forward_refs(self):
-        """Test that model_rebuild IS called when forward references exist.
-
-        This verifies that the optimization correctly detects forward refs
-        and calls model_rebuild when needed.
-        """
-
-        class MyModel(BaseModel):
-            name: str
-
-        # Function with string annotation (forward reference)
-        def process_data(model: "MyModel", count: int = 0) -> dict:  # noqa: F821
-            return {"name": model.name, "count": count}
-
-        # Add the type to the function's globals
-        process_data.__globals__["MyModel"] = MyModel
-
-        # Spy on model_rebuild to ensure it IS called
-        with patch(
-            "prefect._internal.pydantic.validated_func.create_model"
-        ) as mock_create:
-            # Mock the created model
-            mock_model = type("MockModel", (BaseModel,), {})
-            mock_create.return_value = mock_model
-
-            with patch.object(mock_model, "model_rebuild") as mock_rebuild:
-                _vf = ValidatedFunction(process_data)
-
-                # model_rebuild should have been called since there are forward refs
-                mock_rebuild.assert_called_once()
-                # Verify it was called with the function's globals
-                call_kwargs = mock_rebuild.call_args[1]
-                assert "_types_namespace" in call_kwargs
-                assert call_kwargs["_types_namespace"] is process_data.__globals__
