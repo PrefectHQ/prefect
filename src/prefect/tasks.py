@@ -6,7 +6,6 @@ Module containing the base workflow task class and decorator - for most use case
 # See https://github.com/python/mypy/issues/8645
 from __future__ import annotations
 
-import asyncio
 import datetime
 import inspect
 from copy import copy
@@ -452,7 +451,7 @@ class Task(Generic[P, R]):
 
         # the task is considered async if its function is async or an async
         # generator
-        self.isasync: bool = asyncio.iscoroutinefunction(
+        self.isasync: bool = inspect.iscoroutinefunction(
             self.fn
         ) or inspect.isasyncgenfunction(self.fn)
 

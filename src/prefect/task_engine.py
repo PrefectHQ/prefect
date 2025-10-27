@@ -40,9 +40,9 @@ from prefect.cache_policies import CachePolicy
 from prefect.client.orchestration import PrefectClient, SyncPrefectClient, get_client
 from prefect.client.schemas import TaskRun
 from prefect.client.schemas.objects import ConcurrencyLeaseHolder, RunInput, State
-from prefect.concurrency.asyncio import concurrency as aconcurrency
+from prefect.concurrency._asyncio import concurrency as _aconcurrency
+from prefect.concurrency._sync import concurrency as _concurrency
 from prefect.concurrency.context import ConcurrencyContext
-from prefect.concurrency.sync import concurrency
 from prefect.context import (
     AssetContext,
     AsyncClientContext,
@@ -339,7 +339,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                 data=exc_or_state,
                 message=f"Task run encountered unexpected {failure_type}: {repr(exc_or_state)}",
             )
-            if asyncio.iscoroutinefunction(retry_condition):
+            if inspect.iscoroutinefunction(retry_condition):
                 should_retry = run_coro_as_sync(
                     retry_condition(self.task, self.task_run, state)
                 )
@@ -814,11 +814,12 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                     self.call_hooks()
                     return
 
-                with concurrency(
+                with _concurrency(
                     names=[f"tag:{tag}" for tag in self.task_run.tags],
                     occupy=1,
                     holder=ConcurrencyLeaseHolder(type="task_run", id=self.task_run.id),
                     lease_duration=60,
+                    suppress_warnings=True,
                 ):
                     self.begin_run()
                     try:
@@ -919,7 +920,7 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                 data=exc_or_state,
                 message=f"Task run encountered unexpected {failure_type}: {repr(exc_or_state)}",
             )
-            if asyncio.iscoroutinefunction(retry_condition):
+            if inspect.iscoroutinefunction(retry_condition):
                 should_retry = await retry_condition(self.task, self.task_run, state)
             elif inspect.isfunction(retry_condition):
                 should_retry = retry_condition(self.task, self.task_run, state)
@@ -1408,11 +1409,12 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                     await self.call_hooks()
                     return
 
-                async with aconcurrency(
+                async with _aconcurrency(
                     names=[f"tag:{tag}" for tag in self.task_run.tags],
                     occupy=1,
                     holder=ConcurrencyLeaseHolder(type="task_run", id=self.task_run.id),
                     lease_duration=60,
+                    suppress_warnings=True,
                 ):
                     await self.begin_run()
                     try:
