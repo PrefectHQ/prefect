@@ -1,11 +1,11 @@
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from azure.core.exceptions import ResourceExistsError
 from azure.storage.blob.aio import ContainerClient
 from prefect_azure.credentials import AzureBlobStorageCredentials
 
-from prefect.testing.utilities import AsyncMock, prefect_test_harness
+from prefect.testing.utilities import prefect_test_harness
 
 
 @pytest.fixture(scope="session", autouse=True)

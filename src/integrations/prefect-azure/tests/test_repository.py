@@ -1,13 +1,12 @@
 import urllib.parse
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from unittest.mock import AsyncMock
 
 import pytest
 from prefect_azure.credentials import AzureDevopsCredentials
 from prefect_azure.repository import AzureDevopsRepository
 from pydantic import SecretStr
-
-from prefect.testing.utilities import AsyncMock
 
 
 class TestAzureDevopsRepository:

@@ -1,5 +1,6 @@
 import datetime
 from typing import Any
+from unittest.mock import AsyncMock
 
 import pytest
 
@@ -7,7 +8,6 @@ from prefect import __development_base_path__, flow
 from prefect.client.orchestration import PrefectClient
 from prefect.runner import Runner
 from prefect.testing.cli import invoke_and_assert
-from prefect.testing.utilities import AsyncMock
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 
 

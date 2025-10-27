@@ -1,8 +1,8 @@
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from prefect.testing.utilities import AsyncMock, prefect_test_harness
+from prefect.testing.utilities import prefect_test_harness
 
 
 @pytest.fixture(autouse=True, scope="session")

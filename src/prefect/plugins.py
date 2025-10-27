@@ -8,11 +8,11 @@ Currently supported entrypoints:
         should be imported when Prefect is imported.
 """
 
+from importlib.metadata import EntryPoints, entry_points
 from types import ModuleType
 from typing import Any, Union
 
 import prefect.settings
-from prefect.utilities.compat import EntryPoints, entry_points
 
 _collections: Union[None, dict[str, Union[ModuleType, Exception]]] = None
 

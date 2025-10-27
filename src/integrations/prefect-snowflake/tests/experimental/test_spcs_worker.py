@@ -1,5 +1,5 @@
 import uuid
-from unittest.mock import Mock
+from unittest.mock import AsyncMock, Mock
 
 import pytest
 from prefect_snowflake import SnowflakeCredentials
@@ -12,7 +12,6 @@ from pydantic import SecretStr
 
 from prefect.client.schemas import FlowRun
 from prefect.server.schemas.core import Flow
-from prefect.testing.utilities import AsyncMock
 from prefect.utilities.dockerutils import get_prefect_image_name
 
 

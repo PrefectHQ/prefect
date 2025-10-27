@@ -11,7 +11,7 @@ import asyncio
 import os
 import signal
 import threading
-from unittest.mock import ANY, MagicMock
+from unittest.mock import ANY, AsyncMock, MagicMock
 
 import anyio
 import pytest
@@ -21,7 +21,6 @@ import prefect.context
 import prefect.exceptions
 import prefect.flow_engine
 from prefect.client.schemas import FlowRun
-from prefect.testing.utilities import AsyncMock
 
 
 async def assert_flow_run_crashed(flow_run: FlowRun, expected_message: str):

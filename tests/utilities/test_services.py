@@ -1,5 +1,6 @@
 import statistics
 from typing import Generator
+from unittest.mock import AsyncMock
 
 import httpx
 import pytest
@@ -9,7 +10,6 @@ from prefect.settings import (
     PREFECT_CLIENT_METRICS_PORT,
     temporary_settings,
 )
-from prefect.testing.utilities import AsyncMock
 from prefect.utilities.services import (
     critical_service_loop,
     start_client_metrics_server,
