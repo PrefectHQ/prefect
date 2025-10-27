@@ -434,9 +434,6 @@ def start_observer():
     """
     Start the observer in a separate thread.
     """
-    if not settings.observer.enabled:
-        return
-
     global _observer_thread
     global _ready_flag
 
@@ -488,9 +485,6 @@ def stop_observer():
     """
     Stop the observer thread.
     """
-    if not settings.observer.enabled:
-        return
-
     global _stop_flag
     global _observer_thread
     if _stop_flag:
