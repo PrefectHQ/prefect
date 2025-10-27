@@ -4,7 +4,7 @@ import sys
 import warnings
 from textwrap import dedent
 from typing import Any, Dict, List, Tuple, Type, Union
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 from uuid import UUID, uuid4
 
 import pytest
@@ -22,7 +22,7 @@ from prefect.exceptions import PrefectHTTPStatusError
 from prefect.server import models
 from prefect.server.schemas.actions import BlockDocumentCreate
 from prefect.server.schemas.core import DEFAULT_BLOCK_SCHEMA_VERSION, BlockDocument
-from prefect.testing.utilities import AsyncMock, assert_blocks_equal
+from prefect.testing.utilities import assert_blocks_equal
 from prefect.types import SecretDict
 from prefect.utilities.dispatch import lookup_type, register_type
 

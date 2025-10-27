@@ -6,6 +6,7 @@ from datetime import timedelta, timezone
 from itertools import product
 from typing import Optional
 from unittest import mock
+from unittest.mock import AsyncMock
 from uuid import uuid4
 
 import pytest
@@ -63,7 +64,6 @@ from prefect.settings import (
     PREFECT_SERVER_CONCURRENCY_INITIAL_DEPLOYMENT_LEASE_DURATION,
     temporary_settings,
 )
-from prefect.testing.utilities import AsyncMock
 from prefect.types._datetime import DateTime, now, parse_datetime
 
 # Convert constants from sets to lists for deterministic ordering of tests

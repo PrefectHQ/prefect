@@ -2,14 +2,13 @@ import os
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Set, Tuple
+from unittest.mock import AsyncMock
 
 import prefect_gitlab
 import pytest
 from prefect_gitlab.credentials import GitLabCredentials
 from prefect_gitlab.repositories import GitLabRepository  # noqa: E402
 from pydantic import SecretStr
-
-from prefect.testing.utilities import AsyncMock
 
 
 class TestGitLab:

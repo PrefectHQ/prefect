@@ -1,7 +1,7 @@
 import datetime
 from pathlib import Path
 from typing import Any
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 import yaml
@@ -30,7 +30,6 @@ from prefect_dbt.cli.credentials import DbtCliProfile
 
 from prefect import flow
 from prefect.artifacts import Artifact
-from prefect.testing.utilities import AsyncMock
 
 
 @pytest.fixture

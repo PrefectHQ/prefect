@@ -3,12 +3,12 @@ import os
 import sys
 from pathlib import Path
 from typing import Union
+from unittest.mock import AsyncMock
 
 import pytest
 from prefect_shell.commands import ShellOperation, shell_run_command
 
 from prefect import flow
-from prefect.testing.utilities import AsyncMock
 
 if sys.platform == "win32":
     pytest.skip(reason="see test_commands_windows.py", allow_module_level=True)

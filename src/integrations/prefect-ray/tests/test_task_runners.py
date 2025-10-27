@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import os
 import random
 import subprocess
 import sys
@@ -13,8 +14,6 @@ from prefect_ray import RayTaskRunner
 from prefect_ray.context import remote_options
 
 import prefect
-import prefect.task_engine
-import tests
 from prefect import flow, task
 from prefect.assets import Asset, materialize
 from prefect.client.orchestration import get_client
@@ -83,6 +82,7 @@ def machine_ray_instance():
                 "--disable-usage-stats",
             ],
             cwd=str(prefect.__development_base_path__),
+            env={**os.environ, "RAY_RUNTIME_ENV_LOCAL_DEV_MODE": "1"},
         )
         yield "ray://127.0.0.1:10001"
     except subprocess.CalledProcessError as exc:
@@ -108,7 +108,9 @@ def default_ray_task_runner():
         # https://github.com/ray-project/ray/pull/22419
         warnings.simplefilter("ignore", ResourceWarning)
 
-        yield RayTaskRunner()
+        yield RayTaskRunner(
+            init_kwargs={"runtime_env": {"RAY_RUNTIME_ENV_LOCAL_DEV_MODE": "1"}}
+        )
 
 
 @pytest.fixture
@@ -125,13 +127,6 @@ def ray_task_runner_with_existing_cluster(
     """
     yield RayTaskRunner(
         address=machine_ray_instance,
-        init_kwargs={
-            "runtime_env": {
-                # Ship the 'tests' module to the workers or they will not be able to
-                # deserialize test tasks / flows
-                "py_modules": [tests]
-            }
-        },
     )
 
 
@@ -162,13 +157,6 @@ def ray_task_runner_with_inprocess_cluster(
 
     yield RayTaskRunner(
         address=inprocess_ray_cluster.address,
-        init_kwargs={
-            "runtime_env": {
-                # Ship the 'tests' module to the workers or they will not be able to
-                # deserialize test tasks / flows
-                "py_modules": [tests]
-            }
-        },
     )
 
 
@@ -183,15 +171,7 @@ def ray_task_runner_with_temporary_cluster(
     This tests connection via 'localhost' which is not a client-based connection.
     """
 
-    yield RayTaskRunner(
-        init_kwargs={
-            "runtime_env": {
-                # Ship the 'tests' module to the workers or they will not be able to
-                # deserialize test tasks / flows
-                "py_modules": [tests]
-            }
-        },
-    )
+    yield RayTaskRunner()
 
 
 task_runner_setups = [
