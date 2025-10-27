@@ -90,19 +90,20 @@ class ValidatedFunction:
             )
 
         # Build the validation model
-        fields, takes_args, takes_kwargs = self._build_fields()
-        self._create_model(fields, takes_args, takes_kwargs, config)
+        fields, takes_args, takes_kwargs, has_forward_refs = self._build_fields()
+        self._create_model(fields, takes_args, takes_kwargs, config, has_forward_refs)
 
-    def _build_fields(self) -> tuple[dict[str, Any], bool, bool]:
+    def _build_fields(self) -> tuple[dict[str, Any], bool, bool, bool]:
         """
         Build field definitions from function signature.
 
         Returns:
-            Tuple of (fields_dict, takes_args, takes_kwargs)
+            Tuple of (fields_dict, takes_args, takes_kwargs, has_forward_refs)
         """
         fields: dict[str, Any] = {}
         takes_args = False
         takes_kwargs = False
+        has_forward_refs = False
         position = 0
 
         for param_name, param in self.signature.parameters.items():
@@ -131,6 +132,10 @@ class ValidatedFunction:
                 param.annotation if param.annotation != inspect.Parameter.empty else Any
             )
 
+            # Check if annotation is a string (forward reference)
+            if isinstance(annotation, str):
+                has_forward_refs = True
+
             if param.default == inspect.Parameter.empty:
                 # Required parameter
                 fields[param_name] = (annotation, Field(...))
@@ -146,7 +151,7 @@ class ValidatedFunction:
         fields[V_POSITIONAL_ONLY_NAME] = (Optional[list[str]], Field(default=None))
         fields[V_DUPLICATE_KWARGS] = (Optional[list[str]], Field(default=None))
 
-        return fields, takes_args, takes_kwargs
+        return fields, takes_args, takes_kwargs, has_forward_refs
 
     def _create_model(
         self,
@@ -154,6 +159,7 @@ class ValidatedFunction:
         takes_args: bool,
         takes_kwargs: bool,
         config: ConfigDict | None,
+        has_forward_refs: bool,
     ) -> None:
         """Create the Pydantic validation model."""
         pos_args = len(self.arg_mapping)
@@ -229,7 +235,9 @@ class ValidatedFunction:
         # Rebuild the model with the original function's namespace to resolve forward references
         # This is necessary when using `from __future__ import annotations` or when
         # parameters reference types not in the current scope
-        self.model.model_rebuild(_types_namespace=self.raw_function.__globals__)
+        # Only rebuild if we detected forward references to avoid performance overhead
+        if has_forward_refs:
+            self.model.model_rebuild(_types_namespace=self.raw_function.__globals__)
 
     def validate_call_args(
         self, args: tuple[Any, ...], kwargs: dict[str, Any]

@@ -489,3 +489,27 @@ class TestModel(BaseModel):
         assert isinstance(result["data"], Outer)
         assert result["data"].name == "test"
         assert result["data"].inner.value == 42
+
+    def test_no_rebuild_without_forward_refs(self):
+        """Test that model_rebuild is not called when there are no forward references.
+
+        This is a performance optimization test - we should avoid the overhead
+        of model_rebuild() when it's not necessary.
+        """
+
+        class MyModel(BaseModel):
+            name: str
+
+        # Function with concrete type annotations (no forward refs)
+        def process_data(model: MyModel, count: int = 0) -> dict:
+            return {"name": model.name, "count": count}
+
+        vf = ValidatedFunction(process_data)
+
+        # The model should work correctly without rebuild
+        instance = MyModel(name="test")
+        result = vf.validate_call_args((instance,), {"count": 5})
+
+        assert isinstance(result["model"], MyModel)
+        assert result["model"].name == "test"
+        assert result["count"] == 5
