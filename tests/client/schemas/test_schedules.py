@@ -3,7 +3,10 @@ from itertools import combinations
 
 import pytest
 
-from prefect.client.schemas.actions import DeploymentScheduleCreate
+from prefect.client.schemas.actions import (
+    DeploymentFlowRunCreate,
+    DeploymentScheduleCreate,
+)
 from prefect.client.schemas.schedules import (
     CronSchedule,
     IntervalSchedule,
@@ -126,3 +129,63 @@ class TestConstructSchedule:
         assert (
             DeploymentScheduleCreate(active=value, schedule=schedule).active == expected
         )
+
+
+class TestDeploymentFlowRunCreate:
+    """Test DeploymentFlowRunCreate schema serialization"""
+
+    def test_datetime_parameter_serialization(self):
+        """datetime.datetime should be serialized as ISO string"""
+        dt = datetime.datetime(2025, 10, 24, 11, 5, 30, 123456)
+
+        flow_run_create = DeploymentFlowRunCreate(parameters={"dt": dt})
+        dumped = flow_run_create.model_dump(mode="json")
+
+        # Should be ISO string, not timestamp float
+        assert isinstance(dumped["parameters"]["dt"], str)
+        assert dumped["parameters"]["dt"] == "2025-10-24T11:05:30.123456"
+
+    def test_date_parameter_serialization(self):
+        """datetime.date should be serialized as ISO string"""
+        date = datetime.date(2025, 10, 24)
+
+        flow_run_create = DeploymentFlowRunCreate(parameters={"date": date})
+        dumped = flow_run_create.model_dump(mode="json")
+
+        # Should be ISO string, not timestamp float
+        assert isinstance(dumped["parameters"]["date"], str)
+        assert dumped["parameters"]["date"] == "2025-10-24"
+
+    def test_nested_datetime_parameter_serialization(self):
+        """Nested datetime objects should also be serialized"""
+        dt = datetime.datetime(2025, 10, 24, 11, 5, 30)
+        date = datetime.date(2025, 10, 24)
+
+        flow_run_create = DeploymentFlowRunCreate(
+            parameters={"config": {"start_time": dt, "end_date": date, "count": 42}}
+        )
+        dumped = flow_run_create.model_dump(mode="json")
+
+        # Nested datetime should be ISO string
+        assert isinstance(dumped["parameters"]["config"]["start_time"], str)
+        assert dumped["parameters"]["config"]["start_time"] == "2025-10-24T11:05:30"
+        assert isinstance(dumped["parameters"]["config"]["end_date"], str)
+        assert dumped["parameters"]["config"]["end_date"] == "2025-10-24"
+        # Other values should be unchanged
+        assert dumped["parameters"]["config"]["count"] == 42
+
+    def test_list_datetime_parameter_serialization(self):
+        """List of datetime objects should be serialized"""
+        dates = [
+            datetime.date(2025, 10, 24),
+            datetime.date(2025, 10, 25),
+        ]
+
+        flow_run_create = DeploymentFlowRunCreate(parameters={"dates": dates})
+        dumped = flow_run_create.model_dump(mode="json")
+
+        # List items should be ISO strings
+        assert isinstance(dumped["parameters"]["dates"], list)
+        assert len(dumped["parameters"]["dates"]) == 2
+        assert dumped["parameters"]["dates"][0] == "2025-10-24"
+        assert dumped["parameters"]["dates"][1] == "2025-10-25"
