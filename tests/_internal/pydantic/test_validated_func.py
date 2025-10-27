@@ -1,5 +1,7 @@
 """Tests for the pure Pydantic v2 validated function implementation."""
 
+from unittest.mock import patch
+
 import pytest
 from pydantic import BaseModel, ValidationError
 
@@ -411,3 +413,110 @@ class TestEdgeCases:
             ValueError, match="Function parameters conflict with internal field names"
         ):
             ValidatedFunction(func)
+
+
+class TestForwardReferences:
+    """Test handling of forward references and `from __future__ import annotations`."""
+
+    def test_pydantic_model_with_future_annotations(self):
+        """Test that Pydantic models work with forward reference annotations.
+
+        This is a regression test for issue #19288.
+        When using `from __future__ import annotations`, type hints become strings
+        and need to be resolved via model_rebuild() with the proper namespace.
+        """
+        # Define a test module namespace that simulates using future annotations
+        namespace = {}
+
+        # Create a model in that namespace
+        exec(
+            """
+from pydantic import BaseModel, Field
+
+class TestModel(BaseModel):
+    name: str = Field(..., description="Test name")
+    value: int = 42
+""",
+            namespace,
+        )
+
+        TestModel = namespace["TestModel"]
+
+        # Define a function with the model as a parameter using string annotation
+        # This simulates what happens with `from __future__ import annotations`
+        def process_model(model: "TestModel") -> dict:  # noqa: F821
+            return {"name": model.name, "value": model.value}
+
+        # Update the function's globals to include the TestModel
+        process_model.__globals__.update(namespace)
+
+        # Create validated function
+        vf = ValidatedFunction(process_model)
+
+        # Create an instance of the model
+        test_instance = TestModel(name="test")
+
+        # This should work without raising PydanticUserError about undefined models
+        result = vf.validate_call_args((test_instance,), {})
+
+        assert isinstance(result["model"], TestModel)
+        assert result["model"].name == "test"
+        assert result["model"].value == 42
+
+    def test_nested_pydantic_models_with_forward_refs(self):
+        """Test nested Pydantic models with forward references work correctly."""
+
+        class Inner(BaseModel):
+            value: int
+
+        class Outer(BaseModel):
+            inner: Inner
+            name: str
+
+        # Simulate forward reference by using string annotation
+        def process_nested(data: "Outer") -> str:  # noqa: F821
+            return data.name
+
+        # Add the types to the function's globals
+        process_nested.__globals__["Outer"] = Outer
+        process_nested.__globals__["Inner"] = Inner
+
+        vf = ValidatedFunction(process_nested)
+
+        # Create nested structure
+        outer_instance = Outer(inner=Inner(value=42), name="test")
+
+        result = vf.validate_call_args((outer_instance,), {})
+
+        assert isinstance(result["data"], Outer)
+        assert result["data"].name == "test"
+        assert result["data"].inner.value == 42
+
+    def test_no_rebuild_without_forward_refs(self):
+        """Test that model_rebuild is not called when there are no forward references.
+
+        This is a performance optimization test - we should avoid the overhead
+        of model_rebuild() when it's not necessary.
+        """
+
+        class MyModel(BaseModel):
+            name: str
+
+        # Function with concrete type annotations (no forward refs)
+        def process_data(model: MyModel, count: int = 0) -> dict:
+            return {"name": model.name, "count": count}
+
+        # Spy on model_rebuild to ensure it's NOT called
+        with patch.object(BaseModel, "model_rebuild") as mock_rebuild:
+            vf = ValidatedFunction(process_data)
+
+            # model_rebuild should NOT have been called since there are no forward refs
+            mock_rebuild.assert_not_called()
+
+        # The model should work correctly without rebuild
+        instance = MyModel(name="test")
+        result = vf.validate_call_args((instance,), {"count": 5})
+
+        assert isinstance(result["model"], MyModel)
+        assert result["model"].name == "test"
+        assert result["count"] == 5
