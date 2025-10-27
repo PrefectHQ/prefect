@@ -70,29 +70,26 @@ def process_v2_params(
     type_ = t.Any if param.annotation is inspect.Parameter.empty else param.annotation
 
     existing_field = param.default if isinstance(param.default, FieldInfo) else None
+    default_value = existing_field.default if existing_field else param.default
+    if existing_field and existing_field.description:
+        description = existing_field.description
+    else:
+        description = docstrings.get(param.name)
+
+    extra: dict[str, typing.Any] = {}
+    if existing_field and isinstance(existing_field.json_schema_extra, dict):
+        # this will allow us to merge with the existing `json_schema_extra`
+        extra.update(existing_field.json_schema_extra)
+
+    # still ensure 'position' is always set
+    extra.setdefault("position", position)
+
     field = pydantic.Field(
-        default=(
-            ...
-            if (existing_field.default if existing_field else param.default)
-            is param.empty
-            else (existing_field.default if existing_field else param.default)
-        ),
+        default=... if default_value is param.empty else default_value,
         title=param.name,
-        description=(
-            existing_field.description or docstrings.get(param.name)
-            if existing_field
-            else docstrings.get(param.name, None)
-        ),
+        description=description,
         alias=aliases.get(name),
-        json_schema_extra={
-            "position": (
-                existing_field.json_schema_extra.get("position", position)
-                if existing_field
-                and existing_field.json_schema_extra
-                and isinstance(existing_field.json_schema_extra, dict)
-                else position
-            )
-        },
+        json_schema_extra=extra,
     )
 
     return name, type_, field
