@@ -1,3 +1,4 @@
+from importlib.metadata import EntryPoints
 from unittest.mock import Mock, patch
 
 import pytest
@@ -5,7 +6,6 @@ import pytest
 import prefect.plugins
 from prefect.plugins import load_prefect_collections, safe_load_entrypoints
 from prefect.settings import PREFECT_DEBUG_MODE, temporary_settings
-from prefect.utilities.compat import EntryPoints
 
 
 @pytest.fixture(autouse=True)

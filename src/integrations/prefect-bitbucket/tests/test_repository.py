@@ -2,12 +2,12 @@ import os
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Set, Tuple
+from unittest.mock import AsyncMock
 
 import pytest
 from pydantic import VERSION as PYDANTIC_VERSION
 
 from prefect.exceptions import InvalidRepositoryURLError
-from prefect.testing.utilities import AsyncMock
 
 if PYDANTIC_VERSION.startswith("2."):
     pass

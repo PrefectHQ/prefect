@@ -1,9 +1,9 @@
 import json
+from unittest.mock import AsyncMock
 
 import pytest
 
 from prefect.blocks.webhook import Webhook
-from prefect.testing.utilities import AsyncMock
 
 RESTRICTED_URLS = [
     ("", ""),

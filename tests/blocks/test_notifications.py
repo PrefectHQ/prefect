@@ -1,6 +1,6 @@
 import urllib
 from typing import Type
-from unittest.mock import call, patch
+from unittest.mock import AsyncMock, call, patch
 
 import cloudpickle
 import pytest
@@ -20,7 +20,6 @@ from prefect.blocks.notifications import (
     TwilioSMS,
 )
 from prefect.flows import flow
-from prefect.testing.utilities import AsyncMock
 
 # A list of the notification classes Pytest should use as parameters to each method in TestAppriseNotificationBlock
 notification_classes = sorted(
