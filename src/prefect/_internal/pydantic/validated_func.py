@@ -226,6 +226,11 @@ class ValidatedFunction:
             **fields,
         )
 
+        # Rebuild the model with the original function's namespace to resolve forward references
+        # This is necessary when using `from __future__ import annotations` or when
+        # parameters reference types not in the current scope
+        self.model.model_rebuild(_types_namespace=self.raw_function.__globals__)
+
     def validate_call_args(
         self, args: tuple[Any, ...], kwargs: dict[str, Any]
     ) -> dict[str, Any]:
