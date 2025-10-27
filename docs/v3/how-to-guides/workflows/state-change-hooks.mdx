@@ -98,6 +98,8 @@ def my_flow():
 
 Note that `on_running` hooks execute **synchronously** before the task body runs. If your hook takes 10 seconds, the task waits 10 seconds before starting.
 
+When retries are configured, `on_running` hooks fire on **each retry attempt**, including the initial run. This matches flow retry behavior. For example, a task configured with `retries=2` will trigger its `on_running` hooks up to three times: once on the initial run and once for each retry attempt.
+
 ### Pass `kwargs` to state change hooks
 
 You can compose the `with_options` method to effectively pass arbitrary `**kwargs` to your hooks:
