@@ -3,7 +3,7 @@ import signal
 import sys
 import tempfile
 from pathlib import Path
-from unittest.mock import ANY
+from unittest.mock import ANY, AsyncMock, MagicMock
 
 import anyio
 import httpx
@@ -23,7 +23,6 @@ from prefect.settings import (
     temporary_settings,
 )
 from prefect.testing.cli import invoke_and_assert
-from prefect.testing.utilities import AsyncMock, MagicMock
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.processutils import open_process
 from prefect.workers.base import BaseJobConfiguration, BaseWorker
