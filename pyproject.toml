@@ -81,6 +81,7 @@ dependencies = [
     "uv>=0.6.0",
     "semver>=3.0.4",
     "pluggy>=1.6.0",
+    "pydocket",
 ]
 [project.urls]
 Changelog = "https://github.com/PrefectHQ/prefect/releases"
@@ -173,6 +174,7 @@ dev = [
     "opentelemetry-instrumentation>=0.48b0,<1.0.0",
     "opentelemetry-instrumentation-logging>=0.48b0,<1.0.0",
     "opentelemetry-test-utils>=0.48b0,<1.0.0",
+    "fakeredis[lua]",
 ]
 
 perf = ["logfire[fastapi,sqlalchemy]>=3.14.0", "pyinstrument>=5.0.0"]
@@ -351,3 +353,7 @@ check-hidden = true
 
 [tool.uv]
 required-version = ">=0.6.15" # make sure upload_time is included to avoid churn (see https://github.com/dependabot/dependabot-core/issues/12127)
+
+[tool.uv.sources]
+pydocket = { git = "https://github.com/chrisguidry/docket.git", rev = "claude/support-python-310-011CUQFhrhzXGxLGyRjXk8k9" }
+fakeredis = { git = "https://github.com/zzstoatzz/fakeredis-py.git", rev = "fix-xpending-range-fields" }

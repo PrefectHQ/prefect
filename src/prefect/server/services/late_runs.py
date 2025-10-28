@@ -7,13 +7,18 @@ from __future__ import annotations
 
 import asyncio
 import datetime
-from typing import TYPE_CHECKING, Any
+from typing import Any
+from uuid import UUID
 
 import sqlalchemy as sa
 from sqlalchemy.ext.asyncio import AsyncSession
 
 import prefect.server.models as models
-from prefect.server.database import PrefectDBInterface, inject_db
+from prefect.server.database import (
+    PrefectDBInterface,
+    inject_db,
+    provide_database_interface,
+)
 from prefect.server.database.dependencies import db_injector
 from prefect.server.exceptions import ObjectNotFoundError
 from prefect.server.orchestration.core_policy import MarkLateRunsPolicy
@@ -27,8 +32,33 @@ from prefect.settings.context import get_current_settings
 from prefect.settings.models.server.services import ServicesBaseSetting
 from prefect.types._datetime import DateTime, now
 
-if TYPE_CHECKING:
-    from uuid import UUID
+
+# Docket task function for marking a single flow run as late
+async def mark_flow_run_late(flow_run_id: UUID) -> None:
+    """Mark a single flow run as late (docket task)."""
+    db = provide_database_interface()
+
+    async with db.session_context(begin_transaction=True) as session:
+        # Get the flow run to retrieve its scheduled time
+        result = await session.execute(
+            sa.select(db.FlowRun.id, db.FlowRun.next_scheduled_start_time).where(
+                db.FlowRun.id == flow_run_id
+            )
+        )
+        flow_run = result.one_or_none()
+
+        if not flow_run:
+            return  # Flow run was deleted
+
+        try:
+            await models.flow_runs.set_flow_run_state(
+                session=session,
+                flow_run_id=flow_run.id,
+                state=states.Late(scheduled_time=flow_run.next_scheduled_start_time),
+                flow_policy=MarkLateRunsPolicy,  # type: ignore
+            )
+        except ObjectNotFoundError:
+            return  # Flow run was deleted during processing
 
 
 class MarkLateRuns(LoopService):
@@ -59,6 +89,12 @@ class MarkLateRuns(LoopService):
         # query for this many runs to mark as late at once
         self.batch_size = 400
 
+    async def _on_start(self) -> None:
+        """Register docket task if docket is available."""
+        await super()._on_start()
+        if self.docket is not None:
+            self.docket.register(mark_flow_run_late)
+
     @db_injector
     async def run_once(self, db: PrefectDBInterface) -> None:
         """
@@ -71,24 +107,40 @@ class MarkLateRuns(LoopService):
             seconds=self.mark_late_after.total_seconds()
         )
 
-        while True:
-            async with db.session_context(begin_transaction=True) as session:
+        if self.docket is not None:
+            # Use docket to schedule tasks
+            async with db.session_context() as session:
                 query = self._get_select_late_flow_runs_query(
                     scheduled_to_start_before=scheduled_to_start_before, db=db
                 )
-
                 result = await session.execute(query)
                 runs = result.all()
 
-                # mark each run as late
+                # Schedule each run to be marked late via docket
                 for run in runs:
-                    await self._mark_flow_run_as_late(session=session, flow_run=run)
+                    await self.docket.add(mark_flow_run_late)(run.id)
 
-                # if no runs were found, exit the loop
-                if len(runs) < self.batch_size:
-                    break
+                self.logger.info(f"Scheduled {len(runs)} late run tasks.")
+        else:
+            # Fall back to inline execution
+            while True:
+                async with db.session_context(begin_transaction=True) as session:
+                    query = self._get_select_late_flow_runs_query(
+                        scheduled_to_start_before=scheduled_to_start_before, db=db
+                    )
 
-        self.logger.info("Finished monitoring for late runs.")
+                    result = await session.execute(query)
+                    runs = result.all()
+
+                    # mark each run as late
+                    for run in runs:
+                        await self._mark_flow_run_as_late(session=session, flow_run=run)
+
+                    # if no runs were found, exit the loop
+                    if len(runs) < self.batch_size:
+                        break
+
+            self.logger.info("Finished monitoring for late runs.")
 
     @inject_db
     def _get_select_late_flow_runs_query(

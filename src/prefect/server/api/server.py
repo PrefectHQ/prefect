@@ -617,6 +617,56 @@ def _memoize_block_auto_registration(
     return wrapper
 
 
+async def _get_docket_url() -> str:
+    """
+    Determine the Redis URL for docket.
+
+    Uses Redis from PREFECT_REDIS_MESSAGING_* settings if available,
+    otherwise falls back to in-memory mode via fakeredis.
+
+    Returns:
+        Redis URL string (redis://... or memory://)
+    """
+    try:
+        # Try to import prefect-redis settings (optional dependency)
+        from prefect_redis.messaging import get_redis_messaging_settings
+
+        settings = get_redis_messaging_settings()
+
+        # Check if Redis messaging is configured
+        if settings.host:
+            # Build Redis URL from messaging settings
+            url_parts = ["redis://"]
+
+            if settings.username or settings.password:
+                if settings.username:
+                    url_parts.append(settings.username)
+                if settings.password:
+                    url_parts.append(f":{settings.password}")
+                url_parts.append("@")
+
+            url_parts.append(settings.host)
+
+            if settings.port and settings.port != 6379:  # default Redis port
+                url_parts.append(f":{settings.port}")
+
+            if settings.db:
+                url_parts.append(f"/{settings.db}")
+
+            logger.debug(f"Using Redis for docket: {settings.host}:{settings.port}")
+            return "".join(url_parts)
+    except ImportError:
+        # prefect-redis not installed
+        pass
+    except Exception as e:
+        # Failed to get Redis settings
+        logger.debug(f"Could not get Redis settings for docket: {e}")
+
+    # Fall back to in-memory mode
+    logger.debug("Using in-memory mode for docket (memory://)")
+    return "memory://"
+
+
 def create_app(
     settings: Optional[prefect.settings.Settings] = None,
     ephemeral: bool = False,
@@ -695,10 +745,60 @@ def create_app(
         )
 
         async with AsyncExitStack() as stack:
+            # Create docket instance for background tasks
+            from docket import Docket, Worker
+
+            # Use Redis if configured, otherwise in-memory
+            docket_url = await _get_docket_url()
+            docket = Docket(name="prefect-server", url=docket_url)
+            await stack.enter_async_context(docket)
+
+            # Get docket settings and smart defaults based on database type
+            docket_settings = settings.server.services.docket
+
+            # Detect database type for smart defaults
+            db_url = PREFECT_API_DATABASE_CONNECTION_URL.value()
+            is_sqlite = get_dialect(db_url).name == "sqlite"
+
+            # Smart defaults: SQLite uses lower concurrency to avoid lock contention
+            # Postgres can handle higher concurrency
+            num_workers = (
+                docket_settings.workers
+                if docket_settings.workers is not None
+                else (2 if is_sqlite else 10)
+            )
+            worker_concurrency = (
+                docket_settings.concurrency
+                if docket_settings.concurrency is not None
+                else (2 if is_sqlite else 10)
+            )
+
+            logger.debug(
+                f"Starting {num_workers} docket workers with concurrency "
+                f"{worker_concurrency} ({'SQLite' if is_sqlite else 'PostgreSQL'} mode)"
+            )
+
+            workers = []
+            for i in range(num_workers):
+                worker = Worker(docket, concurrency=worker_concurrency)
+                await stack.enter_async_context(worker)
+                workers.append(worker)
+
+            # Start workers in background
+            worker_tasks = []
+            for worker in workers:
+                task = asyncio.create_task(worker.run_forever())
+                worker_tasks.append(task)
+
             if Services:
-                await stack.enter_async_context(Services.running())
+                await stack.enter_async_context(Services.running(docket=docket))
             LIFESPAN_RAN_FOR_APP.add(app)
             yield
+
+            # Cancel worker tasks on shutdown
+            for task in worker_tasks:
+                task.cancel()
+            await asyncio.gather(*worker_tasks, return_exceptions=True)
 
     def on_service_exit(service: Service, task: asyncio.Task[None]) -> None:
         """
