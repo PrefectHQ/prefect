@@ -355,5 +355,5 @@ check-hidden = true
 required-version = ">=0.6.15" # make sure upload_time is included to avoid churn (see https://github.com/dependabot/dependabot-core/issues/12127)
 
 [tool.uv.sources]
-pydocket = { git = "https://github.com/chrisguidry/docket.git", rev = "claude/support-python-310-011CUQFhrhzXGxLGyRjXk8k9" }
+pydocket = { git = "https://github.com/chrisguidry/docket.git", tag = "0.12.0" }
 fakeredis = { git = "https://github.com/zzstoatzz/fakeredis-py.git", rev = "fix-xpending-range-fields" }
