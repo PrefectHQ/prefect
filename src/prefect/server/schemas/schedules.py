@@ -165,50 +165,31 @@ class IntervalSchedule(PrefectBaseModel):
 
         if sys.version_info >= (3, 13):
             # `pendulum` is not supported in Python 3.13, so we use `whenever` instead
-            from whenever import ZonedDateTime
+            from whenever import PlainDateTime, ZonedDateTime
 
             if start is None:
                 start = ZonedDateTime.now("UTC").py_datetime()
 
-            if self.anchor_date.tzinfo is None:
-                from whenever import PlainDateTime
+            target_timezone = self.timezone or "UTC"
 
-                anchor_zdt = PlainDateTime.from_py_datetime(self.anchor_date).assume_tz(
-                    "UTC"
-                )
-            elif isinstance(self.anchor_date.tzinfo, ZoneInfo):
-                anchor_zdt = ZonedDateTime.from_py_datetime(self.anchor_date).to_tz(
-                    self.timezone or "UTC"
-                )
-            else:
-                # This case handles rogue tzinfo objects that `whenever` doesn't play will with
-                anchor_zdt = ZonedDateTime.from_py_datetime(
-                    self.anchor_date.replace(
-                        tzinfo=ZoneInfo(self.anchor_date.tzname() or "UTC")
-                    )
-                ).to_tz(self.timezone or "UTC")
+            def to_local_zdt(dt: datetime.datetime | None) -> ZonedDateTime | None:
+                if dt is None:
+                    return None
+                if dt.tzinfo is None:
+                    return PlainDateTime.from_py_datetime(dt).assume_tz(target_timezone)
+                if isinstance(dt.tzinfo, ZoneInfo):
+                    return ZonedDateTime.from_py_datetime(dt).to_tz(target_timezone)
+                # For offset-based tzinfo instances (e.g. datetime.timezone(+09:00)),
+                # project the absolute instant into the target timezone via timestamp.
+                return ZonedDateTime.from_timestamp(dt.timestamp(), tz=target_timezone)
 
-            if start.tzinfo is None:
-                local_start = PlainDateTime.from_py_datetime(start).assume_tz("UTC")
-            elif isinstance(start.tzinfo, ZoneInfo):
-                local_start = ZonedDateTime.from_py_datetime(start).to_tz(
-                    self.timezone or "UTC"
-                )
-            else:
-                local_start = ZonedDateTime.from_py_datetime(
-                    start.replace(tzinfo=ZoneInfo(start.tzname() or "UTC"))
-                ).to_tz(self.timezone or "UTC")
+            anchor_zdt = to_local_zdt(self.anchor_date)
+            assert anchor_zdt is not None
 
-            if end is None:
-                local_end = None
-            elif isinstance(end.tzinfo, ZoneInfo):
-                local_end = ZonedDateTime.from_py_datetime(end).to_tz(
-                    self.timezone or "UTC"
-                )
-            else:
-                local_end = ZonedDateTime.from_py_datetime(
-                    end.replace(tzinfo=ZoneInfo(end.tzname() or "UTC"))
-                ).to_tz(self.timezone or "UTC")
+            local_start = to_local_zdt(start)
+            assert local_start is not None
+
+            local_end = to_local_zdt(end)
 
             offset = (
                 local_start - anchor_zdt
