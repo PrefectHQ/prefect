@@ -7,6 +7,7 @@ import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect._internal.compatibility.starlette import status
+from prefect._internal.testing import retry_assert
 from prefect.server import models, schemas
 from prefect.server.events.clients import AssertingEventsClient
 from prefect.server.schemas.actions import WorkQueueCreate, WorkQueueUpdate
@@ -902,9 +903,14 @@ class TestGetRunsInWorkQueue:
         assert response.status_code == status.HTTP_200_OK
 
         # check that the deployment status is now ready
-        updated_deployment_response = await client.get(f"/deployments/{deployment.id}")
-        assert updated_deployment_response.status_code == status.HTTP_200_OK
-        assert updated_deployment_response.json()["status"] == "READY"
+        # Use retry_assert to handle eventual consistency from background worker
+        async for attempt in retry_assert(max_attempts=20, delay=0.5):
+            with attempt:
+                updated_deployment_response = await client.get(
+                    f"/deployments/{deployment.id}"
+                )
+                assert updated_deployment_response.status_code == status.HTTP_200_OK
+                assert updated_deployment_response.json()["status"] == "READY"
 
     async def test_read_work_queue_runs_updates_work_queue_status(
         self,
