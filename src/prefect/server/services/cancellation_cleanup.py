@@ -30,9 +30,9 @@ NON_TERMINAL_STATES = list(set(states.StateType) - states.TERMINAL_STATES)
 
 # Docket task function for cancelling child task runs of a cancelled flow run
 async def cancel_child_task_runs(
+    flow_run_id: UUID,
     *,
     db: PrefectDBInterface = DocketDepends(provide_database_interface),
-    flow_run_id: UUID,
 ) -> None:
     """Cancel child task runs of a cancelled flow run (docket task)."""
     async with db.session_context() as session:
@@ -61,9 +61,9 @@ async def cancel_child_task_runs(
 
 # Docket task function for cancelling a subflow run whose parent was cancelled
 async def cancel_subflow_run(
+    subflow_run_id: UUID,
     *,
     db: PrefectDBInterface = DocketDepends(provide_database_interface),
-    subflow_run_id: UUID,
 ) -> None:
     """Cancel a subflow run whose parent flow run was cancelled (docket task)."""
     async with db.session_context() as session:

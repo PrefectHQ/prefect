@@ -36,9 +36,9 @@ from prefect.types._datetime import DateTime, now
 
 # Docket task function for marking a single flow run as late
 async def mark_flow_run_late(
+    flow_run_id: UUID,
     *,
     db: PrefectDBInterface = DocketDepends(provide_database_interface),
-    flow_run_id: UUID,
 ) -> None:
     """Mark a single flow run as late (docket task)."""
     async with db.session_context(begin_transaction=True) as session:

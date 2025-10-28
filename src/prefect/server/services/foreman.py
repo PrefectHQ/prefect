@@ -38,10 +38,10 @@ from prefect.types._datetime import now
 
 # Docket task function for marking workers offline
 async def mark_workers_offline(
-    *,
-    db: PrefectDBInterface = DocketDepends(provide_database_interface),
     inactivity_heartbeat_multiple: int,
     fallback_heartbeat_interval_seconds: int,
+    *,
+    db: PrefectDBInterface = DocketDepends(provide_database_interface),
 ) -> int:
     """Mark workers without recent heartbeat as offline (docket task)."""
     async with db.session_context(begin_transaction=True) as session:
@@ -107,9 +107,9 @@ async def mark_work_pools_not_ready(
 
 # Docket task function for marking deployments not ready
 async def mark_deployments_not_ready_task(
+    deployment_last_polled_timeout_seconds: int,
     *,
     db: PrefectDBInterface = DocketDepends(provide_database_interface),
-    deployment_last_polled_timeout_seconds: int,
 ) -> None:
     """Mark deployments with old last_polled as not ready (docket task)."""
     async with db.session_context(begin_transaction=True) as session:
@@ -149,9 +149,9 @@ async def mark_deployments_not_ready_task(
 
 # Docket task function for marking work queues not ready
 async def mark_work_queues_not_ready_task(
+    work_queue_last_polled_timeout_seconds: int,
     *,
     db: PrefectDBInterface = DocketDepends(provide_database_interface),
-    work_queue_last_polled_timeout_seconds: int,
 ) -> None:
     """Mark work queues with old last_polled as not ready (docket task)."""
     async with db.session_context(begin_transaction=True) as session:
