@@ -71,12 +71,12 @@ generate-examples:
 
 # Generate OpenAPI documentation
 generate-openapi:
-    uv run --isolated -p 3.9 --with 'pydantic>=2.9.0' ./scripts/generate_mintlify_openapi_docs.py
+    uv run --isolated -p 3.10 --with 'pydantic>=2.9.0' ./scripts/generate_mintlify_openapi_docs.py
 
 # Generate settings schema and reference
 generate-settings:
-    uv run --isolated -p 3.9 --with 'pydantic>=2.9.0' ./scripts/generate_settings_schema.py
-    uv run --isolated -p 3.9 --with 'pydantic>=2.9.0' ./scripts/generate_settings_ref.py
+    uv run --isolated -p 3.10 --with 'pydantic>=2.9.0' ./scripts/generate_settings_schema.py
+    uv run --isolated -p 3.10 --with 'pydantic>=2.9.0' ./scripts/generate_settings_ref.py
 
 generate-cli-docs:
     uv run --isolated ./scripts/generate_cli_docs.py
