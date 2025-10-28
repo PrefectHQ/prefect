@@ -1,7 +1,9 @@
 """Testing utilities for internal use."""
 
 import asyncio
-from typing import Any, AsyncIterator, Self
+from typing import Any, AsyncIterator
+
+from typing_extensions import Self
 
 
 class AssertionRetryAttempt:
