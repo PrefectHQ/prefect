@@ -3716,7 +3716,7 @@ requires-dist = [
     { name = "pydantic-core", specifier = ">=2.12.0,<3.0.0" },
     { name = "pydantic-extra-types", specifier = ">=2.8.2,<3.0.0" },
     { name = "pydantic-settings", specifier = ">2.2.1,!=2.9.0,<3.0.0" },
-    { name = "pydocket", git = "https://github.com/chrisguidry/docket.git?rev=claude%2Fsupport-python-310-011CUQFhrhzXGxLGyRjXk8k9" },
+    { name = "pydocket", git = "https://github.com/chrisguidry/docket.git?tag=0.12.0" },
     { name = "python-dateutil", specifier = ">=2.8.2,<3.0.0" },
     { name = "python-slugify", specifier = ">=5.0,<9.0" },
     { name = "pytz", specifier = ">=2021.1,<2026" },
@@ -4455,8 +4455,8 @@ wheels = [
 
 [[package]]
 name = "pydocket"
-version = "0.11.2.dev17+ga16fcbe79"
-source = { git = "https://github.com/chrisguidry/docket.git?rev=claude%2Fsupport-python-310-011CUQFhrhzXGxLGyRjXk8k9#a16fcbe793459825440077506571a19193cbde8b" }
+version = "0.12.0"
+source = { git = "https://github.com/chrisguidry/docket.git?tag=0.12.0#2822eaaedc2c94bb3c243ccf951eece7373e86f0" }
 dependencies = [
     { name = "cloudpickle" },
     { name = "exceptiongroup", marker = "python_full_version < '3.11'" },
