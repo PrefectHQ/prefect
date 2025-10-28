@@ -28,6 +28,7 @@
       </template>
     </template>
     <MarketingBanner
+      v-if="showPromotionalContent"
       title="Ready to scale?"
       subtitle="Webhooks, role and object-level security, and serverless push work pools on Prefect Cloud"
     >
@@ -62,13 +63,19 @@
   } from '@prefecthq/prefect-ui-library'
   import { useSubscription } from '@prefecthq/vue-compositions'
   import { computed, provide } from 'vue'
-
+  import { usePrefectApi } from '@/compositions/usePrefectApi'
 
   provide(subscriptionIntervalKey, {
     interval: dateFunctions.secondsToMilliseconds(30),
   })
 
   const api = useWorkspaceApi()
+  const prefectApi = usePrefectApi()
+  const serverSettings = await prefectApi.admin.getSettings()
+  const showPromotionalContent = computed(() => serverSettings.server.ui.show_promotional_content)
+
+  // Cache to localStorage for use in error toasts
+  localStorage.setItem('prefect-show-promotional-content', String(showPromotionalContent.value))
   const flowRunsCountAllSubscription = useSubscription(api.flowRuns.getFlowRunsCount, [{}])
   const loaded = computed(() => flowRunsCountAllSubscription.executed)
   const empty = computed(() => flowRunsCountAllSubscription.response === 0)
