@@ -48,3 +48,13 @@ class ServerUISettings(PrefectBaseSettings):
             "prefect_ui_static_directory",
         ),
     )
+
+    show_promotional_content: bool = Field(
+        default=True,
+        description="Whether or not to display promotional content in the UI, including upgrade prompts and marketing banners.",
+        validation_alias=AliasChoices(
+            AliasPath("show_promotional_content"),
+            "prefect_server_ui_show_promotional_content",
+            "prefect_ui_show_promotional_content",
+        ),
+    )
