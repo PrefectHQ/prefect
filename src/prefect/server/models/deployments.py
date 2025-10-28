@@ -1089,13 +1089,9 @@ async def delete_deployment_schedule(
     return result.rowcount > 0
 
 
-async def aprovide_database_interface() -> PrefectDBInterface:
-    return provide_database_interface()
-
-
 async def mark_deployments_ready(
     *,
-    db: PrefectDBInterface = Depends(aprovide_database_interface),
+    db: PrefectDBInterface = Depends(provide_database_interface),
     deployment_ids: Optional[Iterable[UUID]] = None,
     work_queue_ids: Optional[Iterable[UUID]] = None,
 ) -> None:

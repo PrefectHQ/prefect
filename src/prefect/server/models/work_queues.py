@@ -537,13 +537,9 @@ async def record_work_queue_polls(
         )
 
 
-async def aprovide_database_interface() -> PrefectDBInterface:
-    return provide_database_interface()
-
-
 async def mark_work_queues_ready(
     *,
-    db: PrefectDBInterface = Depends(aprovide_database_interface),
+    db: PrefectDBInterface = Depends(provide_database_interface),
     polled_work_queue_ids: Sequence[UUID],
     ready_work_queue_ids: Sequence[UUID],
 ) -> None:
