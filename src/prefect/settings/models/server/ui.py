@@ -55,6 +55,5 @@ class ServerUISettings(PrefectBaseSettings):
         validation_alias=AliasChoices(
             AliasPath("show_promotional_content"),
             "prefect_server_ui_show_promotional_content",
-            "prefect_ui_show_promotional_content",
         ),
     )

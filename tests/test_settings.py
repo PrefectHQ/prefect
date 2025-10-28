@@ -515,7 +515,6 @@ SUPPORTED_SETTINGS = {
     "PREFECT_UI_API_URL": {"test_value": "https://api.prefect.io", "legacy": True},
     "PREFECT_UI_ENABLED": {"test_value": True, "legacy": True},
     "PREFECT_UI_SERVE_BASE": {"test_value": "/base", "legacy": True},
-    "PREFECT_UI_SHOW_PROMOTIONAL_CONTENT": {"test_value": False, "legacy": True},
     "PREFECT_UI_STATIC_DIRECTORY": {"test_value": "/path/to/static", "legacy": True},
     "PREFECT_UI_URL": {"test_value": "https://ui.prefect.io"},
     "PREFECT_UNIT_TEST_LOOP_DEBUG": {"test_value": True, "legacy": True},

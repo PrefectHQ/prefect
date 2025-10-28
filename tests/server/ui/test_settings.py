@@ -29,11 +29,3 @@ def test_ui_settings_environment_variable_names():
 
     # Clean up
     del os.environ["PREFECT_SERVER_UI_SHOW_PROMOTIONAL_CONTENT"]
-
-    # Test legacy PREFECT_UI_SHOW_PROMOTIONAL_CONTENT alias
-    os.environ["PREFECT_UI_SHOW_PROMOTIONAL_CONTENT"] = "false"
-    settings = ServerUISettings()
-    assert settings.show_promotional_content is False
-
-    # Clean up
-    del os.environ["PREFECT_UI_SHOW_PROMOTIONAL_CONTENT"]
