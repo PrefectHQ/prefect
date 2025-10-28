@@ -24905,6 +24905,15 @@
                             "PREFECT_SERVER_UI_STATIC_DIRECTORY",
                             "PREFECT_UI_STATIC_DIRECTORY"
                         ]
+                    },
+                    "show_promotional_content": {
+                        "type": "boolean",
+                        "title": "Show Promotional Content",
+                        "description": "Whether or not to display promotional content in the UI, including upgrade prompts and marketing banners.",
+                        "default": true,
+                        "supported_environment_variables": [
+                            "PREFECT_SERVER_UI_SHOW_PROMOTIONAL_CONTENT"
+                        ]
                     }
                 },
                 "type": "object",
