@@ -180,8 +180,10 @@ class IntervalSchedule(PrefectBaseModel):
                 if isinstance(dt.tzinfo, ZoneInfo):
                     return ZonedDateTime.from_py_datetime(dt).to_tz(target_timezone)
                 # For offset-based tzinfo instances (e.g. datetime.timezone(+09:00)),
-                # project the absolute instant into the target timezone via timestamp.
-                return ZonedDateTime.from_timestamp(dt.timestamp(), tz=target_timezone)
+                # use astimezone to preserve the instant, then convert to ZonedDateTime.
+                return ZonedDateTime.from_py_datetime(
+                    dt.astimezone(ZoneInfo(target_timezone))
+                )
 
             anchor_zdt = to_local_zdt(self.anchor_date)
             assert anchor_zdt is not None
