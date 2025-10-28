@@ -24,10 +24,10 @@ from prefect.types._datetime import now
 
 # Docket task function for failing a single expired paused flow run
 async def fail_expired_pause(
-    *,
-    db: PrefectDBInterface = DocketDepends(provide_database_interface),
     flow_run_id: UUID,
     pause_timeout: str,
+    *,
+    db: PrefectDBInterface = DocketDepends(provide_database_interface),
 ) -> None:
     """Mark a single expired paused flow run as failed (docket task)."""
     async with db.session_context(begin_transaction=True) as session:

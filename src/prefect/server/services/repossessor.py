@@ -19,9 +19,9 @@ logger: Logger = get_logger(__name__)
 
 # Docket task function for revoking a single expired lease
 async def revoke_expired_lease(
+    expired_lease_id: str,
     *,
     db: PrefectDBInterface = DocketDepends(provide_database_interface),
-    expired_lease_id: str,
 ) -> None:
     """Revoke a single expired concurrency lease (docket task)."""
     concurrency_lease_storage = get_concurrency_lease_storage()
