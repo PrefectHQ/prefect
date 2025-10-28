@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+from logging import Logger
 
 from docket import Depends as DocketDepends
 
@@ -13,7 +14,7 @@ from prefect.server.services.base import LoopService
 from prefect.settings.context import get_current_settings
 from prefect.settings.models.server.services import ServicesBaseSetting
 
-logger = get_logger(__name__)
+logger: Logger = get_logger(__name__)
 
 
 # Docket task function for revoking a single expired lease
