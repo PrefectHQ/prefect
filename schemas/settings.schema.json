@@ -2326,6 +2326,15 @@
                         "PREFECT_UI_STATIC_DIRECTORY"
                     ],
                     "title": "Static Directory"
+                },
+                "show_promotional_content": {
+                    "default": true,
+                    "description": "Whether or not to display promotional content in the UI, including upgrade prompts and marketing banners.",
+                    "supported_environment_variables": [
+                        "PREFECT_SERVER_UI_SHOW_PROMOTIONAL_CONTENT"
+                    ],
+                    "title": "Show Promotional Content",
+                    "type": "boolean"
                 }
             },
             "title": "ServerUISettings",
