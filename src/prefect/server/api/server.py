@@ -609,6 +609,56 @@ def _memoize_block_auto_registration(
     return wrapper
 
 
+async def _get_docket_url() -> str:
+    """
+    Determine the Redis URL for docket.
+
+    Uses Redis from PREFECT_REDIS_MESSAGING_* settings if available,
+    otherwise falls back to in-memory mode via fakeredis.
+
+    Returns:
+        Redis URL string (redis://... or memory://)
+    """
+    try:
+        # Try to import prefect-redis settings (optional dependency)
+        from prefect_redis.messaging import get_redis_messaging_settings
+
+        settings = get_redis_messaging_settings()
+
+        # Check if Redis messaging is configured
+        if settings.host:
+            # Build Redis URL from messaging settings
+            url_parts = ["redis://"]
+
+            if settings.username or settings.password:
+                if settings.username:
+                    url_parts.append(settings.username)
+                if settings.password:
+                    url_parts.append(f":{settings.password}")
+                url_parts.append("@")
+
+            url_parts.append(settings.host)
+
+            if settings.port and settings.port != 6379:  # default Redis port
+                url_parts.append(f":{settings.port}")
+
+            if settings.db:
+                url_parts.append(f"/{settings.db}")
+
+            logger.debug(f"Using Redis for docket: {settings.host}:{settings.port}")
+            return "".join(url_parts)
+    except ImportError:
+        # prefect-redis not installed
+        pass
+    except Exception as e:
+        # Failed to get Redis settings
+        logger.debug(f"Could not get Redis settings for docket: {e}")
+
+    # Fall back to in-memory mode
+    logger.debug("Using in-memory mode for docket (memory://)")
+    return "memory://"
+
+
 def create_app(
     settings: Optional[prefect.settings.Settings] = None,
     ephemeral: bool = False,
@@ -693,7 +743,7 @@ def create_app(
             await stack.enter_async_context(background_worker(docket))
             api_app.state.docket = docket
             if Services:
-                await stack.enter_async_context(Services.running())
+                await stack.enter_async_context(Services.running(docket=docket))
             LIFESPAN_RAN_FOR_APP.add(app)
             yield
 
