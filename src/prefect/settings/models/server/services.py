@@ -582,6 +582,18 @@ class DocketSettings(PrefectBaseSettings):
         ),
     )
 
+    url: str = Field(
+        default="memory://",
+        description="""
+        The URL for the docket backend. Supports redis://, rediss://, or memory:// (default).
+        When set to memory://, uses an in-memory backend via fakeredis.
+        """,
+        validation_alias=AliasChoices(
+            AliasPath("url"),
+            "prefect_server_docket_url",
+        ),
+    )
+
 
 class ServerServicesSettings(PrefectBaseSettings):
     """
