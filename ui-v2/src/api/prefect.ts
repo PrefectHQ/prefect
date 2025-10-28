@@ -49,7 +49,7 @@ export interface paths {
         put?: never;
         /**
          * Create Flow
-         * @description Creates a new flow from the provided schema. If a flow with the
+         * @description Gracefully creates a new flow from the provided schema. If a flow with the
          *     same name already exists, the existing flow is returned.
          *
          *     For more information, see https://docs.prefect.io/v3/concepts/flows.
@@ -755,7 +755,7 @@ export interface paths {
         put?: never;
         /**
          * Create Deployment
-         * @description Creates a new deployment from the provided schema. If a deployment with
+         * @description Gracefully creates a new deployment from the provided schema. If a deployment with
          *     the same name and flow_id already exists, the deployment is updated.
          *
          *     If the deployment has an active schedule, flow runs will be scheduled.
@@ -1064,7 +1064,7 @@ export interface paths {
         get?: never;
         /**
          * Create Saved Search
-         * @description Creates a new saved search from the provided schema.
+         * @description Gracefully creates a new saved search from the provided schema.
          *
          *     If a saved search with the same name already exists, the saved search's fields are
          *     replaced.
@@ -2986,50 +2986,6 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
-        /**
-         * APISettings
-         * @description Settings for interacting with the Prefect API
-         */
-        APISettings: {
-            /**
-             * Url
-             * @description The URL of the Prefect API. If not set, the client will attempt to infer it.
-             */
-            url?: string | null;
-            /**
-             * Auth String
-             * @description The auth string used for basic authentication with a self-hosted Prefect API. Should be kept secret.
-             */
-            auth_string?: string | null;
-            /**
-             * Key
-             * @description The API key used for authentication with the Prefect API. Should be kept secret.
-             */
-            key?: string | null;
-            /**
-             * Tls Insecure Skip Verify
-             * @description If `True`, disables SSL checking to allow insecure requests. Setting to False is recommended only during development. For example, when using self-signed certificates.
-             * @default false
-             */
-            tls_insecure_skip_verify: boolean;
-            /**
-             * Ssl Cert File
-             * @description This configuration settings option specifies the path to an SSL certificate file.
-             */
-            ssl_cert_file?: string | null;
-            /**
-             * Enable Http2
-             * @description If true, enable support for HTTP/2 for communicating with an API. If the API does not support HTTP/2, this will have no effect and connections will be made via HTTP/1.1.
-             * @default false
-             */
-            enable_http2: boolean;
-            /**
-             * Request Timeout
-             * @description The default timeout for requests to the API
-             * @default 60
-             */
-            request_timeout: number;
-        };
         /** Artifact */
         Artifact: {
             /**
@@ -5007,29 +4963,6 @@ export interface components {
             heartbeat_interval_seconds?: number | null;
         };
         /**
-         * CLISettings
-         * @description Settings for controlling CLI behavior
-         */
-        CLISettings: {
-            /**
-             * Colors
-             * @description If True, use colors in CLI output. If `False`, output will not include colors codes.
-             * @default true
-             */
-            colors: boolean;
-            /**
-             * Prompt
-             * @description If `True`, use interactive prompts in CLI commands. If `False`, no interactive prompts will be used. If `None`, the value will be dynamically determined based on the presence of an interactive-enabled terminal.
-             */
-            prompt?: boolean | null;
-            /**
-             * Wrap Lines
-             * @description If `True`, wrap text by inserting new lines in long lines in CLI output. If `False`, output will not be wrapped.
-             * @default true
-             */
-            wrap_lines: boolean;
-        };
-        /**
          * CallWebhook
          * @description Call a webhook when an Automation is triggered.
          */
@@ -5088,108 +5021,6 @@ export interface components {
              * @description An optional message to associate with the state change
              */
             message?: string | null;
-        };
-        /**
-         * ClientMetricsSettings
-         * @description Settings for controlling metrics reporting from the client
-         */
-        ClientMetricsSettings: {
-            /**
-             * Enabled
-             * @description Whether or not to enable Prometheus metrics in the client.
-             * @default false
-             */
-            enabled: boolean;
-            /**
-             * Port
-             * @description The port to expose the client Prometheus metrics on.
-             * @default 4201
-             */
-            port: number;
-        };
-        /**
-         * ClientSettings
-         * @description Settings for controlling API client behavior
-         */
-        ClientSettings: {
-            /**
-             * Max Retries
-             * @description
-             *             The maximum number of retries to perform on failed HTTP requests.
-             *             Defaults to 5. Set to 0 to disable retries.
-             *             See `PREFECT_CLIENT_RETRY_EXTRA_CODES` for details on which HTTP status codes are
-             *             retried.
-             *
-             * @default 5
-             */
-            max_retries: number;
-            /**
-             * Retry Jitter Factor
-             * @description
-             *             A value greater than or equal to zero to control the amount of jitter added to retried
-             *             client requests. Higher values introduce larger amounts of jitter.
-             *             Set to 0 to disable jitter. See `clamped_poisson_interval` for details on the how jitter
-             *             can affect retry lengths.
-             *
-             * @default 0.2
-             */
-            retry_jitter_factor: number;
-            /**
-             * Retry Extra Codes
-             * @description
-             *             A list of extra HTTP status codes to retry on. Defaults to an empty list.
-             *             429, 502 and 503 are always retried. Please note that not all routes are idempotent and retrying
-             *             may result in unexpected behavior.
-             *
-             */
-            retry_extra_codes?: string | number | number[] | null;
-            /**
-             * Csrf Support Enabled
-             * @description
-             *             Determines if CSRF token handling is active in the Prefect client for API
-             *             requests.
-             *
-             *             When enabled (`True`), the client automatically manages CSRF tokens by
-             *             retrieving, storing, and including them in applicable state-changing requests
-             *
-             * @default true
-             */
-            csrf_support_enabled: boolean;
-            /**
-             * Custom Headers
-             * @description
-             *             Custom HTTP headers to include with every API request to the Prefect server.
-             *             Headers are specified as key-value pairs. Note that headers like 'User-Agent'
-             *             and CSRF-related headers are managed by Prefect and cannot be overridden.
-             *
-             */
-            custom_headers?: {
-                [key: string]: string;
-            };
-            metrics?: components["schemas"]["ClientMetricsSettings"];
-        };
-        /**
-         * CloudSettings
-         * @description Settings for interacting with Prefect Cloud
-         */
-        CloudSettings: {
-            /**
-             * Api Url
-             * @description API URL for Prefect Cloud. Used for authentication with Prefect Cloud.
-             * @default https://api.prefect.cloud/api
-             */
-            api_url: string;
-            /**
-             * Enable Orchestration Telemetry
-             * @description Whether or not to enable orchestration telemetry.
-             * @default true
-             */
-            enable_orchestration_telemetry: boolean;
-            /**
-             * Ui Url
-             * @description The URL of the Prefect Cloud UI. If not set, the client will attempt to infer it.
-             */
-            ui_url?: string | null;
         };
         /**
          * CompoundTrigger
@@ -5588,32 +5419,7 @@ export interface components {
             expiration: string;
         };
         /** DependencyResult */
-        "DependencyResult-Input": {
-            /**
-             * Id
-             * Format: uuid
-             */
-            id: string;
-            /** Name */
-            name: string;
-            /** Upstream Dependencies */
-            upstream_dependencies: components["schemas"]["TaskRunResult"][];
-            state: components["schemas"]["State"] | null;
-            /** Expected Start Time */
-            expected_start_time: string | null;
-            /** Start Time */
-            start_time: string | null;
-            /** End Time */
-            end_time: string | null;
-            /** Total Run Time */
-            total_run_time: number | null;
-            /** Estimated Run Time */
-            estimated_run_time: number | null;
-            /** Untrackable Result */
-            untrackable_result: boolean;
-        };
-        /** DependencyResult */
-        "DependencyResult-Output": {
+        DependencyResult: {
             /**
              * Id
              * Format: uuid
@@ -6303,22 +6109,6 @@ export interface components {
             version_info?: components["schemas"]["VersionInfo"] | null;
         };
         /**
-         * DeploymentsSettings
-         * @description Settings for configuring deployments defaults
-         */
-        DeploymentsSettings: {
-            /**
-             * Default Work Pool Name
-             * @description The default work pool to use when creating deployments.
-             */
-            default_work_pool_name?: string | null;
-            /**
-             * Default Docker Build Namespace
-             * @description The default Docker namespace to use when building images.
-             */
-            default_docker_build_namespace?: string | null;
-        };
-        /**
          * DoNothing
          * @description Do nothing when an Automation is triggered
          */
@@ -6644,20 +6434,6 @@ export interface components {
             within: number;
         };
         /**
-         * ExperimentsSettings
-         * @description Settings for configuring experimental features
-         */
-        ExperimentsSettings: {
-            /**
-             * Warn
-             * @description If `True`, warn on usage of experimental features.
-             * @default true
-             */
-            warn: boolean;
-            /** @description Settings for the experimental plugin system */
-            plugins?: components["schemas"]["PluginsSettings"];
-        };
-        /**
          * Flow
          * @description An ORM representation of flow data.
          */
@@ -6812,178 +6588,7 @@ export interface components {
          * FlowRun
          * @description An ORM representation of flow run data.
          */
-        "FlowRun-Input": {
-            /**
-             * Id
-             * Format: uuid
-             */
-            id: string;
-            /** Created */
-            created: string | null;
-            /** Updated */
-            updated: string | null;
-            /**
-             * Name
-             * @description The name of the flow run. Defaults to a random slug if not specified.
-             */
-            name?: string;
-            /**
-             * Flow Id
-             * Format: uuid
-             * @description The id of the flow being run.
-             */
-            flow_id: string;
-            /**
-             * State Id
-             * @description The id of the flow run's current state.
-             */
-            state_id?: string | null;
-            /**
-             * Deployment Id
-             * @description The id of the deployment associated with this flow run, if available.
-             */
-            deployment_id?: string | null;
-            /**
-             * Deployment Version
-             * @description The version of the deployment associated with this flow run.
-             */
-            deployment_version?: string | null;
-            /**
-             * Work Queue Name
-             * @description The work queue that handled this flow run.
-             */
-            work_queue_name?: string | null;
-            /**
-             * Flow Version
-             * @description The version of the flow executed in this flow run.
-             */
-            flow_version?: string | null;
-            /**
-             * Parameters
-             * @description Parameters for the flow run.
-             */
-            parameters?: {
-                [key: string]: unknown;
-            };
-            /**
-             * Idempotency Key
-             * @description An optional idempotency key for the flow run. Used to ensure the same flow run is not created multiple times.
-             */
-            idempotency_key?: string | null;
-            /**
-             * Context
-             * @description Additional context for the flow run.
-             */
-            context?: {
-                [key: string]: unknown;
-            };
-            empirical_policy?: components["schemas"]["FlowRunPolicy"];
-            /**
-             * Tags
-             * @description A list of tags on the flow run
-             */
-            tags?: string[];
-            /**
-             * Labels
-             * @description A dictionary of key-value labels. Values can be strings, numbers, or booleans.
-             */
-            labels?: {
-                [key: string]: boolean | number | string;
-            } | null;
-            /**
-             * Parent Task Run Id
-             * @description If the flow run is a subflow, the id of the 'dummy' task in the parent flow used to track subflow state.
-             */
-            parent_task_run_id?: string | null;
-            /** @description The type of the current flow run state. */
-            state_type?: components["schemas"]["StateType"] | null;
-            /**
-             * State Name
-             * @description The name of the current flow run state.
-             */
-            state_name?: string | null;
-            /**
-             * Run Count
-             * @description The number of times the flow run was executed.
-             * @default 0
-             */
-            run_count: number;
-            /**
-             * Expected Start Time
-             * @description The flow run's expected start time.
-             */
-            expected_start_time?: string | null;
-            /**
-             * Next Scheduled Start Time
-             * @description The next time the flow run is scheduled to start.
-             */
-            next_scheduled_start_time?: string | null;
-            /**
-             * Start Time
-             * @description The actual start time.
-             */
-            start_time?: string | null;
-            /**
-             * End Time
-             * @description The actual end time.
-             */
-            end_time?: string | null;
-            /**
-             * Total Run Time
-             * @description Total run time. If the flow run was executed multiple times, the time of each run will be summed.
-             * @default 0
-             */
-            total_run_time: number;
-            /**
-             * Estimated Run Time
-             * @description A real-time estimate of the total run time.
-             * @default 0
-             */
-            estimated_run_time: number;
-            /**
-             * Estimated Start Time Delta
-             * @description The difference between actual and expected start time.
-             * @default 0
-             */
-            estimated_start_time_delta: number;
-            /**
-             * Auto Scheduled
-             * @description Whether or not the flow run was automatically scheduled.
-             * @default false
-             */
-            auto_scheduled: boolean;
-            /**
-             * Infrastructure Document Id
-             * @description The block document defining infrastructure to use this flow run.
-             */
-            infrastructure_document_id?: string | null;
-            /**
-             * Infrastructure Pid
-             * @description The id of the flow run as returned by an infrastructure block.
-             */
-            infrastructure_pid?: string | null;
-            /** @description Optional information about the creator of this flow run. */
-            created_by?: components["schemas"]["CreatedBy"] | null;
-            /**
-             * Work Queue Id
-             * @description The id of the run's work pool queue.
-             */
-            work_queue_id?: string | null;
-            /** @description The current state of the flow run. */
-            state?: components["schemas"]["State"] | null;
-            /**
-             * Job Variables
-             * @description Variables used as overrides in the base job template
-             */
-            job_variables?: {
-                [key: string]: unknown;
-            } | null;
-        };
-        /**
-         * FlowRun
-         * @description An ORM representation of flow run data.
-         */
-        "FlowRun-Output": {
+        FlowRun: {
             /**
              * Id
              * Format: uuid
@@ -7886,24 +7491,6 @@ export interface components {
             tags?: string[];
         };
         /**
-         * FlowsSettings
-         * @description Settings for controlling flow behavior
-         */
-        FlowsSettings: {
-            /**
-             * Default Retries
-             * @description This value sets the default number of retries for all flows.
-             * @default 0
-             */
-            default_retries: number;
-            /**
-             * Default Retry Delay Seconds
-             * @description This value sets the default retry delay seconds for all flows.
-             * @default 0
-             */
-            default_retry_delay_seconds: number | number[];
-        };
-        /**
          * GlobalConcurrencyLimitResponse
          * @description A response object for global concurrency limits.
          */
@@ -8009,30 +7596,7 @@ export interface components {
          * HistoryResponse
          * @description Represents a history of aggregation states over an interval
          */
-        "HistoryResponse-Input": {
-            /**
-             * Interval Start
-             * Format: date-time
-             * @description The start date of the interval.
-             */
-            interval_start: string;
-            /**
-             * Interval End
-             * Format: date-time
-             * @description The end date of the interval.
-             */
-            interval_end: string;
-            /**
-             * States
-             * @description A list of state histories during the interval.
-             */
-            states: components["schemas"]["HistoryResponseState"][];
-        };
-        /**
-         * HistoryResponse
-         * @description Represents a history of aggregation states over an interval
-         */
-        "HistoryResponse-Output": {
+        HistoryResponse: {
             /**
              * Interval Start
              * Format: date-time
@@ -8078,16 +7642,6 @@ export interface components {
              * @description The sum of differences between actual and expected start time during the interval.
              */
             sum_estimated_lateness: number;
-        };
-        /** InternalSettings */
-        InternalSettings: {
-            /**
-             * Logging Level
-             * @description The default logging level for Prefect's internal machinery loggers.
-             * @default ERROR
-             * @enum {string}
-             */
-            logging_level: "DEBUG" | "INFO" | "WARNING" | "ERROR" | "CRITICAL";
         };
         /**
          * IntervalSchedule
@@ -8302,107 +7856,6 @@ export interface components {
          * @enum {string}
          */
         LogSort: "TIMESTAMP_ASC" | "TIMESTAMP_DESC";
-        /**
-         * LoggingSettings
-         * @description Settings for controlling logging behavior
-         */
-        LoggingSettings: {
-            /**
-             * Level
-             * @description The default logging level for Prefect loggers.
-             * @default INFO
-             * @enum {string}
-             */
-            level: "DEBUG" | "INFO" | "WARNING" | "ERROR" | "CRITICAL";
-            /**
-             * Config Path
-             * Format: path
-             * @description A path to a logging configuration file. Defaults to $PREFECT_HOME/logging.yml
-             */
-            config_path?: string;
-            /**
-             * Extra Loggers
-             * @description Additional loggers to attach to Prefect logging at runtime.
-             */
-            extra_loggers?: string | string[] | null;
-            /**
-             * Log Prints
-             * @description If `True`, `print` statements in flows and tasks will be redirected to the Prefect logger for the given run.
-             * @default false
-             */
-            log_prints: boolean;
-            /**
-             * Colors
-             * @description If `True`, use colors in CLI output. If `False`, output will not include colors codes.
-             * @default true
-             */
-            colors: boolean;
-            /**
-             * Markup
-             * @description
-             *             Whether to interpret strings wrapped in square brackets as a style.
-             *             This allows styles to be conveniently added to log messages, e.g.
-             *             `[red]This is a red message.[/red]`. However, the downside is, if enabled,
-             *             strings that contain square brackets may be inaccurately interpreted and
-             *             lead to incomplete output, e.g.
-             *             `[red]This is a red message.[/red]` may be interpreted as
-             *             `[red]This is a red message.[/red]`.
-             *
-             * @default false
-             */
-            markup: boolean;
-            to_api?: components["schemas"]["LoggingToAPISettings"];
-        };
-        /**
-         * LoggingToAPISettings
-         * @description Settings for controlling logging to the API
-         */
-        LoggingToAPISettings: {
-            /**
-             * Enabled
-             * @description If `True`, logs will be sent to the API.
-             * @default true
-             */
-            enabled: boolean;
-            /**
-             * Batch Interval
-             * @description The number of seconds between batched writes of logs to the API.
-             * @default 2
-             */
-            batch_interval: number;
-            /**
-             * Batch Size
-             * @description The number of logs to batch before sending to the API.
-             * @default 4000000
-             */
-            batch_size: number;
-            /**
-             * Max Log Size
-             * @description The maximum size in bytes for a single log.
-             * @default 1000000
-             */
-            max_log_size: number;
-            /**
-             * When Missing Flow
-             * @description
-             *             Controls the behavior when loggers attempt to send logs to the API handler from outside of a flow.
-             *
-             *             All logs sent to the API must be associated with a flow run. The API log handler can
-             *             only be used outside of a flow by manually providing a flow run identifier. Logs
-             *             that are not associated with a flow run will not be sent to the API. This setting can
-             *             be used to determine if a warning or error is displayed when the identifier is missing.
-             *
-             *             The following options are available:
-             *
-             *             - "warn": Log a warning message.
-             *             - "error": Raise an error.
-             *             - "ignore": Do not log a warning message or raise an error.
-             *
-             * @default warn
-             * @enum {string}
-             */
-            when_missing_flow: "warn" | "error" | "ignore";
-        };
         /** MinimalConcurrencyLimitResponse */
         MinimalConcurrencyLimitResponse: {
             /**
@@ -8573,46 +8026,6 @@ export interface components {
             work_queue_id?: string | null;
         };
         /**
-         * PluginsSettings
-         * @description Settings for configuring the experimental plugin system
-         */
-        PluginsSettings: {
-            /**
-             * Enabled
-             * @description Enable the experimental plugin system.
-             * @default false
-             */
-            enabled: boolean;
-            /**
-             * Allow
-             * @description Comma-separated list of plugin names to allow. If set, only these plugins will be loaded.
-             */
-            allow?: string[] | null;
-            /**
-             * Deny
-             * @description Comma-separated list of plugin names to deny. These plugins will not be loaded.
-             */
-            deny?: string[] | null;
-            /**
-             * Setup Timeout Seconds
-             * @description Maximum time in seconds for all plugins to complete their setup hooks.
-             * @default 20
-             */
-            setup_timeout_seconds: number;
-            /**
-             * Strict
-             * @description If True, exit if a required plugin fails during setup.
-             * @default false
-             */
-            strict: boolean;
-            /**
-             * Safe Mode
-             * @description If True, load plugins but do not execute their hooks. Useful for testing.
-             * @default false
-             */
-            safe_mode: boolean;
-        };
-        /**
          * QueueFilter
          * @description Filter criteria definition for a work queue.
          */
@@ -8722,35 +8135,6 @@ export interface components {
         /** ResourceSpecification */
         ResourceSpecification: {
             [key: string]: string | string[];
-        };
-        /**
-         * ResultsSettings
-         * @description Settings for controlling result storage behavior
-         */
-        ResultsSettings: {
-            /**
-             * Default Serializer
-             * @description The default serializer to use when not otherwise specified.
-             * @default pickle
-             */
-            default_serializer: string;
-            /**
-             * Persist By Default
-             * @description The default setting for persisting results when not otherwise specified.
-             * @default false
-             */
-            persist_by_default: boolean;
-            /**
-             * Default Storage Block
-             * @description The `block-type/block-document` slug of a block to use as the default result storage.
-             */
-            default_storage_block?: string | null;
-            /**
-             * Local Storage Path
-             * Format: path
-             * @description The default location for locally persisted results. Defaults to $PREFECT_HOME/storage.
-             */
-            local_storage_path?: string;
         };
         /**
          * ResumeAutomation
@@ -8904,158 +8288,6 @@ export interface components {
             schedule_after?: number;
         };
         /**
-         * RunnerServerSettings
-         * @description Settings for controlling runner server behavior
-         */
-        RunnerServerSettings: {
-            /**
-             * Enable
-             * @description Whether or not to enable the runner's webserver.
-             * @default false
-             */
-            enable: boolean;
-            /**
-             * Host
-             * @description The host address the runner's webserver should bind to.
-             * @default localhost
-             */
-            host: string;
-            /**
-             * Port
-             * @description The port the runner's webserver should bind to.
-             * @default 8080
-             */
-            port: number;
-            /**
-             * Log Level
-             * @description The log level of the runner's webserver.
-             * @default ERROR
-             * @enum {string}
-             */
-            log_level: "DEBUG" | "INFO" | "WARNING" | "ERROR" | "CRITICAL";
-            /**
-             * Missed Polls Tolerance
-             * @description Number of missed polls before a runner is considered unhealthy by its webserver.
-             * @default 2
-             */
-            missed_polls_tolerance: number;
-        };
-        /**
-         * RunnerSettings
-         * @description Settings for controlling runner behavior
-         */
-        RunnerSettings: {
-            /**
-             * Process Limit
-             * @description Maximum number of processes a runner will execute in parallel.
-             * @default 5
-             */
-            process_limit: number;
-            /**
-             * Poll Frequency
-             * @description Number of seconds a runner should wait between queries for scheduled work.
-             * @default 10
-             */
-            poll_frequency: number;
-            /**
-             * Heartbeat Frequency
-             * @description Number of seconds a runner should wait between heartbeats for flow runs.
-             */
-            heartbeat_frequency?: number | null;
-            server?: components["schemas"]["RunnerServerSettings"];
-        };
-        /**
-         * SQLAlchemyConnectArgsSettings
-         * @description Settings for controlling SQLAlchemy connection behavior; note that these settings only take effect when
-         *     using a PostgreSQL database.
-         */
-        SQLAlchemyConnectArgsSettings: {
-            /**
-             * Application Name
-             * @description Controls the application_name field for connections opened from the connection pool when using a PostgreSQL database with the Prefect backend.
-             */
-            application_name?: string | null;
-            /**
-             * Statement Cache Size
-             * @description Controls statement cache size for PostgreSQL connections. Setting this to 0 is required when using PgBouncer in transaction mode. Defaults to None.
-             */
-            statement_cache_size?: number | null;
-            /**
-             * Prepared Statement Cache Size
-             * @description Controls the size of the statement cache for PostgreSQL connections. When set to 0, statement caching is disabled. Defaults to None to use SQLAlchemy's default behavior.
-             */
-            prepared_statement_cache_size?: number | null;
-            /** @description Settings for controlling SQLAlchemy mTLS behavior */
-            tls?: components["schemas"]["SQLAlchemyTLSSettings"];
-        };
-        /**
-         * SQLAlchemySettings
-         * @description Settings for controlling SQLAlchemy behavior; note that these settings only take effect when
-         *     using a PostgreSQL database.
-         */
-        SQLAlchemySettings: {
-            /** @description Settings for controlling SQLAlchemy connection behavior */
-            connect_args?: components["schemas"]["SQLAlchemyConnectArgsSettings"];
-            /**
-             * Pool Size
-             * @description Controls connection pool size of database connection pools from the Prefect backend.
-             * @default 5
-             */
-            pool_size: number;
-            /**
-             * Pool Recycle
-             * @description This setting causes the pool to recycle connections after the given number of seconds has passed; set it to -1 to avoid recycling entirely.
-             * @default 3600
-             */
-            pool_recycle: number;
-            /**
-             * Pool Timeout
-             * @description Number of seconds to wait before giving up on getting a connection from the pool. Defaults to 30 seconds.
-             * @default 30
-             */
-            pool_timeout: number | null;
-            /**
-             * Max Overflow
-             * @description Controls maximum overflow of the connection pool. To prevent overflow, set to -1.
-             * @default 10
-             */
-            max_overflow: number;
-        };
-        /**
-         * SQLAlchemyTLSSettings
-         * @description Settings for controlling SQLAlchemy mTLS context when
-         *     using a PostgreSQL database.
-         */
-        SQLAlchemyTLSSettings: {
-            /**
-             * Enabled
-             * @description Controls whether connected to mTLS enabled PostgreSQL when using a PostgreSQL database with the Prefect backend.
-             * @default false
-             */
-            enabled: boolean;
-            /**
-             * Ca File
-             * @description This configuration settings option specifies the path to PostgreSQL client certificate authority file.
-             */
-            ca_file?: string | null;
-            /**
-             * Cert File
-             * @description This configuration settings option specifies the path to PostgreSQL client certificate file.
-             */
-            cert_file?: string | null;
-            /**
-             * Key File
-             * @description This configuration settings option specifies the path to PostgreSQL client key file.
-             */
-            key_file?: string | null;
-            /**
-             * Check Hostname
-             * @description This configuration settings option specifies whether to verify PostgreSQL server hostname.
-             * @default true
-             */
-            check_hostname: boolean;
-        };
-        /**
          * SavedSearch
          * @description An ORM representation of saved search data. Represents a set of filter criteria.
          */
@@ -9128,37 +8360,23 @@ export interface components {
             value: unknown;
         };
         /** SchemaValueIndexError */
-        "SchemaValueIndexError-Input": {
+        SchemaValueIndexError: {
             /** Index */
             index: number;
             /** Errors */
-            errors: (string | components["schemas"]["SchemaValuePropertyError-Input"] | components["schemas"]["SchemaValueIndexError-Input"])[];
-        };
-        /** SchemaValueIndexError */
-        "SchemaValueIndexError-Output": {
-            /** Index */
-            index: number;
-            /** Errors */
-            errors: (string | components["schemas"]["SchemaValuePropertyError-Output"] | components["schemas"]["SchemaValueIndexError-Output"])[];
+            errors: (string | components["schemas"]["SchemaValuePropertyError"] | components["schemas"]["SchemaValueIndexError"])[];
         };
         /** SchemaValuePropertyError */
-        "SchemaValuePropertyError-Input": {
+        SchemaValuePropertyError: {
             /** Property */
             property: string;
             /** Errors */
-            errors: (string | components["schemas"]["SchemaValuePropertyError-Input"] | components["schemas"]["SchemaValueIndexError-Input"])[];
-        };
-        /** SchemaValuePropertyError */
-        "SchemaValuePropertyError-Output": {
-            /** Property */
-            property: string;
-            /** Errors */
-            errors: (string | components["schemas"]["SchemaValuePropertyError-Output"] | components["schemas"]["SchemaValueIndexError-Output"])[];
+            errors: (string | components["schemas"]["SchemaValuePropertyError"] | components["schemas"]["SchemaValueIndexError"])[];
         };
         /** SchemaValuesValidationResponse */
         SchemaValuesValidationResponse: {
             /** Errors */
-            errors: (string | components["schemas"]["SchemaValuePropertyError-Output"] | components["schemas"]["SchemaValueIndexError-Output"])[];
+            errors: (string | components["schemas"]["SchemaValuePropertyError"] | components["schemas"]["SchemaValueIndexError"])[];
             /** Valid */
             valid: boolean;
         };
@@ -9235,864 +8453,6 @@ export interface components {
             triggers: (components["schemas"]["EventTrigger"] | components["schemas"]["CompoundTrigger-Output"] | components["schemas"]["SequenceTrigger-Output"])[];
             /** Within */
             within: number | null;
-        };
-        /**
-         * ServerAPISettings
-         * @description Settings for controlling API server behavior
-         */
-        ServerAPISettings: {
-            /**
-             * Auth String
-             * @description A string to use for basic authentication with the API in the form 'user:password'.
-             */
-            auth_string?: string | null;
-            /**
-             * Host
-             * @description The API's host address (defaults to `127.0.0.1`).
-             * @default 127.0.0.1
-             */
-            host: string;
-            /**
-             * Port
-             * @description The API's port address (defaults to `4200`).
-             * @default 4200
-             */
-            port: number;
-            /**
-             * Base Path
-             * @description The base URL path to serve the API under.
-             */
-            base_path?: string | null;
-            /**
-             * Default Limit
-             * @description The default limit applied to queries that can return multiple objects, such as `POST /flow_runs/filter`.
-             * @default 200
-             */
-            default_limit: number;
-            /**
-             * Keepalive Timeout
-             * @description
-             *             The API's keep alive timeout (defaults to `5`).
-             *             Refer to https://www.uvicorn.org/settings/#timeouts for details.
-             *
-             *             When the API is hosted behind a load balancer, you may want to set this to a value
-             *             greater than the load balancer's idle timeout.
-             *
-             *             Note this setting only applies when calling `prefect server start`; if hosting the
-             *             API with another tool you will need to configure this there instead.
-             *
-             * @default 5
-             */
-            keepalive_timeout: number;
-            /**
-             * Csrf Protection Enabled
-             * @description
-             *             Controls the activation of CSRF protection for the Prefect server API.
-             *
-             *             When enabled (`True`), the server enforces CSRF validation checks on incoming
-             *             state-changing requests (POST, PUT, PATCH, DELETE), requiring a valid CSRF
-             *             token to be included in the request headers or body. This adds a layer of
-             *             security by preventing unauthorized or malicious sites from making requests on
-             *             behalf of authenticated users.
-             *
-             *             It is recommended to enable this setting in production environments where the
-             *             API is exposed to web clients to safeguard against CSRF attacks.
-             *
-             *             Note: Enabling this setting requires corresponding support in the client for
-             *             CSRF token management. See PREFECT_CLIENT_CSRF_SUPPORT_ENABLED for more.
-             *
-             * @default false
-             */
-            csrf_protection_enabled: boolean;
-            /**
-             * Csrf Token Expiration
-             * Format: duration
-             * @description
-             *             Specifies the duration for which a CSRF token remains valid after being issued
-             *             by the server.
-             *
-             *             The default expiration time is set to 1 hour, which offers a reasonable
-             *             compromise. Adjust this setting based on your specific security requirements
-             *             and usage patterns.
-             *
-             * @default PT1H
-             */
-            csrf_token_expiration: string;
-            /**
-             * Cors Allowed Origins
-             * @description
-             *             A comma-separated list of origins that are authorized to make cross-origin requests to the API.
-             *
-             *             By default, this is set to `*`, which allows requests from all origins.
-             *
-             * @default *
-             */
-            cors_allowed_origins: string;
-            /**
-             * Cors Allowed Methods
-             * @description
-             *             A comma-separated list of methods that are authorized to make cross-origin requests to the API.
-             *
-             *             By default, this is set to `*`, which allows requests from all methods.
-             *
-             * @default *
-             */
-            cors_allowed_methods: string;
-            /**
-             * Cors Allowed Headers
-             * @description
-             *             A comma-separated list of headers that are authorized to make cross-origin requests to the API.
-             *
-             *             By default, this is set to `*`, which allows requests from all headers.
-             *
-             * @default *
-             */
-            cors_allowed_headers: string;
-        };
-        /** ServerConcurrencySettings */
-        ServerConcurrencySettings: {
-            /**
-             * Lease Storage
-             * @description The module to use for storing concurrency limit leases.
-             * @default prefect.server.concurrency.lease_storage.memory
-             */
-            lease_storage: string;
-            /**
-             * Initial Deployment Lease Duration
-             * @description Initial duration for deployment concurrency lease in seconds.
-             * @default 300
-             */
-            initial_deployment_lease_duration: number;
-        };
-        /**
-         * ServerDatabaseSettings
-         * @description Settings for controlling server database behavior
-         */
-        ServerDatabaseSettings: {
-            /** @description Settings for controlling SQLAlchemy behavior */
-            sqlalchemy?: components["schemas"]["SQLAlchemySettings"];
-            /**
-             * Connection Url
-             * @description
-             *             A database connection URL in a SQLAlchemy-compatible
-             *             format. Prefect currently supports SQLite and Postgres. Note that all
-             *             Prefect database engines must use an async driver - for SQLite, use
-             *             `sqlite+aiosqlite` and for Postgres use `postgresql+asyncpg`.
-             *
-             *             SQLite in-memory databases can be used by providing the url
-             *             `sqlite+aiosqlite:///file::memory:?cache=shared&uri=true&check_same_thread=false`,
-             *             which will allow the database to be accessed by multiple threads. Note
-             *             that in-memory databases can not be accessed from multiple processes and
-             *             should only be used for simple tests.
-             *
-             */
-            connection_url?: string | null;
-            /**
-             * Driver
-             * @description The database driver to use when connecting to the database. If not set, the driver will be inferred from the connection URL.
-             */
-            driver?: ("postgresql+asyncpg" | "sqlite+aiosqlite") | null;
-            /**
-             * Host
-             * @description The database server host.
-             */
-            host?: string | null;
-            /**
-             * Port
-             * @description The database server port.
-             */
-            port?: number | null;
-            /**
-             * User
-             * @description The user to use when connecting to the database.
-             */
-            user?: string | null;
-            /**
-             * Name
-             * @description The name of the Prefect database on the remote server, or the path to the database file for SQLite.
-             */
-            name?: string | null;
-            /**
-             * Password
-             * @description The password to use when connecting to the database. Should be kept secret.
-             */
-            password?: string | null;
-            /**
-             * Echo
-             * @description If `True`, SQLAlchemy will log all SQL issued to the database. Defaults to `False`.
-             * @default false
-             */
-            echo: boolean;
-            /**
-             * Migrate On Start
-             * @description If `True`, the database will be migrated on application startup.
-             * @default true
-             */
-            migrate_on_start: boolean;
-            /**
-             * Timeout
-             * @description A statement timeout, in seconds, applied to all database interactions made by the Prefect backend. Defaults to 10 seconds.
-             * @default 10
-             */
-            timeout: number | null;
-            /**
-             * Connection Timeout
-             * @description A connection timeout, in seconds, applied to database connections. Defaults to `5`.
-             * @default 5
-             */
-            connection_timeout: number | null;
-        };
-        /** ServerDeploymentsSettings */
-        ServerDeploymentsSettings: {
-            /**
-             * Concurrency Slot Wait Seconds
-             * @description The number of seconds to wait before retrying when a deployment flow run cannot secure a concurrency slot from the server.
-             * @default 30
-             */
-            concurrency_slot_wait_seconds: number;
-        };
-        /**
-         * ServerEphemeralSettings
-         * @description Settings for controlling ephemeral server behavior
-         */
-        ServerEphemeralSettings: {
-            /**
-             * Enabled
-             * @description
-             *             Controls whether or not a subprocess server can be started when no API URL is provided.
-             *
-             * @default false
-             */
-            enabled: boolean;
-            /**
-             * Startup Timeout Seconds
-             * @description
-             *             The number of seconds to wait for the server to start when ephemeral mode is enabled.
-             *             Defaults to `20`.
-             *
-             * @default 20
-             */
-            startup_timeout_seconds: number;
-        };
-        /**
-         * ServerEventsSettings
-         * @description Settings for controlling behavior of the events subsystem
-         */
-        ServerEventsSettings: {
-            /**
-             * Stream Out Enabled
-             * @description Whether or not to stream events out to the API via websockets.
-             * @default true
-             */
-            stream_out_enabled: boolean;
-            /**
-             * Related Resource Cache Ttl
-             * Format: duration
-             * @description The number of seconds to cache related resources for in the API.
-             * @default PT5M
-             */
-            related_resource_cache_ttl: string;
-            /**
-             * Maximum Labels Per Resource
-             * @description The maximum number of labels a resource may have.
-             * @default 500
-             */
-            maximum_labels_per_resource: number;
-            /**
-             * Maximum Related Resources
-             * @description The maximum number of related resources an Event may have.
-             * @default 100
-             */
-            maximum_related_resources: number;
-            /**
-             * Maximum Size Bytes
-             * @description The maximum size of an Event when serialized to JSON
-             * @default 1500000
-             */
-            maximum_size_bytes: number;
-            /**
-             * Expired Bucket Buffer
-             * Format: duration
-             * @description The amount of time to retain expired automation buckets
-             * @default PT1M
-             */
-            expired_bucket_buffer: string;
-            /**
-             * Proactive Granularity
-             * Format: duration
-             * @description How frequently proactive automations are evaluated
-             * @default PT5S
-             */
-            proactive_granularity: string;
-            /**
-             * Retention Period
-             * Format: duration
-             * @description The amount of time to retain events in the database.
-             * @default P7D
-             */
-            retention_period: string;
-            /**
-             * Maximum Websocket Backfill
-             * Format: duration
-             * @description The maximum range to look back for backfilling events for a websocket subscriber.
-             * @default PT15M
-             */
-            maximum_websocket_backfill: string;
-            /**
-             * Websocket Backfill Page Size
-             * @description The page size for the queries to backfill events for websocket subscribers.
-             * @default 250
-             */
-            websocket_backfill_page_size: number;
-            /**
-             * Messaging Broker
-             * @description Which message broker implementation to use for the messaging system, should point to a module that exports a Publisher and Consumer class.
-             * @default prefect.server.utilities.messaging.memory
-             */
-            messaging_broker: string;
-            /**
-             * Messaging Cache
-             * @description Which cache implementation to use for the events system. Should point to a module that exports a Cache class.
-             * @default prefect.server.utilities.messaging.memory
-             */
-            messaging_cache: string;
-            /**
-             * Causal Ordering
-             * @description Which causal ordering implementation to use for the events system. Should point to a module that exports a CausalOrdering class.
-             * @default prefect.server.events.ordering.memory
-             */
-            causal_ordering: string;
-            /**
-             * Maximum Event Name Length
-             * @description The maximum length of an event name.
-             * @default 1024
-             */
-            maximum_event_name_length: number;
-        };
-        /**
-         * ServerFlowRunGraphSettings
-         * @description Settings for controlling behavior of the flow run graph
-         */
-        ServerFlowRunGraphSettings: {
-            /**
-             * Max Nodes
-             * @description The maximum size of a flow run graph on the v2 API
-             * @default 10000
-             */
-            max_nodes: number;
-            /**
-             * Max Artifacts
-             * @description The maximum number of artifacts to show on a flow run graph on the v2 API
-             * @default 10000
-             */
-            max_artifacts: number;
-        };
-        /**
-         * ServerLogsSettings
-         * @description Settings for controlling behavior of the logs subsystem
-         */
-        ServerLogsSettings: {
-            /**
-             * Stream Out Enabled
-             * @description Whether or not to stream logs out to the API via websockets.
-             * @default false
-             */
-            stream_out_enabled: boolean;
-            /**
-             * Stream Publishing Enabled
-             * @description Whether or not to publish logs to the streaming system.
-             * @default false
-             */
-            stream_publishing_enabled: boolean;
-        };
-        /**
-         * ServerServicesCancellationCleanupSettings
-         * @description Settings for controlling the cancellation cleanup service
-         */
-        ServerServicesCancellationCleanupSettings: {
-            /**
-             * Enabled
-             * @description Whether or not to start the cancellation cleanup service in the server application.
-             * @default true
-             */
-            enabled: boolean;
-            /**
-             * Loop Seconds
-             * @description The cancellation cleanup service will look for non-terminal tasks and subflows this often. Defaults to `20`.
-             * @default 20
-             */
-            loop_seconds: number;
-        };
-        /**
-         * ServerServicesEventLoggerSettings
-         * @description Settings for controlling the event logger service
-         */
-        ServerServicesEventLoggerSettings: {
-            /**
-             * Enabled
-             * @description Whether or not to start the event logger service in the server application.
-             * @default false
-             */
-            enabled: boolean;
-        };
-        /**
-         * ServerServicesEventPersisterSettings
-         * @description Settings for controlling the event persister service
-         */
-        ServerServicesEventPersisterSettings: {
-            /**
-             * Enabled
-             * @description Whether or not to start the event persister service in the server application.
-             * @default true
-             */
-            enabled: boolean;
-            /**
-             * Batch Size
-             * @description The number of events the event persister will attempt to insert in one batch.
-             * @default 20
-             */
-            batch_size: number;
-            /**
-             * Flush Interval
-             * @description The maximum number of seconds between flushes of the event persister.
-             * @default 5
-             */
-            flush_interval: number;
-            /**
-             * Batch Size Delete
-             * @description The number of expired events and event resources the event persister will attempt to delete in one batch.
-             * @default 10000
-             */
-            batch_size_delete: number;
-        };
-        /**
-         * ServerServicesForemanSettings
-         * @description Settings for controlling the foreman service
-         */
-        ServerServicesForemanSettings: {
-            /**
-             * Enabled
-             * @description Whether or not to start the foreman service in the server application.
-             * @default true
-             */
-            enabled: boolean;
-            /**
-             * Loop Seconds
-             * @description The foreman service will check for offline workers this often. Defaults to `15`.
-             * @default 15
-             */
-            loop_seconds: number;
-            /**
-             * Inactivity Heartbeat Multiple
-             * @description
-             *             The number of heartbeats that must be missed before a worker is marked as offline. Defaults to `3`.
-             *
-             * @default 3
-             */
-            inactivity_heartbeat_multiple: number;
-            /**
-             * Fallback Heartbeat Interval Seconds
-             * @description
-             *             The number of seconds to use for online/offline evaluation if a worker's heartbeat
-             *             interval is not set. Defaults to `30`.
-             *
-             * @default 30
-             */
-            fallback_heartbeat_interval_seconds: number;
-            /**
-             * Deployment Last Polled Timeout Seconds
-             * @description
-             *             The number of seconds before a deployment is marked as not ready if it has not been
-             *             polled. Defaults to `60`.
-             *
-             * @default 60
-             */
-            deployment_last_polled_timeout_seconds: number;
-            /**
-             * Work Queue Last Polled Timeout Seconds
-             * @description
-             *             The number of seconds before a work queue is marked as not ready if it has not been
-             *             polled. Defaults to `60`.
-             *
-             * @default 60
-             */
-            work_queue_last_polled_timeout_seconds: number;
-        };
-        /**
-         * ServerServicesLateRunsSettings
-         * @description Settings for controlling the late runs service
-         */
-        ServerServicesLateRunsSettings: {
-            /**
-             * Enabled
-             * @description Whether or not to start the late runs service in the server application.
-             * @default true
-             */
-            enabled: boolean;
-            /**
-             * Loop Seconds
-             * @description
-             *             The late runs service will look for runs to mark as late this often. Defaults to `5`.
-             *
-             * @default 5
-             */
-            loop_seconds: number;
-            /**
-             * After Seconds
-             * Format: duration
-             * @description
-             *             The late runs service will mark runs as late after they have exceeded their scheduled start time by this many seconds. Defaults to `5` seconds.
-             *
-             * @default PT15S
-             */
-            after_seconds: string;
-        };
-        /**
-         * ServerServicesPauseExpirationsSettings
-         * @description Settings for controlling the pause expiration service
-         */
-        ServerServicesPauseExpirationsSettings: {
-            /**
-             * Enabled
-             * @description
-             *             Whether or not to start the paused flow run expiration service in the server
-             *             application. If disabled, paused flows that have timed out will remain in a Paused state
-             *             until a resume attempt.
-             *
-             * @default true
-             */
-            enabled: boolean;
-            /**
-             * Loop Seconds
-             * @description
-             *             The pause expiration service will look for runs to mark as failed this often. Defaults to `5`.
-             *
-             * @default 5
-             */
-            loop_seconds: number;
-        };
-        /**
-         * ServerServicesRepossessorSettings
-         * @description Settings for controlling the repossessor service
-         */
-        ServerServicesRepossessorSettings: {
-            /**
-             * Enabled
-             * @description Whether or not to start the repossessor service in the server application.
-             * @default true
-             */
-            enabled: boolean;
-            /**
-             * Loop Seconds
-             * @description The repossessor service will look for expired leases this often. Defaults to `15`.
-             * @default 15
-             */
-            loop_seconds: number;
-        };
-        /**
-         * ServerServicesSchedulerSettings
-         * @description Settings for controlling the scheduler service
-         */
-        ServerServicesSchedulerSettings: {
-            /**
-             * Enabled
-             * @description Whether or not to start the scheduler service in the server application.
-             * @default true
-             */
-            enabled: boolean;
-            /**
-             * Loop Seconds
-             * @description
-             *             The scheduler loop interval, in seconds. This determines
-             *             how often the scheduler will attempt to schedule new flow runs, but has no
-             *             impact on how quickly either flow runs or task runs are actually executed.
-             *             Defaults to `60`.
-             *
-             * @default 60
-             */
-            loop_seconds: number;
-            /**
-             * Deployment Batch Size
-             * @description
-             *             The number of deployments the scheduler will attempt to
-             *             schedule in a single batch. If there are more deployments than the batch
-             *             size, the scheduler immediately attempts to schedule the next batch; it
-             *             does not sleep for `scheduler_loop_seconds` until it has visited every
-             *             deployment once. Defaults to `100`.
-             *
-             * @default 100
-             */
-            deployment_batch_size: number;
-            /**
-             * Max Runs
-             * @description
-             *             The scheduler will attempt to schedule up to this many
-             *             auto-scheduled runs in the future. Note that runs may have fewer than
-             *             this many scheduled runs, depending on the value of
-             *             `scheduler_max_scheduled_time`.  Defaults to `100`.
-             *
-             * @default 100
-             */
-            max_runs: number;
-            /**
-             * Min Runs
-             * @description
-             *             The scheduler will attempt to schedule at least this many
-             *             auto-scheduled runs in the future. Note that runs may have more than
-             *             this many scheduled runs, depending on the value of
-             *             `scheduler_min_scheduled_time`.  Defaults to `3`.
-             *
-             * @default 3
-             */
-            min_runs: number;
-            /**
-             * Max Scheduled Time
-             * Format: duration
-             * @description
-             *             The scheduler will create new runs up to this far in the
-             *             future. Note that this setting will take precedence over
-             *             `scheduler_max_runs`: if a flow runs once a month and
-             *             `scheduler_max_scheduled_time` is three months, then only three runs will be
-             *             scheduled. Defaults to 100 days (`8640000` seconds).
-             *
-             * @default P100D
-             */
-            max_scheduled_time: string;
-            /**
-             * Min Scheduled Time
-             * Format: duration
-             * @description
-             *             The scheduler will create new runs at least this far in the
-             *             future. Note that this setting will take precedence over `scheduler_min_runs`:
-             *             if a flow runs every hour and `scheduler_min_scheduled_time` is three hours,
-             *             then three runs will be scheduled even if `scheduler_min_runs` is 1. Defaults to
-             *
-             * @default PT1H
-             */
-            min_scheduled_time: string;
-            /**
-             * Insert Batch Size
-             * @description
-             *             The number of runs the scheduler will attempt to insert in a single batch.
-             *             Defaults to `500`.
-             *
-             * @default 500
-             */
-            insert_batch_size: number;
-            /**
-             * Recent Deployments Loop Seconds
-             * @description
-             *             The number of seconds the recent deployments scheduler will wait between checking for recently updated deployments. Defaults to `5`.
-             *
-             * @default 5
-             */
-            recent_deployments_loop_seconds: number;
-        };
-        /**
-         * ServerServicesSettings
-         * @description Settings for controlling server services
-         */
-        ServerServicesSettings: {
-            cancellation_cleanup?: components["schemas"]["ServerServicesCancellationCleanupSettings"];
-            event_persister?: components["schemas"]["ServerServicesEventPersisterSettings"];
-            event_logger?: components["schemas"]["ServerServicesEventLoggerSettings"];
-            foreman?: components["schemas"]["ServerServicesForemanSettings"];
-            late_runs?: components["schemas"]["ServerServicesLateRunsSettings"];
-            scheduler?: components["schemas"]["ServerServicesSchedulerSettings"];
-            pause_expirations?: components["schemas"]["ServerServicesPauseExpirationsSettings"];
-            repossessor?: components["schemas"]["ServerServicesRepossessorSettings"];
-            task_run_recorder?: components["schemas"]["ServerServicesTaskRunRecorderSettings"];
-            triggers?: components["schemas"]["ServerServicesTriggersSettings"];
-        };
-        /**
-         * ServerServicesTaskRunRecorderSettings
-         * @description Settings for controlling the task run recorder service
-         */
-        ServerServicesTaskRunRecorderSettings: {
-            /**
-             * Enabled
-             * @description Whether or not to start the task run recorder service in the server application.
-             * @default true
-             */
-            enabled: boolean;
-        };
-        /**
-         * ServerServicesTriggersSettings
-         * @description Settings for controlling the triggers service
-         */
-        ServerServicesTriggersSettings: {
-            /**
-             * Enabled
-             * @description Whether or not to start the triggers service in the server application.
-             * @default true
-             */
-            enabled: boolean;
-            /**
-             * Pg Notify Reconnect Interval Seconds
-             * @description
-             *             The number of seconds to wait before reconnecting to the PostgreSQL NOTIFY/LISTEN
-             *             connection after an error. Only used when using PostgreSQL as the database.
-             *             Defaults to `10`.
-             *
-             * @default 10
-             */
-            pg_notify_reconnect_interval_seconds: number;
-            /**
-             * Pg Notify Heartbeat Interval Seconds
-             * @description
-             *             The number of seconds between heartbeat checks for the PostgreSQL NOTIFY/LISTEN
-             *             connection to ensure it's still alive. Only used when using PostgreSQL as the database.
-             *             Defaults to `5`.
-             *
-             * @default 5
-             */
-            pg_notify_heartbeat_interval_seconds: number;
-        };
-        /**
-         * ServerSettings
-         * @description Settings for controlling server behavior
-         */
-        ServerSettings: {
-            /**
-             * Logging Level
-             * @description The default logging level for the Prefect API server.
-             * @default WARNING
-             * @enum {string}
-             */
-            logging_level: "DEBUG" | "INFO" | "WARNING" | "ERROR" | "CRITICAL";
-            /**
-             * Analytics Enabled
-             * @description
-             *             When enabled, Prefect sends anonymous data (e.g. count of flow runs, package version)
-             *             on server startup to help us improve our product.
-             *
-             * @default true
-             */
-            analytics_enabled: boolean;
-            /**
-             * Metrics Enabled
-             * @description Whether or not to enable Prometheus metrics in the API.
-             * @default false
-             */
-            metrics_enabled: boolean;
-            /**
-             * Log Retryable Errors
-             * @description If `True`, log retryable errors in the API and it's services.
-             * @default false
-             */
-            log_retryable_errors: boolean;
-            /**
-             * Register Blocks On Start
-             * @description If set, any block types that have been imported will be registered with the backend on application startup. If not set, block types must be manually registered.
-             * @default true
-             */
-            register_blocks_on_start: boolean;
-            /**
-             * Memoize Block Auto Registration
-             * @description Controls whether or not block auto-registration on start
-             * @default true
-             */
-            memoize_block_auto_registration: boolean;
-            /**
-             * Memo Store Path
-             * Format: path
-             * @description Path to the memo store file. Defaults to $PREFECT_HOME/memo_store.toml
-             */
-            memo_store_path?: string;
-            /**
-             * Deployment Schedule Max Scheduled Runs
-             * @description The maximum number of scheduled runs to create for a deployment.
-             * @default 50
-             */
-            deployment_schedule_max_scheduled_runs: number;
-            api?: components["schemas"]["ServerAPISettings"];
-            /** @description Settings for controlling server-side concurrency limit handling */
-            concurrency?: components["schemas"]["ServerConcurrencySettings"];
-            database?: components["schemas"]["ServerDatabaseSettings"];
-            /** @description Settings for controlling server deployments behavior */
-            deployments?: components["schemas"]["ServerDeploymentsSettings"];
-            ephemeral?: components["schemas"]["ServerEphemeralSettings"];
-            /** @description Settings for controlling server events behavior */
-            events?: components["schemas"]["ServerEventsSettings"];
-            /** @description Settings for controlling flow run graph behavior */
-            flow_run_graph?: components["schemas"]["ServerFlowRunGraphSettings"];
-            /** @description Settings for controlling server logs behavior */
-            logs?: components["schemas"]["ServerLogsSettings"];
-            /** @description Settings for controlling server services behavior */
-            services?: components["schemas"]["ServerServicesSettings"];
-            /** @description Settings for controlling server tasks behavior */
-            tasks?: components["schemas"]["ServerTasksSettings"];
-            /** @description Settings for controlling server UI behavior */
-            ui?: components["schemas"]["ServerUISettings"];
-        };
-        /**
-         * ServerTasksSchedulingSettings
-         * @description Settings for controlling server-side behavior related to task scheduling
-         */
-        ServerTasksSchedulingSettings: {
-            /**
-             * Max Scheduled Queue Size
-             * @description The maximum number of scheduled tasks to queue for submission.
-             * @default 1000
-             */
-            max_scheduled_queue_size: number;
-            /**
-             * Max Retry Queue Size
-             * @description The maximum number of retries to queue for submission.
-             * @default 100
-             */
-            max_retry_queue_size: number;
-            /**
-             * Pending Task Timeout
-             * Format: duration
-             * @description How long before a PENDING task are made available to another task worker.
-             * @default PT0S
-             */
-            pending_task_timeout: string;
-        };
-        /**
-         * ServerTasksSettings
-         * @description Settings for controlling server-side behavior related to tasks
-         */
-        ServerTasksSettings: {
-            /**
-             * Tag Concurrency Slot Wait Seconds
-             * @description The number of seconds to wait before retrying when a task run cannot secure a concurrency slot from the server.
-             * @default 30
-             */
-            tag_concurrency_slot_wait_seconds: number;
-            /**
-             * Max Cache Key Length
-             * @description The maximum number of characters allowed for a task run cache key.
-             * @default 2000
-             */
-            max_cache_key_length: number;
-            scheduling?: components["schemas"]["ServerTasksSchedulingSettings"];
-        };
-        /** ServerUISettings */
-        ServerUISettings: {
-            /**
-             * Enabled
-             * @description Whether or not to serve the Prefect UI.
-             * @default true
-             */
-            enabled: boolean;
-            /**
-             * Api Url
-             * @description The connection url for communication from the UI to the API. Defaults to `PREFECT_API_URL` if set. Otherwise, the default URL is generated from `PREFECT_SERVER_API_HOST` and `PREFECT_SERVER_API_PORT`.
-             */
-            api_url?: string | null;
-            /**
-             * Serve Base
-             * @description The base URL path to serve the Prefect UI from.
-             * @default /
-             */
-            serve_base: string;
-            /**
-             * Static Directory
-             * @description The directory to serve static files from. This should be used when running into permissions issues when attempting to serve the UI from the default directory (for example when running in a Docker container).
-             */
-            static_directory?: string | null;
         };
         /**
          * SetStateStatus
@@ -10484,20 +8844,7 @@ export interface components {
             /** @description The current task run state. */
             state?: components["schemas"]["State"] | null;
         };
-        /** TaskRunCount */
-        "TaskRunCount-Input": {
-            /**
-             * Completed
-             * @description The number of completed task runs.
-             */
-            completed: number;
-            /**
-             * Failed
-             * @description The number of failed task runs.
-             */
-            failed: number;
-        };
-        "TaskRunCount-Output": {
+        TaskRunCount: {
             [key: string]: number;
         };
         /**
@@ -10750,7 +9097,7 @@ export interface components {
         /** TaskRunPaginationResponse */
         TaskRunPaginationResponse: {
             /** Results */
-            results: components["schemas"]["TaskRunResponse-Output"][];
+            results: components["schemas"]["TaskRunResponse"][];
             /** Count */
             count: number;
             /** Limit */
@@ -10796,74 +9143,7 @@ export interface components {
             retry_jitter_factor?: number | null;
         };
         /** TaskRunResponse */
-        "TaskRunResponse-Input": {
-            /**
-             * Id
-             * Format: uuid
-             */
-            id: string;
-            /** Created */
-            created: string | null;
-            /** Updated */
-            updated: string | null;
-            /**
-             * Name
-             * @description The name of the task run. Defaults to a random slug if not specified.
-             */
-            name?: string;
-            /**
-             * Flow Run Id
-             * @description The id of the flow run this task run belongs to.
-             */
-            flow_run_id?: string | null;
-            /**
-             * Task Key
-             * @description The key of the task this run represents.
-             */
-            task_key: string;
-            /**
-             * State Id
-             * @description The id of the task run's current state.
-             */
-            state_id?: string | null;
-            /** @description The current state of the task run. */
-            state?: components["schemas"]["State"] | null;
-            /**
-             * Task Version
-             * @description The version of the task executed in this task run.
-             */
-            task_version?: string | null;
-            /**
-             * Parameters
-             * @description Parameters for the task run.
-             */
-            parameters?: {
-                [key: string]: unknown;
-            };
-            /**
-             * Task Inputs
-             * @description Inputs provided to the task run.
-             */
-            task_inputs?: {
-                [key: string]: (components["schemas"]["TaskRunResult"] | components["schemas"]["FlowRunResult"] | components["schemas"]["Parameter"] | components["schemas"]["Constant"])[];
-            };
-            /**
-             * Context
-             * @description Additional context for the task run.
-             */
-            context?: {
-                [key: string]: unknown;
-            };
-            /** @description The task run's empirical retry policy. */
-            empirical_policy?: components["schemas"]["TaskRunPolicy"];
-            /**
-             * Tags
-             * @description A list of tags for the task run.
-             */
-            tags?: string[];
-        };
-        /** TaskRunResponse */
-        "TaskRunResponse-Output": {
+        TaskRunResponse: {
             /**
              * Id
              * Format: uuid
@@ -10976,102 +9256,6 @@ export interface components {
              * Format: date-time
              */
             timestamp: string;
-        };
-        /** TasksRunnerSettings */
-        TasksRunnerSettings: {
-            /**
-             * Thread Pool Max Workers
-             * @description The maximum number of workers for ThreadPoolTaskRunner.
-             */
-            thread_pool_max_workers?: number | null;
-            /**
-             * Process Pool Max Workers
-             * @description The maximum number of workers for ProcessPoolTaskRunner.
-             */
-            process_pool_max_workers?: number | null;
-        };
-        /** TasksSchedulingSettings */
-        TasksSchedulingSettings: {
-            /**
-             * Default Storage Block
-             * @description The `block-type/block-document` slug of a block to use as the default storage for autonomous tasks.
-             */
-            default_storage_block?: string | null;
-            /**
-             * Delete Failed Submissions
-             * @description Whether or not to delete failed task submissions from the database.
-             * @default true
-             */
-            delete_failed_submissions: boolean;
-        };
-        /** TasksSettings */
-        TasksSettings: {
-            /**
-             * Refresh Cache
-             * @description If `True`, enables a refresh of cached results: re-executing the task will refresh the cached results.
-             * @default false
-             */
-            refresh_cache: boolean;
-            /**
-             * Default No Cache
-             * @description If `True`, sets the default cache policy on all tasks to `NO_CACHE`.
-             * @default false
-             */
-            default_no_cache: boolean;
-            /**
-             * Disable Caching
-             * @description If `True`, disables caching on all tasks regardless of cache policy.
-             * @default false
-             */
-            disable_caching: boolean;
-            /**
-             * Default Retries
-             * @description This value sets the default number of retries for all tasks.
-             * @default 0
-             */
-            default_retries: number;
-            /**
-             * Default Retry Delay Seconds
-             * @description This value sets the default retry delay seconds for all tasks.
-             * @default 0
-             */
-            default_retry_delay_seconds: string | number | number[] | null;
-            /**
-             * Default Persist Result
-             * @description If `True`, results will be persisted by default for all tasks. Set to `False` to disable persistence by default. Note that setting to `False` will override the behavior set by a parent flow or task.
-             */
-            default_persist_result?: boolean | null;
-            /** @description Settings for controlling task runner behavior */
-            runner?: components["schemas"]["TasksRunnerSettings"];
-            /** @description Settings for controlling client-side task scheduling behavior */
-            scheduling?: components["schemas"]["TasksSchedulingSettings"];
-        };
-        /** TestingSettings */
-        TestingSettings: {
-            /**
-             * Test Mode
-             * @description If `True`, places the API in test mode. This may modify behavior to facilitate testing.
-             * @default false
-             */
-            test_mode: boolean;
-            /**
-             * Unit Test Mode
-             * @description This setting only exists to facilitate unit testing. If `True`, code is executing in a unit test context. Defaults to `False`.
-             * @default false
-             */
-            unit_test_mode: boolean;
-            /**
-             * Unit Test Loop Debug
-             * @description If `True` turns on debug mode for the unit testing event loop.
-             * @default true
-             */
-            unit_test_loop_debug: boolean;
-            /**
-             * Test Setting
-             * @description This setting only exists to facilitate unit testing. If in test mode, this setting will return its value. Otherwise, it returns `None`.
-             * @default FOO
-             */
-            test_setting: unknown | null;
         };
         /**
          * TimeUnit
@@ -11912,7 +10096,7 @@ export interface components {
             not_any_?: components["schemas"]["WorkerStatus"][] | null;
         };
         /** WorkerFlowRunResponse */
-        "WorkerFlowRunResponse-Input": {
+        WorkerFlowRunResponse: {
             /**
              * Work Pool Id
              * Format: uuid
@@ -11923,21 +10107,7 @@ export interface components {
              * Format: uuid
              */
             work_queue_id: string;
-            flow_run: components["schemas"]["FlowRun-Input"];
-        };
-        /** WorkerFlowRunResponse */
-        "WorkerFlowRunResponse-Output": {
-            /**
-             * Work Pool Id
-             * Format: uuid
-             */
-            work_pool_id: string;
-            /**
-             * Work Queue Id
-             * Format: uuid
-             */
-            work_queue_id: string;
-            flow_run: components["schemas"]["FlowRun-Output"];
+            flow_run: components["schemas"]["FlowRun"];
         };
         /** WorkerResponse */
         WorkerResponse: {
@@ -11977,50 +10147,12 @@ export interface components {
              */
             status: components["schemas"]["WorkerStatus"];
         };
-        /** WorkerSettings */
-        WorkerSettings: {
-            /**
-             * Heartbeat Seconds
-             * @description Number of seconds a worker should wait between sending a heartbeat.
-             * @default 30
-             */
-            heartbeat_seconds: number;
-            /**
-             * Query Seconds
-             * @description Number of seconds a worker should wait between queries for scheduled work.
-             * @default 10
-             */
-            query_seconds: number;
-            /**
-             * Prefetch Seconds
-             * @description The number of seconds into the future a worker should query for scheduled work.
-             * @default 10
-             */
-            prefetch_seconds: number;
-            /** @description Settings for a worker's webserver */
-            webserver?: components["schemas"]["WorkerWebserverSettings"];
-        };
         /**
          * WorkerStatus
          * @description Enumeration of worker statuses.
          * @enum {string}
          */
         WorkerStatus: "ONLINE" | "OFFLINE";
-        /** WorkerWebserverSettings */
-        WorkerWebserverSettings: {
-            /**
-             * Host
-             * @description The host address the worker's webserver should bind to.
-             * @default 0.0.0.0
-             */
-            host: string;
-            /**
-             * Port
-             * @description The port the worker's webserver should bind to.
-             * @default 8080
-             */
-            port: number;
-        };
     };
     responses: never;
     parameters: never;
@@ -12574,7 +10706,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HistoryResponse-Output"][];
+                    "application/json": components["schemas"]["HistoryResponse"][];
                 };
             };
             /** @description Validation Error */
@@ -12608,7 +10740,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["DependencyResult-Output"][];
+                    "application/json": components["schemas"]["DependencyResult"][];
                 };
             };
             /** @description Validation Error */
@@ -13216,7 +11348,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HistoryResponse-Output"][];
+                    "application/json": components["schemas"]["HistoryResponse"][];
                 };
             };
             /** @description Validation Error */
@@ -14402,7 +12534,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": null;
                 };
             };
             /** @description Validation Error */
@@ -14470,7 +12602,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": null;
                 };
             };
             /** @description Validation Error */
@@ -14543,7 +12675,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": null;
                 };
             };
             /** @description Validation Error */
@@ -15727,7 +13859,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["WorkerFlowRunResponse-Output"][];
+                    "application/json": components["schemas"]["WorkerFlowRunResponse"][];
                 };
             };
             /** @description Validation Error */
@@ -17942,7 +16074,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["TaskRunCount-Output"][];
+                    "application/json": components["schemas"]["TaskRunCount"][];
                 };
             };
             /** @description Validation Error */

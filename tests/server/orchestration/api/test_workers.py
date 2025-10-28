@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 import prefect
 import prefect.server
 from prefect._internal.compatibility.starlette import status
+from prefect._internal.testing import retry_assert
 from prefect.client.schemas.actions import WorkPoolCreate
 from prefect.client.schemas.objects import WorkPool, WorkQueue
 from prefect.server import models, schemas
@@ -2229,9 +2230,11 @@ class TestGetScheduledRuns:
             elif work_queue.id == wq_ready.id:
                 assert work_queue.status == WorkQueueStatus.READY
 
-        for deployment in deployments:
-            await session.refresh(deployment)
-            assert deployment.status == DeploymentStatus.READY
+        async for attempt in retry_assert(max_attempts=5, delay=1.0):
+            with attempt:
+                for deployment in deployments:
+                    await session.refresh(deployment)
+                    assert deployment.status == DeploymentStatus.READY
 
     async def test_ensure_deployments_associated_with_work_pool_have_deployment_status_of_ready(
         self, client, work_pools, deployment
@@ -2248,7 +2251,11 @@ class TestGetScheduledRuns:
         )
         assert queue_response.status_code == status.HTTP_200_OK
 
-        # get the updated deployment
-        updated_deployment_response = await client.get(f"/deployments/{deployment.id}")
-        assert updated_deployment_response.status_code == status.HTTP_200_OK
-        assert updated_deployment_response.json()["status"] == "READY"
+        async for attempt in retry_assert(max_attempts=5, delay=1.0):
+            with attempt:
+                # get the updated deployment
+                updated_deployment_response = await client.get(
+                    f"/deployments/{deployment.id}"
+                )
+                assert updated_deployment_response.status_code == status.HTTP_200_OK
+                assert updated_deployment_response.json()["status"] == "READY"
