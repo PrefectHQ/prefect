@@ -1,11 +1,13 @@
 from datetime import datetime, timezone
 
+from docket import Depends as DocketDepends
+
 from prefect.logging import get_logger
 from prefect.server.concurrency.lease_storage import (
     ConcurrencyLeaseStorage,
     get_concurrency_lease_storage,
 )
-from prefect.server.database.dependencies import provide_database_interface
+from prefect.server.database import PrefectDBInterface, provide_database_interface
 from prefect.server.models.concurrency_limits_v2 import bulk_decrement_active_slots
 from prefect.server.services.base import LoopService
 from prefect.settings.context import get_current_settings
@@ -15,7 +17,11 @@ logger = get_logger(__name__)
 
 
 # Docket task function for revoking a single expired lease
-async def revoke_expired_lease(expired_lease_id: str) -> None:
+async def revoke_expired_lease(
+    *,
+    db: PrefectDBInterface = DocketDepends(provide_database_interface),
+    expired_lease_id: str,
+) -> None:
     """Revoke a single expired concurrency lease (docket task)."""
     concurrency_lease_storage = get_concurrency_lease_storage()
 
@@ -26,7 +32,6 @@ async def revoke_expired_lease(expired_lease_id: str) -> None:
         )
         return
 
-    db = provide_database_interface()
     async with db.session_context() as session:
         occupancy_seconds = (
             datetime.now(timezone.utc) - expired_lease.created_at

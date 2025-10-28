@@ -6,9 +6,14 @@ from datetime import timedelta
 from typing import Any, Optional
 
 import sqlalchemy as sa
+from docket import Depends as DocketDepends
 
 from prefect.server import models
-from prefect.server.database import PrefectDBInterface, db_injector
+from prefect.server.database import (
+    PrefectDBInterface,
+    db_injector,
+    provide_database_interface,
+)
 from prefect.server.models.deployments import mark_deployments_not_ready
 from prefect.server.models.work_queues import mark_work_queues_not_ready
 from prefect.server.models.workers import emit_work_pool_status_event
@@ -29,6 +34,144 @@ from prefect.settings import (
 )
 from prefect.settings.models.server.services import ServicesBaseSetting
 from prefect.types._datetime import now
+
+
+# Docket task function for marking workers offline
+async def mark_workers_offline(
+    *,
+    db: PrefectDBInterface = DocketDepends(provide_database_interface),
+    inactivity_heartbeat_multiple: int,
+    fallback_heartbeat_interval_seconds: int,
+) -> int:
+    """Mark workers without recent heartbeat as offline (docket task)."""
+    async with db.session_context(begin_transaction=True) as session:
+        worker_update_stmt = (
+            sa.update(db.Worker)
+            .values(status=WorkerStatus.OFFLINE)
+            .where(
+                sa.func.date_diff_seconds(db.Worker.last_heartbeat_time)
+                > (
+                    sa.func.coalesce(
+                        db.Worker.heartbeat_interval_seconds,
+                        sa.bindparam("default_interval", sa.Integer),
+                    )
+                    * sa.bindparam("multiplier", sa.Integer)
+                ),
+                db.Worker.status == WorkerStatus.ONLINE,
+            )
+        )
+
+        result = await session.execute(
+            worker_update_stmt,
+            {
+                "multiplier": inactivity_heartbeat_multiple,
+                "default_interval": fallback_heartbeat_interval_seconds,
+            },
+        )
+
+    return result.rowcount
+
+
+# Docket task function for marking work pools not ready
+async def mark_work_pools_not_ready(
+    *,
+    db: PrefectDBInterface = DocketDepends(provide_database_interface),
+) -> None:
+    """Mark work pools with no online workers as not ready (docket task)."""
+    async with db.session_context(begin_transaction=True) as session:
+        work_pools_select_stmt = (
+            sa.select(db.WorkPool)
+            .filter(db.WorkPool.status == "READY")
+            .outerjoin(
+                db.Worker,
+                sa.and_(
+                    db.Worker.work_pool_id == db.WorkPool.id,
+                    db.Worker.status == "ONLINE",
+                ),
+            )
+            .group_by(db.WorkPool.id)
+            .having(sa.func.count(db.Worker.id) == 0)
+        )
+
+        result = await session.execute(work_pools_select_stmt)
+        work_pools = result.scalars().all()
+
+        for work_pool in work_pools:
+            await models.workers.update_work_pool(
+                session=session,
+                work_pool_id=work_pool.id,
+                work_pool=InternalWorkPoolUpdate(status=WorkPoolStatus.NOT_READY),
+                emit_status_change=emit_work_pool_status_event,
+            )
+
+
+# Docket task function for marking deployments not ready
+async def mark_deployments_not_ready_task(
+    *,
+    db: PrefectDBInterface = DocketDepends(provide_database_interface),
+    deployment_last_polled_timeout_seconds: int,
+) -> None:
+    """Mark deployments with old last_polled as not ready (docket task)."""
+    async with db.session_context(begin_transaction=True) as session:
+        status_timeout_threshold = now("UTC") - timedelta(
+            seconds=deployment_last_polled_timeout_seconds
+        )
+        deployment_id_select_stmt = (
+            sa.select(db.Deployment.id)
+            .outerjoin(db.WorkQueue, db.WorkQueue.id == db.Deployment.work_queue_id)
+            .filter(db.Deployment.status == DeploymentStatus.READY)
+            .filter(db.Deployment.last_polled.isnot(None))
+            .filter(
+                sa.or_(
+                    # if work_queue.last_polled doesn't exist, use only deployment's
+                    # last_polled
+                    sa.and_(
+                        db.WorkQueue.last_polled.is_(None),
+                        db.Deployment.last_polled < status_timeout_threshold,
+                    ),
+                    # if work_queue.last_polled exists, both times should be less than
+                    # the threshold
+                    sa.and_(
+                        db.WorkQueue.last_polled.isnot(None),
+                        db.Deployment.last_polled < status_timeout_threshold,
+                        db.WorkQueue.last_polled < status_timeout_threshold,
+                    ),
+                )
+            )
+        )
+        result = await session.execute(deployment_id_select_stmt)
+        deployment_ids_to_mark_unready = result.scalars().all()
+
+    await mark_deployments_not_ready(
+        deployment_ids=deployment_ids_to_mark_unready,
+    )
+
+
+# Docket task function for marking work queues not ready
+async def mark_work_queues_not_ready_task(
+    *,
+    db: PrefectDBInterface = DocketDepends(provide_database_interface),
+    work_queue_last_polled_timeout_seconds: int,
+) -> None:
+    """Mark work queues with old last_polled as not ready (docket task)."""
+    async with db.session_context(begin_transaction=True) as session:
+        status_timeout_threshold = now("UTC") - timedelta(
+            seconds=work_queue_last_polled_timeout_seconds
+        )
+        id_select_stmt = (
+            sa.select(db.WorkQueue.id)
+            .outerjoin(db.WorkPool, db.WorkPool.id == db.WorkQueue.work_pool_id)
+            .filter(db.WorkQueue.status == "READY")
+            .filter(db.WorkQueue.last_polled.isnot(None))
+            .filter(db.WorkQueue.last_polled < status_timeout_threshold)
+            .order_by(db.WorkQueue.last_polled.asc())
+        )
+        result = await session.execute(id_select_stmt)
+        unready_work_queue_ids = result.scalars().all()
+
+    await mark_work_queues_not_ready(
+        work_queue_ids=unready_work_queue_ids,
+    )
 
 
 class Foreman(LoopService):
@@ -75,6 +218,15 @@ class Foreman(LoopService):
             else work_queue_last_polled_timeout_seconds
         )
 
+    async def _on_start(self) -> None:
+        """Register docket tasks if docket is available."""
+        await super()._on_start()
+        if self.docket is not None:
+            self.docket.register(mark_workers_offline)
+            self.docket.register(mark_work_pools_not_ready)
+            self.docket.register(mark_deployments_not_ready_task)
+            self.docket.register(mark_work_queues_not_ready_task)
+
     @db_injector
     async def run_once(self, db: PrefectDBInterface) -> None:
         """
@@ -84,10 +236,27 @@ class Foreman(LoopService):
         Mark deployments as not ready if they have a last_polled time that is
         older than the configured deployment last polled timeout.
         """
-        await self._mark_online_workers_without_a_recent_heartbeat_as_offline()
-        await self._mark_work_pools_as_not_ready()
-        await self._mark_deployments_as_not_ready()
-        await self._mark_work_queues_as_not_ready()
+        if self.docket is not None:
+            # Use docket to schedule all monitoring tasks in parallel
+            await self.docket.add(mark_workers_offline)(
+                self._inactivity_heartbeat_multiple,
+                self._fallback_heartbeat_interval_seconds,
+            )
+            await self.docket.add(mark_work_pools_not_ready)()
+            await self.docket.add(mark_deployments_not_ready_task)(
+                self._deployment_last_polled_timeout_seconds,
+            )
+            await self.docket.add(mark_work_queues_not_ready_task)(
+                self._work_queue_last_polled_timeout_seconds,
+            )
+
+            self.logger.info("Scheduled foreman monitoring tasks.")
+        else:
+            # Fall back to inline execution
+            await self._mark_online_workers_without_a_recent_heartbeat_as_offline()
+            await self._mark_work_pools_as_not_ready()
+            await self._mark_deployments_as_not_ready()
+            await self._mark_work_queues_as_not_ready()
 
     @db_injector
     async def _mark_online_workers_without_a_recent_heartbeat_as_offline(

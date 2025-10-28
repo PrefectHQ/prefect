@@ -619,52 +619,16 @@ def _memoize_block_auto_registration(
 
 async def _get_docket_url() -> str:
     """
-    Determine the Redis URL for docket.
-
-    Uses Redis from PREFECT_REDIS_MESSAGING_* settings if available,
-    otherwise falls back to in-memory mode via fakeredis.
+    Get the docket backend URL from settings.
 
     Returns:
-        Redis URL string (redis://... or memory://)
+        Docket URL string (redis://, rediss://, or memory://)
     """
-    try:
-        # Try to import prefect-redis settings (optional dependency)
-        from prefect_redis.messaging import get_redis_messaging_settings
+    settings = get_current_settings()
+    docket_url = settings.server.services.docket.url
 
-        settings = get_redis_messaging_settings()
-
-        # Check if Redis messaging is configured
-        if settings.host:
-            # Build Redis URL from messaging settings
-            url_parts = ["redis://"]
-
-            if settings.username or settings.password:
-                if settings.username:
-                    url_parts.append(settings.username)
-                if settings.password:
-                    url_parts.append(f":{settings.password}")
-                url_parts.append("@")
-
-            url_parts.append(settings.host)
-
-            if settings.port and settings.port != 6379:  # default Redis port
-                url_parts.append(f":{settings.port}")
-
-            if settings.db:
-                url_parts.append(f"/{settings.db}")
-
-            logger.debug(f"Using Redis for docket: {settings.host}:{settings.port}")
-            return "".join(url_parts)
-    except ImportError:
-        # prefect-redis not installed
-        pass
-    except Exception as e:
-        # Failed to get Redis settings
-        logger.debug(f"Could not get Redis settings for docket: {e}")
-
-    # Fall back to in-memory mode
-    logger.debug("Using in-memory mode for docket (memory://)")
-    return "memory://"
+    logger.debug(f"Using docket URL: {docket_url}")
+    return docket_url
 
 
 def create_app(
@@ -757,7 +721,7 @@ def create_app(
             docket_settings = settings.server.services.docket
 
             # Detect database type for smart defaults
-            db_url = PREFECT_API_DATABASE_CONNECTION_URL.value()
+            db_url = str(settings.server.database.connection_url.get_secret_value())
             is_sqlite = get_dialect(db_url).name == "sqlite"
 
             # Smart defaults: SQLite uses lower concurrency to avoid lock contention
@@ -850,8 +814,11 @@ def create_app(
     # Limit the number of concurrent requests when using a SQLite database to reduce
     # chance of errors where the database cannot be opened due to a high number of
     # concurrent writes
+    settings = get_current_settings()
     if (
-        get_dialect(prefect.settings.PREFECT_API_DATABASE_CONNECTION_URL.value()).name
+        get_dialect(
+            str(settings.server.database.connection_url.get_secret_value())
+        ).name
         == "sqlite"
     ):
         _install_sqlite_locked_log_filter()
