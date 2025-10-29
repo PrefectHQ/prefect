@@ -354,72 +354,15 @@ class CancellationCleanup(LoopService):
     async def _cancel_child_runs(
         self, db: PrefectDBInterface, flow_run: orm_models.FlowRun
     ) -> None:
-        async with db.session_context() as session:
-            child_task_runs = await models.task_runs.read_task_runs(
-                session,
-                flow_run_filter=filters.FlowRunFilter(
-                    id=filters.FlowRunFilterId(any_=[flow_run.id])
-                ),
-                task_run_filter=filters.TaskRunFilter(
-                    state=filters.TaskRunFilterState(
-                        type=filters.TaskRunFilterStateType(any_=NON_TERMINAL_STATES)
-                    )
-                ),
-                limit=100,
-            )
-
-        for task_run in child_task_runs:
-            async with db.session_context(begin_transaction=True) as session:
-                await models.task_runs.set_task_run_state(
-                    session=session,
-                    task_run_id=task_run.id,
-                    state=states.Cancelled(
-                        message="The parent flow run was cancelled."
-                    ),
-                    force=True,
-                )
+        # Delegate to module-level function to avoid duplication
+        await cancel_child_task_runs(flow_run.id, db=db)
 
     async def _cancel_subflow(
         self, db: PrefectDBInterface, flow_run: orm_models.FlowRun
     ) -> Optional[bool]:
-        if not flow_run.parent_task_run_id or not flow_run.state:
-            return False
-
-        if flow_run.state.type in states.TERMINAL_STATES:
-            return False
-
-        async with db.session_context() as session:
-            parent_task_run = await models.task_runs.read_task_run(
-                session, task_run_id=flow_run.parent_task_run_id
-            )
-
-            if not parent_task_run or not parent_task_run.flow_run_id:
-                # Global orchestration policy will prevent further orchestration
-                return False
-
-            containing_flow_run = await models.flow_runs.read_flow_run(
-                session, flow_run_id=parent_task_run.flow_run_id
-            )
-
-            if (
-                containing_flow_run
-                and containing_flow_run.state
-                and containing_flow_run.state.type != states.StateType.CANCELLED
-            ):
-                # Nothing to do here; the parent is not cancelled
-                return False
-
-            if flow_run.deployment_id:
-                state = states.Cancelling(message="The parent flow run was cancelled.")
-            else:
-                state = states.Cancelled(message="The parent flow run was cancelled.")
-
-        async with db.session_context(begin_transaction=True) as session:
-            await models.flow_runs.set_flow_run_state(
-                session=session,
-                flow_run_id=flow_run.id,
-                state=state,
-            )
+        # Delegate to module-level function to avoid duplication
+        await cancel_subflow_run(flow_run.id, db=db)
+        return None
 
 
 if __name__ == "__main__":
