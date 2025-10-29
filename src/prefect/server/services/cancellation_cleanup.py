@@ -2,9 +2,7 @@
 The CancellationCleanup service. Responsible for cancelling tasks and subflows that haven't finished.
 """
 
-import asyncio
 import datetime
-from typing import Any, Optional
 from uuid import UUID
 
 import sqlalchemy as sa
@@ -12,17 +10,9 @@ from docket import CurrentDocket, Depends, Docket, Perpetual
 from sqlalchemy.sql.expression import or_
 
 import prefect.server.models as models
-from prefect.server.database import (
-    PrefectDBInterface,
-    orm_models,
-    provide_database_interface,
-)
-from prefect.server.database.dependencies import db_injector
+from prefect.server.database import PrefectDBInterface, provide_database_interface
 from prefect.server.schemas import filters, states
-from prefect.server.services.base import LoopService
 from prefect.settings import PREFECT_API_SERVICES_CANCELLATION_CLEANUP_LOOP_SECONDS
-from prefect.settings.context import get_current_settings
-from prefect.settings.models.server.services import ServicesBaseSetting
 from prefect.types._datetime import now
 
 NON_TERMINAL_STATES = list(set(states.StateType) - states.TERMINAL_STATES)
@@ -175,115 +165,3 @@ async def monitor_subflow_runs(
 
     for subflow_run_id in subflow_run_ids:
         await docket.add(cancel_subflow_run)(subflow_run_id)
-
-
-class CancellationCleanup(LoopService):
-    """
-    Cancels tasks and subflows of flow runs that have been cancelled
-    """
-
-    @classmethod
-    def service_settings(cls) -> ServicesBaseSetting:
-        return get_current_settings().server.services.cancellation_cleanup
-
-    def __init__(self, loop_seconds: Optional[float] = None, **kwargs: Any):
-        super().__init__(
-            loop_seconds=loop_seconds
-            or PREFECT_API_SERVICES_CANCELLATION_CLEANUP_LOOP_SECONDS.value(),
-            **kwargs,
-        )
-
-        # query for this many runs to mark failed at once
-        self.batch_size = 200
-
-    async def _on_start(self) -> None:
-        """Register docket tasks."""
-        await super()._on_start()
-        if self.docket is not None:
-            # Register monitor (find) and processing (flood) tasks
-            self.docket.register(monitor_cancelled_flow_runs)
-            self.docket.register(monitor_subflow_runs)
-            self.docket.register(cancel_child_task_runs)
-            self.docket.register(cancel_subflow_run)
-
-    @db_injector
-    async def run_once(self, db: PrefectDBInterface) -> None:
-        """
-        - cancels active tasks belonging to recently cancelled flow runs
-        - cancels any active subflow that belongs to a cancelled flow
-        """
-        # cancels active tasks belonging to recently cancelled flow runs
-        await self.clean_up_cancelled_flow_run_task_runs(db)
-
-        # cancels any active subflow run that belongs to a cancelled flow run
-        await self.clean_up_cancelled_subflow_runs(db)
-
-        self.logger.info("Finished cleaning up cancelled flow runs.")
-
-    async def clean_up_cancelled_flow_run_task_runs(
-        self, db: PrefectDBInterface
-    ) -> None:
-        # Execute inline for synchronous behavior in tests
-        cancelled_flow_query = (
-            sa.select(db.FlowRun.id)
-            .where(
-                db.FlowRun.state_type == states.StateType.CANCELLED,
-                db.FlowRun.end_time.is_not(None),
-                db.FlowRun.end_time >= (now("UTC") - datetime.timedelta(days=1)),
-            )
-            .order_by(db.FlowRun.id)
-            .limit(self.batch_size)
-        )
-
-        async with db.session_context() as session:
-            flow_run_result = await session.execute(cancelled_flow_query)
-        flow_run_ids = flow_run_result.scalars().all()
-
-        for flow_run_id in flow_run_ids:
-            await cancel_child_task_runs(flow_run_id, db=db)
-
-        self.logger.info(f"Cancelled child tasks for {len(flow_run_ids)} flow runs.")
-
-    async def clean_up_cancelled_subflow_runs(self, db: PrefectDBInterface) -> None:
-        # Execute inline for synchronous behavior in tests
-        subflow_query = (
-            sa.select(db.FlowRun.id)
-            .where(
-                or_(
-                    db.FlowRun.state_type == states.StateType.PENDING,
-                    db.FlowRun.state_type == states.StateType.SCHEDULED,
-                    db.FlowRun.state_type == states.StateType.RUNNING,
-                    db.FlowRun.state_type == states.StateType.PAUSED,
-                    db.FlowRun.state_type == states.StateType.CANCELLING,
-                ),
-                db.FlowRun.parent_task_run_id.is_not(None),
-            )
-            .order_by(db.FlowRun.id)
-            .limit(self.batch_size)
-        )
-
-        async with db.session_context() as session:
-            subflow_run_result = await session.execute(subflow_query)
-        subflow_run_ids = subflow_run_result.scalars().all()
-
-        for subflow_run_id in subflow_run_ids:
-            await cancel_subflow_run(subflow_run_id, db=db)
-
-        self.logger.info(f"Cancelled {len(subflow_run_ids)} subflow runs.")
-
-    async def _cancel_child_runs(
-        self, db: PrefectDBInterface, flow_run: orm_models.FlowRun
-    ) -> None:
-        # Delegate to module-level function to avoid duplication
-        await cancel_child_task_runs(flow_run.id, db=db)
-
-    async def _cancel_subflow(
-        self, db: PrefectDBInterface, flow_run: orm_models.FlowRun
-    ) -> Optional[bool]:
-        # Delegate to module-level function to avoid duplication
-        await cancel_subflow_run(flow_run.id, db=db)
-        return None
-
-
-if __name__ == "__main__":
-    asyncio.run(CancellationCleanup(handle_signals=True).start())
