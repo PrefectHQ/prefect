@@ -261,6 +261,44 @@ class TestIntervalSchedule:
             datetime(2022, 1, 3, tzinfo=ZoneInfo("UTC")),
         ]
 
+    @pytest.mark.skipif(
+        sys.version_info < (3, 13),
+        reason="Bug only affects Python 3.13+ with whenever library",
+    )
+    async def test_offset_anchor_preserves_local_hour(self):
+        """
+        Regression test for timezone bug from pendulum -> datetime/zoneinfo refactor.
+        When an anchor_date has a fixed-offset tzinfo (e.g. timezone(timedelta(hours=9)))
+        alongside a named timezone (e.g. "Asia/Tokyo"), the scheduler must preserve the
+        instant rather than misinterpreting it as UTC.
+        """
+        from datetime import timezone
+
+        anchor = datetime(
+            2024,
+            7,
+            1,
+            1,
+            15,
+            tzinfo=timezone(timedelta(hours=9)),  # Asia/Tokyo offset
+        )
+        clock = IntervalSchedule(
+            interval=timedelta(days=1),
+            anchor_date=anchor,
+            timezone="Asia/Tokyo",
+        )
+
+        start = datetime(2025, 10, 23, tzinfo=ZoneInfo("UTC"))
+        dates = await clock.get_dates(n=3, start=start)
+        expected_first = datetime(2025, 10, 24, 1, 15, tzinfo=ZoneInfo("Asia/Tokyo"))
+
+        assert dates[0] == expected_first
+        assert all(
+            date.astimezone(ZoneInfo("Asia/Tokyo")).time() == expected_first.time()
+            for date in dates
+        )
+        assert all(date.tzinfo.key == "Asia/Tokyo" for date in dates)
+
 
 class TestCreateCronSchedule:
     def test_create_cron_schedule(self):
