@@ -552,7 +552,7 @@ class DocketSettings(PrefectBaseSettings):
     """
 
     model_config: ClassVar[SettingsConfigDict] = build_settings_config(
-        ("server", "docket")
+        ("server", "services", "docket")
     )
 
     workers: int | None = Field(
@@ -562,10 +562,6 @@ class DocketSettings(PrefectBaseSettings):
         The number of docket worker processes to run. If not set, defaults are based on
         database type: SQLite uses 2 workers, PostgreSQL uses 10 workers.
         """,
-        validation_alias=AliasChoices(
-            AliasPath("workers"),
-            "prefect_server_docket_workers",
-        ),
     )
 
     concurrency: int | None = Field(
@@ -576,10 +572,6 @@ class DocketSettings(PrefectBaseSettings):
         If not set, defaults are based on database type: SQLite uses 2 concurrent tasks
         per worker, PostgreSQL uses 10 concurrent tasks per worker.
         """,
-        validation_alias=AliasChoices(
-            AliasPath("concurrency"),
-            "prefect_server_docket_concurrency",
-        ),
     )
 
     url: str = Field(
@@ -588,10 +580,6 @@ class DocketSettings(PrefectBaseSettings):
         The URL for the docket backend. Supports redis://, rediss://, or memory:// (default).
         When set to memory://, uses an in-memory backend via fakeredis.
         """,
-        validation_alias=AliasChoices(
-            AliasPath("url"),
-            "prefect_server_docket_url",
-        ),
     )
 
 
