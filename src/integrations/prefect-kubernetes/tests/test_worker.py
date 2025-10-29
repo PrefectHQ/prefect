@@ -2856,3 +2856,57 @@ class TestKubernetesWorker:
             async with prefect.get_client() as client:
                 flow_run = await client.read_flow_run(future.flow_run_id)
                 assert flow_run.state.is_crashed()
+
+
+class TestObserverSettings:
+    """Tests for Kubernetes observer enable/disable settings in worker."""
+
+    @pytest.fixture
+    def work_pool(self):
+        return WorkPool(name="my-work-pool-name", type="kubernetes")
+
+    async def test_observer_started_and_stopped_when_enabled(
+        self,
+        mock_batch_client,
+        mock_core_client,
+        work_pool: WorkPool,
+        mock_operator_start: MagicMock,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        """Test that observer is started when enabled=True."""
+        monkeypatch.setenv("PREFECT_INTEGRATIONS_KUBERNETES_OBSERVER_ENABLED", "true")
+
+        mock_stop = MagicMock()
+        monkeypatch.setattr("prefect_kubernetes.worker.stop_observer", mock_stop)
+
+        async with KubernetesWorker(work_pool_name=work_pool.name):
+            pass
+
+        # start_observer should have been called when worker enters context
+        mock_operator_start.assert_called_once()
+
+        # stop_observer should have been called when worker exits context
+        mock_stop.assert_called_once()
+
+    async def test_observer_not_started_and_not_stopped_when_disabled(
+        self,
+        mock_batch_client,
+        mock_core_client,
+        work_pool: WorkPool,
+        mock_operator_start: MagicMock,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        """Test that observer is not started when enabled=False."""
+        monkeypatch.setenv("PREFECT_INTEGRATIONS_KUBERNETES_OBSERVER_ENABLED", "false")
+
+        mock_stop = MagicMock()
+        monkeypatch.setattr("prefect_kubernetes.worker.stop_observer", mock_stop)
+
+        async with KubernetesWorker(work_pool_name=work_pool.name):
+            pass
+
+        # start_observer should NOT have been called
+        mock_operator_start.assert_not_called()
+
+        # stop_observer should NOT have been called
+        mock_stop.assert_not_called()
