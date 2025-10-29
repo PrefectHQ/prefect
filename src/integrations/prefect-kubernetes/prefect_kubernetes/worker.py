@@ -992,7 +992,8 @@ class KubernetesWorker(
             await client.close()
 
     async def __aenter__(self):
-        start_observer()
+        if KubernetesSettings().observer.enabled:
+            start_observer()
         return await super().__aenter__()
 
     async def __aexit__(self, *exc_info: Any):
@@ -1000,4 +1001,5 @@ class KubernetesWorker(
             await super().__aexit__(*exc_info)
         finally:
             # Need to run after the runs task group exits
-            stop_observer()
+            if KubernetesSettings().observer.enabled:
+                stop_observer()

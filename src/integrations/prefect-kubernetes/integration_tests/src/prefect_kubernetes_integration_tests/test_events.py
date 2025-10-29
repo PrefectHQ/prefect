@@ -73,3 +73,50 @@ async def test_happy_path_events(
     }, (
         f"Expected events to be Pending, Running, and Succeeded, got: {[event.event for event in events]}"
     )
+
+
+@pytest.mark.usefixtures("kind_cluster")
+async def test_disable_pod_event_replication(
+    work_pool_name: str,
+):
+    """Test that pod events are not replicated when disabled via settings."""
+    flow_run = await prefect_core.create_flow_run(
+        source=DEFAULT_FLOW_SOURCE,
+        entrypoint=DEFAULT_FLOW_ENTRYPOINT,
+        name="disabled-events",
+        work_pool_name=work_pool_name,
+        job_variables=DEFAULT_JOB_VARIABLES,
+        parameters=DEFAULT_PARAMETERS,
+        flow_run_name="disabled-pod-events",
+    )
+
+    display.print_flow_run_created(flow_run)
+
+    # Start worker with pod event replication disabled
+    env = os.environ.copy()
+    env["PREFECT_INTEGRATIONS_KUBERNETES_OBSERVER_REPLICATE_POD_EVENTS"] = "false"
+
+    with subprocess.Popen(
+        ["prefect", "worker", "start", "--pool", work_pool_name],
+        env=env,
+    ) as worker_process:
+        try:
+            prefect_core.wait_for_flow_run_state(
+                flow_run.id, StateType.COMPLETED, timeout=30
+            )
+
+            async with get_client() as client:
+                updated_flow_run = await client.read_flow_run(flow_run.id)
+
+            display.print_flow_run_result(updated_flow_run)
+
+            # Wait for any potential events to be sent (if they were going to be)
+            await asyncio.sleep(15)
+            events = await prefect_core.read_pod_events_for_flow_run(flow_run.id)
+
+        finally:
+            worker_process.terminate()
+
+    assert len(events) == 0, (
+        f"Expected 0 events, got {len(events)}: {[event.event for event in events]}"
+    )

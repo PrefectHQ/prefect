@@ -32,6 +32,16 @@ Namespaces = Annotated[
 class KubernetesObserverSettings(PrefectBaseSettings):
     model_config = build_settings_config(("integrations", "kubernetes", "observer"))
 
+    enabled: bool = Field(
+        default=True,
+        description="Whether the Kubernetes observer is enabled to watch for Prefect-submitted Kubernetes pod and job events.",
+    )
+
+    replicate_pod_events: bool = Field(
+        default=True,
+        description="Whether the Kubernetes observer should replicate Prefect-submitted Kubernetes pod events, which can be used for Prefect Automations.",
+    )
+
     namespaces: Namespaces = Field(
         default_factory=set,
         description="The namespaces to watch for Prefect-submitted Kubernetes "
