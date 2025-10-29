@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from logging import Logger
 
-from docket import Depends as DocketDepends
+from docket import Depends
 
 from prefect.logging import get_logger
 from prefect.server.concurrency.lease_storage import (
@@ -21,7 +21,7 @@ logger: Logger = get_logger(__name__)
 async def revoke_expired_lease(
     expired_lease_id: str,
     *,
-    db: PrefectDBInterface = DocketDepends(provide_database_interface),
+    db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> None:
     """Revoke a single expired concurrency lease (docket task)."""
     concurrency_lease_storage = get_concurrency_lease_storage()

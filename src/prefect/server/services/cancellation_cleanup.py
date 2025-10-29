@@ -8,7 +8,7 @@ from typing import Any, Optional
 from uuid import UUID
 
 import sqlalchemy as sa
-from docket import Depends as DocketDepends
+from docket import Depends
 from sqlalchemy.sql.expression import or_
 
 import prefect.server.models as models
@@ -32,7 +32,7 @@ NON_TERMINAL_STATES = list(set(states.StateType) - states.TERMINAL_STATES)
 async def cancel_child_task_runs(
     flow_run_id: UUID,
     *,
-    db: PrefectDBInterface = DocketDepends(provide_database_interface),
+    db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> None:
     """Cancel child task runs of a cancelled flow run (docket task)."""
     async with db.session_context() as session:
@@ -63,7 +63,7 @@ async def cancel_child_task_runs(
 async def cancel_subflow_run(
     subflow_run_id: UUID,
     *,
-    db: PrefectDBInterface = DocketDepends(provide_database_interface),
+    db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> None:
     """Cancel a subflow run whose parent flow run was cancelled (docket task)."""
     async with db.session_context() as session:
