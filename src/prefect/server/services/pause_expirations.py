@@ -128,58 +128,31 @@ class FailExpiredPauses(LoopService):
         - For any runs past the "expiration" threshold, setting the flow run state to a
           new `Failed` state
         """
-        if self.docket is not None:
-            # Use docket to schedule tasks
-            async with db.session_context() as session:
-                query = (
-                    sa.select(db.FlowRun)
-                    .where(
-                        db.FlowRun.state_type == states.StateType.PAUSED,
-                    )
-                    .limit(self.batch_size)
+        # Execute inline for synchronous behavior in tests
+        async with db.session_context() as session:
+            query = (
+                sa.select(db.FlowRun)
+                .where(
+                    db.FlowRun.state_type == states.StateType.PAUSED,
                 )
+                .limit(self.batch_size)
+            )
 
-                result = await session.execute(query)
-                runs = result.scalars().all()
+            result = await session.execute(query)
+            runs = result.scalars().all()
 
-                # Schedule each run to be marked failed via docket
-                for run in runs:
-                    if (
-                        run.state is not None
-                        and run.state.state_details.pause_timeout is not None
-                        and run.state.state_details.pause_timeout < now("UTC")
-                    ):
-                        await self.docket.add(fail_expired_pause)(
-                            run.id, str(run.state.state_details.pause_timeout)
-                        )
-
-                self.logger.info(f"Scheduled {len(runs)} expired pause tasks.")
-        else:
-            # Fall back to inline execution
-            while True:
-                async with db.session_context(begin_transaction=True) as session:
-                    query = (
-                        sa.select(db.FlowRun)
-                        .where(
-                            db.FlowRun.state_type == states.StateType.PAUSED,
-                        )
-                        .limit(self.batch_size)
+            # Mark each expired run as failed directly
+            for run in runs:
+                if (
+                    run.state is not None
+                    and run.state.state_details.pause_timeout is not None
+                    and run.state.state_details.pause_timeout < now("UTC")
+                ):
+                    await fail_expired_pause(
+                        run.id, str(run.state.state_details.pause_timeout), db=db
                     )
 
-                    result = await session.execute(query)
-                    runs = result.scalars().all()
-
-                    # mark each run as failed
-                    for run in runs:
-                        await self._mark_flow_run_as_failed(
-                            session=session, flow_run=run
-                        )
-
-                    # if no runs were found, exit the loop
-                    if len(runs) < self.batch_size:
-                        break
-
-            self.logger.info("Finished monitoring for expired pauses.")
+            self.logger.info(f"Marked {len(runs)} expired pauses as failed.")
 
     async def _mark_flow_run_as_failed(
         self, session: AsyncSession, flow_run: FlowRun
