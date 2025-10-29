@@ -6,7 +6,7 @@ from datetime import timedelta
 from typing import Any, Optional
 
 import sqlalchemy as sa
-from docket import Depends as DocketDepends
+from docket import Depends
 
 from prefect.server import models
 from prefect.server.database import (
@@ -41,7 +41,7 @@ async def mark_workers_offline(
     inactivity_heartbeat_multiple: int,
     fallback_heartbeat_interval_seconds: int,
     *,
-    db: PrefectDBInterface = DocketDepends(provide_database_interface),
+    db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> int:
     """Mark workers without recent heartbeat as offline (docket task)."""
     async with db.session_context(begin_transaction=True) as session:
@@ -75,7 +75,7 @@ async def mark_workers_offline(
 # Docket task function for marking work pools not ready
 async def mark_work_pools_not_ready(
     *,
-    db: PrefectDBInterface = DocketDepends(provide_database_interface),
+    db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> None:
     """Mark work pools with no online workers as not ready (docket task)."""
     async with db.session_context(begin_transaction=True) as session:
@@ -109,7 +109,7 @@ async def mark_work_pools_not_ready(
 async def mark_deployments_not_ready_task(
     deployment_last_polled_timeout_seconds: int,
     *,
-    db: PrefectDBInterface = DocketDepends(provide_database_interface),
+    db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> None:
     """Mark deployments with old last_polled as not ready (docket task)."""
     async with db.session_context(begin_transaction=True) as session:
@@ -151,7 +151,7 @@ async def mark_deployments_not_ready_task(
 async def mark_work_queues_not_ready_task(
     work_queue_last_polled_timeout_seconds: int,
     *,
-    db: PrefectDBInterface = DocketDepends(provide_database_interface),
+    db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> None:
     """Mark work queues with old last_polled as not ready (docket task)."""
     async with db.session_context(begin_transaction=True) as session:

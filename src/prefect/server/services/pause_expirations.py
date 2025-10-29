@@ -7,7 +7,7 @@ from typing import Any, Optional
 from uuid import UUID
 
 import sqlalchemy as sa
-from docket import Depends as DocketDepends
+from docket import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 import prefect.server.models as models
@@ -27,7 +27,7 @@ async def fail_expired_pause(
     flow_run_id: UUID,
     pause_timeout: str,
     *,
-    db: PrefectDBInterface = DocketDepends(provide_database_interface),
+    db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> None:
     """Mark a single expired paused flow run as failed (docket task)."""
     async with db.session_context(begin_transaction=True) as session:

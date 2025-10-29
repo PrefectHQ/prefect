@@ -11,7 +11,7 @@ from typing import Any
 from uuid import UUID
 
 import sqlalchemy as sa
-from docket import Depends as DocketDepends
+from docket import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 import prefect.server.models as models
@@ -38,7 +38,7 @@ from prefect.types._datetime import DateTime, now
 async def mark_flow_run_late(
     flow_run_id: UUID,
     *,
-    db: PrefectDBInterface = DocketDepends(provide_database_interface),
+    db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> None:
     """Mark a single flow run as late (docket task)."""
     async with db.session_context(begin_transaction=True) as session:
