@@ -8,7 +8,11 @@ from prefect.server.concurrency.lease_storage import (
     ConcurrencyLeaseStorage,
     get_concurrency_lease_storage,
 )
-from prefect.server.database import PrefectDBInterface, provide_database_interface
+from prefect.server.database import (
+    PrefectDBInterface,
+    provide_database_interface,
+)
+from prefect.server.database.dependencies import db_injector
 from prefect.server.models.concurrency_limits_v2 import bulk_decrement_active_slots
 from prefect.server.services.base import LoopService
 from prefect.settings.context import get_current_settings
@@ -92,53 +96,23 @@ class Repossessor(LoopService):
         return get_current_settings().server.services.repossessor
 
     async def _on_start(self) -> None:
-        """Register docket tasks if docket is available."""
+        """Register docket tasks."""
         await super()._on_start()
         if self.docket is not None:
             # Register the monitor (find) and revoke (flood) tasks
             self.docket.register(monitor_expired_leases)
             self.docket.register(revoke_expired_lease)
 
-    async def run_once(self) -> None:
+    @db_injector
+    async def run_once(self, db: PrefectDBInterface) -> None:
         expired_lease_ids = (
             await self.concurrency_lease_storage.read_expired_lease_ids()
         )
         if expired_lease_ids:
             self.logger.info(f"Found {len(expired_lease_ids)} expired leases")
 
-        if self.docket is not None:
-            # Use docket to schedule tasks
-            for expired_lease_id in expired_lease_ids:
-                await self.docket.add(revoke_expired_lease)(expired_lease_id)
+        # Revoke leases directly for synchronous behavior in tests
+        for expired_lease_id in expired_lease_ids:
+            await revoke_expired_lease(expired_lease_id, db=db)
 
-            self.logger.info(
-                f"Scheduled {len(expired_lease_ids)} lease revocation tasks."
-            )
-        else:
-            # Fall back to inline execution
-            db = provide_database_interface()
-            async with db.session_context() as session:
-                for expired_lease_id in expired_lease_ids:
-                    expired_lease = await self.concurrency_lease_storage.read_lease(
-                        expired_lease_id
-                    )
-                    if expired_lease is None or expired_lease.metadata is None:
-                        self.logger.warning(
-                            f"Lease {expired_lease_id} should be revoked but was not found or has no metadata"
-                        )
-                        continue
-                    occupancy_seconds = (
-                        datetime.now(timezone.utc) - expired_lease.created_at
-                    ).total_seconds()
-                    self.logger.info(
-                        f"Revoking lease {expired_lease_id} for {len(expired_lease.resource_ids)} concurrency limits with {expired_lease.metadata.slots} slots"
-                    )
-                    await bulk_decrement_active_slots(
-                        session=session,
-                        concurrency_limit_ids=expired_lease.resource_ids,
-                        slots=expired_lease.metadata.slots,
-                        occupancy_seconds=occupancy_seconds,
-                    )
-                    await self.concurrency_lease_storage.revoke_lease(expired_lease_id)
-
-                    await session.commit()
+        self.logger.info(f"Revoked {len(expired_lease_ids)} leases.")

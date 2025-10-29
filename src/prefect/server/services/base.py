@@ -201,6 +201,9 @@ class LoopService(Service, abc.ABC):
             False  # flag for whether the service should stop running
         )
         self._is_running: bool = False  # flag for whether the service is running
+        self._owns_docket_context: bool = (
+            False  # flag for whether we entered the docket context
+        )
 
         if handle_signals:
             _register_signal(signal.SIGINT, self._stop)
@@ -212,12 +215,20 @@ class LoopService(Service, abc.ABC):
         """
         self._should_stop = False
         self._is_running = True
+        # Enter docket context if we created it locally
+        if self.docket is not None and not hasattr(self.docket, "tasks"):
+            await self.docket.__aenter__()
+            self._owns_docket_context = True
         self.logger.debug(f"Starting {self.name}")
 
     async def _on_stop(self) -> None:
         """
         Called after running the service
         """
+        # Exit docket context only if we entered it
+        if self._owns_docket_context:
+            await self.docket.__aexit__(None, None, None)
+            self._owns_docket_context = False
         self._is_running = False
         self.logger.debug(f"Stopped {self.name}")
 
