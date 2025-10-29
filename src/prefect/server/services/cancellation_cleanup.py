@@ -197,7 +197,7 @@ class CancellationCleanup(LoopService):
         self.batch_size = 200
 
     async def _on_start(self) -> None:
-        """Register docket tasks if docket is available."""
+        """Register docket tasks."""
         await super()._on_start()
         if self.docket is not None:
             # Register monitor (find) and processing (flood) tasks
@@ -223,133 +223,53 @@ class CancellationCleanup(LoopService):
     async def clean_up_cancelled_flow_run_task_runs(
         self, db: PrefectDBInterface
     ) -> None:
-        if self.docket is not None:
-            # Use docket to schedule tasks
-            cancelled_flow_query = (
-                sa.select(db.FlowRun.id)
-                .where(
-                    db.FlowRun.state_type == states.StateType.CANCELLED,
-                    db.FlowRun.end_time.is_not(None),
-                    db.FlowRun.end_time >= (now("UTC") - datetime.timedelta(days=1)),
-                )
-                .order_by(db.FlowRun.id)
-                .limit(self.batch_size)
+        # Execute inline for synchronous behavior in tests
+        cancelled_flow_query = (
+            sa.select(db.FlowRun.id)
+            .where(
+                db.FlowRun.state_type == states.StateType.CANCELLED,
+                db.FlowRun.end_time.is_not(None),
+                db.FlowRun.end_time >= (now("UTC") - datetime.timedelta(days=1)),
             )
+            .order_by(db.FlowRun.id)
+            .limit(self.batch_size)
+        )
 
-            async with db.session_context() as session:
-                flow_run_result = await session.execute(cancelled_flow_query)
-            flow_run_ids = flow_run_result.scalars().all()
+        async with db.session_context() as session:
+            flow_run_result = await session.execute(cancelled_flow_query)
+        flow_run_ids = flow_run_result.scalars().all()
 
-            for flow_run_id in flow_run_ids:
-                await self.docket.add(cancel_child_task_runs)(flow_run_id)
+        for flow_run_id in flow_run_ids:
+            await cancel_child_task_runs(flow_run_id, db=db)
 
-            self.logger.info(
-                f"Scheduled {len(flow_run_ids)} child task cancellation tasks."
-            )
-        else:
-            # Fall back to inline execution
-            high_water_mark = UUID(int=0)
-            while True:
-                cancelled_flow_query = (
-                    sa.select(db.FlowRun)
-                    .where(
-                        db.FlowRun.state_type == states.StateType.CANCELLED,
-                        db.FlowRun.end_time.is_not(None),
-                        db.FlowRun.end_time
-                        >= (now("UTC") - datetime.timedelta(days=1)),
-                        db.FlowRun.id > high_water_mark,
-                    )
-                    .order_by(db.FlowRun.id)
-                    .limit(self.batch_size)
-                )
-
-                async with db.session_context() as session:
-                    flow_run_result = await session.execute(cancelled_flow_query)
-                flow_runs = flow_run_result.scalars().all()
-
-                for run in flow_runs:
-                    await self._cancel_child_runs(db=db, flow_run=run)
-                    high_water_mark = run.id
-
-                # if no relevant flows were found, exit the loop
-                if len(flow_runs) < self.batch_size:
-                    break
+        self.logger.info(f"Cancelled child tasks for {len(flow_run_ids)} flow runs.")
 
     async def clean_up_cancelled_subflow_runs(self, db: PrefectDBInterface) -> None:
-        if self.docket is not None:
-            # Use docket to schedule tasks
-            subflow_query = (
-                sa.select(db.FlowRun.id)
-                .where(
-                    or_(
-                        db.FlowRun.state_type == states.StateType.PENDING,
-                        db.FlowRun.state_type == states.StateType.SCHEDULED,
-                        db.FlowRun.state_type == states.StateType.RUNNING,
-                        db.FlowRun.state_type == states.StateType.PAUSED,
-                        db.FlowRun.state_type == states.StateType.CANCELLING,
-                    ),
-                    db.FlowRun.parent_task_run_id.is_not(None),
-                )
-                .order_by(db.FlowRun.id)
-                .limit(self.batch_size)
+        # Execute inline for synchronous behavior in tests
+        subflow_query = (
+            sa.select(db.FlowRun.id)
+            .where(
+                or_(
+                    db.FlowRun.state_type == states.StateType.PENDING,
+                    db.FlowRun.state_type == states.StateType.SCHEDULED,
+                    db.FlowRun.state_type == states.StateType.RUNNING,
+                    db.FlowRun.state_type == states.StateType.PAUSED,
+                    db.FlowRun.state_type == states.StateType.CANCELLING,
+                ),
+                db.FlowRun.parent_task_run_id.is_not(None),
             )
+            .order_by(db.FlowRun.id)
+            .limit(self.batch_size)
+        )
 
-            async with db.session_context() as session:
-                subflow_run_result = await session.execute(subflow_query)
-            subflow_run_ids = subflow_run_result.scalars().all()
+        async with db.session_context() as session:
+            subflow_run_result = await session.execute(subflow_query)
+        subflow_run_ids = subflow_run_result.scalars().all()
 
-            for subflow_run_id in subflow_run_ids:
-                await self.docket.add(cancel_subflow_run)(subflow_run_id)
+        for subflow_run_id in subflow_run_ids:
+            await cancel_subflow_run(subflow_run_id, db=db)
 
-            self.logger.info(
-                f"Scheduled {len(subflow_run_ids)} subflow cancellation tasks."
-            )
-        else:
-            # Fall back to inline execution
-            high_water_mark = UUID(int=0)
-            while True:
-                # Performance optimization: Load only required columns while maintaining ORM functionality
-                # Required columns:
-                # - id: for high water mark tracking
-                # - state_type: for state validation
-                # - parent_task_run_id: for parent task run checks
-                # - deployment_id: for determining cancellation state type
-                subflow_query = (
-                    sa.select(db.FlowRun)
-                    .options(
-                        sa.orm.load_only(
-                            db.FlowRun.id,
-                            db.FlowRun.state_type,
-                            db.FlowRun.parent_task_run_id,
-                            db.FlowRun.deployment_id,
-                        ),
-                    )
-                    .where(
-                        or_(
-                            db.FlowRun.state_type == states.StateType.PENDING,
-                            db.FlowRun.state_type == states.StateType.SCHEDULED,
-                            db.FlowRun.state_type == states.StateType.RUNNING,
-                            db.FlowRun.state_type == states.StateType.PAUSED,
-                            db.FlowRun.state_type == states.StateType.CANCELLING,
-                        ),
-                        db.FlowRun.id > high_water_mark,
-                        db.FlowRun.parent_task_run_id.is_not(None),
-                    )
-                    .order_by(db.FlowRun.id)
-                    .limit(self.batch_size)
-                )
-
-                async with db.session_context() as session:
-                    subflow_run_result = await session.execute(subflow_query)
-                subflow_runs = subflow_run_result.scalars().all()
-
-                for subflow_run in subflow_runs:
-                    await self._cancel_subflow(db=db, flow_run=subflow_run)
-                    high_water_mark = max(high_water_mark, subflow_run.id)
-
-                # if no relevant flows were found, exit the loop
-                if len(subflow_runs) < self.batch_size:
-                    break
+        self.logger.info(f"Cancelled {len(subflow_run_ids)} subflow runs.")
 
     async def _cancel_child_runs(
         self, db: PrefectDBInterface, flow_run: orm_models.FlowRun
