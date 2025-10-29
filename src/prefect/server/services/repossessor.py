@@ -5,18 +5,14 @@ from docket import CurrentDocket, Depends, Docket, Perpetual
 
 from prefect.logging import get_logger
 from prefect.server.concurrency.lease_storage import (
-    ConcurrencyLeaseStorage,
     get_concurrency_lease_storage,
 )
 from prefect.server.database import (
     PrefectDBInterface,
     provide_database_interface,
 )
-from prefect.server.database.dependencies import db_injector
 from prefect.server.models.concurrency_limits_v2 import bulk_decrement_active_slots
-from prefect.server.services.base import LoopService
 from prefect.settings.context import get_current_settings
-from prefect.settings.models.server.services import ServicesBaseSetting
 
 logger: Logger = get_logger(__name__)
 
@@ -76,43 +72,3 @@ async def monitor_expired_leases(
         for expired_lease_id in expired_lease_ids:
             await docket.add(revoke_expired_lease)(expired_lease_id)
         logger.info(f"Scheduled {len(expired_lease_ids)} lease revocation tasks.")
-
-
-class Repossessor(LoopService):
-    """
-    Handles the reconciliation of expired leases; no tow truck dependency.
-    """
-
-    def __init__(self):
-        super().__init__(
-            loop_seconds=get_current_settings().server.services.repossessor.loop_seconds,
-        )
-        self.concurrency_lease_storage: ConcurrencyLeaseStorage = (
-            get_concurrency_lease_storage()
-        )
-
-    @classmethod
-    def service_settings(cls) -> ServicesBaseSetting:
-        return get_current_settings().server.services.repossessor
-
-    async def _on_start(self) -> None:
-        """Register docket tasks."""
-        await super()._on_start()
-        if self.docket is not None:
-            # Register the monitor (find) and revoke (flood) tasks
-            self.docket.register(monitor_expired_leases)
-            self.docket.register(revoke_expired_lease)
-
-    @db_injector
-    async def run_once(self, db: PrefectDBInterface) -> None:
-        expired_lease_ids = (
-            await self.concurrency_lease_storage.read_expired_lease_ids()
-        )
-        if expired_lease_ids:
-            self.logger.info(f"Found {len(expired_lease_ids)} expired leases")
-
-        # Revoke leases directly for synchronous behavior in tests
-        for expired_lease_id in expired_lease_ids:
-            await revoke_expired_lease(expired_lease_id, db=db)
-
-        self.logger.info(f"Revoked {len(expired_lease_ids)} leases.")
