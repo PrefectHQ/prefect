@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import uuid
 from typing import TYPE_CHECKING, Any, Callable, Coroutine, Hashable, Optional
 
 from fastapi import APIRouter, HTTPException, status
@@ -9,8 +8,7 @@ from typing_extensions import Literal
 
 from prefect._internal.schemas.validators import validate_values_conform_to_schema
 from prefect.client.orchestration import get_client
-from prefect.exceptions import MissingFlowError, ScriptError
-from prefect.flows import Flow, load_flow_from_entrypoint
+from prefect.flows import Flow
 from prefect.logging import get_logger
 from prefect.settings import (
     PREFECT_RUNNER_POLL_FREQUENCY,
@@ -25,17 +23,10 @@ if TYPE_CHECKING:
     from prefect.client.schemas.responses import DeploymentResponse
     from prefect.runner import Runner
 
-from pydantic import BaseModel
 
 logger: "logging.Logger" = get_logger("runner.webserver")
 
 RunnableEndpoint = Literal["deployment", "flow", "task"]
-
-
-class RunnerGenericFlowRunRequest(BaseModel):
-    entrypoint: str
-    parameters: Optional[dict[str, Any]] = None
-    parent_task_run_id: Optional[uuid.UUID] = None
 
 
 def perform_health_check(
@@ -164,81 +155,3 @@ async def get_subflow_schemas(runner: "Runner") -> dict[str, dict[str, Any]]:
                 schemas[flow.name] = flow.parameters.model_dump()
 
     return schemas
-
-
-def _flow_in_schemas(flow: Flow[Any, Any], schemas: dict[str, dict[str, Any]]) -> bool:
-    """
-    Check if a flow is in the schemas dict, either by name or by name with
-    dashes replaced with underscores.
-    """
-    flow_name_with_dashes = flow.name.replace("_", "-")
-    return flow.name in schemas or flow_name_with_dashes in schemas
-
-
-def _flow_schema_changed(
-    flow: Flow[Any, Any], schemas: dict[str, dict[str, Any]]
-) -> bool:
-    """
-    Check if a flow's schemas have changed, either by bame of by name with
-    dashes replaced with underscores.
-    """
-    flow_name_with_dashes = flow.name.replace("_", "-")
-
-    schema = schemas.get(flow.name, None) or schemas.get(flow_name_with_dashes, None)
-    if schema is not None and flow.parameters.model_dump() != schema:
-        return True
-    return False
-
-
-def _build_generic_endpoint_for_flows(
-    runner: "Runner", schemas: dict[str, dict[str, Any]]
-) -> Callable[..., Coroutine[Any, Any, JSONResponse]]:
-    async def _create_flow_run_for_flow_from_fqn(
-        body: RunnerGenericFlowRunRequest,
-    ) -> JSONResponse:
-        if not runner.has_slots_available():
-            return JSONResponse(
-                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                content={"message": "Runner has no available slots"},
-            )
-
-        try:
-            flow = load_flow_from_entrypoint(body.entrypoint)
-        except (FileNotFoundError, MissingFlowError, ScriptError, ModuleNotFoundError):
-            return JSONResponse(
-                status_code=status.HTTP_404_NOT_FOUND,
-                content={"message": "Flow not found"},
-            )
-
-        # Verify that the flow we're loading is a subflow this runner is
-        # managing
-        if not _flow_in_schemas(flow, schemas):
-            logger.warning(
-                f"Flow {flow.name} is not directly managed by the runner. Please "
-                "include it in the runner's served flows' import namespace."
-            )
-        # Verify that the flow we're loading hasn't changed since the webserver
-        # was started
-        if _flow_schema_changed(flow, schemas):
-            logger.warning(
-                "A change in flow parameters has been detected. Please "
-                "restart the runner."
-            )
-
-        async with get_client() as client:
-            flow_run = await client.create_flow_run(
-                flow=flow,
-                parameters=body.parameters,
-                parent_task_run_id=body.parent_task_run_id,
-            )
-            logger.info(f"Created flow run {flow_run.name!r} from flow {flow.name!r}")
-        runner.execute_in_background(
-            runner.execute_flow_run, flow_run.id, body.entrypoint
-        )
-
-        return JSONResponse(
-            status_code=status.HTTP_201_CREATED,
-            content=flow_run.model_dump(mode="json"),
-        )
-
-    return _create_flow_run_for_flow_from_fqn
