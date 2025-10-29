@@ -16,7 +16,7 @@ from prefect.server.schemas.schedules import (
     IntervalSchedule,
     RRuleSchedule,
 )
-from prefect.types._datetime import now, parse_datetime, start_of_day
+from prefect.types._datetime import now, parse_datetime
 
 dt = datetime(2020, 1, 1, tzinfo=ZoneInfo("UTC"))
 RRDaily = "FREQ=DAILY"
@@ -869,12 +869,17 @@ class TestCreateRRuleSchedule:
         )
         assert s.timezone == "America/New_York"
 
-        dates = await s.get_dates(5)
+        # Use a fixed start date to avoid DST-related flakiness
+        start = datetime(2025, 1, 15, tzinfo=ZoneInfo("UTC"))
+        dates = await s.get_dates(5, start=start)
         assert dates[0].tzinfo.key == "America/New_York"
-        assert dates == [
-            start_of_day(now("America/New_York")) + timedelta(days=i + 1)
+
+        expected = [
+            datetime(2025, 1, 15, 0, 0, 0, tzinfo=ZoneInfo("America/New_York"))
+            + timedelta(days=i)
             for i in range(5)
         ]
+        assert dates == expected
 
 
 class TestRRuleSchedule:
