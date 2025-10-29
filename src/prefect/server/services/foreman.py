@@ -261,27 +261,23 @@ class Foreman(LoopService):
         Mark deployments as not ready if they have a last_polled time that is
         older than the configured deployment last polled timeout.
         """
-        if self.docket is not None:
-            # Use docket to schedule all monitoring tasks in parallel
-            await self.docket.add(mark_workers_offline)(
-                self._inactivity_heartbeat_multiple,
-                self._fallback_heartbeat_interval_seconds,
-            )
-            await self.docket.add(mark_work_pools_not_ready)()
-            await self.docket.add(mark_deployments_not_ready_task)(
-                self._deployment_last_polled_timeout_seconds,
-            )
-            await self.docket.add(mark_work_queues_not_ready_task)(
-                self._work_queue_last_polled_timeout_seconds,
-            )
+        # Execute inline for synchronous behavior in tests
+        await mark_workers_offline(
+            self._inactivity_heartbeat_multiple,
+            self._fallback_heartbeat_interval_seconds,
+            db=db,
+        )
+        await mark_work_pools_not_ready(db=db)
+        await mark_deployments_not_ready_task(
+            self._deployment_last_polled_timeout_seconds,
+            db=db,
+        )
+        await mark_work_queues_not_ready_task(
+            self._work_queue_last_polled_timeout_seconds,
+            db=db,
+        )
 
-            self.logger.info("Scheduled foreman monitoring tasks.")
-        else:
-            # Fall back to inline execution
-            await self._mark_online_workers_without_a_recent_heartbeat_as_offline()
-            await self._mark_work_pools_as_not_ready()
-            await self._mark_deployments_as_not_ready()
-            await self._mark_work_queues_as_not_ready()
+        self.logger.info("Completed foreman monitoring tasks.")
 
     @db_injector
     async def _mark_online_workers_without_a_recent_heartbeat_as_offline(
