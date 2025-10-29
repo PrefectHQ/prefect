@@ -6,7 +6,7 @@ from datetime import timedelta
 from typing import Any, Optional
 
 import sqlalchemy as sa
-from docket import Depends
+from docket import CurrentDocket, Depends, Docket, Perpetual
 
 from prefect.server import models
 from prefect.server.database import (
@@ -174,6 +174,29 @@ async def mark_work_queues_not_ready_task(
     )
 
 
+# Perpetual monitor for worker/work pool health (find and flood pattern)
+async def monitor_worker_health(
+    docket: Docket = CurrentDocket(),
+    perpetual: Perpetual = Perpetual(
+        automatic=True,
+        every=timedelta(seconds=PREFECT_API_SERVICES_FOREMAN_LOOP_SECONDS.value()),
+    ),
+) -> None:
+    """Monitor worker and work pool health, scheduling monitoring tasks."""
+    # Schedule all foreman monitoring tasks in parallel
+    await docket.add(mark_workers_offline)(
+        PREFECT_API_SERVICES_FOREMAN_INACTIVITY_HEARTBEAT_MULTIPLE.value(),
+        PREFECT_API_SERVICES_FOREMAN_FALLBACK_HEARTBEAT_INTERVAL_SECONDS.value(),
+    )
+    await docket.add(mark_work_pools_not_ready)()
+    await docket.add(mark_deployments_not_ready_task)(
+        PREFECT_API_SERVICES_FOREMAN_DEPLOYMENT_LAST_POLLED_TIMEOUT_SECONDS.value(),
+    )
+    await docket.add(mark_work_queues_not_ready_task)(
+        PREFECT_API_SERVICES_FOREMAN_WORK_QUEUE_LAST_POLLED_TIMEOUT_SECONDS.value(),
+    )
+
+
 class Foreman(LoopService):
     """
     Monitors the status of workers and their associated work pools
@@ -222,6 +245,8 @@ class Foreman(LoopService):
         """Register docket tasks if docket is available."""
         await super()._on_start()
         if self.docket is not None:
+            # Register monitor (find) and processing (flood) tasks
+            self.docket.register(monitor_worker_health)
             self.docket.register(mark_workers_offline)
             self.docket.register(mark_work_pools_not_ready)
             self.docket.register(mark_deployments_not_ready_task)
