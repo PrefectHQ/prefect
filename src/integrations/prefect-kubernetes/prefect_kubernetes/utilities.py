@@ -114,7 +114,9 @@ def _slugify_label_key(key: str, max_length: int = 63, prefix_max_length=253) ->
                 prefix,
                 max_length=prefix_max_length,
                 regex_pattern=r"[^a-zA-Z0-9-\.]+",
-            ).strip("_-.")  # Must start or end with alphanumeric characters
+            ).strip(
+                "_-."
+            )  # Must start or end with alphanumeric characters
             or prefix
         )
 

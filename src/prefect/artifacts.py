@@ -115,7 +115,9 @@ class Artifact(ArtifactRequest):
                 description=self.description,
                 task_run_id=self.task_run_id or task_run_id,
                 flow_run_id=self.flow_run_id or flow_run_id,
-                data=cast(str, self.format(_sync=True)),  # pyright: ignore[reportCallIssue] _sync is valid because .format is wrapped in async_dispatch
+                data=cast(
+                    str, self.format(_sync=True)
+                ),  # pyright: ignore[reportCallIssue] _sync is valid because .format is wrapped in async_dispatch
             )
         )
 
@@ -230,14 +232,18 @@ class Artifact(ArtifactRequest):
         Returns:
             The artifact, either retrieved or created.
         """
-        artifact = cast(ArtifactResponse, cls.get(key, _sync=True))  # pyright: ignore[reportCallIssue] _sync is valid because .get is wrapped in async_dispatch
+        artifact = cast(
+            ArtifactResponse, cls.get(key, _sync=True)
+        )  # pyright: ignore[reportCallIssue] _sync is valid because .get is wrapped in async_dispatch
         if artifact:
             return artifact, False
 
         new_artifact = cls(key=key, description=description, data=data, **kwargs)
         created_artifact = cast(
             ArtifactResponse,
-            new_artifact.create(_sync=True),  # pyright: ignore[reportCallIssue] _sync is valid because .create is wrapped in async_dispatch
+            new_artifact.create(
+                _sync=True
+            ),  # pyright: ignore[reportCallIssue] _sync is valid because .create is wrapped in async_dispatch
         )
         return created_artifact, True
 
@@ -441,7 +447,9 @@ def create_link_artifact(
         link=link,
         link_text=link_text,
     )
-    artifact = cast(ArtifactResponse, new_artifact.create(_sync=True))  # pyright: ignore[reportCallIssue] _sync is valid because .create is wrapped in async_dispatch
+    artifact = cast(
+        ArtifactResponse, new_artifact.create(_sync=True)
+    )  # pyright: ignore[reportCallIssue] _sync is valid because .create is wrapped in async_dispatch
 
     return artifact.id
 
@@ -514,7 +522,9 @@ def create_markdown_artifact(
         description=description,
         markdown=markdown,
     )
-    artifact = cast(ArtifactResponse, new_artifact.create(_sync=True))  # pyright: ignore[reportCallIssue] _sync is valid because .create is wrapped in async_dispatch
+    artifact = cast(
+        ArtifactResponse, new_artifact.create(_sync=True)
+    )  # pyright: ignore[reportCallIssue] _sync is valid because .create is wrapped in async_dispatch
 
     return artifact.id
 
@@ -589,7 +599,9 @@ def create_table_artifact(
         description=description,
         table=table,
     )
-    artifact = cast(ArtifactResponse, new_artifact.create(_sync=True))  # pyright: ignore[reportCallIssue] _sync is valid because .create is wrapped in async_dispatch
+    artifact = cast(
+        ArtifactResponse, new_artifact.create(_sync=True)
+    )  # pyright: ignore[reportCallIssue] _sync is valid because .create is wrapped in async_dispatch
 
     return artifact.id
 
@@ -648,7 +660,9 @@ def create_progress_artifact(
         description=description,
         progress=progress,
     )
-    artifact = cast(ArtifactResponse, new_artifact.create(_sync=True))  # pyright: ignore[reportCallIssue] _sync is valid because .create is wrapped in async_dispatch
+    artifact = cast(
+        ArtifactResponse, new_artifact.create(_sync=True)
+    )  # pyright: ignore[reportCallIssue] _sync is valid because .create is wrapped in async_dispatch
 
     return artifact.id
 
@@ -722,10 +736,14 @@ def update_progress_artifact(
     update = (
         ArtifactUpdate(
             description=artifact.description,
-            data=cast(float, artifact.format(_sync=True)),  # pyright: ignore[reportCallIssue] _sync is valid because .format is wrapped in async_dispatch
+            data=cast(
+                float, artifact.format(_sync=True)
+            ),  # pyright: ignore[reportCallIssue] _sync is valid because .format is wrapped in async_dispatch
         )
         if description
-        else ArtifactUpdate(data=cast(float, artifact.format(_sync=True)))  # pyright: ignore[reportCallIssue] _sync is valid because .format is wrapped in async_dispatch
+        else ArtifactUpdate(
+            data=cast(float, artifact.format(_sync=True))
+        )  # pyright: ignore[reportCallIssue] _sync is valid because .format is wrapped in async_dispatch
     )
 
     sync_client.update_artifact(
@@ -790,6 +808,8 @@ def create_image_artifact(
         description=description,
         image_url=image_url,
     )
-    artifact = cast(ArtifactResponse, new_artifact.create(_sync=True))  # pyright: ignore[reportCallIssue] _sync is valid because .create is wrapped in async_dispatch
+    artifact = cast(
+        ArtifactResponse, new_artifact.create(_sync=True)
+    )  # pyright: ignore[reportCallIssue] _sync is valid because .create is wrapped in async_dispatch
 
     return artifact.id

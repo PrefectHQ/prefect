@@ -394,12 +394,16 @@ class State(TimeSeriesBaseModel, ObjectBaseModel, Generic[R]):
     def default_scheduled_start_time(self) -> Self:
         if self.type == StateType.SCHEDULED:
             if not self.state_details.scheduled_time:
-                self.state_details.scheduled_time = now("UTC")  # pyright: ignore[reportAttributeAccessIssue] DateTime is split into two types depending on Python version
+                self.state_details.scheduled_time = now(
+                    "UTC"
+                )  # pyright: ignore[reportAttributeAccessIssue] DateTime is split into two types depending on Python version
         return self
 
     @model_validator(mode="after")
     def set_unpersisted_results_to_none(self) -> Self:
-        if isinstance(self.data, dict) and self.data.get("type") == "unpersisted":  # pyright: ignore[reportUnknownMemberType] unable to narrow dict type
+        if (
+            isinstance(self.data, dict) and self.data.get("type") == "unpersisted"
+        ):  # pyright: ignore[reportUnknownMemberType] unable to narrow dict type
             self.data = None
         return self
 
@@ -544,7 +548,9 @@ class FlowRunPolicy(PrefectBaseModel):
     @classmethod
     def populate_deprecated_fields(cls, values: Any) -> Any:
         if isinstance(values, dict):
-            return set_run_policy_deprecated_fields(values)  # pyright: ignore[reportUnknownVariableType, reportUnknownArgumentType] unable to narrow dict type
+            return set_run_policy_deprecated_fields(
+                values
+            )  # pyright: ignore[reportUnknownVariableType, reportUnknownArgumentType] unable to narrow dict type
         return values
 
 
@@ -1313,7 +1319,9 @@ class BlockDocumentReference(ObjectBaseModel):
     @classmethod
     def validate_parent_and_ref_are_different(cls, values: Any) -> Any:
         if isinstance(values, dict):
-            return validate_parent_and_ref_diff(values)  # pyright: ignore[reportUnknownVariableType, reportUnknownArgumentType] unable to narrow dict type
+            return validate_parent_and_ref_diff(
+                values
+            )  # pyright: ignore[reportUnknownVariableType, reportUnknownArgumentType] unable to narrow dict type
         return values
 
 

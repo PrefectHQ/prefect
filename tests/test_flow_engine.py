@@ -929,9 +929,9 @@ class TestFlowRetries:
 
         assert parent_flow() == "hello"
         assert flow_run_count == 2, "Parent flow should exhaust retries"
-        assert child_flow_run_count == 4, (
-            "Child flow should run 2 times for each parent run"
-        )
+        assert (
+            child_flow_run_count == 4
+        ), "Child flow should run 2 times for each parent run"
 
 
 class TestFlowCrashDetection:
@@ -2031,6 +2031,7 @@ class TestRunFlowInSubprocess:
             @flow(name=f"test_basic_{uuid.uuid4()}", persist_result=True)
             def foo():
                 return 42
+
         else:
 
             @flow(name=f"test_basic_{uuid.uuid4()}", persist_result=True)
@@ -2052,6 +2053,7 @@ class TestRunFlowInSubprocess:
             @flow(name=f"test_with_params_{uuid.uuid4()}", persist_result=True)
             def bar(x: int, y: Optional[str] = None):
                 return x, y
+
         else:
 
             @flow(name=f"test_with_params_{uuid.uuid4()}", persist_result=True)
@@ -2075,6 +2077,7 @@ class TestRunFlowInSubprocess:
             @flow(name=f"test_flow_ends_in_failed_{uuid.uuid4()}")
             def foo():
                 raise ValueError("xyz")
+
         else:
 
             @flow(name=f"test_flow_ends_in_failed_{uuid.uuid4()}")
@@ -2098,6 +2101,7 @@ class TestRunFlowInSubprocess:
             @flow(name=f"child_flow_{uuid.uuid4()}", persist_result=True)
             def child_flow():
                 return 42
+
         else:
 
             @flow(name=f"child_flow_{uuid.uuid4()}", persist_result=True)
@@ -2133,6 +2137,7 @@ class TestRunFlowInSubprocess:
             )
             def foo():
                 return TagsContext.get().current_tags
+
         else:
 
             @flow(
@@ -2161,6 +2166,7 @@ class TestRunFlowInSubprocess:
             )
             def foo():
                 return 42
+
         else:
 
             @flow(
@@ -2189,6 +2195,7 @@ class TestRunFlowInSubprocess:
             def foo():
                 suspend_flow_run()
                 return 42
+
         else:
 
             @flow(name=f"test_flow_is_suspended_{uuid.uuid4()}", persist_result=True)
@@ -2219,6 +2226,7 @@ class TestRunFlowInSubprocess:
             @flow(name=f"test_flow_is_aborted_{uuid.uuid4()}", persist_result=True)
             def foo():
                 raise Abort()
+
         else:
 
             @flow(name=f"test_flow_is_aborted_{uuid.uuid4()}", persist_result=True)
@@ -2252,6 +2260,7 @@ class TestRunFlowInSubprocess:
             )
             def foo():
                 raise BaseException()
+
         else:
 
             @flow(
@@ -2276,6 +2285,7 @@ class TestRunFlowInSubprocess:
             )
             def foo():
                 signal.raise_signal(signal.SIGKILL)
+
         else:
 
             @flow(
@@ -2329,7 +2339,9 @@ class TestLeaseRenewal:
     ):
         mock_maintain_concurrency_lease = MagicMock()
         mock_maintain_concurrency_lease.return_value.__aenter__ = AsyncMock()
-        mock_maintain_concurrency_lease.return_value.__aenter__.return_value.__aexit__ = AsyncMock()
+        mock_maintain_concurrency_lease.return_value.__aenter__.return_value.__aexit__ = (
+            AsyncMock()
+        )
         monkeypatch.setattr(
             "prefect.flow_engine.amaintain_concurrency_lease",
             mock_maintain_concurrency_lease,
@@ -2393,7 +2405,9 @@ class TestLeaseRenewal:
     ):
         mock_maintain_concurrency_lease = MagicMock()
         mock_maintain_concurrency_lease.return_value.__aenter__ = AsyncMock()
-        mock_maintain_concurrency_lease.return_value.__aenter__.return_value.__aexit__ = AsyncMock()
+        mock_maintain_concurrency_lease.return_value.__aenter__.return_value.__aexit__ = (
+            AsyncMock()
+        )
         monkeypatch.setattr(
             "prefect.flow_engine.amaintain_concurrency_lease",
             mock_maintain_concurrency_lease,

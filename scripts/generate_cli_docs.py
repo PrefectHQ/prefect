@@ -154,7 +154,9 @@ def build_docs_context(
         ]
         for command in filtered_commands:
             command_obj = obj.get_command(ctx, command)
-            assert command_obj, f"Command {command} not found in {obj.name}"  # noqa: S101
+            assert (
+                command_obj
+            ), f"Command {command} not found in {obj.name}"  # noqa: S101
             # Prepare a short "summary" for listing
             cmd_name = command_obj.name or ""
             cmd_help = command_obj.get_short_help_str()

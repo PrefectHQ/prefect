@@ -938,14 +938,14 @@ class TestSignalHandling:
         assert flow_run.state
 
         if sigterm_handling == "reschedule":
-            assert flow_run.state.is_scheduled(), (
-                "The flow run should have been rescheduled"
-            )
+            assert (
+                flow_run.state.is_scheduled()
+            ), "The flow run should have been rescheduled"
             assert return_code == 0, "The process should have exited with a 0 exit code"
         else:
-            assert flow_run.state.is_running(), (
-                "The flow run should be stuck in running"
-            )
-            assert return_code == -signal.SIGTERM.value, (
-                "The process should have exited with a SIGTERM exit code"
-            )
+            assert (
+                flow_run.state.is_running()
+            ), "The flow run should be stuck in running"
+            assert (
+                return_code == -signal.SIGTERM.value
+            ), "The process should have exited with a SIGTERM exit code"

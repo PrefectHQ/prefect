@@ -321,9 +321,9 @@ class TestMemoizeBlockAutoRegistration:
         self, current_block_registry_hash
     ):
         assert not PREFECT_MEMO_STORE_PATH.value().exists()
-        assert PREFECT_MEMOIZE_BLOCK_AUTO_REGISTRATION.value(), (
-            "Memoization is not enabled"
-        )
+        assert (
+            PREFECT_MEMOIZE_BLOCK_AUTO_REGISTRATION.value()
+        ), "Memoization is not enabled"
 
         test_func = AsyncMock()
 
@@ -346,9 +346,9 @@ class TestMemoizeBlockAutoRegistration:
         memo_store_with_mismatched_key,
         current_block_registry_hash,
     ):
-        assert PREFECT_MEMOIZE_BLOCK_AUTO_REGISTRATION.value(), (
-            "Memoization is not enabled"
-        )
+        assert (
+            PREFECT_MEMOIZE_BLOCK_AUTO_REGISTRATION.value()
+        ), "Memoization is not enabled"
 
         test_func = AsyncMock()
 

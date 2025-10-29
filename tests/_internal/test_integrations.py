@@ -13,6 +13,6 @@ def test_known_extras_for_packages():
     # Check each entry in known_extras
     for package, extra in KNOWN_EXTRAS_FOR_PACKAGES.items():
         extra_name = extra.split("[")[1][:-1]
-        assert extra_name in extras_require, (
-            f"Extra '{extra_name}' for package '{package}' not found in setup.py"
-        )
+        assert (
+            extra_name in extras_require
+        ), f"Extra '{extra_name}' for package '{package}' not found in setup.py"

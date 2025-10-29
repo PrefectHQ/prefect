@@ -187,7 +187,7 @@ def test_snowflake_target_configs_schema_from_connector_in_profile():
     assert "prod" in profile["dubclub"]["outputs"]
 
     prod_output = profile["dubclub"]["outputs"]["prod"]
-    assert "schema" in prod_output, (
-        f"schema missing from profile output. Available keys: {list(prod_output.keys())}"
-    )
+    assert (
+        "schema" in prod_output
+    ), f"schema missing from profile output. Available keys: {list(prod_output.keys())}"
     assert prod_output["schema"] == "ANALYTICS_PROD"

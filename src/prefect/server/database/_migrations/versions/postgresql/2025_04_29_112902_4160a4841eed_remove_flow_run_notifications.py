@@ -23,13 +23,15 @@ branch_labels = None
 depends_on = None
 
 
-DEFAULT_BODY = textwrap.dedent("""
+DEFAULT_BODY = textwrap.dedent(
+    """
 Flow run {{ flow.name }}/{{ flow_run.name }} observed in state `{{ flow_run.state.name }}` at {{ flow_run.state.timestamp }}.
 Flow ID: {{ flow_run.flow_id }}
 Flow run ID: {{ flow_run.id }}
 Flow run URL: {{ flow_run|ui_url }}
 State message: {{ flow_run.state.message }}
-""")
+"""
+)
 
 PLACEHOLDER_MAP = {
     "flow_run_notification_policy_id": "Event ID {{ event.id }}",
@@ -71,28 +73,39 @@ def upgrade():
                     "type": "event",
                     "after": [],
                     "match": {"prefect.resource.id": "prefect.flow-run.*"},
-                    "expect": list(
-                        {f"prefect.flow-run.{state_name}" for state_name in state_names}
-                    )
-                    if state_names
-                    else ["prefect.flow-run.*"],
+                    "expect": (
+                        list(
+                            {
+                                f"prefect.flow-run.{state_name}"
+                                for state_name in state_names
+                            }
+                        )
+                        if state_names
+                        else ["prefect.flow-run.*"]
+                    ),
                     "within": 10,
                     "posture": "Reactive",
                     "for_each": ["prefect.resource.id"],
                     "threshold": 1,
-                    "match_related": {
-                        "prefect.resource.id": [f"prefect.tag.{tag}" for tag in tags],
-                        "prefect.resource.role": "tag",
-                    }
-                    if tags
-                    else {},
+                    "match_related": (
+                        {
+                            "prefect.resource.id": [
+                                f"prefect.tag.{tag}" for tag in tags
+                            ],
+                            "prefect.resource.role": "tag",
+                        }
+                        if tags
+                        else {}
+                    ),
                 }
 
                 actions = [
                     {
-                        "body": message_template.format(**PLACEHOLDER_MAP)
-                        if message_template
-                        else DEFAULT_BODY,
+                        "body": (
+                            message_template.format(**PLACEHOLDER_MAP)
+                            if message_template
+                            else DEFAULT_BODY
+                        ),
                         "type": "send-notification",
                         "subject": "Prefect flow run notification",
                         "block_document_id": str(block_document_id),

@@ -131,9 +131,9 @@ class TestAwsClientParameters:
     def test_get_params_override_with_default_verify(self):
         params = AwsClientParameters()
         override_params = params.get_params_override()
-        assert "verify" not in override_params, (
-            "verify should not be in params_override when not explicitly set"
-        )
+        assert (
+            "verify" not in override_params
+        ), "verify should not be in params_override when not explicitly set"
 
     def test_get_params_override_with_explicit_verify(self):
         params_true = AwsClientParameters(verify=True)
@@ -142,12 +142,12 @@ class TestAwsClientParameters:
         override_params_true = params_true.get_params_override()
         override_params_false = params_false.get_params_override()
 
-        assert "verify" in override_params_true, (
-            "verify should be in params_override when explicitly set to True"
-        )
+        assert (
+            "verify" in override_params_true
+        ), "verify should be in params_override when explicitly set to True"
         assert override_params_true["verify"] is True
 
-        assert "verify" in override_params_false, (
-            "verify should be in params_override when explicitly set to False"
-        )
+        assert (
+            "verify" in override_params_false
+        ), "verify should be in params_override when explicitly set to False"
         assert override_params_false["verify"] is False

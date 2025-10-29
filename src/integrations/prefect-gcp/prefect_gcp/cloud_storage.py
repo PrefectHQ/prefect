@@ -581,7 +581,9 @@ class GcsBucket(WritableDeploymentStorage, WritableFileSystem, ObjectStorageBloc
 
     _logo_url = "https://cdn.sanity.io/images/3ugk85nk/production/10424e311932e31c477ac2b9ef3d53cefbaad708-250x250.png"  # noqa
     _block_type_name = "GCS Bucket"
-    _documentation_url = "https://docs.prefect.io/integrations/prefect-gcp"  # noqa: E501
+    _documentation_url = (
+        "https://docs.prefect.io/integrations/prefect-gcp"  # noqa: E501
+    )
 
     bucket: str = Field(..., description="Name of the bucket.")
     gcp_credentials: GcpCredentials = Field(

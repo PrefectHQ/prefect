@@ -1300,9 +1300,9 @@ class TestTaskRetries:
 
             if i > 0:
                 last_start_time = start_times[i - 1]
-                assert last_start_time < start_times[i], (
-                    "Timestamps should be increasing"
-                )
+                assert (
+                    last_start_time < start_times[i]
+                ), "Timestamps should be increasing"
 
     async def test_global_task_retry_config(self):
         with temporary_settings(updates={PREFECT_TASK_DEFAULT_RETRIES: "1"}):
@@ -2073,9 +2073,9 @@ class TestTaskCaching:
         results = await asyncio.gather(*tasks)
 
         # Assert all results are the same since the second and third calls should be cached
-        assert len(set(results)) == 1, (
-            f"Expected all results to be identical but got {results}"
-        )
+        assert (
+            len(set(results)) == 1
+        ), f"Expected all results to be identical but got {results}"
 
     def test_cache_policy_serializable_isolation_level_with_no_manager(self):
         cache_policy = Inputs().configure(isolation_level=IsolationLevel.SERIALIZABLE)
@@ -4361,7 +4361,9 @@ class TestTaskConstructorValidation:
             async def sanity():
                 raise RuntimeError("try again!")
 
-            more_insanity = sanity.with_options(retry_delay_seconds=dict(x=4))  # noqa: F841
+            more_insanity = sanity.with_options(
+                retry_delay_seconds=dict(x=4)
+            )  # noqa: F841
 
     async def test_task_cannot_configure_too_many_custom_retry_delays(self):
         with pytest.raises(ValueError, match="Can not configure more"):

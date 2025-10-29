@@ -51,9 +51,9 @@ async def test_successful_job_completion(
             async with get_client() as client:
                 updated_flow_run = await client.read_flow_run(flow_run.id)
 
-                assert updated_flow_run.state is not None, (
-                    "Flow run state should not be None"
-                )
+                assert (
+                    updated_flow_run.state is not None
+                ), "Flow run state should not be None"
                 assert updated_flow_run.state.type == StateType.COMPLETED, (
                     "Expected flow run to be COMPLETED. Got "
                     f"{updated_flow_run.state.type} instead."

@@ -113,9 +113,9 @@ def test_call_equality_after_args_kwargs_deletion_targets():
     call_structurally_same_as_A = create_call(1, kwarg_val="A")
 
     # With the current simple __eq__, these will be unequal due to different Future instances.
-    assert call_orig_A != call_structurally_same_as_A, (
-        "Newly created identical calls should differ due to Future identity"
-    )
+    assert (
+        call_orig_A != call_structurally_same_as_A
+    ), "Newly created identical calls should differ due to Future identity"
 
     # Scenario 2: Mutate a call by deleting args/kwargs
     call_mutated_A = create_call(1, kwarg_val="A")
@@ -126,9 +126,9 @@ def test_call_equality_after_args_kwargs_deletion_targets():
     assert not hasattr(call_mutated_A, "kwargs")
 
     try:
-        assert call_mutated_A != call_orig_A, (
-            "Mutated call (no args/kwargs) should be unequal to original call (with args/kwargs)"
-        )
+        assert (
+            call_mutated_A != call_orig_A
+        ), "Mutated call (no args/kwargs) should be unequal to original call (with args/kwargs)"
         assert not (call_mutated_A == call_orig_A)
     except AttributeError:
         pytest.fail("AttributeError during comparison: mutated_call vs original_call")
@@ -136,9 +136,9 @@ def test_call_equality_after_args_kwargs_deletion_targets():
     # Test Point 3: Self-comparison (with and without args/kwargs)
     try:
         assert call_orig_A == call_orig_A, "Original call should be equal to itself"
-        assert call_mutated_A == call_mutated_A, (
-            "Mutated call should be equal to itself"
-        )
+        assert (
+            call_mutated_A == call_mutated_A
+        ), "Mutated call should be equal to itself"
     except AttributeError:
         pytest.fail("AttributeError during self-comparison")
 
@@ -152,9 +152,9 @@ def test_call_equality_after_args_kwargs_deletion_targets():
     try:
         # With the current __eq__, these are unequal because `call_mutated_A.args` (or `call_mutated_B.args`)
         # will raise AttributeError in the try block, leading to `return False`.
-        assert call_mutated_A != call_mutated_B, (
-            "Two distinct, similarly mutated calls should be unequal with this __eq__ logic"
-        )
+        assert (
+            call_mutated_A != call_mutated_B
+        ), "Two distinct, similarly mutated calls should be unequal with this __eq__ logic"
     except AttributeError:
         pytest.fail("AttributeError during comparison of two distinct mutated calls")
 

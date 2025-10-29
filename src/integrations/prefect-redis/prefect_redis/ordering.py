@@ -37,7 +37,8 @@ IN_FLIGHT_EVENT_TIMEOUT = timedelta(seconds=8)
 
 class EventBeingProcessed(Exception):
     """Indicates that an event is currently being processed and should not be processed
-    until it is finished.  This may happen due to Redis Streams redelivering a message."""
+    until it is finished.  This may happen due to Redis Streams redelivering a message.
+    """
 
     def __init__(self, event: ReceivedEvent):
         self.event = event

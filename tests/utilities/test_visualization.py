@@ -347,6 +347,6 @@ class TestFlowVisualise:
 
         actual_nodes = set(graph.body)
 
-        assert actual_nodes == expected_nodes, (
-            f"Expected nodes {expected_nodes} but found {actual_nodes}"
-        )
+        assert (
+            actual_nodes == expected_nodes
+        ), f"Expected nodes {expected_nodes} but found {actual_nodes}"

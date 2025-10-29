@@ -224,7 +224,9 @@ async def test_inferring_work_pool_requires_some_matching_resource(
     triggered_pause_action_with_source_inferred: TriggeredAction,
 ):
     assert triggered_pause_action_with_source_inferred.triggering_event
-    triggered_pause_action_with_source_inferred.triggering_event.related = []  # no relevant related resources
+    triggered_pause_action_with_source_inferred.triggering_event.related = (
+        []
+    )  # no relevant related resources
 
     action = triggered_pause_action_with_source_inferred.action
 
@@ -456,7 +458,9 @@ async def test_resuming_with_inferred_work_pool_requires_some_matching_resource(
     triggered_resume_action_with_source_inferred: TriggeredAction,
 ):
     assert triggered_resume_action_with_source_inferred.triggering_event
-    triggered_resume_action_with_source_inferred.triggering_event.related = []  # no relevant related resources
+    triggered_resume_action_with_source_inferred.triggering_event.related = (
+        []
+    )  # no relevant related resources
 
     action = triggered_resume_action_with_source_inferred.action
 

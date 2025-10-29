@@ -233,10 +233,10 @@ class AsyncPostgresConfiguration(BaseDatabaseConfiguration):
             self.timeout,
         )
         if cache_key not in ENGINES:
-            kwargs: dict[str, Any] = (
-                get_current_settings().server.database.sqlalchemy.model_dump(
-                    mode="json", exclude={"connect_args"}
-                )
+            kwargs: dict[
+                str, Any
+            ] = get_current_settings().server.database.sqlalchemy.model_dump(
+                mode="json", exclude={"connect_args"}
             )
             connect_args: dict[str, Any] = {}
 
@@ -259,7 +259,9 @@ class AsyncPostgresConfiguration(BaseDatabaseConfiguration):
                     application_name=self.connection_app_name
                 )
 
-            if get_current_settings().server.database.sqlalchemy.connect_args.tls.enabled:
+            if (
+                get_current_settings().server.database.sqlalchemy.connect_args.tls.enabled
+            ):
                 tls_config = (
                     get_current_settings().server.database.sqlalchemy.connect_args.tls
                 )

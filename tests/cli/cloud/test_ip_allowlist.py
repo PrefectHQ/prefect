@@ -454,14 +454,16 @@ def test_ip_allowlist_toggle(workspace_with_logged_in_profile, respx_mock):
     entry_to_toggle = SAMPLE_ALLOWLIST.entries[0]
     expected_update_request = IPAllowlist(
         entries=[
-            IPAllowlistEntry(
-                ip_network=entry.ip_network,
-                enabled=not entry.enabled,
-                description=entry.description,
-                last_seen=entry.last_seen,
+            (
+                IPAllowlistEntry(
+                    ip_network=entry.ip_network,
+                    enabled=not entry.enabled,
+                    description=entry.description,
+                    last_seen=entry.last_seen,
+                )
+                if entry.ip_network == entry_to_toggle.ip_network
+                else entry
             )
-            if entry.ip_network == entry_to_toggle.ip_network
-            else entry
             for entry in SAMPLE_ALLOWLIST.entries
         ]
     )

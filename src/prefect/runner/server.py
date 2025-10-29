@@ -76,7 +76,9 @@ def perform_health_check(
 
 def run_count(runner: "Runner") -> Callable[..., int]:
     def _run_count() -> int:
-        run_count = len(runner._flow_run_process_map)  # pyright: ignore[reportPrivateUsage]
+        run_count = len(
+            runner._flow_run_process_map
+        )  # pyright: ignore[reportPrivateUsage]
         return run_count
 
     return _run_count
@@ -131,7 +133,9 @@ async def get_deployment_router(
     router = APIRouter()
     schemas: dict[Hashable, Any] = {}
     async with get_client() as client:
-        for deployment_id in runner._deployment_ids:  # pyright: ignore[reportPrivateUsage]
+        for (
+            deployment_id
+        ) in runner._deployment_ids:  # pyright: ignore[reportPrivateUsage]
             deployment = await client.read_deployment(deployment_id)
             router.add_api_route(
                 f"/deployment/{deployment.id}/run",
@@ -160,7 +164,9 @@ async def get_subflow_schemas(runner: "Runner") -> dict[str, dict[str, Any]]:
     """
     schemas: dict[str, dict[str, Any]] = {}
     async with get_client() as client:
-        for deployment_id in runner._deployment_ids:  # pyright: ignore[reportPrivateUsage]
+        for (
+            deployment_id
+        ) in runner._deployment_ids:  # pyright: ignore[reportPrivateUsage]
             deployment = await client.read_deployment(deployment_id)
             if deployment.entrypoint is None:
                 continue

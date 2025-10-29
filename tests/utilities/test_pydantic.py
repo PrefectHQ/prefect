@@ -70,9 +70,9 @@ class TestCloudpickleReduction:
         # field instead
         result = cloudpickle.loads(cloudpickle.dumps(model))
 
-        assert result.x == 0, (
-            "'x' should return to the default value since it was excluded"
-        )
+        assert (
+            result.x == 0
+        ), "'x' should return to the default value since it was excluded"
         assert result.y == "test"
 
 

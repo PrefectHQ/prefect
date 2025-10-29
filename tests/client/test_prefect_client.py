@@ -2614,9 +2614,9 @@ class TestAutomations:
             )
 
             assert read_route.called
-            assert len(read_automation) == 2, (
-                "Expected two automations with the same name"
-            )
+            assert (
+                len(read_automation) == 2
+            ), "Expected two automations with the same name"
             assert all(
                 [
                     automation.name == created_automation["name"]

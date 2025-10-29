@@ -388,7 +388,9 @@ async def test_inferring_work_queue_requires_some_matching_resource(
     resume_the_associated_queue: TriggeredAction,
 ):
     assert resume_the_associated_queue.triggering_event
-    resume_the_associated_queue.triggering_event.related = []  # no relevant related resources
+    resume_the_associated_queue.triggering_event.related = (
+        []
+    )  # no relevant related resources
 
     action = resume_the_associated_queue.action
 

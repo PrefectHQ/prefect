@@ -1256,14 +1256,14 @@ class Runner:
         ready_to_submit = await self._propose_pending_state(flow_run)
 
         if ready_to_submit:
-            readiness_result: (
-                anyio.abc.Process | Exception
-            ) = await self._runs_task_group.start(
-                partial(
-                    self._submit_run_and_capture_errors,
-                    flow_run=flow_run,
-                    entrypoint=entrypoint,
-                ),
+            readiness_result: anyio.abc.Process | Exception = (
+                await self._runs_task_group.start(
+                    partial(
+                        self._submit_run_and_capture_errors,
+                        flow_run=flow_run,
+                        entrypoint=entrypoint,
+                    ),
+                )
             )
 
             if readiness_result and not isinstance(readiness_result, Exception):

@@ -125,10 +125,10 @@ class MigratableBlockSchema(MigratableResource[BlockSchema]):
                         dependency
                     )
                 else:
-                    self._dependencies[
-                        self.source_block_schema.block_type.id
-                    ] = await construct_migratable_resource(
-                        self.source_block_schema.block_type
+                    self._dependencies[self.source_block_schema.block_type.id] = (
+                        await construct_migratable_resource(
+                            self.source_block_schema.block_type
+                        )
                     )
             elif self.source_block_schema.block_type_id is not None:
                 if dependency := await MigratableBlockType.get_instance(
@@ -144,9 +144,9 @@ class MigratableBlockSchema(MigratableResource[BlockSchema]):
                         params={"id": self.source_block_schema.block_type_id},
                     )
                     block_type = BlockType.model_validate(response.json())
-                    self._dependencies[
-                        block_type.id
-                    ] = await construct_migratable_resource(block_type)
+                    self._dependencies[block_type.id] = (
+                        await construct_migratable_resource(block_type)
+                    )
             else:
                 raise ValueError("Block schema has no associated block type")
 
@@ -167,9 +167,9 @@ class MigratableBlockSchema(MigratableResource[BlockSchema]):
                             ):
                                 self._dependencies[block_schema.id] = dependency
                             else:
-                                self._dependencies[
-                                    block_schema.id
-                                ] = await construct_migratable_resource(block_schema)
+                                self._dependencies[block_schema.id] = (
+                                    await construct_migratable_resource(block_schema)
+                                )
                 else:
                     if block_schema_checksum := block_schema_reference.get(
                         "block_schema_checksum"
@@ -182,9 +182,9 @@ class MigratableBlockSchema(MigratableResource[BlockSchema]):
                         ):
                             self._dependencies[block_schema.id] = dependency
                         else:
-                            self._dependencies[
-                                block_schema.id
-                            ] = await construct_migratable_resource(block_schema)
+                            self._dependencies[block_schema.id] = (
+                                await construct_migratable_resource(block_schema)
+                            )
 
         return list(self._dependencies.values())
 
@@ -267,10 +267,10 @@ class MigratableBlockDocument(MigratableResource[BlockDocument]):
                         dependency
                     )
                 else:
-                    self._dependencies[
-                        self.source_block_document.block_type.id
-                    ] = await construct_migratable_resource(
-                        self.source_block_document.block_type
+                    self._dependencies[self.source_block_document.block_type.id] = (
+                        await construct_migratable_resource(
+                            self.source_block_document.block_type
+                        )
                     )
             else:
                 if dependency := await MigratableBlockType.get_instance(
@@ -286,9 +286,9 @@ class MigratableBlockDocument(MigratableResource[BlockDocument]):
                         params={"id": self.source_block_document.block_type_id},
                     )
                     block_type = BlockType.model_validate(response.json())
-                    self._dependencies[
-                        block_type.id
-                    ] = await construct_migratable_resource(block_type)
+                    self._dependencies[block_type.id] = (
+                        await construct_migratable_resource(block_type)
+                    )
 
             if self.source_block_document.block_schema is not None:
                 if dependency := await MigratableBlockSchema.get_instance(
@@ -298,10 +298,10 @@ class MigratableBlockDocument(MigratableResource[BlockDocument]):
                         dependency
                     )
                 else:
-                    self._dependencies[
-                        self.source_block_document.block_schema.id
-                    ] = await construct_migratable_resource(
-                        self.source_block_document.block_schema
+                    self._dependencies[self.source_block_document.block_schema.id] = (
+                        await construct_migratable_resource(
+                            self.source_block_document.block_schema
+                        )
                     )
             else:
                 if dependency := await MigratableBlockSchema.get_instance(
@@ -317,9 +317,9 @@ class MigratableBlockDocument(MigratableResource[BlockDocument]):
                         params={"id": self.source_block_document.block_schema_id},
                     )
                     block_schema = BlockSchema.model_validate(response.json())
-                    self._dependencies[
-                        block_schema.id
-                    ] = await construct_migratable_resource(block_schema)
+                    self._dependencies[block_schema.id] = (
+                        await construct_migratable_resource(block_schema)
+                    )
 
             if self.source_block_document.block_document_references:
                 for (
@@ -336,9 +336,9 @@ class MigratableBlockDocument(MigratableResource[BlockDocument]):
                             block_document = await client.read_block_document(
                                 block_document_id
                             )
-                            self._dependencies[
-                                block_document.id
-                            ] = await construct_migratable_resource(block_document)
+                            self._dependencies[block_document.id] = (
+                                await construct_migratable_resource(block_document)
+                            )
 
         return list(self._dependencies.values())
 

@@ -20,7 +20,8 @@ async def test_runner_resilience_with_missing_file(tmp_path: Path):
     print(f"Working in: {tmp_path}")
 
     # Create a flow file with on_crashed hook
-    flow_content = dedent("""
+    flow_content = dedent(
+        """
         from prefect import flow
         
         def my_hook(flow, flow_run, state):
@@ -30,7 +31,8 @@ async def test_runner_resilience_with_missing_file(tmp_path: Path):
         def my_flow():
             print("Flow executing...")
             raise RuntimeError("Intentional crash to trigger hooks")
-    """)
+    """
+    )
 
     flow_file.write_text(flow_content)
     print("Created flow file")

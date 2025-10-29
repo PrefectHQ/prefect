@@ -431,9 +431,11 @@ class SPCSWorker(BaseWorker):
             name=job_service_name,
             compute_pool=compute_pool,
             spec=ServiceSpec(job_manifest_yaml),
-            external_access_integrations=configuration.external_access_integrations
-            if configuration.external_access_integrations
-            else None,  # Don't set if list is empty.
+            external_access_integrations=(
+                configuration.external_access_integrations
+                if configuration.external_access_integrations
+                else None
+            ),  # Don't set if list is empty.
             query_warehouse=configuration.query_warehouse,
             comment=configuration.service_comment,
         )
@@ -575,7 +577,9 @@ class SPCSWorker(BaseWorker):
             separator="_",
             max_length=62 - len(flow_run_id),
             regex_pattern=r"[^a-zA-Z0-9_]+",  # Only allow lowercase, uppercase letters, numbers, underscores.
-        ).strip("_")  # Remove leading and trailing underscores.
+        ).strip(
+            "_"
+        )  # Remove leading and trailing underscores.
 
         return f"{slugified_flow_name}_{flow_run_id.replace('-', '_')}"
 
