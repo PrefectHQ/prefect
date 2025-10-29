@@ -504,17 +504,12 @@ If `True`, warn on usage of experimental features.
 **Supported environment variables**:
 `PREFECT_EXPERIMENTS_WARN`, `PREFECT_EXPERIMENTAL_WARN`
 
-### `lineage_events_enabled`
-If `True`, enables emitting lineage events. Set to `False` to disable lineage event emission.
+### `plugins`
+Settings for the experimental plugin system
 
-**Type**: `boolean`
+**Type**: [PluginsSettings](#pluginssettings)
 
-**Default**: `False`
-
-**TOML dotted key path**: `experiments.lineage_events_enabled`
-
-**Supported environment variables**:
-`PREFECT_EXPERIMENTS_LINEAGE_EVENTS_ENABLED`
+**TOML dotted key path**: `experiments.plugins`
 
 ---
 ## FlowsSettings
@@ -731,6 +726,81 @@ The maximum size in bytes for a single log.
 
 **Supported environment variables**:
 `PREFECT_LOGGING_TO_API_WHEN_MISSING_FLOW`
+
+---
+## PluginsSettings
+Settings for configuring the experimental plugin system
+### `enabled`
+Enable the experimental plugin system.
+
+**Type**: `boolean`
+
+**Default**: `False`
+
+**TOML dotted key path**: `experiments.plugins.enabled`
+
+**Supported environment variables**:
+`PREFECT_EXPERIMENTS_PLUGINS_ENABLED`
+
+### `allow`
+Comma-separated list of plugin names to allow. If set, only these plugins will be loaded.
+
+**Type**: `array | None`
+
+**Default**: `None`
+
+**TOML dotted key path**: `experiments.plugins.allow`
+
+**Supported environment variables**:
+`PREFECT_EXPERIMENTS_PLUGINS_ALLOW`
+
+### `deny`
+Comma-separated list of plugin names to deny. These plugins will not be loaded.
+
+**Type**: `array | None`
+
+**Default**: `None`
+
+**TOML dotted key path**: `experiments.plugins.deny`
+
+**Supported environment variables**:
+`PREFECT_EXPERIMENTS_PLUGINS_DENY`
+
+### `setup_timeout_seconds`
+Maximum time in seconds for all plugins to complete their setup hooks.
+
+**Type**: `number`
+
+**Default**: `20.0`
+
+**TOML dotted key path**: `experiments.plugins.setup_timeout_seconds`
+
+**Supported environment variables**:
+`PREFECT_EXPERIMENTS_PLUGINS_SETUP_TIMEOUT_SECONDS`
+
+### `strict`
+If True, exit if a required plugin fails during setup.
+
+**Type**: `boolean`
+
+**Default**: `False`
+
+**TOML dotted key path**: `experiments.plugins.strict`
+
+**Supported environment variables**:
+`PREFECT_EXPERIMENTS_PLUGINS_STRICT`
+
+### `safe_mode`
+If True, load plugins but do not execute their hooks. Useful for testing.
+
+**Type**: `boolean`
+
+**Default**: `False`
+
+**TOML dotted key path**: `experiments.plugins.safe_mode`
+
+**Supported environment variables**:
+`PREFECT_EXPERIMENTS_PLUGINS_SAFE_MODE`
 
 ---
 ## ResultsSettings
@@ -1255,6 +1325,22 @@ The module to use for storing concurrency limit leases.
 
 **Supported environment variables**:
 `PREFECT_SERVER_CONCURRENCY_LEASE_STORAGE`
+
+### `initial_deployment_lease_duration`
+Initial duration for deployment concurrency lease in seconds.
+
+**Type**: `number`
+
+**Default**: `300.0`
+
+**Constraints**:
+- Minimum: 30.0
+- Maximum: 3600.0
+
+**TOML dotted key path**: `server.concurrency.initial_deployment_lease_duration`
+
+**Supported environment variables**:
+`PREFECT_SERVER_CONCURRENCY_INITIAL_DEPLOYMENT_LEASE_DURATION`
 
 ---
 ## ServerDatabaseSettings
@@ -2539,6 +2625,18 @@ The directory to serve static files from. This should be used when running into 
 
 **Supported environment variables**:
 `PREFECT_SERVER_UI_STATIC_DIRECTORY`, `PREFECT_UI_STATIC_DIRECTORY`
+
+### `show_promotional_content`
+Whether or not to display promotional content in the UI, including upgrade prompts and marketing banners.
+
+**Type**: `boolean`
+
+**Default**: `True`
+
+**TOML dotted key path**: `server.ui.show_promotional_content`
+
+**Supported environment variables**:
+`PREFECT_SERVER_UI_SHOW_PROMOTIONAL_CONTENT`
 
 ---
 ## TasksRunnerSettings

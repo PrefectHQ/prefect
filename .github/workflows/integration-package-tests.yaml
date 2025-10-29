@@ -28,7 +28,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
-          python-version: "3.9"
+          python-version: "3.10"
       - name: Generate matrix
         id: set-matrix
         run: |
@@ -63,7 +63,7 @@ jobs:
           persist-credentials: false
 
       - name: Set up uv and Python ${{ matrix.python-version }}
-        uses: astral-sh/setup-uv@v6
+        uses: astral-sh/setup-uv@v7
         with:
           version: latest
           enable-cache: true

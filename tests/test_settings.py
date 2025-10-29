@@ -57,7 +57,11 @@ from prefect.settings import (
     save_profiles,
     temporary_settings,
 )
-from prefect.settings.base import _to_environment_variable_value
+from prefect.settings.base import (
+    PrefectBaseSettings,
+    _to_environment_variable_value,
+    build_settings_config,
+)
 from prefect.settings.constants import DEFAULT_PROFILES_PATH
 from prefect.settings.legacy import (
     Setting,
@@ -74,6 +78,10 @@ from prefect.settings.models.server.api import ServerAPISettings
 from prefect.settings.models.server.database import (
     ServerDatabaseSettings,
     SQLAlchemySettings,
+)
+from prefect.settings.sources import (
+    PrefectTomlConfigSettingsSource,
+    PyprojectTomlConfigSettingsSource,
 )
 from prefect.utilities.collections import get_from_dict, set_in_dict
 from prefect.utilities.filesystem import tmpchdir
@@ -245,7 +253,18 @@ SUPPORTED_SETTINGS = {
     "PREFECT_EVENTS_WEBSOCKET_BACKFILL_PAGE_SIZE": {"test_value": 10, "legacy": True},
     "PREFECT_EXPERIMENTAL_WARN": {"test_value": True, "legacy": True},
     "PREFECT_EXPERIMENTS_WARN": {"test_value": True},
-    "PREFECT_EXPERIMENTS_LINEAGE_EVENTS_ENABLED": {"test_value": True},
+    "PREFECT_EXPERIMENTS_PLUGINS_ALLOW": {
+        "test_value": "plugin1,plugin2",
+        "expected_value": {"plugin1", "plugin2"},
+    },
+    "PREFECT_EXPERIMENTS_PLUGINS_DENY": {
+        "test_value": "plugin3",
+        "expected_value": {"plugin3"},
+    },
+    "PREFECT_EXPERIMENTS_PLUGINS_ENABLED": {"test_value": True},
+    "PREFECT_EXPERIMENTS_PLUGINS_SAFE_MODE": {"test_value": True},
+    "PREFECT_EXPERIMENTS_PLUGINS_SETUP_TIMEOUT_SECONDS": {"test_value": 30.0},
+    "PREFECT_EXPERIMENTS_PLUGINS_STRICT": {"test_value": True},
     "PREFECT_FLOW_DEFAULT_RETRIES": {"test_value": 10, "legacy": True},
     "PREFECT_FLOWS_DEFAULT_RETRIES": {"test_value": 10},
     "PREFECT_FLOW_DEFAULT_RETRY_DELAY_SECONDS": {"test_value": 10, "legacy": True},
@@ -305,6 +324,9 @@ SUPPORTED_SETTINGS = {
     "PREFECT_SERVER_API_PORT": {"test_value": 4200},
     "PREFECT_SERVER_CONCURRENCY_LEASE_STORAGE": {
         "test_value": "prefect.server.concurrency.lease_storage.filesystem"
+    },
+    "PREFECT_SERVER_CONCURRENCY_INITIAL_DEPLOYMENT_LEASE_DURATION": {
+        "test_value": 120.0
     },
     "PREFECT_SERVER_CORS_ALLOWED_HEADERS": {"test_value": "foo", "legacy": True},
     "PREFECT_SERVER_CORS_ALLOWED_METHODS": {"test_value": "foo", "legacy": True},
@@ -446,6 +468,7 @@ SUPPORTED_SETTINGS = {
     "PREFECT_SERVER_UI_API_URL": {"test_value": "https://api.prefect.io"},
     "PREFECT_SERVER_UI_ENABLED": {"test_value": True},
     "PREFECT_SERVER_UI_SERVE_BASE": {"test_value": "/base"},
+    "PREFECT_SERVER_UI_SHOW_PROMOTIONAL_CONTENT": {"test_value": False},
     "PREFECT_SERVER_UI_STATIC_DIRECTORY": {"test_value": "/path/to/static"},
     "PREFECT_SILENCE_API_URL_MISCONFIGURATION": {"test_value": True},
     "PREFECT_SQLALCHEMY_MAX_OVERFLOW": {"test_value": 10, "legacy": True},
@@ -2340,9 +2363,15 @@ class TestSettingValues:
                 monkeypatch.delenv(env_var, raising=False)
 
     @pytest.fixture(scope="function", params=list(SUPPORTED_SETTINGS.keys()))
-    def setting_and_value(self, request: pytest.FixtureRequest) -> tuple[str, Any]:
+    def setting_and_value_and_expected_value(
+        self, request: pytest.FixtureRequest
+    ) -> tuple[str, Any, Any]:
         setting = request.param
-        return setting, SUPPORTED_SETTINGS[setting]["test_value"]
+        return (
+            setting,
+            SUPPORTED_SETTINGS[setting]["test_value"],
+            SUPPORTED_SETTINGS[setting].get("expected_value", ...),
+        )
 
     @pytest.fixture(autouse=True)
     def temporary_profiles_path(
@@ -2356,6 +2385,7 @@ class TestSettingValues:
         self,
         setting: str,
         value: Any,
+        expected_value: Any = ...,
     ):
         # create new root context to pick up the env var changes
         warnings.filterwarnings("ignore", category=UserWarning)
@@ -2387,24 +2417,26 @@ class TestSettingValues:
                 # get value from legacy setting object
                 assert getattr(prefect.settings, setting).value() == json.loads(value)
             else:
-                assert settings_value == value
+                if expected_value is ...:
+                    expected_value = value
+                assert settings_value == expected_value
                 # get value from legacy setting object
-                assert getattr(prefect.settings, setting).value() == value
+                assert getattr(prefect.settings, setting).value() == expected_value
                 # ensure the value gets added to the environment variables, but "legacy" will use
                 # their updated name
                 if not SUPPORTED_SETTINGS[setting].get("legacy"):
                     assert current_settings.to_environment_variables(
                         exclude_unset=True
                     )[setting] == _to_environment_variable_value(
-                        to_jsonable_python(value)
+                        to_jsonable_python(expected_value)
                     )
 
     def test_set_via_env_var(
         self,
-        setting_and_value: tuple[str, Any],
+        setting_and_value_and_expected_value: tuple[str, Any, Any],
         monkeypatch: pytest.MonkeyPatch,
     ):
-        setting, value = setting_and_value
+        setting, value, expected_value = setting_and_value_and_expected_value
 
         if (
             setting == "PREFECT_TEST_SETTING"
@@ -2415,15 +2447,15 @@ class TestSettingValues:
         # mock set the env var
         monkeypatch.setenv(setting, _to_environment_variable_value(value))
 
-        self.check_setting_value(setting, value)
+        self.check_setting_value(setting, value, expected_value)
 
     def test_set_via_profile(
         self,
         temporary_profiles_path: Path,
-        setting_and_value: tuple[str, Any],
+        setting_and_value_and_expected_value: tuple[str, Any, Any],
         monkeypatch: pytest.MonkeyPatch,
     ):
-        setting, value = setting_and_value
+        setting, value, expected_value = setting_and_value_and_expected_value
         if setting == "PREFECT_PROFILES_PATH":
             pytest.skip("Profiles path cannot be set via a profile")
         if (
@@ -2443,15 +2475,15 @@ class TestSettingValues:
                 f,
             )
 
-        self.check_setting_value(setting, value)
+        self.check_setting_value(setting, value, expected_value)
 
     def test_set_via_dot_env_file(
         self,
-        setting_and_value: tuple[str, Any],
+        setting_and_value_and_expected_value: tuple[str, Any, Any],
         temporary_env_file: Callable[[str], None],
         monkeypatch: pytest.MonkeyPatch,
     ):
-        setting, value = setting_and_value
+        setting, value, expected_value = setting_and_value_and_expected_value
         if setting == "PREFECT_PROFILES_PATH":
             monkeypatch.delenv("PREFECT_PROFILES_PATH", raising=False)
         if (
@@ -2462,15 +2494,15 @@ class TestSettingValues:
 
         temporary_env_file(f"{setting}={_to_environment_variable_value(value)}")
 
-        self.check_setting_value(setting, value)
+        self.check_setting_value(setting, value, expected_value)
 
     def test_set_via_prefect_toml_file(
         self,
-        setting_and_value: tuple[str, Any],
+        setting_and_value_and_expected_value: tuple[str, Any, Any],
         temporary_toml_file: Callable[[dict[str, Any], Path], None],
         monkeypatch: pytest.MonkeyPatch,
     ):
-        setting, value = setting_and_value
+        setting, value, expected_value = setting_and_value_and_expected_value
         if setting == "PREFECT_PROFILES_PATH":
             monkeypatch.delenv("PREFECT_PROFILES_PATH", raising=False)
         if (
@@ -2486,15 +2518,15 @@ class TestSettingValues:
         )
         temporary_toml_file(toml_dict)
 
-        self.check_setting_value(setting, value)
+        self.check_setting_value(setting, value, expected_value)
 
     def test_set_via_pyproject_toml_file(
         self,
-        setting_and_value: tuple[str, Any],
+        setting_and_value_and_expected_value: tuple[str, Any, Any],
         temporary_toml_file: Callable[[dict[str, Any], Path], None],
         monkeypatch: pytest.MonkeyPatch,
     ):
-        setting, value = setting_and_value
+        setting, value, expected_value = setting_and_value_and_expected_value
         if setting == "PREFECT_PROFILES_PATH":
             monkeypatch.delenv("PREFECT_PROFILES_PATH", raising=False)
         if (
@@ -2512,7 +2544,7 @@ class TestSettingValues:
         )
         temporary_toml_file(toml_dict, path=Path("pyproject.toml"))
 
-        self.check_setting_value(setting, value)
+        self.check_setting_value(setting, value, expected_value)
 
 
 class TestClientCustomHeadersSetting:
@@ -2638,3 +2670,53 @@ class TestClientCustomHeadersSetting:
                 "PREFECT_CLIENT_CUSTOM_HEADERS"
             ]
             assert json.loads(env_value) == custom_headers
+
+    def test_setting_via_cli_string(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ):
+        """Test setting custom headers via CLI/profile with a JSON string."""
+        from prefect.settings.models.root import Settings
+
+        # Clear test mode to ensure profile loading
+        monkeypatch.delenv("PREFECT_TESTING_TEST_MODE", raising=False)
+        monkeypatch.delenv("PREFECT_TESTING_UNIT_TEST_MODE", raising=False)
+
+        json_string = (
+            '{"X-Test-Header": "test-value", "Authorization": "Bearer token123"}'
+        )
+
+        # Use a temporary profiles file for isolation
+        profiles_path = tmp_path / "profiles.toml"
+        monkeypatch.setenv("PREFECT_PROFILES_PATH", str(profiles_path))
+
+        # Write a profile with the JSON string value, simulating what `prefect config set` does
+        profiles_path.write_text(f"""
+active = "test"
+
+[profiles.test]
+PREFECT_CLIENT_CUSTOM_HEADERS = '{json_string}'
+""")
+
+        # Create a new settings instance that will load from the profiles file
+        settings = Settings()
+        expected = {"X-Test-Header": "test-value", "Authorization": "Bearer token123"}
+        assert settings.client.custom_headers == expected
+
+
+def test_prefect_custom_sources_satisfy_pydantic_warning_check() -> None:
+    class DummySettings(PrefectBaseSettings):
+        model_config = build_settings_config()
+
+    sources = (
+        PrefectTomlConfigSettingsSource(DummySettings),
+        PyprojectTomlConfigSettingsSource(DummySettings),
+    )
+
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        PrefectBaseSettings._settings_warn_unused_config_keys(
+            sources,
+            DummySettings.model_config,
+        )
+
+    assert not caught

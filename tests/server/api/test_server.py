@@ -3,7 +3,7 @@ import logging
 import socket
 import sqlite3
 import sys
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
 import asyncpg
@@ -38,7 +38,6 @@ from prefect.settings import (
     PREFECT_SERVER_CORS_ALLOWED_ORIGINS,
     temporary_settings,
 )
-from prefect.testing.utilities import AsyncMock
 
 
 async def test_validation_error_handler_422(client):

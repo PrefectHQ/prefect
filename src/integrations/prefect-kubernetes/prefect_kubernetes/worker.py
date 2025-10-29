@@ -417,8 +417,9 @@ class KubernetesWorkerJobConfiguration(BaseJobConfiguration):
         """
         Configures eviction handling for the job pod. Needs to run before
 
-        If `backoffLimit` is set to 0, we'll tell the Runner to reschedule
-        its flow run when it receives a SIGTERM.
+        If `backoffLimit` is set to 0 and `PREFECT_FLOW_RUN_EXECUTE_SIGTERM_BEHAVIOR` is
+        not set in env, we'll tell the Runner to reschedule its flow run when it receives
+        a SIGTERM.
 
         If `backoffLimit` is set to a positive number, we'll ensure that the
         reschedule SIGTERM handling is not set. Having both a `backoffLimit` and
@@ -428,7 +429,8 @@ class KubernetesWorkerJobConfiguration(BaseJobConfiguration):
         # its flow run when it receives a SIGTERM.
         if self.job_manifest["spec"].get("backoffLimit") == 0:
             if isinstance(self.env, dict):
-                self.env["PREFECT_FLOW_RUN_EXECUTE_SIGTERM_BEHAVIOR"] = "reschedule"
+                if not self.env.get("PREFECT_FLOW_RUN_EXECUTE_SIGTERM_BEHAVIOR"):
+                    self.env["PREFECT_FLOW_RUN_EXECUTE_SIGTERM_BEHAVIOR"] = "reschedule"
             elif not any(
                 v.get("name") == "PREFECT_FLOW_RUN_EXECUTE_SIGTERM_BEHAVIOR"
                 for v in self.env
@@ -482,9 +484,21 @@ class KubernetesWorkerJobConfiguration(BaseJobConfiguration):
         # we need to prepend our environment variables to the list to ensure Prefect
         # setting propagation.
         if isinstance(template_env, list):
+            # Get the names of env vars we're about to add
+            transformed_env_names = {env["name"] for env in transformed_env}
+
+            # Filter out any env vars from template_env that are duplicates
+            # (these came from template rendering of work pool variables)
+            # Keep only user-hardcoded vars (not in transformed_env)
+            unique_template_env = [
+                env
+                for env in template_env
+                if env.get("name") not in transformed_env_names
+            ]
+
             self.job_manifest["spec"]["template"]["spec"]["containers"][0]["env"] = [
                 *transformed_env,
-                *template_env,
+                *unique_template_env,
             ]
         # Current templating adds `env` as a dict when the kubernetes manifest requires
         # a list of dicts. Might be able to improve this in the future with a better
@@ -634,7 +648,9 @@ class KubernetesWorkerVariables(BaseVariables):
         title="Backoff Limit",
         description=(
             "The number of times Kubernetes will retry a job after pod eviction. "
-            "If set to 0, Prefect will reschedule the flow run when the pod is evicted."
+            "If set to 0, Prefect will reschedule the flow run when the pod is evicted "
+            "unless PREFECT_FLOW_RUN_EXECUTE_SIGTERM_BEHAVIOR is set to value "
+            "different from 'reschedule'."
         ),
     )
     finished_job_ttl: Optional[int] = Field(
@@ -976,7 +992,8 @@ class KubernetesWorker(
             await client.close()
 
     async def __aenter__(self):
-        start_observer()
+        if KubernetesSettings().observer.enabled:
+            start_observer()
         return await super().__aenter__()
 
     async def __aexit__(self, *exc_info: Any):
@@ -984,4 +1001,5 @@ class KubernetesWorker(
             await super().__aexit__(*exc_info)
         finally:
             # Need to run after the runs task group exits
-            stop_observer()
+            if KubernetesSettings().observer.enabled:
+                stop_observer()

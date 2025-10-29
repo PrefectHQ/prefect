@@ -4,7 +4,7 @@ import sys
 import warnings
 from textwrap import dedent
 from typing import Any, Dict, List, Tuple, Type, Union
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 from uuid import UUID, uuid4
 
 import pytest
@@ -22,7 +22,7 @@ from prefect.exceptions import PrefectHTTPStatusError
 from prefect.server import models
 from prefect.server.schemas.actions import BlockDocumentCreate
 from prefect.server.schemas.core import DEFAULT_BLOCK_SCHEMA_VERSION, BlockDocument
-from prefect.testing.utilities import AsyncMock, assert_blocks_equal
+from prefect.testing.utilities import assert_blocks_equal
 from prefect.types import SecretDict
 from prefect.utilities.dispatch import lookup_type, register_type
 
@@ -2625,9 +2625,11 @@ class TestTypeDispatch:
     def test_base_parse_creates_child_instance_from_dict(self):
         block = BaseBlock.model_validate(AChildBlock().model_dump())
         assert type(block) is AChildBlock
+        assert block.a == 1
 
         block = BaseBlock.model_validate(BChildBlock().model_dump())
         assert type(block) is BChildBlock
+        assert block.b == 2
 
     def test_base_parse_creates_child_instance_from_json(self):
         block = BaseBlock.model_validate_json(AChildBlock().model_dump_json())
@@ -2661,9 +2663,11 @@ class TestTypeDispatch:
     def test_base_field_creates_child_instance_from_dict(self):
         model = ParentModel(block=AChildBlock().model_dump())
         assert type(model.block) is AChildBlock
+        assert model.block.a == 1
 
         model = ParentModel(block=BChildBlock().model_dump())
         assert type(model.block) is BChildBlock
+        assert model.block.b == 2
 
     def test_created_block_has_pydantic_attributes(self):
         block = BaseBlock.model_validate(AChildBlock().model_dump())
@@ -2711,9 +2715,11 @@ class TestTypeDispatch:
         model.block = model.block.model_copy()
         assert type(model.block) is AChildBlock
         assert model.block
+        assert model.block.a == 3
 
         model = UnionParentModel(block=BChildBlock(b=4).model_dump())
         assert type(model.block) is BChildBlock
+        assert model.block.b == 4
 
     def test_base_field_creates_child_instance_with_assignment_validation(self):
         class AssignmentParentModel(BaseModel, validate_assignment=True):

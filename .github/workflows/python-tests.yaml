@@ -71,11 +71,11 @@ jobs:
           - "postgres:14"
           - "sqlite"
         python-version:
-          - "3.9"
           - "3.10"
           - "3.11"
           - "3.12"
           - "3.13"
+          - "3.14"
         exclude:
           - database: "sqlite"
             test-type:
@@ -108,7 +108,7 @@ jobs:
           fetch-depth: 0
 
       - name: Set up uv and Python ${{ matrix.python-version }}
-        uses: astral-sh/setup-uv@v6
+        uses: astral-sh/setup-uv@v7
         with:
           enable-cache: true
           python-version: ${{ matrix.python-version }}
@@ -179,10 +179,11 @@ jobs:
         database:
           - "postgres:14"
         python-version:
-          - "3.9"
           - "3.10"
           - "3.11"
           - "3.12"
+          - "3.13"
+          - "3.14"
 
       fail-fast: false
 
@@ -199,11 +200,9 @@ jobs:
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
-        with:
-          driver-opts: image=moby/buildkit:v0.12.5
 
       - name: Set up uv and Python ${{ matrix.python-version }}
-        uses: astral-sh/setup-uv@v6
+        uses: astral-sh/setup-uv@v7
         with:
           enable-cache: true
           python-version: ${{ matrix.python-version }}
@@ -241,6 +240,8 @@ jobs:
             NODE_VERSION=${{ steps.get_node_version.outputs.NODE_VERSION }}
           tags: prefecthq/prefect-dev:${{ steps.get_image_tag.outputs.image_tag }}
           outputs: type=docker,dest=/tmp/image.tar
+          cache-from: type=gha,scope=test-${{ matrix.python-version }},ignore-error=true
+          cache-to: type=gha,mode=max,scope=test-${{ matrix.python-version }},ignore-error=true
 
       - name: Test Docker image
         run: |
@@ -326,7 +327,7 @@ jobs:
           fetch-depth: 0
 
       - name: Set up uv
-        uses: astral-sh/setup-uv@v6
+        uses: astral-sh/setup-uv@v7
         with:
           enable-cache: true
           python-version: "3.12"

@@ -43,9 +43,6 @@ from uuid import UUID
 
 import pydantic
 from exceptiongroup import BaseExceptionGroup, ExceptionGroup
-from pydantic.v1 import BaseModel as V1BaseModel
-from pydantic.v1.decorator import ValidatedFunction as V1ValidatedFunction
-from pydantic.v1.errors import ConfigError  # TODO
 from rich.console import Console
 from typing_extensions import Literal, ParamSpec
 
@@ -102,10 +99,7 @@ from prefect.utilities.importtools import import_object, safe_load_namespace
 
 from ._internal.compatibility.async_dispatch import async_dispatch, is_in_async_context
 from ._internal.pydantic.v2_schema import is_v2_type
-from ._internal.pydantic.v2_validated_func import V2ValidatedFunction
-from ._internal.pydantic.v2_validated_func import (
-    V2ValidatedFunction as ValidatedFunction,
-)
+from ._internal.pydantic.validated_func import ValidatedFunction
 
 if TYPE_CHECKING:
     from prefect.docker.docker_image import DockerImage
@@ -316,7 +310,7 @@ class Flow(Generic[P, R]):
 
         # the flow is considered async if its function is async or an async
         # generator
-        self.isasync: bool = asyncio.iscoroutinefunction(
+        self.isasync: bool = inspect.iscoroutinefunction(
             self.fn
         ) or inspect.isasyncgenfunction(self.fn)
 
@@ -366,7 +360,7 @@ class Flow(Generic[P, R]):
             # is not picklable in some environments
             try:
                 ValidatedFunction(self.fn, config={"arbitrary_types_allowed": True})
-            except ConfigError as exc:
+            except Exception as exc:
                 raise ValueError(
                     "Flow function is not compatible with `validate_parameters`. "
                     "Disable validation or change the argument names."
@@ -605,13 +599,18 @@ class Flow(Generic[P, R]):
 
         args, kwargs = parameters_to_args_kwargs(self.fn, parameters)
 
-        with warnings.catch_warnings():
-            warnings.filterwarnings(
-                "ignore", category=pydantic.warnings.PydanticDeprecatedSince20
-            )
-            has_v1_models = any(isinstance(o, V1BaseModel) for o in args) or any(
-                isinstance(o, V1BaseModel) for o in kwargs.values()
-            )
+        if sys.version_info >= (3, 14):  # Pydantic v1 is not supported in Python 3.14+
+            has_v1_models = False
+        else:
+            from pydantic.v1 import BaseModel as V1BaseModel
+
+            with warnings.catch_warnings():
+                warnings.filterwarnings(
+                    "ignore", category=pydantic.warnings.PydanticDeprecatedSince20
+                )
+                has_v1_models = any(isinstance(o, V1BaseModel) for o in args) or any(
+                    isinstance(o, V1BaseModel) for o in kwargs.values()
+                )
 
         has_v2_types = any(is_v2_type(o) for o in args) or any(
             is_v2_type(o) for o in kwargs.values()
@@ -622,19 +621,35 @@ class Flow(Generic[P, R]):
                 "Cannot mix Pydantic v1 and v2 types as arguments to a flow."
             )
 
-        validated_fn_kwargs = dict(arbitrary_types_allowed=True)
-
-        if has_v1_models:
-            validated_fn = V1ValidatedFunction(self.fn, config=validated_fn_kwargs)
-        else:
-            validated_fn = V2ValidatedFunction(self.fn, config=validated_fn_kwargs)
-
         try:
-            with warnings.catch_warnings():
-                warnings.filterwarnings(
-                    "ignore", category=pydantic.warnings.PydanticDeprecatedSince20
+            if has_v1_models:
+                from pydantic.v1.decorator import (
+                    ValidatedFunction as V1ValidatedFunction,
                 )
-                model = validated_fn.init_model_instance(*args, **kwargs)
+
+                validated_fn = V1ValidatedFunction(
+                    self.fn, config=dict(arbitrary_types_allowed=True)
+                )
+                with warnings.catch_warnings():
+                    warnings.filterwarnings(
+                        "ignore", category=pydantic.warnings.PydanticDeprecatedSince20
+                    )
+                    model = validated_fn.init_model_instance(*args, **kwargs)
+
+                    # Get the updated parameter dict with cast values from the model
+                    cast_parameters = {
+                        k: v
+                        for k, v in dict(iter(model)).items()
+                        if k in model.model_fields_set
+                        or type(model).model_fields[k].default_factory
+                    }
+                    return cast_parameters
+            else:
+                validated_fn = ValidatedFunction(
+                    self.fn, config=pydantic.ConfigDict(arbitrary_types_allowed=True)
+                )
+                return validated_fn.validate_call_args(args, kwargs)
+
         except pydantic.ValidationError as exc:
             # We capture the pydantic exception and raise our own because the pydantic
             # exception is not picklable when using a cythonized pydantic installation
@@ -643,15 +658,6 @@ class Flow(Generic[P, R]):
                 f"\nParameters: {parameters}"
             )
             raise ParameterTypeError.from_validation_error(exc) from None
-
-        # Get the updated parameter dict with cast values from the model
-        cast_parameters = {
-            k: v
-            for k, v in dict(iter(model)).items()
-            if k in model.model_fields_set
-            or type(model).model_fields[k].default_factory
-        }
-        return cast_parameters
 
     def serialize_parameters(
         self, parameters: dict[str, Any | PrefectFuture[Any] | State]

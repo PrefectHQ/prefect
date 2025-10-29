@@ -564,17 +564,13 @@ class ResultStore(BaseModel):
             A result record.
         """
 
-        from prefect._experimental.lineage import emit_result_read_event
-
         if self.lock_manager is not None and not self.is_lock_holder(key, holder):
             await self.await_for_lock(key)
 
         resolved_key_path = self._resolved_key_path(key)
 
         if resolved_key_path in self.cache:
-            cached_result: ResultRecord[Any] = self.cache[resolved_key_path]
-            await emit_result_read_event(self, resolved_key_path, cached=True)
-            return cached_result
+            return self.cache[resolved_key_path]
 
         if self.result_storage is None:
             self.result_storage = await aget_default_result_storage()
@@ -601,7 +597,6 @@ class ResultStore(BaseModel):
                     result=result_content, metadata=metadata_content
                 )
             )
-            await emit_result_read_event(self, resolved_key_path)
         else:
             content = await call_explicitly_async_block_method(
                 self.result_storage,
@@ -612,7 +607,6 @@ class ResultStore(BaseModel):
             result_record: ResultRecord[Any] = ResultRecord.deserialize(
                 content, backup_serializer=self.serializer
             )
-            await emit_result_read_event(self, resolved_key_path)
 
         if self.cache_result_in_memory:
             self.cache[resolved_key_path] = result_record
@@ -757,8 +751,6 @@ class ResultStore(BaseModel):
             "Storage key is required on result record"
         )
 
-        from prefect._experimental.lineage import emit_result_write_event
-
         key = result_record.metadata.storage_key
         if result_record.metadata.storage_block_id is None:
             basepath = (
@@ -797,7 +789,6 @@ class ResultStore(BaseModel):
                 (base_key,),
                 {"content": result_record.serialize_metadata()},
             )
-            await emit_result_write_event(self, result_record.metadata.storage_key)
         # Otherwise, write the result metadata and result together
         else:
             await call_explicitly_async_block_method(
@@ -806,7 +797,6 @@ class ResultStore(BaseModel):
                 (result_record.metadata.storage_key,),
                 {"content": result_record.serialize()},
             )
-            await emit_result_write_event(self, result_record.metadata.storage_key)
         if self.cache_result_in_memory:
             self.cache[key] = result_record
 

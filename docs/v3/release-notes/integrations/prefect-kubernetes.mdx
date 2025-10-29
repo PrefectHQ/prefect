@@ -2,6 +2,23 @@
 title: prefect-kubernetes
 ---
 
+## 0.6.6
+
+_Released on October 23, 2025_
+
+**Features**
+
+- Allow opt-out of rescheduling on `SIGTERM` by setting `PREFECT_FLOW_RUN_EXECUTE_SIGTERM_BEHAVIOR` [#19223](https://github.com/PrefectHQ/prefect/pull/19223) by [@svatopluk-sperka](https://github.com/svatopluk-sperka)
+
+**Bug Fixes**
+
+- Configure `kopf` to use its own JSON formatter when Prefect uses JSON logging [#19265](https://github.com/PrefectHQ/prefect/pull/19265) by [@desertaxle](https://github.com/desertaxle)
+- Fix duplicate environment variables from work pools in Kubernetes jobs [#19171](https://github.com/PrefectHQ/prefect/pull/19171) by [@zzstoatzz](https://github.com/zzstoatzz)
+- Remove log level set in Kubernetes observer [#19060](https://github.com/PrefectHQ/prefect/pull/19060) by [@zzstoatzz](https://github.com/zzstoatzz)
+
+
+---
+
 ## 0.6.5
 
 _Released on September 17, 2025_

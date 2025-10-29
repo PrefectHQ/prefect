@@ -1,5 +1,5 @@
-import { AlertCircle, CheckCircle, PauseCircle } from "lucide-react";
-
+import { CircleDot, PauseCircle } from "lucide-react";
+import type { WorkPoolStatus } from "@/api/work-pools";
 import {
 	Tooltip,
 	TooltipContent,
@@ -7,9 +7,6 @@ import {
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn } from "@/utils";
-import type { WorkPoolStatus } from "../types";
-
-export type { WorkPoolStatus };
 
 type WorkPoolStatusIconProps = {
 	status: WorkPoolStatus;
@@ -18,24 +15,24 @@ type WorkPoolStatusIconProps = {
 };
 
 const statusIconMap = {
-	ready: CheckCircle,
-	paused: PauseCircle,
-	not_ready: AlertCircle,
+	READY: CircleDot,
+	PAUSED: PauseCircle,
+	NOT_READY: CircleDot,
 } as const;
 
 const statusColorMap = {
-	ready: "text-green-600",
-	paused: "text-yellow-600",
-	not_ready: "text-red-600",
+	READY: "text-green-600",
+	PAUSED: "text-yellow-600",
+	NOT_READY: "text-red-600",
 } as const;
 
 const getStatusDescription = (status: WorkPoolStatus): string => {
 	switch (status) {
-		case "ready":
+		case "READY":
 			return "Work pool is ready and accepting work";
-		case "paused":
+		case "PAUSED":
 			return "Work pool is paused";
-		case "not_ready":
+		case "NOT_READY":
 			return "Work pool is not ready";
 	}
 };
@@ -49,7 +46,13 @@ export const WorkPoolStatusIcon = ({
 	const Icon = statusIconMap[status];
 	const colorClass = statusColorMap[status];
 
-	const icon = <Icon className={cn("h-4 w-4", colorClass, className)} />;
+	const shouldFill = status === "READY" || status === "NOT_READY";
+	const icon = (
+		<Icon
+			className={cn("h-3 w-3", colorClass, className)}
+			fill={shouldFill ? "currentColor" : "none"}
+		/>
+	);
 
 	if (!showTooltip) {
 		return icon;

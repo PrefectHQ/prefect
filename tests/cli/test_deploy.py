@@ -10,6 +10,7 @@ from datetime import timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Optional
 from unittest import mock
+from unittest.mock import AsyncMock
 from uuid import UUID, uuid4
 
 import pytest
@@ -59,7 +60,6 @@ from prefect.settings import (
     temporary_settings,
 )
 from prefect.testing.cli import invoke_and_assert
-from prefect.testing.utilities import AsyncMock
 from prefect.types._datetime import parse_datetime
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.filesystem import tmpchdir

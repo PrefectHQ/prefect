@@ -365,14 +365,10 @@
                     "title": "Warn",
                     "type": "boolean"
                 },
-                "lineage_events_enabled": {
-                    "default": false,
-                    "description": "If `True`, enables emitting lineage events. Set to `False` to disable lineage event emission.",
-                    "supported_environment_variables": [
-                        "PREFECT_EXPERIMENTS_LINEAGE_EVENTS_ENABLED"
-                    ],
-                    "title": "Lineage Events Enabled",
-                    "type": "boolean"
+                "plugins": {
+                    "$ref": "#/$defs/PluginsSettings",
+                    "description": "Settings for the experimental plugin system",
+                    "supported_environment_variables": []
                 }
             },
             "title": "ExperimentsSettings",
@@ -583,6 +579,89 @@
                 }
             },
             "title": "LoggingToAPISettings",
+            "type": "object"
+        },
+        "PluginsSettings": {
+            "description": "Settings for configuring the experimental plugin system",
+            "properties": {
+                "enabled": {
+                    "default": false,
+                    "description": "Enable the experimental plugin system.",
+                    "supported_environment_variables": [
+                        "PREFECT_EXPERIMENTS_PLUGINS_ENABLED"
+                    ],
+                    "title": "Enabled",
+                    "type": "boolean"
+                },
+                "allow": {
+                    "anyOf": [
+                        {
+                            "items": {
+                                "type": "string"
+                            },
+                            "type": "array",
+                            "uniqueItems": true
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "description": "Comma-separated list of plugin names to allow. If set, only these plugins will be loaded.",
+                    "supported_environment_variables": [
+                        "PREFECT_EXPERIMENTS_PLUGINS_ALLOW"
+                    ],
+                    "title": "Allow"
+                },
+                "deny": {
+                    "anyOf": [
+                        {
+                            "items": {
+                                "type": "string"
+                            },
+                            "type": "array",
+                            "uniqueItems": true
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "description": "Comma-separated list of plugin names to deny. These plugins will not be loaded.",
+                    "supported_environment_variables": [
+                        "PREFECT_EXPERIMENTS_PLUGINS_DENY"
+                    ],
+                    "title": "Deny"
+                },
+                "setup_timeout_seconds": {
+                    "default": 20.0,
+                    "description": "Maximum time in seconds for all plugins to complete their setup hooks.",
+                    "supported_environment_variables": [
+                        "PREFECT_EXPERIMENTS_PLUGINS_SETUP_TIMEOUT_SECONDS"
+                    ],
+                    "title": "Setup Timeout Seconds",
+                    "type": "number"
+                },
+                "strict": {
+                    "default": false,
+                    "description": "If True, exit if a required plugin fails during setup.",
+                    "supported_environment_variables": [
+                        "PREFECT_EXPERIMENTS_PLUGINS_STRICT"
+                    ],
+                    "title": "Strict",
+                    "type": "boolean"
+                },
+                "safe_mode": {
+                    "default": false,
+                    "description": "If True, load plugins but do not execute their hooks. Useful for testing.",
+                    "supported_environment_variables": [
+                        "PREFECT_EXPERIMENTS_PLUGINS_SAFE_MODE"
+                    ],
+                    "title": "Safe Mode",
+                    "type": "boolean"
+                }
+            },
+            "title": "PluginsSettings",
             "type": "object"
         },
         "ResultsSettings": {
@@ -1074,6 +1153,17 @@
                     ],
                     "title": "Lease Storage",
                     "type": "string"
+                },
+                "initial_deployment_lease_duration": {
+                    "default": 300.0,
+                    "description": "Initial duration for deployment concurrency lease in seconds.",
+                    "maximum": 3600.0,
+                    "minimum": 30.0,
+                    "supported_environment_variables": [
+                        "PREFECT_SERVER_CONCURRENCY_INITIAL_DEPLOYMENT_LEASE_DURATION"
+                    ],
+                    "title": "Initial Deployment Lease Duration",
+                    "type": "number"
                 }
             },
             "title": "ServerConcurrencySettings",
@@ -2236,6 +2326,15 @@
                         "PREFECT_UI_STATIC_DIRECTORY"
                     ],
                     "title": "Static Directory"
+                },
+                "show_promotional_content": {
+                    "default": true,
+                    "description": "Whether or not to display promotional content in the UI, including upgrade prompts and marketing banners.",
+                    "supported_environment_variables": [
+                        "PREFECT_SERVER_UI_SHOW_PROMOTIONAL_CONTENT"
+                    ],
+                    "title": "Show Promotional Content",
+                    "type": "boolean"
                 }
             },
             "title": "ServerUISettings",

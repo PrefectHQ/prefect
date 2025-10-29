@@ -13,16 +13,22 @@ from prefect_aws.observers.ecs import (
     EcsObserver,
     EcsTaskTagsReader,
     FilterCase,
+    LastStatusFilter,
     SqsSubscriber,
     TagsFilter,
     _related_resources_from_tags,
+    deregister_task_definition,
+    mark_runs_as_crashed,
     replicate_ecs_event,
     start_observer,
     stop_observer,
 )
 from prefect_aws.settings import EcsObserverSettings
 
+from prefect.client.schemas import FlowRun, State
+from prefect.client.schemas.objects import StateType
 from prefect.events.schemas.events import Event, Resource
+from prefect.exceptions import ObjectNotFound
 
 
 class TestTagsFilter:
@@ -65,6 +71,64 @@ class TestTagsFilter:
             {"present_key": "any", "absent_key": "should_not_be_here"}
         )
         assert not filter.is_match({"specific_key": "specific_value"})
+
+
+class TestLastStatusFilter:
+    def test_is_match_with_no_filter_statuses(self):
+        filter = LastStatusFilter()
+        assert filter.is_match("RUNNING")
+        assert filter.is_match("STOPPED")
+        assert filter.is_match("PENDING")
+
+    def test_is_match_with_single_status(self):
+        filter = LastStatusFilter("RUNNING")
+        assert filter.is_match("RUNNING")
+        assert not filter.is_match("STOPPED")
+        assert not filter.is_match("PENDING")
+
+    def test_is_match_with_multiple_statuses(self):
+        filter = LastStatusFilter("RUNNING", "STOPPED")
+        assert filter.is_match("RUNNING")
+        assert filter.is_match("STOPPED")
+        assert not filter.is_match("PENDING")
+        assert not filter.is_match("PROVISIONING")
+
+    def test_is_match_with_all_valid_statuses(self):
+        filter = LastStatusFilter(
+            "PROVISIONING",
+            "PENDING",
+            "ACTIVATING",
+            "RUNNING",
+            "DEACTIVATING",
+            "STOPPING",
+            "DEPROVISIONING",
+            "STOPPED",
+            "DELETED",
+        )
+        assert filter.is_match("PROVISIONING")
+        assert filter.is_match("PENDING")
+        assert filter.is_match("ACTIVATING")
+        assert filter.is_match("RUNNING")
+        assert filter.is_match("DEACTIVATING")
+        assert filter.is_match("STOPPING")
+        assert filter.is_match("DEPROVISIONING")
+        assert filter.is_match("STOPPED")
+        assert filter.is_match("DELETED")
+
+    def test_is_match_with_final_states(self):
+        filter = LastStatusFilter("STOPPED", "DELETED")
+        assert filter.is_match("STOPPED")
+        assert filter.is_match("DELETED")
+        assert not filter.is_match("RUNNING")
+        assert not filter.is_match("PENDING")
+
+    def test_is_match_with_intermediate_states(self):
+        filter = LastStatusFilter("PROVISIONING", "PENDING", "ACTIVATING")
+        assert filter.is_match("PROVISIONING")
+        assert filter.is_match("PENDING")
+        assert filter.is_match("ACTIVATING")
+        assert not filter.is_match("RUNNING")
+        assert not filter.is_match("STOPPED")
 
 
 class TestEcsTaskTagsReader:
@@ -278,6 +342,172 @@ class TestSqsSubscriber:
 
         # Note: delete may not be called if we break immediately after yield
         # The generator is interrupted before the delete after yield can execute
+
+    @patch("prefect_aws.observers.ecs.aiobotocore.session.get_session")
+    @patch("prefect_aws.observers.ecs.asyncio.sleep")
+    async def test_stream_messages_backoff_after_consecutive_failures(
+        self, mock_sleep, mock_get_session, subscriber
+    ):
+        """Test that backoff is triggered after 3 consecutive failures."""
+        mock_session = Mock()
+        mock_sqs_client = AsyncMock()
+        mock_client_context = AsyncMock()
+        mock_client_context.__aenter__.return_value = mock_sqs_client
+        mock_session.create_client.return_value = mock_client_context
+        mock_get_session.return_value = mock_session
+
+        mock_sqs_client.get_queue_url.return_value = {
+            "QueueUrl": "https://sqs.us-east-1.amazonaws.com/123456789/test-queue"
+        }
+
+        # Simulate 3 consecutive failures, then success
+        failure_exception = Exception("Temporary AWS error")
+        mock_sqs_client.receive_message.side_effect = [
+            failure_exception,
+            failure_exception,
+            failure_exception,
+            {"Messages": [{"Body": "message1", "ReceiptHandle": "handle1"}]},
+        ]
+
+        messages = []
+        message_generator = subscriber.stream_messages()
+        async for message in message_generator:
+            messages.append(message)
+            await message_generator.aclose()
+            break
+
+        # Should have triggered one backoff with delay of 2 seconds (2^1 * 1)
+        mock_sleep.assert_called_once_with(2)
+        assert len(messages) == 1
+
+    @patch("prefect_aws.observers.ecs.aiobotocore.session.get_session")
+    @patch("prefect_aws.observers.ecs.asyncio.sleep")
+    async def test_stream_messages_exponential_backoff(
+        self, mock_sleep, mock_get_session, subscriber
+    ):
+        """Test that backoff uses exponential delays."""
+        mock_session = Mock()
+        mock_sqs_client = AsyncMock()
+        mock_client_context = AsyncMock()
+        mock_client_context.__aenter__.return_value = mock_sqs_client
+        mock_session.create_client.return_value = mock_client_context
+        mock_get_session.return_value = mock_session
+
+        mock_sqs_client.get_queue_url.return_value = {
+            "QueueUrl": "https://sqs.us-east-1.amazonaws.com/123456789/test-queue"
+        }
+
+        # Simulate multiple rounds of 3 consecutive failures
+        failure_exception = Exception("Temporary AWS error")
+        mock_sqs_client.receive_message.side_effect = [
+            # First round: 3 failures -> backoff with 2s
+            failure_exception,
+            failure_exception,
+            failure_exception,
+            # Second round: 3 failures -> backoff with 4s
+            failure_exception,
+            failure_exception,
+            failure_exception,
+            # Third round: 3 failures -> backoff with 8s
+            failure_exception,
+            failure_exception,
+            failure_exception,
+            # Success
+            {"Messages": [{"Body": "message1", "ReceiptHandle": "handle1"}]},
+        ]
+
+        messages = []
+        message_generator = subscriber.stream_messages()
+        async for message in message_generator:
+            messages.append(message)
+            await message_generator.aclose()
+            break
+
+        # Should have triggered 3 backoffs with exponential delays: 2s, 4s, 8s
+        assert mock_sleep.call_count == 3
+        sleep_calls = [call.args[0] for call in mock_sleep.call_args_list]
+        assert sleep_calls == [2, 4, 8]
+
+    @patch("prefect_aws.observers.ecs.aiobotocore.session.get_session")
+    @patch("prefect_aws.observers.ecs.asyncio.sleep")
+    async def test_stream_messages_raises_after_max_backoff_attempts(
+        self, mock_sleep, mock_get_session, subscriber
+    ):
+        """Test that RuntimeError is raised after exceeding max backoff attempts."""
+        mock_session = Mock()
+        mock_sqs_client = AsyncMock()
+        mock_client_context = AsyncMock()
+        mock_client_context.__aenter__.return_value = mock_sqs_client
+        mock_session.create_client.return_value = mock_client_context
+        mock_get_session.return_value = mock_session
+
+        mock_sqs_client.get_queue_url.return_value = {
+            "QueueUrl": "https://sqs.us-east-1.amazonaws.com/123456789/test-queue"
+        }
+
+        # Simulate continuous failures (3 failures * 6 rounds = 18 failures)
+        failure_exception = Exception("Persistent AWS error")
+        mock_sqs_client.receive_message.side_effect = [failure_exception] * 18
+
+        message_generator = subscriber.stream_messages()
+
+        with pytest.raises(
+            RuntimeError, match="SQS polling failed after 5 backoff attempts"
+        ):
+            async for _ in message_generator:
+                pass
+
+        # Should have attempted 5 backoffs before giving up
+        assert mock_sleep.call_count == 5
+        sleep_calls = [call.args[0] for call in mock_sleep.call_args_list]
+        assert sleep_calls == [2, 4, 8, 16, 32]
+
+    @patch("prefect_aws.observers.ecs.aiobotocore.session.get_session")
+    @patch("prefect_aws.observers.ecs.asyncio.sleep")
+    async def test_stream_messages_resets_backoff_on_success(
+        self, mock_sleep, mock_get_session, subscriber
+    ):
+        """Test that successful message reception resets the backoff counter."""
+        mock_session = Mock()
+        mock_sqs_client = AsyncMock()
+        mock_client_context = AsyncMock()
+        mock_client_context.__aenter__.return_value = mock_sqs_client
+        mock_session.create_client.return_value = mock_client_context
+        mock_get_session.return_value = mock_session
+
+        mock_sqs_client.get_queue_url.return_value = {
+            "QueueUrl": "https://sqs.us-east-1.amazonaws.com/123456789/test-queue"
+        }
+
+        failure_exception = Exception("Temporary AWS error")
+        mock_sqs_client.receive_message.side_effect = [
+            # First round: 3 failures -> backoff with 2s
+            failure_exception,
+            failure_exception,
+            failure_exception,
+            # Success (resets backoff counter)
+            {"Messages": [{"Body": "message1", "ReceiptHandle": "handle1"}]},
+            # Second round: 3 failures -> should restart at 2s, not 4s
+            failure_exception,
+            failure_exception,
+            failure_exception,
+            # Success
+            {"Messages": [{"Body": "message2", "ReceiptHandle": "handle2"}]},
+        ]
+
+        messages = []
+        message_generator = subscriber.stream_messages()
+        async for message in message_generator:
+            messages.append(message)
+            if len(messages) >= 2:
+                await message_generator.aclose()
+                break
+
+        # Should have triggered 2 backoffs, both with 2s delay (counter reset after first success)
+        assert mock_sleep.call_count == 2
+        sleep_calls = [call.args[0] for call in mock_sleep.call_args_list]
+        assert sleep_calls == [2, 2]
+        assert len(messages) == 2
 
 
 class TestEcsObserver:
@@ -692,6 +922,262 @@ class TestReplicateEcsEvent:
         mock_events_client.emit.side_effect = Exception("Emit failed")
 
         await replicate_ecs_event(sample_event, sample_tags)
+
+
+class TestMarkRunsAsCrashed:
+    @pytest.fixture
+    def sample_event(self):
+        return {
+            "detail": {
+                "taskArn": "arn:aws:ecs:us-east-1:123456789:task/cluster/task-id",
+                "containers": [
+                    {"name": "prefect", "exitCode": 1},
+                    {"name": "sidecar", "exitCode": 0},
+                ],
+            }
+        }
+
+    @pytest.fixture
+    def sample_tags(self):
+        return {"prefect.io/flow-run-id": str(uuid.uuid4())}
+
+    @patch("prefect_aws.observers.ecs.prefect.get_client")
+    @patch("prefect_aws.observers.ecs.propose_state")
+    async def test_mark_runs_as_crashed_with_non_zero_exit_codes(
+        self, mock_propose_state, mock_get_client, sample_event, sample_tags
+    ):
+        flow_run_id = uuid.UUID(sample_tags["prefect.io/flow-run-id"])
+        mock_client = AsyncMock()
+        mock_context = AsyncMock()
+        mock_context.__aenter__.return_value = mock_client
+        mock_get_client.return_value = mock_context
+
+        # Mock a running flow run
+        flow_run = FlowRun(
+            id=flow_run_id,
+            name="test-flow-run",
+            flow_id=uuid.uuid4(),
+            state=State(type="RUNNING", name="Running"),
+        )
+        mock_client.read_flow_run.return_value = flow_run
+
+        await mark_runs_as_crashed(sample_event, sample_tags)
+
+        mock_client.read_flow_run.assert_called_once_with(flow_run_id=flow_run_id)
+        mock_propose_state.assert_called_once()
+
+        # Verify the proposed state is a Crashed state
+        call_args = mock_propose_state.call_args[1]
+        proposed_state = call_args["state"]
+        assert proposed_state.type == StateType.CRASHED
+        assert proposed_state.name == "Crashed"
+        assert call_args["flow_run_id"] == flow_run_id
+        assert call_args["client"] == mock_client
+
+    @patch("prefect_aws.observers.ecs.prefect.get_client")
+    @patch("prefect_aws.observers.ecs.propose_state")
+    async def test_mark_runs_as_crashed_with_all_zero_exit_codes(
+        self, mock_propose_state, mock_get_client, sample_tags
+    ):
+        event = {
+            "detail": {
+                "taskArn": "arn:aws:ecs:us-east-1:123456789:task/cluster/task-id",
+                "containers": [
+                    {"name": "prefect", "exitCode": 0},
+                    {"name": "sidecar", "exitCode": 0},
+                ],
+            }
+        }
+
+        flow_run_id = uuid.UUID(sample_tags["prefect.io/flow-run-id"])
+        mock_client = AsyncMock()
+        mock_context = AsyncMock()
+        mock_context.__aenter__.return_value = mock_client
+        mock_get_client.return_value = mock_context
+
+        # Mock a running flow run
+        flow_run = FlowRun(
+            id=flow_run_id,
+            name="test-flow-run",
+            flow_id=uuid.uuid4(),
+            state=State(type="RUNNING", name="Running"),
+        )
+        mock_client.read_flow_run.return_value = flow_run
+
+        await mark_runs_as_crashed(event, sample_tags)
+
+        mock_client.read_flow_run.assert_called_once_with(flow_run_id=flow_run_id)
+        # Should not propose crashed state when all containers have exit code 0
+        mock_propose_state.assert_not_called()
+
+    @patch("prefect_aws.observers.ecs.prefect.get_client")
+    @patch("prefect_aws.observers.ecs.propose_state")
+    async def test_mark_runs_as_crashed_with_none_exit_codes(
+        self, mock_propose_state, mock_get_client, sample_tags
+    ):
+        event = {
+            "detail": {
+                "taskArn": "arn:aws:ecs:us-east-1:123456789:task/cluster/task-id",
+                "containers": [
+                    {"name": "prefect", "exitCode": None},
+                    {"name": "sidecar", "exitCode": 0},
+                ],
+            }
+        }
+
+        flow_run_id = uuid.UUID(sample_tags["prefect.io/flow-run-id"])
+        mock_client = AsyncMock()
+        mock_context = AsyncMock()
+        mock_context.__aenter__.return_value = mock_client
+        mock_get_client.return_value = mock_context
+
+        # Mock a running flow run
+        flow_run = FlowRun(
+            id=flow_run_id,
+            name="test-flow-run",
+            flow_id=uuid.uuid4(),
+            state=State(type="RUNNING", name="Running"),
+        )
+        mock_client.read_flow_run.return_value = flow_run
+
+        await mark_runs_as_crashed(event, sample_tags)
+
+        mock_client.read_flow_run.assert_called_once_with(flow_run_id=flow_run_id)
+        # Should propose crashed state when exit code is None (undefined exit)
+        mock_propose_state.assert_called_once()
+
+    @patch("prefect_aws.observers.ecs.prefect.get_client")
+    async def test_mark_runs_as_crashed_missing_task_arn(
+        self, mock_get_client, sample_tags
+    ):
+        event = {"detail": {}}
+
+        await mark_runs_as_crashed(event, sample_tags)
+
+        # Should exit early without creating client
+        mock_get_client.assert_not_called()
+
+    @patch("prefect_aws.observers.ecs.prefect.get_client")
+    async def test_mark_runs_as_crashed_flow_run_not_found(
+        self, mock_get_client, sample_event, sample_tags
+    ):
+        mock_client = AsyncMock()
+        mock_context = AsyncMock()
+        mock_context.__aenter__.return_value = mock_client
+        mock_get_client.return_value = mock_context
+
+        mock_client.read_flow_run.side_effect = ObjectNotFound("Flow run not found")
+
+        await mark_runs_as_crashed(sample_event, sample_tags)
+
+        # Should handle the exception gracefully
+        mock_client.read_flow_run.assert_called_once()
+
+    @patch("prefect_aws.observers.ecs.prefect.get_client")
+    @patch("prefect_aws.observers.ecs.propose_state")
+    async def test_mark_runs_as_crashed_skips_final_states(
+        self, mock_propose_state, mock_get_client, sample_event, sample_tags
+    ):
+        flow_run_id = uuid.UUID(sample_tags["prefect.io/flow-run-id"])
+        mock_client = AsyncMock()
+        mock_context = AsyncMock()
+        mock_context.__aenter__.return_value = mock_client
+        mock_get_client.return_value = mock_context
+
+        # Mock a completed flow run (final state)
+        flow_run = FlowRun(
+            id=flow_run_id,
+            name="test-flow-run",
+            flow_id=uuid.uuid4(),
+            state=State(type="COMPLETED", name="Completed"),
+        )
+        mock_client.read_flow_run.return_value = flow_run
+
+        await mark_runs_as_crashed(sample_event, sample_tags)
+
+        mock_client.read_flow_run.assert_called_once_with(flow_run_id=flow_run_id)
+        # Should not propose state for final states
+        mock_propose_state.assert_not_called()
+
+    @patch("prefect_aws.observers.ecs.prefect.get_client")
+    @patch("prefect_aws.observers.ecs.propose_state")
+    async def test_mark_runs_as_crashed_skips_scheduled_states(
+        self, mock_propose_state, mock_get_client, sample_event, sample_tags
+    ):
+        flow_run_id = uuid.UUID(sample_tags["prefect.io/flow-run-id"])
+        mock_client = AsyncMock()
+        mock_context = AsyncMock()
+        mock_context.__aenter__.return_value = mock_client
+        mock_get_client.return_value = mock_context
+
+        # Mock a scheduled flow run
+        flow_run = FlowRun(
+            id=flow_run_id,
+            name="test-flow-run",
+            flow_id=uuid.uuid4(),
+            state=State(type="SCHEDULED", name="Scheduled"),
+        )
+        mock_client.read_flow_run.return_value = flow_run
+
+        await mark_runs_as_crashed(sample_event, sample_tags)
+
+        mock_client.read_flow_run.assert_called_once_with(flow_run_id=flow_run_id)
+        # Should not propose state for scheduled states
+        mock_propose_state.assert_not_called()
+
+
+class TestDeregisterTaskDefinition:
+    @pytest.fixture
+    def sample_event(self):
+        return {
+            "detail": {
+                "taskDefinitionArn": "arn:aws:ecs:us-east-1:123456789:task-definition/my-task:1"
+            }
+        }
+
+    @pytest.fixture
+    def sample_tags(self):
+        return {"prefect.io/degregister-task-definition": "true"}
+
+    @patch("prefect_aws.observers.ecs.aiobotocore.session.get_session")
+    async def test_deregister_task_definition_success(
+        self, mock_get_session, sample_event, sample_tags
+    ):
+        mock_session = Mock()
+        mock_ecs_client = AsyncMock()
+        mock_client_context = AsyncMock()
+        mock_client_context.__aenter__.return_value = mock_ecs_client
+        mock_session.create_client.return_value = mock_client_context
+        mock_get_session.return_value = mock_session
+
+        await deregister_task_definition(sample_event, sample_tags)
+
+        mock_session.create_client.assert_called_once_with("ecs")
+        mock_ecs_client.deregister_task_definition.assert_called_once_with(
+            taskDefinition="arn:aws:ecs:us-east-1:123456789:task-definition/my-task:1"
+        )
+
+    @patch("prefect_aws.observers.ecs.aiobotocore.session.get_session")
+    async def test_deregister_task_definition_missing_arn(
+        self, mock_get_session, sample_tags
+    ):
+        event = {"detail": {}}
+
+        await deregister_task_definition(event, sample_tags)
+
+        # Should exit early without creating session/client
+        mock_get_session.assert_not_called()
+
+    @patch("prefect_aws.observers.ecs.aiobotocore.session.get_session")
+    async def test_deregister_task_definition_empty_detail(
+        self, mock_get_session, sample_tags
+    ):
+        event = {}
+
+        await deregister_task_definition(event, sample_tags)
+
+        # Should exit early without creating session/client
+        mock_get_session.assert_not_called()
 
 
 class TestObserverManagement:

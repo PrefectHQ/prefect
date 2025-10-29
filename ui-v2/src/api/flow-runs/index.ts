@@ -48,6 +48,10 @@ type SetFlowRunStateParams = {
  * @property {function} lists - Returns key for all list-type flow run queries
  * @property {function} list - Generates key for a specific filtered flow run query
  * @property {function} paginate - Returns key for all paginated flow run queries
+ * @property {function} counts - Returns key for all count-type flow run queries
+ * @property {function} count - Generates key for a specific count query
+ * @property {function} lateness - Returns key for all lateness-type flow run queries
+ * @property {function} latenessWithFilter - Generates key for a specific lateness query with filter
  * @property {function} details - Returns key for all details-type flow run queries
  * @property {function} detail - Generates key for a specific details-type flow run query
  *
@@ -56,6 +60,10 @@ type SetFlowRunStateParams = {
  * lists  	=>  ['flowRuns', 'list']
  * filter	=>	['flowRuns', 'list', 'filter', {...filters}]
  * paginate	=>	['flowRuns', 'list', 'paginate', {...filters}]
+ * counts	=>	['flowRuns', 'count']
+ * count	=>	['flowRuns', 'count', {...filters}]
+ * lateness	=>	['flowRuns', 'lateness']
+ * latenessWithFilter	=>	['flowRuns', 'lateness', {...filters}]
  * details	=>	['flowRuns', 'details']
  * detail	=>	['flowRuns', 'details', id]
  * ```
@@ -70,6 +78,9 @@ export const queryKeyFactory = {
 	counts: () => [...queryKeyFactory.all(), "count"] as const,
 	count: (filter: FlowRunsCountFilter) =>
 		[...queryKeyFactory.counts(), filter] as const,
+	lateness: () => [...queryKeyFactory.all(), "lateness"] as const,
+	latenessWithFilter: (filter: FlowRunsFilter) =>
+		[...queryKeyFactory.lateness(), filter] as const,
 	details: () => [...queryKeyFactory.all(), "details"] as const,
 	detail: (id: string) => [...queryKeyFactory.details(), id] as const,
 };
@@ -204,6 +215,42 @@ export const buildCountFlowRunsQuery = (
 			return res.data ?? 0;
 		},
 		refetchInterval,
+		placeholderData: keepPreviousData,
+	});
+
+/**
+ * Builds a query configuration for fetching the average lateness of flow runs
+ *
+ * @param filter - Filter parameters for the flow runs
+ * @param refetchInterval - Interval for refetching the average lateness (default 30 seconds)
+ * @returns Query configuration object for use with TanStack Query
+ *
+ * @example
+ * ```ts
+ * const { data: avgLateness } = useSuspenseQuery(buildAverageLatenessFlowRunsQuery({
+ *   flow_runs: {
+ *     state: { name: { any_: ["Late"] } }
+ *   }
+ * }));
+ * ```
+ */
+export const buildAverageLatenessFlowRunsQuery = (
+	filter: FlowRunsFilter = {
+		sort: "ID_DESC",
+		offset: 0,
+	},
+	refetchInterval = 30_000,
+) =>
+	queryOptions({
+		queryKey: queryKeyFactory.latenessWithFilter(filter),
+		queryFn: async (): Promise<number | null> => {
+			const res = await getQueryService().POST("/flow_runs/lateness", {
+				body: filter,
+			});
+			return res.data ?? null;
+		},
+		refetchInterval,
+		placeholderData: keepPreviousData,
 	});
 
 // ----- ✍🏼 Mutations 🗄️

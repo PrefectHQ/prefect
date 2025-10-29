@@ -62,7 +62,7 @@ Workflow activity is tracked and can be monitored with a self-hosted [Prefect se
 
 ## Getting started
 
-Prefect requires Python 3.9+. To [install the latest version of Prefect](https://docs.prefect.io/v3/get-started/install), run one of the following commands:
+Prefect requires Python 3.10+. To [install the latest version of Prefect](https://docs.prefect.io/v3/get-started/install), run one of the following commands:
 
 ```bash
 pip install -U prefect
@@ -94,7 +94,7 @@ def github_stars(repos: list[str]):
 
 # run the flow!
 if __name__ == "__main__":
-    github_stars(["PrefectHQ/Prefect"])
+    github_stars(["PrefectHQ/prefect"])
 ```
 
 Fire up a Prefect server and open the UI at http://localhost:4200 to see what happened:

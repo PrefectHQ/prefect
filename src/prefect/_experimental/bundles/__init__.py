@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+import ast
 import asyncio
 import base64
 import gzip
+import importlib
+import inspect
 import json
 import logging
 import multiprocessing
@@ -10,8 +13,10 @@ import multiprocessing.context
 import os
 import subprocess
 import sys
+from contextlib import contextmanager
 from pathlib import Path
 import tempfile
+from types import ModuleType
 from typing import Any, TypedDict
 
 import anyio
@@ -69,6 +74,260 @@ def _deserialize_bundle_object(serialized_obj: str) -> Any:
     return cloudpickle.loads(gzip.decompress(base64.b64decode(serialized_obj)))
 
 
+def _is_local_module(module_name: str, module_path: str | None = None) -> bool:
+    """
+    Check if a module is a local module (not from standard library or site-packages).
+
+    Args:
+        module_name: The name of the module.
+        module_path: Optional path to the module file.
+
+    Returns:
+        True if the module is a local module, False otherwise.
+    """
+    # Skip modules that are known to be problematic or not needed
+    skip_modules = {
+        "__pycache__",
+        # Skip test modules
+        "unittest",
+        "pytest",
+        "test_",
+        "_pytest",
+        # Skip prefect modules - they'll be available on remote
+        "prefect",
+    }
+
+    # Check module name prefixes
+    for skip in skip_modules:
+        if module_name.startswith(skip):
+            return False
+
+    # Check if it's a built-in module
+    if module_name in sys.builtin_module_names:
+        return False
+
+    # Check if it's in the standard library (Python 3.10+)
+    if hasattr(sys, "stdlib_module_names"):
+        # Check both full module name and base module name
+        base_module = module_name.split(".")[0]
+        if (
+            module_name in sys.stdlib_module_names
+            or base_module in sys.stdlib_module_names
+        ):
+            return False
+
+    # If we have the module path, check if it's in site-packages or dist-packages
+    if module_path:
+        path_str = str(module_path)
+        # Also exclude standard library paths
+        if (
+            "site-packages" in path_str
+            or "dist-packages" in path_str
+            or "/lib/python" in path_str
+            or "/.venv/" in path_str
+        ):
+            return False
+    else:
+        # Try to import the module to get its path
+        try:
+            module = importlib.import_module(module_name)
+            if hasattr(module, "__file__") and module.__file__:
+                path_str = str(module.__file__)
+                if (
+                    "site-packages" in path_str
+                    or "dist-packages" in path_str
+                    or "/lib/python" in path_str
+                    or "/.venv/" in path_str
+                ):
+                    return False
+        except (ImportError, AttributeError):
+            # If we can't import it, it's probably not a real module
+            return False
+
+    # Only consider it local if it exists and we can verify it
+    return True
+
+
+def _extract_imports_from_source(source_code: str) -> set[str]:
+    """
+    Extract all import statements from Python source code.
+
+    Args:
+        source_code: The Python source code to analyze.
+
+    Returns:
+        A set of imported module names.
+    """
+    imports: set[str] = set()
+
+    try:
+        tree = ast.parse(source_code)
+    except SyntaxError:
+        logger.debug("Failed to parse source code for import extraction")
+        return imports
+
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                imports.add(alias.name)
+        elif isinstance(node, ast.ImportFrom):
+            if node.module:
+                imports.add(node.module)
+                # Don't add individual imported items as they might be classes/functions
+                # Only track the module itself
+
+    return imports
+
+
+def _discover_local_dependencies(
+    flow: Flow[Any, Any], visited: set[str] | None = None
+) -> set[str]:
+    """
+    Recursively discover local module dependencies of a flow.
+
+    Args:
+        flow: The flow to analyze.
+        visited: Set of already visited modules to avoid infinite recursion.
+
+    Returns:
+        A set of local module names that should be serialized by value.
+    """
+    if visited is None:
+        visited = set()
+
+    local_modules: set[str] = set()
+
+    # Get the module containing the flow
+    try:
+        flow_module = inspect.getmodule(flow.fn)
+    except (AttributeError, TypeError):
+        # Flow function doesn't have a module (e.g., defined in REPL)
+        return local_modules
+
+    if not flow_module:
+        return local_modules
+
+    module_name = flow_module.__name__
+
+    # Process the flow's module and all its dependencies recursively
+    _process_module_dependencies(flow_module, module_name, local_modules, visited)
+
+    return local_modules
+
+
+def _process_module_dependencies(
+    module: ModuleType,
+    module_name: str,
+    local_modules: set[str],
+    visited: set[str],
+) -> None:
+    """
+    Recursively process a module and discover its local dependencies.
+
+    Args:
+        module: The module to process.
+        module_name: The name of the module.
+        local_modules: Set to accumulate discovered local modules.
+        visited: Set of already visited modules to avoid infinite recursion.
+    """
+    # Skip if we've already processed this module
+    if module_name in visited:
+        return
+    visited.add(module_name)
+
+    # Check if this is a local module
+    module_file = getattr(module, "__file__", None)
+    if not module_file or not _is_local_module(module_name, module_file):
+        return
+
+    local_modules.add(module_name)
+
+    # Get the source code of the module
+    try:
+        source_code = inspect.getsource(module)
+    except (OSError, TypeError):
+        # Can't get source for this module
+        return
+
+    imports = _extract_imports_from_source(source_code)
+
+    # Check each import to see if it's local and recursively process it
+    for import_name in imports:
+        # Skip if already visited
+        if import_name in visited:
+            continue
+
+        # Try to resolve the import
+        imported_module = None
+        try:
+            # Handle relative imports by resolving them
+            if module_name and "." in module_name:
+                package = ".".join(module_name.split(".")[:-1])
+                try:
+                    imported_module = importlib.import_module(import_name, package)
+                except ImportError:
+                    imported_module = importlib.import_module(import_name)
+            else:
+                imported_module = importlib.import_module(import_name)
+        except (ImportError, AttributeError):
+            # Can't import, skip it
+            continue
+
+        # Recursively process this imported module
+        _process_module_dependencies(
+            imported_module, import_name, local_modules, visited
+        )
+
+
+@contextmanager
+def _pickle_local_modules_by_value(flow: Flow[Any, Any]):
+    """
+    Context manager that registers local modules for pickle-by-value serialization.
+
+    Args:
+        flow: The flow whose dependencies should be registered.
+    """
+    registered_modules: list[ModuleType] = []
+
+    try:
+        # Discover local dependencies
+        local_modules = _discover_local_dependencies(flow)
+        logger.debug("Local modules: %s", local_modules)
+
+        if local_modules:
+            logger.debug(
+                "Registering local modules for pickle-by-value serialization: %s",
+                ", ".join(local_modules),
+            )
+
+        # Register each local module for pickle-by-value
+        for module_name in local_modules:
+            try:
+                module = importlib.import_module(module_name)
+                cloudpickle.register_pickle_by_value(module)  # pyright: ignore[reportUnknownMemberType] Missing stubs
+                registered_modules.append(module)
+            except (ImportError, AttributeError) as e:
+                logger.debug(
+                    "Failed to register module %s for pickle-by-value: %s",
+                    module_name,
+                    e,
+                )
+
+        yield
+
+    finally:
+        # Unregister all modules we registered
+        for module in registered_modules:
+            try:
+                cloudpickle.unregister_pickle_by_value(module)  # pyright: ignore[reportUnknownMemberType] Missing stubs
+            except Exception as e:
+                logger.debug(
+                    "Failed to unregister module %s from pickle-by-value: %s",
+                    getattr(module, "__name__", module),
+                    e,
+                )
+
+
 def create_bundle_for_flow_run(
     flow: Flow[Any, Any],
     flow_run: FlowRun,
@@ -120,12 +379,14 @@ def create_bundle_for_flow_run(
             "\n".join(file_dependencies),
         )
 
-    return {
-        "function": _serialize_bundle_object(flow),
-        "context": _serialize_bundle_object(context),
-        "flow_run": flow_run.model_dump(mode="json"),
-        "dependencies": dependencies,
-    }
+    # Automatically register local modules for pickle-by-value serialization
+    with _pickle_local_modules_by_value(flow):
+        return {
+            "function": _serialize_bundle_object(flow),
+            "context": _serialize_bundle_object(context),
+            "flow_run": flow_run.model_dump(mode="json"),
+            "dependencies": dependencies,
+        }
 
 
 def extract_flow_from_bundle(bundle: SerializedBundle) -> Flow[Any, Any]:

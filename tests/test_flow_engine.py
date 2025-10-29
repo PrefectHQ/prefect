@@ -6,7 +6,7 @@ import uuid
 from textwrap import dedent
 from typing import Literal, Optional
 from unittest import mock
-from unittest.mock import ANY, MagicMock
+from unittest.mock import ANY, AsyncMock, MagicMock
 from uuid import UUID
 
 import anyio
@@ -48,7 +48,6 @@ from prefect.input.run_input import RunInput
 from prefect.logging import get_run_logger
 from prefect.server.schemas.core import ConcurrencyLimitV2
 from prefect.server.schemas.core import FlowRun as ServerFlowRun
-from prefect.testing.utilities import AsyncMock
 from prefect.utilities.callables import get_call_parameters
 from prefect.utilities.engine import propose_state
 from prefect.utilities.filesystem import tmpchdir
@@ -999,6 +998,139 @@ class TestFlowCrashDetection:
         assert "Execution was aborted" in flow_run.state.message
         with pytest.raises(CrashedRun, match="Execution was aborted"):
             await flow_run.state.result()
+
+    async def test_base_exception_after_user_code_finishes_does_not_crash_sync(
+        self, prefect_client, monkeypatch, caplog
+    ):
+        """
+        Test that a BaseException raised after user code finishes executing
+        does not crash the flow run (sync flow).
+        """
+
+        @flow
+        def my_flow():
+            return 42
+
+        # Mock the flow run engine to raise a BaseException after handle_success
+        original_handle_success = FlowRunEngine.handle_success
+
+        def handle_success_with_exception(self, result):
+            original_handle_success(self, result)
+            # At this point the flow run state is final (Completed)
+            raise BaseException("Post-execution error")
+
+        monkeypatch.setattr(
+            FlowRunEngine, "handle_success", handle_success_with_exception
+        )
+
+        # The flow should complete successfully and return the result
+        result = my_flow()
+        assert result == 42
+
+        flow_runs = await prefect_client.read_flow_runs()
+        assert len(flow_runs) == 1
+        flow_run = flow_runs[0]
+        # The flow run should be completed, not crashed
+        assert flow_run.state.is_completed()
+        assert not flow_run.state.is_crashed()
+        # Verify the debug log message was recorded
+        assert (
+            "BaseException was raised after user code finished executing" in caplog.text
+        )
+
+    async def test_base_exception_after_user_code_finishes_does_not_crash_async(
+        self, prefect_client, monkeypatch, caplog
+    ):
+        """
+        Test that a BaseException raised after user code finishes executing
+        does not crash the flow run (async flow).
+        """
+
+        @flow
+        async def my_flow():
+            return 42
+
+        # Mock the flow run engine to raise a BaseException after handle_success
+        original_handle_success = AsyncFlowRunEngine.handle_success
+
+        async def handle_success_with_exception(self, result):
+            await original_handle_success(self, result)
+            # At this point the flow run state is final (Completed)
+            raise BaseException("Post-execution error")
+
+        monkeypatch.setattr(
+            AsyncFlowRunEngine, "handle_success", handle_success_with_exception
+        )
+
+        # The flow should complete successfully and return the result
+        result = await my_flow()
+        assert result == 42
+
+        flow_runs = await prefect_client.read_flow_runs()
+        assert len(flow_runs) == 1
+        flow_run = flow_runs[0]
+        # The flow run should be completed, not crashed
+        assert flow_run.state.is_completed()
+        assert not flow_run.state.is_crashed()
+        # Verify the debug log message was recorded
+        assert (
+            "BaseException was raised after user code finished executing" in caplog.text
+        )
+
+    async def test_base_exception_before_user_code_finishes_crashes_sync(
+        self, prefect_client, monkeypatch
+    ):
+        """
+        Test that a BaseException raised before user code finishes executing
+        still crashes the flow run (sync flow).
+        """
+
+        @flow
+        def my_flow():
+            return 42
+
+        # Mock the flow run engine to raise a BaseException during begin_run
+        monkeypatch.setattr(
+            FlowRunEngine,
+            "begin_run",
+            MagicMock(side_effect=BaseException("Pre-execution error")),
+        )
+
+        with pytest.raises(BaseException, match="Pre-execution error"):
+            my_flow()
+
+        flow_runs = await prefect_client.read_flow_runs()
+        assert len(flow_runs) == 1
+        flow_run = flow_runs[0]
+        # The flow run should be crashed
+        assert flow_run.state.is_crashed()
+
+    async def test_base_exception_before_user_code_finishes_crashes_async(
+        self, prefect_client, monkeypatch
+    ):
+        """
+        Test that a BaseException raised before user code finishes executing
+        still crashes the flow run (async flow).
+        """
+
+        @flow
+        async def my_flow():
+            return 42
+
+        # Mock the flow run engine to raise a BaseException during begin_run
+        async def begin_run_with_exception(self):
+            raise BaseException("Pre-execution error")
+
+        monkeypatch.setattr(AsyncFlowRunEngine, "begin_run", begin_run_with_exception)
+
+        with pytest.raises(BaseException, match="Pre-execution error"):
+            await my_flow()
+
+        flow_runs = await prefect_client.read_flow_runs()
+        assert len(flow_runs) == 1
+        flow_run = flow_runs[0]
+        # The flow run should be crashed
+        assert flow_run.state.is_crashed()
 
 
 class TestPauseFlowRun:

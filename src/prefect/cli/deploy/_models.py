@@ -107,7 +107,7 @@ class RawScheduleConfig(BaseModel):
     Exactly one of cron, interval, or rrule must be provided.
     """
 
-    model_config = ConfigDict(extra="ignore")
+    model_config = ConfigDict(extra="forbid")
 
     # One-of schedule selectors
     cron: Optional[str] = None
@@ -117,9 +117,12 @@ class RawScheduleConfig(BaseModel):
     # Common extras
     timezone: Optional[str] = None
     anchor_date: Optional[str] = None
-    active: Optional[bool] = None
+    active: Optional[Union[bool, str]] = None  # Allow string for template values
     parameters: Dict[str, Any] = Field(default_factory=dict)
     slug: Optional[str] = None
+
+    # Cron-specific
+    day_or: Optional[Union[bool, str]] = None  # Allow string for template values
 
     @model_validator(mode="after")
     def _one_of_schedule(self):
@@ -132,5 +135,5 @@ class RawScheduleConfig(BaseModel):
 
 
 ScheduleItem = Union[
-    RawScheduleConfig, DeploymentScheduleCreate, SCHEDULE_TYPES, Dict[str, Any]
+    RawScheduleConfig, DeploymentScheduleCreate, SCHEDULE_TYPES, Dict[None, None]
 ]
