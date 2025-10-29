@@ -8,7 +8,7 @@ from typing import Any, Optional
 from uuid import UUID
 
 import sqlalchemy as sa
-from docket import Depends
+from docket import CurrentDocket, Depends, Docket, Perpetual
 from sqlalchemy.sql.expression import or_
 
 import prefect.server.models as models
@@ -108,6 +108,75 @@ async def cancel_subflow_run(
         )
 
 
+# Perpetual monitor for cancelled flow runs with child tasks (find and flood pattern)
+async def monitor_cancelled_flow_runs(
+    docket: Docket = CurrentDocket(),
+    db: PrefectDBInterface = Depends(provide_database_interface),
+    perpetual: Perpetual = Perpetual(
+        automatic=True,
+        every=datetime.timedelta(
+            seconds=PREFECT_API_SERVICES_CANCELLATION_CLEANUP_LOOP_SECONDS.value()
+        ),
+    ),
+) -> None:
+    """Monitor for cancelled flow runs and schedule child task cancellation."""
+    batch_size = 200
+    cancelled_flow_query = (
+        sa.select(db.FlowRun.id)
+        .where(
+            db.FlowRun.state_type == states.StateType.CANCELLED,
+            db.FlowRun.end_time.is_not(None),
+            db.FlowRun.end_time >= (now("UTC") - datetime.timedelta(days=1)),
+        )
+        .order_by(db.FlowRun.id)
+        .limit(batch_size)
+    )
+
+    async with db.session_context() as session:
+        flow_run_result = await session.execute(cancelled_flow_query)
+    flow_run_ids = flow_run_result.scalars().all()
+
+    for flow_run_id in flow_run_ids:
+        await docket.add(cancel_child_task_runs)(flow_run_id)
+
+
+# Perpetual monitor for subflow runs that need cancellation (find and flood pattern)
+async def monitor_subflow_runs(
+    docket: Docket = CurrentDocket(),
+    db: PrefectDBInterface = Depends(provide_database_interface),
+    perpetual: Perpetual = Perpetual(
+        automatic=True,
+        every=datetime.timedelta(
+            seconds=PREFECT_API_SERVICES_CANCELLATION_CLEANUP_LOOP_SECONDS.value()
+        ),
+    ),
+) -> None:
+    """Monitor for subflow runs that need to be cancelled."""
+    batch_size = 200
+    subflow_query = (
+        sa.select(db.FlowRun.id)
+        .where(
+            or_(
+                db.FlowRun.state_type == states.StateType.PENDING,
+                db.FlowRun.state_type == states.StateType.SCHEDULED,
+                db.FlowRun.state_type == states.StateType.RUNNING,
+                db.FlowRun.state_type == states.StateType.PAUSED,
+                db.FlowRun.state_type == states.StateType.CANCELLING,
+            ),
+            db.FlowRun.parent_task_run_id.is_not(None),
+        )
+        .order_by(db.FlowRun.id)
+        .limit(batch_size)
+    )
+
+    async with db.session_context() as session:
+        subflow_run_result = await session.execute(subflow_query)
+    subflow_run_ids = subflow_run_result.scalars().all()
+
+    for subflow_run_id in subflow_run_ids:
+        await docket.add(cancel_subflow_run)(subflow_run_id)
+
+
 class CancellationCleanup(LoopService):
     """
     Cancels tasks and subflows of flow runs that have been cancelled
@@ -131,6 +200,9 @@ class CancellationCleanup(LoopService):
         """Register docket tasks if docket is available."""
         await super()._on_start()
         if self.docket is not None:
+            # Register monitor (find) and processing (flood) tasks
+            self.docket.register(monitor_cancelled_flow_runs)
+            self.docket.register(monitor_subflow_runs)
             self.docket.register(cancel_child_task_runs)
             self.docket.register(cancel_subflow_run)
 

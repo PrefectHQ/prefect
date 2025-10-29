@@ -3,11 +3,12 @@ The FailExpiredPauses service. Responsible for putting Paused flow runs in a Fai
 """
 
 import asyncio
+from datetime import timedelta
 from typing import Any, Optional
 from uuid import UUID
 
 import sqlalchemy as sa
-from docket import Depends
+from docket import CurrentDocket, Depends, Docket, Perpetual
 from sqlalchemy.ext.asyncio import AsyncSession
 
 import prefect.server.models as models
@@ -54,6 +55,43 @@ async def fail_expired_pause(
             )
 
 
+# Perpetual monitor for expired paused flow runs (find and flood pattern)
+async def monitor_expired_pauses(
+    docket: Docket = CurrentDocket(),
+    db: PrefectDBInterface = Depends(provide_database_interface),
+    perpetual: Perpetual = Perpetual(
+        automatic=True,
+        every=timedelta(
+            seconds=PREFECT_API_SERVICES_PAUSE_EXPIRATIONS_LOOP_SECONDS.value()
+        ),
+    ),
+) -> None:
+    """Monitor for expired paused flow runs and schedule failure tasks."""
+    batch_size = 200
+    async with db.session_context() as session:
+        query = (
+            sa.select(db.FlowRun)
+            .where(
+                db.FlowRun.state_type == states.StateType.PAUSED,
+            )
+            .limit(batch_size)
+        )
+
+        result = await session.execute(query)
+        runs = result.scalars().all()
+
+        # Schedule each expired run to be marked failed
+        for run in runs:
+            if (
+                run.state is not None
+                and run.state.state_details.pause_timeout is not None
+                and run.state.state_details.pause_timeout < now("UTC")
+            ):
+                await docket.add(fail_expired_pause)(
+                    run.id, str(run.state.state_details.pause_timeout)
+                )
+
+
 class FailExpiredPauses(LoopService):
     """
     Fails flow runs that have been paused and never resumed
@@ -74,9 +112,11 @@ class FailExpiredPauses(LoopService):
         self.batch_size = 200
 
     async def _on_start(self) -> None:
-        """Register docket task if docket is available."""
+        """Register docket tasks if docket is available."""
         await super()._on_start()
         if self.docket is not None:
+            # Register monitor (find) and processing (flood) tasks
+            self.docket.register(monitor_expired_pauses)
             self.docket.register(fail_expired_pause)
 
     @db_injector

@@ -1,7 +1,7 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from logging import Logger
 
-from docket import Depends
+from docket import CurrentDocket, Depends, Docket, Perpetual
 
 from prefect.logging import get_logger
 from prefect.server.concurrency.lease_storage import (
@@ -53,6 +53,27 @@ async def revoke_expired_lease(
         await session.commit()
 
 
+# Perpetual monitor task for finding expired leases (find and flood pattern)
+async def monitor_expired_leases(
+    docket: Docket = CurrentDocket(),
+    perpetual: Perpetual = Perpetual(
+        automatic=True,
+        every=timedelta(
+            seconds=get_current_settings().server.services.repossessor.loop_seconds
+        ),
+    ),
+) -> None:
+    """Monitor for expired concurrency leases and schedule revocation tasks."""
+    concurrency_lease_storage = get_concurrency_lease_storage()
+    expired_lease_ids = await concurrency_lease_storage.read_expired_lease_ids()
+
+    if expired_lease_ids:
+        logger.info(f"Found {len(expired_lease_ids)} expired leases")
+        for expired_lease_id in expired_lease_ids:
+            await docket.add(revoke_expired_lease)(expired_lease_id)
+        logger.info(f"Scheduled {len(expired_lease_ids)} lease revocation tasks.")
+
+
 class Repossessor(LoopService):
     """
     Handles the reconciliation of expired leases; no tow truck dependency.
@@ -71,9 +92,11 @@ class Repossessor(LoopService):
         return get_current_settings().server.services.repossessor
 
     async def _on_start(self) -> None:
-        """Register docket task if docket is available."""
+        """Register docket tasks if docket is available."""
         await super()._on_start()
         if self.docket is not None:
+            # Register the monitor (find) and revoke (flood) tasks
+            self.docket.register(monitor_expired_leases)
             self.docket.register(revoke_expired_lease)
 
     async def run_once(self) -> None:

@@ -7,11 +7,12 @@ from __future__ import annotations
 
 import asyncio
 import datetime
+from datetime import timedelta
 from typing import Any
 from uuid import UUID
 
 import sqlalchemy as sa
-from docket import Depends
+from docket import CurrentDocket, Depends, Docket, Perpetual
 from sqlalchemy.ext.asyncio import AsyncSession
 
 import prefect.server.models as models
@@ -64,6 +65,40 @@ async def mark_flow_run_late(
             return  # Flow run was deleted during processing
 
 
+# Perpetual monitor for late flow runs (find and flood pattern)
+async def monitor_late_runs(
+    docket: Docket = CurrentDocket(),
+    db: PrefectDBInterface = Depends(provide_database_interface),
+    perpetual: Perpetual = Perpetual(
+        automatic=True,
+        every=timedelta(seconds=PREFECT_API_SERVICES_LATE_RUNS_LOOP_SECONDS.value()),
+    ),
+) -> None:
+    """Monitor for late flow runs and schedule marking tasks."""
+    batch_size = 400
+    mark_late_after = PREFECT_API_SERVICES_LATE_RUNS_AFTER_SECONDS.value()
+    scheduled_to_start_before = now("UTC") - datetime.timedelta(
+        seconds=mark_late_after.total_seconds()
+    )
+
+    async with db.session_context() as session:
+        query = (
+            sa.select(db.FlowRun.id, db.FlowRun.next_scheduled_start_time)
+            .where(
+                (db.FlowRun.next_scheduled_start_time <= scheduled_to_start_before),
+                db.FlowRun.state_type == states.StateType.SCHEDULED,
+                db.FlowRun.state_name == "Scheduled",
+            )
+            .limit(batch_size)
+        )
+        result = await session.execute(query)
+        runs = result.all()
+
+        # Schedule each run to be marked late
+        for run in runs:
+            await docket.add(mark_flow_run_late)(run.id)
+
+
 class MarkLateRuns(LoopService):
     """
     Finds flow runs that are later than their scheduled start time
@@ -93,9 +128,11 @@ class MarkLateRuns(LoopService):
         self.batch_size = 400
 
     async def _on_start(self) -> None:
-        """Register docket task if docket is available."""
+        """Register docket tasks if docket is available."""
         await super()._on_start()
         if self.docket is not None:
+            # Register monitor (find) and processing (flood) tasks
+            self.docket.register(monitor_late_runs)
             self.docket.register(mark_flow_run_late)
 
     @db_injector
