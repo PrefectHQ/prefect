@@ -53,15 +53,13 @@ async def monitor_expired_pauses(
     docket: Docket = CurrentDocket(),
     db: PrefectDBInterface = Depends(provide_database_interface),
     perpetual: Perpetual = Perpetual(
-        automatic=True,
+        automatic=get_current_settings().server.services.pause_expirations.enabled,
         every=timedelta(
             seconds=PREFECT_API_SERVICES_PAUSE_EXPIRATIONS_LOOP_SECONDS.value()
         ),
     ),
 ) -> None:
     """Monitor for expired paused flow runs and schedule failure tasks."""
-    if not get_current_settings().server.services.pause_expirations.enabled:
-        return
 
     batch_size = 200
     async with db.session_context() as session:

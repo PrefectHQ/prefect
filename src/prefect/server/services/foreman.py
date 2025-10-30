@@ -171,13 +171,11 @@ async def mark_work_queues_not_ready_task(
 async def monitor_worker_health(
     docket: Docket = CurrentDocket(),
     perpetual: Perpetual = Perpetual(
-        automatic=True,
+        automatic=get_current_settings().server.services.foreman.enabled,
         every=timedelta(seconds=PREFECT_API_SERVICES_FOREMAN_LOOP_SECONDS.value()),
     ),
 ) -> None:
     """Monitor worker and work pool health, scheduling monitoring tasks."""
-    if not get_current_settings().server.services.foreman.enabled:
-        return
 
     # Schedule all foreman monitoring tasks in parallel
     await docket.add(mark_workers_offline)(

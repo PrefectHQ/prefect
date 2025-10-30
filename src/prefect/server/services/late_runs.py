@@ -60,13 +60,11 @@ async def monitor_late_runs(
     docket: Docket = CurrentDocket(),
     db: PrefectDBInterface = Depends(provide_database_interface),
     perpetual: Perpetual = Perpetual(
-        automatic=True,
+        automatic=get_current_settings().server.services.late_runs.enabled,
         every=timedelta(seconds=PREFECT_API_SERVICES_LATE_RUNS_LOOP_SECONDS.value()),
     ),
 ) -> None:
     """Monitor for late flow runs and schedule marking tasks."""
-    if not get_current_settings().server.services.late_runs.enabled:
-        return
 
     batch_size = 400
     mark_late_after = PREFECT_API_SERVICES_LATE_RUNS_AFTER_SECONDS.value()

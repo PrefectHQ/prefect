@@ -104,15 +104,13 @@ async def monitor_cancelled_flow_runs(
     docket: Docket = CurrentDocket(),
     db: PrefectDBInterface = Depends(provide_database_interface),
     perpetual: Perpetual = Perpetual(
-        automatic=True,
+        automatic=get_current_settings().server.services.cancellation_cleanup.enabled,
         every=datetime.timedelta(
             seconds=PREFECT_API_SERVICES_CANCELLATION_CLEANUP_LOOP_SECONDS.value()
         ),
     ),
 ) -> None:
     """Monitor for cancelled flow runs and schedule child task cancellation."""
-    if not get_current_settings().server.services.cancellation_cleanup.enabled:
-        return
 
     batch_size = 200
     cancelled_flow_query = (
@@ -139,15 +137,13 @@ async def monitor_subflow_runs(
     docket: Docket = CurrentDocket(),
     db: PrefectDBInterface = Depends(provide_database_interface),
     perpetual: Perpetual = Perpetual(
-        automatic=True,
+        automatic=get_current_settings().server.services.cancellation_cleanup.enabled,
         every=datetime.timedelta(
             seconds=PREFECT_API_SERVICES_CANCELLATION_CLEANUP_LOOP_SECONDS.value()
         ),
     ),
 ) -> None:
     """Monitor for subflow runs that need to be cancelled."""
-    if not get_current_settings().server.services.cancellation_cleanup.enabled:
-        return
 
     batch_size = 200
     subflow_query = (
