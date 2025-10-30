@@ -40,13 +40,13 @@ def test_deploy():
         # Create GitRepository and set base path to temp directory
         # to avoid race conditions with parallel tests
         git_repo = GitRepository(
-            url="https://github.com/PrefectHQ/prefect-recipes.git",
+            url="https://github.com/PrefectHQ/examples.git",
         )
         git_repo.set_base_path(tmp_dir)
 
         flow_instance = prefect.flow.from_source(
             source=git_repo,
-            entrypoint="flows-starter/hello.py:hello",
+            entrypoint="flows/hello_world.py:hello",
         )
 
         flow_instance.deploy(
