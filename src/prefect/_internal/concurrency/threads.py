@@ -8,8 +8,10 @@ import asyncio
 import atexit
 import concurrent.futures
 import itertools
+import os
 import queue
 import threading
+import weakref
 from typing import Any, Optional
 
 from typing_extensions import TypeVar
@@ -21,6 +23,32 @@ from prefect._internal.concurrency.event_loop import get_running_loop
 from prefect._internal.concurrency.primitives import Event
 
 T = TypeVar("T", infer_variance=True)
+
+# Track all active instances for fork handling
+_active_instances: weakref.WeakSet[WorkerThread | EventLoopThread] = weakref.WeakSet()
+
+
+def _reset_after_fork_in_child():
+    """
+    Reset thread state after fork() to prevent multiprocessing deadlocks on Linux.
+
+    When fork() is called, the child process inherits all thread state and locks
+    from the parent, but only the calling thread continues. This leaves other threads'
+    locks in inconsistent states causing deadlocks.
+
+    This handler is called by os.register_at_fork() in the child process after fork().
+    """
+    for instance in list(_active_instances):
+        instance.reset_for_fork()
+
+
+# Register fork handler if supported (POSIX systems)
+if hasattr(os, "register_at_fork"):
+    try:
+        os.register_at_fork(after_in_child=_reset_after_fork_in_child)
+    except RuntimeError:
+        # Might fail in certain contexts (e.g., if already in a child process)
+        pass
 
 
 class WorkerThread(Portal):
@@ -45,8 +73,18 @@ class WorkerThread(Portal):
         self._submitted_count: int = 0
         self._lock = threading.Lock()
 
+        # Track this instance for fork handling
+        _active_instances.add(self)
+
         if not daemon:
             atexit.register(self.shutdown)
+
+    def reset_for_fork(self) -> None:
+        """Reset state after fork() to prevent deadlocks in child process."""
+        self._started = False
+        self._queue = queue.Queue()
+        self._lock = threading.Lock()
+        self._submitted_count = 0
 
     def start(self) -> None:
         """
@@ -145,8 +183,20 @@ class EventLoopThread(Portal):
         self._on_shutdown: list[Call[Any]] = []
         self._lock = threading.Lock()
 
+        # Track this instance for fork handling
+        _active_instances.add(self)
+
         if not daemon:
             atexit.register(self.shutdown)
+
+    def reset_for_fork(self) -> None:
+        """Reset state after fork() to prevent deadlocks in child process."""
+        self._loop = None
+        self._ready_future = concurrent.futures.Future()
+        self._shutdown_event = Event()
+        self._lock = threading.Lock()
+        self._submitted_count = 0
+        self._on_shutdown = []
 
     def start(self):
         """
