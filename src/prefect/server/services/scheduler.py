@@ -12,6 +12,7 @@ from uuid import UUID
 
 import sqlalchemy as sa
 from docket import Depends, Perpetual
+from sqlalchemy.ext.asyncio import AsyncSession
 
 import prefect.server.models as models
 from prefect.logging import get_logger
@@ -131,7 +132,7 @@ def _get_select_recent_deployments_to_schedule_query(
 
 async def _collect_flow_runs(
     db: PrefectDBInterface,
-    session: sa.orm.Session,
+    session: AsyncSession,
     deployment_ids: Sequence[UUID],
     max_scheduled_time: datetime.timedelta,
     min_scheduled_time: datetime.timedelta,
@@ -179,6 +180,7 @@ async def schedule_deployments(
 
     Perpetual task that runs according to PREFECT_API_SERVICES_SCHEDULER_LOOP_SECONDS.
     """
+    logger.info("schedule_deployments() EXECUTING")
     deployment_batch_size = PREFECT_API_SERVICES_SCHEDULER_DEPLOYMENT_BATCH_SIZE.value()
     max_runs = PREFECT_API_SERVICES_SCHEDULER_MAX_RUNS.value()
     min_runs = PREFECT_API_SERVICES_SCHEDULER_MIN_RUNS.value()

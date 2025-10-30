@@ -693,6 +693,9 @@ def create_app(
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
+        logger.info(
+            f"Lifespan starting: ephemeral={ephemeral}, webserver_only={webserver_only}"
+        )
         if app in LIFESPAN_RAN_FOR_APP:
             yield
             return
@@ -755,6 +758,8 @@ def create_app(
                 docket.register(monitor_cancelled_flow_runs)
                 docket.register(monitor_subflow_runs)
                 docket.register(evaluate_proactive_triggers_perpetual)
+
+                logger.info(f"Registered docket tasks: {list(docket.tasks.keys())}")
 
                 # Get docket settings and smart defaults based on database type
                 docket_settings = settings.server.services.docket
