@@ -2,6 +2,7 @@
 The Telemetry service.
 """
 
+import logging
 import os
 import platform
 from datetime import timedelta
@@ -18,7 +19,7 @@ from prefect.server.schemas.core import Configuration
 from prefect.settings import PREFECT_DEBUG_MODE
 from prefect.types._datetime import now
 
-logger = get_logger(__name__)
+logger: "logging.Logger" = get_logger(__name__)
 
 
 async def _fetch_or_set_telemetry_session(

@@ -5,6 +5,7 @@ The Scheduler service.
 from __future__ import annotations
 
 import datetime
+import logging
 from datetime import timedelta
 from typing import Any, Sequence
 from uuid import UUID
@@ -29,7 +30,7 @@ from prefect.settings.context import get_current_settings
 from prefect.types._datetime import now
 from prefect.utilities.collections import batched_iterable
 
-logger = get_logger(__name__)
+logger: "logging.Logger" = get_logger(__name__)
 
 
 class TryAgain(Exception):
