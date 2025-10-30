@@ -561,7 +561,7 @@ async def mark_runs_as_crashed(event: dict[str, Any], tags: dict[str, str]):
             await propose_state(
                 client=orchestration_client,
                 state=Crashed(
-                    message=f"The following containers stopped with a non-zero exit code: {container_indentifiers}"
+                    message=f"The following containers stopped with a non-zero exit code: {container_identifiers}"
                 ),
                 flow_run_id=uuid.UUID(flow_run_id),
             )
