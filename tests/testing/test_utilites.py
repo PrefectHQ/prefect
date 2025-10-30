@@ -1,3 +1,4 @@
+import sys
 import uuid
 import warnings
 from unittest.mock import MagicMock
@@ -13,6 +14,20 @@ from prefect.settings import (
     PREFECT_SERVER_EPHEMERAL_STARTUP_TIMEOUT_SECONDS,
 )
 from prefect.testing.utilities import assert_does_not_warn, prefect_test_harness
+
+
+def _multiprocessing_worker():
+    """
+    Worker function for multiprocessing test. Must be at module level for pickling.
+    """
+    import os
+
+    # os._exit() is required here despite the underscore prefix. On Linux with fork(),
+    # the child process inherits Prefect's logging/event state. Normal exit (return or
+    # sys.exit) triggers Python cleanup that fails with this inherited state, causing
+    # exitcode=1. os._exit() bypasses cleanup and is documented for use "in the child
+    # process after os.fork()" - which is exactly this scenario.
+    os._exit(0)
 
 
 def test_assert_does_not_warn_no_warning():
@@ -101,3 +116,35 @@ def test_prefect_test_harness_timeout(monkeypatch):
         server().start.assert_called_once_with(
             timeout=PREFECT_SERVER_EPHEMERAL_STARTUP_TIMEOUT_SECONDS.value()
         )
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="fork() not available on Windows")
+def test_multiprocessing_after_test_harness():
+    """
+    Test that multiprocessing works after using prefect_test_harness.
+
+    Regression test for issue #19112 - on Linux, multiprocessing.Process() would
+    deadlock after using the test harness because fork() inherited locked thread
+    state from background threads.
+    """
+    import multiprocessing
+
+    @task
+    def test_task():
+        return 1
+
+    @flow
+    def test_flow():
+        return test_task.submit()
+
+    # Use test harness which starts background threads
+    with prefect_test_harness():
+        test_flow()
+
+    # This should not deadlock
+    process = multiprocessing.Process(target=_multiprocessing_worker)
+    process.start()
+    process.join(timeout=5)
+
+    # Verify process completed successfully
+    assert process.exitcode == 0, "Process should complete without deadlock"
