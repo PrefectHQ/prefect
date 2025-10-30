@@ -13,7 +13,6 @@ import prefect.server.models as models
 from prefect.server.database import PrefectDBInterface, provide_database_interface
 from prefect.server.schemas import filters, states
 from prefect.settings import PREFECT_API_SERVICES_CANCELLATION_CLEANUP_LOOP_SECONDS
-from prefect.settings.context import get_current_settings
 from prefect.types._datetime import now
 
 NON_TERMINAL_STATES = list(set(states.StateType) - states.TERMINAL_STATES)
@@ -104,7 +103,7 @@ async def monitor_cancelled_flow_runs(
     docket: Docket = CurrentDocket(),
     db: PrefectDBInterface = Depends(provide_database_interface),
     perpetual: Perpetual = Perpetual(
-        automatic=get_current_settings().server.services.cancellation_cleanup.enabled,
+        automatic=False,
         every=datetime.timedelta(
             seconds=PREFECT_API_SERVICES_CANCELLATION_CLEANUP_LOOP_SECONDS.value()
         ),
@@ -137,7 +136,7 @@ async def monitor_subflow_runs(
     docket: Docket = CurrentDocket(),
     db: PrefectDBInterface = Depends(provide_database_interface),
     perpetual: Perpetual = Perpetual(
-        automatic=get_current_settings().server.services.cancellation_cleanup.enabled,
+        automatic=False,
         every=datetime.timedelta(
             seconds=PREFECT_API_SERVICES_CANCELLATION_CLEANUP_LOOP_SECONDS.value()
         ),

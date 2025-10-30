@@ -21,7 +21,6 @@ from prefect.settings import (
     PREFECT_API_SERVICES_LATE_RUNS_AFTER_SECONDS,
     PREFECT_API_SERVICES_LATE_RUNS_LOOP_SECONDS,
 )
-from prefect.settings.context import get_current_settings
 from prefect.types._datetime import now
 
 
@@ -60,7 +59,7 @@ async def monitor_late_runs(
     docket: Docket = CurrentDocket(),
     db: PrefectDBInterface = Depends(provide_database_interface),
     perpetual: Perpetual = Perpetual(
-        automatic=get_current_settings().server.services.late_runs.enabled,
+        automatic=False,
         every=timedelta(seconds=PREFECT_API_SERVICES_LATE_RUNS_LOOP_SECONDS.value()),
     ),
 ) -> None:
