@@ -724,6 +724,18 @@ def create_app(
                 docket = Docket(name="prefect-server", url=docket_url)
                 await stack.enter_async_context(docket)
 
+                # Import docket service modules so Perpetual functions are discovered
+                from prefect.server.events.services import triggers  # noqa: F401
+                from prefect.server.services import (  # noqa: F401
+                    cancellation_cleanup,
+                    foreman,
+                    late_runs,
+                    pause_expirations,
+                    repossessor,
+                    scheduler,
+                    telemetry,
+                )
+
                 # Get docket settings and smart defaults based on database type
                 docket_settings = settings.server.services.docket
 
