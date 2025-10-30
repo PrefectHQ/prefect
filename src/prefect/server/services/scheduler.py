@@ -171,7 +171,7 @@ async def _collect_flow_runs(
 async def schedule_deployments(
     db: PrefectDBInterface = Depends(provide_database_interface),
     perpetual: Perpetual = Perpetual(
-        automatic=True,
+        automatic=get_current_settings().server.services.scheduler.enabled,
         every=timedelta(seconds=PREFECT_API_SERVICES_SCHEDULER_LOOP_SECONDS.value()),
     ),
 ) -> None:
@@ -180,9 +180,6 @@ async def schedule_deployments(
 
     Perpetual task that runs according to PREFECT_API_SERVICES_SCHEDULER_LOOP_SECONDS.
     """
-    if not get_current_settings().server.services.scheduler.enabled:
-        logger.debug("Scheduler is disabled")
-        return
 
     logger.info("schedule_deployments() EXECUTING")
     deployment_batch_size = PREFECT_API_SERVICES_SCHEDULER_DEPLOYMENT_BATCH_SIZE.value()
@@ -238,7 +235,7 @@ async def schedule_deployments(
 async def schedule_recent_deployments(
     db: PrefectDBInterface = Depends(provide_database_interface),
     perpetual: Perpetual = Perpetual(
-        automatic=True,
+        automatic=get_current_settings().server.services.scheduler.enabled,
         every=timedelta(
             seconds=get_current_settings().server.services.scheduler.recent_deployments_loop_seconds
         ),
@@ -255,9 +252,6 @@ async def schedule_recent_deployments(
 
     Perpetual task that runs according to recent_deployments_loop_seconds setting.
     """
-    if not get_current_settings().server.services.scheduler.enabled:
-        logger.debug("Scheduler is disabled")
-        return
 
     deployment_batch_size = PREFECT_API_SERVICES_SCHEDULER_DEPLOYMENT_BATCH_SIZE.value()
     max_runs = PREFECT_API_SERVICES_SCHEDULER_MAX_RUNS.value()
