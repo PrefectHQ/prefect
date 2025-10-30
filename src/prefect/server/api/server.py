@@ -671,6 +671,9 @@ def create_app(
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
+        logger.info(
+            f"Lifespan starting: ephemeral={ephemeral}, webserver_only={webserver_only}"
+        )
         if app in LIFESPAN_RAN_FOR_APP:
             yield
             return
