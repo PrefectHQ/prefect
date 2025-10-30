@@ -13,6 +13,7 @@ import prefect.server.models as models
 from prefect.server.database import PrefectDBInterface, provide_database_interface
 from prefect.server.schemas import filters, states
 from prefect.settings import PREFECT_API_SERVICES_CANCELLATION_CLEANUP_LOOP_SECONDS
+from prefect.settings.context import get_current_settings
 from prefect.types._datetime import now
 
 NON_TERMINAL_STATES = list(set(states.StateType) - states.TERMINAL_STATES)
@@ -110,6 +111,9 @@ async def monitor_cancelled_flow_runs(
     ),
 ) -> None:
     """Monitor for cancelled flow runs and schedule child task cancellation."""
+    if not get_current_settings().server.services.cancellation_cleanup.enabled:
+        return
+
     batch_size = 200
     cancelled_flow_query = (
         sa.select(db.FlowRun.id)
@@ -142,6 +146,9 @@ async def monitor_subflow_runs(
     ),
 ) -> None:
     """Monitor for subflow runs that need to be cancelled."""
+    if not get_current_settings().server.services.cancellation_cleanup.enabled:
+        return
+
     batch_size = 200
     subflow_query = (
         sa.select(db.FlowRun.id)

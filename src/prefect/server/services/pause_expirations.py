@@ -12,6 +12,7 @@ import prefect.server.models as models
 from prefect.server.database import PrefectDBInterface, provide_database_interface
 from prefect.server.schemas import states
 from prefect.settings import PREFECT_API_SERVICES_PAUSE_EXPIRATIONS_LOOP_SECONDS
+from prefect.settings.context import get_current_settings
 from prefect.types._datetime import now
 
 
@@ -59,6 +60,9 @@ async def monitor_expired_pauses(
     ),
 ) -> None:
     """Monitor for expired paused flow runs and schedule failure tasks."""
+    if not get_current_settings().server.services.pause_expirations.enabled:
+        return
+
     batch_size = 200
     async with db.session_context() as session:
         query = (

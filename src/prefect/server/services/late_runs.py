@@ -21,6 +21,7 @@ from prefect.settings import (
     PREFECT_API_SERVICES_LATE_RUNS_AFTER_SECONDS,
     PREFECT_API_SERVICES_LATE_RUNS_LOOP_SECONDS,
 )
+from prefect.settings.context import get_current_settings
 from prefect.types._datetime import now
 
 
@@ -64,6 +65,9 @@ async def monitor_late_runs(
     ),
 ) -> None:
     """Monitor for late flow runs and schedule marking tasks."""
+    if not get_current_settings().server.services.late_runs.enabled:
+        return
+
     batch_size = 400
     mark_late_after = PREFECT_API_SERVICES_LATE_RUNS_AFTER_SECONDS.value()
     scheduled_to_start_before = now("UTC") - datetime.timedelta(
