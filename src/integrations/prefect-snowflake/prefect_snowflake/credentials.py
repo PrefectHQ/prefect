@@ -81,7 +81,9 @@ class SnowflakeCredentials(CredentialsBlock):
         description="The snowflake account name.",
         examples=["nh12345.us-east-2.aws"],
     )
-    user: str = Field(..., description="The user name used to authenticate.")
+    user: Optional[str] = Field(
+        default=None, description="The user name used to authenticate."
+    )
     password: Optional[SecretStr] = Field(
         default=None, description="The password used to authenticate."
     )
@@ -110,7 +112,7 @@ class SnowflakeCredentials(CredentialsBlock):
         Field(
             default=None,
             description=(
-                "The workload identity provider to use for initializing connection."
+                "The workload identity provider to use for initializing the connection."
             ),
         )
     )
