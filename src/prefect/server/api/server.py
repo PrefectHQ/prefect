@@ -724,17 +724,37 @@ def create_app(
                 docket = Docket(name="prefect-server", url=docket_url)
                 await stack.enter_async_context(docket)
 
-                # Import docket service modules so Perpetual functions are discovered
-                from prefect.server.events.services import triggers  # noqa: F401
-                from prefect.server.services import (  # noqa: F401
-                    cancellation_cleanup,
-                    foreman,
-                    late_runs,
-                    pause_expirations,
-                    repossessor,
-                    scheduler,
-                    telemetry,
+                # Import and register all docket-based background services
+                from prefect.server.events.services.triggers import (
+                    evaluate_proactive_triggers_perpetual,
                 )
+                from prefect.server.services.cancellation_cleanup import (
+                    monitor_cancelled_flow_runs,
+                    monitor_subflow_runs,
+                )
+                from prefect.server.services.foreman import monitor_worker_health
+                from prefect.server.services.late_runs import monitor_late_runs
+                from prefect.server.services.pause_expirations import (
+                    monitor_expired_pauses,
+                )
+                from prefect.server.services.repossessor import monitor_expired_leases
+                from prefect.server.services.scheduler import (
+                    schedule_deployments,
+                    schedule_recent_deployments,
+                )
+                from prefect.server.services.telemetry import send_telemetry_heartbeat
+
+                # Register all Perpetual functions with docket
+                docket.register(schedule_deployments)
+                docket.register(schedule_recent_deployments)
+                docket.register(send_telemetry_heartbeat)
+                docket.register(monitor_expired_pauses)
+                docket.register(monitor_worker_health)
+                docket.register(monitor_late_runs)
+                docket.register(monitor_expired_leases)
+                docket.register(monitor_cancelled_flow_runs)
+                docket.register(monitor_subflow_runs)
+                docket.register(evaluate_proactive_triggers_perpetual)
 
                 # Get docket settings and smart defaults based on database type
                 docket_settings = settings.server.services.docket

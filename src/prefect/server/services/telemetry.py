@@ -62,6 +62,7 @@ async def _fetch_or_set_telemetry_session(
 
 
 async def send_telemetry_heartbeat(
+    db: PrefectDBInterface = Depends(provide_database_interface),
     perpetual: Perpetual = Perpetual(automatic=True, every=timedelta(seconds=600)),
 ) -> None:
     """
@@ -71,7 +72,7 @@ async def send_telemetry_heartbeat(
     """
     from prefect.client.constants import SERVER_API_VERSION
 
-    session_start_timestamp, session_id = await _fetch_or_set_telemetry_session()
+    session_start_timestamp, session_id = await _fetch_or_set_telemetry_session(db=db)
     telemetry_environment = os.environ.get(
         "PREFECT_API_TELEMETRY_ENVIRONMENT", "production"
     )
