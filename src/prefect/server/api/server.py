@@ -747,7 +747,7 @@ def create_app(
                 )
                 from prefect.server.services.telemetry import send_telemetry_heartbeat
 
-                # Register all Perpetual functions with docket
+                # Register all Perpetual functions with docket (always register, conditionally schedule)
                 docket.register(schedule_deployments)
                 docket.register(schedule_recent_deployments)
                 docket.register(send_telemetry_heartbeat)
@@ -761,11 +761,35 @@ def create_app(
 
                 logger.info(f"Registered docket tasks: {list(docket.tasks.keys())}")
 
+                # Conditionally schedule Perpetual tasks based on enabled settings
+                # This ensures disabled services never run (not even once)
+                # IMPORTANT: Must call get_current_settings() here (not use closure variable)
+                # to pick up test environment overrides that occur after app creation
+                runtime_settings = get_current_settings()
+
+                # Note: send_telemetry_heartbeat and evaluate_proactive_triggers_perpetual
+                # use automatic=True and handle their own enabled checks
+                if runtime_settings.server.services.scheduler.enabled:
+                    await docket.add(schedule_deployments)()
+                    await docket.add(schedule_recent_deployments)()
+                if runtime_settings.server.services.pause_expirations.enabled:
+                    await docket.add(monitor_expired_pauses)()
+                if runtime_settings.server.services.foreman.enabled:
+                    await docket.add(monitor_worker_health)()
+                if runtime_settings.server.services.late_runs.enabled:
+                    await docket.add(monitor_late_runs)()
+                if runtime_settings.server.services.cancellation_cleanup.enabled:
+                    await docket.add(monitor_cancelled_flow_runs)()
+                    await docket.add(monitor_subflow_runs)()
+                # repossessor and events services handle their own scheduling
+
                 # Get docket settings and smart defaults based on database type
-                docket_settings = settings.server.services.docket
+                docket_settings = runtime_settings.server.services.docket
 
                 # Detect database type for smart defaults
-                db_url = str(settings.server.database.connection_url.get_secret_value())
+                db_url = str(
+                    runtime_settings.server.database.connection_url.get_secret_value()
+                )
                 is_sqlite = get_dialect(db_url).name == "sqlite"
 
                 # Smart defaults: SQLite uses lower concurrency to avoid lock contention

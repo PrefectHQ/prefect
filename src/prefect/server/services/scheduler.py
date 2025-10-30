@@ -31,7 +31,7 @@ from prefect.settings.context import get_current_settings
 from prefect.types._datetime import now
 from prefect.utilities.collections import batched_iterable
 
-logger: "logging.Logger" = get_logger(__name__)
+logger: logging.Logger = get_logger(__name__)
 
 
 class TryAgain(Exception):
@@ -171,7 +171,7 @@ async def _collect_flow_runs(
 async def schedule_deployments(
     db: PrefectDBInterface = Depends(provide_database_interface),
     perpetual: Perpetual = Perpetual(
-        automatic=get_current_settings().server.services.scheduler.enabled,
+        automatic=False,
         every=timedelta(seconds=PREFECT_API_SERVICES_SCHEDULER_LOOP_SECONDS.value()),
     ),
 ) -> None:
@@ -235,7 +235,7 @@ async def schedule_deployments(
 async def schedule_recent_deployments(
     db: PrefectDBInterface = Depends(provide_database_interface),
     perpetual: Perpetual = Perpetual(
-        automatic=get_current_settings().server.services.scheduler.enabled,
+        automatic=False,
         every=timedelta(
             seconds=get_current_settings().server.services.scheduler.recent_deployments_loop_seconds
         ),
