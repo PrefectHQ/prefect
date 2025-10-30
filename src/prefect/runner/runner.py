@@ -102,6 +102,7 @@ from prefect.runner.storage import RunnerStorage
 from prefect.schedules import Schedule
 from prefect.settings import (
     PREFECT_API_URL,
+    PREFECT_RUNNER_SERVER_ENABLE,
     get_current_settings,
 )
 from prefect.states import (
@@ -154,6 +155,7 @@ class Runner:
         heartbeat_seconds: Optional[float] = None,
         limit: int | type[NotSet] | None = NotSet,
         pause_on_shutdown: bool = True,
+        webserver: bool = False,
     ):
         """
         Responsible for managing the execution of remotely initiated flow runs.
@@ -171,6 +173,7 @@ class Runner:
                 If not provided, the runner will use the value of `PREFECT_RUNNER_PROCESS_LIMIT`.
             pause_on_shutdown: A boolean for whether or not to automatically pause
                 deployment schedules on shutdown; defaults to `True`
+            webserver: a boolean flag for whether to start a webserver for this runner
 
         Examples:
             Set up a Runner to manage the execute of scheduled flow runs for two flows:
@@ -213,6 +216,7 @@ class Runner:
             if limit is NotSet or isinstance(limit, type)
             else limit
         )
+        self.webserver: bool = webserver
 
         self.query_seconds: float = query_seconds or settings.runner.poll_frequency
         self._prefetch_seconds: float = prefetch_seconds
@@ -437,7 +441,9 @@ class Runner:
 
         sys.exit(0)
 
-    async def start(self, run_once: bool = False) -> None:
+    async def start(
+        self, run_once: bool = False, webserver: Optional[bool] = None
+    ) -> None:
         """
         Starts a runner.
 
@@ -445,6 +451,8 @@ class Runner:
 
         Args:
             run_once: If True, the runner will through one query loop and then exit.
+            webserver: a boolean for whether to start a webserver for this runner. If provided,
+                overrides the default on the runner
 
         Examples:
             Initialize a Runner, add two flows, and serve them by starting the Runner:
@@ -473,8 +481,25 @@ class Runner:
                 asyncio.run(runner.start())
             ```
         """
+        from prefect.runner.server import start_webserver
+
         if threading.current_thread() is threading.main_thread():
             signal.signal(signal.SIGTERM, self.handle_sigterm)
+
+        webserver = webserver if webserver is not None else self.webserver
+
+        if webserver or PREFECT_RUNNER_SERVER_ENABLE.value():
+            # we'll start the ASGI server in a separate thread so that
+            # uvicorn does not block the main thread
+            server_thread = threading.Thread(
+                name="runner-server-thread",
+                target=partial(
+                    start_webserver,
+                    runner=self,
+                ),
+                daemon=True,
+            )
+            server_thread.start()
 
         start_client_metrics_server()
 
