@@ -25,6 +25,7 @@ from prefect.settings import (
     PREFECT_API_SERVICES_FOREMAN_LOOP_SECONDS,
     PREFECT_API_SERVICES_FOREMAN_WORK_QUEUE_LAST_POLLED_TIMEOUT_SECONDS,
 )
+from prefect.settings.context import get_current_settings
 from prefect.types._datetime import now
 
 
@@ -175,6 +176,9 @@ async def monitor_worker_health(
     ),
 ) -> None:
     """Monitor worker and work pool health, scheduling monitoring tasks."""
+    if not get_current_settings().server.services.foreman.enabled:
+        return
+
     # Schedule all foreman monitoring tasks in parallel
     await docket.add(mark_workers_offline)(
         PREFECT_API_SERVICES_FOREMAN_INACTIVITY_HEARTBEAT_MULTIPLE.value(),
