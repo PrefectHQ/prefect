@@ -560,7 +560,9 @@ async def mark_runs_as_crashed(event: dict[str, Any], tags: dict[str, str]):
             )
             await propose_state(
                 client=orchestration_client,
-                state=Crashed(message="No active or succeeded pods found for any job"),
+                state=Crashed(
+                    message="No active or succeeded containers found for any job"
+                ),
                 flow_run_id=uuid.UUID(flow_run_id),
             )
 
