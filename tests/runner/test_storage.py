@@ -3,6 +3,8 @@ import shutil
 from pathlib import Path
 from textwrap import dedent
 from typing import Optional
+from unittest.mock import AsyncMock, MagicMock, call
+from urllib.parse import urlparse, urlunparse
 
 import pytest
 from pydantic import SecretStr
@@ -19,7 +21,6 @@ from prefect.runner.storage import (
     RunnerStorage,
     create_storage_from_source,
 )
-from prefect.testing.utilities import AsyncMock, MagicMock, call
 from prefect.utilities.filesystem import tmpchdir
 
 
@@ -101,6 +102,53 @@ class MockCredentials(Block):
     token: Optional[SecretStr] = None
     username: Optional[str] = None
     password: Optional[SecretStr] = None
+
+
+class MockGitLabCredentials(Block):
+    """Mock GitLab credentials block for testing."""
+
+    _block_type_slug = "gitlab-credentials"
+    token: Optional[SecretStr] = None
+
+    def format_git_credentials(self, url: str) -> str:
+        """
+        Format and return the full git URL with GitLab credentials embedded.
+
+        Handles both personal access tokens and deploy tokens correctly:
+        - Personal access tokens: prefixed with "oauth2:"
+        - Deploy tokens (username:token format): used as-is
+        - Already prefixed tokens: not double-prefixed
+
+        Args:
+            url: Repository URL (e.g., "https://gitlab.com/org/repo.git")
+
+        Returns:
+            Complete URL with credentials embedded
+
+        Raises:
+            ValueError: If token is not configured
+        """
+        if not self.token:
+            raise ValueError("Token is required for GitLab authentication")
+
+        token_value = self.token.get_secret_value()
+
+        # Deploy token detection: contains ":" but not "oauth2:" prefix
+        # Deploy tokens should not have oauth2: prefix (GitLab 16.3.4+ rejects them)
+        # See: https://github.com/PrefectHQ/prefect/issues/10832
+        if ":" in token_value and not token_value.startswith("oauth2:"):
+            credentials = token_value
+        # Personal access token: add oauth2: prefix
+        # See: https://github.com/PrefectHQ/prefect/issues/16836
+        elif not token_value.startswith("oauth2:"):
+            credentials = f"oauth2:{token_value}"
+        else:
+            # Already prefixed
+            credentials = token_value
+
+        # Insert credentials into URL
+        parsed = urlparse(url)
+        return urlunparse(parsed._replace(netloc=f"{credentials}@{parsed.netloc}"))
 
 
 class TestGitRepository:
@@ -535,107 +583,49 @@ class TestGitRepository:
                 ]
             )
 
-        @pytest.mark.parametrize(
-            "credentials",
-            [
-                None,
-                {"access_token": "example-token"},
-                {"access_token": "x-token-auth:example-token"},
-                {"username": "x-token-auth", "access_token": "example-token"},
-                MockCredentials(token="example-token"),
-                MockCredentials(token="x-token-auth:example-token"),
-                MockCredentials(username="x-token-auth", token="example-token"),
-            ],
-        )
-        async def test_git_clone_with_bitbucket_access_token(
-            self, credentials, mock_run_process
+        async def test_git_clone_with_gitlab_credentials_block_self_hosted(
+            self, mock_run_process: AsyncMock
         ):
+            """
+            Test that GitLabCredentials block works with self-hosted GitLab URLs
+            that don't contain 'gitlab' in the hostname.
+
+            Regression test for https://github.com/PrefectHQ/prefect/issues/16836
+            """
+            credentials = MockGitLabCredentials(token="example-token")
+
             repo = GitRepository(
-                url="https://bitbucket.org/org/repo.git",
+                url="https://git.company.com/org/repo.git",
                 credentials=credentials,
             )
 
             await repo.pull_code()
 
-            expected_url = (
-                "https://x-token-auth:example-token@bitbucket.org/org/repo.git"
-                if credentials
-                else "https://bitbucket.org/org/repo.git"
-            )
-
+            # Should use oauth2: prefix even though URL doesn't contain "gitlab"
             mock_run_process.assert_awaited_once_with(
                 [
                     "git",
                     "clone",
-                    expected_url,
+                    "https://oauth2:example-token@git.company.com/org/repo.git",
                     "--depth",
                     "1",
                     str(Path.cwd() / "repo"),
                 ],
             )
 
-        @pytest.mark.parametrize(
-            "credentials",
-            [
-                {"access_token": "x-token-auth:example-token"},
-                {"username": "x-token-auth", "access_token": "example-token"},
-                MockCredentials(token="x-token-auth:example-token"),
-                MockCredentials(username="x-token-auth", token="example-token"),
-            ],
-        )
-        async def test_git_clone_with_bitbucket_server_repo_with_access_token(
-            self, credentials, mock_run_process
+        async def test_git_clone_with_gitlab_credentials_block_deploy_token(
+            self, mock_run_process: AsyncMock
         ):
-            repo = GitRepository(
-                url="https://bitbucketserver.com/scm/projectname/teamsinspace.git",
-                credentials=credentials,
-            )
+            """
+            Test that GitLabCredentials block with deploy tokens (username:token format)
+            does not get oauth2: prefix.
 
-            await repo.pull_code()
+            Deploy tokens in oauth2: format are rejected by GitLab 16.3.4+
+            Regression test for https://github.com/PrefectHQ/prefect/issues/10832
+            """
+            # Deploy token format: username:token
+            credentials = MockGitLabCredentials(token="deploy-user:deploy-token-value")
 
-            mock_run_process.assert_awaited_once_with(
-                [
-                    "git",
-                    "clone",
-                    "https://x-token-auth:example-token@bitbucketserver.com/scm/projectname/teamsinspace.git",
-                    "--depth",
-                    "1",
-                    str(Path.cwd() / "teamsinspace"),
-                ],
-            )
-
-        async def test_git_clone_with_bitbucket_server_repo_with_invalid_access_token_raises(
-            self,
-        ):
-            repo = GitRepository(
-                url="https://bitbucketserver.com/scm/projectname/teamsinspace.git",
-                credentials={"access_token": "example-token"},
-            )
-
-            with pytest.raises(
-                ValueError,
-                match=(
-                    "Please provide a `username` and a `password` or `token` in your"
-                    " BitBucketCredentials block to clone a repo from BitBucket Server."
-                ),
-            ):
-                await repo.pull_code()
-
-        @pytest.mark.parametrize(
-            "credentials",
-            [
-                None,
-                {"access_token": "example-token"},
-                {"access_token": "oauth2:example-token"},
-                {"username": "oauth2", "access_token": "example-token"},
-                MockCredentials(token="example-token"),
-                MockCredentials(token="oauth2:example-token"),
-                MockCredentials(username="oauth2", token="example-token"),
-            ],
-        )
-        async def test_git_clone_with_gitlab_access_token(
-            self, credentials, mock_run_process
-        ):
             repo = GitRepository(
                 url="https://gitlab.com/org/repo.git",
                 credentials=credentials,
@@ -643,17 +633,80 @@ class TestGitRepository:
 
             await repo.pull_code()
 
-            expected_url = (
-                "https://oauth2:example-token@gitlab.com/org/repo.git"
-                if credentials
-                else "https://gitlab.com/org/repo.git"
-            )
-
+            # Should NOT add oauth2: prefix for deploy tokens
             mock_run_process.assert_awaited_once_with(
                 [
                     "git",
                     "clone",
-                    expected_url,
+                    "https://deploy-user:deploy-token-value@gitlab.com/org/repo.git",
+                    "--depth",
+                    "1",
+                    str(Path.cwd() / "repo"),
+                ],
+            )
+
+        async def test_git_clone_with_gitlab_credentials_block_already_prefixed(
+            self, mock_run_process: AsyncMock
+        ):
+            """
+            Test that GitLabCredentials block doesn't double-prefix oauth2:
+            """
+            credentials = MockGitLabCredentials(token="oauth2:example-token")
+
+            repo = GitRepository(
+                url="https://git.company.com/org/repo.git",
+                credentials=credentials,
+            )
+
+            await repo.pull_code()
+
+            # Should not double-prefix
+            mock_run_process.assert_awaited_once_with(
+                [
+                    "git",
+                    "clone",
+                    "https://oauth2:example-token@git.company.com/org/repo.git",
+                    "--depth",
+                    "1",
+                    str(Path.cwd() / "repo"),
+                ],
+            )
+
+        async def test_protocol_block_uses_format_git_credentials_method(
+            self, mock_run_process: AsyncMock, monkeypatch
+        ):
+            """
+            Test that blocks implementing GitCredentialsFormatter protocol
+            use their format_git_credentials method instead of legacy logic.
+            """
+            credentials = MockGitLabCredentials(token="test-token")
+
+            # Spy on the format_git_credentials method
+            original_method = credentials.format_git_credentials
+            call_count = []
+
+            def spy_format(*args, **kwargs):
+                call_count.append(1)
+                return original_method(*args, **kwargs)
+
+            monkeypatch.setattr(credentials, "format_git_credentials", spy_format)
+
+            repo = GitRepository(
+                url="https://example.com/org/repo.git",
+                credentials=credentials,
+            )
+
+            await repo.pull_code()
+
+            # Verify format_git_credentials was called
+            assert len(call_count) == 1
+
+            # Verify the result uses the protocol's formatting (oauth2: prefix)
+            mock_run_process.assert_awaited_once_with(
+                [
+                    "git",
+                    "clone",
+                    "https://oauth2:test-token@example.com/org/repo.git",
                     "--depth",
                     "1",
                     str(Path.cwd() / "repo"),

@@ -2,7 +2,7 @@ import json
 import re
 import shlex
 from typing import Optional, Union
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from anyio import run_process
@@ -15,7 +15,6 @@ from prefect.settings import (
     PREFECT_DEFAULT_DOCKER_BUILD_NAMESPACE,
     load_current_profile,
 )
-from prefect.testing.utilities import AsyncMock
 from prefect.types import SecretDict
 
 default_cloud_run_push_base_job_template = {

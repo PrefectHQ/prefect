@@ -6,7 +6,7 @@ from contextlib import asynccontextmanager
 from datetime import timedelta
 from typing import Any, Generator, List
 from unittest import mock
-from unittest.mock import MagicMock, Mock
+from unittest.mock import AsyncMock, MagicMock, Mock
 from uuid import UUID, uuid4
 
 import anyio
@@ -91,7 +91,7 @@ from prefect.settings import (
 )
 from prefect.states import Completed, Pending, Running, Scheduled, State
 from prefect.tasks import task
-from prefect.testing.utilities import AsyncMock, exceptions_equal
+from prefect.testing.utilities import exceptions_equal
 from prefect.types._datetime import DateTime, now
 from prefect.utilities.pydantic import parse_obj_as
 
@@ -3182,3 +3182,25 @@ class TestPrefectClientWorkerHeartbeat:
                 "name": "test-worker",
                 "heartbeat_interval_seconds": 10,
             }
+
+
+class TestPrefectClientMethods:
+    """Tests that the sync and async clients contains the same methods"""
+
+    def test_methods(self):
+        sync_client_methods = set(dir(get_client(sync_client=True)))
+        async_client_methods = set(dir(get_client(sync_client=False)))
+
+        exclude_methods = {
+            "__aenter__",
+            "__aexit__",
+            "_ephemeral_lifespan",
+            "_exit_stack",
+            "_loop",
+            "loop",
+        }
+
+        assert (
+            async_client_methods - exclude_methods
+            == sync_client_methods - exclude_methods
+        )

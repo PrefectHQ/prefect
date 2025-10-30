@@ -7,7 +7,7 @@ name = "prefect"
 dynamic = ["version"]
 description = "Workflow orchestration and management."
 readme = "README.md"
-requires-python = ">=3.9,<3.14"
+requires-python = ">=3.10,<3.15"
 license = { text = "Apache-2.0" }
 authors = [{ name = "Prefect Technologies, Inc.", email = "help@prefect.io" }]
 classifiers = [
@@ -16,11 +16,11 @@ classifiers = [
     "Intended Audience :: System Administrators",
     "License :: OSI Approved :: Apache Software License",
     "Programming Language :: Python :: 3 :: Only",
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Topic :: Software Development :: Libraries",
 ]
 dependencies = [
@@ -38,7 +38,7 @@ dependencies = [
     "pytz>=2021.1,<2026",
     "readchar>=4.0.0,<5.0.0",
     "sqlalchemy[asyncio]>=2.0,<3.0.0",
-    "typer>=0.12.0,!=0.12.2,<0.20.0",
+    "typer>=0.16.0,<0.20.0",
     # Client dependencies
     # If you modify this list, make the same modification in client/pyproject.toml
     "anyio>=4.4.0,<5.0.0",
@@ -54,7 +54,6 @@ dependencies = [
     "httpcore>=1.0.5,<2.0.0",
     "httpx[http2]>=0.23,!=0.23.2",
     "humanize>=4.9.0,<5.0.0",
-    "importlib_metadata>=4.4;python_version<'3.10'",
     "jsonpatch>=1.32,<2.0",
     "jsonschema>=4.18.0,<5.0.0",
     "opentelemetry-api>=1.27.0,<2.0.0",
@@ -130,14 +129,14 @@ render_swagger = "prefect.utilities.render_swagger:SwaggerPlugin"
 
 [dependency-groups]
 dev = [
-    "cairosvg>=2.7.1",
+    "cairosvg>=2.7.1; python_version<'3.14'",
     "codespell>=2.2.6",
     "ipython",
     "jinja2>=3.1.6",
     "moto>=5",
     "numpy",
     "pendulum[test]>=3.0.0,<4; python_version<'3.13'",
-    "pillow>=11.1.0",
+    "pillow>=11.1.0; python_version<'3.14'",
     "pre-commit>=4.1.0",
     "pluggy>=1.5.0",
     "pyright>=1.1.390",
@@ -158,7 +157,7 @@ dev = [
     "watchfiles>=1.0.4",
     "respx>=0.22.0",
     "codespell==2.4.1",
-    "ruff==0.14.0",
+    "ruff==0.14.1",
     "mypy==1.15.0",
     "types-cachetools>=5.3.1",
     "types-PyYAML>=6.0.12",
@@ -280,6 +279,7 @@ filterwarnings = [
     "ignore:datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version.:DeprecationWarning",
     "ignore::DeprecationWarning:pendulum.*",                                                                             # TODO: remove when pendulum is removed
     "ignore::DeprecationWarning:botocore.*",
+    "ignore::DeprecationWarning:coolname.*",
     "ignore::sqlalchemy.exc.SAWarning",
     "ignore::ResourceWarning",
     "ignore::pytest.PytestUnraisableExceptionWarning",
@@ -290,7 +290,7 @@ filterwarnings = [
 plugins = ["pydantic.mypy"]
 ignore_missing_imports = true
 follow_imports = "skip"
-python_version = "3.9"
+python_version = "3.10"
 
 [tool.coverage.run]
 branch = true

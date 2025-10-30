@@ -19,8 +19,9 @@ jobs:
     strategy:
       matrix:
         python-version:
-          - "3.9"
+          - "3.10"
           - "3.12"
+          - "3.14"
 
       fail-fast: true
 

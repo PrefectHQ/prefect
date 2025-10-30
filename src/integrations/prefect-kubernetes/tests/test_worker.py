@@ -2195,6 +2195,40 @@ class TestKubernetesWorker:
                 }.items()
             ]
 
+    async def test_does_not_overwrite_sigterm_behavior_env(
+        self,
+        flow_run,
+        mock_core_client,
+        mock_watch,
+        mock_pods_stream_that_returns_running_pod,
+        mock_batch_client,
+    ):
+        mock_watch.return_value.stream = mock_pods_stream_that_returns_running_pod
+
+        configuration = await KubernetesWorkerJobConfiguration.from_template_and_values(
+            KubernetesWorker.get_default_base_job_template(),
+            {"env": {"PREFECT_FLOW_RUN_EXECUTE_SIGTERM_BEHAVIOR": "die"}},
+        )
+        configuration.prepare_for_flow_run(flow_run)
+
+        async with KubernetesWorker(work_pool_name="test") as k8s_worker:
+            await k8s_worker.run(flow_run, configuration)
+            mock_batch_client.return_value.create_namespaced_job.assert_called_once()
+
+            manifest = mock_batch_client.return_value.create_namespaced_job.call_args[
+                0
+            ][1]
+            pod = manifest["spec"]["template"]["spec"]
+            env = pod["containers"][0]["env"]
+            assert env == [
+                {"name": key, "value": value}
+                for key, value in {
+                    **configuration._base_environment(),
+                    **configuration._base_flow_run_environment(flow_run),
+                    "PREFECT_FLOW_RUN_EXECUTE_SIGTERM_BEHAVIOR": "die",
+                }.items()
+            ]
+
     async def test_uses_custom_env_list_from_base_template(
         self,
         flow_run,
@@ -2822,3 +2856,57 @@ class TestKubernetesWorker:
             async with prefect.get_client() as client:
                 flow_run = await client.read_flow_run(future.flow_run_id)
                 assert flow_run.state.is_crashed()
+
+
+class TestObserverSettings:
+    """Tests for Kubernetes observer enable/disable settings in worker."""
+
+    @pytest.fixture
+    def work_pool(self):
+        return WorkPool(name="my-work-pool-name", type="kubernetes")
+
+    async def test_observer_started_and_stopped_when_enabled(
+        self,
+        mock_batch_client,
+        mock_core_client,
+        work_pool: WorkPool,
+        mock_operator_start: MagicMock,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        """Test that observer is started when enabled=True."""
+        monkeypatch.setenv("PREFECT_INTEGRATIONS_KUBERNETES_OBSERVER_ENABLED", "true")
+
+        mock_stop = MagicMock()
+        monkeypatch.setattr("prefect_kubernetes.worker.stop_observer", mock_stop)
+
+        async with KubernetesWorker(work_pool_name=work_pool.name):
+            pass
+
+        # start_observer should have been called when worker enters context
+        mock_operator_start.assert_called_once()
+
+        # stop_observer should have been called when worker exits context
+        mock_stop.assert_called_once()
+
+    async def test_observer_not_started_and_not_stopped_when_disabled(
+        self,
+        mock_batch_client,
+        mock_core_client,
+        work_pool: WorkPool,
+        mock_operator_start: MagicMock,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        """Test that observer is not started when enabled=False."""
+        monkeypatch.setenv("PREFECT_INTEGRATIONS_KUBERNETES_OBSERVER_ENABLED", "false")
+
+        mock_stop = MagicMock()
+        monkeypatch.setattr("prefect_kubernetes.worker.stop_observer", mock_stop)
+
+        async with KubernetesWorker(work_pool_name=work_pool.name):
+            pass
+
+        # start_observer should NOT have been called
+        mock_operator_start.assert_not_called()
+
+        # stop_observer should NOT have been called
+        mock_stop.assert_not_called()

@@ -71,12 +71,15 @@ generate-examples:
 
 # Generate OpenAPI documentation
 generate-openapi:
-    uv run --isolated -p 3.9 --with 'pydantic>=2.9.0' ./scripts/generate_mintlify_openapi_docs.py
+    uv run --isolated -p 3.10 --with 'pydantic>=2.9.0' ./scripts/generate_mintlify_openapi_docs.py
 
 # Generate settings schema and reference
 generate-settings:
-    uv run --isolated -p 3.9 --with 'pydantic>=2.9.0' ./scripts/generate_settings_schema.py
-    uv run --isolated -p 3.9 --with 'pydantic>=2.9.0' ./scripts/generate_settings_ref.py
+    uv run --isolated -p 3.10 --with 'pydantic>=2.9.0' ./scripts/generate_settings_schema.py
+    uv run --isolated -p 3.10 --with 'pydantic>=2.9.0' ./scripts/generate_settings_ref.py
+
+generate-cli-docs:
+    uv run --isolated ./scripts/generate_cli_docs.py
 
 # Generate all documentation (OpenAPI, settings, API ref, examples)
 generate-docs:
@@ -87,7 +90,9 @@ generate-docs:
     @just generate-settings
     @echo "3. Generating API reference..."
     @just api-ref-all
-    @echo "4. Generating example pages..."
+    @echo "4. Generating CLI docs..."
+    @just generate-cli-docs
+    @echo "5. Generating example pages..."
     @just generate-examples
     @echo "Documentation generation complete!"
 

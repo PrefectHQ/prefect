@@ -12,7 +12,7 @@ from io import StringIO
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Generator
 from unittest import mock
-from unittest.mock import ANY, MagicMock, patch
+from unittest.mock import ANY, AsyncMock, MagicMock, patch
 
 import pytest
 from rich.color import Color, ColorType
@@ -72,7 +72,6 @@ from prefect.settings import (
     temporary_settings,
 )
 from prefect.testing.cli import temporary_console_width
-from prefect.testing.utilities import AsyncMock
 from prefect.types._datetime import from_timestamp, now
 from prefect.utilities.names import obfuscate
 from prefect.workers.base import BaseJobConfiguration, BaseWorker
