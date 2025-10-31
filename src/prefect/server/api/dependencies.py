@@ -10,6 +10,7 @@ from base64 import b64decode
 from typing import Annotated, Any, Optional
 from uuid import UUID
 
+from docket import Docket as _Docket
 from fastapi import Body, Depends, Header, HTTPException
 from packaging.version import Version
 from starlette.requests import Request
@@ -195,3 +196,10 @@ def get_prefect_client_version(
     if client_version := PREFECT_CLIENT_USER_AGENT_PATTERN.match(user_agent):
         return client_version.group(1)
     return None
+
+
+def docket(request: Request) -> _Docket:
+    return request.app.state.docket
+
+
+Docket = Annotated[_Docket, Depends(docket)]

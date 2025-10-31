@@ -6,6 +6,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from httpx import ASGITransport, AsyncClient
 
+from prefect.client.base import app_lifespan_context
 from prefect.server.api.server import create_app
 
 Message = Dict[str, Any]
@@ -16,7 +17,7 @@ ASGIApp = Callable[[Dict[str, Any], Receive, Send], Coroutine[None, None, None]]
 
 @pytest.fixture()
 def app() -> FastAPI:
-    return create_app(ephemeral=True)
+    return create_app(ephemeral=True, ignore_cache=True)
 
 
 @pytest.fixture
@@ -25,14 +26,17 @@ def test_client(app: FastAPI) -> TestClient:
 
 
 @pytest.fixture
-async def client(app) -> AsyncGenerator[AsyncClient, Any]:
+async def client(app: FastAPI) -> AsyncGenerator[AsyncClient, Any]:
     """
     Yield a test client for testing the api
     """
-    async with httpx.AsyncClient(
-        transport=ASGITransport(app=app), base_url="https://test/api"
-    ) as async_client:
-        yield async_client
+    # Manually enter the app's lifespan since ASGITransport doesn't trigger it
+    # We need to enter both the parent app's lifespan and the mounted api_app's lifespan
+    async with app_lifespan_context(app):
+        async with httpx.AsyncClient(
+            transport=ASGITransport(app=app), base_url="https://test/api"
+        ) as async_client:
+            yield async_client
 
 
 @pytest.fixture

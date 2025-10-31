@@ -7,7 +7,6 @@ from uuid import UUID
 
 import sqlalchemy as sa
 from fastapi import (
-    BackgroundTasks,
     Body,
     Depends,
     HTTPException,
@@ -356,7 +355,7 @@ async def delete_work_pool(
 
 @router.post("/{name}/get_scheduled_flow_runs")
 async def get_scheduled_flow_runs(
-    background_tasks: BackgroundTasks,
+    docket: dependencies.Docket,
     work_pool_name: str = Path(..., description="The work pool name", alias="name"),
     work_queue_names: List[str] = Body(
         None, description="The names of work pool queues"
@@ -409,9 +408,7 @@ async def get_scheduled_flow_runs(
             limit=limit,
         )
 
-    background_tasks.add_task(
-        mark_work_queues_ready,
-        db=db,
+    await docket.add(mark_work_queues_ready)(
         polled_work_queue_ids=[
             wq.id for wq in work_queues if wq.status != WorkQueueStatus.NOT_READY
         ],
@@ -420,9 +417,7 @@ async def get_scheduled_flow_runs(
         ],
     )
 
-    background_tasks.add_task(
-        mark_deployments_ready,
-        db=db,
+    await docket.add(mark_deployments_ready)(
         work_queue_ids=[wq.id for wq in work_queues],
     )
 

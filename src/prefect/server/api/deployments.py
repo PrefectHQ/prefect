@@ -9,7 +9,6 @@ from uuid import UUID
 import jsonschema.exceptions
 import sqlalchemy as sa
 from fastapi import Body, Depends, HTTPException, Path, Response
-from starlette.background import BackgroundTasks
 
 import prefect.server.api.dependencies as dependencies
 import prefect.server.models as models
@@ -512,7 +511,7 @@ async def paginate_deployments(
 
 @router.post("/get_scheduled_flow_runs")
 async def get_scheduled_flow_runs_for_deployments(
-    background_tasks: BackgroundTasks,
+    docket: dependencies.Docket,
     deployment_ids: list[UUID] = Body(
         default=..., description="The deployment IDs to get scheduled runs for"
     ),
@@ -552,9 +551,7 @@ async def get_scheduled_flow_runs_for_deployments(
             for orm_flow_run in orm_flow_runs
         ]
 
-    background_tasks.add_task(
-        mark_deployments_ready,
-        db=db,
+    await docket.add(mark_deployments_ready)(
         deployment_ids=deployment_ids,
     )
 
