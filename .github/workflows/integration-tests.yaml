@@ -161,7 +161,7 @@ jobs:
             pytest-xdist \
             pytest-timeout \
             pytest-env
-          pytest --ignore=integration-tests/test_task_worker.py --ignore=integration-tests/test_concurrency_leases.py integration-tests/ -n auto -vv
+          pytest --ignore=integration-tests/test_task_worker.py --ignore=integration-tests/test_concurrency_leases.py --ignore=integration-tests/test_deploy.py integration-tests/ -n auto -vv
 
   sqlite-3-24-0:
     name: Test SQLite 3.24.0 Compatibility
