@@ -6,7 +6,7 @@ from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.blocks.core import Block
-from prefect.blocks.system import JSON, DateTime, Secret
+from prefect.blocks.system import Secret
 from prefect.blocks.webhook import Webhook
 from prefect.filesystems import LocalFileSystem
 from prefect.logging import get_logger
@@ -27,9 +27,7 @@ COLLECTIONS_BLOCKS_DATA_PATH = (
 
 async def _install_protected_system_blocks(session: AsyncSession) -> None:
     """Install block types that the system expects to be present"""
-    protected_system_blocks = cast(
-        List[Block], [Webhook, JSON, DateTime, Secret, LocalFileSystem]
-    )
+    protected_system_blocks = cast(List[Block], [Webhook, Secret, LocalFileSystem])
 
     for block in protected_system_blocks:
         async with session.begin():
