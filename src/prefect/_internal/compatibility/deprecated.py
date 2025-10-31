@@ -88,7 +88,16 @@ def generate_deprecation_message(
         if TYPE_CHECKING:
             assert start_date is not None
 
-        end_date = start_date + datetime.timedelta(days=182.625)
+        if sys.version_info >= (3, 13):
+            from whenever import PlainDateTime
+
+            end_date = (
+                PlainDateTime.from_py_datetime(start_date).add(months=6).py_datetime()
+            )
+        else:
+            import pendulum
+
+            end_date = pendulum.instance(start_date).add(months=6)
 
     if when:
         when = " when " + when
