@@ -1743,6 +1743,19 @@ async def consumer() -> AsyncGenerator[MessageHandler, None]:
         except ActionFailed as e:
             # ActionFailed errors are expected errors and will not be retried
             await action.fail(triggered_action, e.reason)
+        except Exception:
+            # Log unexpected errors so they're visible for debugging.
+            # The messaging system will catch this exception, retry if needed,
+            # and eventually send to DLQ after max retries.
+            logger.error(
+                "Error executing action %s (automation: %s, action type: %s)",
+                triggered_action.id,
+                triggered_action.automation.name,
+                action.type,
+                exc_info=True,
+            )
+            # Re-raise so the messaging consumer can handle retries/DLQ
+            raise
         else:
             await action.succeed(triggered_action)
             await record_action_happening(triggered_action.id)
