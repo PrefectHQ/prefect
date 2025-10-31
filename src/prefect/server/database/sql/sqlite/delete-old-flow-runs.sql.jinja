@@ -1,0 +1,41 @@
+-- Deletes old flow runs before the cutoff date (SQLite version)
+--
+-- Because flow runs cascade delete child task runs, the idea is to limit the amount of tasks deleted by this query.
+-- If the query limited the amount of flow runs deleted, this could potentially delete an unbounded amount of task runs.
+-- Therefore, the query joins flow runs to their children tasks, sorts by the flow run id, and takes children task runs
+-- up to the limit, and only then takes the distinct flow run ids for deletion. For example, a limit of 1000 may only
+-- delete 500 flow runs if there are 2 children task runs per flow run, but it will delete 1000 task runs for a total
+-- of 1500 records.
+--
+-- SQLite limitations:
+-- - No DELETE...USING (use WHERE IN with subquery instead)
+-- - No FOR UPDATE SKIP LOCKED (not needed for SQLite's locking model)
+-- - RETURNING is supported in SQLite 3.35+
+-- - Returns deleted flow run count and cascade deleted task run count
+--
+-- Parameters:
+--   :before - Delete flow runs before this timestamp
+--   :limit - Maximum number of flow runs to delete in this batch
+
+WITH doomed_flow_runs AS (
+    SELECT flow_run.id AS flow_run_id, task_run.id AS task_run_id
+    FROM flow_run
+    LEFT JOIN task_run ON task_run.flow_run_id = flow_run.id
+    WHERE flow_run.created < :before AND flow_run.parent_task_run_id IS NULL
+    ORDER BY flow_run.id
+    LIMIT :limit
+), flow_run_ids AS (
+    SELECT DISTINCT flow_run_id AS id
+    FROM doomed_flow_runs
+), doomed_task_runs AS (
+    SELECT task_run.id
+    FROM task_run
+    WHERE task_run.flow_run_id IN (SELECT id FROM flow_run_ids)
+), counts AS (
+    SELECT
+        (SELECT COUNT(*) FROM flow_run_ids) AS flow_run_count,
+        (SELECT COUNT(*) FROM doomed_task_runs) AS task_run_count
+)
+DELETE FROM flow_run
+WHERE id IN (SELECT id FROM flow_run_ids)
+RETURNING (SELECT flow_run_count FROM counts) AS flow_run_count, (SELECT task_run_count FROM counts) AS task_run_count
