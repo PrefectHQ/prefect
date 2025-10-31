@@ -1,0 +1,107 @@
+---
+title: How to cancel late flow runs
+sidebarTitle: Cancel Late Runs
+description: Learn how to automatically cancel flow runs that become late to prevent queue buildup.
+---
+
+When a work pool is paused for maintenance or a worker goes offline, scheduled flow runs can accumulate in a `Late` state. When the work pool resumes, all late runs execute at once, potentially causing API rate limiting or resource exhaustion.
+
+This guide shows how to use a Prefect automation to automatically cancel flow runs when they become late.
+
+## Create a deployment
+
+First, create a deployment for your flow. You can use any deployment method - this example uses `flow.serve()`:
+
+```python my_flow.py
+from prefect import flow
+
+@flow
+def my_flow():
+    print("Running my flow")
+
+if __name__ == "__main__":
+    my_flow.serve(name="my-deployment")
+```
+
+Start serving your deployment:
+
+```bash
+python my_flow.py
+```
+
+## Create the automation
+
+Create a YAML file that defines an automation to cancel late runs:
+
+```yaml cancel-late-runs.yaml
+name: Cancel Late Flow Runs
+description: Automatically cancel late runs to prevent queue buildup
+enabled: true
+
+trigger:
+  type: event
+  expect:
+    - prefect.flow-run.Late
+  match:
+    prefect.resource.id: prefect.flow-run.*
+
+actions:
+  - type: cancel-flow-run
+```
+
+Apply the automation using the Prefect CLI:
+
+```bash
+prefect automation create -f cancel-late-runs.yaml
+```
+
+### How it works
+
+- **trigger.expect**: Watches for `prefect.flow-run.Late` events emitted when the server marks a flow run as late
+- **trigger.match**: Matches all flow runs (`prefect.flow-run.*`)
+- **actions**: Cancels the flow run associated with the triggering event
+
+## Target specific deployments
+
+To only cancel late runs for specific deployments, add a `match_related` filter with the deployment name:
+
+```yaml cancel-late-runs.yaml
+name: Cancel Late Flow Runs
+description: Automatically cancel late runs for specific deployment
+enabled: true
+
+trigger:
+  type: event
+  expect:
+    - prefect.flow-run.Late
+  match:
+    prefect.resource.id: prefect.flow-run.*
+  match_related:
+    prefect.resource.name: my-deployment
+
+actions:
+  - type: cancel-flow-run
+```
+
+Replace `my-deployment` with your actual deployment name.
+
+<Tip>
+**When do runs become late?**
+
+By default, Prefect marks a flow run as late if it hasn't started within 90 seconds of its scheduled time. The server checks for late runs every 10 seconds.
+
+You can configure these values with:
+- `PREFECT_API_SERVICES_LATE_RUNS_AFTER_SECONDS`: seconds before marking a run late (default: 90)
+- `PREFECT_API_SERVICES_LATE_RUNS_LOOP_SECONDS`: how often to check (default: 10)
+</Tip>
+
+## What happens when runs are cancelled
+
+When a flow run is automatically cancelled by this automation:
+
+1. The flow run's state changes from `Late` to `Cancelled`
+2. If a worker picks up the run before cancellation, the worker receives a cancellation signal
+3. The flow run appears in the UI with a `Cancelled` status
+4. No further execution occurs for that run
+
+This prevents scenarios where pausing a work pool causes dozens or hundreds of late runs to execute simultaneously when the pool resumes.
