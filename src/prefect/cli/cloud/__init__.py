@@ -11,7 +11,6 @@ import urllib.parse
 import warnings
 import webbrowser
 from contextlib import asynccontextmanager
-from datetime import datetime
 from typing import (
     TYPE_CHECKING,
     Iterable,
@@ -613,34 +612,6 @@ async def logout():
     )
 
     exit_with_success("Logged out from Prefect Cloud.")
-
-
-@cloud_app.command(
-    deprecated=True,
-    deprecated_name="prefect cloud open",
-    deprecated_start_date=datetime(2024, 10, 1),
-    deprecated_help="Use `prefect dashboard open` to open the Prefect UI.",
-)
-async def open():
-    """
-    Open the Prefect Cloud UI in the browser.
-    """
-    confirm_logged_in()
-
-    async with get_cloud_client() as client:
-        try:
-            current_workspace = await client.read_current_workspace()
-        except ValueError:
-            exit_with_error(
-                "There is no current workspace set - set one with `prefect cloud workspace"
-                " set --workspace <workspace>`."
-            )
-
-    ui_url = current_workspace.ui_url()
-
-    await run_sync_in_worker_thread(webbrowser.open_new_tab, ui_url)
-
-    exit_with_success(f"Opened {current_workspace.handle!r} in browser.")
 
 
 @workspace_app.command()

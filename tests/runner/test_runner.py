@@ -59,7 +59,7 @@ from prefect.exceptions import ScriptError
 from prefect.flows import Flow
 from prefect.logging.loggers import flow_run_logger
 from prefect.runner.runner import Runner
-from prefect.runner.server import perform_health_check, start_webserver
+from prefect.runner.server import perform_health_check
 from prefect.schedules import Cron, Interval
 from prefect.settings import (
     PREFECT_DEFAULT_DOCKER_BUILD_NAMESPACE,
@@ -427,28 +427,6 @@ class TestServe:
         serve(deployment)
 
         mock_runner_start.assert_awaited_once()
-
-    def test_log_level_lowercasing(self, monkeypatch: pytest.MonkeyPatch):
-        runner_mock = mock.MagicMock()
-        log_level = "DEBUG"
-
-        # Mock build_server to return a webserver mock object
-        with mock.patch(
-            "prefect.runner.server.build_server", new_callable=mock.AsyncMock
-        ) as mock_build_server:
-            webserver_mock = mock.MagicMock()
-            mock_build_server.return_value = webserver_mock
-
-            # Patch uvicorn.run to verify it's called with the correct arguments
-            with mock.patch("uvicorn.run") as mock_uvicorn:
-                start_webserver(runner_mock, log_level=log_level)
-                # Assert build_server was called once with the runner
-                mock_build_server.assert_called_once_with(runner_mock)
-
-                # Assert uvicorn.run was called with the lowercase log_level and the webserver mock
-                mock_uvicorn.assert_called_once_with(
-                    webserver_mock, host=mock.ANY, port=mock.ANY, log_level="debug"
-                )
 
     def test_serve_in_async_context_raises_error(self, monkeypatch: pytest.MonkeyPatch):
         monkeypatch.setattr(

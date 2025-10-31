@@ -32,8 +32,6 @@ class TestRunAutoRegistration:
         self, session, expected_number_of_registered_block_types
     ):
         PROTECTED_BLOCKS = {
-            "json",
-            "date-time",
             "secret",
             "local-file-system",
             "webhook",

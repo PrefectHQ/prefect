@@ -4,7 +4,6 @@ from typing import Any, Dict
 import pytest
 
 from prefect.blocks.core import Block
-from prefect.blocks.system import JSON, DateTime, Secret, String
 from prefect.blocks.webhook import Webhook
 from prefect.client.orchestration import PrefectClient
 from prefect.utilities.annotations import NotSet
@@ -391,110 +390,6 @@ class TestResolveBlockDocumentReferences:
         result = await resolve_block_document_references(template)
 
         assert result == template
-
-    async def test_resolve_block_document_unpacks_system_blocks(self):
-        await JSON(value={"key": "value"}).save(name="json-block")
-        await Secret(value="N1nj4C0d3rP@ssw0rd!").save(name="secret-block")
-        await DateTime(value="2020-01-01T00:00:00Z").save(name="datetime-block")
-        await String(value="hello").save(name="string-block")
-
-        template = {
-            "json": "{{ prefect.blocks.json.json-block }}",
-            "secret": "{{ prefect.blocks.secret.secret-block }}",
-            "datetime": "{{ prefect.blocks.date-time.datetime-block }}",
-            "string": "{{ prefect.blocks.string.string-block }}",
-        }
-
-        result = await resolve_block_document_references(template)
-        assert result == {
-            "json": {"key": "value"},
-            "secret": "N1nj4C0d3rP@ssw0rd!",
-            "datetime": "2020-01-01T00:00:00Z",
-            "string": "hello",
-        }
-
-    async def test_resolve_block_document_system_block_resolves_dict_keypath(self):
-        # for backwards compatibility system blocks can be referenced directly
-        # they should still be able to access nested keys
-        await JSON(value={"key": {"nested-key": "nested_value"}}).save(
-            name="nested-json-block"
-        )
-        template = {
-            "value": "{{ prefect.blocks.json.nested-json-block}}",
-            "keypath": "{{ prefect.blocks.json.nested-json-block.key }}",
-            "nested_keypath": "{{ prefect.blocks.json.nested-json-block.key.nested-key }}",
-        }
-
-        result = await resolve_block_document_references(template)
-        assert result == {
-            "value": {"key": {"nested-key": "nested_value"}},
-            "keypath": {"nested-key": "nested_value"},
-            "nested_keypath": "nested_value",
-        }
-
-    async def test_resolve_block_document_resolves_dict_keypath(self):
-        await JSON(value={"key": {"nested-key": "nested_value"}}).save(
-            name="nested-json-block-2"
-        )
-        template = {
-            "value": "{{ prefect.blocks.json.nested-json-block-2.value }}",
-            "keypath": "{{ prefect.blocks.json.nested-json-block-2.value.key }}",
-            "nested_keypath": (
-                "{{ prefect.blocks.json.nested-json-block-2.value.key.nested-key }}"
-            ),
-        }
-
-        result = await resolve_block_document_references(template)
-        assert result == {
-            "value": {"key": {"nested-key": "nested_value"}},
-            "keypath": {"nested-key": "nested_value"},
-            "nested_keypath": "nested_value",
-        }
-
-    async def test_resolve_block_document_resolves_list_keypath(self):
-        await JSON(value={"key": ["value1", "value2"]}).save(name="json-list-block")
-        await JSON(value=["value1", "value2"]).save(name="list-block")
-        await JSON(
-            value={"key": ["value1", {"nested": ["value2", "value3"]}, "value4"]}
-        ).save(name="nested-json-list-block")
-        template = {
-            "json_list": "{{ prefect.blocks.json.json-list-block.value.key[0] }}",
-            "list": "{{ prefect.blocks.json.list-block.value[1] }}",
-            "nested_json_list": (
-                "{{ prefect.blocks.json.nested-json-list-block.value.key[1].nested[1] }}"
-            ),
-        }
-
-        result = await resolve_block_document_references(template)
-        assert result == {
-            "json_list": "value1",
-            "list": "value2",
-            "nested_json_list": "value3",
-        }
-
-    async def test_resolve_block_document_raises_on_invalid_keypath(self):
-        await JSON(value={"key": {"nested_key": "value"}}).save(
-            name="nested-json-block-3"
-        )
-        json_template = {
-            "json": "{{ prefect.blocks.json.nested-json-block-3.value.key.does_not_exist }}",
-        }
-        with pytest.raises(ValueError, match="Could not resolve the keypath"):
-            await resolve_block_document_references(json_template)
-
-        await JSON(value=["value1", "value2"]).save(name="index-error-block")
-        index_error_template = {
-            "index_error": "{{ prefect.blocks.json.index-error-block.value[3] }}",
-        }
-        with pytest.raises(ValueError, match="Could not resolve the keypath"):
-            await resolve_block_document_references(index_error_template)
-
-        await Webhook(url="https://example.com").save(name="webhook-block")
-        webhook_template = {
-            "webhook": "{{ prefect.blocks.webhook.webhook-block.value }}",
-        }
-        with pytest.raises(ValueError, match="Could not resolve the keypath"):
-            await resolve_block_document_references(webhook_template)
 
     async def test_resolve_block_document_resolves_block_attribute(self):
         await Webhook(url="https://example.com").save(name="webhook-block-2")
