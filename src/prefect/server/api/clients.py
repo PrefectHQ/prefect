@@ -35,9 +35,11 @@ class BaseClient:
 
         additional_headers = additional_headers or {}
 
-        # create_app caches application instances, and invoking it with no arguments
-        # will point it to the the currently running server instance
-        api_app = create_app()
+        # create_app caches application instances. Use ephemeral=True to skip UI
+        # creation since this client uses in-memory ASGI transport and doesn't
+        # need the UI. This prevents failures in read-only containers where the
+        # UI static directory cannot be created (see issue #19317).
+        api_app = create_app(ephemeral=True)
 
         settings = get_current_settings()
 
