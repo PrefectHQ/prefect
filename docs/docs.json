@@ -75,6 +75,7 @@
               "v3/concepts/runtime-context",
               "v3/concepts/artifacts",
               "v3/concepts/task-runners",
+              "v3/concepts/global-concurrency-limits",
               "v3/concepts/tag-based-concurrency-limits"
             ]
           },
