@@ -719,12 +719,17 @@ def run_manager_process():
 # public, user-facing `prefect server services` commands
 @services_app.command(aliases=["ls"])
 def list_services():
-    """List all available services and their status."""
+    """
+    List all available services and their configuration status.
+
+    This shows which services are configured to be enabled via environment variables.
+    Services will not run if the server was started with --no-services or --workers > 1.
+    """
     from prefect.server.services.base import Service
 
     table = Table(title="Available Services", expand=True)
     table.add_column("Name", no_wrap=True)
-    table.add_column("Enabled?", no_wrap=True)
+    table.add_column("Configured?", no_wrap=True)
     table.add_column("Description", style="cyan", no_wrap=False)
 
     for svc in Service.all_services():
@@ -740,6 +745,11 @@ def list_services():
         table.add_row(name, setting_text, description)
 
     app.console.print(table)
+    app.console.print(
+        "\n[dim]Note: This shows configuration via environment variables. "
+        "Services will not run if the server\n"
+        "      was started with --no-services or --workers > 1.[/dim]"
+    )
 
 
 @services_app.command(aliases=["start"])
