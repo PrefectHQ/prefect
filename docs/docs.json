@@ -1058,9 +1058,7 @@
                       "v3/api-ref/python/prefect-runner-__init__",
                       "v3/api-ref/python/prefect-runner-runner",
                       "v3/api-ref/python/prefect-runner-server",
-                      "v3/api-ref/python/prefect-runner-storage",
-                      "v3/api-ref/python/prefect-runner-submit",
-                      "v3/api-ref/python/prefect-runner-utils"
+                      "v3/api-ref/python/prefect-runner-storage"
                     ]
                   },
                   {
