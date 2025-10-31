@@ -45,8 +45,12 @@ def _reset_services_after_fork():
 if hasattr(os, "register_at_fork"):
     try:
         os.register_at_fork(after_in_child=_reset_services_after_fork)
-    except RuntimeError:
+    except RuntimeError as e:
         # Might fail in certain contexts (e.g., if already in a child process)
+        logger.debug(
+            "failed to register fork handler: %s (this may occur in child processes)",
+            e,
+        )
         pass
 
 
