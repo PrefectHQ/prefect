@@ -487,7 +487,7 @@ async def sender():
 
 An iterator helps keep track of the inputs your flow has already received. If you want your flow to suspend and then resume later,
 save the keys of the inputs you've seen so the flow can read them back out when it resumes.
-Consider using a [block](/v3/develop/blocks/), such as a `JSONBlock`.
+Consider using a [Variable](/v3/concepts/variables/).
 
 The following flow receives input for 30 seconds then suspends itself, which exits the flow and tears down infrastructure:
 
@@ -495,7 +495,7 @@ The following flow receives input for 30 seconds then suspends itself, which exi
 from prefect import flow
 from prefect.logging import get_run_logger
 from prefect.flow_runs import suspend_flow_run
-from prefect.blocks.system import JSON
+from prefect.variables import Variable
 from prefect.context import get_run_context
 from prefect.input.run_input import receive_input
 
@@ -509,14 +509,12 @@ async def greeter():
     run_context = get_run_context()
     assert run_context.flow_run, "Could not see my flow run ID"
 
-    block_name = f"{run_context.flow_run.id}-seen-ids"
+    variable_name = f"{run_context.flow_run.id}-seen-ids"
 
     try:
-        seen_keys_block = await JSON.load(block_name)
-    except ValueError:
-        seen_keys_block = JSON(
-            value=[],
-        )
+        seen_keys = await Variable.get(variable_name)
+    except (ValueError, TypeError):
+        seen_keys = []
 
     try:
         async for name_input in receive_input(
@@ -524,16 +522,17 @@ async def greeter():
             with_metadata=True,
             poll_interval=0.1,
             timeout=30,
-            exclude_keys=seen_keys_block.value
+            exclude_keys=seen_keys
         ):
             if name_input.value == EXIT_SIGNAL:
                 print("Goodbye!")
                 return
             await name_input.respond(f"Hello, {name_input.value}!")
 
-            seen_keys_block.value.append(name_input.metadata.key)
-            await seen_keys_block.save(
-                name=block_name,
+            seen_keys.append(name_input.metadata.key)
+            await Variable.set(
+                variable_name,
+                seen_keys,
                 overwrite=True
             )
     except TimeoutError:
@@ -541,8 +540,8 @@ async def greeter():
         await suspend_flow_run(timeout=10000)
 ```
 
-As this flow processes name input, it adds the _key_ of the flow run input to the `seen_keys_block`.
-When the flow later suspends and then resumes, it reads the keys it has already seen out of the JSON block and
+As this flow processes name input, it adds the _key_ of the flow run input to the list of seen keys.
+When the flow later suspends and then resumes, it reads the keys it has already seen from the variable and
 passes them as the `exlude_keys` parameter to `receive_input`.
 
 ### Respond to the input's sender
@@ -673,7 +672,7 @@ For a complete example of using `send_input` and `receive_input`, here is what t
 import asyncio
 import sys
 from prefect import flow, get_client
-from prefect.blocks.system import JSON
+from prefect.variables import Variable
 from prefect.context import get_run_context
 from prefect.deployments import run_deployment
 from prefect.input.run_input import receive_input, send_input
@@ -687,14 +686,12 @@ async def greeter():
     run_context = get_run_context()
     assert run_context.flow_run, "Could not see my flow run ID"
 
-    block_name = f"{run_context.flow_run.id}-seen-ids"
+    variable_name = f"{run_context.flow_run.id}-seen-ids"
 
     try:
-        seen_keys_block = await JSON.load(block_name)
-    except ValueError:
-        seen_keys_block = JSON(
-            value=[],
-        )
+        seen_keys = await Variable.get(variable_name)
+    except (ValueError, TypeError):
+        seen_keys = []
 
     async for name_input in receive_input(
         str,
@@ -707,9 +704,10 @@ async def greeter():
             return
         await name_input.respond(f"Hello, {name_input.value}!")
 
-        seen_keys_block.value.append(name_input.metadata.key)
-        await seen_keys_block.save(
-            name=block_name,
+        seen_keys.append(name_input.metadata.key)
+        await Variable.set(
+            variable_name,
+            seen_keys,
             overwrite=True
         )
 
