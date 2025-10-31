@@ -826,10 +826,14 @@ def create_app(
             LIFESPAN_RAN_FOR_APP.add(app)
             yield
 
-            # Cancel worker tasks on shutdown
+            # Cancel worker tasks and wait for graceful shutdown
+            #  Workers handle cancellation by finishing active tasks then stopping
+            # their scheduler loops. The scheduler may take up to one scheduling_resolution
+            # period to notice the shutdown signal, so we allow time for clean exit.
             for task in worker_tasks:
                 task.cancel()
-            await asyncio.gather(*worker_tasks, return_exceptions=True)
+            with anyio.move_on_after(10):
+                await asyncio.gather(*worker_tasks, return_exceptions=True)
 
     def on_service_exit(service: Service, task: asyncio.Task[None]) -> None:
         """
