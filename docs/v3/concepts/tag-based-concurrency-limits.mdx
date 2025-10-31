@@ -7,7 +7,7 @@ keywords: [concurrency, concurrency limits, task tags, task orchestration, execu
 Tag-based concurrency limits prevent too many tasks from running simultaneously by using [task tags](/v3/how-to-guides/workflows/tag-based-concurrency-limits). You can specify a maximum number of concurrent task runs in a `Running` state for tasks with a given tag.
 
 <Note>
-As of Prefect 3.4.19, tag-based concurrency limits are backed by [global concurrency limits](/v3/how-to-guides/workflows/global-concurrency-limits). When you create a tag-based limit, Prefect automatically creates a corresponding global concurrency limit with the name `tag:{tag_name}`. This implementation detail is generally transparent to users, but you may see these global limits in your UI or API responses.
+As of Prefect 3.4.19, tag-based concurrency limits are backed by [global concurrency limits](/v3/concepts/global-concurrency-limits). When you create a tag-based limit, Prefect automatically creates a corresponding global concurrency limit with the name `tag:{tag_name}`. This implementation detail is generally transparent to users, but you may see these global limits in your UI or API responses.
 </Note>
 
 ## How tag-based limits work

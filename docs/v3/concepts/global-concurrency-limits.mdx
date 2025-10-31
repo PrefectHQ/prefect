@@ -1,0 +1,141 @@
+---
+title: Global concurrency limits
+description: Understand how global concurrency limits control execution and manage resource usage.
+keywords: [concurrency, concurrency limits, rate limits, resource management, execution control, slot decay, task orchestration]
+---
+
+**Global concurrency limits** provide a mechanism to control the number of concurrent operations in your workflows, enabling precise resource management and system stability. They work by allocating a fixed number of "slots" that must be acquired before an operation can proceed.
+
+## What are global concurrency limits?
+
+Global concurrency limits allow you to manage execution efficiently by controlling how many tasks, flows, or other operations can run simultaneously. Unlike other concurrency controls in Prefect that are scoped to specific objects (like deployments or work pools), global concurrency limits can be applied to any Python-based operation in your codebase.
+
+They are ideal for:
+- **Resource optimization**: Preventing resource exhaustion by limiting concurrent database connections, API calls, or memory-intensive operations
+- **Preventing bottlenecks**: Ensuring systems don't become overwhelmed with too many simultaneous requests
+- **Customizing task execution**: Fine-tuning how work is distributed across your infrastructure
+
+## Concurrency limits vs rate limits
+
+While both global concurrency limits and rate limits control execution flow, they serve different purposes and work differently:
+
+**Concurrency limits** control how many operations can run **at the same time**. When you use the `concurrency` context manager, a slot is occupied for the entire duration of the operation and released when the operation completes.
+
+**Rate limits** control how **frequently** operations can start. When you use the `rate_limit` function, a slot is occupied briefly and then released automatically at a controlled rate determined by `slot_decay_per_second`.
+
+The core difference is **when slots are released**:
+- **Concurrency limit**: Slot released when the context manager exits (operation completes)
+- **Rate limit**: Slot released at a controlled rate regardless of operation duration
+
+### When to use each
+
+Choose **concurrency limits** when:
+- You need to limit the number of simultaneous operations (e.g., database connections)
+- Operations have varying durations
+- You want to prevent resource exhaustion
+
+Choose **rate limits** when:
+- You need to control the frequency of requests (e.g., API rate limiting)
+- You want to spread operations over time
+- You need to comply with external service rate limits
+
+## How global concurrency limits work
+
+### Slot-based system
+
+Global concurrency limits use a slot-based system:
+1. A concurrency limit is created with a specific name and a maximum number of slots
+2. When code needs to perform a rate-limited or concurrency-controlled operation, it requests one or more slots
+3. If slots are available, they are allocated and the operation proceeds
+4. If no slots are available, the operation blocks until slots become available
+5. When the operation completes (or after a decay period), the slots are released
+
+### Timed leases
+
+Each time a concurrency slot is occupied, a countdown begins on the server. The length of this countdown is known as the concurrency slot's **lease duration**. While a concurrency slot is occupied, the Prefect client periodically notifies the server that the slot is still in use and restarts the countdown.
+
+If the countdown concludes before the lease has been renewed, the concurrency slot is released.
+
+Lease expiration typically occurs when a process occupying a slot exits unexpectedly and is unable to notify the server that the slot should be released. This system exists to ensure that all concurrency slots are eventually released to prevent concurrency-related deadlocks.
+
+The default lease duration is 5 minutes, but custom durations with a minimum of 1 minute can be supplied to the concurrency context manager.
+
+**Lease renewal failures and strict mode**
+
+If the Prefect client is unable to renew a lease (due to network issues, server unavailability, or other connectivity problems), the behavior depends on whether strict mode is enabled:
+
+- **Default behavior (strict=False)**: If lease renewal fails, a warning is logged but execution continues. This provides resilience against temporary connectivity issues.
+- **Strict mode (strict=True)**: If lease renewal fails, execution stops immediately with an error. This ensures that operations only proceed when concurrency enforcement can be guaranteed.
+
+Use strict mode when you need absolute certainty that concurrency limits are being enforced. For example, if exceeding a database connection limit could cause system failures, strict mode ensures your code never runs without active concurrency control.
+
+### Active and inactive states
+
+Global concurrency limits can be in an **active** or **inactive** state:
+
+- **Active**: Slots can be occupied, and code execution is blocked when slots are unable to be acquired. This is the normal operating mode where concurrency enforcement occurs.
+- **Inactive**: Slots are not occupied, and code execution is not blocked. The limit exists but has no effect. This is useful for temporarily disabling enforcement without deleting the limit configuration.
+
+You can toggle a limit between active and inactive states to enable or disable concurrency enforcement without changing your code.
+
+### Slot decay
+
+Slot decay is the mechanism that enables rate limiting functionality. When you configure a concurrency limit with `slot_decay_per_second`, slots are automatically released over time rather than waiting for an operation to complete.
+
+**How slot decay works:**
+1. When a slot is occupied, it becomes unavailable for other operations
+2. The slot gradually becomes available again based on the decay rate
+3. This creates a "rate limiting" effect by controlling how often slots can be reused
+
+**Configuring decay rates:**
+- A **higher value** (e.g., 5.0) means slots refresh quickly, allowing operations to run more frequently with short pauses between them
+- A **lower value** (e.g., 0.1) means slots refresh slowly, creating longer pauses between operations
+
+For example:
+- With a decay rate of 5.0, you could run an operation roughly every 0.2 seconds
+- With a decay rate of 0.1, you'd wait about 10 seconds between operations
+
+Choose a decay rate that balances your required frequency of execution with acceptable system load.
+
+<Note>
+When using the `rate_limit` function, the concurrency limit must have a slot decay configured. Attempting to use `rate_limit` with a limit that has no slot decay will result in an error.
+</Note>
+
+## Comparison with other concurrency controls
+
+Prefect provides several mechanisms to control concurrency, each suited for different use cases:
+
+| Concurrency Type | Scope | Use Case |
+|------------------|-------|----------|
+| **Global concurrency limits** | Any Python operation | General-purpose concurrency control for database connections, API calls, or any resource |
+| [Work pool flow run limits](/v3/concepts/work-pools#manage-concurrency) | Flows in a work pool | Limit concurrent flows on specific infrastructure |
+| [Work queue flow run limits](/v3/concepts/work-pools#queue-concurrency-limits) | Flows in a work queue | Priority-based flow execution control |
+| [Deployment flow run limits](/v3/concepts/deployments#concurrency-limiting) | Specific deployment | Prevent concurrent runs of a specific deployment |
+| [Tag-based task concurrency limits](/v3/concepts/tag-based-concurrency-limits) | Prefect tasks with tags | Limit concurrent Prefect task runs with specific tags |
+
+**Key distinction**: Global concurrency limits are the most flexible option—they can be applied to any Python-based operation, not just Prefect-specific objects. This makes them ideal for controlling access to external resources like databases, APIs, or file systems.
+
+## Use cases
+
+### Resource optimization
+
+Use global concurrency limits to prevent resource exhaustion:
+- Limit database connections to match your database's connection pool size
+- Control memory usage by limiting concurrent memory-intensive operations
+- Manage file system access to prevent I/O bottlenecks
+
+### System stability
+
+Use rate limits to maintain system stability:
+- Comply with external API rate limits
+- Spread load over time to prevent system overload
+- Ensure fair access to shared resources across multiple workflows
+
+### Task management
+
+Use global concurrency limits for fine-grained control:
+- Throttle task submission to prevent overwhelming downstream systems
+- Create custom queueing behavior for specific operation types
+- Coordinate between multiple flows or applications accessing shared resources
+
+For practical implementation examples, see [how to apply global concurrency and rate limits](/v3/how-to-guides/workflows/global-concurrency-limits).
