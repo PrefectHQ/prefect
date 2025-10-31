@@ -1,0 +1,46 @@
+---
+title: 3.5
+---
+
+## 3.5.0 - 🎃 The Exorcism of Python 3.9 👻
+
+*Released on October 31, 2025*
+
+With the removal of Python 3.9 support, Prefect now requires Python 3.10 or later. This means you can finally say goodbye to `from __future__ import annotations` in your workflow code—native type annotations are now standard! This release also removes several long-deprecated features including `Runner` functionality and system Blocks. Check the Breaking Changes section below for details.
+
+**Enhancements ➕➕**
+
+* Add `on_running` hook support for tasks by [@zzstoatzz](https://github.com/zzstoatzz) in [#19277](https://github.com/PrefectHQ/prefect/pull/19277)
+* Allow using Field descriptions directly in Flow parameters (#13912) by [@jmesterh](https://github.com/jmesterh) in [#19281](https://github.com/PrefectHQ/prefect/pull/19281)
+* Add `PREFECT_SERVER_UI_SHOW_PROMOTIONAL_CONTENT` setting by [@zzstoatzz](https://github.com/zzstoatzz) in [#19299](https://github.com/PrefectHQ/prefect/pull/19299)
+
+**Breaking Changes ⚠️**
+
+* Remove Python 3.9 support by [@desertaxle](https://github.com/desertaxle) in [#19273](https://github.com/PrefectHQ/prefect/pull/19273)
+* Remove deprecated `Runner` functionality and system Blocks by [@desertaxle](https://github.com/desertaxle) in [#19307](https://github.com/PrefectHQ/prefect/pull/19307)
+
+**Bug Fixes 🐞**
+
+* Fix forward reference resolution in `ValidatedFunction` by [@desertaxle](https://github.com/desertaxle) in [#19289](https://github.com/PrefectHQ/prefect/pull/19289)
+* Fix `datetime` parameter serialization in `run_deployment` by [@zzstoatzz](https://github.com/zzstoatzz) in [#19278](https://github.com/PrefectHQ/prefect/pull/19278)
+* Fix time zone normalization bug in interval schedules by [@zzstoatzz](https://github.com/zzstoatzz) in [#19301](https://github.com/PrefectHQ/prefect/pull/19301)
+* Fix multiprocessing deadlock after using `prefect_test_harness` on Linux by [@zzstoatzz](https://github.com/zzstoatzz) in [#19116](https://github.com/PrefectHQ/prefect/pull/19116)
+
+**Development & Tidiness 🧹**
+
+* Update `typer` minimum to `0.16.0` for `click>=8.2` compatibility by [@zzstoatzz](https://github.com/zzstoatzz) in [#19269](https://github.com/PrefectHQ/prefect/pull/19269)
+* Remove weird language by [@zzstoatzz](https://github.com/zzstoatzz) in [#19271](https://github.com/PrefectHQ/prefect/pull/19271)
+* Update `just` recipes to use 3.10 for lowest python by [@zzstoatzz](https://github.com/zzstoatzz) in [#19297](https://github.com/PrefectHQ/prefect/pull/19297)
+* Fix duration in `generate_deprecation_message` by [@desertaxle](https://github.com/desertaxle) in [#19314](https://github.com/PrefectHQ/prefect/pull/19314)
+* Fix `RRuleSchedule` test flakiness from DST-dependent date by [@zzstoatzz](https://github.com/zzstoatzz) in [#19305](https://github.com/PrefectHQ/prefect/pull/19305)
+* Add debug log for fork handler registration failure by [@zzstoatzz](https://github.com/zzstoatzz) in [#19311](https://github.com/PrefectHQ/prefect/pull/19311)
+
+**Documentation 📓**
+
+* Add global concurrency limits concept doc and refactor how-to guide by [@desertaxle](https://github.com/desertaxle) in [#19231](https://github.com/PrefectHQ/prefect/pull/19231)
+
+**Full Changelog**: https://github.com/PrefectHQ/prefect/compare/3.4.25...3.5.0
+
+
+---
+
