@@ -385,6 +385,7 @@ class Run(Base):
     state_name: Mapped[Optional[str]]
     state_timestamp: Mapped[Optional[DateTime]]
     run_count: Mapped[int] = mapped_column(server_default="0", default=0)
+    submission_count: Mapped[int] = mapped_column(server_default="0", default=0)
     expected_start_time: Mapped[Optional[DateTime]]
     next_scheduled_start_time: Mapped[Optional[DateTime]]
     start_time: Mapped[Optional[DateTime]]
