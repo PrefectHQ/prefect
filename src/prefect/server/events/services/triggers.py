@@ -1,11 +1,14 @@
 from __future__ import annotations
 
 import asyncio
-from typing import TYPE_CHECKING, Any, NoReturn, Optional
+from datetime import timedelta
+from typing import TYPE_CHECKING, NoReturn
+
+from docket import Perpetual
 
 from prefect.logging import get_logger
 from prefect.server.events import triggers
-from prefect.server.services.base import LoopService, RunInEphemeralServers, Service
+from prefect.server.services.base import RunInEphemeralServers, Service
 from prefect.server.utilities.messaging import Consumer, create_consumer
 from prefect.server.utilities.messaging._consumer_names import (
     generate_unique_consumer_name,
@@ -62,21 +65,13 @@ class ReactiveTriggers(RunInEphemeralServers, Service):
         logger.debug("Reactive triggers stopped")
 
 
-class ProactiveTriggers(RunInEphemeralServers, LoopService):
-    """Evaluates proactive automation triggers"""
-
-    @classmethod
-    def service_settings(cls) -> ServicesBaseSetting:
-        return get_current_settings().server.services.triggers
-
-    def __init__(self, loop_seconds: Optional[float] = None, **kwargs: Any):
-        super().__init__(
-            loop_seconds=(
-                loop_seconds
-                or PREFECT_EVENTS_PROACTIVE_GRANULARITY.value().total_seconds()
-            ),
-            **kwargs,
-        )
-
-    async def run_once(self) -> None:
-        await triggers.evaluate_proactive_triggers()
+async def evaluate_proactive_triggers_perpetual(
+    perpetual: Perpetual = Perpetual(
+        automatic=True,
+        every=timedelta(
+            seconds=PREFECT_EVENTS_PROACTIVE_GRANULARITY.value().total_seconds()
+        ),
+    ),
+) -> None:
+    """Evaluates proactive automation triggers (Perpetual task)."""
+    await triggers.evaluate_proactive_triggers()
