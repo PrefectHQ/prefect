@@ -19,7 +19,7 @@ import subprocess
 import warnings
 from copy import deepcopy
 from importlib import import_module
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any
 
 from prefect._internal.compatibility.deprecated import PrefectDeprecationWarning
 from prefect._internal.concurrency.api import Call, from_async
@@ -66,7 +66,7 @@ def _strip_version(requirement: str) -> str:
 
 
 def _get_function_for_step(
-    fully_qualified_name: str, requires: Union[str, List[str], None] = None
+    fully_qualified_name: str, requires: str | list[str] | None = None
 ):
     if not isinstance(requires, list):
         packages = [requires] if requires else []
@@ -104,7 +104,7 @@ def _get_function_for_step(
 
 
 async def run_step(
-    step: dict[str, Any], upstream_outputs: Optional[dict[str, Any]] = None
+    step: dict[str, Any], upstream_outputs: dict[str, Any] | None = None
 ) -> dict[str, Any]:
     """
     Runs a step, returns the step's output.
@@ -142,9 +142,10 @@ async def run_step(
 
 
 async def run_steps(
-    steps: List[Dict[str, Any]],
-    upstream_outputs: Optional[Dict[str, Any]] = None,
+    steps: list[dict[str, Any]],
+    upstream_outputs: dict[str, Any] | None = None,
     print_function: Any = print,
+    deployment: Any | None = None,
 ) -> dict[str, Any]:
     upstream_outputs = deepcopy(upstream_outputs) if upstream_outputs else {}
     serialized_steps: list[dict[str, Any]] = []
@@ -154,6 +155,11 @@ async def run_steps(
         fqn, inputs = _get_step_fully_qualified_name_and_inputs(step)
         step_name = fqn.split(".")[-1]
         print_function(f" > Running {step_name} step...")
+        # SECURITY: Serialize inputs BEFORE running the step (and thus before templating).
+        # This ensures that the event payload contains template strings like
+        # "{{ prefect.blocks.secret.api-key }}" rather than resolved secret values.
+        # Templating (which resolves blocks, variables, and env vars) happens inside
+        # run_step(), so by serializing here we prevent secrets from leaking in events.
         serialized_steps.append(
             _serialize_step_for_event(len(serialized_steps), fqn, inputs)
         )
@@ -196,20 +202,38 @@ async def run_steps(
                 upstream_outputs[inputs.get("id")] = step_output
             upstream_outputs.update(step_output)
         except Exception as exc:
-            _emit_pull_steps_event(serialized_steps, status="failed")
+            _emit_pull_steps_event(
+                serialized_steps, status="failed", deployment=deployment
+            )
             raise StepExecutionError(f"Encountered error while running {fqn}") from exc
-    _emit_pull_steps_event(serialized_steps, status="completed")
+    _emit_pull_steps_event(serialized_steps, status="completed", deployment=deployment)
     return upstream_outputs
 
 
-def _get_step_fully_qualified_name_and_inputs(step: Dict) -> Tuple[str, Dict]:
+def _get_step_fully_qualified_name_and_inputs(step: dict) -> tuple[str, dict]:
     step = deepcopy(step)
     return step.popitem()
 
 
 def _serialize_step_for_event(
-    index: int, qualified_name: str, inputs: Dict[str, Any]
+    index: int, qualified_name: str, inputs: dict[str, Any]
 ) -> dict[str, Any]:
+    """
+    Serialize a step's metadata for the pull-steps.executed event payload.
+
+    IMPORTANT: This function must be called with PRE-TEMPLATED inputs to avoid
+    exposing secrets in event payloads. Template strings like "{{ prefect.blocks.secret.name }}"
+    are preserved, while templating (which resolves these to actual secret values)
+    happens later in run_step().
+
+    Args:
+        index: The step's index in the execution sequence
+        qualified_name: The fully qualified name of the step function
+        inputs: The raw, pre-templated inputs for the step
+
+    Returns:
+        A dictionary containing step metadata safe for event emission
+    """
     sanitized_inputs = {
         key: value for key, value in inputs.items() if key not in RESERVED_KEYWORDS
     }
@@ -223,7 +247,10 @@ def _serialize_step_for_event(
 
 
 def _emit_pull_steps_event(
-    serialized_steps: list[dict[str, Any]], *, status: str
+    serialized_steps: list[dict[str, Any]],
+    *,
+    status: str,
+    deployment: Any | None = None,
 ) -> None:
     if not serialized_steps:
         return
@@ -240,10 +267,23 @@ def _emit_pull_steps_event(
     resource = {
         "prefect.resource.id": f"prefect.flow-run.{flow_run_id}",
     }
+
+    # Build related resources
+    related: list[dict[str, str]] = []
+    if deployment:
+        # Add deployment as a related resource
+        related.append(
+            {
+                "prefect.resource.id": f"prefect.deployment.{deployment.id}",
+                "prefect.resource.role": "deployment",
+            }
+        )
+
     try:
         emit_event(
             event="prefect.flow-run.pull-steps.executed",
             resource=resource,
+            related=related if related else None,
             payload=payload,
         )
     except Exception:

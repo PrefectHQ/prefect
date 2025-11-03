@@ -404,6 +404,150 @@ class TestRunSteps:
         assert payload["steps"][0]["id"] == "step-one"
         assert payload["steps"][1]["id"] == "step-two"
 
+    async def test_run_steps_does_not_expose_secrets_in_event(self, monkeypatch):
+        """
+        Test that the pull steps event payload contains pre-templated inputs,
+        not resolved secrets from blocks, variables, or environment variables.
+
+        This is critical for security - we don't want to leak credentials in event payloads.
+        """
+        emitted = []
+
+        def fake_emit_event(**kwargs):
+            emitted.append(kwargs)
+            return object()
+
+        flow_run_id = str(uuid.uuid4())
+        monkeypatch.setenv("PREFECT__FLOW_RUN_ID", flow_run_id)
+        monkeypatch.setenv("SECRET_ENV_VAR", "super-secret-value")
+        monkeypatch.setattr(
+            "prefect.deployments.steps.core.emit_event",
+            fake_emit_event,
+            raising=False,
+        )
+
+        # Save a secret block
+        await Secret(value="my-secret-api-key").save(name="api-key")
+
+        # Save a variable with sensitive data
+        from prefect.client.orchestration import get_client
+
+        async with get_client() as client:
+            await client._client.post(
+                "/variables/", json={"name": "db_password", "value": "secret-password"}
+            )
+
+        def fake_step(*, script: str, api_key: str, password: str, env_secret: str):
+            # Verify that the step receives the resolved values
+            assert api_key == "my-secret-api-key"
+            assert password == "secret-password"
+            assert env_secret == "super-secret-value"
+            return {"result": "success"}
+
+        monkeypatch.setattr(
+            "prefect.deployments.steps.run_shell_script",
+            fake_step,
+        )
+
+        steps = [
+            {
+                "prefect.deployments.steps.run_shell_script": {
+                    "script": "echo 'test'",
+                    "api_key": "{{ prefect.blocks.secret.api-key }}",
+                    "password": "{{ prefect.variables.db_password }}",
+                    "env_secret": "{{ $SECRET_ENV_VAR }}",
+                    "id": "step-with-secrets",
+                }
+            }
+        ]
+
+        output = await run_steps(steps, {})
+
+        # Step should have executed successfully
+        assert output["result"] == "success"
+
+        # Verify event was emitted
+        assert len(emitted) == 1
+        event_kwargs = emitted[0]
+        assert event_kwargs["event"] == "prefect.flow-run.pull-steps.executed"
+
+        payload = event_kwargs["payload"]
+        assert payload["status"] == "completed"
+        assert payload["count"] == 1
+
+        # CRITICAL: The event payload should contain the TEMPLATE STRINGS,
+        # not the resolved secret values
+        step_inputs = payload["steps"][0]["inputs"]
+        assert step_inputs["api_key"] == "{{ prefect.blocks.secret.api-key }}"
+        assert step_inputs["password"] == "{{ prefect.variables.db_password }}"
+        assert step_inputs["env_secret"] == "{{ $SECRET_ENV_VAR }}"
+
+        # Make sure we're not leaking the actual secret values
+        assert "my-secret-api-key" not in str(payload)
+        assert "secret-password" not in str(payload)
+        assert "super-secret-value" not in str(payload)
+
+    async def test_run_steps_includes_deployment_as_related_resource(self, monkeypatch):
+        """
+        Test that the pull steps event includes the deployment as a related resource.
+        """
+        emitted = []
+
+        def fake_emit_event(**kwargs):
+            emitted.append(kwargs)
+            return object()
+
+        flow_run_id = str(uuid.uuid4())
+        deployment_id = str(uuid.uuid4())
+        monkeypatch.setenv("PREFECT__FLOW_RUN_ID", flow_run_id)
+        monkeypatch.setattr(
+            "prefect.deployments.steps.core.emit_event",
+            fake_emit_event,
+            raising=False,
+        )
+
+        def fake_step(*, script: str):
+            return {"result": "success"}
+
+        monkeypatch.setattr(
+            "prefect.deployments.steps.run_shell_script",
+            fake_step,
+        )
+
+        steps = [
+            {
+                "prefect.deployments.steps.run_shell_script": {
+                    "script": "echo 'test'",
+                    "id": "test-step",
+                }
+            }
+        ]
+
+        # Create a mock deployment
+        from unittest.mock import Mock
+
+        mock_deployment = Mock()
+        mock_deployment.id = deployment_id
+
+        output = await run_steps(steps, {}, deployment=mock_deployment)
+
+        # Step should have executed successfully
+        assert output["result"] == "success"
+
+        # Verify event was emitted with deployment as related resource
+        assert len(emitted) == 1
+        event_kwargs = emitted[0]
+        assert event_kwargs["event"] == "prefect.flow-run.pull-steps.executed"
+
+        # Check that related resources includes the deployment
+        related = event_kwargs.get("related")
+        assert related is not None
+        assert len(related) == 1
+        assert (
+            related[0]["prefect.resource.id"] == f"prefect.deployment.{deployment_id}"
+        )
+        assert related[0]["prefect.resource.role"] == "deployment"
+
     async def test_run_steps_runs_multiple_steps(self):
         steps = [
             {
