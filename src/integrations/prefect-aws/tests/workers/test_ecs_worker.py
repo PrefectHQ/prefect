@@ -810,7 +810,7 @@ async def test_cluster_and_launch_type_passed_when_missing_from_template(
     aws_credentials: AwsCredentials, flow_run: FlowRun
 ):
     """Test that cluster and launchType are added even when missing from templated task_run_request.
-    
+
     This tests the specific bug scenario where template variables resolve to empty/None
     but configuration fields are set directly.
     """
