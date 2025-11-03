@@ -1088,6 +1088,13 @@ class Task(Generic[P, R]):
 
     @overload
     def __call__(
+        self: "Task[P, Coroutine[Any, Any, R]]",
+        *args: P.args,
+        **kwargs: P.kwargs,
+    ) -> Coroutine[Any, Any, R]: ...
+
+    @overload
+    def __call__(
         self: "Task[P, R]",
         *args: P.args,
         **kwargs: P.kwargs,
@@ -1097,9 +1104,22 @@ class Task(Generic[P, R]):
     # ParamSpec `*args` parameter, so we lose return type typing when either of
     # those are provided.
     # TODO: Find a way to expose this functionality without losing type information
+
+    # NOTE: return_state=False overloads must come before return_state=True
+    # When pyright can't match argument types, it falls back to these overloads with *args
+    # and picks the first match. We want the default (False) behavior.
     @overload
     def __call__(
-        self: "Task[P, R]",
+        self: "Task[P, Coroutine[Any, Any, R]]",
+        *args: P.args,
+        return_state: Literal[False] = False,
+        wait_for: Optional[OneOrManyFutureOrResult[Any]] = None,
+        **kwargs: P.kwargs,
+    ) -> Coroutine[Any, Any, R]: ...
+
+    @overload
+    def __call__(
+        self: "Task[P, Coroutine[Any, Any, R]]",
         *args: P.args,
         return_state: Literal[True] = True,
         wait_for: Optional[OneOrManyFutureOrResult[Any]] = None,
@@ -1114,6 +1134,15 @@ class Task(Generic[P, R]):
         wait_for: Optional[OneOrManyFutureOrResult[Any]] = None,
         **kwargs: P.kwargs,
     ) -> R: ...
+
+    @overload
+    def __call__(
+        self: "Task[P, R]",
+        *args: P.args,
+        return_state: Literal[True] = True,
+        wait_for: Optional[OneOrManyFutureOrResult[Any]] = None,
+        **kwargs: P.kwargs,
+    ) -> State[R]: ...
 
     def __call__(
         self: "Union[Task[P, R], Task[P, NoReturn]]",
