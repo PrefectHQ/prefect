@@ -771,6 +771,89 @@ async def test_cluster(
 
 
 @pytest.mark.usefixtures("ecs_mocks")
+async def test_cluster_and_launch_type_passed_to_run_task(
+    aws_credentials: AwsCredentials, flow_run: FlowRun
+):
+    """Test that cluster and launchType are explicitly passed to run_task API call."""
+    cluster_arn = "arn:aws:ecs:us-east-1:123456789012:cluster/test-cluster"
+    launch_type = "FARGATE"
+
+    configuration = await construct_configuration(
+        cluster=cluster_arn,
+        launch_type=launch_type,
+        aws_credentials=aws_credentials,
+    )
+
+    session = aws_credentials.get_boto3_session()
+    ecs_client = session.client("ecs")
+    create_test_ecs_cluster(ecs_client, "test-cluster")
+
+    async with ECSWorker(work_pool_name="test") as worker:
+        # Capture the task run call to verify parameters
+        original_run_task = worker._create_task_run
+        mock_run_task = MagicMock(side_effect=original_run_task)
+        worker._create_task_run = mock_run_task
+
+        result = await worker.run(flow_run, configuration)
+
+    # Verify that cluster and launchType were passed in the run_task call
+    run_kwargs = mock_run_task.call_args[0][1]
+    assert run_kwargs.get("cluster") == cluster_arn
+    assert run_kwargs.get("launchType") == launch_type
+
+    # Verify the task was created successfully
+    assert result.status_code == 0
+
+
+@pytest.mark.usefixtures("ecs_mocks")
+async def test_cluster_and_launch_type_passed_when_missing_from_template(
+    aws_credentials: AwsCredentials, flow_run: FlowRun
+):
+    """Test that cluster and launchType are added even when missing from templated task_run_request.
+    
+    This tests the specific bug scenario where template variables resolve to empty/None
+    but configuration fields are set directly.
+    """
+    cluster_arn = "arn:aws:ecs:us-east-1:123456789012:cluster/test-cluster"
+    launch_type = "FARGATE"
+
+    # Create configuration with cluster and launch_type set
+    configuration = await construct_configuration(
+        cluster=cluster_arn,
+        launch_type=launch_type,
+        aws_credentials=aws_credentials,
+    )
+
+    # Manually remove cluster and launchType from task_run_request to simulate
+    # the bug scenario where template resolution doesn't provide these values
+    if "cluster" in configuration.task_run_request:
+        del configuration.task_run_request["cluster"]
+    if "launchType" in configuration.task_run_request:
+        del configuration.task_run_request["launchType"]
+
+    session = aws_credentials.get_boto3_session()
+    ecs_client = session.client("ecs")
+    create_test_ecs_cluster(ecs_client, "test-cluster")
+
+    async with ECSWorker(work_pool_name="test") as worker:
+        # Capture the task run call to verify parameters
+        original_run_task = worker._create_task_run
+        mock_run_task = MagicMock(side_effect=original_run_task)
+        worker._create_task_run = mock_run_task
+
+        result = await worker.run(flow_run, configuration)
+
+    # Verify that cluster and launchType were added from configuration
+    # even though they were missing from task_run_request
+    run_kwargs = mock_run_task.call_args[0][1]
+    assert run_kwargs.get("cluster") == cluster_arn
+    assert run_kwargs.get("launchType") == launch_type
+
+    # Verify the task was created successfully
+    assert result.status_code == 0
+
+
+@pytest.mark.usefixtures("ecs_mocks")
 async def test_execution_role_arn(
     aws_credentials: AwsCredentials,
     flow_run: FlowRun,
