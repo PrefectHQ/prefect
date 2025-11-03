@@ -158,6 +158,9 @@ def get_version() -> Optional[str]:
 
 
 def get_flow_run_id() -> Optional[str]:
+    flow_run_ctx = FlowRunContext.get()
+    if flow_run_ctx is not None:
+        return str(flow_run_ctx.flow_run.id)
     return os.getenv("PREFECT__FLOW_RUN_ID")
 
 

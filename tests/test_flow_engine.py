@@ -2241,6 +2241,53 @@ class TestRunFlowInSubprocess:
         # Stays in running state because the flow run is aborted manually
         assert flow_run.state.is_running()
 
+    async def test_deployment_parameters_accessible_in_subprocess(
+        self, engine_type: Literal["sync", "async"], prefect_client: PrefectClient
+    ):
+        """Test that deployment.parameters is accessible in subprocess (issue #19329)."""
+        deployment_params = {
+            "source_name": "ABC",
+            "database_export_date": "2025-08-27",
+            "bucket_name": "data-migration",
+        }
+
+        if engine_type == "sync":
+
+            @flow(name=f"test_deployment_params_{uuid.uuid4()}", persist_result=True)
+            def foo(source_name: str, database_export_date: str, bucket_name: str):
+                from prefect.runtime import deployment
+
+                return deployment.parameters
+        else:
+
+            @flow(name=f"test_deployment_params_{uuid.uuid4()}", persist_result=True)
+            async def foo(
+                source_name: str, database_export_date: str, bucket_name: str
+            ):
+                from prefect.runtime import deployment
+
+                return deployment.parameters
+
+        flow_id = await prefect_client.create_flow(foo)
+        deployment_id = await prefect_client.create_deployment(
+            flow_id=flow_id,
+            name=f"test_deployment_params_{uuid.uuid4()}",
+            parameters=deployment_params,
+        )
+
+        flow_run = await prefect_client.create_flow_run_from_deployment(deployment_id)
+
+        process = run_flow_in_subprocess(foo, flow_run)
+        process.join()
+        assert process.exitcode == 0
+
+        flow_run = await prefect_client.read_flow_run(flow_run.id)
+        assert flow_run.state.is_completed()
+
+        # deployment.parameters should match what we set
+        result = await flow_run.state.result()
+        assert result == deployment_params
+
     async def test_flow_raises_a_base_exception(
         self, engine_type: Literal["sync", "async"]
     ):
