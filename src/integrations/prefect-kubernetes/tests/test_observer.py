@@ -219,8 +219,9 @@ class TestReplicatePodEvent:
             "test-worker",
         }
 
-    @pytest.mark.usefixtures("mock_orchestration_client")
-    async def test_event_deduplication(self, mock_events_client: AsyncMock):
+    async def test_event_deduplication(
+        self, mock_events_client: AsyncMock, mock_orchestration_client: AsyncMock
+    ):
         """Test that checks from existing events when receiving events on startup"""
         pod_id = uuid.uuid4()
         await _replicate_pod_event(
@@ -233,6 +234,21 @@ class TestReplicatePodEvent:
             status={"phase": "Running"},
             logger=MagicMock(),
         )
+
+        # Verify the request was made with correct payload structure
+        mock_orchestration_client.request.assert_called_once()
+        call_args = mock_orchestration_client.request.call_args
+        assert call_args[0] == ("POST", "/events/filter")
+
+        # Verify the json payload has the correct structure: {"filter": {...}}
+        json_payload = call_args[1]["json"]
+        assert "filter" in json_payload, "Expected 'filter' key in json payload"
+
+        # Verify the nested filter contains expected fields
+        event_filter = json_payload["filter"]
+        assert "event" in event_filter, "Expected 'event' field in filter"
+        assert "resource" in event_filter, "Expected 'resource' field in filter"
+        assert "occurred" in event_filter, "Expected 'occurred' field in filter"
 
         # Verify no event was emitted since one already existed
         mock_events_client.emit.assert_not_called()
