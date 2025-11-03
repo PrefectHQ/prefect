@@ -2,6 +2,7 @@ import os
 import shutil
 import subprocess
 import sys
+import uuid
 import warnings
 from pathlib import Path
 from textwrap import dedent
@@ -265,6 +266,144 @@ class TestRunStep:
 
 
 class TestRunSteps:
+    async def test_run_steps_emits_pull_steps_event(self, monkeypatch):
+        emitted = []
+
+        def fake_emit_event(**kwargs):
+            emitted.append(kwargs)
+            return object()
+
+        flow_run_id = str(uuid.uuid4())
+        monkeypatch.setenv("PREFECT__FLOW_RUN_ID", flow_run_id)
+        monkeypatch.setattr(
+            "prefect.deployments.steps.core.emit_event",
+            fake_emit_event,
+            raising=False,
+        )
+
+        def fake_step(*, script: str, **kwargs):
+            return {"result": script, **kwargs}
+
+        monkeypatch.setattr(
+            "prefect.deployments.steps.run_shell_script",
+            fake_step,
+        )
+
+        steps = [
+            {
+                "prefect.deployments.steps.run_shell_script": {
+                    "script": "first",
+                    "id": "step-one",
+                    "requires": "prefect>=3.0.0",
+                    "extra": "value",
+                }
+            },
+            {
+                "prefect.deployments.steps.run_shell_script": {
+                    "script": "second",
+                }
+            },
+        ]
+
+        output = await run_steps(steps, {})
+
+        assert output["result"] == "second"
+        assert len(emitted) == 1
+        event_kwargs = emitted[0]
+        assert event_kwargs["event"] == "prefect.flow-run.pull-steps.executed"
+        assert event_kwargs["resource"] == {
+            "prefect.resource.id": f"prefect.flow-run.{flow_run_id}",
+        }
+        payload = event_kwargs["payload"]
+        assert payload["status"] == "completed"
+        assert payload["count"] == 2
+        first_step_inputs = payload["steps"][0]["inputs"]
+        assert first_step_inputs == {"script": "first", "extra": "value"}
+        assert payload["steps"][0]["id"] == "step-one"
+
+    async def test_run_steps_skips_event_without_flow_run_id(self, monkeypatch):
+        monkeypatch.delenv("PREFECT__FLOW_RUN_ID", raising=False)
+        emitted = []
+
+        def fake_emit_event(**kwargs):
+            emitted.append(kwargs)
+            return object()
+
+        monkeypatch.setattr(
+            "prefect.deployments.steps.core.emit_event",
+            fake_emit_event,
+            raising=False,
+        )
+
+        def fake_step(*, script: str, **kwargs):
+            return {"result": script}
+
+        monkeypatch.setattr(
+            "prefect.deployments.steps.run_shell_script",
+            fake_step,
+        )
+
+        steps = [
+            {
+                "prefect.deployments.steps.run_shell_script": {
+                    "script": "first",
+                }
+            }
+        ]
+
+        await run_steps(steps, {})
+        assert emitted == []
+
+    async def test_run_steps_emits_event_on_failure(self, monkeypatch):
+        emitted = []
+
+        def fake_emit_event(**kwargs):
+            emitted.append(kwargs)
+            return object()
+
+        flow_run_id = str(uuid.uuid4())
+        monkeypatch.setenv("PREFECT__FLOW_RUN_ID", flow_run_id)
+        monkeypatch.setattr(
+            "prefect.deployments.steps.core.emit_event",
+            fake_emit_event,
+            raising=False,
+        )
+
+        def fake_step(*, script: str, **kwargs):
+            if script == "boom":
+                raise RuntimeError("explode")
+            return {"result": script}
+
+        monkeypatch.setattr(
+            "prefect.deployments.steps.run_shell_script",
+            fake_step,
+        )
+
+        steps = [
+            {
+                "prefect.deployments.steps.run_shell_script": {
+                    "script": "ok",
+                    "id": "step-one",
+                }
+            },
+            {
+                "prefect.deployments.steps.run_shell_script": {
+                    "script": "boom",
+                    "id": "step-two",
+                }
+            },
+        ]
+
+        with pytest.raises(StepExecutionError):
+            await run_steps(steps, {})
+
+        assert len(emitted) == 1
+        payload = emitted[0]["payload"]
+        assert payload["status"] == "failed"
+        assert payload["count"] == 2
+        assert payload["steps"][0]["id"] == "step-one"
+        assert payload["steps"][1]["id"] == "step-two"
+
     async def test_run_steps_runs_multiple_steps(self):
         steps = [
             {

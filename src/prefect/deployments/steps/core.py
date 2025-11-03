@@ -25,6 +25,7 @@ from prefect._internal.compatibility.deprecated import PrefectDeprecationWarning
 from prefect._internal.concurrency.api import Call, from_async
 from prefect._internal.installation import install_packages
 from prefect._internal.integrations import KNOWN_EXTRAS_FOR_PACKAGES
+from prefect.events.utilities import emit_event
 from prefect.logging.loggers import get_logger
 from prefect.settings import PREFECT_DEBUG_MODE
 from prefect.utilities.importtools import import_object
@@ -146,12 +147,16 @@ async def run_steps(
     print_function: Any = print,
 ) -> dict[str, Any]:
     upstream_outputs = deepcopy(upstream_outputs) if upstream_outputs else {}
+    serialized_steps: list[dict[str, Any]] = []
     for step in steps:
         if not step:
             continue
         fqn, inputs = _get_step_fully_qualified_name_and_inputs(step)
         step_name = fqn.split(".")[-1]
         print_function(f" > Running {step_name} step...")
+        serialized_steps.append(
+            _serialize_step_for_event(len(serialized_steps), fqn, inputs)
+        )
         try:
             # catch warnings to ensure deprecation warnings are printed
             with warnings.catch_warnings(record=True) as w:
@@ -191,10 +196,57 @@ async def run_steps(
                 upstream_outputs[inputs.get("id")] = step_output
             upstream_outputs.update(step_output)
         except Exception as exc:
+            _emit_pull_steps_event(serialized_steps, status="failed")
             raise StepExecutionError(f"Encountered error while running {fqn}") from exc
+    _emit_pull_steps_event(serialized_steps, status="completed")
     return upstream_outputs
 
 
 def _get_step_fully_qualified_name_and_inputs(step: Dict) -> Tuple[str, Dict]:
     step = deepcopy(step)
     return step.popitem()
+
+
+def _serialize_step_for_event(
+    index: int, qualified_name: str, inputs: Dict[str, Any]
+) -> dict[str, Any]:
+    sanitized_inputs = {
+        key: value for key, value in inputs.items() if key not in RESERVED_KEYWORDS
+    }
+    return {
+        "index": index,
+        "qualified_name": qualified_name,
+        "step_name": qualified_name.split(".")[-1],
+        "id": inputs.get("id"),
+        "inputs": sanitized_inputs,
+    }
+
+
+def _emit_pull_steps_event(
+    serialized_steps: list[dict[str, Any]], *, status: str
+) -> None:
+    if not serialized_steps:
+        return
+
+    flow_run_id = os.getenv("PREFECT__FLOW_RUN_ID")
+    if not flow_run_id:
+        return
+
+    payload = {
+        "count": len(serialized_steps),
+        "status": status,
+        "steps": serialized_steps,
+    }
+    resource = {
+        "prefect.resource.id": f"prefect.flow-run.{flow_run_id}",
+    }
+    try:
+        emit_event(
+            event="prefect.flow-run.pull-steps.executed",
+            resource=resource,
+            payload=payload,
+        )
+    except Exception:
+        get_logger(__name__).warning(
+            "Failed to emit pull-steps event for flow run %s", flow_run_id
+        )
