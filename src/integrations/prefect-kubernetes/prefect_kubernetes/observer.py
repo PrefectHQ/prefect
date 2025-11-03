@@ -143,7 +143,7 @@ async def _replicate_pod_event(  # pyright: ignore[reportUnusedFunction]
         response = await orchestration_client.request(
             "POST",
             "/events/filter",
-            json=event_filter.model_dump(exclude_unset=True, mode="json"),
+            json=dict(filter=event_filter.model_dump(exclude_unset=True, mode="json")),
         )
         # If the event already exists, we don't need to emit a new one.
         if response.json()["events"]:
