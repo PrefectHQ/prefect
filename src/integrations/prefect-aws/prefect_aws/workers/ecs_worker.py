@@ -1309,6 +1309,25 @@ class ECSWorker(BaseWorker[ECSJobConfiguration, ECSVariables, ECSWorkerResult]):
             f"Task definition ARN mismatch: {task_run_request['taskDefinition']!r} "
             f"!= {task_definition_arn!r}"
         )
+
+        # Explicitly add cluster from configuration if set and not already in task_run_request
+        # or if the value in task_run_request is empty/None
+        # This ensures cluster is included even when template variables resolve to empty/None
+        if configuration.cluster:
+            existing_cluster = task_run_request.get("cluster")
+            if not existing_cluster:
+                task_run_request["cluster"] = configuration.cluster
+
+        # Explicitly add launchType if missing or empty in task_run_request
+        # This ensures launchType is included even when template variables resolve to empty/None
+        # AWS expects camelCase "launchType" not snake_case "launch_type"
+        # Default to FARGATE if not specified, which matches the default launch_type variable
+        # Note: launchType may be removed later if capacityProviderStrategy is set
+        existing_launch_type = task_run_request.get("launchType")
+        if not existing_launch_type:
+            # Default to FARGATE if launchType is missing, matching the default launch_type variable
+            task_run_request["launchType"] = ECS_DEFAULT_LAUNCH_TYPE
+
         capacityProviderStrategy = task_run_request.get("capacityProviderStrategy")
 
         if capacityProviderStrategy:
