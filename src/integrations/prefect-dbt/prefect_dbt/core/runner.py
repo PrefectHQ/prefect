@@ -772,12 +772,9 @@ class PrefectDbtRunner:
                     # Prefect formatters require specific fields based on logger name:
                     # - prefect.task_runs requires task_run_name
                     # - prefect.flow_runs requires flow_run_name
-                    # Set send_to_api=False to prevent APILogHandler from processing,
-                    # since we'll send to API directly with the correct timestamp
                     extra_dict: dict[str, Any] = {
                         "flow_run_id": str(flow_run_id),
                         "flow_run_name": flow_run_name or "<unknown>",
-                        "send_to_api": False,  # Prevent APILogHandler from sending (we'll send directly)
                     }
                     if task_run_id:
                         extra_dict["task_run_id"] = str(task_run_id)
@@ -804,24 +801,6 @@ class PrefectDbtRunner:
                     logger.handle(record)
                 except Exception:
                     # Silently fail if console logging fails to avoid blocking dbt
-                    pass
-                
-                # Create log entry with dbt event timestamp for API
-                log_entry = LogCreate(
-                    name=logger_name,
-                    level=log_level_int,
-                    message=message,
-                    timestamp=from_timestamp(event_timestamp),
-                    flow_run_id=flow_run_id,
-                    task_run_id=task_run_id,
-                )
-                
-                # Emit log directly to Prefect API
-                try:
-                    self.client.create_logs([log_entry])
-                except Exception:
-                    # Silently fail if log creation fails to avoid blocking dbt
-                    # This can happen if the client is disconnected or the run doesn't exist
                     pass
 
         return logging_callback
