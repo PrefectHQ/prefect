@@ -769,15 +769,17 @@ class PrefectDbtRunner:
                 try:
                     logger = get_logger(logger_name)
                     # Create a LogRecord with the dbt event timestamp
+                    # Prefect formatters require specific fields based on logger name:
+                    # - prefect.task_runs requires task_run_name
+                    # - prefect.flow_runs requires flow_run_name
                     extra_dict: dict[str, Any] = {
                         "flow_run_id": str(flow_run_id),
+                        "flow_run_name": flow_run_name or "<unknown>",
                     }
                     if task_run_id:
                         extra_dict["task_run_id"] = str(task_run_id)
-                    if flow_run_name:
-                        extra_dict["flow_run_name"] = flow_run_name
-                    if task_run_name:
-                        extra_dict["task_run_name"] = task_run_name
+                        # task_run_name is required for prefect.task_runs logger
+                        extra_dict["task_run_name"] = task_run_name or "<unknown>"
                     
                     record = logger.makeRecord(
                         logger_name,
