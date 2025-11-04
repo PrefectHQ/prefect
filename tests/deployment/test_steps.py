@@ -315,7 +315,7 @@ class TestRunSteps:
             "prefect.resource.id": f"prefect.flow-run.{flow_run_id}",
         }
         payload = event_kwargs["payload"]
-        assert payload["status"] == "completed"
+        assert payload["errored"] is False
         assert payload["count"] == 2
         first_step_inputs = payload["steps"][0]["inputs"]
         assert first_step_inputs == {"script": "first", "extra": "value"}
@@ -399,7 +399,7 @@ class TestRunSteps:
 
         assert len(emitted) == 1
         payload = emitted[0]["payload"]
-        assert payload["status"] == "failed"
+        assert payload["errored"] is True
         assert payload["count"] == 2
         assert payload["steps"][0]["id"] == "step-one"
         assert payload["steps"][1]["id"] == "step-two"
@@ -472,7 +472,7 @@ class TestRunSteps:
         assert event_kwargs["event"] == "prefect.flow-run.pull-steps.executed"
 
         payload = event_kwargs["payload"]
-        assert payload["status"] == "completed"
+        assert payload["errored"] is False
         assert payload["count"] == 1
 
         # CRITICAL: The event payload should contain the TEMPLATE STRINGS,

@@ -203,10 +203,10 @@ async def run_steps(
             upstream_outputs.update(step_output)
         except Exception as exc:
             _emit_pull_steps_event(
-                serialized_steps, status="failed", deployment=deployment
+                serialized_steps, errored=True, deployment=deployment
             )
             raise StepExecutionError(f"Encountered error while running {fqn}") from exc
-    _emit_pull_steps_event(serialized_steps, status="completed", deployment=deployment)
+    _emit_pull_steps_event(serialized_steps, errored=False, deployment=deployment)
     return upstream_outputs
 
 
@@ -249,7 +249,7 @@ def _serialize_step_for_event(
 def _emit_pull_steps_event(
     serialized_steps: list[dict[str, Any]],
     *,
-    status: str,
+    errored: bool,
     deployment: Any | None = None,
 ) -> None:
     if not serialized_steps:
@@ -261,7 +261,7 @@ def _emit_pull_steps_event(
 
     payload = {
         "count": len(serialized_steps),
-        "status": status,
+        "errored": errored,
         "steps": serialized_steps,
     }
     resource = {
