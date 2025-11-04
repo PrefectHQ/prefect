@@ -203,10 +203,12 @@ async def run_steps(
             upstream_outputs.update(step_output)
         except Exception as exc:
             _emit_pull_steps_event(
-                serialized_steps, errored=True, deployment=deployment
+                serialized_steps,
+                failed_step=serialized_steps[-1] if serialized_steps else None,
+                deployment=deployment,
             )
             raise StepExecutionError(f"Encountered error while running {fqn}") from exc
-    _emit_pull_steps_event(serialized_steps, errored=False, deployment=deployment)
+    _emit_pull_steps_event(serialized_steps, failed_step=None, deployment=deployment)
     return upstream_outputs
 
 
@@ -249,7 +251,7 @@ def _serialize_step_for_event(
 def _emit_pull_steps_event(
     serialized_steps: list[dict[str, Any]],
     *,
-    errored: bool,
+    failed_step: dict[str, Any] | None,
     deployment: Any | None = None,
 ) -> None:
     if not serialized_steps:
@@ -261,9 +263,10 @@ def _emit_pull_steps_event(
 
     payload = {
         "count": len(serialized_steps),
-        "errored": errored,
         "steps": serialized_steps,
     }
+    if failed_step is not None:
+        payload["failed_step"] = failed_step
     resource = {
         "prefect.resource.id": f"prefect.flow-run.{flow_run_id}",
     }

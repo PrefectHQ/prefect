@@ -317,7 +317,7 @@ class TestRunSteps:
             "prefect.resource.id": f"prefect.flow-run.{flow_run_id}",
         }
         payload = event_kwargs["payload"]
-        assert payload["errored"] is False
+        assert "failed_step" not in payload
         assert payload["count"] == 2
         first_step_inputs = payload["steps"][0]["inputs"]
         assert first_step_inputs == {"script": "first", "extra": "value"}
@@ -405,10 +405,16 @@ class TestRunSteps:
 
         assert len(emitted) == 1
         payload = emitted[0]["payload"]
-        assert payload["errored"] is True
         assert payload["count"] == 2
         assert payload["steps"][0]["id"] == "step-one"
         assert payload["steps"][1]["id"] == "step-two"
+
+        # Verify the failed step is the second one
+        failed_step = payload["failed_step"]
+        assert failed_step["id"] == "step-two"
+        assert failed_step["index"] == 1
+        assert failed_step["step_name"] == "run_shell_script"
+        assert failed_step["inputs"]["script"] == "boom"
 
     async def test_run_steps_does_not_expose_secrets_in_event(
         self, monkeypatch: pytest.MonkeyPatch
@@ -468,7 +474,7 @@ class TestRunSteps:
         assert event_kwargs["event"] == "prefect.flow-run.pull-steps.executed"
 
         payload = event_kwargs["payload"]
-        assert payload["errored"] is False
+        assert "failed_step" not in payload
         assert payload["count"] == 1
 
         step_inputs = payload["steps"][0]["inputs"]
