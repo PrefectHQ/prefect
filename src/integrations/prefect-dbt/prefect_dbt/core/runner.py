@@ -772,9 +772,12 @@ class PrefectDbtRunner:
                     # Prefect formatters require specific fields based on logger name:
                     # - prefect.task_runs requires task_run_name
                     # - prefect.flow_runs requires flow_run_name
+                    # Set send_to_api=False to prevent APILogHandler from processing,
+                    # since we'll send to API directly with the correct timestamp
                     extra_dict: dict[str, Any] = {
                         "flow_run_id": str(flow_run_id),
                         "flow_run_name": flow_run_name or "<unknown>",
+                        "send_to_api": False,  # Prevent APILogHandler from sending (we'll send directly)
                     }
                     if task_run_id:
                         extra_dict["task_run_id"] = str(task_run_id)
@@ -796,7 +799,8 @@ class PrefectDbtRunner:
                     # Override the timestamp with the dbt event timestamp
                     record.created = event_timestamp
                     record.msecs = (event_timestamp % 1) * 1000
-                    # Emit through the logger (which will use PrefectConsoleHandler)
+                    # Emit through the logger (which will use PrefectConsoleHandler for terminal output)
+                    # The send_to_api=False flag prevents APILogHandler from sending to API
                     logger.handle(record)
                 except Exception:
                     # Silently fail if console logging fails to avoid blocking dbt
