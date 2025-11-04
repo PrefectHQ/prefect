@@ -6,8 +6,8 @@ import uuid
 import warnings
 from pathlib import Path
 from textwrap import dedent
-from typing import Optional
-from unittest.mock import ANY, AsyncMock, MagicMock, call
+from typing import Any, Optional
+from unittest.mock import ANY, AsyncMock, MagicMock, Mock, call
 
 import pytest
 import uv
@@ -15,7 +15,7 @@ import uv
 from prefect._internal.compatibility.deprecated import PrefectDeprecationWarning
 from prefect.blocks.core import Block
 from prefect.blocks.system import Secret
-from prefect.client.orchestration import PrefectClient
+from prefect.client.orchestration import PrefectClient, get_client
 from prefect.deployments.steps import run_step
 from prefect.deployments.steps.core import StepExecutionError, run_steps
 from prefect.deployments.steps.pull import agit_clone, set_working_directory
@@ -266,10 +266,12 @@ class TestRunStep:
 
 
 class TestRunSteps:
-    async def test_run_steps_emits_pull_steps_event(self, monkeypatch):
-        emitted = []
+    async def test_run_steps_emits_pull_steps_event(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        emitted: list[dict[str, Any]] = []
 
-        def fake_emit_event(**kwargs):
+        def fake_emit_event(**kwargs: Any) -> object:
             emitted.append(kwargs)
             return object()
 
@@ -281,7 +283,7 @@ class TestRunSteps:
             raising=False,
         )
 
-        def fake_step(*, script: str, **kwargs):
+        def fake_step(*, script: str, **kwargs: Any) -> dict[str, Any]:
             return {"result": script, **kwargs}
 
         monkeypatch.setattr(
@@ -321,11 +323,13 @@ class TestRunSteps:
         assert first_step_inputs == {"script": "first", "extra": "value"}
         assert payload["steps"][0]["id"] == "step-one"
 
-    async def test_run_steps_skips_event_without_flow_run_id(self, monkeypatch):
+    async def test_run_steps_skips_event_without_flow_run_id(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
         monkeypatch.delenv("PREFECT__FLOW_RUN_ID", raising=False)
-        emitted = []
+        emitted: list[dict[str, Any]] = []
 
-        def fake_emit_event(**kwargs):
+        def fake_emit_event(**kwargs: Any) -> object:
             emitted.append(kwargs)
             return object()
 
@@ -335,7 +339,7 @@ class TestRunSteps:
             raising=False,
         )
 
-        def fake_step(*, script: str, **kwargs):
+        def fake_step(*, script: str, **kwargs: Any) -> dict[str, Any]:
             return {"result": script}
 
         monkeypatch.setattr(
@@ -354,10 +358,12 @@ class TestRunSteps:
         await run_steps(steps, {})
         assert emitted == []
 
-    async def test_run_steps_emits_event_on_failure(self, monkeypatch):
-        emitted = []
+    async def test_run_steps_emits_event_on_failure(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        emitted: list[dict[str, Any]] = []
 
-        def fake_emit_event(**kwargs):
+        def fake_emit_event(**kwargs: Any) -> object:
             emitted.append(kwargs)
             return object()
 
@@ -369,7 +375,7 @@ class TestRunSteps:
             raising=False,
         )
 
-        def fake_step(*, script: str, **kwargs):
+        def fake_step(*, script: str, **kwargs: Any) -> dict[str, Any]:
             if script == "boom":
                 raise RuntimeError("explode")
             return {"result": script}
@@ -404,16 +410,12 @@ class TestRunSteps:
         assert payload["steps"][0]["id"] == "step-one"
         assert payload["steps"][1]["id"] == "step-two"
 
-    async def test_run_steps_does_not_expose_secrets_in_event(self, monkeypatch):
-        """
-        Test that the pull steps event payload contains pre-templated inputs,
-        not resolved secrets from blocks, variables, or environment variables.
+    async def test_run_steps_does_not_expose_secrets_in_event(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        emitted: list[dict[str, Any]] = []
 
-        This is critical for security - we don't want to leak credentials in event payloads.
-        """
-        emitted = []
-
-        def fake_emit_event(**kwargs):
+        def fake_emit_event(**kwargs: Any) -> object:
             emitted.append(kwargs)
             return object()
 
@@ -426,19 +428,16 @@ class TestRunSteps:
             raising=False,
         )
 
-        # Save a secret block
         await Secret(value="my-secret-api-key").save(name="api-key")
-
-        # Save a variable with sensitive data
-        from prefect.client.orchestration import get_client
 
         async with get_client() as client:
             await client._client.post(
                 "/variables/", json={"name": "db_password", "value": "secret-password"}
             )
 
-        def fake_step(*, script: str, api_key: str, password: str, env_secret: str):
-            # Verify that the step receives the resolved values
+        def fake_step(
+            *, script: str, api_key: str, password: str, env_secret: str
+        ) -> dict[str, str]:
             assert api_key == "my-secret-api-key"
             assert password == "secret-password"
             assert env_secret == "super-secret-value"
@@ -463,10 +462,7 @@ class TestRunSteps:
 
         output = await run_steps(steps, {})
 
-        # Step should have executed successfully
         assert output["result"] == "success"
-
-        # Verify event was emitted
         assert len(emitted) == 1
         event_kwargs = emitted[0]
         assert event_kwargs["event"] == "prefect.flow-run.pull-steps.executed"
@@ -475,25 +471,21 @@ class TestRunSteps:
         assert payload["errored"] is False
         assert payload["count"] == 1
 
-        # CRITICAL: The event payload should contain the TEMPLATE STRINGS,
-        # not the resolved secret values
         step_inputs = payload["steps"][0]["inputs"]
         assert step_inputs["api_key"] == "{{ prefect.blocks.secret.api-key }}"
         assert step_inputs["password"] == "{{ prefect.variables.db_password }}"
         assert step_inputs["env_secret"] == "{{ $SECRET_ENV_VAR }}"
 
-        # Make sure we're not leaking the actual secret values
         assert "my-secret-api-key" not in str(payload)
         assert "secret-password" not in str(payload)
         assert "super-secret-value" not in str(payload)
 
-    async def test_run_steps_includes_deployment_as_related_resource(self, monkeypatch):
-        """
-        Test that the pull steps event includes the deployment as a related resource.
-        """
-        emitted = []
+    async def test_run_steps_includes_deployment_as_related_resource(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        emitted: list[dict[str, Any]] = []
 
-        def fake_emit_event(**kwargs):
+        def fake_emit_event(**kwargs: Any) -> object:
             emitted.append(kwargs)
             return object()
 
@@ -506,7 +498,7 @@ class TestRunSteps:
             raising=False,
         )
 
-        def fake_step(*, script: str):
+        def fake_step(*, script: str) -> dict[str, str]:
             return {"result": "success"}
 
         monkeypatch.setattr(
@@ -523,23 +515,16 @@ class TestRunSteps:
             }
         ]
 
-        # Create a mock deployment
-        from unittest.mock import Mock
-
         mock_deployment = Mock()
         mock_deployment.id = deployment_id
 
         output = await run_steps(steps, {}, deployment=mock_deployment)
 
-        # Step should have executed successfully
         assert output["result"] == "success"
-
-        # Verify event was emitted with deployment as related resource
         assert len(emitted) == 1
         event_kwargs = emitted[0]
         assert event_kwargs["event"] == "prefect.flow-run.pull-steps.executed"
 
-        # Check that related resources includes the deployment
         related = event_kwargs.get("related")
         assert related is not None
         assert len(related) == 1
