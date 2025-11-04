@@ -466,12 +466,15 @@ class PrefectDbtRunner:
         if self._event_queue and self._callback_threads:
             # Put sentinels to wake up all workers (with highest priority to ensure they're processed)
             try:
+                import time
+                sentinel_timestamp = time.time()
                 # Use counter -1 to ensure sentinels are processed first among priority 0 items
                 with self._queue_counter_lock:
                     sentinel_counter = self._queue_counter - 1
                 # Send one sentinel per worker thread
                 for _ in range(len(self._callback_threads)):
-                    self._event_queue.put((0, sentinel_counter, None), timeout=0.1)  # Priority 0 to process immediately
+                    # Priority 0, with timestamp and counter for proper ordering
+                    self._event_queue.put((0, sentinel_timestamp, sentinel_counter, None), timeout=0.1)
                     sentinel_counter -= 1  # Ensure unique counters
             except queue.Full:
                 pass
@@ -482,13 +485,18 @@ class PrefectDbtRunner:
         self._callback_threads = []
         
     def _callback_worker(self) -> None:
-        """Background worker thread that processes queued events."""
+        """Background worker thread that processes queued events.
+        
+        Processes events in priority order (NodeStart > NodeFinished > others)
+        while maintaining chronological order within each priority level.
+        """
         while not self._shutdown_event.is_set():
             event_data = None
             try:
                 # Get event with timeout to periodically check shutdown
-                # PriorityQueue returns (priority, counter, item) tuples
-                _, _, event_data = self._event_queue.get(timeout=0.1)
+                # PriorityQueue returns (priority, timestamp, counter, item) tuples
+                # We unpack all components but only use priority, timestamp ordering
+                _, _, _, event_data = self._event_queue.get(timeout=0.1)
                 if event_data is None:  # Sentinel to shutdown
                     break
                 
@@ -509,6 +517,9 @@ class PrefectDbtRunner:
         - 0: NodeStart (highest - must create tasks before other events)
         - 1: NodeFinished (medium - update task status)
         - 2: Everything else (lowest - logging, etc.)
+        
+        Note: Within the same priority level, events are processed in chronological
+        order using timestamps to maintain exact event sequence.
         """
         event_name = event.info.name
         if event_name == "NodeStart":
@@ -517,6 +528,18 @@ class PrefectDbtRunner:
             return 1
         else:
             return 2
+    
+    def _get_event_timestamp(self, event: EventMsg) -> float:
+        """Get the timestamp for an event, falling back to current time if not available."""
+        try:
+            # Try to get timestamp from dbt event
+            if hasattr(event.info, 'ts') and event.info.ts is not None:
+                return float(event.info.ts)  # type: ignore[reportUnknownMemberType]
+        except (AttributeError, TypeError, ValueError):
+            pass
+        # Fallback to current time
+        import time
+        return time.time()
 
     def _queue_callback(
         self, 
@@ -525,6 +548,10 @@ class PrefectDbtRunner:
         priority: Optional[int] = None
     ) -> None:
         """Helper method to queue a callback for background processing.
+        
+        Events are queued with priority and timestamp to maintain both:
+        1. Priority ordering (NodeStart > NodeFinished > others)
+        2. Chronological ordering within the same priority level
         
         Args:
             callback_func: The callback function to execute
@@ -540,15 +567,22 @@ class PrefectDbtRunner:
         if priority is None:
             priority = self._get_event_priority(event)
         
+        # Get timestamp for chronological ordering within same priority
+        timestamp = self._get_event_timestamp(event)
+        
         # Get a unique counter value for tiebreaking (ensures items with same priority
-        # can be ordered without comparing EventMsg objects)
+        # and timestamp can be ordered without comparing EventMsg objects)
         with self._queue_counter_lock:
             counter = self._queue_counter
             self._queue_counter += 1
         
-        # Queue the callback for background processing (non-blocking)
+        # Queue the callback with (priority, timestamp, counter, callback_data)
+        # This ensures: priority first, then chronological order, then insertion order
         try:
-            self._event_queue.put((priority, counter, (callback_func, event)), block=False)
+            self._event_queue.put(
+                (priority, timestamp, counter, (callback_func, event)), 
+                block=False
+            )
         except queue.Full:
             # If queue is full, fall back to synchronous processing
             # This prevents blocking dbt but may slow it down
@@ -560,13 +594,15 @@ class PrefectDbtRunner:
         log_level: EventLevel,
         context: dict[str, Any],
     ) -> Callable[[EventMsg], None]:
-        """Creates a callback function for logging dbt events."""
+        """Creates a callback function for logging dbt events.
         
-        # Start the callback processor if not already started
-        self._start_callback_processor()
+        Processes logging events synchronously to maintain exact chronological order
+        and ensure real-time reporting to Prefect. Only the lightweight filtering
+        happens in the callback, which is fast enough not to block dbt significantly.
+        """
         
-        def _process_logging_sync(event: EventMsg) -> None:
-            """Actual logging logic - runs in background thread."""
+        def logging_callback(event: EventMsg) -> None:
+            """Synchronous logging callback - processes events immediately in order."""
             # Skip logging for NodeStart and NodeFinished events - they have their own callbacks
             if event.info.name in ("NodeStart", "NodeFinished"):
                 return
@@ -597,7 +633,7 @@ class PrefectDbtRunner:
                 except MissingContextError:
                     logger = None
 
-            # Log the event if logger is available
+            # Log the event if logger is available - process synchronously for exact order
             if logger is not None:
                 logger.setLevel(log_level.value.upper())
                 if (
@@ -611,15 +647,6 @@ class PrefectDbtRunner:
                     logger.warning(self.get_dbt_event_msg(event))
                 elif event.info.level == EventLevel.ERROR:
                     logger.error(self.get_dbt_event_msg(event))
-
-        def logging_callback(event: EventMsg) -> None:
-            """Non-blocking callback wrapper that queues logging for background processing."""
-            # Early filter: Skip NodeStart and NodeFinished events - they have their own callbacks
-            if event.info.name in ("NodeStart", "NodeFinished"):
-                return
-            
-            # Only queue events that will actually be processed
-            self._queue_callback(_process_logging_sync, event)
 
         return logging_callback
 
