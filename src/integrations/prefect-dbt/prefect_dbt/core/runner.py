@@ -121,6 +121,9 @@ class PrefectDbtRunner:
             config has enable_assets set to True.
         _force_nodes_as_tasks: Whether to force each dbt node execution to have a Prefect task
             representation when `.invoke()` is called outside of a flow or task run
+        callback_workers: Number of worker threads to use for processing dbt callbacks in parallel.
+            Defaults to 4. Increasing this can reduce the delay in reporting to Prefect when processing
+            thousands of dbt events, but uses more system resources.
     """
 
     def __init__(
@@ -132,6 +135,7 @@ class PrefectDbtRunner:
         include_compiled_code: bool = False,
         disable_assets: bool = False,
         _force_nodes_as_tasks: bool = False,
+        callback_workers: int = 4,
     ):
         self._manifest: Optional[Manifest] = manifest
         self.settings = settings or PrefectDbtSettings()
@@ -151,10 +155,11 @@ class PrefectDbtRunner:
         self._skipped_nodes: set[str] = set()
         
         self._event_queue: Optional[queue.PriorityQueue] = None
-        self._callback_thread: Optional[threading.Thread] = None
+        self._callback_threads: list[threading.Thread] = []
         self._shutdown_event: Optional[threading.Event] = None
         self._queue_counter = 0  # Counter for tiebreaking in PriorityQueue
         self._queue_counter_lock = threading.Lock()  # Thread-safe counter increment
+        self._num_workers = max(4, callback_workers)  # Number of worker threads for parallel processing
         
     @property
     def target_path(self) -> Path:
@@ -431,34 +436,50 @@ class PrefectDbtRunner:
         return event.data.node_info.unique_id  # type: ignore[reportUnknownMemberType]
 
     def _start_callback_processor(self) -> None:
-        """Start the background thread for processing callbacks."""
+        """Start the background worker threads for processing callbacks.
+        
+        Uses multiple worker threads to process events in parallel, significantly
+        reducing the time to drain the queue and report to Prefect in real-time.
+        """
         if self._event_queue is None:
             # Use PriorityQueue to ensure NodeStart events are processed first
             # Priority: 0 = NodeStart (highest), 1 = NodeFinished, 2 = everything else (lowest)
             self._event_queue = queue.PriorityQueue(maxsize=0)
             self._shutdown_event = threading.Event()
-            self._callback_thread = threading.Thread(
-                target=self._callback_worker,
-                daemon=True,
-                name="dbt-callback-processor"
-            )
-            self._callback_thread.start()
+            
+            # Start multiple worker threads for parallel processing
+            # This allows us to process the queue much faster while dbt is running
+            self._callback_threads = []
+            for i in range(self._num_workers):
+                thread = threading.Thread(
+                    target=self._callback_worker,
+                    daemon=True,
+                    name=f"dbt-callback-processor-{i}"
+                )
+                thread.start()
+                self._callback_threads.append(thread)
     
     def _stop_callback_processor(self) -> None:
-        """Stop the background thread and wait for queue to drain."""
+        """Stop all background worker threads and wait for queue to drain."""
         if self._shutdown_event:
             self._shutdown_event.set()
-        if self._event_queue:
-            # Put a sentinel to wake up the worker (with highest priority to ensure it's processed)
+        if self._event_queue and self._callback_threads:
+            # Put sentinels to wake up all workers (with highest priority to ensure they're processed)
             try:
-                # Use counter -1 to ensure sentinel is processed first among priority 0 items
+                # Use counter -1 to ensure sentinels are processed first among priority 0 items
                 with self._queue_counter_lock:
                     sentinel_counter = self._queue_counter - 1
-                self._event_queue.put((0, sentinel_counter, None), timeout=0.1)  # Priority 0 to process immediately
+                # Send one sentinel per worker thread
+                for _ in range(len(self._callback_threads)):
+                    self._event_queue.put((0, sentinel_counter, None), timeout=0.1)  # Priority 0 to process immediately
+                    sentinel_counter -= 1  # Ensure unique counters
             except queue.Full:
                 pass
-        if self._callback_thread and self._callback_thread.is_alive():
-            self._callback_thread.join(timeout=5.0)
+        # Wait for all worker threads to finish
+        for thread in self._callback_threads:
+            if thread.is_alive():
+                thread.join(timeout=5.0)
+        self._callback_threads = []
         
     def _callback_worker(self) -> None:
         """Background worker thread that processes queued events."""
