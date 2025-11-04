@@ -42,6 +42,7 @@ from prefect.client.orchestration import SyncPrefectClient
 from prefect.client.schemas.actions import LogCreate
 from prefect.context import AssetContext, hydrated_context, serialize_context
 from prefect.exceptions import MissingContextError
+from prefect.logging.loggers import get_logger
 from prefect.tasks import MaterializingTask, Task, TaskOptions
 from prefect.types._datetime import from_timestamp
 from prefect_dbt.core._tracker import NodeTaskTracker
@@ -656,6 +657,26 @@ class PrefectDbtRunner:
         else:
             return logging.INFO
 
+    def _should_log_event(self, event_level: EventLevel, configured_level: EventLevel) -> bool:
+        """Check if an event should be logged based on the configured log level.
+        
+        Events are logged if their level is greater than or equal to the configured level.
+        Ordering: DEBUG < TEST < INFO < WARN < ERROR
+        
+        Args:
+            event_level: The level of the event to check
+            configured_level: The configured log level threshold
+            
+        Returns:
+            True if the event should be logged, False otherwise
+        """
+        # Convert both levels to numeric values for comparison
+        event_level_num = self._event_level_to_log_level(event_level)
+        configured_level_num = self._event_level_to_log_level(configured_level)
+        
+        # Log if event level >= configured level
+        return event_level_num >= configured_level_num
+
     def _create_logging_callback(
         self,
         task_state: NodeTaskTracker,
@@ -675,6 +696,10 @@ class PrefectDbtRunner:
             if event.info.name in ("NodeStart", "NodeFinished"):
                 return
             
+            # Check if event level meets the configured log level threshold
+            if not self._should_log_event(event.info.level, log_level):
+                return
+            
             # Extract timestamp from dbt event
             event_timestamp = self._extract_event_timestamp(event)
             if event_timestamp is None:
@@ -684,6 +709,9 @@ class PrefectDbtRunner:
             # Get flow_run_id and task_run_id from context
             flow_run_id: Optional[UUID] = None
             task_run_id: Optional[UUID] = None
+            flow_run_name: Optional[str] = None
+            task_run_name: Optional[str] = None
+            node_id: Optional[str] = None
             
             event_data = MessageToDict(event.data, preserving_proto_field_name=True)
             
@@ -704,20 +732,24 @@ class PrefectDbtRunner:
                         flow_run_id_value = flow_run.get("id")
                         if flow_run_id_value:
                             flow_run_id = UUID(str(flow_run_id_value)) if isinstance(flow_run_id_value, (str, UUID)) else flow_run_id_value
+                        flow_run_name = flow_run.get("name")
                     
-                # Get task_run_id from tracker
+                # Get task_run_id and task_run_name from tracker
                 task_run_id_uuid = task_state.get_task_run_id(node_id)
                 if task_run_id_uuid:
                     task_run_id = task_run_id_uuid
+                    task_run_name = task_state.get_task_run_name(node_id)
             else:
                 # Get flow_run_id for events without node_info
                 try:
                     with hydrated_context(context) as run_context:
                         if hasattr(run_context, "flow_run") and run_context.flow_run:
                             flow_run_id = run_context.flow_run.id
+                            flow_run_name = run_context.flow_run.name
                         elif hasattr(run_context, "task_run") and run_context.task_run:
                             flow_run_id = run_context.task_run.flow_run_id
                             task_run_id = run_context.task_run.id
+                            task_run_name = run_context.task_run.name
                 except MissingContextError:
                     pass
 
@@ -729,9 +761,48 @@ class PrefectDbtRunner:
                 # Convert dbt event level to logging level
                 log_level_int = self._event_level_to_log_level(event.info.level)
                 
-                # Create log entry with dbt event timestamp
+                # Logger name for Prefect console formatting
+                logger_name = "prefect.task_runs" if task_run_id else "prefect.flow_runs"
+                
+                # Write to terminal using Prefect's console handler
+                # This ensures logs appear in the terminal with proper Prefect formatting
+                try:
+                    logger = get_logger(logger_name)
+                    # Create a LogRecord with the dbt event timestamp
+                    extra_dict: dict[str, Any] = {
+                        "flow_run_id": str(flow_run_id),
+                    }
+                    if task_run_id:
+                        extra_dict["task_run_id"] = str(task_run_id)
+                    if flow_run_name:
+                        extra_dict["flow_run_name"] = flow_run_name
+                    if task_run_name:
+                        extra_dict["task_run_name"] = task_run_name
+                    
+                    record = logger.makeRecord(
+                        logger_name,
+                        log_level_int,
+                        "",  # filename (not used)
+                        0,   # lineno (not used)
+                        message,
+                        (),  # args
+                        None,  # exc_info
+                        func="",  # funcName
+                        extra=extra_dict,
+                        sinfo=None,  # stack_info
+                    )
+                    # Override the timestamp with the dbt event timestamp
+                    record.created = event_timestamp
+                    record.msecs = (event_timestamp % 1) * 1000
+                    # Emit through the logger (which will use PrefectConsoleHandler)
+                    logger.handle(record)
+                except Exception:
+                    # Silently fail if console logging fails to avoid blocking dbt
+                    pass
+                
+                # Create log entry with dbt event timestamp for API
                 log_entry = LogCreate(
-                    name="prefect.task_runs" if task_run_id else "prefect.flow_runs",
+                    name=logger_name,
                     level=log_level_int,
                     message=message,
                     timestamp=from_timestamp(event_timestamp),
