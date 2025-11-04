@@ -38,7 +38,7 @@ from prefect._internal.uuid7 import uuid7
 from prefect.assets import Asset, AssetProperties
 from prefect.assets.core import MAX_ASSET_DESCRIPTION_LENGTH
 from prefect.cache_policies import NO_CACHE
-from prefect.client.orchestration import PrefectClient
+from prefect.client.orchestration import SyncPrefectClient
 from prefect.client.schemas.actions import LogCreate
 from prefect.context import AssetContext, hydrated_context, serialize_context
 from prefect.exceptions import MissingContextError
@@ -137,7 +137,7 @@ class PrefectDbtRunner:
         manifest: Optional[Manifest] = None,
         settings: Optional[PrefectDbtSettings] = None,
         raise_on_failure: bool = True,
-        client: Optional[PrefectClient] = None,
+        client: Optional[SyncPrefectClient] = None,
         include_compiled_code: bool = False,
         disable_assets: bool = False,
         _force_nodes_as_tasks: bool = False,
@@ -146,7 +146,7 @@ class PrefectDbtRunner:
         self._manifest: Optional[Manifest] = manifest
         self.settings = settings or PrefectDbtSettings()
         self.raise_on_failure = raise_on_failure
-        self.client = client or get_client()
+        self.client = client or get_client(sync_client=True)
         self.include_compiled_code = include_compiled_code
         self.disable_assets = disable_assets
         self._force_nodes_as_tasks = _force_nodes_as_tasks
