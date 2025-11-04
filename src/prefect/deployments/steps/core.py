@@ -23,6 +23,7 @@ from typing import Any
 
 from prefect._internal.compatibility.deprecated import PrefectDeprecationWarning
 from prefect._internal.concurrency.api import Call, from_async
+from prefect._internal.context import _EnvironmentRunContext
 from prefect._internal.installation import install_packages
 from prefect._internal.integrations import KNOWN_EXTRAS_FOR_PACKAGES
 from prefect.events.utilities import emit_event
@@ -257,8 +258,9 @@ def _emit_pull_steps_event(
     if not serialized_steps:
         return
 
-    flow_run_id = os.getenv("PREFECT__FLOW_RUN_ID")
-    if not flow_run_id:
+    # Use _EnvironmentRunContext to access flow run ID from environment
+    ctx = _EnvironmentRunContext.from_environment()
+    if not ctx or not ctx.flow_run_id:
         return
 
     payload = {
@@ -268,7 +270,7 @@ def _emit_pull_steps_event(
     if failed_step is not None:
         payload["failed_step"] = failed_step
     resource = {
-        "prefect.resource.id": f"prefect.flow-run.{flow_run_id}",
+        "prefect.resource.id": f"prefect.flow-run.{ctx.flow_run_id}",
     }
 
     # Build related resources
@@ -290,6 +292,8 @@ def _emit_pull_steps_event(
             payload=payload,
         )
     except Exception:
-        get_logger(__name__).warning(
-            "Failed to emit pull-steps event for flow run %s", flow_run_id
+        # Use context-aware logger for better log association
+        logger = ctx.get_logger(__name__)
+        logger.warning(
+            "Failed to emit pull-steps event for flow run %s", ctx.flow_run_id
         )
