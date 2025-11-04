@@ -4,6 +4,8 @@ Runner for dbt commands
 
 import json
 import os
+import queue
+import threading
 from pathlib import Path
 from typing import Any, Callable, Optional, Union
 
@@ -39,6 +41,7 @@ from prefect.tasks import MaterializingTask, Task, TaskOptions
 from prefect_dbt.core._tracker import NodeTaskTracker
 from prefect_dbt.core.settings import PrefectDbtSettings
 from prefect_dbt.utilities import format_resource_id, kwargs_to_args
+
 
 FAILURE_STATUSES = [
     RunStatus.Error,
@@ -146,7 +149,13 @@ class PrefectDbtRunner:
         self._config: Optional[RuntimeConfig] = None
         self._graph: Optional[Graph] = None
         self._skipped_nodes: set[str] = set()
-
+        
+        self._event_queue: Optional[queue.PriorityQueue] = None
+        self._callback_thread: Optional[threading.Thread] = None
+        self._shutdown_event: Optional[threading.Event] = None
+        self._queue_counter = 0  # Counter for tiebreaking in PriorityQueue
+        self._queue_counter_lock = threading.Lock()  # Thread-safe counter increment
+        
     @property
     def target_path(self) -> Path:
         return self._target_path or self.settings.target_path
@@ -418,6 +427,112 @@ class PrefectDbtRunner:
     def get_dbt_event_msg(event: EventMsg) -> str:
         return event.info.msg  # type: ignore[reportUnknownMemberType]
 
+    def _get_dbt_event_node_id(self, event: EventMsg) -> str:
+        return event.data.node_info.unique_id  # type: ignore[reportUnknownMemberType]
+
+    def _start_callback_processor(self) -> None:
+        """Start the background thread for processing callbacks."""
+        if self._event_queue is None:
+            # Use PriorityQueue to ensure NodeStart events are processed first
+            # Priority: 0 = NodeStart (highest), 1 = NodeFinished, 2 = everything else (lowest)
+            self._event_queue = queue.PriorityQueue(maxsize=0)
+            self._shutdown_event = threading.Event()
+            self._callback_thread = threading.Thread(
+                target=self._callback_worker,
+                daemon=True,
+                name="dbt-callback-processor"
+            )
+            self._callback_thread.start()
+    
+    def _stop_callback_processor(self) -> None:
+        """Stop the background thread and wait for queue to drain."""
+        if self._shutdown_event:
+            self._shutdown_event.set()
+        if self._event_queue:
+            # Put a sentinel to wake up the worker (with highest priority to ensure it's processed)
+            try:
+                # Use counter -1 to ensure sentinel is processed first among priority 0 items
+                with self._queue_counter_lock:
+                    sentinel_counter = self._queue_counter - 1
+                self._event_queue.put((0, sentinel_counter, None), timeout=0.1)  # Priority 0 to process immediately
+            except queue.Full:
+                pass
+        if self._callback_thread and self._callback_thread.is_alive():
+            self._callback_thread.join(timeout=5.0)
+        
+    def _callback_worker(self) -> None:
+        """Background worker thread that processes queued events."""
+        while not self._shutdown_event.is_set():
+            event_data = None
+            try:
+                # Get event with timeout to periodically check shutdown
+                # PriorityQueue returns (priority, counter, item) tuples
+                _, _, event_data = self._event_queue.get(timeout=0.1)
+                if event_data is None:  # Sentinel to shutdown
+                    break
+                
+                callback_func, event_msg = event_data
+                callback_func(event_msg)
+                
+            except queue.Empty:
+                continue
+            finally:
+                # Always call task_done() exactly once per successfully retrieved item
+                if event_data is not None:
+                    self._event_queue.task_done()
+
+    def _get_event_priority(self, event: EventMsg) -> int:
+        """Get priority for an event. Lower number = higher priority.
+        
+        Priority levels:
+        - 0: NodeStart (highest - must create tasks before other events)
+        - 1: NodeFinished (medium - update task status)
+        - 2: Everything else (lowest - logging, etc.)
+        """
+        event_name = event.info.name
+        if event_name == "NodeStart":
+            return 0
+        elif event_name == "NodeFinished":
+            return 1
+        else:
+            return 2
+
+    def _queue_callback(
+        self, 
+        callback_func: Callable[[EventMsg], None], 
+        event: EventMsg,
+        priority: Optional[int] = None
+    ) -> None:
+        """Helper method to queue a callback for background processing.
+        
+        Args:
+            callback_func: The callback function to execute
+            event: The event message
+            priority: Optional priority override. If None, determined from event name.
+        """
+        if self._event_queue is None:
+            # Fallback to synchronous if queue not initialized
+            callback_func(event)
+            return
+        
+        # Determine priority if not provided
+        if priority is None:
+            priority = self._get_event_priority(event)
+        
+        # Get a unique counter value for tiebreaking (ensures items with same priority
+        # can be ordered without comparing EventMsg objects)
+        with self._queue_counter_lock:
+            counter = self._queue_counter
+            self._queue_counter += 1
+        
+        # Queue the callback for background processing (non-blocking)
+        try:
+            self._event_queue.put((priority, counter, (callback_func, event)), block=False)
+        except queue.Full:
+            # If queue is full, fall back to synchronous processing
+            # This prevents blocking dbt but may slow it down
+            callback_func(event)
+
     def _create_logging_callback(
         self,
         task_state: NodeTaskTracker,
@@ -425,29 +540,43 @@ class PrefectDbtRunner:
         context: dict[str, Any],
     ) -> Callable[[EventMsg], None]:
         """Creates a callback function for logging dbt events."""
-
-        def logging_callback(event: EventMsg):
+        
+        # Start the callback processor if not already started
+        self._start_callback_processor()
+        
+        def _process_logging_sync(event: EventMsg) -> None:
+            """Actual logging logic - runs in background thread."""
+            # Skip logging for NodeStart and NodeFinished events - they have their own callbacks
+            if event.info.name in ("NodeStart", "NodeFinished"):
+                return
+                
             event_data = MessageToDict(event.data, preserving_proto_field_name=True)
-            if (
-                event_data.get("node_info")
-                and (node_id := self._get_dbt_event_node_id(event))
-                not in self._skipped_nodes
-            ):
-                flow_run_context: Optional[dict[str, Any]] = context.get(
-                    "flow_run_context"
-                )
-                logger = task_state.get_task_logger(
-                    node_id,
-                    flow_run_context.get("flow_run") if flow_run_context else None,
-                    flow_run_context.get("flow") if flow_run_context else None,
-                )
+            
+            # Handle logging for all events with node_info
+            if event_data.get("node_info"):
+                node_id = self._get_dbt_event_node_id(event)
+                
+                # Skip logging for skipped nodes
+                if node_id not in self._skipped_nodes:
+                    flow_run_context: Optional[dict[str, Any]] = context.get(
+                        "flow_run_context"
+                    )
+                    logger = task_state.get_task_logger(
+                        node_id,
+                        flow_run_context.get("flow_run") if flow_run_context else None,
+                        flow_run_context.get("flow") if flow_run_context else None,
+                    )
+                else:
+                    logger = None
             else:
+                # Get logger for events without node_info
                 try:
                     with hydrated_context(context) as run_context:
                         logger = get_run_logger(run_context)
                 except MissingContextError:
                     logger = None
 
+            # Log the event if logger is available
             if logger is not None:
                 logger.setLevel(log_level.value.upper())
                 if (
@@ -462,17 +591,27 @@ class PrefectDbtRunner:
                 elif event.info.level == EventLevel.ERROR:
                     logger.error(self.get_dbt_event_msg(event))
 
-        return logging_callback
+        def logging_callback(event: EventMsg) -> None:
+            """Non-blocking callback wrapper that queues logging for background processing."""
+            # Early filter: Skip NodeStart and NodeFinished events - they have their own callbacks
+            if event.info.name in ("NodeStart", "NodeFinished"):
+                return
+            
+            # Only queue events that will actually be processed
+            self._queue_callback(_process_logging_sync, event)
 
-    def _get_dbt_event_node_id(self, event: EventMsg) -> str:
-        return event.data.node_info.unique_id  # type: ignore[reportUnknownMemberType]
+        return logging_callback
 
     def _create_node_started_callback(
         self, task_state: NodeTaskTracker, context: dict[str, Any]
     ) -> Callable[[EventMsg], None]:
         """Creates a callback function for starting tasks when nodes start."""
-
-        def node_started_callback(event: EventMsg):
+        
+        # Start the callback processor if not already started
+        self._start_callback_processor()
+        
+        def _process_node_started_sync(event: EventMsg) -> None:
+            """Actual node started logic - runs in background thread."""
             if event.info.name == "NodeStart":
                 node_id = self._get_dbt_event_node_id(event)
                 if node_id in self._skipped_nodes:
@@ -487,12 +626,22 @@ class PrefectDbtRunner:
                         prefect_config.get("enable_assets", True)
                         and not self.disable_assets
                     )
-                    try:
-                        self._call_task(
-                            task_state, manifest_node, context, enable_assets
-                        )
-                    except Exception as e:
-                        print(e)
+                    self._call_task(
+                        task_state, manifest_node, context, enable_assets
+                    )
+
+        def node_started_callback(event: EventMsg) -> None:
+            """Non-blocking callback wrapper that queues node started processing.
+            
+            NodeStart events are queued with highest priority (0) to ensure
+            tasks are created before other events for the same node are processed.
+            """
+            # Early filter: Only process NodeStart events
+            if event.info.name != "NodeStart":
+                return
+            
+            # Queue with highest priority to process before other events
+            self._queue_callback(_process_node_started_sync, event, priority=0)
 
         return node_started_callback
 
@@ -502,8 +651,12 @@ class PrefectDbtRunner:
         add_test_edges: bool = False,
     ) -> Callable[[EventMsg], None]:
         """Creates a callback function for ending tasks when nodes finish."""
-
-        def node_finished_callback(event: EventMsg):
+        
+        # Start the callback processor if not already started
+        self._start_callback_processor()
+        
+        def _process_node_finished_sync(event: EventMsg) -> None:
+            """Actual node finished logic - runs in background thread."""
             if event.info.name == "NodeFinished":
                 node_id = self._get_dbt_event_node_id(event)
                 if node_id in self._skipped_nodes:
@@ -512,32 +665,40 @@ class PrefectDbtRunner:
                 manifest_node, _ = self._get_manifest_node_and_config(node_id)
 
                 if manifest_node:
-                    try:
-                        # Store the status before ending the task
-                        event_data = MessageToDict(
-                            event.data, preserving_proto_field_name=True
-                        )
-                        event_message = self.get_dbt_event_msg(event)
-                        task_state.set_node_status(node_id, event_data, event_message)
+                    event_data = MessageToDict(event.data, preserving_proto_field_name=True)
+                    # Store the status before ending the task
+                    event_message = self.get_dbt_event_msg(event)
+                    task_state.set_node_status(node_id, event_data, event_message)
 
-                        node_info: Optional[dict[str, Any]] = event_data.get(
-                            "node_info"
-                        )
-                        node_status: Optional[str] = (
-                            node_info.get("node_status") if node_info else None
-                        )
+                    node_info: Optional[dict[str, Any]] = event_data.get(
+                        "node_info"
+                    )
+                    node_status: Optional[str] = (
+                        node_info.get("node_status") if node_info else None
+                    )
 
-                        if (
-                            node_status in SKIPPED_STATUSES
-                            or node_status in FAILURE_STATUSES
-                        ):
-                            self._set_graph_from_manifest(add_test_edges=add_test_edges)
-                            for dep_node_id in self.graph.get_dependent_nodes(  # type: ignore[reportUnknownMemberType]
-                                UniqueId(node_id)
-                            ):  # type: ignore[reportUnknownMemberType]
-                                self._skipped_nodes.add(dep_node_id)  # type: ignore[reportUnknownMemberType]
-                    except Exception as e:
-                        print(e)
+                    if (
+                        node_status in SKIPPED_STATUSES
+                        or node_status in FAILURE_STATUSES
+                    ):
+                        self._set_graph_from_manifest(add_test_edges=add_test_edges)
+                        for dep_node_id in self.graph.get_dependent_nodes(  # type: ignore[reportUnknownMemberType]
+                            UniqueId(node_id)
+                        ):  # type: ignore[reportUnknownMemberType]
+                            self._skipped_nodes.add(dep_node_id)  # type: ignore[reportUnknownMemberType]
+
+        def node_finished_callback(event: EventMsg) -> None:
+            """Non-blocking callback wrapper that queues node finished processing.
+            
+            NodeFinished events are queued with medium priority (1) to ensure
+            they're processed after NodeStart but before regular logging events.
+            """
+            # Early filter: Only process NodeFinished events
+            if event.info.name != "NodeFinished":
+                return
+            
+            # Queue with medium priority (automatically set by _queue_callback)
+            self._queue_callback(_process_node_finished_sync, event, priority=1)
 
         return node_finished_callback
 
@@ -689,6 +850,14 @@ class PrefectDbtRunner:
             res = dbtRunner(callbacks=callbacks).invoke(  # type: ignore[reportUnknownMemberType]
                 kwargs_to_args(invoke_kwargs, args_copy)
             )
+
+        # Wait for callback queue to drain after dbt execution completes
+        # Since dbt execution is complete, no new events will be added.
+        # Wait for the background worker to process all remaining items.
+        if self._event_queue is not None:
+            self._event_queue.join()
+            # Stop the callback processor now that all items are processed
+            self._stop_callback_processor()
 
         if not res.success and res.exception:
             raise ValueError(
