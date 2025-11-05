@@ -266,18 +266,18 @@ class TestRunStep:
 
 
 class TestRunSteps:
-    async def test_run_steps_emits_pull_steps_event(
+    @pytest.mark.usefixtures("clean_asserting_events_client")
+    async def test_run_steps_emits_pull_step_events(
         self, monkeypatch: pytest.MonkeyPatch
     ):
         from prefect.events.clients import AssertingEventsClient
 
-        mock_events_client = AssertingEventsClient()
         flow_run_id = str(uuid.uuid4())
         monkeypatch.setenv("PREFECT__FLOW_RUN_ID", flow_run_id)
+        # Monkeypatch the client class so all instances are AssertingEventsClient
         monkeypatch.setattr(
-            "prefect.deployments.steps.core.get_events_client",
-            lambda **kwargs: mock_events_client,
-            raising=False,
+            "prefect.events.clients.PrefectEventsClient",
+            AssertingEventsClient,
         )
 
         def fake_step(*, script: str, **kwargs: Any) -> dict[str, Any]:
@@ -307,24 +307,41 @@ class TestRunSteps:
         output = await run_steps(steps, {})
 
         assert output["result"] == "second"
-        assert len(mock_events_client.events) == 1
-        event = mock_events_client.events[0]
-        assert event.event == "prefect.flow-run.pull-steps.executed"
-        assert dict(event.resource) == {
+        # Should emit one event per step
+        assert AssertingEventsClient.last
+        events = [
+            e
+            for client in AssertingEventsClient.all
+            if hasattr(client, "events")
+            for e in client.events
+            if f"prefect.flow-run.{flow_run_id}" in str(e.resource)
+        ]
+        assert len(events) == 2
+
+        # Check first step event
+        first_event = events[0]
+        assert first_event.event == "prefect.flow-run.pull-step.executed"
+        assert dict(first_event.resource) == {
             "prefect.resource.id": f"prefect.flow-run.{flow_run_id}",
         }
-        payload = event.payload
-        assert "failed_step" not in payload
-        assert payload["count"] == 2
-        first_step_inputs = payload["steps"][0]["inputs"]
-        # inputs now includes reserved keywords like 'requires' and 'id'
-        assert first_step_inputs == {
+        first_payload = first_event.payload
+        assert first_payload["index"] == 0
+        assert first_payload["step_name"] == "run_shell_script"
+        assert first_payload["id"] == "step-one"
+        # inputs includes reserved keywords like 'requires' and 'id'
+        assert first_payload["inputs"] == {
             "script": "first",
             "id": "step-one",
             "requires": "prefect>=3.0.0",
             "extra": "value",
         }
-        assert payload["steps"][0]["id"] == "step-one"
+
+        # Check second step event
+        second_event = events[1]
+        assert second_event.event == "prefect.flow-run.pull-step.executed"
+        second_payload = second_event.payload
+        assert second_payload["index"] == 1
+        assert second_payload["step_name"] == "run_shell_script"
 
     async def test_run_steps_skips_event_without_flow_run_id(
         self, monkeypatch: pytest.MonkeyPatch
@@ -367,18 +384,17 @@ class TestRunSteps:
         # get_events_client should not be called since there's no flow_run_id
         assert not get_events_client_called
 
+    @pytest.mark.usefixtures("clean_asserting_events_client")
     async def test_run_steps_emits_event_on_failure(
         self, monkeypatch: pytest.MonkeyPatch
     ):
         from prefect.events.clients import AssertingEventsClient
 
-        mock_events_client = AssertingEventsClient()
         flow_run_id = str(uuid.uuid4())
         monkeypatch.setenv("PREFECT__FLOW_RUN_ID", flow_run_id)
         monkeypatch.setattr(
-            "prefect.deployments.steps.core.get_events_client",
-            lambda **kwargs: mock_events_client,
-            raising=False,
+            "prefect.events.clients.PrefectEventsClient",
+            AssertingEventsClient,
         )
 
         def fake_step(*, script: str, **kwargs: Any) -> dict[str, Any]:
@@ -409,33 +425,45 @@ class TestRunSteps:
         with pytest.raises(StepExecutionError):
             await run_steps(steps, {})
 
-        assert len(mock_events_client.events) == 1
-        event = mock_events_client.events[0]
-        payload = event.payload
-        assert payload["count"] == 2
-        assert payload["steps"][0]["id"] == "step-one"
-        assert payload["steps"][1]["id"] == "step-two"
+        # Should emit 2 events: 1 success for first step, 1 failure for second step
+        assert AssertingEventsClient.last
+        events = [
+            e
+            for client in AssertingEventsClient.all
+            if hasattr(client, "events")
+            for e in client.events
+            if f"prefect.flow-run.{flow_run_id}" in str(e.resource)
+        ]
+        assert len(events) == 2
 
-        # Verify the failed step is the second one
-        failed_step = payload["failed_step"]
-        assert failed_step["id"] == "step-two"
-        assert failed_step["index"] == 1
-        assert failed_step["step_name"] == "run_shell_script"
-        assert failed_step["inputs"]["script"] == "boom"
+        # First event should be success
+        first_event = events[0]
+        assert first_event.event == "prefect.flow-run.pull-step.executed"
+        first_payload = first_event.payload
+        assert first_payload["id"] == "step-one"
+        assert first_payload["index"] == 0
 
+        # Second event should be failure
+        second_event = events[1]
+        assert second_event.event == "prefect.flow-run.pull-step.failed"
+        second_payload = second_event.payload
+        assert second_payload["id"] == "step-two"
+        assert second_payload["index"] == 1
+        assert second_payload["step_name"] == "run_shell_script"
+        assert second_payload["inputs"]["script"] == "boom"
+
+    @pytest.mark.usefixtures("clean_asserting_events_client")
     async def test_run_steps_does_not_expose_secrets_in_event(
         self, monkeypatch: pytest.MonkeyPatch
     ):
         from prefect.events.clients import AssertingEventsClient
 
-        mock_events_client = AssertingEventsClient()
         flow_run_id = str(uuid.uuid4())
         monkeypatch.setenv("PREFECT__FLOW_RUN_ID", flow_run_id)
         monkeypatch.setenv("SECRET_ENV_VAR", "super-secret-value")
         monkeypatch.setattr(
-            "prefect.deployments.steps.core.get_events_client",
-            lambda **kwargs: mock_events_client,
-            raising=False,
+            "prefect.events.clients.PrefectEventsClient",
+            AssertingEventsClient,
         )
 
         await Secret(value="my-secret-api-key").save(name="api-key")
@@ -473,15 +501,24 @@ class TestRunSteps:
         output = await run_steps(steps, {})
 
         assert output["result"] == "success"
-        assert len(mock_events_client.events) == 1
-        event = mock_events_client.events[0]
-        assert event.event == "prefect.flow-run.pull-steps.executed"
+        assert AssertingEventsClient.last
+        events = [
+            e
+            for client in AssertingEventsClient.all
+            if hasattr(client, "events")
+            for e in client.events
+            if f"prefect.flow-run.{flow_run_id}" in str(e.resource)
+        ]
+        assert len(events) == 1
+        event = events[0]
+        assert event.event == "prefect.flow-run.pull-step.executed"
 
+        # Payload is the step itself, not a list of steps
         payload = event.payload
-        assert "failed_step" not in payload
-        assert payload["count"] == 1
+        assert payload["index"] == 0
+        assert payload["id"] == "step-with-secrets"
 
-        step_inputs = payload["steps"][0]["inputs"]
+        step_inputs = payload["inputs"]
         assert step_inputs["api_key"] == "{{ prefect.blocks.secret.api-key }}"
         assert step_inputs["password"] == "{{ prefect.variables.db_password }}"
         assert step_inputs["env_secret"] == "{{ $SECRET_ENV_VAR }}"
@@ -490,19 +527,18 @@ class TestRunSteps:
         assert "secret-password" not in str(payload)
         assert "super-secret-value" not in str(payload)
 
+    @pytest.mark.usefixtures("clean_asserting_events_client")
     async def test_run_steps_includes_deployment_as_related_resource(
         self, monkeypatch: pytest.MonkeyPatch
     ):
         from prefect.events.clients import AssertingEventsClient
 
-        mock_events_client = AssertingEventsClient()
         flow_run_id = str(uuid.uuid4())
         deployment_id = str(uuid.uuid4())
         monkeypatch.setenv("PREFECT__FLOW_RUN_ID", flow_run_id)
         monkeypatch.setattr(
-            "prefect.deployments.steps.core.get_events_client",
-            lambda **kwargs: mock_events_client,
-            raising=False,
+            "prefect.events.clients.PrefectEventsClient",
+            AssertingEventsClient,
         )
 
         def fake_step(*, script: str) -> dict[str, str]:
@@ -528,9 +564,17 @@ class TestRunSteps:
         output = await run_steps(steps, {}, deployment=mock_deployment)
 
         assert output["result"] == "success"
-        assert len(mock_events_client.events) == 1
-        event = mock_events_client.events[0]
-        assert event.event == "prefect.flow-run.pull-steps.executed"
+        assert AssertingEventsClient.last
+        events = [
+            e
+            for client in AssertingEventsClient.all
+            if hasattr(client, "events")
+            for e in client.events
+            if f"prefect.flow-run.{flow_run_id}" in str(e.resource)
+        ]
+        assert len(events) == 1
+        event = events[0]
+        assert event.event == "prefect.flow-run.pull-step.executed"
 
         related = event.related
         assert related is not None

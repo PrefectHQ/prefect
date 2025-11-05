@@ -151,27 +151,27 @@ async def run_steps(
     logger: Any | None = None,
 ) -> dict[str, Any]:
     upstream_outputs = deepcopy(upstream_outputs) if upstream_outputs else {}
-    serialized_steps: list[dict[str, Any]] = []
+    step_index = 0
     for step in steps:
         if not step:
             continue
         fqn, inputs = _get_step_fully_qualified_name_and_inputs(step)
         step_name = fqn.split(".")[-1]
         print_function(f" > Running {step_name} step...")
+
         # SECURITY: Serialize inputs BEFORE running the step (and thus before templating).
         # This ensures that the event payload contains template strings like
         # "{{ prefect.blocks.secret.api-key }}" rather than resolved secret values.
         # Templating (which resolves blocks, variables, and env vars) happens inside
         # run_step(), so by serializing here we prevent secrets from leaking in events.
-        serialized_steps.append(
-            {
-                "index": len(serialized_steps),
-                "qualified_name": fqn,
-                "step_name": step_name,
-                "id": inputs.get("id"),
-                "inputs": inputs,  # Keep all inputs including reserved keywords like 'requires'
-            }
-        )
+        serialized_step = {
+            "index": step_index,
+            "qualified_name": fqn,
+            "step_name": step_name,
+            "id": inputs.get("id"),
+            "inputs": inputs,  # Keep all inputs including reserved keywords like 'requires'
+        }
+
         try:
             # catch warnings to ensure deprecation warnings are printed
             with warnings.catch_warnings(record=True) as w:
@@ -210,22 +210,27 @@ async def run_steps(
             if inputs.get("id"):
                 upstream_outputs[inputs.get("id")] = step_output
             upstream_outputs.update(step_output)
+
+            # Emit success event for this step
+            await _emit_pull_step_event(
+                serialized_step,
+                event_type="prefect.flow-run.pull-step.executed",
+                deployment=deployment,
+                flow_run=flow_run,
+                logger=logger,
+            )
         except Exception as exc:
-            await _emit_pull_steps_event(
-                serialized_steps,
-                failed_step=serialized_steps[-1] if serialized_steps else None,
+            # Emit failure event for this step
+            await _emit_pull_step_event(
+                serialized_step,
+                event_type="prefect.flow-run.pull-step.failed",
                 deployment=deployment,
                 flow_run=flow_run,
                 logger=logger,
             )
             raise StepExecutionError(f"Encountered error while running {fqn}") from exc
-    await _emit_pull_steps_event(
-        serialized_steps,
-        failed_step=None,
-        deployment=deployment,
-        flow_run=flow_run,
-        logger=logger,
-    )
+
+        step_index += 1
     return upstream_outputs
 
 
@@ -234,43 +239,32 @@ def _get_step_fully_qualified_name_and_inputs(step: dict) -> tuple[str, dict]:
     return step.popitem()
 
 
-async def _emit_pull_steps_event(
-    serialized_steps: list[dict[str, Any]],
+async def _emit_pull_step_event(
+    serialized_step: dict[str, Any],
     *,
-    failed_step: dict[str, Any] | None,
+    event_type: str,
     deployment: Any | None = None,
     flow_run: Any | None = None,
     logger: Any | None = None,
 ) -> None:
-    if not serialized_steps:
-        return
-
-    # If no flow_run provided, try to get flow_run_id from environment
-    # (for backward compatibility with calls that don't pass flow_run)
+    # Get flow_run_id from flow_run param or environment
     flow_run_id = None
     if flow_run:
         flow_run_id = flow_run.id
     else:
-        from prefect._internal.context import _EnvironmentRunContext
+        # Read directly from environment variable
+        flow_run_id_str = os.getenv("PREFECT__FLOW_RUN_ID")
+        if flow_run_id_str:
+            from uuid import UUID
 
-        ctx = _EnvironmentRunContext.from_environment()
-        if ctx and ctx.flow_run_id:
-            flow_run_id = ctx.flow_run_id
+            flow_run_id = UUID(flow_run_id_str)
 
     if not flow_run_id:
         return
 
-    payload = {
-        "count": len(serialized_steps),
-        "steps": serialized_steps,
-    }
-    if failed_step is not None:
-        payload["failed_step"] = failed_step
-
     # Build related resources
     related: list[RelatedResource] = []
     if deployment:
-        # Add deployment as a related resource
         related.append(
             RelatedResource(
                 {
@@ -285,22 +279,22 @@ async def _emit_pull_steps_event(
         async with get_events_client(checkpoint_every=1) as events_client:
             await events_client.emit(
                 Event(
-                    event="prefect.flow-run.pull-steps.executed",
+                    event=event_type,
                     resource=Resource(
                         {
                             "prefect.resource.id": f"prefect.flow-run.{flow_run_id}",
                         }
                     ),
                     related=related,
-                    payload=payload,
+                    payload=serialized_step,
                 )
             )
     except Exception:
         if logger:
             logger.warning(
-                "Failed to emit pull-steps event for flow run %s", flow_run_id
+                "Failed to emit pull-step event for flow run %s", flow_run_id
             )
         else:
             get_logger(__name__).warning(
-                "Failed to emit pull-steps event for flow run %s", flow_run_id
+                "Failed to emit pull-step event for flow run %s", flow_run_id
             )
