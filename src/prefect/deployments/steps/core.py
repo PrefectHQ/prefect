@@ -20,6 +20,7 @@ import warnings
 from copy import deepcopy
 from importlib import import_module
 from typing import Any
+from uuid import UUID
 
 from prefect._internal.compatibility.deprecated import PrefectDeprecationWarning
 from prefect._internal.concurrency.api import Call, from_async
@@ -151,8 +152,7 @@ async def run_steps(
     logger: Any | None = None,
 ) -> dict[str, Any]:
     upstream_outputs = deepcopy(upstream_outputs) if upstream_outputs else {}
-    step_index = 0
-    for step in steps:
+    for step_index, step in enumerate(steps):
         if not step:
             continue
         fqn, inputs = _get_step_fully_qualified_name_and_inputs(step)
@@ -230,7 +230,6 @@ async def run_steps(
             )
             raise StepExecutionError(f"Encountered error while running {fqn}") from exc
 
-        step_index += 1
     return upstream_outputs
 
 
@@ -255,8 +254,6 @@ async def _emit_pull_step_event(
         # Read directly from environment variable
         flow_run_id_str = os.getenv("PREFECT__FLOW_RUN_ID")
         if flow_run_id_str:
-            from uuid import UUID
-
             flow_run_id = UUID(flow_run_id_str)
 
     if not flow_run_id:
