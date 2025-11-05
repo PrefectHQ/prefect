@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import datetime
 from copy import deepcopy
-from typing import TYPE_CHECKING, Any, Callable, Optional, TypeVar, Union
+from typing import Any, Callable, Optional, TypeVar, Union
 from uuid import UUID, uuid4
 
 import jsonschema
@@ -57,9 +57,6 @@ from prefect.types.names import (
 )
 from prefect.utilities.collections import visit_collection
 from prefect.utilities.pydantic import get_class_fields_only
-
-if TYPE_CHECKING:
-    pass
 
 R = TypeVar("R")
 
