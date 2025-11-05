@@ -665,8 +665,8 @@ class PrefectDbtRunner:
     def _create_node_finished_callback(
         self,
         task_state: NodeTaskTracker,
-        add_test_edges: bool = False,
         context: dict[str, Any],
+        add_test_edges: bool = False,
     ) -> Callable[[EventMsg], None]:
         """Creates a callback function for ending tasks when nodes finish."""
         
@@ -825,7 +825,7 @@ class PrefectDbtRunner:
                 self._create_logging_callback(task_state, self.log_level, context),
                 self._create_node_started_callback(task_state, context),
                 self._create_node_finished_callback(
-                    task_state, add_test_edges=add_test_edges, context=context
+                    task_state, context, add_test_edges=add_test_edges, 
                 ),
             ]
             if in_flow_or_task_run or self._force_nodes_as_tasks
