@@ -79,7 +79,7 @@ class _EnvironmentRunContext(ContextModel):
             work_pool_name=work_pool_name,
         )
 
-    def get_logger(self, name: str) -> LoggerAdapter[Logger]:
+    def get_logger(self, name: str) -> "LoggerAdapter[Logger]":
         """
         Get a logger with run context attached.
 
