@@ -1884,7 +1884,7 @@ async def test_aci_provision_interactive_default_provisioning(
     )
 
     monkeypatch.setattr(
-        "prefect.infrastructure.provisioners.container_instance.prompt_select_from_table",
+        "prefect.cli._prompts.prompt_select_from_table",
         mock_prompt_select_from_table,
     )
 
@@ -2227,9 +2227,7 @@ async def test_aci_provision_interactive_custom_resource_names(
 
     mock_prompt = MagicMock(side_effect=prompt_mocks)
 
-    monkeypatch.setattr(
-        "prefect.infrastructure.provisioners.container_instance.prompt", mock_prompt
-    )
+    monkeypatch.setattr("prefect.cli._prompts.prompt", mock_prompt)
 
     mock_prompt_select_from_table = MagicMock(
         side_effect=[
@@ -2239,7 +2237,7 @@ async def test_aci_provision_interactive_custom_resource_names(
     )
 
     monkeypatch.setattr(
-        "prefect.infrastructure.provisioners.container_instance.prompt_select_from_table",
+        "prefect.cli._prompts.prompt_select_from_table",
         mock_prompt_select_from_table,
     )
 
@@ -2571,7 +2569,7 @@ async def test_aci_provision_interactive_reject_provisioning(
     mock_confirm = MagicMock(return_value=False)
 
     monkeypatch.setattr(
-        "prefect.infrastructure.provisioners.container_instance.prompt_select_from_table",
+        "prefect.cli._prompts.prompt_select_from_table",
         mock_prompt_select_from_table,
     )
 

@@ -22,7 +22,6 @@ from rich.prompt import Confirm
 from rich.syntax import Syntax
 
 from prefect._internal.installation import ainstall_packages
-from prefect.cli._prompts import prompt
 from prefect.client.schemas.actions import BlockDocumentCreate
 from prefect.client.utilities import inject_client
 from prefect.exceptions import ObjectNotFound
@@ -1179,6 +1178,8 @@ class ElasticContainerServicePushProvisioner:
         Returns:
             dict: An updated copy base job template.
         """
+        from prefect.cli._prompts import prompt
+
         if not self.is_boto3_installed():
             if self.console.is_interactive and Confirm.ask(
                 "boto3 is required to configure your AWS account. Would you like to"

@@ -1001,9 +1001,7 @@ class TestElasticContainerServicePushProvisioner:
 
         mock_prompt = MagicMock(side_effect=prompt_mocks)
 
-        monkeypatch.setattr(
-            "prefect.infrastructure.provisioners.ecs.prompt", mock_prompt
-        )
+        monkeypatch.setattr("prefect.cli._prompts.prompt", mock_prompt)
 
         result = await provisioner.provision(
             "test-work-pool",
