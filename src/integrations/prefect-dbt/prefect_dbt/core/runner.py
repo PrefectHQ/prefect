@@ -821,17 +821,20 @@ class PrefectDbtRunner:
             if self.previous_command_name == "build":
                 add_test_edges = True
 
-        callbacks = (
-            [
-                self._create_logging_callback(task_state, self.log_level, context),
-                self._create_node_started_callback(task_state, context),
-                self._create_node_finished_callback(
-                    task_state, context, add_test_edges=add_test_edges, 
-                ),
-            ]
-            if in_flow_or_task_run or self._force_nodes_as_tasks or not self._disable_callbacks
-            else []
-        )
+        if not self._disable_callbacks:
+            callbacks = (
+                [
+                    self._create_logging_callback(task_state, self.log_level, context),
+                    self._create_node_started_callback(task_state, context),
+                    self._create_node_finished_callback(
+                        task_state, context, add_test_edges=add_test_edges, 
+                    ),
+                ]
+                if in_flow_or_task_run or self._force_nodes_as_tasks
+                else []
+            )
+        else:
+            callbacks = []
 
         # Determine which command is being invoked
         command_name = None
