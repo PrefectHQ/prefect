@@ -132,6 +132,7 @@ class PrefectDbtRunner:
         include_compiled_code: bool = False,
         disable_assets: bool = False,
         _force_nodes_as_tasks: bool = False,
+        _disable_callbacks: bool = False,
     ):
         self._manifest: Optional[Manifest] = manifest
         self.settings = settings or PrefectDbtSettings()
@@ -140,7 +141,7 @@ class PrefectDbtRunner:
         self.include_compiled_code = include_compiled_code
         self.disable_assets = disable_assets
         self._force_nodes_as_tasks = _force_nodes_as_tasks
-
+        self._disable_callbacks = _disable_callbacks
         self._project_name: Optional[str] = None
         self._target_path: Optional[Path] = None
         self._profiles_dir: Optional[Path] = None
@@ -828,7 +829,7 @@ class PrefectDbtRunner:
                     task_state, context, add_test_edges=add_test_edges, 
                 ),
             ]
-            if in_flow_or_task_run or self._force_nodes_as_tasks
+            if in_flow_or_task_run or self._force_nodes_as_tasks or not self._disable_callbacks
             else []
         )
 
