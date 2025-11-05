@@ -247,47 +247,6 @@ def lazy_import(
     return module
 
 
-class LazyDict:
-    """
-    A dictionary-like object that defers loading its contents until first access.
-
-    Useful for module-level registries that import heavy dependencies. The loader
-    function is called once on first access, and the result is cached.
-
-    Example:
-        >>> def load_plugins():
-        ...     from heavy_module import PluginA, PluginB
-        ...     return {"a": PluginA, "b": PluginB}
-        >>>
-        >>> plugins = LazyDict(load_plugins)
-        >>> # Nothing loaded yet
-        >>> plugins.get("a")  # Triggers load, returns PluginA
-        >>> plugins.get("b")  # Uses cached result, returns PluginB
-    """
-
-    def __init__(self, loader_func: Callable[[], dict]):
-        self._loader = loader_func
-        self._cache: Optional[dict] = None
-
-    def _ensure_loaded(self) -> dict:
-        """Load the dictionary contents if not already loaded."""
-        if self._cache is None:
-            self._cache = self._loader()
-        return self._cache
-
-    def get(self, key: Any, default: Any = None) -> Any:
-        """Get an item from the lazy dict, loading if necessary."""
-        return self._ensure_loaded().get(key, default)
-
-    def __contains__(self, key: Any) -> bool:
-        """Check if key is in the lazy dict, loading if necessary."""
-        return key in self._ensure_loaded()
-
-    def __getitem__(self, key: Any) -> Any:
-        """Get an item from the lazy dict, loading if necessary."""
-        return self._ensure_loaded()[key]
-
-
 class AliasedModuleDefinition(NamedTuple):
     """
     A definition for the `AliasedModuleFinder`.

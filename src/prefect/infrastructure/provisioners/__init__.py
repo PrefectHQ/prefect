@@ -2,13 +2,13 @@ from typing import TYPE_CHECKING, Any, Dict, Optional, Protocol, Type
 
 import rich.console
 
-from prefect.utilities.importtools import LazyDict
+from prefect._internal.lazy import LazyDict
 
 if TYPE_CHECKING:
     from prefect.client.orchestration import PrefectClient
 
 
-def _load_provisioners() -> Dict[str, Type]:
+def _load_provisioners() -> dict[str, type]:
     """Lazy load provisioners to avoid importing heavy cloud SDKs at module import time."""
     from prefect.infrastructure.provisioners.coiled import CoiledPushProvisioner
     from prefect.infrastructure.provisioners.modal import ModalPushProvisioner
@@ -27,7 +27,7 @@ def _load_provisioners() -> Dict[str, Type]:
     }
 
 
-_provisioners_lazy = LazyDict(_load_provisioners)
+_provisioners_lazy: LazyDict[str, type] = LazyDict(_load_provisioners)
 
 
 def __getattr__(name: str):
