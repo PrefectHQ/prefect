@@ -8,12 +8,11 @@ import yaml
 from rich.table import Table
 
 import prefect
-from prefect.cli._types import SettingsOption
 from prefect.cli._utilities import exit_with_error
 from prefect.cli.root import app, is_interactive
 from prefect.client.schemas.objects import ConcurrencyLimitConfig
 from prefect.deployments import initialize_project
-from prefect.settings import PREFECT_DEFAULT_WORK_POOL_NAME
+from prefect.settings import get_current_settings
 
 from ._config import (
     _load_deploy_configs_and_actions,
@@ -178,11 +177,12 @@ async def deploy(
         "--collision-strategy",
         help="Configure the behavior for runs once the concurrency limit is reached. Falls back to `ENQUEUE` if unset.",
     ),
-    work_pool_name: str = SettingsOption(
-        PREFECT_DEFAULT_WORK_POOL_NAME,
+    work_pool_name: str = typer.Option(
+        lambda: get_current_settings().deployments.default_work_pool_name,
         "-p",
         "--pool",
         help="The work pool that will handle this deployment's runs.",
+        show_default="from PREFECT_DEFAULT_WORK_POOL_NAME",
     ),
     work_queue_name: str = typer.Option(
         None,

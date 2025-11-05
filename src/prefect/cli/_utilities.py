@@ -12,7 +12,7 @@ import typer
 from click.exceptions import ClickException
 
 from prefect.exceptions import MissingProfileError
-from prefect.settings import PREFECT_TEST_MODE
+from prefect.settings import get_current_settings
 
 
 def exit_with_error(message: str | Exception, code: int = 1, **kwargs: Any) -> NoReturn:
@@ -47,7 +47,7 @@ def with_cli_exception_handling(fn: Callable[..., Any]) -> Callable[..., Any]:
         except MissingProfileError as exc:
             exit_with_error(exc)
         except Exception:
-            if PREFECT_TEST_MODE.value():
+            if get_current_settings().testing.test_mode:
                 raise  # Reraise exceptions during test mode
             traceback.print_exc()
             exit_with_error("An exception occurred.")

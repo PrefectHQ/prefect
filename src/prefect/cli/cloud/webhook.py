@@ -14,7 +14,7 @@ from prefect.cli.cloud import cloud_app, confirm_logged_in
 from prefect.cli.root import app, is_interactive
 from prefect.client.cloud import get_cloud_client
 from prefect.exceptions import ObjectNotFound
-from prefect.settings import PREFECT_API_URL
+from prefect.settings import get_current_settings
 
 webhook_app: PrefectTyper = PrefectTyper(
     name="webhook", help="Manage Prefect Cloud Webhooks"
@@ -49,7 +49,7 @@ async def ls():
     confirm_logged_in()
 
     # The /webhooks API lives inside the /accounts/{id}/workspaces/{id} routing tree
-    async with get_cloud_client(host=PREFECT_API_URL.value()) as client:
+    async with get_cloud_client(host=get_current_settings().api.url) as client:
         retrieved_webhooks = await client.request("POST", "/webhooks/filter")
         display_table = _render_webhooks_into_table(retrieved_webhooks)
         app.console.print(display_table)
@@ -63,7 +63,7 @@ async def get(webhook_id: UUID):
     confirm_logged_in()
 
     # The /webhooks API lives inside the /accounts/{id}/workspaces/{id} routing tree
-    async with get_cloud_client(host=PREFECT_API_URL.value()) as client:
+    async with get_cloud_client(host=get_current_settings().api.url) as client:
         webhook = await client.request("GET", f"/webhooks/{webhook_id}")
         display_table = _render_webhooks_into_table([webhook])
         app.console.print(display_table)
@@ -94,7 +94,7 @@ async def create(
     confirm_logged_in()
 
     # The /webhooks API lives inside the /accounts/{id}/workspaces/{id} routing tree
-    async with get_cloud_client(host=PREFECT_API_URL.value()) as client:
+    async with get_cloud_client(host=get_current_settings().api.url) as client:
         response = await client.request(
             "POST",
             "/webhooks/",
@@ -122,7 +122,7 @@ async def rotate(webhook_id: UUID):
         return
 
     # The /webhooks API lives inside the /accounts/{id}/workspaces/{id} routing tree
-    async with get_cloud_client(host=PREFECT_API_URL.value()) as client:
+    async with get_cloud_client(host=get_current_settings().api.url) as client:
         response = await client.request("POST", f"/webhooks/{webhook_id}/rotate")
         app.console.print(f"Successfully rotated webhook URL to {response['slug']}")
 
@@ -138,7 +138,7 @@ async def toggle(
 
     status_lookup = {True: "enabled", False: "disabled"}
 
-    async with get_cloud_client(host=PREFECT_API_URL.value()) as client:
+    async with get_cloud_client(host=get_current_settings().api.url) as client:
         response = await client.request("GET", f"/webhooks/{webhook_id}")
         current_status = response["enabled"]
         new_status = not current_status
@@ -166,7 +166,7 @@ async def update(
     confirm_logged_in()
 
     # The /webhooks API lives inside the /accounts/{id}/workspaces/{id} routing tree
-    async with get_cloud_client(host=PREFECT_API_URL.value()) as client:
+    async with get_cloud_client(host=get_current_settings().api.url) as client:
         response = await client.request("GET", f"/webhooks/{webhook_id}")
         update_payload = {
             "name": webhook_name or response["name"],
@@ -192,7 +192,7 @@ async def delete(webhook_id: UUID):
         exit_with_error("Deletion aborted.")
 
     # The /webhooks API lives inside the /accounts/{id}/workspaces/{id} routing tree
-    async with get_cloud_client(host=PREFECT_API_URL.value()) as client:
+    async with get_cloud_client(host=get_current_settings().api.url) as client:
         try:
             await client.request("DELETE", f"/webhooks/{webhook_id}")
             app.console.print(f"Successfully deleted webhook {webhook_id}")

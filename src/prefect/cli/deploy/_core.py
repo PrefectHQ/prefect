@@ -25,7 +25,7 @@ from prefect.deployments.runner import RunnerDeployment
 from prefect.deployments.steps.core import run_steps
 from prefect.exceptions import ObjectNotFound
 from prefect.flows import load_flow_from_entrypoint
-from prefect.settings import PREFECT_UI_URL
+from prefect.settings import get_current_settings
 from prefect.utilities.callables import parameter_schema
 from prefect.utilities.collections import get_from_dict
 from prefect.utilities.templating import (
@@ -373,10 +373,10 @@ async def _run_single_deploy(
         style="green",
     )
 
-    if PREFECT_UI_URL:
+    if ui_url := get_current_settings().ui_url:
         message = (
             "\nView Deployment in UI:"
-            f" {PREFECT_UI_URL.value()}/deployments/deployment/{deployment_id}\n"
+            f" {ui_url}/deployments/deployment/{deployment_id}\n"
         )
         app.console.print(message, soft_wrap=True)
 
