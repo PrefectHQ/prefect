@@ -534,14 +534,152 @@ class PrefectDbtRunner:
             # This prevents blocking dbt but may slow it down
             callback_func(event)
 
+    def _create_unified_callback(
+        self,
+        task_state: NodeTaskTracker,
+        log_level: EventLevel,
+        context: dict[str, Any],
+        add_test_edges: bool = False,
+    ) -> Callable[[EventMsg], None]:
+        """Creates a single unified callback that efficiently filters and routes dbt events.
+        
+        This approach is much more efficient than registering multiple callbacks because:
+        1. Only ONE callback is registered with dbtRunner (reducing overhead)
+        2. Event filtering happens IMMEDIATELY before any expensive operations
+        3. No logger context creation or queue operations for irrelevant events
+        """
+        
+        # Start the callback processor if not already started
+        self._start_callback_processor()
+        
+        def _process_logging_sync(event: EventMsg) -> None:
+            """Actual logging logic - runs in background thread."""
+            event_data = MessageToDict(event.data, preserving_proto_field_name=True)
+            
+            # Handle logging for all events with node_info
+            if event_data.get("node_info"):
+                node_id = self._get_dbt_event_node_id(event)
+                
+                # Skip logging for skipped nodes
+                if node_id not in self._skipped_nodes:
+                    flow_run_context: Optional[dict[str, Any]] = context.get(
+                        "flow_run_context"
+                    )
+                    logger = task_state.get_task_logger(
+                        node_id,
+                        flow_run_context.get("flow_run") if flow_run_context else None,
+                        flow_run_context.get("flow") if flow_run_context else None,
+                    )
+                else:
+                    logger = None
+            else:
+                # Get logger for events without node_info
+                try:
+                    with hydrated_context(context) as run_context:
+                        logger = get_run_logger(run_context)
+                except MissingContextError:
+                    logger = None
+
+            # Log the event if logger is available
+            if logger is not None:
+                logger.setLevel(log_level.value.upper())
+                if (
+                    event.info.level == EventLevel.DEBUG
+                    or event.info.level == EventLevel.TEST
+                ):
+                    logger.debug(self.get_dbt_event_msg(event))
+                elif event.info.level == EventLevel.INFO:
+                    logger.info(self.get_dbt_event_msg(event))
+                elif event.info.level == EventLevel.WARN:
+                    logger.warning(self.get_dbt_event_msg(event))
+                elif event.info.level == EventLevel.ERROR:
+                    logger.error(self.get_dbt_event_msg(event))
+
+        def _process_node_started_sync(event: EventMsg) -> None:
+            """Actual node started logic - runs in background thread."""
+            node_id = self._get_dbt_event_node_id(event)
+            if node_id in self._skipped_nodes:
+                return
+
+            manifest_node, prefect_config = self._get_manifest_node_and_config(
+                node_id
+            )
+
+            if manifest_node:
+                enable_assets = (
+                    prefect_config.get("enable_assets", True)
+                    and not self.disable_assets
+                )
+                self._call_task(
+                    task_state, manifest_node, context, enable_assets
+                )
+
+        def _process_node_finished_sync(event: EventMsg) -> None:
+            """Actual node finished logic - runs in background thread."""
+            node_id = self._get_dbt_event_node_id(event)
+            if node_id in self._skipped_nodes:
+                return
+
+            manifest_node, _ = self._get_manifest_node_and_config(node_id)
+
+            if manifest_node:
+                event_data = MessageToDict(event.data, preserving_proto_field_name=True)
+                # Store the status before ending the task
+                event_message = self.get_dbt_event_msg(event)
+                task_state.set_node_status(node_id, event_data, event_message)
+
+                node_info: Optional[dict[str, Any]] = event_data.get(
+                    "node_info"
+                )
+                node_status: Optional[str] = (
+                    node_info.get("node_status") if node_info else None
+                )
+
+                if (
+                    node_status in SKIPPED_STATUSES
+                    or node_status in FAILURE_STATUSES
+                ):
+                    self._set_graph_from_manifest(add_test_edges=add_test_edges)
+                    for dep_node_id in self.graph.get_dependent_nodes(  # type: ignore[reportUnknownMemberType]
+                        UniqueId(node_id)
+                    ):  # type: ignore[reportUnknownMemberType]
+                        self._skipped_nodes.add(dep_node_id)  # type: ignore[reportUnknownMemberType]
+
+        def unified_callback(event: EventMsg) -> None:
+            """Single unified callback that efficiently filters events before any processing.
+            
+            This is the ONLY callback registered with dbtRunner. It filters events
+            immediately (first operation) before doing any expensive work like
+            creating logger context or queueing operations.
+            """
+            # CRITICAL: Filter events IMMEDIATELY - no expensive operations before this check
+            event_name = event.info.name
+            
+            # Route to appropriate handler based on event type
+            if event_name == "NodeStart":
+                # Queue with highest priority to process before other events
+                self._queue_callback(_process_node_started_sync, event, priority=0)
+            elif event_name == "NodeFinished":
+                # Queue with medium priority (processed after NodeStart but before logging)
+                self._queue_callback(_process_node_finished_sync, event, priority=1)
+            else:
+                # All other events go to logging handler
+                # Skip NodeStart and NodeFinished events - they're handled above
+                self._queue_callback(_process_logging_sync, event)
+
+        return unified_callback
+
     def _create_logging_callback(
         self,
         task_state: NodeTaskTracker,
         log_level: EventLevel,
         context: dict[str, Any],
     ) -> Callable[[EventMsg], None]:
-        """Creates a callback function for logging dbt events."""
+        """Creates a callback function for logging dbt events.
         
+        DEPRECATED: This method is kept for backward compatibility but is no longer
+        used. Use _create_unified_callback instead for better performance.
+        """
         # Start the callback processor if not already started
         self._start_callback_processor()
         
@@ -595,14 +733,6 @@ class PrefectDbtRunner:
         def logging_callback(event: EventMsg) -> None:
             """Non-blocking callback wrapper that queues logging for background processing."""
             # Early filter: Skip NodeStart and NodeFinished events - they have their own callbacks
-            try:
-                with hydrated_context(context) as run_context:
-                    logger = get_run_logger(run_context)
-            except MissingContextError:
-                logger = None
-
-            logger.info("Logging callback: Evaluating dbt event", extra={"send_to_api": False})
-
             if event.info.name in ("NodeStart", "NodeFinished"):
                 return
             
@@ -614,8 +744,11 @@ class PrefectDbtRunner:
     def _create_node_started_callback(
         self, task_state: NodeTaskTracker, context: dict[str, Any]
     ) -> Callable[[EventMsg], None]:
-        """Creates a callback function for starting tasks when nodes start."""
+        """Creates a callback function for starting tasks when nodes start.
         
+        DEPRECATED: This method is kept for backward compatibility but is no longer
+        used. Use _create_unified_callback instead for better performance.
+        """
         # Start the callback processor if not already started
         self._start_callback_processor()
         
@@ -646,15 +779,6 @@ class PrefectDbtRunner:
             tasks are created before other events for the same node are processed.
             """
             # Early filter: Only process NodeStart events
-            try:
-                with hydrated_context(context) as run_context:
-                    logger = get_run_logger(run_context)
-            except MissingContextError:
-                logger = None
-
-            logger.info("Node started callback: Evaluating dbt event", extra={"send_to_api": False})
-
-            logger.debug
             if event.info.name != "NodeStart":
                 return
             
@@ -669,8 +793,11 @@ class PrefectDbtRunner:
         context: dict[str, Any],
         add_test_edges: bool = False,
     ) -> Callable[[EventMsg], None]:
-        """Creates a callback function for ending tasks when nodes finish."""
+        """Creates a callback function for ending tasks when nodes finish.
         
+        DEPRECATED: This method is kept for backward compatibility but is no longer
+        used. Use _create_unified_callback instead for better performance.
+        """
         # Start the callback processor if not already started
         self._start_callback_processor()
         
@@ -712,13 +839,6 @@ class PrefectDbtRunner:
             NodeFinished events are queued with medium priority (1) to ensure
             they're processed after NodeStart but before regular logging events.
             """
-            try:
-                with hydrated_context(context) as run_context:
-                    logger = get_run_logger(run_context)
-            except MissingContextError:
-                logger = None
-
-            logger.info("Node finished callback: Evaluating dbt event", extra={"send_to_api": False})
             # Early filter: Only process NodeFinished events
             if event.info.name != "NodeFinished":
                 return
@@ -824,10 +944,11 @@ class PrefectDbtRunner:
         if not self._disable_callbacks:
             callbacks = (
                 [
-                    self._create_logging_callback(task_state, self.log_level, context),
-                    self._create_node_started_callback(task_state, context),
-                    self._create_node_finished_callback(
-                        task_state, context, add_test_edges=add_test_edges, 
+                    self._create_unified_callback(
+                        task_state,
+                        self.log_level,
+                        context,
+                        add_test_edges=add_test_edges,
                     ),
                 ]
                 if in_flow_or_task_run or self._force_nodes_as_tasks
