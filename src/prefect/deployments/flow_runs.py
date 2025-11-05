@@ -7,7 +7,7 @@ from opentelemetry import trace
 
 import prefect
 from prefect._result_records import ResultRecordMetadata
-from prefect.client.schemas import FlowRun
+from prefect.client.schemas import FlowRun, TaskRunResult
 from prefect.client.utilities import inject_client
 from prefect.context import FlowRunContext, TaskRunContext
 from prefect.logging import get_logger
@@ -135,6 +135,21 @@ async def run_deployment(
         task_inputs = {
             k: await collect_task_run_inputs(v) for k, v in parameters.items()
         }
+
+        # Track parent task if this is being called from within a task
+        # This enables the execution graph to properly display the deployment
+        # flow run as nested under the calling task
+        if task_run_ctx:
+            # The task run is only considered a parent if it is in the same
+            # flow run (otherwise the child is in a subflow, so the subflow
+            # serves as the parent) or if there is no flow run
+            if not flow_run_ctx or (
+                task_run_ctx.task_run.flow_run_id
+                == getattr(flow_run_ctx.flow_run, "id", None)
+            ):
+                task_inputs["__parents__"] = [
+                    TaskRunResult(id=task_run_ctx.task_run.id)
+                ]
 
         if deployment_id:
             flow = await client.read_flow(deployment.flow_id)
