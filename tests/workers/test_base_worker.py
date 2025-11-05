@@ -53,8 +53,6 @@ from prefect.settings import (
     PREFECT_API_URL,
     PREFECT_RESULTS_PERSIST_BY_DEFAULT,
     PREFECT_TEST_MODE,
-    PREFECT_WORKER_PREFETCH_SECONDS,
-    Setting,
     get_current_settings,
     temporary_settings,
 )
@@ -174,18 +172,12 @@ async def test_worker_does_not_creates_work_pool_when_create_pool_is_false(
         await prefect_client.read_work_pool("test-work-pool")
 
 
-@pytest.mark.parametrize(
-    "setting,attr",
-    [
-        (PREFECT_WORKER_PREFETCH_SECONDS, "prefetch_seconds"),
-    ],
-)
-async def test_worker_respects_settings(setting: Setting, attr: str):
+async def test_worker_respects_prefetch_seconds():
     assert (
         WorkerTestImpl(name="test", work_pool_name="test-work-pool").get_status()[
             "settings"
-        ][attr]
-        == setting.value()
+        ]["prefetch_seconds"]
+        == get_current_settings().worker.prefetch_seconds
     )
 
 

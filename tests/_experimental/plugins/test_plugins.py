@@ -33,6 +33,7 @@ from prefect.settings import (
     get_current_settings,
     temporary_settings,
 )
+from prefect.settings.legacy import Settings, _get_settings_fields
 
 
 def mock_entry_points(entry_points_list):
@@ -439,7 +440,6 @@ class TestStartupHooks:
 
     async def test_timeout_handling(self, clean_env, mock_ctx):
         """Test that slow plugins time out gracefully."""
-        from prefect.settings import Settings, _get_settings_fields
 
         fields = _get_settings_fields(Settings)
         timeout_setting = fields["PREFECT_EXPERIMENTS_PLUGINS_SETUP_TIMEOUT_SECONDS"]
@@ -465,7 +465,6 @@ class TestStartupHooks:
 
     async def test_strict_mode_required_failure(self, clean_env, mock_ctx):
         """Test that strict mode exits on required plugin failure."""
-        from prefect.settings import Settings, _get_settings_fields
 
         fields = _get_settings_fields(Settings)
         strict_setting = fields["PREFECT_EXPERIMENTS_PLUGINS_STRICT"]
