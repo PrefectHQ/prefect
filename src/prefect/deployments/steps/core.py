@@ -282,7 +282,6 @@ async def _emit_pull_steps_event(
 
     try:
         # Use events client directly with checkpoint_every=1 to avoid buffering issues
-        # (similar to how Runner handles heartbeat events)
         async with get_events_client(checkpoint_every=1) as events_client:
             await events_client.emit(
                 Event(

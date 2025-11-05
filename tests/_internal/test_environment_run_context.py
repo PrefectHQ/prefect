@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 from uuid import uuid4
 
 import pytest
@@ -51,11 +49,15 @@ class TestEnvironmentRunContext:
             with ctx.model_copy():
                 assert _EnvironmentRunContext.get().flow_run_id == flow_run_id
 
-    def test_from_environment_returns_none_without_flow_run_id(self, monkeypatch):
+    def test_from_environment_returns_none_without_flow_run_id(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
         monkeypatch.delenv("PREFECT__FLOW_RUN_ID", raising=False)
         assert _EnvironmentRunContext.from_environment() is None
 
-    def test_from_environment_with_flow_run_id_only(self, monkeypatch):
+    def test_from_environment_with_flow_run_id_only(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
         flow_run_id = uuid4()
         monkeypatch.setenv("PREFECT__FLOW_RUN_ID", str(flow_run_id))
         monkeypatch.delenv("PREFECT__DEPLOYMENT_ID", raising=False)
@@ -67,7 +69,7 @@ class TestEnvironmentRunContext:
         assert ctx.deployment_id is None
         assert ctx.work_pool_name is None
 
-    def test_from_environment_with_all_fields(self, monkeypatch):
+    def test_from_environment_with_all_fields(self, monkeypatch: pytest.MonkeyPatch):
         flow_run_id = uuid4()
         deployment_id = uuid4()
         work_pool_name = "test-pool"
@@ -82,7 +84,9 @@ class TestEnvironmentRunContext:
         assert ctx.deployment_id == deployment_id
         assert ctx.work_pool_name == work_pool_name
 
-    def test_from_environment_with_partial_fields(self, monkeypatch):
+    def test_from_environment_with_partial_fields(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
         flow_run_id = uuid4()
         deployment_id = uuid4()
 
@@ -148,7 +152,9 @@ class TestEnvironmentRunContext:
         assert serialized["deployment_id"] == deployment_id
         assert serialized["work_pool_name"] == work_pool_name
 
-    def test_from_environment_handles_invalid_uuid_gracefully(self, monkeypatch):
+    def test_from_environment_handles_invalid_uuid_gracefully(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
         monkeypatch.setenv("PREFECT__FLOW_RUN_ID", "not-a-uuid")
 
         with pytest.raises(ValueError):

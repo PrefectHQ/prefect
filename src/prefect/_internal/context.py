@@ -7,12 +7,10 @@ and error handling with proper flow run association when FlowRunContext isn't
 available yet.
 """
 
-from __future__ import annotations
-
 import os
 from contextvars import ContextVar
 from logging import Logger
-from typing import TYPE_CHECKING, ClassVar, Optional
+from typing import TYPE_CHECKING, ClassVar
 from uuid import UUID
 
 from prefect.context import ContextModel
@@ -48,16 +46,16 @@ class _EnvironmentRunContext(ContextModel):
         ```
     """
 
-    flow_run_id: Optional[UUID] = None
-    deployment_id: Optional[UUID] = None
-    work_pool_name: Optional[str] = None
+    flow_run_id: UUID | None = None
+    deployment_id: UUID | None = None
+    work_pool_name: str | None = None
 
-    __var__: ClassVar[ContextVar[_EnvironmentRunContext]] = ContextVar(
+    __var__: ClassVar[ContextVar["_EnvironmentRunContext"]] = ContextVar(
         "environment_run_context"
     )
 
     @classmethod
-    def from_environment(cls) -> Optional[_EnvironmentRunContext]:
+    def from_environment(cls) -> "_EnvironmentRunContext | None":
         """
         Create an _EnvironmentRunContext from environment variables if available.
 
