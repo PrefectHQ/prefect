@@ -17,8 +17,8 @@ if TYPE_CHECKING:
 
 
 def _trim_traceback(
-    tb: Optional[TracebackType], remove_modules: Iterable[ModuleType]
-) -> Optional[TracebackType]:
+    tb: TracebackType | None, remove_modules: Iterable[ModuleType]
+) -> TracebackType | None:
     """
     Utility to remove frames from specific modules from a traceback.
 
