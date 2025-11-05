@@ -6,7 +6,7 @@ import asyncio
 import functools
 import sys
 from datetime import datetime
-from typing import Any, Callable, List, Optional
+from typing import TYPE_CHECKING, Any, Callable, List, Optional
 
 import typer
 from rich.console import Console
@@ -14,11 +14,14 @@ from rich.theme import Theme
 
 from prefect._internal.compatibility.deprecated import generate_deprecation_message
 from prefect.cli._utilities import with_cli_exception_handling
-from prefect.settings import Setting, get_current_settings
+from prefect.settings import get_current_settings
 from prefect.utilities.asyncutils import is_async_fn
 
+if TYPE_CHECKING:
+    from prefect.settings.legacy import Setting
 
-def SettingsOption(setting: Setting, *args: Any, **kwargs: Any) -> Any:
+
+def SettingsOption(setting: "Setting", *args: Any, **kwargs: Any) -> Any:
     """Custom `typer.Option` factory to load the default value from settings"""
 
     return typer.Option(
@@ -34,7 +37,7 @@ def SettingsOption(setting: Setting, *args: Any, **kwargs: Any) -> Any:
     )
 
 
-def SettingsArgument(setting: Setting, *args: Any, **kwargs: Any) -> Any:
+def SettingsArgument(setting: "Setting", *args: Any, **kwargs: Any) -> Any:
     """Custom `typer.Argument` factory to load the default value from settings"""
 
     # See comments in `SettingsOption`
