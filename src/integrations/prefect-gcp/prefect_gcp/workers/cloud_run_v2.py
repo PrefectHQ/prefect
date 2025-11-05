@@ -702,27 +702,48 @@ class CloudRunWorkerV2(
     ):
         """
         Creates the Cloud Run job and waits for it to register.
+        Includes retry logic for transient errors (HTTP 500, 503, 429).
 
         Args:
             configuration: The configuration for the job.
             cr_client: The Cloud Run client.
             logger: The logger to use.
         """
-        try:
-            logger.info(f"Creating Cloud Run JobV2 {configuration.job_name}")
+        max_retries = 3
+        
+        for attempt in range(max_retries):
+            try:
+                logger.info(f"Creating Cloud Run JobV2 {configuration.job_name}")
+                JobV2.create(
+                    cr_client=cr_client,
+                    project=configuration.project,
+                    location=configuration.region,
+                    job_id=configuration.job_name,
+                    body=configuration.job_body,
+                )
+                # Success - break out of retry loop
+                break
+                
+            except HttpError as exc:
+                # Check if it's a transient error that should be retried
+                is_transient = exc.status_code in [500, 503, 429]
+                is_last_attempt = attempt == max_retries - 1
+                
+                if is_transient and not is_last_attempt:
+                    wait_time = 2 ** attempt  # Exponential backoff: 1s, 2s, 4s
+                    logger.warning(
+                        f"Transient error (HTTP {exc.status_code}) when creating Cloud Run job. "
+                        f"Retrying in {wait_time}s... (Attempt {attempt + 1}/{max_retries})"
+                    )
+                    time.sleep(wait_time)
+                else:
+                    # Either not transient or last attempt - handle error
+                    self._create_job_error(
+                        exc=exc,
+                        configuration=configuration,
+                    )
+                    break
 
-            JobV2.create(
-                cr_client=cr_client,
-                project=configuration.project,
-                location=configuration.region,
-                job_id=configuration.job_name,
-                body=configuration.job_body,
-            )
-        except HttpError as exc:
-            self._create_job_error(
-                exc=exc,
-                configuration=configuration,
-            )
 
         try:
             self._wait_for_job_creation(
