@@ -439,7 +439,7 @@ class TestStartupHooks:
 
     async def test_timeout_handling(self, clean_env, mock_ctx):
         """Test that slow plugins time out gracefully."""
-        from prefect.settings import Settings, _get_settings_fields
+        from prefect.settings.legacy import Settings, _get_settings_fields
 
         fields = _get_settings_fields(Settings)
         timeout_setting = fields["PREFECT_EXPERIMENTS_PLUGINS_SETUP_TIMEOUT_SECONDS"]
