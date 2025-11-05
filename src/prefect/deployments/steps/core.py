@@ -23,10 +23,10 @@ from typing import Any
 
 from prefect._internal.compatibility.deprecated import PrefectDeprecationWarning
 from prefect._internal.concurrency.api import Call, from_async
-from prefect._internal.context import _EnvironmentRunContext
 from prefect._internal.installation import install_packages
 from prefect._internal.integrations import KNOWN_EXTRAS_FOR_PACKAGES
-from prefect.events.utilities import emit_event
+from prefect.events.clients import get_events_client
+from prefect.events.schemas.events import Event, RelatedResource, Resource
 from prefect.logging.loggers import get_logger
 from prefect.settings import PREFECT_DEBUG_MODE
 from prefect.utilities.importtools import import_object
@@ -147,6 +147,8 @@ async def run_steps(
     upstream_outputs: dict[str, Any] | None = None,
     print_function: Any = print,
     deployment: Any | None = None,
+    flow_run: Any | None = None,
+    logger: Any | None = None,
 ) -> dict[str, Any]:
     upstream_outputs = deepcopy(upstream_outputs) if upstream_outputs else {}
     serialized_steps: list[dict[str, Any]] = []
@@ -162,7 +164,13 @@ async def run_steps(
         # Templating (which resolves blocks, variables, and env vars) happens inside
         # run_step(), so by serializing here we prevent secrets from leaking in events.
         serialized_steps.append(
-            _serialize_step_for_event(len(serialized_steps), fqn, inputs)
+            {
+                "index": len(serialized_steps),
+                "qualified_name": fqn,
+                "step_name": step_name,
+                "id": inputs.get("id"),
+                "inputs": inputs,  # Keep all inputs including reserved keywords like 'requires'
+            }
         )
         try:
             # catch warnings to ensure deprecation warnings are printed
@@ -203,13 +211,21 @@ async def run_steps(
                 upstream_outputs[inputs.get("id")] = step_output
             upstream_outputs.update(step_output)
         except Exception as exc:
-            _emit_pull_steps_event(
+            await _emit_pull_steps_event(
                 serialized_steps,
                 failed_step=serialized_steps[-1] if serialized_steps else None,
                 deployment=deployment,
+                flow_run=flow_run,
+                logger=logger,
             )
             raise StepExecutionError(f"Encountered error while running {fqn}") from exc
-    _emit_pull_steps_event(serialized_steps, failed_step=None, deployment=deployment)
+    await _emit_pull_steps_event(
+        serialized_steps,
+        failed_step=None,
+        deployment=deployment,
+        flow_run=flow_run,
+        logger=logger,
+    )
     return upstream_outputs
 
 
@@ -218,49 +234,30 @@ def _get_step_fully_qualified_name_and_inputs(step: dict) -> tuple[str, dict]:
     return step.popitem()
 
 
-def _serialize_step_for_event(
-    index: int, qualified_name: str, inputs: dict[str, Any]
-) -> dict[str, Any]:
-    """
-    Serialize a step's metadata for the pull-steps.executed event payload.
-
-    IMPORTANT: This function must be called with PRE-TEMPLATED inputs to avoid
-    exposing secrets in event payloads. Template strings like "{{ prefect.blocks.secret.name }}"
-    are preserved, while templating (which resolves these to actual secret values)
-    happens later in run_step().
-
-    Args:
-        index: The step's index in the execution sequence
-        qualified_name: The fully qualified name of the step function
-        inputs: The raw, pre-templated inputs for the step
-
-    Returns:
-        A dictionary containing step metadata safe for event emission
-    """
-    sanitized_inputs = {
-        key: value for key, value in inputs.items() if key not in RESERVED_KEYWORDS
-    }
-    return {
-        "index": index,
-        "qualified_name": qualified_name,
-        "step_name": qualified_name.split(".")[-1],
-        "id": inputs.get("id"),
-        "inputs": sanitized_inputs,
-    }
-
-
-def _emit_pull_steps_event(
+async def _emit_pull_steps_event(
     serialized_steps: list[dict[str, Any]],
     *,
     failed_step: dict[str, Any] | None,
     deployment: Any | None = None,
+    flow_run: Any | None = None,
+    logger: Any | None = None,
 ) -> None:
     if not serialized_steps:
         return
 
-    # Use _EnvironmentRunContext to access flow run ID from environment
-    ctx = _EnvironmentRunContext.from_environment()
-    if not ctx or not ctx.flow_run_id:
+    # If no flow_run provided, try to get flow_run_id from environment
+    # (for backward compatibility with calls that don't pass flow_run)
+    flow_run_id = None
+    if flow_run:
+        flow_run_id = flow_run.id
+    else:
+        from prefect._internal.context import _EnvironmentRunContext
+
+        ctx = _EnvironmentRunContext.from_environment()
+        if ctx and ctx.flow_run_id:
+            flow_run_id = ctx.flow_run_id
+
+    if not flow_run_id:
         return
 
     payload = {
@@ -269,31 +266,42 @@ def _emit_pull_steps_event(
     }
     if failed_step is not None:
         payload["failed_step"] = failed_step
-    resource = {
-        "prefect.resource.id": f"prefect.flow-run.{ctx.flow_run_id}",
-    }
 
     # Build related resources
-    related: list[dict[str, str]] = []
+    related: list[RelatedResource] = []
     if deployment:
         # Add deployment as a related resource
         related.append(
-            {
-                "prefect.resource.id": f"prefect.deployment.{deployment.id}",
-                "prefect.resource.role": "deployment",
-            }
+            RelatedResource(
+                {
+                    "prefect.resource.id": f"prefect.deployment.{deployment.id}",
+                    "prefect.resource.role": "deployment",
+                }
+            )
         )
 
     try:
-        emit_event(
-            event="prefect.flow-run.pull-steps.executed",
-            resource=resource,
-            related=related if related else None,
-            payload=payload,
-        )
+        # Use events client directly with checkpoint_every=1 to avoid buffering issues
+        # (similar to how Runner handles heartbeat events)
+        async with get_events_client(checkpoint_every=1) as events_client:
+            await events_client.emit(
+                Event(
+                    event="prefect.flow-run.pull-steps.executed",
+                    resource=Resource(
+                        {
+                            "prefect.resource.id": f"prefect.flow-run.{flow_run_id}",
+                        }
+                    ),
+                    related=related,
+                    payload=payload,
+                )
+            )
     except Exception:
-        # Use context-aware logger for better log association
-        logger = ctx.get_logger(__name__)
-        logger.warning(
-            "Failed to emit pull-steps event for flow run %s", ctx.flow_run_id
-        )
+        if logger:
+            logger.warning(
+                "Failed to emit pull-steps event for flow run %s", flow_run_id
+            )
+        else:
+            get_logger(__name__).warning(
+                "Failed to emit pull-steps event for flow run %s", flow_run_id
+            )

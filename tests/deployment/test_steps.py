@@ -269,17 +269,14 @@ class TestRunSteps:
     async def test_run_steps_emits_pull_steps_event(
         self, monkeypatch: pytest.MonkeyPatch
     ):
-        emitted: list[dict[str, Any]] = []
+        from prefect.events.clients import AssertingEventsClient
 
-        def fake_emit_event(**kwargs: Any) -> object:
-            emitted.append(kwargs)
-            return object()
-
+        mock_events_client = AssertingEventsClient()
         flow_run_id = str(uuid.uuid4())
         monkeypatch.setenv("PREFECT__FLOW_RUN_ID", flow_run_id)
         monkeypatch.setattr(
-            "prefect.deployments.steps.core.emit_event",
-            fake_emit_event,
+            "prefect.deployments.steps.core.get_events_client",
+            lambda **kwargs: mock_events_client,
             raising=False,
         )
 
@@ -310,32 +307,43 @@ class TestRunSteps:
         output = await run_steps(steps, {})
 
         assert output["result"] == "second"
-        assert len(emitted) == 1
-        event_kwargs = emitted[0]
-        assert event_kwargs["event"] == "prefect.flow-run.pull-steps.executed"
-        assert event_kwargs["resource"] == {
+        assert len(mock_events_client.events) == 1
+        event = mock_events_client.events[0]
+        assert event.event == "prefect.flow-run.pull-steps.executed"
+        assert dict(event.resource) == {
             "prefect.resource.id": f"prefect.flow-run.{flow_run_id}",
         }
-        payload = event_kwargs["payload"]
+        payload = event.payload
         assert "failed_step" not in payload
         assert payload["count"] == 2
         first_step_inputs = payload["steps"][0]["inputs"]
-        assert first_step_inputs == {"script": "first", "extra": "value"}
+        # inputs now includes reserved keywords like 'requires' and 'id'
+        assert first_step_inputs == {
+            "script": "first",
+            "id": "step-one",
+            "requires": "prefect>=3.0.0",
+            "extra": "value",
+        }
         assert payload["steps"][0]["id"] == "step-one"
 
     async def test_run_steps_skips_event_without_flow_run_id(
         self, monkeypatch: pytest.MonkeyPatch
     ):
-        monkeypatch.delenv("PREFECT__FLOW_RUN_ID", raising=False)
-        emitted: list[dict[str, Any]] = []
+        from prefect.events.clients import AssertingEventsClient
 
-        def fake_emit_event(**kwargs: Any) -> object:
-            emitted.append(kwargs)
-            return object()
+        monkeypatch.delenv("PREFECT__FLOW_RUN_ID", raising=False)
+
+        mock_events_client = AssertingEventsClient()
+        get_events_client_called = False
+
+        def mock_get_events_client(**kwargs):
+            nonlocal get_events_client_called
+            get_events_client_called = True
+            return mock_events_client
 
         monkeypatch.setattr(
-            "prefect.deployments.steps.core.emit_event",
-            fake_emit_event,
+            "prefect.deployments.steps.core.get_events_client",
+            mock_get_events_client,
             raising=False,
         )
 
@@ -356,22 +364,20 @@ class TestRunSteps:
         ]
 
         await run_steps(steps, {})
-        assert emitted == []
+        # get_events_client should not be called since there's no flow_run_id
+        assert not get_events_client_called
 
     async def test_run_steps_emits_event_on_failure(
         self, monkeypatch: pytest.MonkeyPatch
     ):
-        emitted: list[dict[str, Any]] = []
+        from prefect.events.clients import AssertingEventsClient
 
-        def fake_emit_event(**kwargs: Any) -> object:
-            emitted.append(kwargs)
-            return object()
-
+        mock_events_client = AssertingEventsClient()
         flow_run_id = str(uuid.uuid4())
         monkeypatch.setenv("PREFECT__FLOW_RUN_ID", flow_run_id)
         monkeypatch.setattr(
-            "prefect.deployments.steps.core.emit_event",
-            fake_emit_event,
+            "prefect.deployments.steps.core.get_events_client",
+            lambda **kwargs: mock_events_client,
             raising=False,
         )
 
@@ -403,8 +409,9 @@ class TestRunSteps:
         with pytest.raises(StepExecutionError):
             await run_steps(steps, {})
 
-        assert len(emitted) == 1
-        payload = emitted[0]["payload"]
+        assert len(mock_events_client.events) == 1
+        event = mock_events_client.events[0]
+        payload = event.payload
         assert payload["count"] == 2
         assert payload["steps"][0]["id"] == "step-one"
         assert payload["steps"][1]["id"] == "step-two"
@@ -419,18 +426,15 @@ class TestRunSteps:
     async def test_run_steps_does_not_expose_secrets_in_event(
         self, monkeypatch: pytest.MonkeyPatch
     ):
-        emitted: list[dict[str, Any]] = []
+        from prefect.events.clients import AssertingEventsClient
 
-        def fake_emit_event(**kwargs: Any) -> object:
-            emitted.append(kwargs)
-            return object()
-
+        mock_events_client = AssertingEventsClient()
         flow_run_id = str(uuid.uuid4())
         monkeypatch.setenv("PREFECT__FLOW_RUN_ID", flow_run_id)
         monkeypatch.setenv("SECRET_ENV_VAR", "super-secret-value")
         monkeypatch.setattr(
-            "prefect.deployments.steps.core.emit_event",
-            fake_emit_event,
+            "prefect.deployments.steps.core.get_events_client",
+            lambda **kwargs: mock_events_client,
             raising=False,
         )
 
@@ -469,11 +473,11 @@ class TestRunSteps:
         output = await run_steps(steps, {})
 
         assert output["result"] == "success"
-        assert len(emitted) == 1
-        event_kwargs = emitted[0]
-        assert event_kwargs["event"] == "prefect.flow-run.pull-steps.executed"
+        assert len(mock_events_client.events) == 1
+        event = mock_events_client.events[0]
+        assert event.event == "prefect.flow-run.pull-steps.executed"
 
-        payload = event_kwargs["payload"]
+        payload = event.payload
         assert "failed_step" not in payload
         assert payload["count"] == 1
 
@@ -489,18 +493,15 @@ class TestRunSteps:
     async def test_run_steps_includes_deployment_as_related_resource(
         self, monkeypatch: pytest.MonkeyPatch
     ):
-        emitted: list[dict[str, Any]] = []
+        from prefect.events.clients import AssertingEventsClient
 
-        def fake_emit_event(**kwargs: Any) -> object:
-            emitted.append(kwargs)
-            return object()
-
+        mock_events_client = AssertingEventsClient()
         flow_run_id = str(uuid.uuid4())
         deployment_id = str(uuid.uuid4())
         monkeypatch.setenv("PREFECT__FLOW_RUN_ID", flow_run_id)
         monkeypatch.setattr(
-            "prefect.deployments.steps.core.emit_event",
-            fake_emit_event,
+            "prefect.deployments.steps.core.get_events_client",
+            lambda **kwargs: mock_events_client,
             raising=False,
         )
 
@@ -527,17 +528,17 @@ class TestRunSteps:
         output = await run_steps(steps, {}, deployment=mock_deployment)
 
         assert output["result"] == "success"
-        assert len(emitted) == 1
-        event_kwargs = emitted[0]
-        assert event_kwargs["event"] == "prefect.flow-run.pull-steps.executed"
+        assert len(mock_events_client.events) == 1
+        event = mock_events_client.events[0]
+        assert event.event == "prefect.flow-run.pull-steps.executed"
 
-        related = event_kwargs.get("related")
+        related = event.related
         assert related is not None
         assert len(related) == 1
-        assert (
-            related[0]["prefect.resource.id"] == f"prefect.deployment.{deployment_id}"
-        )
-        assert related[0]["prefect.resource.role"] == "deployment"
+        assert dict(related[0]) == {
+            "prefect.resource.id": f"prefect.deployment.{deployment_id}",
+            "prefect.resource.role": "deployment",
+        }
 
     async def test_run_steps_runs_multiple_steps(self):
         steps = [
