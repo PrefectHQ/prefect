@@ -20,6 +20,7 @@ from prefect.client.orchestration import get_client
 from prefect.client.schemas import sorting
 from prefect.client.schemas.filters import FlowFilter, FlowFilterName
 from prefect.client.utilities import inject_client
+from prefect.events.worker import EventsWorker
 from prefect.logging.handlers import APILogWorker
 from prefect.results import (
     ResultRecord,
@@ -172,6 +173,8 @@ def prefect_test_harness(server_startup_timeout: int | None = 30):
         yield
         # drain the logs before stopping the server to avoid connection errors on shutdown
         APILogWorker.instance().drain()
+        # drain events to prevent stale events from leaking into subsequent test harnesses
+        EventsWorker.drain_all()
         test_server.stop()
 
 
