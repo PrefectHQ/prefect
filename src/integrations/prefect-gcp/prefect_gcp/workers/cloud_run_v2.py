@@ -17,6 +17,7 @@ from jsonpatch import JsonPatch
 from pydantic import Field, PrivateAttr, field_validator
 
 from prefect.logging.loggers import PrefectLogAdapter, flow_run_logger
+from prefect._internal.retries import exponential_backoff_with_jitter
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.dockerutils import get_prefect_image_name
 from prefect.workers.base import (
@@ -711,9 +712,11 @@ class CloudRunWorkerV2(
         """
         max_retries = 3
         
+
         for attempt in range(max_retries):
             try:
                 logger.info(f"Creating Cloud Run JobV2 {configuration.job_name}")
+                
                 JobV2.create(
                     cr_client=cr_client,
                     project=configuration.project,
@@ -723,17 +726,23 @@ class CloudRunWorkerV2(
                 )
                 # Success - break out of retry loop
                 break
-                
+
             except HttpError as exc:
                 # Check if it's a transient error that should be retried
                 is_transient = exc.status_code in [500, 503, 429]
                 is_last_attempt = attempt == max_retries - 1
-                
+
                 if is_transient and not is_last_attempt:
-                    wait_time = 2 ** attempt  # Exponential backoff: 1s, 2s, 4s
+                    # Use Prefect's exponential backoff with jitter
+                    
+                    wait_time = exponential_backoff_with_jitter(
+                        attempt=attempt,
+                        base_delay=2.0,  # Start with 2 seconds
+                        max_delay=10.0   # Cap at 10 seconds
+                    )
                     logger.warning(
                         f"Transient error (HTTP {exc.status_code}) when creating Cloud Run job. "
-                        f"Retrying in {wait_time}s... (Attempt {attempt + 1}/{max_retries})"
+                        f"Retrying in {wait_time:.2f}s... (Attempt {attempt + 1}/{max_retries})"
                     )
                     time.sleep(wait_time)
                 else:
@@ -742,11 +751,8 @@ class CloudRunWorkerV2(
                         exc=exc,
                         configuration=configuration,
                     )
-                    break
-
-
-        try:
-            self._wait_for_job_creation(
+                    # Re-raise after logging so we don't continue
+                    raise
                 cr_client=cr_client,
                 configuration=configuration,
                 logger=logger,
