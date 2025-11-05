@@ -167,7 +167,7 @@ def test_prefect_test_harness_multiple_runs():
     def example_flow():
         return example_task()
 
-    # Run the test harness multiple times - this should not raise errors
+    # Run the test harness twice - the second run would fail with the bug
     with prefect_test_harness():
         result1 = example_flow()
         assert result1 == "task completed"
@@ -175,7 +175,3 @@ def test_prefect_test_harness_multiple_runs():
     with prefect_test_harness():
         result2 = example_flow()
         assert result2 == "task completed"
-
-    with prefect_test_harness():
-        result3 = example_flow()
-        assert result3 == "task completed"
