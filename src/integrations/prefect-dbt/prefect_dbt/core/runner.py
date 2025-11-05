@@ -825,7 +825,7 @@ class PrefectDbtRunner:
                 self._create_logging_callback(task_state, self.log_level, context),
                 self._create_node_started_callback(task_state, context),
                 self._create_node_finished_callback(
-                    task_state, add_test_edges=add_test_edges, context=context)
+                    task_state, add_test_edges=add_test_edges, context=context
                 ),
             ]
             if in_flow_or_task_run or self._force_nodes_as_tasks
