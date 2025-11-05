@@ -172,6 +172,10 @@ def prefect_test_harness(server_startup_timeout: int | None = 30):
         yield
         # drain the logs before stopping the server to avoid connection errors on shutdown
         APILogWorker.instance().drain()
+        # drain events to prevent stale events from leaking into subsequent test harnesses
+        from prefect.events.worker import EventsWorker
+
+        EventsWorker.drain_all()
         test_server.stop()
 
 

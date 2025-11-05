@@ -148,3 +148,34 @@ def test_multiprocessing_after_test_harness():
 
     # Verify process completed successfully
     assert process.exitcode == 0, "Process should complete without deadlock"
+
+
+def test_prefect_test_harness_multiple_runs():
+    """
+    Test that running prefect_test_harness multiple times doesn't cause errors.
+
+    Regression test for issue #19342 - running the test harness multiple times
+    in the same process would cause FOREIGN KEY constraint failures because the
+    EventsWorker singleton persisted stale events across harness sessions.
+    """
+
+    @task
+    def example_task():
+        return "task completed"
+
+    @flow
+    def example_flow():
+        return example_task()
+
+    # Run the test harness multiple times - this should not raise errors
+    with prefect_test_harness():
+        result1 = example_flow()
+        assert result1 == "task completed"
+
+    with prefect_test_harness():
+        result2 = example_flow()
+        assert result2 == "task completed"
+
+    with prefect_test_harness():
+        result3 = example_flow()
+        assert result3 == "task completed"
