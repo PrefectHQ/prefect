@@ -30,7 +30,7 @@ def _load_provisioners() -> dict[str, type]:
 _provisioners_lazy: LazyDict[str, type] = LazyDict(_load_provisioners)
 
 
-def __getattr__(name: str):
+def __getattr__(name: str) -> LazyDict[str, type]:
     """Lazy load module attributes."""
     if name == "_provisioners":
         return _provisioners_lazy
