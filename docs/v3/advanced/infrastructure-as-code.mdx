@@ -30,6 +30,187 @@ Prefect maintains several Terraform modules to help you get started with common 
 * [ECS Worker on AWS Fargate](https://github.com/PrefectHQ/terraform-prefect-ecs-worker)
 * [ACI Worker on Azure Container Instances](https://github.com/PrefectHQ/terraform-prefect-aci-worker)
 
+## Pulumi
+
+Prefect does not maintain an official Pulumi package.
+However, you can use Pulumi’s terraform-provider to automatically generate a Pulumi SDK from the Prefect Terraform provider.
+For details, refer to the [Pulumi documentation on Terraform providers](www.pulumi.com/registry/packages/terraform-provider/).
+
+<Tip>
+You will need to be using Pulumi version >= 3.147.0.
+</Tip>
+
+In this example, we will use Pulumi to deploy a flow to Prefect.
+
+Prefect recommends using the `uv` for managing Python dependencies.
+This example will show you how to set up a Pulumi project using the `uv` toolchain.
+
+<AccordionGroup>
+    <Accordion title="Creating a new Pulumi project">
+        To create a new Python Pulumi project using the `uv` toolchain, run the following command:
+        
+        ```bash
+        pulumi new python \
+        --yes \
+        --generate-only \
+        --name "my-prefect-pulumi-project" \
+        --description "A Pulumi project to manage Prefect resources" \
+        --runtime-options toolchain=uv \
+        --runtime-options virtualenv=.venv
+        ```
+        
+        <Warning>
+            Don't name your project any of the following, otherwise you will have package name conflicts:
+            * `pulumi`
+            * `prefect`
+            * `pulumi-prefect`
+        </Warning>
+        
+        <Info>
+            An explanation of the [flags](https://www.pulumi.com/docs/iac/cli/commands/pulumi_new/#options) used:
+            * The `--yes` flag skips the interactive prompts and accepts the defaults. You can omit this flag, 
+            or edit the generated `Pulumi.yaml` file later to customize your project settings.
+            * The `--generate-only` just creates a new Pulumi project. It does not create a stack, save config, 
+            or install dependencies.
+            * The `--name` and `--description` flags set the name and description of your Pulumi project.
+            * The `--runtime-options toolchain=uv` and `--runtime-options virtualenv=.venv` flags configures 
+            the Pulumi project to use the `uv` toolchain instead of the default, `pip`.
+        </Info>
+        
+        To finish setting up your new Pulumi project, navigate to the project directory and install the dependencies:
+        
+        ```bash
+        pulumi install
+        ```
+    </Accordion>
+    <Accordion title="Using an existing Pulumi project">
+        If you already have a Pulumi project, you can switch to the `uv` toolchain by updating 
+        your `pulumi.yaml` file `runtime` settings as shown below:
+
+        ```yaml Pulumi.yaml
+        # other project settings...
+        runtime:
+          name: python
+          options:
+            toolchain: uv
+            virtualenv: .venv
+        ```
+        
+        This configures your Pulumi project to use the `uv` toolchain and the virtual environment located at `.venv`.
+        
+        Run the following to update Pulumi to use the `uv` toolchain:
+
+        ```bash
+        pulumi install
+        ```
+    </Accordion>
+</AccordionGroup>
+
+### Managing Resources with Pulumi
+
+To manage resources with Pulumi, add the Prefect Terraform provider to your Pulumi project:
+
+```bash
+pulumi package add terraform-provider prefecthq/prefect
+```
+
+Optionally, you can specify a specific version, e.g.:
+```bash
+pulumi package add terraform-provider prefecthq/prefect 2.90.0
+```
+
+This will auto-generate a `pulumi-prefect` Python package. 
+The code will be placed in the `sdks/prefect` directory inside the Pulumi project.
+
+### Example: Deploying a Flow with Pulumi
+
+This simple example shows you how to deploy a flow to Prefect.
+
+```python
+import json
+import pulumi
+import pulumi_prefect as prefect
+from prefect.utilities.callables import parameter_schema
+from typing import Callable, Any
+
+# Import your flow here
+from my_flow import test as example_flow
+
+
+def generate_openapi_schema_for_flow(flow_obj: Callable[..., Any]) -> str:
+    """
+    Utility function to generate an OpenAPI schema for a flow's parameters.
+    This is used to provide type information for deployments created via Pulumi.
+    
+    See also:
+        * `parameter_schema <https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/callables.py#L331>`_
+        * `model_dump_for_openapi <https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/callables.py#L247>`_
+    """
+    return json.dumps(parameter_schema(flow_obj).model_dump_for_openapi())
+
+# Configure the Provider
+provider = prefect.Provider(
+    "prefect",
+    # endpoint="https://api.prefect.cloud/api/account/<account>/workspace/<workspace>",
+    # api_key="<your_api_key>",  # or use pulumi.Config to manage secrets
+)
+
+# Register the Flow
+flow = prefect.Flow(
+    "example-flow",
+    name="example-flow",
+    tags=["example", "pulumi"],
+    opts=pulumi.ResourceOptions(provider=provider)
+)
+
+# Create a Deployment resource
+deployment = prefect.Deployment(
+    "example-deployment",
+    name="example-deployment",
+    flow_id=flow.id,
+    work_pool_name="example-work-pool",
+    work_queue_name="default",
+    parameters=json.dumps({"foo": "bar"}),
+    tags=["example", "pulumi"],
+    enforce_parameter_schema=True,
+    parameter_openapi_schema=generate_openapi_schema_for_flow(example_flow),
+    opts=pulumi.ResourceOptions(provider=provider),
+
+    # specify how to get the flow code to the worker
+    # the Deployment resource does not have the same support as `prefect.yaml` for automatically packaging flow code
+    # see: https://registry.terraform.io/providers/PrefectHQ/prefect/latest/docs/resources/deployment#deployment-actions
+
+    # option 1: clone the repo at runtime
+    # pull_steps = [
+    #     {
+    #         "type": "git_clone",
+    #         "repository": "https://github.com/some/repo",
+    #         "branch": "main",
+    #         "include_submodules": True,
+    #     }
+    # ],
+    # entrypoint="flow.py:hello_flow",
+
+    # option 2: use a pre-built container image
+    # note: you will need to build this image yourself and push it to a registry
+    # job_variables = json.dumps({
+    #     "image": "example.registry.com/example-repo/example-image:v1"
+    # })
+)
+
+# Add a schedule to the deployment to run every minute
+schedule = prefect.DeploymentSchedule(
+    "example-schedule",
+    deployment_id=deployment.id,
+    active=True,
+    cron="0 * * * *",
+    timezone="UTC",
+    opts=pulumi.ResourceOptions(provider=provider),
+)
+```
+
+Now you can run `pulumi up` to create the resources in your Prefect workspace.
+
 ## Helm
 
 import { HELM } from "/snippets/resource-management/helm.mdx"
