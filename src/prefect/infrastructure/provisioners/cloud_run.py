@@ -16,7 +16,6 @@ from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich.prompt import Confirm
 from rich.syntax import Syntax
 
-from prefect.cli._prompts import prompt, prompt_select_from_table
 from prefect.client.orchestration import ServerType
 from prefect.client.schemas.actions import BlockDocumentCreate
 from prefect.client.utilities import inject_client
@@ -85,6 +84,8 @@ class CloudRunPushProvisioner:
             )
 
     async def _get_project(self):
+        from prefect.cli._prompts import prompt_select_from_table
+
         if self._console.is_interactive:
             with Progress(
                 SpinnerColumn(),
@@ -276,6 +277,8 @@ class CloudRunPushProvisioner:
     async def _customize_resource_names(
         self, work_pool_name: str, client: "PrefectClient"
     ) -> bool:
+        from prefect.cli._prompts import prompt
+
         self._service_account_name = prompt(
             "Please enter a name for the service account",
             default=self._service_account_name,
@@ -302,6 +305,8 @@ class CloudRunPushProvisioner:
         base_job_template: dict,
         client: Optional["PrefectClient"] = None,
     ) -> Dict[str, Any]:
+        from prefect.cli._prompts import prompt_select_from_table
+
         assert client, "Client injection failed"
         await self._verify_gcloud_ready()
         self._project = await self._get_project()
