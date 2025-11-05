@@ -21,10 +21,10 @@ Whenever a step is run, the following actions are taken:
 
 ## Functions
 
-### `run_step` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/deployments/steps/core.py#L105" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `run_step` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/deployments/steps/core.py#L108" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-run_step(step: dict[str, Any], upstream_outputs: Optional[dict[str, Any]] = None) -> dict[str, Any]
+run_step(step: dict[str, Any], upstream_outputs: dict[str, Any] | None = None) -> dict[str, Any]
 ```
 
 
@@ -38,15 +38,15 @@ inputs before passing to the step function:
 This keyword is used to specify packages that should be installed before running the step.
 
 
-### `run_steps` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/deployments/steps/core.py#L143" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `run_steps` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/deployments/steps/core.py#L146" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-run_steps(steps: List[Dict[str, Any]], upstream_outputs: Optional[Dict[str, Any]] = None, print_function: Any = print) -> dict[str, Any]
+run_steps(steps: list[dict[str, Any]], upstream_outputs: dict[str, Any] | None = None, print_function: Any = print, deployment: Any | None = None, flow_run: Any | None = None, logger: Any | None = None) -> dict[str, Any]
 ```
 
 ## Classes
 
-### `StepExecutionError` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/deployments/steps/core.py#L40" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `StepExecutionError` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/deployments/steps/core.py#L43" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Raised when a step fails to execute.
