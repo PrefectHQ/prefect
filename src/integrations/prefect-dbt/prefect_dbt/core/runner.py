@@ -600,7 +600,7 @@ class PrefectDbtRunner:
             except MissingContextError:
                 logger = None
 
-            logger.info("Logging callback: Evaluating dbt event")
+            logger.info("Logging callback: Evaluating dbt event", extra={"send_to_api": False})
 
             if event.info.name in ("NodeStart", "NodeFinished"):
                 return
@@ -651,7 +651,7 @@ class PrefectDbtRunner:
             except MissingContextError:
                 logger = None
 
-            logger.info("Node started callback: Evaluating dbt event")
+            logger.info("Node started callback: Evaluating dbt event", extra={"send_to_api": False})
 
             logger.debug
             if event.info.name != "NodeStart":
@@ -717,7 +717,7 @@ class PrefectDbtRunner:
             except MissingContextError:
                 logger = None
 
-            logger.info("Node finished callback: Evaluating dbt event")
+            logger.info("Node finished callback: Evaluating dbt event", extra={"send_to_api": False})
             # Early filter: Only process NodeFinished events
             if event.info.name != "NodeFinished":
                 return
