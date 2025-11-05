@@ -22,6 +22,7 @@ from prefect._internal.schemas.validators import (
     validate_name_present_on_nonanonymous_blocks,
     validate_schedule_max_scheduled_runs,
 )
+from prefect._result_records import ResultRecordMetadata
 from prefect.client.schemas.objects import (
     StateDetails,
     StateType,
@@ -58,7 +59,7 @@ from prefect.utilities.collections import visit_collection
 from prefect.utilities.pydantic import get_class_fields_only
 
 if TYPE_CHECKING:
-    from prefect._result_records import ResultRecordMetadata
+    pass
 
 R = TypeVar("R")
 
@@ -70,7 +71,7 @@ class StateCreate(ActionBaseModel):
     name: Optional[str] = Field(default=None)
     message: Optional[str] = Field(default=None, examples=["Run started"])
     state_details: StateDetails = Field(default_factory=StateDetails)
-    data: Union["ResultRecordMetadata", Any] = Field(
+    data: Union[ResultRecordMetadata, Any] = Field(
         default=None,
     )
 
