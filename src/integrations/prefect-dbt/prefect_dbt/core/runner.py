@@ -594,6 +594,14 @@ class PrefectDbtRunner:
         def logging_callback(event: EventMsg) -> None:
             """Non-blocking callback wrapper that queues logging for background processing."""
             # Early filter: Skip NodeStart and NodeFinished events - they have their own callbacks
+            try:
+                with hydrated_context(context) as run_context:
+                    logger = get_run_logger(run_context)
+            except MissingContextError:
+                logger = None
+
+            logger.info("Logging callback: Evaluating dbt event")
+
             if event.info.name in ("NodeStart", "NodeFinished"):
                 return
             
@@ -637,6 +645,15 @@ class PrefectDbtRunner:
             tasks are created before other events for the same node are processed.
             """
             # Early filter: Only process NodeStart events
+            try:
+                with hydrated_context(context) as run_context:
+                    logger = get_run_logger(run_context)
+            except MissingContextError:
+                logger = None
+
+            logger.info("Node started callback: Evaluating dbt event")
+
+            logger.debug
             if event.info.name != "NodeStart":
                 return
             
@@ -649,6 +666,7 @@ class PrefectDbtRunner:
         self,
         task_state: NodeTaskTracker,
         add_test_edges: bool = False,
+        context: dict[str, Any],
     ) -> Callable[[EventMsg], None]:
         """Creates a callback function for ending tasks when nodes finish."""
         
@@ -693,6 +711,13 @@ class PrefectDbtRunner:
             NodeFinished events are queued with medium priority (1) to ensure
             they're processed after NodeStart but before regular logging events.
             """
+            try:
+                with hydrated_context(context) as run_context:
+                    logger = get_run_logger(run_context)
+            except MissingContextError:
+                logger = None
+
+            logger.info("Node finished callback: Evaluating dbt event")
             # Early filter: Only process NodeFinished events
             if event.info.name != "NodeFinished":
                 return
@@ -800,7 +825,7 @@ class PrefectDbtRunner:
                 self._create_logging_callback(task_state, self.log_level, context),
                 self._create_node_started_callback(task_state, context),
                 self._create_node_finished_callback(
-                    task_state, add_test_edges=add_test_edges
+                    task_state, add_test_edges=add_test_edges, context=context)
                 ),
             ]
             if in_flow_or_task_run or self._force_nodes_as_tasks
