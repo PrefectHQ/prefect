@@ -16,8 +16,8 @@ from pydantic import Field, HttpUrl
 from pydantic.types import SecretStr
 from typing_extensions import Self
 
+from prefect._internal.compatibility.async_dispatch import async_dispatch
 from prefect.filesystems import WritableFileSystem
-from prefect.utilities.asyncutils import sync_compatible
 
 
 class RedisStorageContainer(WritableFileSystem):
@@ -73,8 +73,7 @@ class RedisStorageContainer(WritableFileSystem):
                 "Initialization error: 'username' is provided, but 'password' is missing. Both are required."
             )
 
-    @sync_compatible
-    async def read_path(self, path: Path | str):
+    async def aread_path(self, path: Path | str):
         """Read the redis content at `path`
 
         Args:
@@ -86,8 +85,38 @@ class RedisStorageContainer(WritableFileSystem):
         async with self._client() as client:
             return await client.get(str(path))
 
-    @sync_compatible
-    async def write_path(self, path: Path | str, content: bytes):
+    @async_dispatch(aread_path)
+    def read_path(self, path: Path | str):
+        """Read the redis content at `path`
+
+        Args:
+            path: Redis key to read from
+
+        Returns:
+            Contents at key as bytes
+        """
+        import redis as redis_sync
+
+        if self.connection_string:
+            client = redis_sync.Redis.from_url(
+                self.connection_string.get_secret_value()
+            )
+        else:
+            assert self.host
+            client = redis_sync.Redis(
+                host=self.host,
+                port=self.port,
+                username=self.username.get_secret_value() if self.username else None,
+                password=self.password.get_secret_value() if self.password else None,
+                db=self.db,
+            )
+
+        try:
+            return client.get(str(path))
+        finally:
+            client.close()
+
+    async def awrite_path(self, path: Path | str, content: bytes):
         """Write `content` to the redis at `path`
 
         Args:
@@ -97,6 +126,35 @@ class RedisStorageContainer(WritableFileSystem):
 
         async with self._client() as client:
             return await client.set(str(path), content)
+
+    @async_dispatch(awrite_path)
+    def write_path(self, path: Path | str, content: bytes):
+        """Write `content` to the redis at `path`
+
+        Args:
+            path: Redis key to write to
+            content: Binary object to write
+        """
+        import redis as redis_sync
+
+        if self.connection_string:
+            client = redis_sync.Redis.from_url(
+                self.connection_string.get_secret_value()
+            )
+        else:
+            assert self.host
+            client = redis_sync.Redis(
+                host=self.host,
+                port=self.port,
+                username=self.username.get_secret_value() if self.username else None,
+                password=self.password.get_secret_value() if self.password else None,
+                db=self.db,
+            )
+
+        try:
+            return client.set(str(path), content)
+        finally:
+            client.close()
 
     @asynccontextmanager
     async def _client(self) -> AsyncGenerator[redis.Redis, None]:
