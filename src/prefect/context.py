@@ -14,7 +14,6 @@ import warnings
 from collections.abc import AsyncGenerator, Generator, Mapping
 from contextlib import ExitStack, asynccontextmanager, contextmanager
 from contextvars import ContextVar, Token
-from dataclasses import dataclass
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -744,27 +743,10 @@ class SettingsContext(ContextModel):
             return None
 
 
-@dataclass
-class RootDeploymentContext:
-    """
-    The root deployment context for a deployment flow run.
-
-    This context is set once at the top-level deployment flow run and is
-    inherited by all nested flows and tasks via ContextVar propagation.
-    It provides O(1) access to deployment information without requiring
-    API traversal.
-
-    Attributes:
-        deployment_id: The deployment ID
-        deployment_parameters: The parameters set on the deployment
-    """
-
-    deployment_id: UUID
-    deployment_parameters: dict[str, Any]
-
-
-_root_deployment_context: ContextVar[RootDeploymentContext | None] = ContextVar(
-    "root_deployment", default=None
+# Root deployment context vars for O(1) access in nested flows
+_deployment_id: ContextVar[UUID | None] = ContextVar("deployment_id", default=None)
+_deployment_parameters: ContextVar[dict[str, Any] | None] = ContextVar(
+    "deployment_parameters", default=None
 )
 
 

@@ -32,7 +32,7 @@ from typing import TYPE_CHECKING, Any, Callable, List, Optional
 
 from prefect._internal.concurrency.api import create_call, from_sync
 from prefect.client.orchestration import get_client
-from prefect.context import FlowRunContext, _root_deployment_context
+from prefect.context import FlowRunContext, _deployment_id, _deployment_parameters
 
 from .flow_run import _get_flow_run
 
@@ -105,9 +105,9 @@ async def _get_deployment(deployment_id: str) -> "DeploymentResponse":
 
 
 def get_id() -> Optional[str]:
-    # Check root deployment context first (avoids API calls in nested flows)
-    if root_ctx := _root_deployment_context.get():
-        return str(root_ctx.deployment_id)
+    # Check deployment context var first (avoids API calls in nested flows)
+    if deployment_id := _deployment_id.get():
+        return str(deployment_id)
 
     flow_run = FlowRunContext.get()
     deployment_id = getattr(flow_run, "deployment_id", None)
@@ -127,9 +127,9 @@ def get_id() -> Optional[str]:
 
 
 def get_parameters() -> dict[str, Any]:
-    # Check root deployment context first (avoids API calls in nested flows)
-    if root_ctx := _root_deployment_context.get():
-        return root_ctx.deployment_parameters
+    # Check deployment context var first (avoids API calls in nested flows)
+    if params := _deployment_parameters.get():
+        return params
 
     run_id = get_flow_run_id()
     if run_id is None:
