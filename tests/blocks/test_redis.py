@@ -1,7 +1,7 @@
 import os
 from pathlib import Path
 from typing import Union
-from unittest.mock import AsyncMock, MagicMock, patch
+from uuid import uuid4
 
 import pytest
 from pydantic.types import SecretStr
@@ -76,84 +76,35 @@ async def test_read_write_path_pathlib(redis_from_host: RedisStorageContainer):
 
 
 class TestAsyncDispatch:
-    async def test_aread_path_async_context(self):
-        redis = RedisStorageContainer.from_host(host="localhost")
+    async def test_aread_path_awrite_path(self, redis_from_host: RedisStorageContainer):
+        """Test calling aread_path and awrite_path directly"""
+        key = f"test_aread_awrite_{uuid4().hex}"
 
-        with patch("redis.asyncio.Redis") as mock_redis_class:
-            mock_client = AsyncMock()
-            mock_client.get.return_value = b"test_value"
-            mock_client.aclose = AsyncMock()
-            mock_redis_class.return_value = mock_client
+        result = await redis_from_host.awrite_path(key, b"test_value")
+        assert result is True
 
-            result = await redis.aread_path("test_key")
+        content = await redis_from_host.aread_path(key)
+        assert content == b"test_value"
 
-            assert result == b"test_value"
-            mock_client.get.assert_called_once_with("test_key")
+    async def test_read_path_write_path_async_context(
+        self, redis_from_host: RedisStorageContainer
+    ):
+        """Test read_path/write_path dispatch to async in async context"""
+        key = f"test_async_dispatch_{uuid4().hex}"
 
-    async def test_awrite_path_async_context(self):
-        redis = RedisStorageContainer.from_host(host="localhost")
+        await redis_from_host.write_path(key, b"async_value")
+        content = await redis_from_host.read_path(key)
+        assert content == b"async_value"
 
-        with patch("redis.asyncio.Redis") as mock_redis_class:
-            mock_client = AsyncMock()
-            mock_client.set.return_value = True
-            mock_client.aclose = AsyncMock()
-            mock_redis_class.return_value = mock_client
+    def test_read_path_write_path_sync_context(self):
+        """Test read_path/write_path use sync implementation in sync context"""
+        redis = RedisStorageContainer.from_host(
+            host=os.environ.get("TEST_REDIS_HOST", "localhost"),
+            port=int(os.environ.get("TEST_REDIS_PORT", 6379)),
+            db=int(os.environ.get("TEST_REDIS_DB", 0)),
+        )
+        key = f"test_sync_{uuid4().hex}"
 
-            result = await redis.awrite_path("test_key", b"test_value")
-
-            assert result is True
-            mock_client.set.assert_called_once_with("test_key", b"test_value")
-
-    async def test_read_path_async_context(self):
-        redis = RedisStorageContainer.from_host(host="localhost")
-
-        with patch("redis.asyncio.Redis") as mock_redis_class:
-            mock_client = AsyncMock()
-            mock_client.get.return_value = b"async_value"
-            mock_client.aclose = AsyncMock()
-            mock_redis_class.return_value = mock_client
-
-            result = await redis.read_path("test_key")
-
-            assert result == b"async_value"
-            mock_client.get.assert_called_once_with("test_key")
-
-    async def test_write_path_async_context(self):
-        redis = RedisStorageContainer.from_host(host="localhost")
-
-        with patch("redis.asyncio.Redis") as mock_redis_class:
-            mock_client = AsyncMock()
-            mock_client.set.return_value = True
-            mock_client.aclose = AsyncMock()
-            mock_redis_class.return_value = mock_client
-
-            result = await redis.write_path("test_key", b"test_value")
-
-            assert result is True
-            mock_client.set.assert_called_once_with("test_key", b"test_value")
-
-    def test_read_path_sync_context(self):
-        redis = RedisStorageContainer.from_host(host="localhost")
-
-        with patch("redis.Redis") as mock_redis_class:
-            mock_client = MagicMock()
-            mock_client.get.return_value = b"sync_value"
-            mock_redis_class.return_value = mock_client
-
-            result = redis.read_path("test_key")
-
-            assert result == b"sync_value"
-            mock_client.get.assert_called_once_with("test_key")
-
-    def test_write_path_sync_context(self):
-        redis = RedisStorageContainer.from_host(host="localhost")
-
-        with patch("redis.Redis") as mock_redis_class:
-            mock_client = MagicMock()
-            mock_client.set.return_value = True
-            mock_redis_class.return_value = mock_client
-
-            result = redis.write_path("test_key", b"test_value")
-
-            assert result is True
-            mock_client.set.assert_called_once_with("test_key", b"test_value")
+        redis.write_path(key, b"sync_value")
+        content = redis.read_path(key)
+        assert content == b"sync_value"

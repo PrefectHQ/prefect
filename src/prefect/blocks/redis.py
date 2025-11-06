@@ -10,7 +10,7 @@ try:
 except ImportError:
     raise ImportError(
         "`redis-py` must be installed to use the `RedisStorageContainer` block. "
-        "You can install it with `pip install redis>=5.0.1"
+        "You can install it with `pip install redis>=5.0.1`"
     )
 
 from pydantic import Field, HttpUrl
