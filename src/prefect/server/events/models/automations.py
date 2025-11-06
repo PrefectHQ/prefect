@@ -233,6 +233,25 @@ async def delete_automation(
     if not automation:
         return False
 
+    # Delete child tables in a consistent order to prevent deadlocks
+    # when multiple automations are deleted concurrently
+    await session.execute(
+        sa.delete(db.AutomationBucket).where(
+            db.AutomationBucket.automation_id == automation_id,
+        )
+    )
+    await session.execute(
+        sa.delete(db.AutomationRelatedResource).where(
+            db.AutomationRelatedResource.automation_id == automation_id,
+        )
+    )
+    await session.execute(
+        sa.delete(db.CompositeTriggerChildFiring).where(
+            db.CompositeTriggerChildFiring.automation_id == automation_id,
+        )
+    )
+
+    # Now delete the parent automation
     await session.execute(
         sa.delete(db.Automation).where(
             db.Automation.id == automation_id,
@@ -252,6 +271,14 @@ async def delete_automations_for_workspace(
     automations = await read_automations_for_workspace(
         session,
     )
+
+    # Delete child tables in a consistent order to prevent deadlocks
+    # when multiple workspace deletions occur concurrently
+    await session.execute(sa.delete(db.AutomationBucket))
+    await session.execute(sa.delete(db.AutomationRelatedResource))
+    await session.execute(sa.delete(db.CompositeTriggerChildFiring))
+
+    # Now delete all automations
     result = await session.execute(sa.delete(db.Automation))
     for automation in automations:
         await _notify(session, automation, "deleted")
