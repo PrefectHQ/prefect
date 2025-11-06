@@ -73,14 +73,14 @@ class RedisStorageContainer(WritableFileSystem):
                 "Initialization error: 'username' is provided, but 'password' is missing. Both are required."
             )
 
-    async def aread_path(self, path: Path | str):
+    async def aread_path(self, path: Path | str) -> Optional[bytes]:
         """Read the redis content at `path`
 
         Args:
             path: Redis key to read from
 
         Returns:
-            Contents at key as bytes
+            Contents at key as bytes, or None if key does not exist
         """
         async with self._client() as client:
             return await client.get(str(path))
@@ -116,12 +116,15 @@ class RedisStorageContainer(WritableFileSystem):
         finally:
             client.close()
 
-    async def awrite_path(self, path: Path | str, content: bytes):
+    async def awrite_path(self, path: Path | str, content: bytes) -> bool:
         """Write `content` to the redis at `path`
 
         Args:
             path: Redis key to write to
             content: Binary object to write
+
+        Returns:
+            True if the key was set successfully
         """
 
         async with self._client() as client:
