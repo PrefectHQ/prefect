@@ -50,6 +50,7 @@ from prefect.concurrency.v1.context import ConcurrencyContext as ConcurrencyCont
 from prefect.context import (
     AsyncClientContext,
     FlowRunContext,
+    RootDeploymentContext,
     SettingsContext,
     SyncClientContext,
     TagsContext,
@@ -626,6 +627,15 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
                     else should_persist_result(),
                 )
             )
+            # Set root deployment context only if this is the top-level deployment run
+            # (nested flows will inherit via ContextVar propagation)
+            if self.flow_run.deployment_id and not RootDeploymentContext.get():
+                stack.enter_context(
+                    RootDeploymentContext(
+                        deployment_id=self.flow_run.deployment_id,
+                        deployment_parameters=self.parameters,
+                    )
+                )
             stack.enter_context(ConcurrencyContextV1())
             stack.enter_context(ConcurrencyContext())
             if lease_id := self.state.state_details.deployment_concurrency_lease_id:
@@ -1203,6 +1213,15 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
                     else should_persist_result(),
                 )
             )
+            # Set root deployment context only if this is the top-level deployment run
+            # (nested flows will inherit via ContextVar propagation)
+            if self.flow_run.deployment_id and not RootDeploymentContext.get():
+                stack.enter_context(
+                    RootDeploymentContext(
+                        deployment_id=self.flow_run.deployment_id,
+                        deployment_parameters=self.parameters,
+                    )
+                )
             stack.enter_context(ConcurrencyContextV1())
             stack.enter_context(ConcurrencyContext())
             if lease_id := self.state.state_details.deployment_concurrency_lease_id:

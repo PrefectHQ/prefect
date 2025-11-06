@@ -743,6 +743,25 @@ class SettingsContext(ContextModel):
             return None
 
 
+class RootDeploymentContext(ContextModel):
+    """
+    The root deployment context for a deployment flow run.
+
+    This context is set once at the top-level deployment flow run and is
+    inherited by all nested flows and tasks. It provides O(1) access to
+    deployment information without requiring API traversal.
+
+    Attributes:
+        deployment_id: The deployment ID
+        deployment_parameters: The parameters set on the deployment
+    """
+
+    deployment_id: UUID
+    deployment_parameters: dict[str, Any]
+
+    __var__: ClassVar[ContextVar[Self]] = ContextVar("root_deployment")
+
+
 def get_run_context() -> Union[FlowRunContext, TaskRunContext]:
     """
     Get the current run context from within a task or flow function.
