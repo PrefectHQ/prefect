@@ -5,7 +5,8 @@ from pathlib import Path
 from typing import AsyncGenerator, Optional
 
 try:
-    import redis.asyncio as redis
+    import redis
+    import redis.asyncio as aioredis
 except ImportError:
     raise ImportError(
         "`redis-py` must be installed to use the `RedisStorageContainer` block. "
@@ -86,24 +87,20 @@ class RedisStorageContainer(WritableFileSystem):
             return await client.get(str(path))
 
     @async_dispatch(aread_path)
-    def read_path(self, path: Path | str):
+    def read_path(self, path: Path | str) -> Optional[bytes]:
         """Read the redis content at `path`
 
         Args:
             path: Redis key to read from
 
         Returns:
-            Contents at key as bytes
+            Contents at key as bytes, or None if key does not exist
         """
-        import redis as redis_sync
-
         if self.connection_string:
-            client = redis_sync.Redis.from_url(
-                self.connection_string.get_secret_value()
-            )
+            client = redis.Redis.from_url(self.connection_string.get_secret_value())
         else:
             assert self.host
-            client = redis_sync.Redis(
+            client = redis.Redis(
                 host=self.host,
                 port=self.port,
                 username=self.username.get_secret_value() if self.username else None,
@@ -131,22 +128,21 @@ class RedisStorageContainer(WritableFileSystem):
             return await client.set(str(path), content)
 
     @async_dispatch(awrite_path)
-    def write_path(self, path: Path | str, content: bytes):
+    def write_path(self, path: Path | str, content: bytes) -> bool:
         """Write `content` to the redis at `path`
 
         Args:
             path: Redis key to write to
             content: Binary object to write
-        """
-        import redis as redis_sync
 
+        Returns:
+            True if the key was set successfully
+        """
         if self.connection_string:
-            client = redis_sync.Redis.from_url(
-                self.connection_string.get_secret_value()
-            )
+            client = redis.Redis.from_url(self.connection_string.get_secret_value())
         else:
             assert self.host
-            client = redis_sync.Redis(
+            client = redis.Redis(
                 host=self.host,
                 port=self.port,
                 username=self.username.get_secret_value() if self.username else None,
@@ -160,12 +156,12 @@ class RedisStorageContainer(WritableFileSystem):
             client.close()
 
     @asynccontextmanager
-    async def _client(self) -> AsyncGenerator[redis.Redis, None]:
+    async def _client(self) -> AsyncGenerator[aioredis.Redis, None]:
         if self.connection_string:
-            client = redis.Redis.from_url(self.connection_string.get_secret_value())  # pyright: ignore[reportUnknownMemberType] incomplete typing for redis-py
+            client = aioredis.Redis.from_url(self.connection_string.get_secret_value())  # pyright: ignore[reportUnknownMemberType] incomplete typing for redis-py
         else:
             assert self.host
-            client = redis.Redis(
+            client = aioredis.Redis(
                 host=self.host,
                 port=self.port,
                 username=self.username.get_secret_value() if self.username else None,
