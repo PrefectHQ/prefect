@@ -617,6 +617,20 @@ def _memoize_block_auto_registration(
     return wrapper
 
 
+async def _get_docket_url() -> str:
+    """
+    Get the docket backend URL from settings.
+
+    Returns:
+        Docket URL string (redis://, rediss://, or memory://)
+    """
+    settings = get_current_settings()
+    docket_url = settings.server.services.docket.url
+
+    logger.debug(f"Using docket URL: {docket_url}")
+    return docket_url
+
+
 def create_app(
     settings: Optional[prefect.settings.Settings] = None,
     ephemeral: bool = False,
@@ -679,6 +693,9 @@ def create_app(
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
+        logger.info(
+            f"Lifespan starting: ephemeral={ephemeral}, webserver_only={webserver_only}"
+        )
         if app in LIFESPAN_RAN_FOR_APP:
             yield
             return
@@ -695,10 +712,128 @@ def create_app(
         )
 
         async with AsyncExitStack() as stack:
+            # Skip docket initialization for ephemeral apps (short-lived test instances)
+            # to avoid Redis key conflicts when multiple ephemeral apps share the same
+            # fakeredis instance (memory://)
+            docket = None
+            worker_tasks = []
+
+            if not ephemeral:
+                # Create docket instance for background tasks
+                from docket import Docket, Worker
+
+                # Use Redis if configured, otherwise in-memory
+                docket_url = await _get_docket_url()
+                docket = Docket(name="prefect-server", url=docket_url)
+                await stack.enter_async_context(docket)
+
+                # Import and register all docket-based background services
+                from prefect.server.events.services.triggers import (
+                    evaluate_proactive_triggers_perpetual,
+                )
+                from prefect.server.services.cancellation_cleanup import (
+                    monitor_cancelled_flow_runs,
+                    monitor_subflow_runs,
+                )
+                from prefect.server.services.foreman import monitor_worker_health
+                from prefect.server.services.late_runs import monitor_late_runs
+                from prefect.server.services.pause_expirations import (
+                    monitor_expired_pauses,
+                )
+                from prefect.server.services.repossessor import monitor_expired_leases
+                from prefect.server.services.scheduler import (
+                    schedule_deployments,
+                    schedule_recent_deployments,
+                )
+                from prefect.server.services.telemetry import send_telemetry_heartbeat
+
+                # Register all Perpetual functions with docket (always register, conditionally schedule)
+                docket.register(schedule_deployments)
+                docket.register(schedule_recent_deployments)
+                docket.register(send_telemetry_heartbeat)
+                docket.register(monitor_expired_pauses)
+                docket.register(monitor_worker_health)
+                docket.register(monitor_late_runs)
+                docket.register(monitor_expired_leases)
+                docket.register(monitor_cancelled_flow_runs)
+                docket.register(monitor_subflow_runs)
+                docket.register(evaluate_proactive_triggers_perpetual)
+
+                logger.info(f"Registered docket tasks: {list(docket.tasks.keys())}")
+
+                # Conditionally schedule Perpetual tasks based on enabled settings
+                # This ensures disabled services never run (not even once)
+                # IMPORTANT: Must call get_current_settings() here (not use closure variable)
+                # to pick up test environment overrides that occur after app creation
+                runtime_settings = get_current_settings()
+
+                # Note: send_telemetry_heartbeat and evaluate_proactive_triggers_perpetual
+                # use automatic=True and handle their own enabled checks
+                if runtime_settings.server.services.scheduler.enabled:
+                    await docket.add(schedule_deployments)()
+                    await docket.add(schedule_recent_deployments)()
+                if runtime_settings.server.services.pause_expirations.enabled:
+                    await docket.add(monitor_expired_pauses)()
+                if runtime_settings.server.services.foreman.enabled:
+                    await docket.add(monitor_worker_health)()
+                if runtime_settings.server.services.late_runs.enabled:
+                    await docket.add(monitor_late_runs)()
+                if runtime_settings.server.services.cancellation_cleanup.enabled:
+                    await docket.add(monitor_cancelled_flow_runs)()
+                    await docket.add(monitor_subflow_runs)()
+                # repossessor and events services handle their own scheduling
+
+                # Get docket settings and smart defaults based on database type
+                docket_settings = runtime_settings.server.services.docket
+
+                # Detect database type for smart defaults
+                db_url = str(
+                    runtime_settings.server.database.connection_url.get_secret_value()
+                )
+                is_sqlite = get_dialect(db_url).name == "sqlite"
+
+                # Smart defaults: SQLite uses lower concurrency to avoid lock contention
+                # Postgres can handle higher concurrency
+                num_workers = (
+                    docket_settings.workers
+                    if docket_settings.workers is not None
+                    else (2 if is_sqlite else 10)
+                )
+                worker_concurrency = (
+                    docket_settings.concurrency
+                    if docket_settings.concurrency is not None
+                    else (2 if is_sqlite else 10)
+                )
+
+                logger.debug(
+                    f"Starting {num_workers} docket workers with concurrency "
+                    f"{worker_concurrency} ({'SQLite' if is_sqlite else 'PostgreSQL'} mode)"
+                )
+
+                workers = []
+                for i in range(num_workers):
+                    worker = Worker(docket, concurrency=worker_concurrency)
+                    await stack.enter_async_context(worker)
+                    workers.append(worker)
+
+                # Start workers in background
+                for worker in workers:
+                    task = asyncio.create_task(worker.run_forever())
+                    worker_tasks.append(task)
+
             if Services:
-                await stack.enter_async_context(Services.running())
+                await stack.enter_async_context(Services.running(docket=docket))
             LIFESPAN_RAN_FOR_APP.add(app)
             yield
+
+            # Cancel worker tasks and wait for graceful shutdown
+            #  Workers handle cancellation by finishing active tasks then stopping
+            # their scheduler loops. The scheduler may take up to one scheduling_resolution
+            # period to notice the shutdown signal, so we allow time for clean exit.
+            for task in worker_tasks:
+                task.cancel()
+            with anyio.move_on_after(10):
+                await asyncio.gather(*worker_tasks, return_exceptions=True)
 
     def on_service_exit(service: Service, task: asyncio.Task[None]) -> None:
         """
@@ -750,8 +885,11 @@ def create_app(
     # Limit the number of concurrent requests when using a SQLite database to reduce
     # chance of errors where the database cannot be opened due to a high number of
     # concurrent writes
+    settings = get_current_settings()
     if (
-        get_dialect(prefect.settings.PREFECT_API_DATABASE_CONNECTION_URL.value()).name
+        get_dialect(
+            str(settings.server.database.connection_url.get_secret_value())
+        ).name
         == "sqlite"
     ):
         _install_sqlite_locked_log_filter()
