@@ -632,7 +632,7 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
             # (nested flows will inherit via ContextVar propagation)
             if self.flow_run.deployment_id and not _deployment_id.get():
                 id_token = _deployment_id.set(self.flow_run.deployment_id)
-                params_token = _deployment_parameters.set(self.parameters)
+                params_token = _deployment_parameters.set(self.flow_run.parameters)
                 stack.callback(_deployment_id.reset, id_token)
                 stack.callback(_deployment_parameters.reset, params_token)
             stack.enter_context(ConcurrencyContextV1())
@@ -1216,7 +1216,7 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
             # (nested flows will inherit via ContextVar propagation)
             if self.flow_run.deployment_id and not _deployment_id.get():
                 id_token = _deployment_id.set(self.flow_run.deployment_id)
-                params_token = _deployment_parameters.set(self.parameters)
+                params_token = _deployment_parameters.set(self.flow_run.parameters)
                 stack.callback(_deployment_id.reset, id_token)
                 stack.callback(_deployment_parameters.reset, params_token)
             stack.enter_context(ConcurrencyContextV1())

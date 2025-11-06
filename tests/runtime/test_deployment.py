@@ -191,3 +191,36 @@ class TestParameters:
 
         monkeypatch.setenv(name="PREFECT__FLOW_RUN_ID", value=str(flow_run.id))
         assert deployment.parameters == {"foo": 42}
+
+    async def test_parameters_accessible_in_nested_flows(
+        self, deployment_id, prefect_client
+    ):
+        """Test that deployment.parameters is accessible in nested flows (issue #19329)."""
+        from prefect.flow_engine import run_flow_async
+        from prefect.runtime import deployment as deployment_runtime
+
+        # Track what we saw in each context
+        seen_params = {}
+
+        @flow
+        async def nested_flow():
+            seen_params["nested"] = deployment_runtime.parameters
+            return deployment_runtime.parameters
+
+        @flow
+        async def parent_flow():
+            seen_params["parent"] = deployment_runtime.parameters
+            result = await nested_flow()
+            return {"parent": deployment_runtime.parameters, "nested": result}
+
+        # Create flow run from deployment with custom parameters
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            deployment_id, parameters={"foo": "from_deployment"}
+        )
+
+        # Execute the flow using the flow engine helper
+        await run_flow_async(parent_flow, flow_run=flow_run)
+
+        # Both parent and nested should see the deployment parameters
+        assert seen_params["parent"] == {"foo": "from_deployment"}
+        assert seen_params["nested"] == {"foo": "from_deployment"}
