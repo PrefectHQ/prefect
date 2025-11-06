@@ -62,18 +62,27 @@ from prefect.settings import (
     PREFECT_UI_SERVE_BASE,
     get_current_settings,
 )
+from prefect.utilities.env import parse_bool_env
 from prefect.utilities.hashing import hash_objects
 
-if os.environ.get("PREFECT_LOGFIRE_ENABLED"):
-    import logfire  # pyright: ignore
+if parse_bool_env("PREFECT_LOGFIRE_ENABLED"):
+    try:
+        import logfire  # pyright: ignore
+    except ImportError:
+        from prefect.logging import get_logger
 
-    token: str | None = os.environ.get("PREFECT_LOGFIRE_WRITE_TOKEN")
-    if token is None:
-        raise ValueError(
-            "PREFECT_LOGFIRE_WRITE_TOKEN must be set when PREFECT_LOGFIRE_ENABLED is true"
+        get_logger("server").warning(
+            "PREFECT_LOGFIRE_ENABLED is set but 'logfire' is not installed; "
+            "skipping instrumentation"
         )
-
-    logfire.configure(token=token)  # pyright: ignore
+        logfire = None
+    else:
+        token: str | None = os.environ.get("PREFECT_LOGFIRE_WRITE_TOKEN")
+        if not token:
+            raise ValueError(
+                "PREFECT_LOGFIRE_WRITE_TOKEN must be set when PREFECT_LOGFIRE_ENABLED is true"
+            )
+        logfire.configure(token=token)  # pyright: ignore
 else:
     logfire = None
 

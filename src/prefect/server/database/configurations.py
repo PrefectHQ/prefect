@@ -26,6 +26,7 @@ from sqlalchemy.ext.asyncio import (
 from sqlalchemy.pool import ConnectionPoolEntry
 from typing_extensions import TypeAlias
 
+from prefect.logging import get_logger
 from prefect.settings import (
     PREFECT_API_DATABASE_CONNECTION_TIMEOUT,
     PREFECT_API_DATABASE_ECHO,
@@ -34,17 +35,24 @@ from prefect.settings import (
     get_current_settings,
 )
 from prefect.utilities.asyncutils import add_event_loop_shutdown_callback
+from prefect.utilities.env import parse_bool_env
 
-if os.getenv("PREFECT_LOGFIRE_ENABLED"):
-    import logfire  # pyright: ignore
-
-    token: str | None = os.getenv("PREFECT_LOGFIRE_WRITE_TOKEN")
-    if token is None:
-        raise ValueError(
-            "PREFECT_LOGFIRE_WRITE_TOKEN must be set when PREFECT_LOGFIRE_ENABLED is true"
+if parse_bool_env("PREFECT_LOGFIRE_ENABLED"):
+    try:
+        import logfire  # pyright: ignore
+    except ImportError:
+        get_logger("database").warning(
+            "PREFECT_LOGFIRE_ENABLED is set but 'logfire' is not installed; "
+            "skipping instrumentation"
         )
-
-    logfire.configure(token=token)  # pyright: ignore
+        logfire = None
+    else:
+        token: str | None = os.getenv("PREFECT_LOGFIRE_WRITE_TOKEN")
+        if not token:
+            raise ValueError(
+                "PREFECT_LOGFIRE_WRITE_TOKEN must be set when PREFECT_LOGFIRE_ENABLED is true"
+            )
+        logfire.configure(token=token)  # pyright: ignore
 else:
     logfire = None
 
