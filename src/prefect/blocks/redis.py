@@ -5,19 +5,20 @@ from pathlib import Path
 from typing import AsyncGenerator, Optional
 
 try:
-    import redis.asyncio as redis
+    import redis
+    import redis.asyncio as aioredis
 except ImportError:
     raise ImportError(
         "`redis-py` must be installed to use the `RedisStorageContainer` block. "
-        "You can install it with `pip install redis>=5.0.1"
+        "You can install it with `pip install redis>=5.0.1`"
     )
 
 from pydantic import Field, HttpUrl
 from pydantic.types import SecretStr
 from typing_extensions import Self
 
+from prefect._internal.compatibility.async_dispatch import async_dispatch
 from prefect.filesystems import WritableFileSystem
-from prefect.utilities.asyncutils import sync_compatible
 
 
 class RedisStorageContainer(WritableFileSystem):
@@ -73,38 +74,94 @@ class RedisStorageContainer(WritableFileSystem):
                 "Initialization error: 'username' is provided, but 'password' is missing. Both are required."
             )
 
-    @sync_compatible
-    async def read_path(self, path: Path | str):
+    async def aread_path(self, path: Path | str) -> Optional[bytes]:
         """Read the redis content at `path`
 
         Args:
             path: Redis key to read from
 
         Returns:
-            Contents at key as bytes
+            Contents at key as bytes, or None if key does not exist
         """
         async with self._client() as client:
             return await client.get(str(path))
 
-    @sync_compatible
-    async def write_path(self, path: Path | str, content: bytes):
+    @async_dispatch(aread_path)
+    def read_path(self, path: Path | str) -> Optional[bytes]:
+        """Read the redis content at `path`
+
+        Args:
+            path: Redis key to read from
+
+        Returns:
+            Contents at key as bytes, or None if key does not exist
+        """
+        if self.connection_string:
+            client = redis.Redis.from_url(self.connection_string.get_secret_value())
+        else:
+            assert self.host
+            client = redis.Redis(
+                host=self.host,
+                port=self.port,
+                username=self.username.get_secret_value() if self.username else None,
+                password=self.password.get_secret_value() if self.password else None,
+                db=self.db,
+            )
+
+        try:
+            return client.get(str(path))
+        finally:
+            client.close()
+
+    async def awrite_path(self, path: Path | str, content: bytes) -> bool:
         """Write `content` to the redis at `path`
 
         Args:
             path: Redis key to write to
             content: Binary object to write
+
+        Returns:
+            True if the key was set successfully
         """
 
         async with self._client() as client:
             return await client.set(str(path), content)
 
-    @asynccontextmanager
-    async def _client(self) -> AsyncGenerator[redis.Redis, None]:
+    @async_dispatch(awrite_path)
+    def write_path(self, path: Path | str, content: bytes) -> bool:
+        """Write `content` to the redis at `path`
+
+        Args:
+            path: Redis key to write to
+            content: Binary object to write
+
+        Returns:
+            True if the key was set successfully
+        """
         if self.connection_string:
-            client = redis.Redis.from_url(self.connection_string.get_secret_value())  # pyright: ignore[reportUnknownMemberType] incomplete typing for redis-py
+            client = redis.Redis.from_url(self.connection_string.get_secret_value())
         else:
             assert self.host
             client = redis.Redis(
+                host=self.host,
+                port=self.port,
+                username=self.username.get_secret_value() if self.username else None,
+                password=self.password.get_secret_value() if self.password else None,
+                db=self.db,
+            )
+
+        try:
+            return client.set(str(path), content)
+        finally:
+            client.close()
+
+    @asynccontextmanager
+    async def _client(self) -> AsyncGenerator[aioredis.Redis, None]:
+        if self.connection_string:
+            client = aioredis.Redis.from_url(self.connection_string.get_secret_value())  # pyright: ignore[reportUnknownMemberType] incomplete typing for redis-py
+        else:
+            assert self.host
+            client = aioredis.Redis(
                 host=self.host,
                 port=self.port,
                 username=self.username.get_secret_value() if self.username else None,
