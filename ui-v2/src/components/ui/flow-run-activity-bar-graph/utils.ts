@@ -16,11 +16,11 @@ import type { components } from "@/api/prefect";
  * 4. Returns null for buckets with no runs
  */
 export function organizeFlowRunsWithGaps(
-	flowRuns: components["schemas"]["FlowRun"][],
+	flowRuns: components["schemas"]["FlowRunResponse"][],
 	startDate: Date,
 	endDate: Date,
 	numberOfBuckets: number,
-): (components["schemas"]["FlowRun"] | null)[] {
+): (components["schemas"]["FlowRunResponse"] | null)[] {
 	if (!startDate || !endDate) {
 		return [];
 	}
@@ -33,9 +33,8 @@ export function organizeFlowRunsWithGaps(
 
 	const totalTime = endDate.getTime() - startDate.getTime();
 	const bucketSize = totalTime / numberOfBuckets;
-	const buckets: (components["schemas"]["FlowRun"] | null)[] = new Array(
-		numberOfBuckets,
-	).fill(null) as null[];
+	const buckets: (components["schemas"]["FlowRunResponse"] | null)[] =
+		new Array(numberOfBuckets).fill(null) as null[];
 	const maxBucketIndex = buckets.length - 1;
 
 	const isFutureTimeSpan = endDate.getTime() > Date.now();

@@ -3,7 +3,7 @@ import { format, parseISO } from "date-fns";
 import type { components } from "@/api/prefect";
 import { DeploymentCell, WorkPoolCell } from "./cells";
 
-type FlowRun = components["schemas"]["FlowRun"];
+type FlowRun = components["schemas"]["FlowRunResponse"];
 
 export const columns: ColumnDef<FlowRun>[] = [
 	{
