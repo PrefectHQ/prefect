@@ -79,3 +79,31 @@ async def client_without_exceptions(app: ASGIApp) -> AsyncGenerator[AsyncClient,
         transport=transport, base_url="https://test/api"
     ) as async_client:
         yield async_client
+
+
+@pytest.fixture(autouse=True)
+async def clear_docket_fakeredis():
+    """
+    Clear the shared FakeServer state between tests to prevent state leakage.
+
+    The Docket library uses a shared FakeServer instance for all memory:// URLs,
+    which can cause key conflicts between tests if not cleared.
+    """
+    yield
+    # Clear the FakeServer state after each test
+    try:
+        from docket.docket import Docket
+
+        if hasattr(Docket, "_memory_server"):
+            from fakeredis.aioredis import FakeConnection
+            from redis.asyncio import ConnectionPool, Redis
+
+            server = Docket._memory_server
+            # Create a connection pool and Redis client for the FakeServer
+            pool = ConnectionPool(connection_class=FakeConnection, server=server)
+            async with Redis(connection_pool=pool) as redis_client:
+                await redis_client.flushall()
+            await pool.disconnect()
+    except (ImportError, AttributeError):
+        # docket or fakeredis not available, skip cleanup
+        pass
