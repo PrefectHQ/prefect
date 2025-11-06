@@ -20,7 +20,7 @@ class TestParseBoolEnv:
 
     def test_falsy_values(self, monkeypatch):
         """Test that common falsy values are parsed correctly."""
-        falsy_values = ["0", "false", "False", "FALSE", "f", "F", "no", "No", "NO", "n", "N", "off", "Off", "OFF", ""]
+        falsy_values = ["0", "false", "False", "FALSE", "f", "F", "no", "No", "NO", "n", "N", "off", "Off", "OFF"]
         
         for value in falsy_values:
             monkeypatch.setenv("TEST_FLAG", value)
@@ -41,10 +41,11 @@ class TestParseBoolEnv:
         assert parse_bool_env("TEST_FLAG", default=True) is True
         assert parse_bool_env("TEST_FLAG", default=False) is False
 
-    def test_empty_string_is_falsy(self, monkeypatch):
-        """Test that empty string is treated as falsy."""
+    def test_empty_string_returns_default(self, monkeypatch):
+        """Test that empty string returns the default value (Pydantic raises ValidationError)."""
         monkeypatch.setenv("TEST_FLAG", "")
         assert parse_bool_env("TEST_FLAG") is False
+        assert parse_bool_env("TEST_FLAG", default=True) is True
 
     def test_case_insensitive(self, monkeypatch):
         """Test that parsing is case-insensitive."""
