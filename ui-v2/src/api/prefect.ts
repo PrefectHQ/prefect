@@ -49,7 +49,7 @@ export interface paths {
         put?: never;
         /**
          * Create Flow
-         * @description Gracefully creates a new flow from the provided schema. If a flow with the
+         * @description Creates a new flow from the provided schema. If a flow with the
          *     same name already exists, the existing flow is returned.
          *
          *     For more information, see https://docs.prefect.io/v3/concepts/flows.
@@ -755,7 +755,7 @@ export interface paths {
         put?: never;
         /**
          * Create Deployment
-         * @description Gracefully creates a new deployment from the provided schema. If a deployment with
+         * @description Creates a new deployment from the provided schema. If a deployment with
          *     the same name and flow_id already exists, the deployment is updated.
          *
          *     If the deployment has an active schedule, flow runs will be scheduled.
@@ -1064,7 +1064,7 @@ export interface paths {
         get?: never;
         /**
          * Create Saved Search
-         * @description Gracefully creates a new saved search from the provided schema.
+         * @description Creates a new saved search from the provided schema.
          *
          *     If a saved search with the same name already exists, the saved search's fields are
          *     replaced.
@@ -2835,28 +2835,6 @@ export interface paths {
          * @description Get a task run by id.
          */
         get: operations["read_task_run_with_flow_run_name_ui_task_runs__id__get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/admin/settings": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Read Settings
-         * @description Get the current Prefect REST API settings.
-         *
-         *     Secret setting values will be obfuscated.
-         */
-        get: operations["read_settings_admin_settings_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -5419,7 +5397,32 @@ export interface components {
             expiration: string;
         };
         /** DependencyResult */
-        DependencyResult: {
+        "DependencyResult-Input": {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /** Upstream Dependencies */
+            upstream_dependencies: components["schemas"]["TaskRunResult"][];
+            state: components["schemas"]["State"] | null;
+            /** Expected Start Time */
+            expected_start_time: string | null;
+            /** Start Time */
+            start_time: string | null;
+            /** End Time */
+            end_time: string | null;
+            /** Total Run Time */
+            total_run_time: number | null;
+            /** Estimated Run Time */
+            estimated_run_time: number | null;
+            /** Untrackable Result */
+            untrackable_result: boolean;
+        };
+        /** DependencyResult */
+        "DependencyResult-Output": {
             /**
              * Id
              * Format: uuid
@@ -6588,7 +6591,178 @@ export interface components {
          * FlowRun
          * @description An ORM representation of flow run data.
          */
-        FlowRun: {
+        "FlowRun-Input": {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Created */
+            created: string | null;
+            /** Updated */
+            updated: string | null;
+            /**
+             * Name
+             * @description The name of the flow run. Defaults to a random slug if not specified.
+             */
+            name?: string;
+            /**
+             * Flow Id
+             * Format: uuid
+             * @description The id of the flow being run.
+             */
+            flow_id: string;
+            /**
+             * State Id
+             * @description The id of the flow run's current state.
+             */
+            state_id?: string | null;
+            /**
+             * Deployment Id
+             * @description The id of the deployment associated with this flow run, if available.
+             */
+            deployment_id?: string | null;
+            /**
+             * Deployment Version
+             * @description The version of the deployment associated with this flow run.
+             */
+            deployment_version?: string | null;
+            /**
+             * Work Queue Name
+             * @description The work queue that handled this flow run.
+             */
+            work_queue_name?: string | null;
+            /**
+             * Flow Version
+             * @description The version of the flow executed in this flow run.
+             */
+            flow_version?: string | null;
+            /**
+             * Parameters
+             * @description Parameters for the flow run.
+             */
+            parameters?: {
+                [key: string]: unknown;
+            };
+            /**
+             * Idempotency Key
+             * @description An optional idempotency key for the flow run. Used to ensure the same flow run is not created multiple times.
+             */
+            idempotency_key?: string | null;
+            /**
+             * Context
+             * @description Additional context for the flow run.
+             */
+            context?: {
+                [key: string]: unknown;
+            };
+            empirical_policy?: components["schemas"]["FlowRunPolicy"];
+            /**
+             * Tags
+             * @description A list of tags on the flow run
+             */
+            tags?: string[];
+            /**
+             * Labels
+             * @description A dictionary of key-value labels. Values can be strings, numbers, or booleans.
+             */
+            labels?: {
+                [key: string]: boolean | number | string;
+            } | null;
+            /**
+             * Parent Task Run Id
+             * @description If the flow run is a subflow, the id of the 'dummy' task in the parent flow used to track subflow state.
+             */
+            parent_task_run_id?: string | null;
+            /** @description The type of the current flow run state. */
+            state_type?: components["schemas"]["StateType"] | null;
+            /**
+             * State Name
+             * @description The name of the current flow run state.
+             */
+            state_name?: string | null;
+            /**
+             * Run Count
+             * @description The number of times the flow run was executed.
+             * @default 0
+             */
+            run_count: number;
+            /**
+             * Expected Start Time
+             * @description The flow run's expected start time.
+             */
+            expected_start_time?: string | null;
+            /**
+             * Next Scheduled Start Time
+             * @description The next time the flow run is scheduled to start.
+             */
+            next_scheduled_start_time?: string | null;
+            /**
+             * Start Time
+             * @description The actual start time.
+             */
+            start_time?: string | null;
+            /**
+             * End Time
+             * @description The actual end time.
+             */
+            end_time?: string | null;
+            /**
+             * Total Run Time
+             * @description Total run time. If the flow run was executed multiple times, the time of each run will be summed.
+             * @default 0
+             */
+            total_run_time: number;
+            /**
+             * Estimated Run Time
+             * @description A real-time estimate of the total run time.
+             * @default 0
+             */
+            estimated_run_time: number;
+            /**
+             * Estimated Start Time Delta
+             * @description The difference between actual and expected start time.
+             * @default 0
+             */
+            estimated_start_time_delta: number;
+            /**
+             * Auto Scheduled
+             * @description Whether or not the flow run was automatically scheduled.
+             * @default false
+             */
+            auto_scheduled: boolean;
+            /**
+             * Infrastructure Document Id
+             * @description The block document defining infrastructure to use this flow run.
+             */
+            infrastructure_document_id?: string | null;
+            /**
+             * Infrastructure Pid
+             * @description The id of the flow run as returned by an infrastructure block.
+             */
+            infrastructure_pid?: string | null;
+            /** @description Optional information about the creator of this flow run. */
+            created_by?: components["schemas"]["CreatedBy"] | null;
+            /**
+             * Work Queue Id
+             * @description The id of the run's work pool queue.
+             */
+            work_queue_id?: string | null;
+            /** @description The current state of the flow run. */
+            state?: components["schemas"]["State"] | null;
+            /**
+             * Job Variables
+             * @description Variables used as overrides in the base job template
+             */
+            job_variables?: {
+                [key: string]: unknown;
+            } | null;
+        };
+        /**
+         * FlowRun
+         * @description An ORM representation of flow run data.
+         */
+        "FlowRun-Output": {
             /**
              * Id
              * Format: uuid
@@ -7596,7 +7770,30 @@ export interface components {
          * HistoryResponse
          * @description Represents a history of aggregation states over an interval
          */
-        HistoryResponse: {
+        "HistoryResponse-Input": {
+            /**
+             * Interval Start
+             * Format: date-time
+             * @description The start date of the interval.
+             */
+            interval_start: string;
+            /**
+             * Interval End
+             * Format: date-time
+             * @description The end date of the interval.
+             */
+            interval_end: string;
+            /**
+             * States
+             * @description A list of state histories during the interval.
+             */
+            states: components["schemas"]["HistoryResponseState"][];
+        };
+        /**
+         * HistoryResponse
+         * @description Represents a history of aggregation states over an interval
+         */
+        "HistoryResponse-Output": {
             /**
              * Interval Start
              * Format: date-time
@@ -8360,23 +8557,37 @@ export interface components {
             value: unknown;
         };
         /** SchemaValueIndexError */
-        SchemaValueIndexError: {
+        "SchemaValueIndexError-Input": {
             /** Index */
             index: number;
             /** Errors */
-            errors: (string | components["schemas"]["SchemaValuePropertyError"] | components["schemas"]["SchemaValueIndexError"])[];
+            errors: (string | components["schemas"]["SchemaValuePropertyError-Input"] | components["schemas"]["SchemaValueIndexError-Input"])[];
+        };
+        /** SchemaValueIndexError */
+        "SchemaValueIndexError-Output": {
+            /** Index */
+            index: number;
+            /** Errors */
+            errors: (string | components["schemas"]["SchemaValuePropertyError-Output"] | components["schemas"]["SchemaValueIndexError-Output"])[];
         };
         /** SchemaValuePropertyError */
-        SchemaValuePropertyError: {
+        "SchemaValuePropertyError-Input": {
             /** Property */
             property: string;
             /** Errors */
-            errors: (string | components["schemas"]["SchemaValuePropertyError"] | components["schemas"]["SchemaValueIndexError"])[];
+            errors: (string | components["schemas"]["SchemaValuePropertyError-Input"] | components["schemas"]["SchemaValueIndexError-Input"])[];
+        };
+        /** SchemaValuePropertyError */
+        "SchemaValuePropertyError-Output": {
+            /** Property */
+            property: string;
+            /** Errors */
+            errors: (string | components["schemas"]["SchemaValuePropertyError-Output"] | components["schemas"]["SchemaValueIndexError-Output"])[];
         };
         /** SchemaValuesValidationResponse */
         SchemaValuesValidationResponse: {
             /** Errors */
-            errors: (string | components["schemas"]["SchemaValuePropertyError"] | components["schemas"]["SchemaValueIndexError"])[];
+            errors: (string | components["schemas"]["SchemaValuePropertyError-Output"] | components["schemas"]["SchemaValueIndexError-Output"])[];
             /** Valid */
             valid: boolean;
         };
@@ -8460,7 +8671,6 @@ export interface components {
          * @enum {string}
          */
         SetStateStatus: "ACCEPT" | "REJECT" | "ABORT" | "WAIT";
-        Settings: unknown;
         /** SimpleFlowRun */
         SimpleFlowRun: {
             /**
@@ -8844,7 +9054,20 @@ export interface components {
             /** @description The current task run state. */
             state?: components["schemas"]["State"] | null;
         };
-        TaskRunCount: {
+        /** TaskRunCount */
+        "TaskRunCount-Input": {
+            /**
+             * Completed
+             * @description The number of completed task runs.
+             */
+            completed: number;
+            /**
+             * Failed
+             * @description The number of failed task runs.
+             */
+            failed: number;
+        };
+        "TaskRunCount-Output": {
             [key: string]: number;
         };
         /**
@@ -9097,7 +9320,7 @@ export interface components {
         /** TaskRunPaginationResponse */
         TaskRunPaginationResponse: {
             /** Results */
-            results: components["schemas"]["TaskRunResponse"][];
+            results: components["schemas"]["TaskRunResponse-Output"][];
             /** Count */
             count: number;
             /** Limit */
@@ -9143,7 +9366,74 @@ export interface components {
             retry_jitter_factor?: number | null;
         };
         /** TaskRunResponse */
-        TaskRunResponse: {
+        "TaskRunResponse-Input": {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Created */
+            created: string | null;
+            /** Updated */
+            updated: string | null;
+            /**
+             * Name
+             * @description The name of the task run. Defaults to a random slug if not specified.
+             */
+            name?: string;
+            /**
+             * Flow Run Id
+             * @description The id of the flow run this task run belongs to.
+             */
+            flow_run_id?: string | null;
+            /**
+             * Task Key
+             * @description The key of the task this run represents.
+             */
+            task_key: string;
+            /**
+             * State Id
+             * @description The id of the task run's current state.
+             */
+            state_id?: string | null;
+            /** @description The current state of the task run. */
+            state?: components["schemas"]["State"] | null;
+            /**
+             * Task Version
+             * @description The version of the task executed in this task run.
+             */
+            task_version?: string | null;
+            /**
+             * Parameters
+             * @description Parameters for the task run.
+             */
+            parameters?: {
+                [key: string]: unknown;
+            };
+            /**
+             * Task Inputs
+             * @description Inputs provided to the task run.
+             */
+            task_inputs?: {
+                [key: string]: (components["schemas"]["TaskRunResult"] | components["schemas"]["FlowRunResult"] | components["schemas"]["Parameter"] | components["schemas"]["Constant"])[];
+            };
+            /**
+             * Context
+             * @description Additional context for the task run.
+             */
+            context?: {
+                [key: string]: unknown;
+            };
+            /** @description The task run's empirical retry policy. */
+            empirical_policy?: components["schemas"]["TaskRunPolicy"];
+            /**
+             * Tags
+             * @description A list of tags for the task run.
+             */
+            tags?: string[];
+        };
+        /** TaskRunResponse */
+        "TaskRunResponse-Output": {
             /**
              * Id
              * Format: uuid
@@ -10096,7 +10386,7 @@ export interface components {
             not_any_?: components["schemas"]["WorkerStatus"][] | null;
         };
         /** WorkerFlowRunResponse */
-        WorkerFlowRunResponse: {
+        "WorkerFlowRunResponse-Input": {
             /**
              * Work Pool Id
              * Format: uuid
@@ -10107,7 +10397,21 @@ export interface components {
              * Format: uuid
              */
             work_queue_id: string;
-            flow_run: components["schemas"]["FlowRun"];
+            flow_run: components["schemas"]["FlowRun-Input"];
+        };
+        /** WorkerFlowRunResponse */
+        "WorkerFlowRunResponse-Output": {
+            /**
+             * Work Pool Id
+             * Format: uuid
+             */
+            work_pool_id: string;
+            /**
+             * Work Queue Id
+             * Format: uuid
+             */
+            work_queue_id: string;
+            flow_run: components["schemas"]["FlowRun-Output"];
         };
         /** WorkerResponse */
         WorkerResponse: {
@@ -10706,7 +11010,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HistoryResponse"][];
+                    "application/json": components["schemas"]["HistoryResponse-Output"][];
                 };
             };
             /** @description Validation Error */
@@ -10740,7 +11044,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["DependencyResult"][];
+                    "application/json": components["schemas"]["DependencyResult-Output"][];
                 };
             };
             /** @description Validation Error */
@@ -11348,7 +11652,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HistoryResponse"][];
+                    "application/json": components["schemas"]["HistoryResponse-Output"][];
                 };
             };
             /** @description Validation Error */
@@ -12534,7 +12838,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": null;
+                    "application/json": unknown;
                 };
             };
             /** @description Validation Error */
@@ -12602,7 +12906,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": null;
+                    "application/json": unknown;
                 };
             };
             /** @description Validation Error */
@@ -12675,7 +12979,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": null;
+                    "application/json": unknown;
                 };
             };
             /** @description Validation Error */
@@ -13859,7 +14163,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["WorkerFlowRunResponse"][];
+                    "application/json": components["schemas"]["WorkerFlowRunResponse-Output"][];
                 };
             };
             /** @description Validation Error */
@@ -16074,7 +16378,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["TaskRunCount"][];
+                    "application/json": components["schemas"]["TaskRunCount-Output"][];
                 };
             };
             /** @description Validation Error */
@@ -16144,37 +16448,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["UITaskRun"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    read_settings_admin_settings_get: {
-        parameters: {
-            query?: never;
-            header?: {
-                "x-prefect-api-version"?: string;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Settings"];
                 };
             };
             /** @description Validation Error */
