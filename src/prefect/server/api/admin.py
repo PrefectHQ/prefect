@@ -12,7 +12,7 @@ from prefect.server.utilities.server import PrefectRouter
 router: PrefectRouter = PrefectRouter(prefix="/admin", tags=["Admin"])
 
 
-@router.get("/settings")
+@router.get("/settings", include_in_schema=False)
 async def read_settings() -> prefect.settings.Settings:
     """
     Get the current Prefect REST API settings.
