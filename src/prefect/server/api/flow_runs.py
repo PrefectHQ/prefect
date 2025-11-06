@@ -11,6 +11,7 @@ from uuid import UUID
 import orjson
 import sqlalchemy as sa
 from docket import Depends as DocketDepends
+from docket import Retry
 from fastapi import (
     Body,
     Depends,
@@ -596,6 +597,7 @@ async def delete_flow_run_logs(
     *,
     db: PrefectDBInterface = DocketDepends(provide_database_interface),
     flow_run_id: UUID,
+    retry: Retry = Retry(attempts=5, delay=datetime.timedelta(seconds=0.5)),
 ) -> None:
     async with db.session_context(begin_transaction=True) as session:
         await models.logs.delete_logs(

@@ -17,7 +17,7 @@ from typing import (
 from uuid import UUID
 
 import sqlalchemy as sa
-from docket import Depends
+from docket import Depends, Retry
 from pydantic import TypeAdapter
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -579,6 +579,7 @@ async def mark_work_queues_ready(
 async def mark_work_queues_not_ready(
     db: PrefectDBInterface,
     work_queue_ids: Iterable[UUID],
+    retry: Retry = Retry(attempts=5, delay=datetime.timedelta(seconds=0.5)),
 ) -> None:
     if not work_queue_ids:
         return

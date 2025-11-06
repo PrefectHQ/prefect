@@ -2101,19 +2101,22 @@ class TestGetScheduledRuns:
         assert work_queue_response.status_code == status.HTTP_200_OK
 
         work_queue = parse_obj_as(WorkQueue, work_queue_response.json())
-        work_queues_response = await client.post(
-            f"/work_pools/{work_pools['wp_a'].name}/queues/filter"
-        )
-        assert work_queues_response.status_code == status.HTTP_200_OK
 
-        work_queues = parse_obj_as(List[WorkQueue], work_queues_response.json())
+        async for attempt in retry_assert(max_attempts=20, delay=0.5):
+            with attempt:
+                work_queues_response = await client.post(
+                    f"/work_pools/{work_pools['wp_a'].name}/queues/filter"
+                )
+                assert work_queues_response.status_code == status.HTTP_200_OK
 
-        for work_queue in work_queues:
-            if work_queue.name == "AA":
-                assert work_queue.last_polled is not None
-                assert work_queue.last_polled > now
-            else:
-                assert work_queue.last_polled is None
+                work_queues = parse_obj_as(List[WorkQueue], work_queues_response.json())
+
+                for work_queue in work_queues:
+                    if work_queue.name == "AA":
+                        assert work_queue.last_polled is not None
+                        assert work_queue.last_polled > now
+                    else:
+                        assert work_queue.last_polled is None
 
     async def test_updates_last_polled_on_a_multiple_work_queues(
         self, client, work_queues, work_pools
@@ -2130,19 +2133,21 @@ class TestGetScheduledRuns:
         )
         assert poll_response.status_code == status.HTTP_200_OK
 
-        work_queues_response = await client.post(
-            f"/work_pools/{work_pools['wp_a'].name}/queues/filter"
-        )
-        assert work_queues_response.status_code == status.HTTP_200_OK
+        async for attempt in retry_assert(max_attempts=20, delay=0.5):
+            with attempt:
+                work_queues_response = await client.post(
+                    f"/work_pools/{work_pools['wp_a'].name}/queues/filter"
+                )
+                assert work_queues_response.status_code == status.HTTP_200_OK
 
-        work_queues = parse_obj_as(List[WorkQueue], work_queues_response.json())
+                work_queues = parse_obj_as(List[WorkQueue], work_queues_response.json())
 
-        for work_queue in work_queues:
-            if work_queue.name == "AA" or work_queue.name == "AB":
-                assert work_queue.last_polled is not None
-                assert work_queue.last_polled > now
-            else:
-                assert work_queue.last_polled is None
+                for work_queue in work_queues:
+                    if work_queue.name == "AA" or work_queue.name == "AB":
+                        assert work_queue.last_polled is not None
+                        assert work_queue.last_polled > now
+                    else:
+                        assert work_queue.last_polled is None
 
     async def test_updates_last_polled_on_a_full_work_pool(
         self, client, session, work_queues, work_pools
@@ -2159,18 +2164,20 @@ class TestGetScheduledRuns:
         )
         assert poll_response.status_code == status.HTTP_200_OK
 
-        work_queues_response = await client.post(
-            f"/work_pools/{work_pool.name}/queues/filter"
-        )
-        assert work_queues_response.status_code == status.HTTP_200_OK
+        async for attempt in retry_assert(max_attempts=20, delay=0.5):
+            with attempt:
+                work_queues_response = await client.post(
+                    f"/work_pools/{work_pool.name}/queues/filter"
+                )
+                assert work_queues_response.status_code == status.HTTP_200_OK
 
-        work_queues = parse_obj_as(List[WorkQueue], work_queues_response.json())
+                work_queues = parse_obj_as(List[WorkQueue], work_queues_response.json())
 
-        for work_queue in work_queues:
-            assert work_queue.last_polled is not None, (
-                "Work queue should have updated last_polled"
-            )
-            assert work_queue.last_polled > now
+                for work_queue in work_queues:
+                    assert work_queue.last_polled is not None, (
+                        "Work queue should have updated last_polled"
+                    )
+                    assert work_queue.last_polled > now
 
     async def test_updates_statuses_on_a_full_work_pool(
         self,
@@ -2214,23 +2221,25 @@ class TestGetScheduledRuns:
         )
         assert poll_response.status_code == status.HTTP_200_OK
 
-        work_queues_response = await client.post(
-            f"/work_pools/{work_pool.name}/queues/filter"
-        )
-        assert work_queues_response.status_code == status.HTTP_200_OK
+        async for attempt in retry_assert(max_attempts=20, delay=0.5):
+            with attempt:
+                work_queues_response = await client.post(
+                    f"/work_pools/{work_pool.name}/queues/filter"
+                )
+                assert work_queues_response.status_code == status.HTTP_200_OK
 
-        work_queues = parse_obj_as(List[WorkQueue], work_queues_response.json())
+                work_queues = parse_obj_as(List[WorkQueue], work_queues_response.json())
 
-        for work_queue in work_queues:
-            if work_queue.id == wq_not_ready.id:
-                assert work_queue.status == WorkQueueStatus.READY
-            elif work_queue.id == wq_paused.id:
-                # paused work queues should stay paused
-                assert work_queue.status == WorkQueueStatus.PAUSED
-            elif work_queue.id == wq_ready.id:
-                assert work_queue.status == WorkQueueStatus.READY
+                for work_queue in work_queues:
+                    if work_queue.id == wq_not_ready.id:
+                        assert work_queue.status == WorkQueueStatus.READY
+                    elif work_queue.id == wq_paused.id:
+                        # paused work queues should stay paused
+                        assert work_queue.status == WorkQueueStatus.PAUSED
+                    elif work_queue.id == wq_ready.id:
+                        assert work_queue.status == WorkQueueStatus.READY
 
-        async for attempt in retry_assert(max_attempts=5, delay=1.0):
+        async for attempt in retry_assert(max_attempts=20, delay=0.5):
             with attempt:
                 for deployment in deployments:
                     await session.refresh(deployment)
@@ -2251,7 +2260,7 @@ class TestGetScheduledRuns:
         )
         assert queue_response.status_code == status.HTTP_200_OK
 
-        async for attempt in retry_assert(max_attempts=5, delay=1.0):
+        async for attempt in retry_assert(max_attempts=20, delay=0.5):
             with attempt:
                 # get the updated deployment
                 updated_deployment_response = await client.get(

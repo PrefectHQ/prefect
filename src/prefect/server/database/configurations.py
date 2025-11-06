@@ -506,7 +506,9 @@ class AioSqliteConfiguration(BaseDatabaseConfiguration):
         # setting the value very high allows for more 'concurrency'
         # without running into errors, but may result in slow api calls
         if PREFECT_TESTING_UNIT_TEST_MODE.value() is True:
-            cursor.execute("PRAGMA busy_timeout = 5000;")  # 5s
+            cursor.execute(
+                "PRAGMA busy_timeout = 30000;"
+            )  # 30s (increased for Docket background worker)
         else:
             cursor.execute("PRAGMA busy_timeout = 60000;")  # 60s
 

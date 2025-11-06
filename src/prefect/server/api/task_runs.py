@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional
 from uuid import UUID
 
 from docket import Depends as DocketDepends
+from docket import Retry
 from fastapi import (
     Body,
     Depends,
@@ -288,6 +289,7 @@ async def delete_task_run_logs(
     *,
     db: PrefectDBInterface = DocketDepends(provide_database_interface),
     task_run_id: UUID,
+    retry: Retry = Retry(attempts=5, delay=datetime.timedelta(seconds=0.5)),
 ) -> None:
     async with db.session_context(begin_transaction=True) as session:
         await models.logs.delete_logs(

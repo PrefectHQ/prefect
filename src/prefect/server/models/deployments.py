@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING, Any, Optional, TypeVar, cast
 from uuid import UUID
 
 import sqlalchemy as sa
-from docket import Depends
+from docket import Depends, Retry
 from sqlalchemy import delete, or_, select
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -1094,56 +1094,54 @@ async def mark_deployments_ready(
     db: PrefectDBInterface = Depends(provide_database_interface),
     deployment_ids: Optional[Iterable[UUID]] = None,
     work_queue_ids: Optional[Iterable[UUID]] = None,
+    retry: Retry = Retry(attempts=5, delay=datetime.timedelta(seconds=0.5)),
 ) -> None:
-    try:
-        deployment_ids = deployment_ids or []
-        work_queue_ids = work_queue_ids or []
+    deployment_ids = deployment_ids or []
+    work_queue_ids = work_queue_ids or []
 
-        if not deployment_ids and not work_queue_ids:
+    if not deployment_ids and not work_queue_ids:
+        return
+
+    async with db.session_context(
+        begin_transaction=True,
+    ) as session:
+        result = await session.execute(
+            select(db.Deployment.id).where(
+                sa.or_(
+                    db.Deployment.id.in_(deployment_ids),
+                    db.Deployment.work_queue_id.in_(work_queue_ids),
+                ),
+                db.Deployment.status == DeploymentStatus.NOT_READY,
+            )
+        )
+        unready_deployments = list(result.scalars().unique().all())
+
+        last_polled = now("UTC")
+
+        await session.execute(
+            sa.update(db.Deployment)
+            .where(
+                sa.or_(
+                    db.Deployment.id.in_(deployment_ids),
+                    db.Deployment.work_queue_id.in_(work_queue_ids),
+                )
+            )
+            .values(status=DeploymentStatus.READY, last_polled=last_polled)
+        )
+
+        if not unready_deployments:
             return
 
-        async with db.session_context(
-            begin_transaction=True,
-        ) as session:
-            result = await session.execute(
-                select(db.Deployment.id).where(
-                    sa.or_(
-                        db.Deployment.id.in_(deployment_ids),
-                        db.Deployment.work_queue_id.in_(work_queue_ids),
-                    ),
-                    db.Deployment.status == DeploymentStatus.NOT_READY,
-                )
-            )
-            unready_deployments = list(result.scalars().unique().all())
-
-            last_polled = now("UTC")
-
-            await session.execute(
-                sa.update(db.Deployment)
-                .where(
-                    sa.or_(
-                        db.Deployment.id.in_(deployment_ids),
-                        db.Deployment.work_queue_id.in_(work_queue_ids),
+        async with PrefectServerEventsClient() as events:
+            for deployment_id in unready_deployments:
+                await events.emit(
+                    await deployment_status_event(
+                        session=session,
+                        deployment_id=deployment_id,
+                        status=DeploymentStatus.READY,
+                        occurred=last_polled,
                     )
                 )
-                .values(status=DeploymentStatus.READY, last_polled=last_polled)
-            )
-
-            if not unready_deployments:
-                return
-
-            async with PrefectServerEventsClient() as events:
-                for deployment_id in unready_deployments:
-                    await events.emit(
-                        await deployment_status_event(
-                            session=session,
-                            deployment_id=deployment_id,
-                            status=DeploymentStatus.READY,
-                            occurred=last_polled,
-                        )
-                    )
-    except Exception as exc:
-        logger.error(f"Error marking deployments as ready: {exc}", exc_info=True)
 
 
 @db_injector

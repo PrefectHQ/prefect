@@ -863,11 +863,14 @@ class TestGetRunsInWorkQueue:
         )
         assert response.status_code == status.HTTP_200_OK
 
-        session.expunge_all()
-        updated_work_queue = await models.work_queues.read_work_queue(
-            session=session, work_queue_id=work_queue.id
-        )
-        assert updated_work_queue.last_polled > now
+        async for attempt in retry_assert(max_attempts=20, delay=0.5):
+            with attempt:
+                session.expunge_all()
+                updated_work_queue = await models.work_queues.read_work_queue(
+                    session=session, work_queue_id=work_queue.id
+                )
+                assert updated_work_queue.last_polled is not None
+                assert updated_work_queue.last_polled > now
 
         # The Prefect UI often calls this route to see which runs are enqueued.
         # We do not want to record this as an actual poll event.
@@ -929,10 +932,12 @@ class TestGetRunsInWorkQueue:
         )
         assert response.status_code == status.HTTP_200_OK
 
-        # Verify the work queue is now ready
-        wq_response = await client.get(f"/work_queues/{work_queue.id}")
-        assert wq_response.status_code == status.HTTP_200_OK
-        assert wq_response.json()["status"] == "READY"
+        async for attempt in retry_assert(max_attempts=20, delay=0.5):
+            with attempt:
+                # Verify the work queue is now ready
+                wq_response = await client.get(f"/work_queues/{work_queue.id}")
+                assert wq_response.status_code == status.HTTP_200_OK
+                assert wq_response.json()["status"] == "READY"
 
     async def test_read_work_queue_runs_does_not_update_a_paused_work_queues_status(
         self,
