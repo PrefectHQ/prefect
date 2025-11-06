@@ -231,6 +231,18 @@ class SnowflakeCredentials(CredentialsBlock):
 
         return values
 
+    @model_validator(mode="before")
+    def _validate_user_kwargs(cls, values):
+        """
+        Ensure user is provided for all authenticators except `workload_identity`.
+        """
+        authenticator = values.get("authenticator")
+        if authenticator != "workload_identity" and not values.get("user"):
+            raise ValueError(
+                f"If authenticator is set to `{authenticator}`, `user` must be provided"
+            )
+        return values
+
     def resolve_private_key(self) -> Optional[bytes]:
         """
         Converts a PEM encoded private key into a DER binary key.
