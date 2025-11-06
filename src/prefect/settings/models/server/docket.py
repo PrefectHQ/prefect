@@ -16,6 +16,6 @@ class ServerDocketSettings(PrefectBaseSettings):
     )
 
     url: str = Field(
-        default="redis://localhost:6379/0",  # TODO: Change to memory:// when we have a working version of `fakeredis`
+        default="memory://",
         description="The URL of the Redis server to use for Docket.",
     )
