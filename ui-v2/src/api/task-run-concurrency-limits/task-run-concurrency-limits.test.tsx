@@ -282,7 +282,7 @@ describe("buildConcurrenyLimitDetailsActiveRunsQuery()", () => {
 		);
 	};
 	const mockFlowRunsFiltersAPI = (
-		data: Array<components["schemas"]["FlowRun"]>,
+		data: Array<components["schemas"]["FlowRunResponse"]>,
 	) => {
 		server.use(
 			http.post(buildApiUrl("/flow_runs/filter"), () => {
