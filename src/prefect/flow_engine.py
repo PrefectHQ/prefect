@@ -54,6 +54,7 @@ from prefect.context import (
     SettingsContext,
     SyncClientContext,
     TagsContext,
+    _root_deployment_context,
     get_settings_context,
     hydrated_context,
     serialize_context,
@@ -629,13 +630,14 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
             )
             # Set root deployment context only if this is the top-level deployment run
             # (nested flows will inherit via ContextVar propagation)
-            if self.flow_run.deployment_id and not RootDeploymentContext.get():
-                stack.enter_context(
+            if self.flow_run.deployment_id and not _root_deployment_context.get():
+                token = _root_deployment_context.set(
                     RootDeploymentContext(
                         deployment_id=self.flow_run.deployment_id,
                         deployment_parameters=self.parameters,
                     )
                 )
+                stack.callback(_root_deployment_context.reset, token)
             stack.enter_context(ConcurrencyContextV1())
             stack.enter_context(ConcurrencyContext())
             if lease_id := self.state.state_details.deployment_concurrency_lease_id:
@@ -1215,13 +1217,14 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
             )
             # Set root deployment context only if this is the top-level deployment run
             # (nested flows will inherit via ContextVar propagation)
-            if self.flow_run.deployment_id and not RootDeploymentContext.get():
-                stack.enter_context(
+            if self.flow_run.deployment_id and not _root_deployment_context.get():
+                token = _root_deployment_context.set(
                     RootDeploymentContext(
                         deployment_id=self.flow_run.deployment_id,
                         deployment_parameters=self.parameters,
                     )
                 )
+                stack.callback(_root_deployment_context.reset, token)
             stack.enter_context(ConcurrencyContextV1())
             stack.enter_context(ConcurrencyContext())
             if lease_id := self.state.state_details.deployment_concurrency_lease_id:
