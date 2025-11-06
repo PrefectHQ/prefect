@@ -28,7 +28,7 @@ from prefect.exceptions import (
     ScriptError,
     exception_traceback,
 )
-from prefect.settings import PREFECT_UI_URL
+from prefect.settings import get_current_settings
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.importtools import load_script_as_module
 
@@ -244,7 +244,7 @@ async def register(
         "go to the Blocks page in the Prefect UI.\n"
     )
 
-    if ui_url := PREFECT_UI_URL:
+    if ui_url := get_current_settings().ui_url:
         if determine_server_type() == ServerType.CLOUD:
             block_catalog_url = f"{ui_url}/settings/blocks/catalog"
         else:
@@ -349,17 +349,16 @@ async def block_create(
             app.console.print(f"Available block types: {', '.join(slugs)}")
             raise typer.Exit(1)
 
-        if not PREFECT_UI_URL:
+        ui_url = get_current_settings().ui_url
+        if not ui_url:
             exit_with_error(
                 "Prefect must be configured to use a hosted Prefect server or "
                 "Prefect Cloud to display the Prefect UI"
             )
         if determine_server_type() == ServerType.CLOUD:
-            block_link = f"{PREFECT_UI_URL.value()}/settings/blocks/catalog/{block_type.slug}/create"
+            block_link = f"{ui_url}/settings/blocks/catalog/{block_type.slug}/create"
         else:
-            block_link = (
-                f"{PREFECT_UI_URL.value()}/blocks/catalog/{block_type.slug}/create"
-            )
+            block_link = f"{ui_url}/blocks/catalog/{block_type.slug}/create"
         app.console.print(
             f"Create a {block_type_slug} block: {block_link}",
         )

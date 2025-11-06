@@ -7,7 +7,7 @@ sidebarTitle: ecs
 
 ## Functions
 
-### `console_context` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/infrastructure/provisioners/ecs.py#L47" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `console_context` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/infrastructure/provisioners/ecs.py#L46" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 console_context(value: Console) -> Generator[None, None, None]
@@ -15,7 +15,7 @@ console_context(value: Console) -> Generator[None, None, None]
 
 ## Classes
 
-### `IamPolicyResource` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/infrastructure/provisioners/ecs.py#L55" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `IamPolicyResource` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/infrastructure/provisioners/ecs.py#L54" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Represents an IAM policy resource for managing ECS tasks.
@@ -26,7 +26,7 @@ Represents an IAM policy resource for managing ECS tasks.
 
 **Methods:**
 
-#### `get_planned_actions` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/infrastructure/provisioners/ecs.py#L110" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get_planned_actions` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/infrastructure/provisioners/ecs.py#L109" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_planned_actions(self) -> List[str]
@@ -39,7 +39,7 @@ Returns a description of the planned actions for provisioning this resource.
 or None if provisioning is not required.
 
 
-#### `get_task_count` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/infrastructure/provisioners/ecs.py#L72" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get_task_count` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/infrastructure/provisioners/ecs.py#L71" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_task_count(self) -> int
@@ -51,13 +51,13 @@ Returns the number of tasks that will be executed to provision this resource.
 - The number of tasks to be provisioned.
 
 
-#### `next_steps` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/infrastructure/provisioners/ecs.py#L161" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `next_steps` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/infrastructure/provisioners/ecs.py#L160" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 next_steps(self) -> list[str]
 ```
 
-#### `provision` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/infrastructure/provisioners/ecs.py#L125" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `provision` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/infrastructure/provisioners/ecs.py#L124" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 provision(self, policy_document: dict[str, Any], advance: Callable[[], None]) -> str
@@ -72,7 +72,7 @@ Provisions an IAM policy.
 - The ARN (Amazon Resource Name) of the created IAM policy.
 
 
-#### `requires_provisioning` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/infrastructure/provisioners/ecs.py#L91" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `requires_provisioning` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/infrastructure/provisioners/ecs.py#L90" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 requires_provisioning(self) -> bool
@@ -84,7 +84,7 @@ Check if this resource requires provisioning.
 - True if provisioning is required, False otherwise.
 
 
-### `IamUserResource` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/infrastructure/provisioners/ecs.py#L165" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `IamUserResource` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/infrastructure/provisioners/ecs.py#L164" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Represents an IAM user resource for managing ECS tasks.
@@ -95,7 +95,7 @@ Represents an IAM user resource for managing ECS tasks.
 
 **Methods:**
 
-#### `get_planned_actions` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/infrastructure/provisioners/ecs.py#L205" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get_planned_actions` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/infrastructure/provisioners/ecs.py#L204" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_planned_actions(self) -> List[str]
@@ -108,7 +108,7 @@ Returns a description of the planned actions for provisioning this resource.
 or None if provisioning is not required.
 
 
-#### `get_task_count` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/infrastructure/provisioners/ecs.py#L178" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get_task_count` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/infrastructure/provisioners/ecs.py#L177" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_task_count(self) -> int
@@ -120,13 +120,13 @@ Returns the number of tasks that will be executed to provision this resource.
 - The number of tasks to be provisioned.
 
 
-#### `next_steps` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/infrastructure/provisioners/ecs.py#L239" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `next_steps` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/infrastructure/provisioners/ecs.py#L238" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 next_steps(self) -> list[str]
 ```
 
-#### `provision` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/infrastructure/provisioners/ecs.py#L220" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `provision` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/infrastructure/provisioners/ecs.py#L219" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 provision(self, advance: Callable[[], None]) -> None
@@ -138,7 +138,7 @@ Provisions an IAM user.
 - `advance`: A callback function to indicate progress.
 
 
-#### `requires_provisioning` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/infrastructure/provisioners/ecs.py#L187" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `requires_provisioning` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/infrastructure/provisioners/ecs.py#L186" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 requires_provisioning(self) -> bool
@@ -150,11 +150,11 @@ Check if this resource requires provisioning.
 - True if provisioning is required, False otherwise.
 
 
-### `CredentialsBlockResource` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/infrastructure/provisioners/ecs.py#L243" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `CredentialsBlockResource` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/infrastructure/provisioners/ecs.py#L242" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 **Methods:**
 
-#### `get_planned_actions` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/infrastructure/provisioners/ecs.py#L273" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get_planned_actions` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/infrastructure/provisioners/ecs.py#L272" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_planned_actions(self) -> List[str]
@@ -167,7 +167,7 @@ Returns a description of the planned actions for provisioning this resource.
 or None if provisioning is not required.
 
 
-#### `get_task_count` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/infrastructure/provisioners/ecs.py#L249" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get_task_count` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/infrastructure/provisioners/ecs.py#L248" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_task_count(self) -> int
@@ -179,13 +179,13 @@ Returns the number of tasks that will be executed to provision this resource.
 - The number of tasks to be provisioned.
 
 
-#### `next_steps` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/infrastructure/provisioners/ecs.py#L365" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `next_steps` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/infrastructure/provisioners/ecs.py#L364" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 next_steps(self) -> list[str]
 ```
 
-#### `provision` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/infrastructure/provisioners/ecs.py#L286" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `provision` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/infrastructure/provisioners/ecs.py#L285" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 provision(self, base_job_template: Dict[str, Any], advance: Callable[[], None], client: Optional['PrefectClient'] = None)
@@ -202,17 +202,17 @@ the `aws_credentials` variable in the job template to reference the block.
 - `client`: A Prefect client to use for interacting with the Prefect API.
 
 
-#### `requires_provisioning` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/infrastructure/provisioners/ecs.py#L259" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `requires_provisioning` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/infrastructure/provisioners/ecs.py#L258" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 requires_provisioning(self, client: Optional['PrefectClient'] = None) -> bool
 ```
 
-### `AuthenticationResource` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/infrastructure/provisioners/ecs.py#L369" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `AuthenticationResource` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/infrastructure/provisioners/ecs.py#L368" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 **Methods:**
 
-#### `get_planned_actions` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/infrastructure/provisioners/ecs.py#L457" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get_planned_actions` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/infrastructure/provisioners/ecs.py#L456" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_planned_actions(self) -> List[str]
@@ -225,7 +225,7 @@ Returns a description of the planned actions for provisioning this resource.
 or None if provisioning is not required.
 
 
-#### `get_task_count` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/infrastructure/provisioners/ecs.py#L437" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get_task_count` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/infrastructure/provisioners/ecs.py#L436" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_task_count(self) -> int
@@ -237,13 +237,13 @@ Returns the number of tasks that will be executed to provision this resource.
 - The number of tasks to be provisioned.
 
 
-#### `next_steps` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/infrastructure/provisioners/ecs.py#L519" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `next_steps` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/infrastructure/provisioners/ecs.py#L518" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 next_steps(self) -> list[str]
 ```
 
-#### `provision` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/infrastructure/provisioners/ecs.py#L471" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `provision` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/infrastructure/provisioners/ecs.py#L470" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 provision(self, base_job_template: dict[str, Any], advance: Callable[[], None]) -> None
@@ -257,7 +257,7 @@ infrastructure for.
 - `advance`: A callback function to indicate progress.
 
 
-#### `requires_provisioning` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/infrastructure/provisioners/ecs.py#L446" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `requires_provisioning` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/infrastructure/provisioners/ecs.py#L445" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 requires_provisioning(self) -> bool
@@ -269,17 +269,17 @@ Check if this resource requires provisioning.
 - True if provisioning is required, False otherwise.
 
 
-#### `resources` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/infrastructure/provisioners/ecs.py#L425" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `resources` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/infrastructure/provisioners/ecs.py#L424" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 resources(self) -> list['ExecutionRoleResource | IamUserResource | IamPolicyResource | CredentialsBlockResource']
 ```
 
-### `ClusterResource` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/infrastructure/provisioners/ecs.py#L527" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `ClusterResource` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/infrastructure/provisioners/ecs.py#L526" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 **Methods:**
 
-#### `get_planned_actions` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/infrastructure/provisioners/ecs.py#L561" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get_planned_actions` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/infrastructure/provisioners/ecs.py#L560" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_planned_actions(self) -> List[str]
@@ -292,7 +292,7 @@ Returns a description of the planned actions for provisioning this resource.
 or None if provisioning is not required.
 
 
-#### `get_task_count` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/infrastructure/provisioners/ecs.py#L533" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get_task_count` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/infrastructure/provisioners/ecs.py#L532" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_task_count(self) -> int
@@ -304,13 +304,13 @@ Returns the number of tasks that will be executed to provision this resource.
 - The number of tasks to be provisioned.
 
 
-#### `next_steps` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/infrastructure/provisioners/ecs.py#L604" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `next_steps` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/infrastructure/provisioners/ecs.py#L603" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 next_steps(self) -> list[str]
 ```
 
-#### `provision` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/infrastructure/provisioners/ecs.py#L576" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `provision` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/infrastructure/provisioners/ecs.py#L575" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 provision(self, base_job_template: dict[str, Any], advance: Callable[[], None]) -> None
@@ -326,7 +326,7 @@ infrastructure for.
 - `advance`: A callback function to indicate progress.
 
 
-#### `requires_provisioning` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/infrastructure/provisioners/ecs.py#L542" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `requires_provisioning` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/infrastructure/provisioners/ecs.py#L541" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 requires_provisioning(self) -> bool
@@ -338,11 +338,11 @@ Check if this resource requires provisioning.
 - True if provisioning is required, False otherwise.
 
 
-### `VpcResource` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/infrastructure/provisioners/ecs.py#L608" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `VpcResource` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/infrastructure/provisioners/ecs.py#L607" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 **Methods:**
 
-#### `get_planned_actions` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/infrastructure/provisioners/ecs.py#L704" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get_planned_actions` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/infrastructure/provisioners/ecs.py#L703" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_planned_actions(self) -> List[str]
@@ -355,7 +355,7 @@ Returns a description of the planned actions for provisioning this resource.
 or None if provisioning is not required.
 
 
-#### `get_task_count` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/infrastructure/provisioners/ecs.py#L620" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get_task_count` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/infrastructure/provisioners/ecs.py#L619" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_task_count(self) -> int
@@ -367,13 +367,13 @@ Returns the number of tasks that will be executed to provision this resource.
 - The number of tasks to be provisioned.
 
 
-#### `next_steps` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/infrastructure/provisioners/ecs.py#L842" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `next_steps` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/infrastructure/provisioners/ecs.py#L841" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 next_steps(self) -> list[str]
 ```
 
-#### `provision` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/infrastructure/provisioners/ecs.py#L720" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `provision` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/infrastructure/provisioners/ecs.py#L719" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 provision(self, base_job_template: dict[str, Any], advance: Callable[[], None]) -> None
@@ -390,7 +390,7 @@ infrastructure for.
 - `advance`: A callback function to indicate progress.
 
 
-#### `requires_provisioning` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/infrastructure/provisioners/ecs.py#L683" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `requires_provisioning` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/infrastructure/provisioners/ecs.py#L682" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 requires_provisioning(self) -> bool
@@ -402,11 +402,11 @@ Check if this resource requires provisioning.
 - True if provisioning is required, False otherwise.
 
 
-### `ContainerRepositoryResource` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/infrastructure/provisioners/ecs.py#L846" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `ContainerRepositoryResource` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/infrastructure/provisioners/ecs.py#L845" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 **Methods:**
 
-#### `get_planned_actions` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/infrastructure/provisioners/ecs.py#L892" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get_planned_actions` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/infrastructure/provisioners/ecs.py#L891" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_planned_actions(self) -> List[str]
@@ -419,7 +419,7 @@ Returns a description of the planned actions for provisioning this resource.
 or None if provisioning is not required.
 
 
-#### `get_task_count` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/infrastructure/provisioners/ecs.py#L854" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get_task_count` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/infrastructure/provisioners/ecs.py#L853" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_task_count(self) -> int
@@ -431,13 +431,13 @@ Returns the number of tasks that will be executed to provision this resource.
 - The number of tasks to be provisioned.
 
 
-#### `next_steps` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/infrastructure/provisioners/ecs.py#L992" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `next_steps` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/infrastructure/provisioners/ecs.py#L991" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 next_steps(self) -> list[str | Panel]
 ```
 
-#### `provision` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/infrastructure/provisioners/ecs.py#L907" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `provision` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/infrastructure/provisioners/ecs.py#L906" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 provision(self, base_job_template: dict[str, Any], advance: Callable[[], None]) -> None
@@ -451,7 +451,7 @@ infrastructure for.
 - `advance`: A callback function to indicate progress.
 
 
-#### `requires_provisioning` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/infrastructure/provisioners/ecs.py#L875" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `requires_provisioning` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/infrastructure/provisioners/ecs.py#L874" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 requires_provisioning(self) -> bool
@@ -463,11 +463,11 @@ Check if this resource requires provisioning.
 - True if provisioning is required, False otherwise.
 
 
-### `ExecutionRoleResource` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/infrastructure/provisioners/ecs.py#L996" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `ExecutionRoleResource` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/infrastructure/provisioners/ecs.py#L995" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 **Methods:**
 
-#### `get_planned_actions` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/infrastructure/provisioners/ecs.py#L1043" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get_planned_actions` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/infrastructure/provisioners/ecs.py#L1042" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_planned_actions(self) -> List[str]
@@ -480,7 +480,7 @@ Returns a description of the planned actions for provisioning this resource.
 or None if provisioning is not required.
 
 
-#### `get_task_count` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/infrastructure/provisioners/ecs.py#L1014" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get_task_count` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/infrastructure/provisioners/ecs.py#L1013" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_task_count(self) -> int
@@ -492,13 +492,13 @@ Returns the number of tasks that will be executed to provision this resource.
 - The number of tasks to be provisioned.
 
 
-#### `next_steps` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/infrastructure/provisioners/ecs.py#L1101" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `next_steps` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/infrastructure/provisioners/ecs.py#L1100" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 next_steps(self) -> list[str]
 ```
 
-#### `provision` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/infrastructure/provisioners/ecs.py#L1058" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `provision` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/infrastructure/provisioners/ecs.py#L1057" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 provision(self, base_job_template: dict[str, Any], advance: Callable[[], None]) -> str
@@ -512,7 +512,7 @@ infrastructure for.
 - `advance`: A callback function to indicate progress.
 
 
-#### `requires_provisioning` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/infrastructure/provisioners/ecs.py#L1023" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `requires_provisioning` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/infrastructure/provisioners/ecs.py#L1022" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 requires_provisioning(self) -> bool
@@ -524,7 +524,7 @@ Check if this resource requires provisioning.
 - True if provisioning is required, False otherwise.
 
 
-### `ElasticContainerServicePushProvisioner` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/infrastructure/provisioners/ecs.py#L1105" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `ElasticContainerServicePushProvisioner` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/infrastructure/provisioners/ecs.py#L1104" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 An infrastructure provisioner for ECS push work pools.
@@ -532,19 +532,19 @@ An infrastructure provisioner for ECS push work pools.
 
 **Methods:**
 
-#### `console` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/infrastructure/provisioners/ecs.py#L1114" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `console` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/infrastructure/provisioners/ecs.py#L1113" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 console(self) -> Console
 ```
 
-#### `console` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/infrastructure/provisioners/ecs.py#L1118" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `console` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/infrastructure/provisioners/ecs.py#L1117" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 console(self, value: Console) -> None
 ```
 
-#### `is_boto3_installed` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/infrastructure/provisioners/ecs.py#L1127" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `is_boto3_installed` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/infrastructure/provisioners/ecs.py#L1126" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 is_boto3_installed() -> bool
@@ -553,7 +553,7 @@ is_boto3_installed() -> bool
 Check if boto3 is installed.
 
 
-#### `provision` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/infrastructure/provisioners/ecs.py#L1166" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `provision` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/infrastructure/provisioners/ecs.py#L1165" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 provision(self, work_pool_name: str, base_job_template: dict[str, Any]) -> dict[str, Any]

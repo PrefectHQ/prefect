@@ -69,13 +69,6 @@ async def cleanup_fn(logger: kopf.Logger, **kwargs: Any):
     logger.info("Clients successfully cleaned up")
 
 
-@kopf.on.event(
-    "pods",
-    labels={
-        "prefect.io/flow-run-id": kopf.PRESENT,
-        **settings.observer.additional_label_filters,
-    },
-)  # type: ignore
 async def _replicate_pod_event(  # pyright: ignore[reportUnusedFunction]
     event: kopf.RawEvent,
     uid: str,
@@ -150,7 +143,7 @@ async def _replicate_pod_event(  # pyright: ignore[reportUnusedFunction]
         response = await orchestration_client.request(
             "POST",
             "/events/filter",
-            json=event_filter.model_dump(exclude_unset=True, mode="json"),
+            json=dict(filter=event_filter.model_dump(exclude_unset=True, mode="json")),
         )
         # If the event already exists, we don't need to emit a new one.
         if response.json()["events"]:
@@ -191,6 +184,16 @@ async def _replicate_pod_event(  # pyright: ignore[reportUnusedFunction]
         raise RuntimeError("Events client not initialized")
     await events_client.emit(event=prefect_event)
     _last_event_cache[uid] = prefect_event
+
+
+if settings.observer.replicate_pod_events:
+    kopf.on.event(
+        "pods",
+        labels={
+            "prefect.io/flow-run-id": kopf.PRESENT,
+            **settings.observer.additional_label_filters,
+        },
+    )(_replicate_pod_event)  # type: ignore
 
 
 async def _get_kubernetes_client() -> ApiClient:
