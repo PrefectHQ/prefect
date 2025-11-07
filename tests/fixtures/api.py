@@ -1,4 +1,5 @@
 from typing import Any, AsyncGenerator, Awaitable, Callable, Coroutine, Dict
+from uuid import uuid4
 
 import httpx
 import pytest
@@ -7,6 +8,7 @@ from fastapi.testclient import TestClient
 from httpx import ASGITransport, AsyncClient
 
 from prefect.server.api.server import create_app
+from prefect.settings import PREFECT_SERVER_DOCKET_NAME, temporary_settings
 
 Message = Dict[str, Any]
 Receive = Callable[[], Awaitable[Message]]
@@ -16,7 +18,11 @@ ASGIApp = Callable[[Dict[str, Any], Receive, Send], Coroutine[None, None, None]]
 
 @pytest.fixture()
 def app() -> FastAPI:
-    return create_app(ephemeral=True)
+    # Use a unique Docket name for each test to avoid Redis key collisions
+    # when using memory:// backend (fakeredis) which shares a single FakeServer
+    unique_name = f"test-docket-{uuid4().hex[:8]}"
+    with temporary_settings({PREFECT_SERVER_DOCKET_NAME: unique_name}):
+        return create_app(ephemeral=True)
 
 
 @pytest.fixture

@@ -28,7 +28,10 @@ from prefect.server.schemas.actions import LogCreate
 from prefect.server.schemas.core import TaskRunResult
 from prefect.server.schemas.responses import FlowRunResponse, OrchestrationResult
 from prefect.server.schemas.states import StateType
-from prefect.settings import PREFECT_SERVER_CONCURRENCY_LEASE_STORAGE
+from prefect.settings import (
+    PREFECT_SERVER_CONCURRENCY_LEASE_STORAGE,
+    PREFECT_SERVER_DOCKET_NAME,
+)
 from prefect.settings.context import temporary_settings
 from prefect.states import (
     Completed,
@@ -2039,7 +2042,11 @@ class TestSetFlowRunState:
         def app(
             self, use_filesystem_lease_storage: None
         ) -> Generator[FastAPI, Any, None]:
-            yield create_app(ephemeral=True)
+            # Use a unique Docket name for each test to avoid Redis key collisions
+            # when using memory:// backend (fakeredis) which shares a single FakeServer
+            unique_name = f"test-docket-{uuid4().hex[:8]}"
+            with temporary_settings({PREFECT_SERVER_DOCKET_NAME: unique_name}):
+                yield create_app(ephemeral=True)
 
         @pytest.fixture
         async def client(self, app: FastAPI) -> AsyncGenerator[AsyncClient, Any]:

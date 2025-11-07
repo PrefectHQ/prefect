@@ -24,7 +24,10 @@ from prefect.server.models.concurrency_limits_v2 import (
 )
 from prefect.server.schemas.core import ConcurrencyLimitV2
 from prefect.server.utilities.leasing import ResourceLease
-from prefect.settings import PREFECT_SERVER_CONCURRENCY_LEASE_STORAGE
+from prefect.settings import (
+    PREFECT_SERVER_CONCURRENCY_LEASE_STORAGE,
+    PREFECT_SERVER_DOCKET_NAME,
+)
 from prefect.settings.context import temporary_settings
 
 
@@ -41,7 +44,11 @@ def use_filesystem_lease_storage():
 
 @pytest.fixture()
 def app(use_filesystem_lease_storage: None) -> Generator[FastAPI, Any, None]:
-    yield create_app(ephemeral=True)
+    # Use a unique Docket name for each test to avoid Redis key collisions
+    # when using memory:// backend (fakeredis) which shares a single FakeServer
+    unique_name = f"test-docket-{uuid.uuid4().hex[:8]}"
+    with temporary_settings({PREFECT_SERVER_DOCKET_NAME: unique_name}):
+        yield create_app(ephemeral=True)
 
 
 @pytest.fixture

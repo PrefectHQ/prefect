@@ -36,6 +36,7 @@ from prefect.settings import (
     PREFECT_SERVER_CORS_ALLOWED_HEADERS,
     PREFECT_SERVER_CORS_ALLOWED_METHODS,
     PREFECT_SERVER_CORS_ALLOWED_ORIGINS,
+    PREFECT_SERVER_DOCKET_NAME,
     temporary_settings,
 )
 
@@ -93,7 +94,10 @@ async def test_sqlite_database_locked_handler(errorname, ephemeral):
             Exception,
         )
 
-    app = create_app(ephemeral=ephemeral, ignore_cache=True)
+    with temporary_settings(
+        {PREFECT_SERVER_DOCKET_NAME: f"test-docket-{uuid4().hex[:8]}"}
+    ):
+        app = create_app(ephemeral=ephemeral, ignore_cache=True)
     app.api_app.add_api_route("/raise_busy_error", raise_busy_error)
     app.api_app.add_api_route("/raise_other_error", raise_other_error)
 
@@ -192,7 +196,10 @@ async def test_retryable_exception_handler(exc):
     async def raise_other_error():
         raise ValueError()
 
-    app = create_app(ephemeral=True, ignore_cache=True)
+    with temporary_settings(
+        {PREFECT_SERVER_DOCKET_NAME: f"test-docket-{uuid4().hex[:8]}"}
+    ):
+        app = create_app(ephemeral=True, ignore_cache=True)
     app.api_app.add_api_route("/raise_retryable_error", raise_retryable_error)
     app.api_app.add_api_route("/raise_other_error", raise_other_error)
 
