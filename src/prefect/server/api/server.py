@@ -46,6 +46,7 @@ import prefect
 import prefect.server.api as api
 import prefect.settings
 from prefect._internal.compatibility.starlette import status
+from prefect._internal.observability import configure_logfire
 from prefect.client.constants import SERVER_API_VERSION
 from prefect.logging import get_logger
 from prefect.server.api.background_workers import background_worker
@@ -66,18 +67,7 @@ from prefect.settings import (
 )
 from prefect.utilities.hashing import hash_objects
 
-if os.environ.get("PREFECT_LOGFIRE_ENABLED"):
-    import logfire  # pyright: ignore
-
-    token: str | None = os.environ.get("PREFECT_LOGFIRE_WRITE_TOKEN")
-    if token is None:
-        raise ValueError(
-            "PREFECT_LOGFIRE_WRITE_TOKEN must be set when PREFECT_LOGFIRE_ENABLED is true"
-        )
-
-    logfire.configure(token=token)  # pyright: ignore
-else:
-    logfire = None
+logfire: Any | None = configure_logfire()
 
 TITLE = "Prefect Server"
 API_TITLE = "Prefect Prefect REST API"
