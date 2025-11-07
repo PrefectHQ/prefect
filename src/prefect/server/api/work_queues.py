@@ -6,7 +6,6 @@ from typing import List, Optional
 from uuid import UUID
 
 from fastapi import (
-    BackgroundTasks,
     Body,
     Depends,
     Header,
@@ -131,7 +130,7 @@ async def read_work_queue(
 
 @router.post("/{id:uuid}/get_runs")
 async def read_work_queue_runs(
-    background_tasks: BackgroundTasks,
+    docket: dependencies.Docket,
     work_queue_id: UUID = Path(..., description="The work queue id", alias="id"),
     limit: int = dependencies.LimitBody(),
     scheduled_before: DateTime = Body(
@@ -162,18 +161,14 @@ async def read_work_queue_runs(
     if x_prefect_ui:
         return flow_runs
 
-    background_tasks.add_task(
-        mark_work_queues_ready,
-        db=db,
+    await docket.add(mark_work_queues_ready)(
         polled_work_queue_ids=[work_queue_id],
         ready_work_queue_ids=(
             [work_queue_id] if work_queue.status == WorkQueueStatus.NOT_READY else []
         ),
     )
 
-    background_tasks.add_task(
-        mark_deployments_ready,
-        db=db,
+    await docket.add(mark_deployments_ready)(
         work_queue_ids=[work_queue_id],
     )
 

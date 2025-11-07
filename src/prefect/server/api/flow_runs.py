@@ -10,8 +10,9 @@ from uuid import UUID
 
 import orjson
 import sqlalchemy as sa
+from docket import Depends as DocketDepends
+from docket import Retry
 from fastapi import (
-    BackgroundTasks,
     Body,
     Depends,
     HTTPException,
@@ -574,7 +575,7 @@ async def read_flow_runs(
 
 @router.delete("/{id:uuid}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_flow_run(
-    background_tasks: BackgroundTasks,
+    docket: dependencies.Docket,
     flow_run_id: UUID = Path(..., description="The flow run id", alias="id"),
     db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> None:
@@ -589,10 +590,15 @@ async def delete_flow_run(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Flow run not found"
         )
-    background_tasks.add_task(delete_flow_run_logs, db, flow_run_id)
+    await docket.add(delete_flow_run_logs)(flow_run_id=flow_run_id)
 
 
-async def delete_flow_run_logs(db: PrefectDBInterface, flow_run_id: UUID) -> None:
+async def delete_flow_run_logs(
+    *,
+    db: PrefectDBInterface = DocketDepends(provide_database_interface),
+    flow_run_id: UUID,
+    retry: Retry = Retry(attempts=5, delay=datetime.timedelta(seconds=0.5)),
+) -> None:
     async with db.session_context(begin_transaction=True) as session:
         await models.logs.delete_logs(
             session=session,

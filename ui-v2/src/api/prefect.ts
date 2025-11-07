@@ -9452,6 +9452,24 @@ export interface components {
             concurrency_slot_wait_seconds: number;
         };
         /**
+         * ServerDocketSettings
+         * @description Settings for controlling Docket behavior
+         */
+        ServerDocketSettings: {
+            /**
+             * Name
+             * @description The name of the Docket instance.
+             * @default prefect-server
+             */
+            name: string;
+            /**
+             * Url
+             * @description The URL of the Redis server to use for Docket.
+             * @default memory://
+             */
+            url: string;
+        };
+        /**
          * ServerEphemeralSettings
          * @description Settings for controlling ephemeral server behavior
          */
@@ -10011,6 +10029,8 @@ export interface components {
             database?: components["schemas"]["ServerDatabaseSettings"];
             /** @description Settings for controlling server deployments behavior */
             deployments?: components["schemas"]["ServerDeploymentsSettings"];
+            /** @description Settings for controlling server Docket behavior */
+            docket?: components["schemas"]["ServerDocketSettings"];
             ephemeral?: components["schemas"]["ServerEphemeralSettings"];
             /** @description Settings for controlling server events behavior */
             events?: components["schemas"]["ServerEventsSettings"];

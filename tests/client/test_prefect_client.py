@@ -86,6 +86,7 @@ from prefect.settings import (
     PREFECT_API_URL,
     PREFECT_CLIENT_CSRF_SUPPORT_ENABLED,
     PREFECT_CLOUD_API_URL,
+    PREFECT_SERVER_DOCKET_NAME,
     PREFECT_TESTING_UNIT_TEST_MODE,
     temporary_settings,
 )
@@ -534,7 +535,13 @@ class TestClientContextManager:
 
 @pytest.mark.parametrize("enabled", [True, False])
 async def test_client_runs_migrations_for_ephemeral_app_only_once(enabled, monkeypatch):
-    with temporary_settings(updates={PREFECT_API_DATABASE_MIGRATE_ON_START: enabled}):
+    unique_docket = f"test-docket-{uuid4().hex[:8]}"
+    with temporary_settings(
+        updates={
+            PREFECT_API_DATABASE_MIGRATE_ON_START: enabled,
+            PREFECT_SERVER_DOCKET_NAME: unique_docket,
+        }
+    ):
         # turn on lifespan for this test; it turns off after its run once per process
         monkeypatch.setattr(prefect.server.api.server, "LIFESPAN_RAN_FOR_APP", set())
 
@@ -560,11 +567,26 @@ async def test_client_runs_migrations_for_ephemeral_app_only_once(enabled, monke
 async def test_client_runs_migrations_for_two_different_ephemeral_apps(
     enabled, monkeypatch
 ):
-    with temporary_settings(updates={PREFECT_API_DATABASE_MIGRATE_ON_START: enabled}):
+    unique_docket_1 = f"test-docket-{uuid4().hex[:8]}"
+    unique_docket_2 = f"test-docket-{uuid4().hex[:8]}"
+
+    with temporary_settings(
+        updates={
+            PREFECT_API_DATABASE_MIGRATE_ON_START: enabled,
+            PREFECT_SERVER_DOCKET_NAME: unique_docket_1,
+        }
+    ):
         # turn on lifespan for this test; it turns off after its run once per process
         monkeypatch.setattr(prefect.server.api.server, "LIFESPAN_RAN_FOR_APP", set())
 
         app = create_app(ephemeral=True, ignore_cache=True)
+
+    with temporary_settings(
+        updates={
+            PREFECT_API_DATABASE_MIGRATE_ON_START: enabled,
+            PREFECT_SERVER_DOCKET_NAME: unique_docket_2,
+        }
+    ):
         app2 = create_app(ephemeral=True, ignore_cache=True)
 
         mock = AsyncMock()
@@ -2661,7 +2683,10 @@ async def test_server_error_does_not_raise_on_client():
     async def raise_error():
         raise ValueError("test")
 
-    app = create_app(ephemeral=True)
+    with temporary_settings(
+        {PREFECT_SERVER_DOCKET_NAME: f"test-docket-{uuid4().hex[:8]}"}
+    ):
+        app = create_app(ephemeral=True)
     app.api_app.add_api_route("/raise_error", raise_error)
 
     async with PrefectClient(
@@ -2672,7 +2697,10 @@ async def test_server_error_does_not_raise_on_client():
 
 
 async def test_prefect_client_follow_redirects():
-    app = create_app(ephemeral=True)
+    with temporary_settings(
+        {PREFECT_SERVER_DOCKET_NAME: f"test-docket-{uuid4().hex[:8]}"}
+    ):
+        app = create_app(ephemeral=True)
 
     httpx_settings = {"follow_redirects": True}
     async with PrefectClient(api=app, httpx_settings=httpx_settings) as client:
