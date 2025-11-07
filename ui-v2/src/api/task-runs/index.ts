@@ -11,6 +11,25 @@ export type TaskRun = components["schemas"]["UITaskRun"];
 export type TaskRunsFilter =
 	components["schemas"]["Body_read_task_runs_task_runs_filter_post"];
 
+export type TaskRunsCountFilter = {
+	flows?: components["schemas"]["FlowFilter"];
+	flow_runs?: components["schemas"]["FlowRunFilter"];
+	task_runs?: components["schemas"]["TaskRunFilter"];
+	deployments?: components["schemas"]["DeploymentFilter"];
+};
+
+export type TaskRunsHistoryFilter = {
+	history_start: string;
+	history_end: string;
+	history_interval_seconds: number;
+	flows?: components["schemas"]["FlowFilter"];
+	flow_runs?: components["schemas"]["FlowRunFilter"];
+	task_runs?: components["schemas"]["TaskRunFilter"];
+	deployments?: components["schemas"]["DeploymentFilter"];
+};
+
+export type HistoryResponse = components["schemas"]["HistoryResponse"];
+
 type SetTaskRunStateBody =
 	components["schemas"]["Body_set_task_run_state_task_runs__id__set_state_post"];
 
@@ -25,7 +44,9 @@ type SetTaskRunStateParams = {
  * @property {function} lists - Returns key for all list-type task run queries
  * @property {function} list - Generates key for a specific filtered task run query
  * @property {function} counts - Returns key for all count-type task run queries
+ * @property {function} count - Generates key for a specific count task run query
  * @property {function} flowRunsCount - Generates key for a specific flow run count task run query
+ * @property {function} history - Generates key for a specific history task run query
  * @property {function} details - Returns key for all details-type task run queries
  * @property {function} detail - Generates key for a specific details-type task run query
  *
@@ -34,7 +55,9 @@ type SetTaskRunStateParams = {
  * lists		=>   ['taskRuns', 'list']
  * list			=>   ['taskRuns', 'list', { ...filter }]
  * counts		=>   ['taskRuns', 'count']
+ * count		=>   ['taskRuns', 'count', { ...filter }]
  * flowRunsCount	=>   ['taskRuns', 'count', 'flow-runs', ["id-0", "id-1"]]
+ * history		=>   ['taskRuns', 'history', { ...filter }]
  * details		=>   ['taskRuns', 'details']
  * detail		=>   ['taskRuns', 'details', id]
  * ```
@@ -45,11 +68,15 @@ export const queryKeyFactory = {
 	list: (filter: TaskRunsFilter) =>
 		[...queryKeyFactory.lists(), filter] as const,
 	counts: () => [...queryKeyFactory.all(), "count"] as const,
+	count: (filter: TaskRunsCountFilter) =>
+		[...queryKeyFactory.counts(), filter] as const,
 	flowRunsCount: (flowRunIds: Array<string>) => [
 		...queryKeyFactory.counts(),
 		"flow-runs",
 		flowRunIds,
 	],
+	history: (filter: TaskRunsHistoryFilter) =>
+		[...queryKeyFactory.all(), "history", filter] as const,
 	details: () => [...queryKeyFactory.all(), "details"] as const,
 	detail: (id: string) => [...queryKeyFactory.details(), id] as const,
 };
@@ -114,6 +141,75 @@ export const buildGetFlowRunsTaskRunsCountQuery = (
 			);
 			return res.data ?? {};
 		},
+	});
+};
+
+/**
+ * Builds a query configuration for counting task runs with filters
+ *
+ * @param filter - Filter parameters for the task runs count query
+ * @param refetchInterval - Interval in milliseconds to refetch the data (default: 30000)
+ * @returns Query configuration object for use with TanStack Query
+ *
+ * @example
+ * ```ts
+ * const { data } = useQuery(buildCountTaskRunsQuery({
+ *   task_runs: {
+ *     state: { type: { any_: ["COMPLETED"] } }
+ *   }
+ * }));
+ * ```
+ */
+export const buildCountTaskRunsQuery = (
+	filter: TaskRunsCountFilter = {},
+	refetchInterval = 30_000,
+) => {
+	return queryOptions({
+		queryKey: queryKeyFactory.count(filter),
+		queryFn: async () => {
+			const res = await getQueryService().POST("/task_runs/count", {
+				body: filter,
+			});
+			return res.data ?? 0;
+		},
+		staleTime: 1000,
+		refetchInterval,
+	});
+};
+
+/**
+ * Builds a query configuration for fetching task run history data
+ *
+ * @param filter - History filter parameters including time range and interval
+ * @param refetchInterval - Interval in milliseconds to refetch the data (default: 30000)
+ * @returns Query configuration object for use with TanStack Query
+ *
+ * @example
+ * ```ts
+ * const { data } = useQuery(buildGetTaskRunsHistoryQuery({
+ *   history_start: "2024-01-01T00:00:00Z",
+ *   history_end: "2024-01-02T00:00:00Z",
+ *   history_interval_seconds: 3600,
+ *   task_runs: {
+ *     state: { type: { any_: ["COMPLETED", "FAILED"] } }
+ *   }
+ * }));
+ * ```
+ */
+export const buildGetTaskRunsHistoryQuery = (
+	filter: TaskRunsHistoryFilter,
+	refetchInterval = 30_000,
+) => {
+	return queryOptions({
+		queryKey: queryKeyFactory.history(filter),
+		queryFn: async () => {
+			const res = await getQueryService().POST("/task_runs/history", {
+				body: filter,
+			});
+			return res.data ?? [];
+		},
+		staleTime: 1000,
+		refetchInterval,
 	});
 };
 
