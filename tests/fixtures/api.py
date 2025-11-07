@@ -1,15 +1,14 @@
-import uuid
 from typing import Any, AsyncGenerator, Awaitable, Callable, Coroutine, Dict
 
 import httpx
 import pytest
+from docket import Docket
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from httpx import ASGITransport, AsyncClient
 
 from prefect.client.base import app_lifespan_context
 from prefect.server.api.server import create_app
-from prefect.settings import PREFECT_SERVER_DOCKET_NAME, temporary_settings
 
 Message = Dict[str, Any]
 Receive = Callable[[], Awaitable[Message]]
@@ -34,14 +33,11 @@ async def client(app: FastAPI) -> AsyncGenerator[AsyncClient, Any]:
     """
     # Manually enter the app's lifespan since ASGITransport doesn't trigger it
     # We need to enter both the parent app's lifespan and the mounted api_app's lifespan
-    with temporary_settings(
-        updates={PREFECT_SERVER_DOCKET_NAME: f"test-docket-{uuid.uuid4()}"}
-    ):
-        async with app_lifespan_context(app):
-            async with httpx.AsyncClient(
-                transport=ASGITransport(app=app), base_url="https://test/api"
-            ) as async_client:
-                yield async_client
+    async with app_lifespan_context(app):
+        async with httpx.AsyncClient(
+            transport=ASGITransport(app=app), base_url="https://test/api"
+        ) as async_client:
+            yield async_client
 
 
 @pytest.fixture
@@ -84,3 +80,29 @@ async def client_without_exceptions(app: ASGIApp) -> AsyncGenerator[AsyncClient,
         transport=transport, base_url="https://test/api"
     ) as async_client:
         yield async_client
+
+
+@pytest.fixture(autouse=True)
+async def clear_docket_fakeredis():
+    """
+    Clear the shared FakeServer state between tests to prevent state leakage.
+
+    The Docket library uses a shared FakeServer instance for all memory:// URLs,
+    which can cause key conflicts between tests if not cleared.
+    """
+    yield
+    # Clear the FakeServer state after each test
+    try:
+        if hasattr(Docket, "_memory_server"):
+            from fakeredis.aioredis import FakeConnection
+            from redis.asyncio import ConnectionPool, Redis
+
+            server = Docket._memory_server
+            # Create a connection pool and Redis client for the FakeServer
+            pool = ConnectionPool(connection_class=FakeConnection, server=server)
+            async with Redis(connection_pool=pool) as redis_client:
+                await redis_client.flushall()
+            await pool.disconnect()
+    except (ImportError, AttributeError):
+        # docket or fakeredis not available, skip cleanup
+        pass
