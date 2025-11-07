@@ -7,6 +7,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from httpx import ASGITransport, AsyncClient
 
+from prefect.client.base import app_lifespan_context
 from prefect.server.api.server import create_app
 from prefect.settings import PREFECT_SERVER_DOCKET_NAME, temporary_settings
 
@@ -31,14 +32,15 @@ def test_client(app: FastAPI) -> TestClient:
 
 
 @pytest.fixture
-async def client(app) -> AsyncGenerator[AsyncClient, Any]:
+async def client(app: FastAPI) -> AsyncGenerator[AsyncClient, Any]:
     """
     Yield a test client for testing the api
     """
-    async with httpx.AsyncClient(
-        transport=ASGITransport(app=app), base_url="https://test/api"
-    ) as async_client:
-        yield async_client
+    async with app_lifespan_context(app):
+        async with httpx.AsyncClient(
+            transport=ASGITransport(app=app), base_url="https://test/api"
+        ) as async_client:
+            yield async_client
 
 
 @pytest.fixture

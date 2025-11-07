@@ -7,6 +7,7 @@ import sqlalchemy as sa
 from httpx._client import AsyncClient
 from starlette import status
 
+from prefect._internal.testing import retry_assert
 from prefect.client.schemas.responses import DeploymentResponse
 from prefect.server import models, schemas
 from prefect.server.database.orm_models import Flow
@@ -2673,7 +2674,9 @@ class TestGetScheduledFlowRuns:
             str(flow_run.id) for flow_run in flow_runs[:2]
         }
 
-        assert_status_events(deployment_1.name, ["prefect.deployment.ready"])
+        async for attempt in retry_assert(max_attempts=10, delay=0.5):
+            with attempt:
+                assert_status_events(deployment_1.name, ["prefect.deployment.ready"])
 
     async def test_get_scheduled_runs_for_multiple_deployments(
         self,
