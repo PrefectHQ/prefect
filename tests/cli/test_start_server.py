@@ -200,7 +200,7 @@ class TestMultipleWorkerServer:
             )
 
             api_url = f"http://127.0.0.1:{unused_tcp_port}/api"
-            # Multi-worker servers take longer to start, use 60s timeout (was 30s)
+            # Multi-worker servers take longer to start, use 60s timeout
             # to reduce flakiness in CI environments
             try:
                 await wait_for_server(api_url, timeout=60)
@@ -222,7 +222,7 @@ class TestMultipleWorkerServer:
                 )  # Give workers extra time to start up in CI environments
 
             pids = set()
-            for attempt in range(10):  # Increased from 5 to 10 retries
+            for _ in range(10):
                 async with httpx.AsyncClient() as client:
                     tasks = [fetch_pid(client, api_url) for _ in range(100)]
                     results = await asyncio.gather(*tasks)
