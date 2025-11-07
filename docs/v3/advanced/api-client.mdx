@@ -414,16 +414,12 @@ async def query_recent_events():
         # get first page
         page = await client.read_events(filter=event_filter, limit=10)
         print(f"Total events: {page.total}")
-        print(f"Events on this page: {len(page.events)}")
 
-        for event in page.events:
-            print(f"{event.occurred} - {event.event}")
-
-        # iterate through remaining pages
-        while page.next_page:
-            page = await client.read_events_page(page.next_page)
+        # iterate through all pages
+        while page:
             for event in page.events:
                 print(f"{event.occurred} - {event.event}")
+            page = await page.get_next_page(client)
 ```
 
 <Accordion title="View the complete example">
@@ -457,9 +453,9 @@ async def query_recent_events():
         print()
 
         # if there are more pages, fetch the next one
-        if event_page.next_page:
+        second_page = await event_page.get_next_page(client)
+        if second_page:
             print("=== second page ===")
-            second_page = await client.read_events_page(event_page.next_page)
             print(f"events on this page: {len(second_page.events)}")
             for event in second_page.events:
                 print(f"  {event.occurred} - {event.event}")
@@ -469,13 +465,12 @@ async def query_recent_events():
         print("=== collecting all events ===")
         all_events = []
         page = await client.read_events(filter=event_filter, limit=5)
-        all_events.extend(page.events)
 
-        page_count = 1
-        while page.next_page:
-            page = await client.read_events_page(page.next_page)
+        page_count = 0
+        while page:
             all_events.extend(page.events)
             page_count += 1
+            page = await page.get_next_page(client)
 
         print(f"collected {len(all_events)} events across {page_count} pages")
 

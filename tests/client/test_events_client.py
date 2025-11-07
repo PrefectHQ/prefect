@@ -74,6 +74,22 @@ class TestReadEventsAsync:
                 assert second_page.total is not None
                 assert isinstance(second_page.total, int)
 
+    async def test_get_next_page(self, prefect_client: "PrefectTestHarness") -> None:
+        """test using EventPage.get_next_page() method"""
+        async with get_client() as client:
+            # get first page with small limit
+            first_page = await client.read_events(limit=5)
+
+            # fetch next page using the method on EventPage
+            second_page = await first_page.get_next_page(client)
+
+            if second_page:
+                # verify we got events
+                assert second_page.events is not None
+                assert isinstance(second_page.events, list)
+                assert second_page.total is not None
+                assert isinstance(second_page.total, int)
+
 
 class TestReadEventsSync:
     def test_read_events_with_filter(
@@ -134,6 +150,24 @@ class TestReadEventsSync:
             if first_page.next_page:
                 second_page = client.read_events_page(first_page.next_page)
 
+                # verify we got events
+                assert second_page.events is not None
+                assert isinstance(second_page.events, list)
+                assert second_page.total is not None
+                assert isinstance(second_page.total, int)
+
+    def test_get_next_page_sync(
+        self, sync_prefect_client: "PrefectTestHarness"
+    ) -> None:
+        """test using EventPage.get_next_page_sync() method"""
+        with get_client(sync_client=True) as client:
+            # get first page with small limit
+            first_page = client.read_events(limit=5)
+
+            # fetch next page using the method on EventPage
+            second_page = first_page.get_next_page_sync(client)
+
+            if second_page:
                 # verify we got events
                 assert second_page.events is not None
                 assert isinstance(second_page.events, list)
