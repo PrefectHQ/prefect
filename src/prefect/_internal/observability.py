@@ -2,8 +2,6 @@
 internal module for configuring observability tooling (logfire, etc.)
 """
 
-from __future__ import annotations
-
 from typing import Any
 
 from pydantic import Field
