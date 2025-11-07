@@ -1278,9 +1278,9 @@ class TestReadFlowRunGraph:
 
 
 class TestDeleteFlowRuns:
-    async def test_delete_flow_runs(self, flow_run, client, session):
+    async def test_delete_flow_runs(self, flow_run, hosted_api_client, session):
         # delete the flow run
-        response = await client.delete(f"/flow_runs/{flow_run.id}")
+        response = await hosted_api_client.delete(f"/flow_runs/{flow_run.id}")
         assert response.status_code == 204, response.text
 
         # make sure it's deleted (first grab its ID)
@@ -1291,11 +1291,13 @@ class TestDeleteFlowRuns:
             session=session, flow_run_id=flow_run_id
         )
         assert run is None
-        response = await client.get(f"/flow_runs/{flow_run_id}")
+        response = await hosted_api_client.get(f"/flow_runs/{flow_run_id}")
         assert response.status_code == status.HTTP_404_NOT_FOUND, response.text
 
-    async def test_delete_flow_run_returns_404_if_does_not_exist(self, client):
-        response = await client.delete(f"/flow_runs/{uuid4()}")
+    async def test_delete_flow_run_returns_404_if_does_not_exist(
+        self, hosted_api_client
+    ):
+        response = await hosted_api_client.delete(f"/flow_runs/{uuid4()}")
         assert response.status_code == status.HTTP_404_NOT_FOUND, response.text
 
     @pytest.mark.parametrize(
@@ -1313,7 +1315,7 @@ class TestDeleteFlowRuns:
     )
     async def test_delete_flow_run_releases_concurrency_slots(
         self,
-        client,
+        hosted_api_client,
         session,
         flow,
         deployment_with_concurrency_limit,
@@ -1350,19 +1352,21 @@ class TestDeleteFlowRuns:
         assert concurrency_limit.active_slots == 1
 
         # delete the flow run
-        response = await client.delete(f"/flow_runs/{flow_run.id}")
+        response = await hosted_api_client.delete(f"/flow_runs/{flow_run.id}")
         assert response.status_code == 204, response.text
 
         await session.refresh(concurrency_limit)
         assert concurrency_limit.active_slots == expected_slots
 
-    async def test_delete_flow_run_deletes_logs(self, flow_run, logs, client, session):
+    async def test_delete_flow_run_deletes_logs(
+        self, flow_run, logs, hosted_api_client, session
+    ):
         # make sure we have flow run logs
         flow_run_logs = [log for log in logs if log.flow_run_id is not None]
         assert len(flow_run_logs) > 0
 
         # delete the flow run
-        response = await client.delete(f"/flow_runs/{flow_run.id}")
+        response = await hosted_api_client.delete(f"/flow_runs/{flow_run.id}")
         assert response.status_code == status.HTTP_204_NO_CONTENT, response.text
 
         async def read_logs():
