@@ -28,39 +28,25 @@ class LogfireSettings(BaseSettings):
         description="API token for writing to logfire. required when enabled=true.",
     )
 
-
-class LogfireSamplingSettings(BaseSettings):
-    """
-    configuration for logfire sampling behavior.
-
-    these settings control how many traces/spans are sent to logfire,
-    helping manage costs while preserving important signals.
-    """
-
-    model_config = SettingsConfigDict(
-        env_prefix="PREFECT_LOGFIRE_SAMPLING_",
-        extra="ignore",
-    )
-
-    head_rate: float = Field(
+    sampling_head_rate: float = Field(
         default=0.1,
         ge=0.0,
         le=1.0,
         description="fraction of traces to sample upfront (0.0-1.0). reduces total volume.",
     )
 
-    level_threshold: str = Field(
+    sampling_level_threshold: str = Field(
         default="warn",
         description="minimum log level to always include (debug, info, warn, error). keeps all warnings/errors.",
     )
 
-    duration_threshold: float = Field(
+    sampling_duration_threshold: float = Field(
         default=5.0,
         ge=0.0,
         description="minimum duration in seconds to always include. catches slow operations.",
     )
 
-    background_rate: float = Field(
+    sampling_background_rate: float = Field(
         default=0.01,
         ge=0.0,
         le=1.0,
@@ -99,15 +85,12 @@ def configure_logfire() -> Any | None:
             "logfire is not installed. install it with: uv add logfire"
         ) from exc
 
-    # load sampling config from env vars with defaults
-    sampling_settings = LogfireSamplingSettings()
-
     # build sampling options
     sampling_options = logfire.SamplingOptions.level_or_duration(
-        head=sampling_settings.head_rate,
-        level_threshold=sampling_settings.level_threshold,
-        duration_threshold=sampling_settings.duration_threshold,
-        background_rate=sampling_settings.background_rate,
+        head=settings.sampling_head_rate,
+        level_threshold=settings.sampling_level_threshold,
+        duration_threshold=settings.sampling_duration_threshold,
+        background_rate=settings.sampling_background_rate,
     )
 
     logfire.configure(token=settings.write_token, sampling=sampling_options)  # pyright: ignore
