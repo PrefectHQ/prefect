@@ -36,11 +36,10 @@ async def client(app: FastAPI) -> AsyncGenerator[AsyncClient, Any]:
     """
     Yield a test client for testing the api
     """
-    async with app_lifespan_context(app):
-        async with httpx.AsyncClient(
-            transport=ASGITransport(app=app), base_url="https://test/api"
-        ) as async_client:
-            yield async_client
+    async with httpx.AsyncClient(
+        transport=ASGITransport(app=app), base_url="https://test/api"
+    ) as async_client:
+        yield async_client
 
 
 @pytest.fixture
@@ -52,6 +51,23 @@ def sync_client(app: FastAPI) -> TestClient:
 async def hosted_api_client(use_hosted_api_server) -> AsyncGenerator[AsyncClient, Any]:
     async with httpx.AsyncClient(base_url=use_hosted_api_server) as async_client:
         yield async_client
+
+
+@pytest.fixture
+async def ephemeral_client_with_lifespan(
+    app: FastAPI,
+) -> AsyncGenerator[AsyncClient, Any]:
+    """
+    Yield a test client for testing the api with a lifespan context.
+
+    Ensures that Docket is set up for background tests. Only needed if you are mocking or using the
+    AssertingEventsClient. Otherwise, use the `hosted_api_client` fixture.
+    """
+    async with app_lifespan_context(app):
+        async with httpx.AsyncClient(
+            transport=ASGITransport(app=app), base_url="https://test/api"
+        ) as async_client:
+            yield async_client
 
 
 @pytest.fixture
