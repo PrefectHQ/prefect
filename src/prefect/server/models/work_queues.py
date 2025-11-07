@@ -17,13 +17,19 @@ from typing import (
 from uuid import UUID
 
 import sqlalchemy as sa
+from docket import Depends, Retry
 from pydantic import TypeAdapter
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 import prefect.server.models as models
 import prefect.server.schemas as schemas
-from prefect.server.database import PrefectDBInterface, db_injector, orm_models
+from prefect.server.database import (
+    PrefectDBInterface,
+    db_injector,
+    orm_models,
+    provide_database_interface,
+)
 from prefect.server.events.clients import PrefectServerEventsClient
 from prefect.server.exceptions import ObjectNotFoundError
 from prefect.server.models.events import work_queue_status_event
@@ -534,9 +540,11 @@ async def record_work_queue_polls(
 
 
 async def mark_work_queues_ready(
-    db: PrefectDBInterface,
+    *,
+    db: PrefectDBInterface = Depends(provide_database_interface),
     polled_work_queue_ids: Sequence[UUID],
     ready_work_queue_ids: Sequence[UUID],
+    retry: Retry = Retry(attempts=5, delay=datetime.timedelta(seconds=0.5)),
 ) -> None:
     async with db.session_context(begin_transaction=True) as session:
         await record_work_queue_polls(
