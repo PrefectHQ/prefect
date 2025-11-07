@@ -27,7 +27,7 @@ class AssertionRetryAttempt:
         return exc_type is AssertionError
 
 
-async def retry_assert(
+async def retry_asserts(
     max_attempts: int = 3,
     delay: float = 1.0,
 ) -> AsyncIterator[AssertionRetryAttempt]:
@@ -49,7 +49,7 @@ async def retry_assert(
 
     Example:
         ```python
-        async for attempt in retry_assert(max_attempts=3):
+        async for attempt in retry_asserts(max_attempts=3):
             with attempt:
                 for deployment in deployments:
                     await session.refresh(deployment)

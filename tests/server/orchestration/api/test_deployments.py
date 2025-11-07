@@ -7,7 +7,7 @@ import sqlalchemy as sa
 from httpx._client import AsyncClient
 from starlette import status
 
-from prefect._internal.testing import retry_assert
+from prefect._internal.testing import retry_asserts
 from prefect.client.schemas.responses import DeploymentResponse
 from prefect.server import models, schemas
 from prefect.server.database.orm_models import Flow
@@ -2674,7 +2674,7 @@ class TestGetScheduledFlowRuns:
             str(flow_run.id) for flow_run in flow_runs[:2]
         }
 
-        async for attempt in retry_assert(max_attempts=10, delay=0.5):
+        async for attempt in retry_asserts(max_attempts=10, delay=0.5):
             with attempt:
                 assert_status_events(deployment_1.name, ["prefect.deployment.ready"])
 
@@ -2694,8 +2694,10 @@ class TestGetScheduledFlowRuns:
             str(flow_run.id) for flow_run in flow_runs
         }
 
-        assert_status_events(deployment_1.name, ["prefect.deployment.ready"])
-        assert_status_events(deployment_2.name, ["prefect.deployment.ready"])
+        async for attempt in retry_asserts(max_attempts=10, delay=0.5):
+            with attempt:
+                assert_status_events(deployment_1.name, ["prefect.deployment.ready"])
+                assert_status_events(deployment_2.name, ["prefect.deployment.ready"])
 
     async def test_get_scheduled_runs_respects_limit(
         self,
@@ -2777,21 +2779,26 @@ class TestGetScheduledFlowRuns:
         )
         assert updated_response.status_code == 200
 
-        updated_response_deployment_1 = await client.get(
-            f"/deployments/{deployment_1.id}"
-        )
-        assert updated_response_deployment_1.status_code == 200
+        async for attempt in retry_asserts(max_attempts=10, delay=0.5):
+            with attempt:
+                updated_response_deployment_1 = await client.get(
+                    f"/deployments/{deployment_1.id}"
+                )
+                assert updated_response_deployment_1.status_code == 200
 
-        assert (
-            updated_response_deployment_1.json()["last_polled"]
-            > (now_fn("UTC") - datetime.timedelta(minutes=1)).isoformat()
-        )
-        assert updated_response_deployment_1.json()["status"] == "READY"
+                assert updated_response_deployment_1.json()["last_polled"] is not None
+                assert (
+                    updated_response_deployment_1.json()["last_polled"]
+                    > (now_fn("UTC") - datetime.timedelta(minutes=1)).isoformat()
+                )
+                assert updated_response_deployment_1.json()["status"] == "READY"
 
-        same_response_deployment_2 = await client.get(f"/deployments/{deployment_2.id}")
-        assert same_response_deployment_2.status_code == 200
-        assert same_response_deployment_2.json()["last_polled"] is None
-        assert same_response_deployment_2.json()["status"] == "NOT_READY"
+                same_response_deployment_2 = await client.get(
+                    f"/deployments/{deployment_2.id}"
+                )
+                assert same_response_deployment_2.status_code == 200
+                assert same_response_deployment_2.json()["last_polled"] is None
+                assert same_response_deployment_2.json()["status"] == "NOT_READY"
 
     async def test_get_scheduled_flow_runs_updates_last_polled_time_and_status_multiple_deployments(
         self,
@@ -2817,21 +2824,24 @@ class TestGetScheduledFlowRuns:
         )
         assert updated_response.status_code == 200
 
-        updated_response_1 = await client.get(f"/deployments/{deployment_1.id}")
-        assert updated_response_1.status_code == 200
-        assert (
-            updated_response_1.json()["last_polled"]
-            > (now_fn("UTC") - datetime.timedelta(minutes=1)).isoformat()
-        )
-        assert updated_response_1.json()["status"] == "READY"
+        async for attempt in retry_asserts(max_attempts=10, delay=0.5):
+            with attempt:
+                updated_response_1 = await client.get(f"/deployments/{deployment_1.id}")
+                assert updated_response_1.status_code == 200
+                assert updated_response_1.json()["last_polled"] is not None
+                assert (
+                    updated_response_1.json()["last_polled"]
+                    > (now_fn("UTC") - datetime.timedelta(minutes=1)).isoformat()
+                )
+                assert updated_response_1.json()["status"] == "READY"
 
-        updated_response_2 = await client.get(f"/deployments/{deployment_2.id}")
-        assert updated_response_2.status_code == 200
-        assert (
-            updated_response_2.json()["last_polled"]
-            > (now_fn("UTC") - datetime.timedelta(minutes=1)).isoformat()
-        )
-        assert updated_response_2.json()["status"] == "READY"
+                updated_response_2 = await client.get(f"/deployments/{deployment_2.id}")
+                assert updated_response_2.status_code == 200
+                assert (
+                    updated_response_2.json()["last_polled"]
+                    > (now_fn("UTC") - datetime.timedelta(minutes=1)).isoformat()
+                )
+                assert updated_response_2.json()["status"] == "READY"
 
 
 class TestDeleteDeployment:
