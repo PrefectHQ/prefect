@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import os
 import sqlite3
 import ssl
 import traceback
@@ -26,6 +25,7 @@ from sqlalchemy.ext.asyncio import (
 from sqlalchemy.pool import ConnectionPoolEntry
 from typing_extensions import TypeAlias
 
+from prefect._internal.observability import configure_logfire
 from prefect.settings import (
     PREFECT_API_DATABASE_CONNECTION_TIMEOUT,
     PREFECT_API_DATABASE_ECHO,
@@ -35,18 +35,7 @@ from prefect.settings import (
 )
 from prefect.utilities.asyncutils import add_event_loop_shutdown_callback
 
-if os.getenv("PREFECT_LOGFIRE_ENABLED"):
-    import logfire  # pyright: ignore
-
-    token: str | None = os.getenv("PREFECT_LOGFIRE_WRITE_TOKEN")
-    if token is None:
-        raise ValueError(
-            "PREFECT_LOGFIRE_WRITE_TOKEN must be set when PREFECT_LOGFIRE_ENABLED is true"
-        )
-
-    logfire.configure(token=token)  # pyright: ignore
-else:
-    logfire = None
+logfire: Any | None = configure_logfire()
 
 SQLITE_BEGIN_MODE: ContextVar[Optional[str]] = ContextVar(  # novm
     "SQLITE_BEGIN_MODE", default=None
