@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 from datetime import timedelta
 from typing import TYPE_CHECKING
 
@@ -11,9 +9,9 @@ if TYPE_CHECKING:
     from prefect.testing.utilities import PrefectTestHarness
 
 
-class TestReadEvents:
+class TestReadEventsAsync:
     async def test_read_events_with_filter(
-        self, prefect_client: PrefectTestHarness
+        self, prefect_client: "PrefectTestHarness"
     ) -> None:
         """test querying events with a filter"""
         async with get_client() as client:
@@ -36,7 +34,7 @@ class TestReadEvents:
             assert isinstance(result.total, int)
 
     async def test_read_events_without_filter(
-        self, prefect_client: PrefectTestHarness
+        self, prefect_client: "PrefectTestHarness"
     ) -> None:
         """test querying events without a filter"""
         async with get_client() as client:
@@ -50,12 +48,62 @@ class TestReadEvents:
             assert isinstance(result.total, int)
 
     async def test_read_events_respects_limit(
-        self, prefect_client: PrefectTestHarness
+        self, prefect_client: "PrefectTestHarness"
     ) -> None:
         """test that limit parameter is respected"""
         async with get_client() as client:
             limit = 3
             result = await client.read_events(limit=limit)
+
+            # verify we don't get more than limit
+            assert len(result.events) <= limit
+
+
+class TestReadEventsSync:
+    def test_read_events_with_filter(
+        self, sync_prefect_client: "PrefectTestHarness"
+    ) -> None:
+        """test querying events with a filter using sync client"""
+        with get_client(sync_client=True) as client:
+            # create a filter for recent events
+            now = prefect.types._datetime.now("UTC")
+            event_filter = EventFilter(
+                occurred=EventOccurredFilter(
+                    since=now - timedelta(days=1),
+                    until=now,
+                )
+            )
+
+            # query events
+            result = client.read_events(filter=event_filter, limit=10)
+
+            # verify response structure
+            assert result.events is not None
+            assert isinstance(result.events, list)
+            assert result.total is not None
+            assert isinstance(result.total, int)
+
+    def test_read_events_without_filter(
+        self, sync_prefect_client: "PrefectTestHarness"
+    ) -> None:
+        """test querying events without a filter using sync client"""
+        with get_client(sync_client=True) as client:
+            # query events without filter
+            result = client.read_events(limit=5)
+
+            # verify response structure
+            assert result.events is not None
+            assert isinstance(result.events, list)
+            assert result.total is not None
+            assert isinstance(result.total, int)
+
+    def test_read_events_respects_limit(
+        self, sync_prefect_client: "PrefectTestHarness"
+    ) -> None:
+        """test that limit parameter is respected using sync client"""
+        with get_client(sync_client=True) as client:
+            limit = 3
+            result = client.read_events(limit=limit)
 
             # verify we don't get more than limit
             assert len(result.events) <= limit
