@@ -1,7 +1,6 @@
 """
 Defines the Prefect REST API FastAPI app.
 """
-# test change to trigger hooks
 
 from __future__ import annotations
 
@@ -31,6 +30,7 @@ import httpx
 import sqlalchemy as sa
 import sqlalchemy.exc
 import sqlalchemy.orm.exc
+from docket import Docket
 from fastapi import Depends, FastAPI, Request, Response
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
@@ -49,6 +49,7 @@ from prefect._internal.compatibility.starlette import status
 from prefect._internal.observability import configure_logfire
 from prefect.client.constants import SERVER_API_VERSION
 from prefect.logging import get_logger
+from prefect.server.api.background_workers import background_worker
 from prefect.server.api.dependencies import EnforceMinimumAPIVersion
 from prefect.server.exceptions import ObjectNotFoundError
 from prefect.server.services.base import RunInEphemeralServers, RunInWebservers, Service
@@ -686,6 +687,11 @@ def create_app(
         )
 
         async with AsyncExitStack() as stack:
+            docket = await stack.enter_async_context(
+                Docket(name=settings.server.docket.name, url=settings.server.docket.url)
+            )
+            await stack.enter_async_context(background_worker(docket))
+            api_app.state.docket = docket
             if Services:
                 await stack.enter_async_context(Services.running())
             LIFESPAN_RAN_FOR_APP.add(app)
