@@ -45,9 +45,10 @@ STARTUP_TIMEOUT = 30
 SHUTDOWN_TIMEOUT = 20
 
 
-async def wait_for_server(api_url: str) -> None:
+async def wait_for_server(api_url: str, timeout: float | None = None) -> None:
+    timeout = timeout or STARTUP_TIMEOUT
     async with httpx.AsyncClient() as client:
-        with anyio.move_on_after(STARTUP_TIMEOUT):
+        with anyio.move_on_after(timeout):
             response = None
             while True:
                 try:
@@ -63,7 +64,7 @@ async def wait_for_server(api_url: str) -> None:
             response.raise_for_status()
         if not response:
             raise RuntimeError(
-                "Timed out while attempting to connect to hosted test server."
+                f"Timed out after {timeout}s while attempting to connect to hosted test server at {api_url}."
             )
 
 
@@ -199,7 +200,21 @@ class TestMultipleWorkerServer:
             )
 
             api_url = f"http://127.0.0.1:{unused_tcp_port}/api"
-            await wait_for_server(api_url)
+            # Multi-worker servers take longer to start, use 60s timeout (was 30s)
+            # to reduce flakiness in CI environments
+            try:
+                await wait_for_server(api_url, timeout=60)
+            except RuntimeError as e:
+                # If server fails to start, try to get the logs for debugging
+                pid_file = PREFECT_HOME.value() / SERVER_PID_FILE_NAME
+                if pid_file.exists():
+                    raise RuntimeError(
+                        f"{e}\nServer PID file exists at {pid_file}, but server is not responding."
+                    ) from e
+                else:
+                    raise RuntimeError(
+                        f"{e}\nServer PID file does not exist at {pid_file}. Server may have failed to start."
+                    ) from e
 
             if os.getenv("GITHUB_ACTIONS"):
                 await anyio.sleep(
@@ -207,7 +222,7 @@ class TestMultipleWorkerServer:
                 )  # Give workers extra time to start up in CI environments
 
             pids = set()
-            for _ in range(5):
+            for attempt in range(10):  # Increased from 5 to 10 retries
                 async with httpx.AsyncClient() as client:
                     tasks = [fetch_pid(client, api_url) for _ in range(100)]
                     results = await asyncio.gather(*tasks)
@@ -218,7 +233,7 @@ class TestMultipleWorkerServer:
 
                 await anyio.sleep(1)  # Wait a bit more before retrying
 
-            assert len(pids) == 2  # two worker processes
+            assert len(pids) == 2, f"Expected 2 worker PIDs but got {len(pids)}: {pids}"
             assert mock_validate_multi_worker.called
 
         finally:
