@@ -203,8 +203,12 @@ export const buildGetTaskRunsHistoryQuery = (
 	return queryOptions({
 		queryKey: queryKeyFactory.history(filter),
 		queryFn: async () => {
+			const body = {
+				...filter,
+				history_interval_seconds: filter.history_interval,
+			};
 			const res = await getQueryService().POST("/task_runs/history", {
-				body: filter,
+				body,
 			});
 			return res.data ?? [];
 		},
