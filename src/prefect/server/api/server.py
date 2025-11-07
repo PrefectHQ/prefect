@@ -698,7 +698,7 @@ def create_app(
 
         async with AsyncExitStack() as stack:
             docket = await stack.enter_async_context(
-                Docket(name="prefect-server", url=settings.server.docket.url)
+                Docket(name=settings.server.docket.name, url=settings.server.docket.url)
             )
             await stack.enter_async_context(background_worker(docket))
             api_app.state.docket = docket

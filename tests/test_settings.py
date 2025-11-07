@@ -369,6 +369,7 @@ SUPPORTED_SETTINGS = {
     "PREFECT_SERVER_DATABASE_SQLALCHEMY_POOL_TIMEOUT": {"test_value": 10.0},
     "PREFECT_SERVER_DATABASE_TIMEOUT": {"test_value": 10.0},
     "PREFECT_SERVER_DATABASE_USER": {"test_value": "user"},
+    "PREFECT_SERVER_DOCKET_NAME": {"test_value": "test-docket"},
     "PREFECT_SERVER_DOCKET_URL": {"test_value": "redis://localhost:6379/0"},
     "PREFECT_SERVER_DEPLOYMENTS_CONCURRENCY_SLOT_WAIT_SECONDS": {"test_value": 10.0},
     "PREFECT_SERVER_DEPLOYMENT_SCHEDULE_MAX_SCHEDULED_RUNS": {"test_value": 10},

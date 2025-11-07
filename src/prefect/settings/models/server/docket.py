@@ -16,7 +16,7 @@ class ServerDocketSettings(PrefectBaseSettings):
     )
 
     name: str = Field(
-        default="docket",
+        default="prefect-server",
         description="The name of the Docket instance.",
     )
 
