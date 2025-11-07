@@ -58,6 +58,22 @@ class TestReadEventsAsync:
             # verify we don't get more than limit
             assert len(result.events) <= limit
 
+    async def test_read_events_page(self, prefect_client: "PrefectTestHarness") -> None:
+        """test paginating through events"""
+        async with get_client() as client:
+            # get first page with small limit
+            first_page = await client.read_events(limit=5)
+
+            # if there's a next page, fetch it
+            if first_page.next_page:
+                second_page = await client.read_events_page(first_page.next_page)
+
+                # verify we got events
+                assert second_page.events is not None
+                assert isinstance(second_page.events, list)
+                assert second_page.total is not None
+                assert isinstance(second_page.total, int)
+
 
 class TestReadEventsSync:
     def test_read_events_with_filter(
@@ -107,3 +123,19 @@ class TestReadEventsSync:
 
             # verify we don't get more than limit
             assert len(result.events) <= limit
+
+    def test_read_events_page(self, sync_prefect_client: "PrefectTestHarness") -> None:
+        """test paginating through events using sync client"""
+        with get_client(sync_client=True) as client:
+            # get first page with small limit
+            first_page = client.read_events(limit=5)
+
+            # if there's a next page, fetch it
+            if first_page.next_page:
+                second_page = client.read_events_page(first_page.next_page)
+
+                # verify we got events
+                assert second_page.events is not None
+                assert isinstance(second_page.events, list)
+                assert second_page.total is not None
+                assert isinstance(second_page.total, int)
