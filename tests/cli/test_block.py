@@ -305,8 +305,6 @@ def test_listing_system_block_types(register_block_types):
         "Slug",
         "Description",
         "slack",
-        "date-time",
-        "json",
         "local-file-system",
         "remote-file-system",
         "secret",
@@ -320,14 +318,14 @@ def test_listing_system_block_types(register_block_types):
     )
 
 
-async def test_inspecting_a_block(ignore_prefect_deprecation_warnings):
-    await system.JSON(value="a simple json blob").save("jsonblob")
+async def test_inspecting_a_block():
+    await system.Secret(value="sk-1234567890").save("secretblob")
 
-    expected_output = ("Block Type", "Block id", "value", "a simple json blob")
+    expected_output = ("Block Type", "Block id", "value", "********")
 
     await run_sync_in_worker_thread(
         invoke_and_assert,
-        ["block", "inspect", "json/jsonblob"],
+        ["block", "inspect", "secret/secretblob"],
         expected_code=0,
         expected_output_contains=expected_output,
     )
@@ -432,7 +430,7 @@ def test_deleting_a_protected_block_type(
     expected_output = "is a protected block"
 
     invoke_and_assert(
-        ["block", "type", "delete", "json"],
+        ["block", "type", "delete", "secret"],
         expected_code=1,
         user_input="y",
         expected_output_contains=expected_output,

@@ -161,7 +161,7 @@ jobs:
             pytest-xdist \
             pytest-timeout \
             pytest-env
-          pytest --ignore=integration-tests/test_task_worker.py --ignore=integration-tests/test_concurrency_leases.py integration-tests/ -n auto -vv
+          pytest --ignore=integration-tests/test_task_worker.py --ignore=integration-tests/test_concurrency_leases.py --ignore=integration-tests/test_deploy.py integration-tests/ -n auto -vv
 
   sqlite-3-24-0:
     name: Test SQLite 3.24.0 Compatibility
@@ -176,7 +176,7 @@ jobs:
           docker build -t prefect-server-old-sqlite \
             --build-arg SQLITE_VERSION=3240000 \
             --build-arg SQLITE_YEAR=2018 \
-            -f old-sqlite.Dockerfile . &&
+            -f .github/docker/old-sqlite.Dockerfile . &&
           docker run prefect-server-old-sqlite sh -c "prefect server database downgrade --yes -r base && prefect server database upgrade --yes"
 
   sqlite-3-31-1:
@@ -192,5 +192,5 @@ jobs:
           docker build -t prefect-server-new-sqlite \
             --build-arg SQLITE_VERSION=3310100 \
             --build-arg SQLITE_YEAR=2020 \
-            -f old-sqlite.Dockerfile . &&
+            -f .github/docker/old-sqlite.Dockerfile . &&
           docker run prefect-server-new-sqlite sh -c "prefect server database downgrade --yes -r base && prefect server database upgrade --yes"

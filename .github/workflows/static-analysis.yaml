@@ -85,6 +85,6 @@ jobs:
 
       - name: Run pyright check
         run: >-
-          uv run pyright -p pyrightconfig-ci.json --level error
+          uv run pyright -p .github/pyrightconfig-ci.json --level error
 
 

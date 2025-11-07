@@ -2,6 +2,31 @@
 title: prefect-aws
 ---
 
+## 0.7.1
+
+_Released on November 07, 2025_
+
+**Bug Fixes**
+
+- Fix missing required `cluster` and `launchType` parameters in `run_task` API Call for ECS worker [#19335](https://github.com/PrefectHQ/prefect/pull/19335) by [@desertaxle](https://github.com/desertaxle)
+
+---
+
+## 0.7.0
+
+_Released on October 31, 2025_
+
+**Bug Fixes**
+
+- Fix `CRASHED` state marking when containers exit with a non-zero exit code in an ECS task [#19310](https://github.com/PrefectHQ/prefect/pull/19310) by [@leetrout](https://github.com/leetrout)
+
+**Breaking Changes**
+
+- Remove Python 3.9 support [#19273](https://github.com/PrefectHQ/prefect/pull/19273) by [@desertaxle](https://github.com/desertaxle)
+
+
+---
+
 ## 0.6.0
 
 _Released on October 14, 2025_

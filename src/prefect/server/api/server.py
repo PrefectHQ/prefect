@@ -30,6 +30,7 @@ import httpx
 import sqlalchemy as sa
 import sqlalchemy.exc
 import sqlalchemy.orm.exc
+from docket import Docket
 from fastapi import Depends, FastAPI, Request, Response
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
@@ -45,8 +46,10 @@ import prefect
 import prefect.server.api as api
 import prefect.settings
 from prefect._internal.compatibility.starlette import status
+from prefect._internal.observability import configure_logfire
 from prefect.client.constants import SERVER_API_VERSION
 from prefect.logging import get_logger
+from prefect.server.api.background_workers import background_worker
 from prefect.server.api.dependencies import EnforceMinimumAPIVersion
 from prefect.server.exceptions import ObjectNotFoundError
 from prefect.server.services.base import RunInEphemeralServers, RunInWebservers, Service
@@ -64,18 +67,7 @@ from prefect.settings import (
 )
 from prefect.utilities.hashing import hash_objects
 
-if os.environ.get("PREFECT_LOGFIRE_ENABLED"):
-    import logfire  # pyright: ignore
-
-    token: str | None = os.environ.get("PREFECT_LOGFIRE_WRITE_TOKEN")
-    if token is None:
-        raise ValueError(
-            "PREFECT_LOGFIRE_WRITE_TOKEN must be set when PREFECT_LOGFIRE_ENABLED is true"
-        )
-
-    logfire.configure(token=token)  # pyright: ignore
-else:
-    logfire = None
+logfire: Any | None = configure_logfire()
 
 TITLE = "Prefect Server"
 API_TITLE = "Prefect Prefect REST API"
@@ -695,6 +687,11 @@ def create_app(
         )
 
         async with AsyncExitStack() as stack:
+            docket = await stack.enter_async_context(
+                Docket(name=settings.server.docket.name, url=settings.server.docket.url)
+            )
+            await stack.enter_async_context(background_worker(docket))
+            api_app.state.docket = docket
             if Services:
                 await stack.enter_async_context(Services.running())
             LIFESPAN_RAN_FOR_APP.add(app)

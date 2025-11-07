@@ -1513,6 +1513,33 @@ The number of seconds to wait before retrying when a deployment flow run cannot 
 `PREFECT_SERVER_DEPLOYMENTS_CONCURRENCY_SLOT_WAIT_SECONDS`, `PREFECT_DEPLOYMENT_CONCURRENCY_SLOT_WAIT_SECONDS`
 
 ---
+## ServerDocketSettings
+Settings for controlling Docket behavior
+### `name`
+The name of the Docket instance.
+
+**Type**: `string`
+
+**Default**: `prefect-server`
+
+**TOML dotted key path**: `server.docket.name`
+
+**Supported environment variables**:
+`PREFECT_SERVER_DOCKET_NAME`
+
+### `url`
+The URL of the Redis server to use for Docket.
+
+**Type**: `string`
+
+**Default**: `memory://`
+
+**TOML dotted key path**: `server.docket.url`
+
+**Supported environment variables**:
+`PREFECT_SERVER_DOCKET_URL`
+
+---
 ## ServerEphemeralSettings
 Settings for controlling ephemeral server behavior
 ### `enabled`
@@ -2452,6 +2479,13 @@ Settings for controlling server deployments behavior
 **Type**: [ServerDeploymentsSettings](#serverdeploymentssettings)
 
 **TOML dotted key path**: `server.deployments`
+
+### `docket`
+Settings for controlling server Docket behavior
+
+**Type**: [ServerDocketSettings](#serverdocketsettings)
+
+**TOML dotted key path**: `server.docket`
 
 ### `ephemeral`
 

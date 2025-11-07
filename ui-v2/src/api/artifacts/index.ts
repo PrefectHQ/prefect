@@ -1,10 +1,11 @@
 import { keepPreviousData, queryOptions } from "@tanstack/react-query";
+import type { FlowRun } from "@/api/flow-runs";
 import type { components } from "../prefect";
 import { getQueryService } from "../service";
 
 export type Artifact = components["schemas"]["Artifact"];
 export type ArtifactWithFlowRunAndTaskRun = Artifact & {
-	flow_run?: components["schemas"]["FlowRun"];
+	flow_run?: FlowRun;
 	task_run?: components["schemas"]["TaskRun"];
 };
 

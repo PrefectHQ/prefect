@@ -1,4 +1,3 @@
-from datetime import datetime, timezone
 from textwrap import dedent
 from typing import List
 from unittest.mock import AsyncMock
@@ -498,38 +497,39 @@ class TestSystemBlockTypes:
         await hosted_api_client.post("/block_types/install_system_block_types")
 
         # create a datetime block
-        datetime_block_type = await hosted_api_client.get("/block_types/slug/date-time")
-        datetime_block_schema = await hosted_api_client.post(
+        secret_block_type = await hosted_api_client.get("/block_types/slug/secret")
+        secret_block_schema = await hosted_api_client.post(
             "/block_schemas/filter",
             json=dict(
                 block_schemas=dict(
-                    block_type_id=dict(any_=[datetime_block_type.json()["id"]])
+                    block_type_id=dict(any_=[secret_block_type.json()["id"]])
                 ),
                 limit=1,
             ),
         )
-        block = prefect.blocks.system.DateTime(value="2022-01-01T00:00:00+00:00")
+        block = prefect.blocks.system.Secret(value="sk-1234567890")
         response = await hosted_api_client.post(
             "/block_documents/",
             json=block._to_block_document(
-                name="my-test-date-time",
-                block_type_id=datetime_block_type.json()["id"],
-                block_schema_id=datetime_block_schema.json()[0]["id"],
+                name="my-test-secret",
+                block_type_id=secret_block_type.json()["id"],
+                block_schema_id=secret_block_schema.json()[0]["id"],
             ).model_dump(
                 mode="json",
                 exclude_unset=True,
                 exclude={"id", "block_schema", "block_type", "block_type_name"},
+                context={"include_secrets": True},
             ),
         )
         assert response.status_code == status.HTTP_201_CREATED, response.text
 
-        # load the datetime block
-        api_block = await prefect.blocks.system.DateTime.load("my-test-date-time")
-        assert api_block.value == datetime(2022, 1, 1, tzinfo=timezone.utc)
+        # load the secret block
+        api_block = await prefect.blocks.system.Secret.load("my-test-secret")
+        assert api_block.get() == "sk-1234567890"
 
     async def test_system_block_types_are_protected(self, client, session):
         # install system blocks
         await client.post("/block_types/install_system_block_types")
         # read date-time system block
-        response = await client.get("/block_types/slug/date-time")
+        response = await client.get("/block_types/slug/secret")
         assert response.json()["is_protected"]

@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import type { components } from "@/api/prefect";
 import { getQueryService } from "@/api/service";
 
-type FlowRun = components["schemas"]["FlowRun"];
+type FlowRun = components["schemas"]["FlowRunResponse"];
 
 export const DeploymentCell = ({ row }: { row: { original: FlowRun } }) => {
 	const deploymentId = row.original.deployment_id;

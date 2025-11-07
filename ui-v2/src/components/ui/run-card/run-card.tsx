@@ -19,7 +19,7 @@ const getValues = ({
 	flowRun,
 	taskRun,
 }: {
-	flowRun: null | undefined | components["schemas"]["FlowRun"];
+	flowRun: null | undefined | components["schemas"]["FlowRunResponse"];
 	taskRun: null | undefined | components["schemas"]["TaskRun"];
 }) => {
 	if (taskRun) {
@@ -36,7 +36,7 @@ const getValues = ({
 
 type RunCardProps = {
 	flow?: components["schemas"]["Flow"] | null;
-	flowRun?: components["schemas"]["FlowRun"] | null;
+	flowRun?: components["schemas"]["FlowRunResponse"] | null;
 	/** If task run is included, uses fields from task run over flow run */
 	taskRun?: components["schemas"]["TaskRun"] | null;
 };

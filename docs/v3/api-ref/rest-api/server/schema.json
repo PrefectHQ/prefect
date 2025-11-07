@@ -23960,6 +23960,31 @@
                 "type": "object",
                 "title": "ServerDeploymentsSettings"
             },
+            "ServerDocketSettings": {
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "title": "Name",
+                        "description": "The name of the Docket instance.",
+                        "default": "prefect-server",
+                        "supported_environment_variables": [
+                            "PREFECT_SERVER_DOCKET_NAME"
+                        ]
+                    },
+                    "url": {
+                        "type": "string",
+                        "title": "Url",
+                        "description": "The URL of the Redis server to use for Docket.",
+                        "default": "memory://",
+                        "supported_environment_variables": [
+                            "PREFECT_SERVER_DOCKET_URL"
+                        ]
+                    }
+                },
+                "type": "object",
+                "title": "ServerDocketSettings",
+                "description": "Settings for controlling Docket behavior"
+            },
             "ServerEphemeralSettings": {
                 "properties": {
                     "enabled": {
@@ -24741,6 +24766,11 @@
                     "deployments": {
                         "$ref": "#/components/schemas/ServerDeploymentsSettings",
                         "description": "Settings for controlling server deployments behavior",
+                        "supported_environment_variables": []
+                    },
+                    "docket": {
+                        "$ref": "#/components/schemas/ServerDocketSettings",
+                        "description": "Settings for controlling server Docket behavior",
                         "supported_environment_variables": []
                     },
                     "ephemeral": {
