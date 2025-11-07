@@ -15,6 +15,11 @@ class ServerDocketSettings(PrefectBaseSettings):
         ("server", "docket")
     )
 
+    name: str = Field(
+        default="docket",
+        description="The name of the Docket instance.",
+    )
+
     url: str = Field(
         default="memory://",
         description="The URL of the Redis server to use for Docket.",
