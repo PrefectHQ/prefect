@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING
 
 import prefect.types._datetime
 from prefect.client.orchestration import get_client
-from prefect.server.events.filters import EventFilter, EventOccurredFilter
+from prefect.events.filters import EventFilter, EventOccurredFilter
 
 if TYPE_CHECKING:
     from prefect.testing.utilities import PrefectTestHarness

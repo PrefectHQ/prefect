@@ -397,7 +397,7 @@ The following example queries events from the last hour and demonstrates how to 
 from datetime import datetime, timedelta, timezone
 
 from prefect import get_client
-from prefect.server.events.filters import EventFilter, EventOccurredFilter
+from prefect.events.filters import EventFilter, EventOccurredFilter
 
 
 async def query_recent_events():
@@ -433,7 +433,7 @@ import asyncio
 from datetime import datetime, timedelta, timezone
 
 from prefect import get_client
-from prefect.server.events.filters import EventFilter, EventOccurredFilter
+from prefect.events.filters import EventFilter, EventOccurredFilter
 
 
 async def query_recent_events():

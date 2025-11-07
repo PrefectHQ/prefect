@@ -4,7 +4,7 @@ from prefect.client.orchestration.base import BaseAsyncClient, BaseClient
 from prefect.client.schemas.events import EventPage
 
 if TYPE_CHECKING:
-    from prefect.server.events.filters import EventFilter
+    from prefect.events.filters import EventFilter
 
 
 class EventClient(BaseClient):
