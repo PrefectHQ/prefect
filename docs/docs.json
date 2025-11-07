@@ -910,6 +910,7 @@
                         "pages": [
                           "v3/api-ref/python/prefect-client-schemas-__init__",
                           "v3/api-ref/python/prefect-client-schemas-actions",
+                          "v3/api-ref/python/prefect-client-schemas-events",
                           "v3/api-ref/python/prefect-client-schemas-filters",
                           "v3/api-ref/python/prefect-client-schemas-objects",
                           "v3/api-ref/python/prefect-client-schemas-responses",
