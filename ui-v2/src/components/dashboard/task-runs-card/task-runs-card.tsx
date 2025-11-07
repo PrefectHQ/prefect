@@ -100,7 +100,7 @@ export const TaskRunsCard = ({ filter }: TaskRunsCardProps) => {
 		return {
 			history_start: startDate.toISOString(),
 			history_end: endDate.toISOString(),
-			history_interval_seconds: intervalSeconds,
+			history_interval: intervalSeconds,
 			task_runs: {
 				operator: "and_",
 				state: {

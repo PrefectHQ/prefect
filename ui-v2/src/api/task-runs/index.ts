@@ -21,14 +21,14 @@ export type TaskRunsCountFilter = {
 export type TaskRunsHistoryFilter = {
 	history_start: string;
 	history_end: string;
-	history_interval_seconds: number;
+	history_interval: number;
 	flows?: components["schemas"]["FlowFilter"];
 	flow_runs?: components["schemas"]["FlowRunFilter"];
 	task_runs?: components["schemas"]["TaskRunFilter"];
 	deployments?: components["schemas"]["DeploymentFilter"];
 };
 
-export type HistoryResponse = components["schemas"]["HistoryResponse"];
+export type HistoryResponse = components["schemas"]["HistoryResponse-Output"];
 
 type SetTaskRunStateBody =
 	components["schemas"]["Body_set_task_run_state_task_runs__id__set_state_post"];
