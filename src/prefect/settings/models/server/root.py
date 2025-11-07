@@ -8,6 +8,7 @@ from pydantic_settings import SettingsConfigDict
 
 from prefect.settings.base import PrefectBaseSettings, build_settings_config
 from prefect.settings.models.server.concurrency import ServerConcurrencySettings
+from prefect.settings.models.server.docket import ServerDocketSettings
 from prefect.types import LogLevel
 
 from .._defaults import default_memo_store_path
@@ -123,6 +124,10 @@ class ServerSettings(PrefectBaseSettings):
     deployments: ServerDeploymentsSettings = Field(
         default_factory=ServerDeploymentsSettings,
         description="Settings for controlling server deployments behavior",
+    )
+    docket: ServerDocketSettings = Field(
+        default_factory=ServerDocketSettings,
+        description="Settings for controlling server Docket behavior",
     )
     ephemeral: ServerEphemeralSettings = Field(
         default_factory=ServerEphemeralSettings,

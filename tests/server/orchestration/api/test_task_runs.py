@@ -651,9 +651,9 @@ class TestPaginateTaskRuns:
 
 
 class TestDeleteTaskRuns:
-    async def test_delete_task_runs(self, task_run, client, session):
+    async def test_delete_task_runs(self, task_run, hosted_api_client, session):
         # delete the task run
-        response = await client.delete(f"/task_runs/{task_run.id}")
+        response = await hosted_api_client.delete(f"/task_runs/{task_run.id}")
         assert response.status_code == status.HTTP_204_NO_CONTENT
 
         # make sure it's deleted
@@ -663,20 +663,24 @@ class TestDeleteTaskRuns:
             session=session, task_run_id=task_run_id
         )
         assert run is None
-        response = await client.get(f"/task_runs/{task_run_id}")
+        response = await hosted_api_client.get(f"/task_runs/{task_run_id}")
         assert response.status_code == status.HTTP_404_NOT_FOUND
 
-    async def test_delete_task_run_returns_404_if_does_not_exist(self, client):
-        response = await client.delete(f"/task_runs/{uuid4()}")
+    async def test_delete_task_run_returns_404_if_does_not_exist(
+        self, hosted_api_client
+    ):
+        response = await hosted_api_client.delete(f"/task_runs/{uuid4()}")
         assert response.status_code == status.HTTP_404_NOT_FOUND
 
-    async def test_delete_task_run_deletes_logs(self, task_run, logs, client, session):
+    async def test_delete_task_run_deletes_logs(
+        self, task_run, logs, hosted_api_client, session
+    ):
         # make sure we have task run logs
         task_run_logs = [log for log in logs if log.task_run_id is not None]
         assert len(task_run_logs) > 0
 
         # delete the task run
-        response = await client.delete(f"/task_runs/{task_run.id}")
+        response = await hosted_api_client.delete(f"/task_runs/{task_run.id}")
         assert response.status_code == status.HTTP_204_NO_CONTENT, response.text
 
         async def read_logs():

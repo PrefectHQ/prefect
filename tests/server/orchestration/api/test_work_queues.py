@@ -7,6 +7,7 @@ import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect._internal.compatibility.starlette import status
+from prefect._internal.testing import retry_asserts
 from prefect.server import models, schemas
 from prefect.server.events.clients import AssertingEventsClient
 from prefect.server.schemas.actions import WorkQueueCreate, WorkQueueUpdate
@@ -749,11 +750,20 @@ class TestGetRunsInWorkQueue:
         await session.commit()
 
     async def test_get_runs_in_queue(
-        self, client, work_queue, work_queue_2, scheduled_flow_runs, running_flow_runs
+        self,
+        hosted_api_client,
+        work_queue,
+        work_queue_2,
+        scheduled_flow_runs,
+        running_flow_runs,
     ):
-        response1 = await client.post(f"/work_queues/{work_queue.id}/get_runs")
+        response1 = await hosted_api_client.post(
+            f"/work_queues/{work_queue.id}/get_runs"
+        )
         assert response1.status_code == status.HTTP_200_OK
-        response2 = await client.post(f"/work_queues/{work_queue_2.id}/get_runs")
+        response2 = await hosted_api_client.post(
+            f"/work_queues/{work_queue_2.id}/get_runs"
+        )
         assert response2.status_code == status.HTTP_200_OK
 
         runs_wq1 = parse_obj_as(
@@ -771,13 +781,13 @@ class TestGetRunsInWorkQueue:
     @pytest.mark.parametrize("limit", [2, 0])
     async def test_get_runs_in_queue_limit(
         self,
-        client,
+        hosted_api_client,
         work_queue,
         scheduled_flow_runs,
         running_flow_runs,
         limit,
     ):
-        response1 = await client.post(
+        response1 = await hosted_api_client.post(
             f"/work_queues/{work_queue.id}/get_runs", json=dict(limit=limit)
         )
         runs_wq1 = parse_obj_as(
@@ -786,9 +796,13 @@ class TestGetRunsInWorkQueue:
         assert len(runs_wq1) == limit
 
     async def test_get_runs_in_queue_scheduled_before(
-        self, client, work_queue, scheduled_flow_runs, running_flow_runs
+        self,
+        hosted_api_client,
+        work_queue,
+        scheduled_flow_runs,
+        running_flow_runs,
     ):
-        response1 = await client.post(
+        response1 = await hosted_api_client.post(
             f"/work_queues/{work_queue.id}/get_runs",
             json=dict(scheduled_before=datetime.now(timezone.utc).isoformat()),
         )
@@ -798,51 +812,65 @@ class TestGetRunsInWorkQueue:
         assert len(runs_wq1) == 1
 
     async def test_get_runs_in_queue_nonexistant(
-        self, client, work_queue, scheduled_flow_runs, running_flow_runs
+        self,
+        hosted_api_client,
+        work_queue,
+        scheduled_flow_runs,
+        running_flow_runs,
     ):
-        response1 = await client.post(f"/work_queues/{uuid4()}/get_runs")
+        response1 = await hosted_api_client.post(f"/work_queues/{uuid4()}/get_runs")
         assert response1.status_code == status.HTTP_404_NOT_FOUND
 
     async def test_get_runs_in_queue_paused(
-        self, client, work_queue, scheduled_flow_runs, running_flow_runs
+        self,
+        hosted_api_client,
+        work_queue,
+        scheduled_flow_runs,
+        running_flow_runs,
     ):
-        await client.patch(f"/work_queues/{work_queue.id}", json=dict(is_paused=True))
+        await hosted_api_client.patch(
+            f"/work_queues/{work_queue.id}", json=dict(is_paused=True)
+        )
 
-        response1 = await client.post(f"/work_queues/{work_queue.id}/get_runs")
+        response1 = await hosted_api_client.post(
+            f"/work_queues/{work_queue.id}/get_runs"
+        )
         assert response1.json() == []
 
     @pytest.mark.parametrize("concurrency_limit", [10, 5, 1])
     async def test_get_runs_in_queue_concurrency_limit(
         self,
-        client,
+        hosted_api_client,
         work_queue,
         scheduled_flow_runs,
         running_flow_runs,
         concurrency_limit,
     ):
-        await client.patch(
+        await hosted_api_client.patch(
             f"/work_queues/{work_queue.id}",
             json=dict(concurrency_limit=concurrency_limit),
         )
 
-        response1 = await client.post(f"/work_queues/{work_queue.id}/get_runs")
+        response1 = await hosted_api_client.post(
+            f"/work_queues/{work_queue.id}/get_runs"
+        )
 
         assert len(response1.json()) == max(0, min(3, concurrency_limit - 3))
 
     @pytest.mark.parametrize("limit", [10, 1])
     async def test_get_runs_in_queue_concurrency_limit_and_limit(
         self,
-        client,
+        hosted_api_client,
         work_queue,
         scheduled_flow_runs,
         running_flow_runs,
         limit,
     ):
-        await client.patch(
+        await hosted_api_client.patch(
             f"/work_queues/{work_queue.id}",
             json=dict(concurrency_limit=5),
         )
-        response1 = await client.post(
+        response1 = await hosted_api_client.post(
             f"/work_queues/{work_queue.id}/get_runs",
             json=dict(limit=limit),
         )
@@ -851,26 +879,29 @@ class TestGetRunsInWorkQueue:
 
     async def test_read_work_queue_runs_updates_work_queue_last_polled_time(
         self,
-        client,
+        hosted_api_client,
         work_queue,
         session,
     ):
         now = datetime.now(timezone.utc)
-        response = await client.post(
+        response = await hosted_api_client.post(
             f"/work_queues/{work_queue.id}/get_runs",
             json=dict(),
         )
         assert response.status_code == status.HTTP_200_OK
 
-        session.expunge_all()
-        updated_work_queue = await models.work_queues.read_work_queue(
-            session=session, work_queue_id=work_queue.id
-        )
-        assert updated_work_queue.last_polled > now
+        async for attempt in retry_asserts(max_attempts=10, delay=0.5):
+            with attempt:
+                session.expunge_all()
+                updated_work_queue = await models.work_queues.read_work_queue(
+                    session=session, work_queue_id=work_queue.id
+                )
+                assert updated_work_queue.last_polled is not None
+                assert updated_work_queue.last_polled > now
 
         # The Prefect UI often calls this route to see which runs are enqueued.
         # We do not want to record this as an actual poll event.
-        ui_response = await client.post(
+        ui_response = await hosted_api_client.post(
             f"/work_queues/{work_queue.id}/get_runs",
             json=dict(),
             headers={"X-PREFECT-UI": "true"},
@@ -885,52 +916,62 @@ class TestGetRunsInWorkQueue:
 
     async def test_read_work_queue_runs_associated_deployments_return_status_of_ready(
         self,
-        client,
+        hosted_api_client,
         deployment,
     ):
         work_queue_id = deployment.work_queue_id
         # ensure deployment currently has a not ready status
-        deployment_response = await client.get(f"/deployments/{deployment.id}")
+        deployment_response = await hosted_api_client.get(
+            f"/deployments/{deployment.id}"
+        )
         assert deployment_response.status_code == status.HTTP_200_OK
         assert deployment_response.json()["status"] == "NOT_READY"
 
         # trigger a poll of the work queue, which should update the deployment status
-        response = await client.post(
+        response = await hosted_api_client.post(
             f"/work_queues/{work_queue_id}/get_runs",
             json=dict(),
         )
         assert response.status_code == status.HTTP_200_OK
 
-        # check that the deployment status is now ready
-        updated_deployment_response = await client.get(f"/deployments/{deployment.id}")
-        assert updated_deployment_response.status_code == status.HTTP_200_OK
-        assert updated_deployment_response.json()["status"] == "READY"
+        async for attempt in retry_asserts(max_attempts=10, delay=0.5):
+            with attempt:
+                # check that the deployment status is now ready
+                updated_deployment_response = await hosted_api_client.get(
+                    f"/deployments/{deployment.id}"
+                )
+                assert updated_deployment_response.status_code == status.HTTP_200_OK
+                assert updated_deployment_response.json()["status"] == "READY"
 
     async def test_read_work_queue_runs_updates_work_queue_status(
         self,
-        client,
+        hosted_api_client,
         work_queue,
         session,
     ):
         # Verify the work queue is initially not ready
-        wq_response = await client.get(f"/work_queues/{work_queue.id}")
+        wq_response = await hosted_api_client.get(f"/work_queues/{work_queue.id}")
         assert wq_response.status_code == status.HTTP_200_OK
         assert wq_response.json()["status"] == "NOT_READY"
 
         # Trigger a polling operation
-        response = await client.post(
+        response = await hosted_api_client.post(
             f"/work_queues/{work_queue.id}/get_runs",
         )
         assert response.status_code == status.HTTP_200_OK
 
-        # Verify the work queue is now ready
-        wq_response = await client.get(f"/work_queues/{work_queue.id}")
-        assert wq_response.status_code == status.HTTP_200_OK
-        assert wq_response.json()["status"] == "READY"
+        async for attempt in retry_asserts(max_attempts=10, delay=0.5):
+            with attempt:
+                # Verify the work queue is now ready
+                wq_response = await hosted_api_client.get(
+                    f"/work_queues/{work_queue.id}"
+                )
+                assert wq_response.status_code == status.HTTP_200_OK
+                assert wq_response.json()["status"] == "READY"
 
     async def test_read_work_queue_runs_does_not_update_a_paused_work_queues_status(
         self,
-        client,
+        hosted_api_client,
         work_queue,
         session,
     ):
@@ -938,23 +979,25 @@ class TestGetRunsInWorkQueue:
         new_data = WorkQueueUpdate(is_paused=True).model_dump(
             mode="json", exclude_unset=True
         )
-        response = await client.patch(f"/work_queues/{work_queue.id}", json=new_data)
+        response = await hosted_api_client.patch(
+            f"/work_queues/{work_queue.id}", json=new_data
+        )
         assert response.status_code == status.HTTP_204_NO_CONTENT
 
         # Verify the work queue is PAUSED
-        wq_response = await client.get(f"/work_queues/{work_queue.id}")
+        wq_response = await hosted_api_client.get(f"/work_queues/{work_queue.id}")
         assert wq_response.status_code == status.HTTP_200_OK
         assert wq_response.json()["status"] == "PAUSED"
         assert wq_response.json()["is_paused"] is True
 
         # Trigger a polling operation
-        response = await client.post(
+        response = await hosted_api_client.post(
             f"/work_queues/{work_queue.id}/get_runs",
         )
         assert response.status_code == status.HTTP_200_OK
 
         # Verify the work queue status is still PAUSED
-        wq_response = await client.get(f"/work_queues/{work_queue.id}")
+        wq_response = await hosted_api_client.get(f"/work_queues/{work_queue.id}")
         assert wq_response.status_code == status.HTTP_200_OK
         assert wq_response.json()["status"] == "PAUSED"
 
