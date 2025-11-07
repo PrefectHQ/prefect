@@ -519,6 +519,15 @@ wheels = [
 ]
 
 [[package]]
+name = "beartype"
+version = "0.22.5"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/a6/09/9003e5662691056e0e8b2e6f57c799e71875fac0be0e785d8cb11557cd2a/beartype-0.22.5.tar.gz", hash = "sha256:516a9096cc77103c96153474fa35c3ebcd9d36bd2ec8d0e3a43307ced0fa6341", size = 1586256, upload-time = "2025-11-01T05:49:20.771Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/f7/f6/073d19f7b571c08327fbba3f8e011578da67ab62a11f98911274ff80653f/beartype-0.22.5-py3-none-any.whl", hash = "sha256:d9743dd7cd6d193696eaa1e025f8a70fb09761c154675679ff236e61952dfba0", size = 1321700, upload-time = "2025-11-01T05:49:18.436Z" },
+]
+
+[[package]]
 name = "beautifulsoup4"
 version = "4.14.2"
 source = { registry = "https://pypi.org/simple" }
@@ -4024,7 +4033,7 @@ requires-dist = [
     { name = "dateparser", specifier = ">=1.1.1,<2.0.0" },
     { name = "docker", specifier = ">=4.0,<8.0" },
     { name = "exceptiongroup", specifier = ">=1.0.0" },
-    { name = "fakeredis", extras = ["lua"], specifier = ">=2.32.0" },
+    { name = "fakeredis", extras = ["lua"], specifier = ">=2.32.1" },
     { name = "fastapi", specifier = ">=0.111.0,<1.0.0" },
     { name = "fsspec", specifier = ">=2022.5.0" },
     { name = "graphviz", specifier = ">=0.20.1" },
@@ -4070,7 +4079,7 @@ requires-dist = [
     { name = "pydantic-core", specifier = ">=2.12.0,<3.0.0" },
     { name = "pydantic-extra-types", specifier = ">=2.8.2,<3.0.0" },
     { name = "pydantic-settings", specifier = ">2.2.1,!=2.9.0,<3.0.0" },
-    { name = "pydocket", specifier = ">=0.12.0" },
+    { name = "pydocket", specifier = ">=0.13.0b2" },
     { name = "python-dateutil", specifier = ">=2.8.2,<3.0.0" },
     { name = "python-slugify", specifier = ">=5.0,<9.0" },
     { name = "pytz", specifier = ">=2021.1,<2026" },
@@ -4645,6 +4654,40 @@ wheels = [
 ]
 
 [[package]]
+name = "py-key-value-aio"
+version = "0.2.8"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "beartype" },
+    { name = "py-key-value-shared" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/ca/35/65310a4818acec0f87a46e5565e341c5a96fc062a9a03495ad28828ff4d7/py_key_value_aio-0.2.8.tar.gz", hash = "sha256:c0cfbb0bd4e962a3fa1a9fa6db9ba9df812899bd9312fa6368aaea7b26008b36", size = 32853, upload-time = "2025-10-24T13:31:04.688Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/cd/5a/e56747d87a97ad2aff0f3700d77f186f0704c90c2da03bfed9e113dae284/py_key_value_aio-0.2.8-py3-none-any.whl", hash = "sha256:561565547ce8162128fd2bd0b9d70ce04a5f4586da8500cce79a54dfac78c46a", size = 69200, upload-time = "2025-10-24T13:31:03.81Z" },
+]
+
+[package.optional-dependencies]
+memory = [
+    { name = "cachetools" },
+]
+redis = [
+    { name = "redis" },
+]
+
+[[package]]
+name = "py-key-value-shared"
+version = "0.2.8"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "beartype" },
+    { name = "typing-extensions" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/26/79/05a1f9280cfa0709479319cbfd2b1c5beb23d5034624f548c83fb65b0b61/py_key_value_shared-0.2.8.tar.gz", hash = "sha256:703b4d3c61af124f0d528ba85995c3c8d78f8bd3d2b217377bd3278598070cc1", size = 8216, upload-time = "2025-10-24T13:31:03.601Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/84/7a/1726ceaa3343874f322dd83c9ec376ad81f533df8422b8b1e1233a59f8ce/py_key_value_shared-0.2.8-py3-none-any.whl", hash = "sha256:aff1bbfd46d065b2d67897d298642e80e5349eae588c6d11b48452b46b8d46ba", size = 14586, upload-time = "2025-10-24T13:31:02.838Z" },
+]
+
+[[package]]
 name = "py-spy"
 version = "0.4.1"
 source = { registry = "https://pypi.org/simple" }
@@ -4847,14 +4890,16 @@ wheels = [
 
 [[package]]
 name = "pydocket"
-version = "0.12.0"
+version = "0.13.0b2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "cloudpickle" },
     { name = "exceptiongroup", marker = "python_full_version < '3.11'" },
+    { name = "fakeredis", extra = ["lua"] },
     { name = "opentelemetry-api" },
     { name = "opentelemetry-exporter-prometheus" },
     { name = "prometheus-client" },
+    { name = "py-key-value-aio", extra = ["memory", "redis"] },
     { name = "python-json-logger" },
     { name = "redis" },
     { name = "rich" },
@@ -4862,9 +4907,9 @@ dependencies = [
     { name = "typing-extensions" },
     { name = "uuid7" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/64/41/aee71551254a839bf7f9644137958b2cfbbed98cf1e3f17c04d8dd5845c5/pydocket-0.12.0.tar.gz", hash = "sha256:80379bdb2a02548d95e08adc2c63572bc4bdebfd2bc9db6691684a1edc3f2524", size = 214182, upload-time = "2025-10-28T14:14:43.448Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/c3/ec/e97233051086559e185fffcfa2afa1a8fd21df64473f228732f14481afbb/pydocket-0.13.0b2.tar.gz", hash = "sha256:4bc7659de9cfbd4654b6b2f32d727b05060c7156c6a7b132a18615f1794878f5", size = 240893, upload-time = "2025-11-07T01:17:40.937Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/91/f9/f9ac0452f0e33a45ff78fe1c4dfc896778519ecd7e70946d0b6aed7898b0/pydocket-0.12.0-py3-none-any.whl", hash = "sha256:d4bc481ad9cbb229c30f114d403477c6f8527f3e71480121c5bd8e154130c590", size = 40863, upload-time = "2025-10-28T14:14:42.301Z" },
+    { url = "https://files.pythonhosted.org/packages/0b/fb/aa722dd18c7a89438c964528a77d4746599231865cb2d1b3e859f1543aed/pydocket-0.13.0b2-py3-none-any.whl", hash = "sha256:24138f5d6f2ce05bd6b5584af670a1a35681ae744b1cf800b6a29e0448ef569f", size = 51092, upload-time = "2025-11-07T01:17:38.135Z" },
 ]
 
 [[package]]

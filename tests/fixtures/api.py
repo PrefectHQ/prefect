@@ -2,12 +2,14 @@ from typing import Any, AsyncGenerator, Awaitable, Callable, Coroutine, Dict
 
 import httpx
 import pytest
+from docket import Docket
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from httpx import ASGITransport, AsyncClient
 
 from prefect.client.base import app_lifespan_context
 from prefect.server.api.server import create_app
+from prefect.settings import get_current_settings
 
 Message = Dict[str, Any]
 Receive = Callable[[], Awaitable[Message]]
@@ -84,26 +86,15 @@ async def client_without_exceptions(app: ASGIApp) -> AsyncGenerator[AsyncClient,
 @pytest.fixture(autouse=True)
 async def clear_docket_fakeredis():
     """
-    Clear the shared FakeServer state between tests to prevent state leakage.
-
-    The Docket library uses a shared FakeServer instance for all memory:// URLs,
-    which can cause key conflicts between tests if not cleared.
+    Clear the shared Docket state between tests to prevent state leakage.
     """
     yield
     # Clear the FakeServer state after each test
+
     try:
-        from docket.docket import Docket
+        async with Docket(url=get_current_settings().server.docket.url) as docket:
+            await docket.clear()
 
-        if hasattr(Docket, "_memory_server"):
-            from fakeredis.aioredis import FakeConnection
-            from redis.asyncio import ConnectionPool, Redis
-
-            server = Docket._memory_server
-            # Create a connection pool and Redis client for the FakeServer
-            pool = ConnectionPool(connection_class=FakeConnection, server=server)
-            async with Redis(connection_pool=pool) as redis_client:
-                await redis_client.flushall()
-            await pool.disconnect()
     except (ImportError, AttributeError):
         # docket or fakeredis not available, skip cleanup
         pass
