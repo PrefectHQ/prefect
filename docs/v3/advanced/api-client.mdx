@@ -387,6 +387,100 @@ if __name__ == "__main__":
 
 </Accordion>
 
+### Query events with pagination
+
+Query historical events from the Prefect API with support for filtering and pagination. This is useful for analyzing past activity, debugging issues, or building custom monitoring tools.
+
+The following example queries events from the last hour and demonstrates how to paginate through results:
+
+```python
+from datetime import datetime, timedelta, timezone
+
+from prefect import get_client
+from prefect.events.filters import EventFilter, EventOccurredFilter
+
+
+async def query_recent_events():
+    async with get_client() as client:
+        # query events from the last hour
+        now = datetime.now(timezone.utc)
+        event_filter = EventFilter(
+            occurred=EventOccurredFilter(
+                since=now - timedelta(hours=1),
+                until=now,
+            )
+        )
+
+        # get first page
+        page = await client.read_events(filter=event_filter, limit=10)
+        print(f"Total events: {page.total}")
+
+        # iterate through all pages
+        while page:
+            for event in page.events:
+                print(f"{event.occurred} - {event.event}")
+            page = await page.get_next_page(client)
+```
+
+<Accordion title="View the complete example">
+
+```python query_events.py
+import asyncio
+from datetime import datetime, timedelta, timezone
+
+from prefect import get_client
+from prefect.events.filters import EventFilter, EventOccurredFilter
+
+
+async def query_recent_events():
+    async with get_client() as client:
+        # query events from the last hour
+        now = datetime.now(timezone.utc)
+        event_filter = EventFilter(
+            occurred=EventOccurredFilter(
+                since=now - timedelta(hours=1),
+                until=now,
+            )
+        )
+
+        # get first page with small limit to demonstrate pagination
+        print("=== first page ===")
+        event_page = await client.read_events(filter=event_filter, limit=5)
+        print(f"total events: {event_page.total}")
+        print(f"events on this page: {len(event_page.events)}")
+        for event in event_page.events:
+            print(f"  {event.occurred} - {event.event}")
+        print()
+
+        # if there are more pages, fetch the next one
+        second_page = await event_page.get_next_page(client)
+        if second_page:
+            print("=== second page ===")
+            print(f"events on this page: {len(second_page.events)}")
+            for event in second_page.events:
+                print(f"  {event.occurred} - {event.event}")
+            print()
+
+        # demonstrate iterating through all pages
+        print("=== collecting all events ===")
+        all_events = []
+        page = await client.read_events(filter=event_filter, limit=5)
+
+        page_count = 0
+        while page:
+            all_events.extend(page.events)
+            page_count += 1
+            page = await page.get_next_page(client)
+
+        print(f"collected {len(all_events)} events across {page_count} pages")
+
+
+if __name__ == "__main__":
+    asyncio.run(query_recent_events())
+```
+
+</Accordion>
+
 ### Create, read, or delete artifacts
 
 Create, read, or delete artifacts programmatically through the [Prefect REST API](/v3/api-ref/rest-api/).

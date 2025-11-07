@@ -80,6 +80,11 @@ from prefect.client.orchestration._blocks_types.client import (
     BlocksTypeAsyncClient,
 )
 
+from prefect.client.orchestration._events.client import (
+    EventClient,
+    EventAsyncClient,
+)
+
 import prefect
 import prefect.exceptions
 from prefect.logging.loggers import get_run_logger
@@ -277,6 +282,7 @@ class PrefectClient(
     BlocksSchemaAsyncClient,
     BlocksTypeAsyncClient,
     WorkPoolAsyncClient,
+    EventAsyncClient,
 ):
     """
     An asynchronous client for interacting with the [Prefect REST API](https://docs.prefect.io/v3/api-ref/rest-api/).
@@ -1142,6 +1148,7 @@ class SyncPrefectClient(
     BlocksSchemaClient,
     BlocksTypeClient,
     WorkPoolClient,
+    EventClient,
 ):
     """
     A synchronous client for interacting with the [Prefect REST API](https://docs.prefect.io/v3/api-ref/rest-api/).
