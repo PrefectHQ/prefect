@@ -13,6 +13,7 @@ import socket
 import subprocess
 import sys
 import textwrap
+import threading
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -694,7 +695,11 @@ def _cleanup_pid_file(path: Path) -> None:
 
 # this is a hidden command used by the `prefect server services start --background` command
 @services_app.command(hidden=True, name="manager")
-def run_manager_process():
+def run_manager_process(
+    with_healthcheck: bool = typer.Option(
+        False, "--with-healthcheck", help="Start a healthcheck server for the services"
+    ),
+):
     """
     This is an internal entrypoint used by `prefect server services start --background`.
     Users do not call this directly.
@@ -708,6 +713,18 @@ def run_manager_process():
         sys.exit(1)
 
     logger.debug("Manager process started. Starting services...")
+
+    if with_healthcheck:
+        from prefect.server.services.healthcheck import build_healthcheck_server
+
+        healthcheck_server = build_healthcheck_server()
+        healthcheck_thread = threading.Thread(
+            name="healthcheck-server-thread",
+            target=healthcheck_server.run,
+            daemon=True,
+        )
+        healthcheck_thread.start()
+
     try:
         asyncio.run(Service.run_services())
     except KeyboardInterrupt:
@@ -747,6 +764,9 @@ def start_services(
     background: bool = typer.Option(
         False, "--background", "-b", help="Run the services in the background"
     ),
+    with_healthcheck: bool = typer.Option(
+        False, "--with-healthcheck", help="Start a healthcheck server for the services"
+    ),
 ):
     """Start all enabled Prefect services in one process."""
     from prefect.server.services.base import Service
@@ -771,6 +791,18 @@ def start_services(
 
     if not background:
         app.console.print("\n[blue]Starting services... Press CTRL+C to stop[/]\n")
+
+        if with_healthcheck:
+            from prefect.server.services.healthcheck import build_healthcheck_server
+
+            healthcheck_server = build_healthcheck_server()
+            healthcheck_thread = threading.Thread(
+                name="healthcheck-server-thread",
+                target=healthcheck_server.run,
+                daemon=True,
+            )
+            healthcheck_thread.start()
+
         try:
             asyncio.run(Service.run_services())
         except KeyboardInterrupt:
@@ -778,13 +810,12 @@ def start_services(
         app.console.print("\n[green]All services stopped.[/]")
         return
 
+    command = ["prefect", "server", "services", "manager"]
+    if with_healthcheck:
+        command.append("--with-healthcheck")
+
     process = subprocess.Popen(
-        [
-            "prefect",
-            "server",
-            "services",
-            "manager",
-        ],
+        command,
         env=os.environ.copy(),
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
