@@ -495,6 +495,26 @@ class ServerServicesTriggersSettings(ServicesBaseSetting):
     )
 
 
+class ServerServicesHealthcheckWebserverSettings(PrefectBaseSettings):
+    """
+    Settings for controlling the services healthcheck webserver
+    """
+
+    model_config: ClassVar[SettingsConfigDict] = build_settings_config(
+        ("server", "services", "healthcheck", "webserver")
+    )
+
+    host: str = Field(
+        default="0.0.0.0",
+        description="The host address the services healthcheck webserver should bind to.",
+    )
+
+    port: int = Field(
+        default=8080,
+        description="The port the services healthcheck webserver should bind to.",
+    )
+
+
 class ServerServicesSettings(PrefectBaseSettings):
     """
     Settings for controlling server services
@@ -543,4 +563,8 @@ class ServerServicesSettings(PrefectBaseSettings):
     triggers: ServerServicesTriggersSettings = Field(
         default_factory=ServerServicesTriggersSettings,
         description="Settings for controlling the triggers service",
+    )
+    healthcheck_webserver: ServerServicesHealthcheckWebserverSettings = Field(
+        default_factory=ServerServicesHealthcheckWebserverSettings,
+        description="Settings for controlling the services healthcheck webserver",
     )

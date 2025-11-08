@@ -707,6 +707,7 @@ def run_manager_process(
     We do everything in sync so that the child won't exit until the user kills it.
     """
     from prefect.server.services.base import Service
+    from prefect.server.services.healthcheck import build_healthcheck_server
 
     if not Service.enabled_services():
         logger.error("No services are enabled! Exiting manager.")
@@ -714,22 +715,42 @@ def run_manager_process(
 
     logger.debug("Manager process started. Starting services...")
 
-    if with_healthcheck:
-        from prefect.server.services.healthcheck import build_healthcheck_server
+    healthcheck_server = None
+    healthcheck_thread = None
 
-        healthcheck_server = build_healthcheck_server()
-        healthcheck_thread = threading.Thread(
-            name="healthcheck-server-thread",
-            target=healthcheck_server.run,
-            daemon=True,
-        )
-        healthcheck_thread.start()
+    if with_healthcheck:
+        try:
+            healthcheck_server = build_healthcheck_server()
+            healthcheck_thread = threading.Thread(
+                name="healthcheck-server-thread",
+                target=healthcheck_server.run,
+                daemon=True,
+            )
+            healthcheck_thread.start()
+            logger.debug("Healthcheck server started.")
+        except Exception as e:
+            logger.error(
+                f"Failed to start healthcheck server: {e}. Continuing without healthcheck."
+            )
 
     try:
         asyncio.run(Service.run_services())
     except KeyboardInterrupt:
         pass
     finally:
+        if healthcheck_server and healthcheck_thread:
+            logger.debug("Stopping healthcheck server...")
+            try:
+                healthcheck_server.should_exit = True
+                healthcheck_thread.join(timeout=5.0)
+                if healthcheck_thread.is_alive():
+                    logger.warning(
+                        "Healthcheck server thread did not stop within timeout."
+                    )
+                else:
+                    logger.debug("Healthcheck server stopped.")
+            except Exception as e:
+                logger.warning(f"Error stopping healthcheck server: {e}")
         logger.debug("Manager process has exited.")
 
 
@@ -770,6 +791,7 @@ def start_services(
 ):
     """Start all enabled Prefect services in one process."""
     from prefect.server.services.base import Service
+    from prefect.server.services.healthcheck import build_healthcheck_server
 
     SERVICES_PID_FILE.parent.mkdir(parents=True, exist_ok=True)
 
@@ -792,21 +814,45 @@ def start_services(
     if not background:
         app.console.print("\n[blue]Starting services... Press CTRL+C to stop[/]\n")
 
-        if with_healthcheck:
-            from prefect.server.services.healthcheck import build_healthcheck_server
+        healthcheck_server = None
+        healthcheck_thread = None
 
-            healthcheck_server = build_healthcheck_server()
-            healthcheck_thread = threading.Thread(
-                name="healthcheck-server-thread",
-                target=healthcheck_server.run,
-                daemon=True,
-            )
-            healthcheck_thread.start()
+        if with_healthcheck:
+            try:
+                healthcheck_server = build_healthcheck_server()
+                healthcheck_thread = threading.Thread(
+                    name="healthcheck-server-thread",
+                    target=healthcheck_server.run,
+                    daemon=True,
+                )
+                healthcheck_thread.start()
+                logger.debug("Healthcheck server started.")
+            except Exception as e:
+                logger.error(
+                    f"Failed to start healthcheck server: {e}. Continuing without healthcheck."
+                )
+                app.console.print(
+                    f"[yellow]Warning: Failed to start healthcheck server: {e}[/]"
+                )
 
         try:
             asyncio.run(Service.run_services())
         except KeyboardInterrupt:
             pass
+        finally:
+            if healthcheck_server and healthcheck_thread:
+                logger.debug("Stopping healthcheck server...")
+                try:
+                    healthcheck_server.should_exit = True
+                    healthcheck_thread.join(timeout=5.0)
+                    if healthcheck_thread.is_alive():
+                        logger.warning(
+                            "Healthcheck server thread did not stop within timeout."
+                        )
+                    else:
+                        logger.debug("Healthcheck server stopped.")
+                except Exception as e:
+                    logger.warning(f"Error stopping healthcheck server: {e}")
         app.console.print("\n[green]All services stopped.[/]")
         return
 
