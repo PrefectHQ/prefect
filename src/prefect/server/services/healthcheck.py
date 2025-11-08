@@ -5,10 +5,7 @@ import uvicorn
 from fastapi import APIRouter, FastAPI, status
 from fastapi.responses import JSONResponse
 
-from prefect.logging import get_logger
 from prefect.settings import get_current_settings
-
-logger = get_logger(__name__)
 
 
 def _is_port_available(host: str, port: int) -> bool:

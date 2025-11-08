@@ -501,7 +501,7 @@ class ServerServicesHealthcheckWebserverSettings(PrefectBaseSettings):
     """
 
     model_config: ClassVar[SettingsConfigDict] = build_settings_config(
-        ("server", "services", "healthcheck", "webserver")
+        ("server", "services", "healthcheck_webserver")
     )
 
     host: str = Field(
