@@ -944,10 +944,13 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
         for scope in self._scheduled_task_scopes:
             scope.cancel()
 
-        # Emit stopped event before closing client
+        await anyio.sleep(0)
+
+        # Emit stopped event before closing client, with a timeout to prevent
         if self._started_event:
             try:
-                await self._emit_worker_stopped_event(self._started_event)
+                with anyio.move_on_after(2):
+                    await self._emit_worker_stopped_event(self._started_event)
             except Exception:
                 self._logger.exception("Failed to emit worker stopped event")
 
