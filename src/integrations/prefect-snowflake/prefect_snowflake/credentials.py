@@ -57,7 +57,8 @@ class SnowflakeCredentials(CredentialsBlock):
         workload_identity_provider (str): The workload identity provider to use when
             authenticator is set to `workload_identity`.
         token (SecretStr): The OAuth or JWT Token to provide when
-            authenticator is set to OAuth, or workload_identity_provider is set to OIDC.
+            authenticator is set to `oauth`, or workload_identity_provider is set to
+            `oidc`.
         endpoint (str): The Okta endpoint to use when authenticator is
             set to `okta_endpoint`, e.g. `https://<okta_account_name>.okta.com`.
         role (str): The name of the default role to use.
@@ -108,7 +109,7 @@ class SnowflakeCredentials(CredentialsBlock):
         default="snowflake",
         description=("The type of authenticator to use for initializing connection."),
     )
-    workload_identity_provider: Optional[Literal["AWS", "AZURE", "GCP", "OIDC"]] = (
+    workload_identity_provider: Optional[Literal["aws", "azure", "gcp", "oidc"]] = (
         Field(
             default=None,
             description=(
@@ -222,11 +223,11 @@ class SnowflakeCredentials(CredentialsBlock):
         token = values.get("token")
         if (
             authenticator == "workload_identity"
-            and workload_identity_provider == "OIDC"
+            and workload_identity_provider == "oidc"
             and not token
         ):
             raise ValueError(
-                "If workload_identity_provider is set to `OIDC`, `token` must be "
+                "If workload_identity_provider is set to `oidc`, `token` must be "
                 "provided"
             )
 

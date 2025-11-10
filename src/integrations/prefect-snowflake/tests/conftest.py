@@ -101,7 +101,7 @@ def workload_identity_credentials_params():
     return {
         "account": "account",
         "authenticator": "workload_identity",
-        "workload_identity_provider": "AWS",
+        "workload_identity_provider": "aws",
     }
 
 
@@ -110,7 +110,7 @@ def workload_identity_oidc_credentials_params():
     return {
         "account": "account",
         "authenticator": "workload_identity",
-        "workload_identity_provider": "OIDC",
+        "workload_identity_provider": "oidc",
         "token": "token",
     }
 

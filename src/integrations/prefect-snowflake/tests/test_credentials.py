@@ -330,7 +330,7 @@ def test_get_client_workload_identity(
         application="Prefect_Snowflake_Collection",
         account="account",
         authenticator="workload_identity",
-        workload_identity_provider="AWS",
+        workload_identity_provider="aws",
     )
 
 
@@ -345,7 +345,7 @@ def test_get_client_workload_identity_oidc(
         application="Prefect_Snowflake_Collection",
         account="account",
         authenticator="workload_identity",
-        workload_identity_provider="OIDC",
+        workload_identity_provider="oidc",
         token="token",
     )
 
