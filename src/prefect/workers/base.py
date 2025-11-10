@@ -947,11 +947,12 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
         if self._started_event:
             try:
                 await asyncio.wait_for(
-                    self._emit_worker_stopped_event(self._started_event),
-                    timeout=2.0
+                    self._emit_worker_stopped_event(self._started_event), timeout=2.0
                 )
             except asyncio.TimeoutError:
-                self._logger.debug("Worker stopped event emission timed out after 2 seconds")
+                self._logger.debug(
+                    "Worker stopped event emission timed out after 2 seconds"
+                )
             except Exception:
                 self._logger.exception("Failed to emit worker stopped event")
 
