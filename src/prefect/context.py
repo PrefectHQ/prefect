@@ -75,6 +75,10 @@ def serialize_context(
     tags_context = TagsContext.get()
     settings_context = SettingsContext.get()
 
+    # Serialize deployment ContextVars for cross-process context propagation
+    deployment_id = _deployment_id.get()
+    deployment_params = _deployment_parameters.get()
+
     return {
         "flow_run_context": flow_run_context.serialize() if flow_run_context else {},
         "task_run_context": task_run_context.serialize() if task_run_context else {},
@@ -85,6 +89,8 @@ def serialize_context(
         ).serialize()
         if asset_ctx_kwargs
         else {},
+        "deployment_id": str(deployment_id) if deployment_id else None,
+        "deployment_parameters": deployment_params,
     }
 
 
@@ -138,6 +144,15 @@ def hydrated_context(
             # Set up asset context
             if asset_context := serialized_context.get("asset_context"):
                 stack.enter_context(AssetContext(**asset_context))
+            # Restore deployment ContextVars for cross-process context propagation
+            if deployment_id_str := serialized_context.get("deployment_id"):
+                from uuid import UUID
+
+                deployment_id_token = _deployment_id.set(UUID(deployment_id_str))
+                stack.callback(_deployment_id.reset, deployment_id_token)
+            if deployment_params := serialized_context.get("deployment_parameters"):
+                deployment_params_token = _deployment_parameters.set(deployment_params)
+                stack.callback(_deployment_parameters.reset, deployment_params_token)
         yield
 
 
@@ -741,6 +756,13 @@ class SettingsContext(ContextModel):
             # it profiles need to be loaded, and that process calls
             # SettingsContext.get().
             return None
+
+
+# Root deployment context vars for O(1) access in nested flows
+_deployment_id: ContextVar[UUID | None] = ContextVar("deployment_id", default=None)
+_deployment_parameters: ContextVar[dict[str, Any] | None] = ContextVar(
+    "deployment_parameters", default=None
+)
 
 
 def get_run_context() -> Union[FlowRunContext, TaskRunContext]:

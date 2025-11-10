@@ -1,6 +1,7 @@
 import pytest
 
 from prefect import flow
+from prefect.flow_engine import run_flow_async
 from prefect.runtime import deployment
 
 
@@ -191,3 +192,72 @@ class TestParameters:
 
         monkeypatch.setenv(name="PREFECT__FLOW_RUN_ID", value=str(flow_run.id))
         assert deployment.parameters == {"foo": 42}
+
+    async def test_parameters_accessible_in_nested_flows(
+        self, deployment_id, prefect_client
+    ):
+        """Test that deployment.parameters is accessible in nested flows (issue #19329)."""
+
+        seen_params = {}
+
+        @flow
+        async def nested_flow():
+            seen_params["nested"] = deployment.parameters
+            return deployment.parameters
+
+        @flow
+        async def parent_flow():
+            seen_params["parent"] = deployment.parameters
+            result = await nested_flow()
+            return {"parent": deployment.parameters, "nested": result}
+
+        # Create flow run from deployment with custom parameters
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            deployment_id, parameters={"foo": "from_deployment"}
+        )
+
+        # Execute the flow using the flow engine helper
+        await run_flow_async(parent_flow, flow_run=flow_run)
+
+        # Both parent and nested should see the deployment parameters
+        assert seen_params["parent"] == {"foo": "from_deployment"}
+        assert seen_params["nested"] == {"foo": "from_deployment"}
+
+    async def test_parameters_accessible_in_deeply_nested_flows(
+        self, deployment_id, prefect_client
+    ):
+        """Test that deployment.parameters propagates through multiple nesting levels."""
+
+        # Track what we saw at each level
+        seen_params = {}
+
+        @flow
+        async def doubly_nested_flow():
+            seen_params["doubly_nested"] = deployment.parameters
+            return deployment.parameters
+
+        @flow
+        async def nested_flow():
+            seen_params["nested"] = deployment.parameters
+            result = await doubly_nested_flow()
+            return result
+
+        @flow
+        async def parent_flow():
+            seen_params["parent"] = deployment.parameters
+            result = await nested_flow()
+            return result
+
+        # Create flow run from deployment with custom parameters
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            deployment_id, parameters={"foo": "from_deployment", "level": "deep"}
+        )
+
+        # Execute the flow using the flow engine helper
+        await run_flow_async(parent_flow, flow_run=flow_run)
+
+        # All levels should see the deployment parameters
+        expected = {"foo": "from_deployment", "level": "deep"}
+        assert seen_params["parent"] == expected
+        assert seen_params["nested"] == expected
+        assert seen_params["doubly_nested"] == expected
