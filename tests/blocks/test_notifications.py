@@ -1,6 +1,8 @@
+import logging
 import urllib
+from io import StringIO
 from typing import Type
-from unittest.mock import AsyncMock, call, patch
+from unittest.mock import AsyncMock, MagicMock, call, patch
 
 import cloudpickle
 import pytest
@@ -20,6 +22,7 @@ from prefect.blocks.notifications import (
     TwilioSMS,
 )
 from prefect.flows import flow
+from prefect.logging import LogEavesdropper
 
 # A list of the notification classes Pytest should use as parameters to each method in TestAppriseNotificationBlock
 notification_classes = sorted(
@@ -941,3 +944,56 @@ class TestMicrosoftTeamsWebhook:
         pickled = cloudpickle.dumps(block)
         unpickled = cloudpickle.loads(pickled)
         assert isinstance(unpickled, MicrosoftTeamsWebhook)
+
+    async def test_apprise_logs_respect_global_log_level(self):
+        """
+        Test that apprise DEBUG/INFO logs don't appear when the logging level is WARNING.
+
+        This tests the fix for issue #19390 where LogEavesdropper was temporarily
+        setting the apprise logger's level to DEBUG, causing all DEBUG/INFO logs to
+        be emitted to all handlers (including console), not just the eavesdropper.
+        """
+        # Set up a logger
+        test_logger = logging.getLogger("test_apprise_issue_19390")
+        test_logger.setLevel(logging.WARNING)
+        test_logger.handlers = []  # Clear any existing handlers
+        test_logger.propagate = False  # Don't propagate to avoid interference
+
+        # Add a handler that only accepts WARNING and above
+        # This simulates the typical console handler configuration
+        string_stream = StringIO()
+        string_handler = logging.StreamHandler(string_stream)
+        string_handler.setLevel(logging.INFO)  # Handler accepts INFO+
+        string_handler.setFormatter(logging.Formatter("%(levelname)s: %(message)s"))
+        test_logger.addHandler(string_handler)
+
+        # Track what the handler actually processes
+        handler_emit_mock = MagicMock(wraps=string_handler.emit)
+        string_handler.emit = handler_emit_mock
+
+        # Use LogEavesdropper as it's used in notifications.py
+        with LogEavesdropper("test_apprise_issue_19390", level=logging.DEBUG):
+            # Emit logs at various levels
+            test_logger.debug("Debug message")
+            test_logger.info("Info message")
+            test_logger.warning("Warning message")
+
+        # The bug: LogEavesdropper sets logger level to DEBUG, which means
+        # the logger passes DEBUG/INFO logs to ALL handlers, not just the eavesdropper
+        # After the fix, the logger level should not be changed, so DEBUG/INFO logs
+        # should be filtered out by the logger itself
+
+        # Count how many times the handler's emit was called
+        emit_call_count = handler_emit_mock.call_count
+
+        # With the bug: emit is called 3 times (DEBUG, INFO, WARNING all pass through)
+        # After fix: emit should be called only 1 time (only WARNING passes through)
+
+        # This will FAIL before the fix, PASS after the fix
+        assert emit_call_count == 1, (
+            f"Expected handler emit to be called 1 time (only WARNING), "
+            f"but it was called {emit_call_count} times. "
+            "LogEavesdropper should not change the logger's level, which would "
+            "cause DEBUG and INFO logs to bypass the logger's WARNING level filter "
+            "and reach all handlers."
+        )
