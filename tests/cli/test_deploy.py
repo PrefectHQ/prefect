@@ -4718,6 +4718,88 @@ class TestDeployPattern:
         )
         assert deployment.name == "test-name-1"
 
+    @pytest.mark.usefixtures("interactive_console", "project_dir")
+    async def test_deploy_opt_out_of_existing_deployments(
+        self, work_pool, prefect_client
+    ):
+        """
+        Regression test for issue #19378.
+        When user selects "No, configure a new deployment", the CLI should
+        prompt for a new deployment configuration instead of using the first
+        deployment in the list.
+        """
+        prefect_file = Path("prefect.yaml")
+        with prefect_file.open(mode="r") as f:
+            contents = yaml.safe_load(f)
+
+        contents["deployments"] = [
+            {
+                "name": "test-name-1",
+                "description": "test-description-1",
+                "entrypoint": "./flows/hello.py:my_flow",
+                "work_pool": {"name": work_pool.name},
+            },
+            {
+                "name": "test-name-2",
+                "description": "test-description-2",
+                "entrypoint": "./flows/hello.py:my_flow",
+                "work_pool": {"name": work_pool.name},
+            },
+        ]
+
+        with prefect_file.open(mode="w") as f:
+            yaml.safe_dump(contents, f)
+
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command="deploy",
+            expected_code=0,
+            user_input=(
+                # Navigate down twice to get past both existing deployments
+                readchar.key.DOWN
+                + readchar.key.DOWN
+                # Select "No, configure a new deployment"
+                + readchar.key.ENTER
+                # Select the flow "An important name" (navigate down 2 times)
+                + readchar.key.DOWN
+                + readchar.key.DOWN
+                + readchar.key.ENTER
+                # Provide a new deployment name
+                + "new-deployment"
+                + readchar.key.ENTER
+                # Decline schedule
+                + "n"
+                + readchar.key.ENTER
+                # Decline remote storage
+                + "n"
+                + readchar.key.ENTER
+                # Reject saving configuration
+                + "n"
+                + readchar.key.ENTER
+            ),
+            expected_output_contains=[
+                "Would you like to use an existing deployment configuration?",
+                "No, configure a new deployment",
+            ],
+        )
+
+        # Verify that we did NOT create a deployment with test-name-1's config
+        # (which would be the bug behavior - it would inherit test-description-1)
+        deployments = await prefect_client.read_deployments()
+        deployment_by_name = {d.name: d for d in deployments}
+
+        # Should have created "new-deployment", not "test-name-1"
+        assert "new-deployment" in deployment_by_name, (
+            f"Expected 'new-deployment' to be created, but found: {list(deployment_by_name.keys())}"
+        )
+        new_deployment = deployment_by_name["new-deployment"]
+
+        # The bug would cause test-description-1 to be inherited
+        # The fix ensures we get a fresh deployment without inheriting from test-name-1
+        assert new_deployment.description != "test-description-1", (
+            "Bug detected: new deployment inherited description from test-name-1"
+        )
+
 
 @pytest.mark.usefixtures("interactive_console", "project_dir")
 class TestSaveUserInputs:
