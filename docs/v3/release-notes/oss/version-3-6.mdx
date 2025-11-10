@@ -2,6 +2,32 @@
 title: 3.6
 ---
 
+## 3.6.1 - Pop, Lock it, Docket
+
+*Released on November 10, 2025*
+
+**Enhancements ➕**
+
+* Add logfire sampling configuration and fix boolean env var handling by [@zzstoatzz](https://github.com/zzstoatzz) in [#19383](https://github.com/PrefectHQ/prefect/pull/19383)
+
+**Bug Fixes 🐞**
+
+* Fix interactive deploy CLI selecting wrong flow when opting out by [@zzstoatzz](https://github.com/zzstoatzz) in [#19392](https://github.com/PrefectHQ/prefect/pull/19392)
+* Fix deployment.parameters in nested flows using ContextVars by [@zzstoatzz](https://github.com/zzstoatzz) in [#19366](https://github.com/PrefectHQ/prefect/pull/19366)
+
+**Integrations & Dependencies 🤝**
+
+* Upgrade pydocket to stable 0.13.0 release by [@zzstoatzz](https://github.com/zzstoatzz) in [#19401](https://github.com/PrefectHQ/prefect/pull/19401)
+
+**Documentation 📓**
+
+* Add client methods for querying events via REST API by [@zzstoatzz](https://github.com/zzstoatzz) in [#19382](https://github.com/PrefectHQ/prefect/pull/19382)
+
+**Full Changelog**: https://github.com/PrefectHQ/prefect/compare/3.6.0...3.6.1
+
+
+---
+
 ## 3.6.0 - Throw it on the docket and we'll get to it in a jiffy
 
 This release adds [`pydocket`](https://github.com/chrisguidry/docket), a background task system, to replace FastAPI's `background_tasks`. Background tasks now include automatic retries and can optionally use Redis as a backing layer for enhanced durable execution.
