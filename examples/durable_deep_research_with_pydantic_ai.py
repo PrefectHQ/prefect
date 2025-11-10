@@ -1,27 +1,43 @@
 # ---
+# title: Deep Research with Multi-Agent AI
+# description: Build a resilient multi-agent research workflow using Prefect and `pydantic-ai` with planning, search, and analysis agents.
+# icon: search
 # dependencies: ["prefect", "pydantic-ai[prefect]", "logfire"]
-# keywords: ["ai", "agents", "pydantic-ai", "research", "llm", "durable-execution", "logfire", "observability"]
+# keywords: ["ai", "agents", "pydantic-ai", "research", "multi-agent", "durable-execution", "logfire", "observability"]
+# order: 7
 # ---
 #
+# This example demonstrates multi-agent AI research workflows with:
+# - Planning, search, and analysis agents working together
+# - Parallel task execution for concurrent web searches
+# - Durable execution with automatic retries and idempotency
+# - Logfire auto-instrumentation for complete observability
+# - Structured outputs with Pydantic validation
 #
+# ## The Scenario: Deep Research Agent
 #
+# You need to perform comprehensive research on a topic, but manual research is time-consuming.
+# Instead, you'll build a multi-agent system that:
 #
+# 1. Plans the research approach
+# 2. Performs parallel web searches
+# 3. Analyzes and synthesizes the results
 #
-# This example demonstrates:
+# All while being resilient to LLM failures, network issues, and API rate limits.
 #
 # ## Setup
 #
+# Install dependencies (if not already installed):
 # ```bash
+# uv add pydantic-ai[prefect] logfire
 # # or with pip:
 # pip install "pydantic-ai[prefect]" logfire
-# ```
-#
-# ```bash
 # ```
 
 from __future__ import annotations
 
 import asyncio
+import os
 from typing import Annotated
 
 import logfire
@@ -32,9 +48,11 @@ from pydantic_ai.durable_exec.prefect import PrefectAgent, TaskConfig
 
 from prefect import flow, task
 
-#
-
-logfire.configure()
+logfire_token = os.getenv("LOGFIRE_WRITE_TOKEN")
+if logfire_token:
+    logfire.configure(token=logfire_token, send_to_logfire=True)
+else:
+    logfire.configure(send_to_logfire=False)
 logfire.instrument_pydantic_ai()
 
 
@@ -151,7 +169,7 @@ def create_search_agent() -> PrefectAgent[None, str]:
     This agent performs web searches and summarizes results.
     """
     agent = Agent(
-        "openai:gpt-4o-mini",
+        "openai-responses:gpt-4o",
         name="web-searcher",
         builtin_tools=[WebSearchTool()],
         system_prompt=(
@@ -339,7 +357,7 @@ if __name__ == "__main__":
         print("\nSet them with:")
         print("  export OPENAI_API_KEY='your-key-here'")
         print("\nOptional (for enhanced observability):")
-        print("  export LOGFIRE_TOKEN='your-logfire-token'")
+        print("  export LOGFIRE_WRITE_TOKEN='your-logfire-token'")
         sys.exit(1)
 
     # Serve the flow - this creates a deployment and runs a worker
@@ -351,13 +369,18 @@ if __name__ == "__main__":
         },
     )
 
+# ## Triggering Flow Runs
 #
+# Once served, trigger runs via:
 #
 # **Prefect UI:**
 # 1. Navigate to http://localhost:4200
+# 2. Go to Deployments → "deep-research-deployment"
+# 3. Click "Run" → "Quick Run"
 #
 # **CLI:**
 # ```bash
+# prefect deployment run durable-deep-research/deep-research-deployment --watch
 # ```
 #
 # ## Local Testing
@@ -365,6 +388,7 @@ if __name__ == "__main__":
 # For quick local testing without deployment:
 # ```python
 # import asyncio
+# asyncio.run(conduct_deep_research("Your research query here"))
 # ```
 
 #
