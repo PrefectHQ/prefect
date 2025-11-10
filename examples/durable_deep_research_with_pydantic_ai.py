@@ -37,7 +37,6 @@
 from __future__ import annotations
 
 import asyncio
-import os
 from typing import Annotated
 
 import logfire
@@ -45,18 +44,27 @@ from annotated_types import MaxLen
 from pydantic import BaseModel, ConfigDict, Field
 from pydantic_ai import Agent, WebSearchTool, format_as_xml
 from pydantic_ai.durable_exec.prefect import PrefectAgent, TaskConfig
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from prefect import flow, task
 
-logfire_token = os.getenv("LOGFIRE_WRITE_TOKEN")
-if logfire_token:
-    logfire.configure(token=logfire_token, send_to_logfire=True)
-else:
-    logfire.configure(send_to_logfire=False)
+
+class ExampleSettings(BaseSettings):
+    """Settings for the deep research example."""
+
+    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+
+    logfire_write_token: str | None = Field(
+        default=None,
+        description="Logfire write token for observability (optional)",
+    )
+
+
+_settings = ExampleSettings()
+
+if _settings.logfire_write_token:
+    logfire.configure(token=_settings.logfire_write_token, send_to_logfire=True)
 logfire.instrument_pydantic_ai()
-
-
-#
 
 
 class WebSearchStep(BaseModel):
@@ -315,6 +323,11 @@ async def conduct_deep_research(query: str) -> ResearchFindings:
     Returns:
         Structured research findings with insights and recommendations
     """
+    settings = ExampleSettings()
+    if settings.logfire_write_token:
+        logfire.configure(token=settings.logfire_write_token, send_to_logfire=True)
+        logfire.instrument_pydantic_ai()
+
     print(f"🔬 Starting deep research on: {query}\n")
 
     print("📋 Creating research plan...")
@@ -342,22 +355,14 @@ if __name__ == "__main__":
     import os
     import sys
 
-    required_keys = {
-        "OPENAI_API_KEY": "OpenAI API key for GPT models",
-    }
-
-    missing_keys = [
-        f"{key} ({desc})" for key, desc in required_keys.items() if not os.getenv(key)
-    ]
-
-    if missing_keys:
-        print("❌ Error: Missing required environment variables:")
-        for key in missing_keys:
-            print(f"  - {key}")
-        print("\nSet them with:")
+    if not os.getenv("OPENAI_API_KEY"):
+        print("❌ Error: OPENAI_API_KEY environment variable not set")
+        print("\nSet it with:")
         print("  export OPENAI_API_KEY='your-key-here'")
+        print("\nOr create a .env file with:")
+        print("  OPENAI_API_KEY=your-key-here")
         print("\nOptional (for enhanced observability):")
-        print("  export LOGFIRE_WRITE_TOKEN='your-logfire-token'")
+        print("  LOGFIRE_WRITE_TOKEN=your-logfire-token")
         sys.exit(1)
 
     # Serve the flow - this creates a deployment and runs a worker
