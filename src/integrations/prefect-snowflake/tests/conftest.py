@@ -96,6 +96,25 @@ def private_malformed_credentials_params():
     }
 
 
+@pytest.fixture()
+def workload_identity_credentials_params():
+    return {
+        "account": "account",
+        "authenticator": "workload_identity",
+        "workload_identity_provider": "AWS",
+    }
+
+
+@pytest.fixture()
+def workload_identity_oidc_credentials_params():
+    return {
+        "account": "account",
+        "authenticator": "workload_identity",
+        "workload_identity_provider": "OIDC",
+        "token": "token",
+    }
+
+
 @pytest.fixture(autouse=True)
 def snowflake_connect_mock(monkeypatch):
     mock_cursor = MagicMock(name="cursor mock")

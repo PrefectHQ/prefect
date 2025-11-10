@@ -146,6 +146,7 @@ class SnowflakeCredentials(CredentialsBlock):
             "private_key_path",
             "authenticator",
             "token",
+            "workload_identity_provider",
         )
         if not any(values.get(param) for param in auth_params):
             auth_str = ", ".join(auth_params)
