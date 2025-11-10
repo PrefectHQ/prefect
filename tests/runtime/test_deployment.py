@@ -1,6 +1,7 @@
 import pytest
 
 from prefect import flow
+from prefect.flow_engine import run_flow_async
 from prefect.runtime import deployment
 
 
@@ -196,22 +197,19 @@ class TestParameters:
         self, deployment_id, prefect_client
     ):
         """Test that deployment.parameters is accessible in nested flows (issue #19329)."""
-        from prefect.flow_engine import run_flow_async
-        from prefect.runtime import deployment as deployment_runtime
 
-        # Track what we saw in each context
         seen_params = {}
 
         @flow
         async def nested_flow():
-            seen_params["nested"] = deployment_runtime.parameters
-            return deployment_runtime.parameters
+            seen_params["nested"] = deployment.parameters
+            return deployment.parameters
 
         @flow
         async def parent_flow():
-            seen_params["parent"] = deployment_runtime.parameters
+            seen_params["parent"] = deployment.parameters
             result = await nested_flow()
-            return {"parent": deployment_runtime.parameters, "nested": result}
+            return {"parent": deployment.parameters, "nested": result}
 
         # Create flow run from deployment with custom parameters
         flow_run = await prefect_client.create_flow_run_from_deployment(
@@ -229,26 +227,24 @@ class TestParameters:
         self, deployment_id, prefect_client
     ):
         """Test that deployment.parameters propagates through multiple nesting levels."""
-        from prefect.flow_engine import run_flow_async
-        from prefect.runtime import deployment as deployment_runtime
 
         # Track what we saw at each level
         seen_params = {}
 
         @flow
         async def doubly_nested_flow():
-            seen_params["doubly_nested"] = deployment_runtime.parameters
-            return deployment_runtime.parameters
+            seen_params["doubly_nested"] = deployment.parameters
+            return deployment.parameters
 
         @flow
         async def nested_flow():
-            seen_params["nested"] = deployment_runtime.parameters
+            seen_params["nested"] = deployment.parameters
             result = await doubly_nested_flow()
             return result
 
         @flow
         async def parent_flow():
-            seen_params["parent"] = deployment_runtime.parameters
+            seen_params["parent"] = deployment.parameters
             result = await nested_flow()
             return result
 
