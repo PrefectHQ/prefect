@@ -53,6 +53,8 @@ from prefect.context import (
     SettingsContext,
     SyncClientContext,
     TagsContext,
+    _deployment_id,
+    _deployment_parameters,
     get_settings_context,
     hydrated_context,
     serialize_context,
@@ -626,6 +628,13 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
                     else should_persist_result(),
                 )
             )
+            # Set deployment context vars only if this is the top-level deployment run
+            # (nested flows will inherit via ContextVar propagation)
+            if self.flow_run.deployment_id and not _deployment_id.get():
+                id_token = _deployment_id.set(self.flow_run.deployment_id)
+                params_token = _deployment_parameters.set(self.flow_run.parameters)
+                stack.callback(_deployment_id.reset, id_token)
+                stack.callback(_deployment_parameters.reset, params_token)
             stack.enter_context(ConcurrencyContextV1())
             stack.enter_context(ConcurrencyContext())
             if lease_id := self.state.state_details.deployment_concurrency_lease_id:
@@ -1203,6 +1212,13 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
                     else should_persist_result(),
                 )
             )
+            # Set deployment context vars only if this is the top-level deployment run
+            # (nested flows will inherit via ContextVar propagation)
+            if self.flow_run.deployment_id and not _deployment_id.get():
+                id_token = _deployment_id.set(self.flow_run.deployment_id)
+                params_token = _deployment_parameters.set(self.flow_run.parameters)
+                stack.callback(_deployment_id.reset, id_token)
+                stack.callback(_deployment_parameters.reset, params_token)
             stack.enter_context(ConcurrencyContextV1())
             stack.enter_context(ConcurrencyContext())
             if lease_id := self.state.state_details.deployment_concurrency_lease_id:
