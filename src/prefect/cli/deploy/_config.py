@@ -462,7 +462,7 @@ def _pick_deploy_configs(
         selected_deploy_config = _handle_pick_deploy_without_name(deploy_configs)
         if not selected_deploy_config:
             return [
-                _merge_with_default_deploy_config(deploy_configs[0]),
+                _merge_with_default_deploy_config({}),
             ]
         return selected_deploy_config
 
