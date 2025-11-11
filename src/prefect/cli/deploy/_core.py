@@ -246,13 +246,6 @@ async def _run_single_deploy(
             console=app.console, deploy_config=deploy_config, actions=actions
         )
 
-    if trigger_specs := _gather_deployment_trigger_definitions(
-        options.get("triggers"), deploy_config.get("triggers")
-    ):
-        triggers = _initialize_deployment_triggers(deployment_name, trigger_specs)
-    else:
-        triggers = []
-
     # Prefer the originally captured pull_steps (taken before resolution) to
     # preserve unresolved block placeholders in the deployment spec. Only fall
     # back to the config/actions/default if no pull steps were provided.
@@ -306,6 +299,14 @@ async def _run_single_deploy(
     deploy_config = apply_values(deploy_config, step_outputs, warn_on_notset=True)
     deploy_config["parameter_openapi_schema"] = _parameter_schema
     deploy_config["schedules"] = _schedules
+
+    # This initialises triggers after templating to ensure that jinja variables are resolved
+    if trigger_specs := _gather_deployment_trigger_definitions(
+        options.get("triggers"), deploy_config.get("triggers")
+    ):
+        triggers = _initialize_deployment_triggers(deployment_name, trigger_specs)
+    else:
+        triggers = []
 
     if isinstance(deploy_config.get("concurrency_limit"), dict):
         deploy_config["concurrency_options"] = {
