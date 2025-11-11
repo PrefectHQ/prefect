@@ -607,6 +607,7 @@ class TestCreateDeployment:
         assert deployment_response.job_variables == {"cpu": 24}
         assert deployment_response.work_pool_name == work_pool.name
         assert deployment_response.work_queue_name == work_queue_1.name
+        assert deployment_response.work_queue_id == work_queue_1.id
 
         deployment = await models.deployments.read_deployment(
             session=session, deployment_id=deployment_response.id
@@ -650,6 +651,7 @@ class TestCreateDeployment:
         assert deployment_response.job_variables == {"cpu": 24}
         assert deployment_response.work_pool_name == work_pool.name
         assert deployment_response.work_queue_name == default_queue.name
+        assert deployment_response.work_queue_id == work_pool.default_queue_id
 
         deployment = await models.deployments.read_deployment(
             session=session, deployment_id=deployment_response.id
@@ -691,6 +693,9 @@ class TestCreateDeployment:
             session=session, work_pool_name=work_pool.name, work_queue_name="new-queue"
         )
         assert work_queue is not None
+
+        # Regression test for #19415: work_queue_id should be in API response
+        assert response.json()["work_queue_id"] == str(work_queue.id)
 
         deployment = await models.deployments.read_deployment(
             session=session, deployment_id=deployment_id
