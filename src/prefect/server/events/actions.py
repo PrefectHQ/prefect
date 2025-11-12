@@ -164,12 +164,23 @@ class Action(PrefectBaseModel, abc.ABC):
                 if triggered_action.triggering_event
                 else None
             )
+            # Build related resources including triggering event reference
+            related_resources = list(self._resulting_related_resources)
+            if triggered_action.triggering_event:
+                related_resources.append(
+                    RelatedResource(
+                        {
+                            "prefect.resource.id": f"prefect.event.{triggered_action.triggering_event.id}",
+                            "prefect.resource.role": "triggering-event",
+                        }
+                    )
+                )
             await events.emit(
                 Event(
                     occurred=triggered_action.triggered,
                     event="prefect.automation.action.triggered",
                     resource=resource,
-                    related=self._resulting_related_resources,
+                    related=related_resources,
                     payload=action_details,
                     id=triggered_event_id,
                     follows=follows_id,
@@ -223,6 +234,17 @@ class Action(PrefectBaseModel, abc.ABC):
                 if triggered_action.triggering_event
                 else None
             )
+            # Build related resources including triggering event reference
+            related_resources = list(self._resulting_related_resources)
+            if triggered_action.triggering_event:
+                related_resources.append(
+                    RelatedResource(
+                        {
+                            "prefect.resource.id": f"prefect.event.{triggered_action.triggering_event.id}",
+                            "prefect.resource.role": "triggering-event",
+                        }
+                    )
+                )
             await events.emit(
                 Event(
                     occurred=triggered_action.triggered,
@@ -234,7 +256,7 @@ class Action(PrefectBaseModel, abc.ABC):
                             "prefect.trigger-type": automation.trigger.type,
                         }
                     ),
-                    related=self._resulting_related_resources,
+                    related=related_resources,
                     payload=action_details,
                     id=triggered_event_id,
                     follows=follows_id,
