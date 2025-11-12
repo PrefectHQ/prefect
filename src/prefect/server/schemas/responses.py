@@ -450,6 +450,10 @@ class DeploymentResponse(ORMBaseModel):
             " be scheduled."
         ),
     )
+    work_queue_id: Optional[UUID] = Field(
+        default=None,
+        description="The id of the work pool queue to which this deployment is assigned.",
+    )
     last_polled: Optional[DateTime] = Field(
         default=None,
         description="The last time the deployment was polled for status updates.",
@@ -520,6 +524,7 @@ class DeploymentResponse(ORMBaseModel):
 
         if from_attributes:
             if obj.work_queue:
+                response.work_queue_id = obj.work_queue.id
                 response.work_queue_name = obj.work_queue.name
                 if obj.work_queue.work_pool:
                     response.work_pool_name = obj.work_queue.work_pool.name
