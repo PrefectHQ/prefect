@@ -98,7 +98,10 @@ async def test_successes_emit_events(
     automation_id = email_me_when_that_dang_spider_comes.automation.id
 
     assert triggered_event.occurred == email_me_when_that_dang_spider_comes.triggered
-    assert triggered_event.follows is None
+    assert (
+        triggered_event.follows
+        == email_me_when_that_dang_spider_comes.triggering_event.id
+    )
     assert triggered_event.event == "prefect.automation.action.triggered"
     assert triggered_event.resource.id == f"prefect.automation.{automation_id}"
     assert (
@@ -149,7 +152,10 @@ async def test_failures_emit_events(
     automation_id = email_me_when_that_dang_spider_comes.automation.id
 
     assert triggered_event.occurred == email_me_when_that_dang_spider_comes.triggered
-    assert triggered_event.follows is None
+    assert (
+        triggered_event.follows
+        == email_me_when_that_dang_spider_comes.triggering_event.id
+    )
     assert triggered_event.event == "prefect.automation.action.triggered"
     assert triggered_event.resource.id == f"prefect.automation.{automation_id}"
     assert (
@@ -227,3 +233,35 @@ async def test_actions_are_idempotent(
         actions.DoNothing(),  # this is the self on which act is called
         email_me_when_that_dang_spider_comes,
     )
+
+
+async def test_action_triggered_event_follows_triggering_event(
+    message_handler: MessageHandler,
+    email_me_when_that_dang_spider_comes: TriggeredAction,
+):
+    """
+    Regression test for GitHub Discussion #19421.
+
+    The action.triggered event should include a 'follows' field linking to the
+    event that triggered the automation, establishing a clear causal chain for
+    easier debugging and tracing.
+    """
+    await message_handler(
+        MemoryMessage(
+            data=email_me_when_that_dang_spider_comes.model_dump_json().encode(),
+            attributes=None,
+        )
+    )
+
+    assert AssertingEventsClient.last
+    (triggered_event, executed_event) = AssertingEventsClient.last.events
+
+    # The action.triggered event should link to the original triggering event
+    assert email_me_when_that_dang_spider_comes.triggering_event is not None
+    assert (
+        triggered_event.follows
+        == email_me_when_that_dang_spider_comes.triggering_event.id
+    )
+
+    # The action.executed event should still link to action.triggered
+    assert executed_event.follows == triggered_event.id

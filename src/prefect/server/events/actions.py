@@ -158,6 +158,12 @@ class Action(PrefectBaseModel, abc.ABC):
 
         async with PrefectServerEventsClient() as events:
             triggered_event_id = uuid7()
+            # Link to the triggering event if available to establish causal chain
+            follows_id = (
+                triggered_action.triggering_event.id
+                if triggered_action.triggering_event
+                else None
+            )
             await events.emit(
                 Event(
                     occurred=triggered_action.triggered,
@@ -166,6 +172,7 @@ class Action(PrefectBaseModel, abc.ABC):
                     related=self._resulting_related_resources,
                     payload=action_details,
                     id=triggered_event_id,
+                    follows=follows_id,
                 )
             )
             await events.emit(
@@ -210,6 +217,12 @@ class Action(PrefectBaseModel, abc.ABC):
 
         async with PrefectServerEventsClient() as events:
             triggered_event_id = uuid7()
+            # Link to the triggering event if available to establish causal chain
+            follows_id = (
+                triggered_action.triggering_event.id
+                if triggered_action.triggering_event
+                else None
+            )
             await events.emit(
                 Event(
                     occurred=triggered_action.triggered,
@@ -224,6 +237,7 @@ class Action(PrefectBaseModel, abc.ABC):
                     related=self._resulting_related_resources,
                     payload=action_details,
                     id=triggered_event_id,
+                    follows=follows_id,
                 )
             )
             await events.emit(
