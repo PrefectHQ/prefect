@@ -124,8 +124,10 @@ class BitBucketRepository(ReadableDeploymentStorage):
             if username is None:
                 username = "x-token-auth"
             # Encode special characters in username and token
-            safe_username = quote(username or "")
-            safe_token = quote(token or "")
+            # Use safe='' to encode ALL special characters including forward slashes
+            # This is required for tokens that contain base64 characters (+, /, =)
+            safe_username = quote(username or "", safe="")
+            safe_token = quote(token or "", safe="")
             updated_components = url_components._replace(
                 netloc=f"{safe_username}:{safe_token}@{url_components.netloc}"
             )

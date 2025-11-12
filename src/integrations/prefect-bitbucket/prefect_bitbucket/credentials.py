@@ -3,7 +3,7 @@
 import re
 from enum import Enum
 from typing import Optional, Union
-from urllib.parse import urlparse, urlunparse
+from urllib.parse import quote, urlparse, urlunparse
 
 from pydantic import Field, SecretStr, field_validator
 
@@ -118,13 +118,18 @@ class BitBucketCredentials(CredentialsBlock):
                 raise ValueError(
                     "Username is required for BitBucket Server authentication"
                 )
-            credentials = f"{self.username}:{token_value}"
+            # URL-encode both username and token (safe='' encodes all special chars)
+            credentials = (
+                f"{quote(self.username, safe='')}:{quote(token_value, safe='')}"
+            )
         # BitBucket Cloud uses x-token-auth: prefix
         # If token already has a colon or prefix, use as-is
         elif ":" in token_value:
-            credentials = token_value
+            # Split and encode each part separately
+            parts = token_value.split(":", 1)
+            credentials = f"{quote(parts[0], safe='')}:{quote(parts[1], safe='')}"
         else:
-            credentials = f"x-token-auth:{token_value}"
+            credentials = f"x-token-auth:{quote(token_value, safe='')}"
 
         # Insert credentials into URL
         return urlunparse(parsed._replace(netloc=f"{credentials}@{parsed.netloc}"))
