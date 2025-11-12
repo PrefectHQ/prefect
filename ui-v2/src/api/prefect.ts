@@ -7080,6 +7080,12 @@ export interface components {
              */
             run_count: number;
             /**
+             * Submission Count
+             * @description The number of times the flow run was submitted.
+             * @default 0
+             */
+            submission_count: number;
+            /**
              * Expected Start Time
              * @description The flow run's expected start time.
              */
@@ -7749,6 +7755,12 @@ export interface components {
              * @default 0
              */
             run_count: number;
+            /**
+             * Submission Count
+             * @description The number of times the flow run was submitted.
+             * @default 0
+             */
+            submission_count: number;
             /**
              * Expected Start Time
              * @description The flow run's expected start time.
