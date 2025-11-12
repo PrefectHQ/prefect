@@ -15,6 +15,15 @@ except ImportError:
     pass
 
 
+def _quote_credential(value: str) -> str:
+    """URL-encode a credential value for use in git URLs.
+
+    Uses safe='' to encode ALL special characters including forward slashes,
+    which is required for tokens that may contain base64 characters (+, /, =).
+    """
+    return quote(value, safe="")
+
+
 class ClientType(Enum):
     """The client type to use."""
 
@@ -118,18 +127,17 @@ class BitBucketCredentials(CredentialsBlock):
                 raise ValueError(
                     "Username is required for BitBucket Server authentication"
                 )
-            # URL-encode both username and token (safe='' encodes all special chars)
             credentials = (
-                f"{quote(self.username, safe='')}:{quote(token_value, safe='')}"
+                f"{_quote_credential(self.username)}:{_quote_credential(token_value)}"
             )
         # BitBucket Cloud uses x-token-auth: prefix
         # If token already has a colon or prefix, use as-is
         elif ":" in token_value:
             # Split and encode each part separately
             parts = token_value.split(":", 1)
-            credentials = f"{quote(parts[0], safe='')}:{quote(parts[1], safe='')}"
+            credentials = f"{_quote_credential(parts[0])}:{_quote_credential(parts[1])}"
         else:
-            credentials = f"x-token-auth:{quote(token_value, safe='')}"
+            credentials = f"x-token-auth:{_quote_credential(token_value)}"
 
         # Insert credentials into URL
         return urlunparse(parsed._replace(netloc=f"{credentials}@{parsed.netloc}"))
