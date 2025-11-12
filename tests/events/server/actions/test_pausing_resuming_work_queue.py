@@ -437,13 +437,20 @@ async def test_pausing_success_event(
     (triggered_event, executed_event) = AssertingEventsClient.last.events
 
     assert triggered_event.event == "prefect.automation.action.triggered"
+    assert pause_related_patrols.triggering_event is not None
     assert triggered_event.related == [
         RelatedResource.model_validate(
             {
                 "prefect.resource.id": f"prefect.work-queue.{patrols_queue.id}",
                 "prefect.resource.role": "target",
             }
-        )
+        ),
+        RelatedResource.model_validate(
+            {
+                "prefect.resource.id": f"prefect.event.{pause_related_patrols.triggering_event.id}",
+                "prefect.resource.role": "triggering-event",
+            }
+        ),
     ]
     assert triggered_event.payload == {
         "action_index": 0,
@@ -481,13 +488,20 @@ async def test_resuming_success_event(
     (triggered_event, executed_event) = AssertingEventsClient.last.events
 
     assert triggered_event.event == "prefect.automation.action.triggered"
+    assert resume_the_associated_queue.triggering_event is not None
     assert triggered_event.related == [
         RelatedResource.model_validate(
             {
                 "prefect.resource.id": f"prefect.work-queue.{patrols_queue.id}",
                 "prefect.resource.role": "target",
             }
-        )
+        ),
+        RelatedResource.model_validate(
+            {
+                "prefect.resource.id": f"prefect.event.{resume_the_associated_queue.triggering_event.id}",
+                "prefect.resource.role": "triggering-event",
+            }
+        ),
     ]
     assert triggered_event.payload == {
         "action_index": 0,
