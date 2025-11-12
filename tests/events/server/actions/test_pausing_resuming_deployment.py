@@ -461,13 +461,20 @@ async def test_pausing_success_event(
     (triggered_event, executed_event) = AssertingEventsClient.last.events
 
     assert triggered_event.event == "prefect.automation.action.triggered"
+    assert pause_their_deployment.triggering_event is not None
     assert triggered_event.related == [
         RelatedResource.model_validate(
             {
                 "prefect.resource.id": f"prefect.deployment.{hourly_garden_patrol.id}",
                 "prefect.resource.role": "target",
             }
-        )
+        ),
+        RelatedResource.model_validate(
+            {
+                "prefect.resource.id": f"prefect.event.{pause_their_deployment.triggering_event.id}",
+                "prefect.resource.role": "triggering-event",
+            }
+        ),
     ]
     assert triggered_event.payload == {
         "action_index": 0,
@@ -505,13 +512,20 @@ async def test_resuming_success_event(
     (triggered_event, executed_event) = AssertingEventsClient.last.events
 
     assert triggered_event.event == "prefect.automation.action.triggered"
+    assert resume_their_deployment.triggering_event is not None
     assert triggered_event.related == [
         RelatedResource.model_validate(
             {
                 "prefect.resource.id": f"prefect.deployment.{hourly_garden_patrol.id}",
                 "prefect.resource.role": "target",
             }
-        )
+        ),
+        RelatedResource.model_validate(
+            {
+                "prefect.resource.id": f"prefect.event.{resume_their_deployment.triggering_event.id}",
+                "prefect.resource.role": "triggering-event",
+            }
+        ),
     ]
     assert triggered_event.payload == {
         "action_index": 0,

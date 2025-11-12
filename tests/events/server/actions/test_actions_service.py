@@ -98,14 +98,23 @@ async def test_successes_emit_events(
     automation_id = email_me_when_that_dang_spider_comes.automation.id
 
     assert triggered_event.occurred == email_me_when_that_dang_spider_comes.triggered
-    assert triggered_event.follows is None
+    assert (
+        triggered_event.follows
+        == email_me_when_that_dang_spider_comes.triggering_event.id
+    )
     assert triggered_event.event == "prefect.automation.action.triggered"
     assert triggered_event.resource.id == f"prefect.automation.{automation_id}"
     assert (
         triggered_event.resource["prefect.resource.name"]
         == "React immediately to spiders"
     )
-    assert not triggered_event.related
+    # Verify related resource with triggering-event role
+    assert len(triggered_event.related) == 1
+    assert (
+        triggered_event.related[0]["prefect.resource.id"]
+        == f"prefect.event.{email_me_when_that_dang_spider_comes.triggering_event.id}"
+    )
+    assert triggered_event.related[0]["prefect.resource.role"] == "triggering-event"
     assert triggered_event.payload == {
         "action_index": 0,
         "action_type": "do-nothing",
@@ -149,14 +158,23 @@ async def test_failures_emit_events(
     automation_id = email_me_when_that_dang_spider_comes.automation.id
 
     assert triggered_event.occurred == email_me_when_that_dang_spider_comes.triggered
-    assert triggered_event.follows is None
+    assert (
+        triggered_event.follows
+        == email_me_when_that_dang_spider_comes.triggering_event.id
+    )
     assert triggered_event.event == "prefect.automation.action.triggered"
     assert triggered_event.resource.id == f"prefect.automation.{automation_id}"
     assert (
         triggered_event.resource["prefect.resource.name"]
         == "React immediately to spiders"
     )
-    assert not triggered_event.related
+    # Verify related resource with triggering-event role
+    assert len(triggered_event.related) == 1
+    assert (
+        triggered_event.related[0]["prefect.resource.id"]
+        == f"prefect.event.{email_me_when_that_dang_spider_comes.triggering_event.id}"
+    )
+    assert triggered_event.related[0]["prefect.resource.role"] == "triggering-event"
     assert triggered_event.payload == {
         "action_index": 0,
         "action_type": "do-nothing",
@@ -227,3 +245,45 @@ async def test_actions_are_idempotent(
         actions.DoNothing(),  # this is the self on which act is called
         email_me_when_that_dang_spider_comes,
     )
+
+
+async def test_action_triggered_event_follows_triggering_event(
+    message_handler: MessageHandler,
+    email_me_when_that_dang_spider_comes: TriggeredAction,
+):
+    """
+    Regression test for GitHub Discussion #19421.
+
+    The action.triggered event should include:
+    1. A 'follows' field linking to the event that triggered the automation
+    2. A related resource with role 'triggering-event' pointing to that event
+
+    This establishes a clear causal chain for easier debugging and tracing.
+    """
+    await message_handler(
+        MemoryMessage(
+            data=email_me_when_that_dang_spider_comes.model_dump_json().encode(),
+            attributes=None,
+        )
+    )
+
+    assert AssertingEventsClient.last
+    (triggered_event, executed_event) = AssertingEventsClient.last.events
+
+    # The action.triggered event should link to the original triggering event
+    assert email_me_when_that_dang_spider_comes.triggering_event is not None
+    triggering_event_id = email_me_when_that_dang_spider_comes.triggering_event.id
+
+    # Verify follows field
+    assert triggered_event.follows == triggering_event_id
+
+    # Verify related resource with triggering-event role
+    assert len(triggered_event.related) == 1
+    assert (
+        triggered_event.related[0]["prefect.resource.id"]
+        == f"prefect.event.{triggering_event_id}"
+    )
+    assert triggered_event.related[0]["prefect.resource.role"] == "triggering-event"
+
+    # The action.executed event should still link to action.triggered
+    assert executed_event.follows == triggered_event.id
