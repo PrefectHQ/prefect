@@ -388,6 +388,8 @@ class TestSerializeContext:
             "tags_context": {},
             "settings_context": SettingsContext.get().serialize(),
             "asset_context": {},
+            "deployment_id": None,
+            "deployment_parameters": None,
         }
 
     async def test_with_flow_run_context(self, prefect_client):
@@ -414,6 +416,8 @@ class TestSerializeContext:
                 "tags_context": {},
                 "settings_context": SettingsContext.get().serialize(),
                 "asset_context": {},
+                "deployment_id": None,
+                "deployment_parameters": None,
             }
 
     async def test_serialize_from_subprocess_with_flow_run_from_deployment(
@@ -507,6 +511,8 @@ class TestSerializeContext:
                 "tags_context": {},
                 "settings_context": SettingsContext.get().serialize(),
                 "asset_context": {},
+                "deployment_id": None,
+                "deployment_parameters": None,
             }
 
     def test_with_tags_context(self):
@@ -518,6 +524,8 @@ class TestSerializeContext:
                 "tags_context": {"current_tags": current_tags},
                 "settings_context": SettingsContext.get().serialize(),
                 "asset_context": {},
+                "deployment_id": None,
+                "deployment_parameters": None,
             }
 
     def test_with_asset_context(self):
@@ -550,6 +558,8 @@ class TestSerializeContext:
                 materialized_by="foo",
                 copy_to_child_ctx=True,
             ).serialize(),
+            "deployment_id": None,
+            "deployment_parameters": None,
         }
 
     def test_with_multiple_contexts(self):
@@ -564,6 +574,8 @@ class TestSerializeContext:
                     "tags_context": {"current_tags": current_tags},
                     "settings_context": SettingsContext.get().serialize(),
                     "asset_context": {},
+                    "deployment_id": None,
+                    "deployment_parameters": None,
                 }
                 assert (
                     serialized["settings_context"]["settings"]["api"]["key"] == "test"

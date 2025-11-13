@@ -476,6 +476,7 @@ async def test_success_event(
     (triggered_event, executed_event) = AssertingEventsClient.last.events
 
     assert triggered_event.event == "prefect.automation.action.triggered"
+    assert snap_that_naughty_woodchuck.triggering_event is not None
     assert triggered_event.related == [
         RelatedResource.model_validate(
             {
@@ -488,6 +489,12 @@ async def test_success_event(
                 "prefect.resource.id": f"prefect.flow-run.{new_flow_run.id}",
                 "prefect.resource.name": new_flow_run.name,
                 "prefect.resource.role": "flow-run",
+            }
+        ),
+        RelatedResource.model_validate(
+            {
+                "prefect.resource.id": f"prefect.event.{snap_that_naughty_woodchuck.triggering_event.id}",
+                "prefect.resource.role": "triggering-event",
             }
         ),
     ]
