@@ -4,7 +4,7 @@ import datetime
 
 from pydantic import BaseModel
 
-from prefect.types import KeyValueLabelsField
+from prefect.types import KeyValueLabelsField, SecondsTimeDelta
 from prefect.types._datetime import human_friendly_diff
 
 
@@ -49,3 +49,14 @@ def test_human_friendly_diff_with_offset_tzinfo():
     # This call should raise ZoneInfoNotFoundError before the fix
     result = human_friendly_diff(dt_with_mock_offset)
     assert isinstance(result, str)
+
+
+def test_seconds_timedelta_accepts_numeric_values():
+    """Test that SecondsTimeDelta accepts numeric values as seconds."""
+
+    class Model(BaseModel):
+        duration: SecondsTimeDelta
+
+    assert Model(duration=5).duration == datetime.timedelta(seconds=5)
+    assert Model(duration="10").duration == datetime.timedelta(seconds=10)
+    assert Model(duration="PT5S").duration == datetime.timedelta(seconds=5)
