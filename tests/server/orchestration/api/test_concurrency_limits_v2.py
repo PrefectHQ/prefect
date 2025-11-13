@@ -681,8 +681,10 @@ async def test_increment_concurrency_limit_locked_no_decay_retry_after_header(
 
     assert locked_concurrency_limit.avg_slot_occupancy_seconds == 2.0
     # avg occupancy * ((num slots requested + num denied slots) / limit)
+    # clamped_poisson_interval adds jitter, so check approximate value
     expected_retry_after = 2.0 * ((1 + 10) / 10)
-    assert response.headers["Retry-After"] == str(expected_retry_after)
+    actual_retry_after = float(response.headers["Retry-After"])
+    assert abs(actual_retry_after - expected_retry_after) < expected_retry_after * 0.5
 
 
 @pytest.mark.parametrize("endpoint", ["increment", "increment-with-lease"])
@@ -711,8 +713,147 @@ async def test_increment_concurrency_limit_with_decay_locked_retry_after_header(
 
     assert locked_concurrency_limit_with_decay.slot_decay_per_second == 1.0
     # (1.0 / slot_decay) * (num slots requested + num denied slots)
+    # clamped_poisson_interval adds jitter, so check approximate value
     expected_retry_after = 1.0 * (1.0 + 10)
-    assert response.headers["Retry-After"] == str(expected_retry_after)
+    actual_retry_after = float(response.headers["Retry-After"])
+    assert abs(actual_retry_after - expected_retry_after) < expected_retry_after * 0.5
+
+
+@pytest.fixture
+async def locked_tag_concurrency_limit(session: AsyncSession) -> ConcurrencyLimitV2:
+    """
+    A locked concurrency limit with high avg occupancy.
+    Uses tag prefix to match scenario where long-running tasks
+    caused excessive retry delays.
+    """
+    concurrency_limit = await create_concurrency_limit(
+        session=session,
+        concurrency_limit=ConcurrencyLimitV2(
+            name="tag:long-running",
+            limit=10,
+            active_slots=10,
+            avg_slot_occupancy_seconds=10800.0,  # 3 hours
+        ),
+    )
+    await session.commit()
+
+    return ConcurrencyLimitV2.model_validate(concurrency_limit)
+
+
+@pytest.mark.parametrize("endpoint", ["increment", "increment-with-lease"])
+async def test_increment_concurrency_limit_locked_caps_excessive_retry_after(
+    endpoint: str,
+    locked_tag_concurrency_limit: ConcurrencyLimitV2,
+    client: AsyncClient,
+    session: AsyncSession,
+):
+    """
+    Test that concurrency limits cap excessive avg_slot_occupancy_seconds.
+
+    When a limit has very high avg occupancy (e.g., 3 hours from long-running tasks),
+    the Retry-After should be capped at the configured max (default 30s) rather than
+    calculating based on the actual occupancy which would result in excessive delays
+    (e.g., 3 hours * 30 slots = 90 hours).
+
+    This applies to all concurrency limits, not just tag-based ones.
+    """
+    await bulk_update_denied_slots(
+        session=session,
+        concurrency_limit_ids=[locked_tag_concurrency_limit.id],
+        slots=10,
+    )
+    await session.commit()
+
+    response = await client.post(
+        f"/v2/concurrency_limits/{endpoint}",
+        json={
+            "names": [locked_tag_concurrency_limit.name],
+            "slots": 1,
+            "mode": "concurrency",
+        },
+    )
+    assert response.status_code == 423
+
+    # For limits with excessive avg occupancy, Retry-After should be capped
+    # at the configured max (default 30s) rather than using the full avg_slot_occupancy_seconds
+    retry_after = float(response.headers["Retry-After"])
+
+    # Should be around 30 seconds (the default tag_concurrency_slot_wait_seconds cap)
+    # with some randomization from clamped_poisson_interval. Check for reasonable bounds
+    # rather than exact value due to jitter.
+    assert 15 < retry_after < 60, (
+        f"Expected ~30s with jitter, got {retry_after}s. "
+        f"If much higher, capping may be broken and using full avg_slot_occupancy_seconds "
+        f"({locked_tag_concurrency_limit.avg_slot_occupancy_seconds}s)"
+    )
+
+
+@pytest.fixture
+async def locked_tag_concurrency_limit_low_avg(
+    session: AsyncSession,
+) -> ConcurrencyLimitV2:
+    """
+    A locked tag-based concurrency limit with low avg occupancy.
+    This verifies we still use the actual avg when it's reasonable.
+    """
+    concurrency_limit = await create_concurrency_limit(
+        session=session,
+        concurrency_limit=ConcurrencyLimitV2(
+            name="tag:quick-tasks",
+            limit=10,
+            active_slots=10,
+            avg_slot_occupancy_seconds=2.0,  # 2 seconds
+        ),
+    )
+    await session.commit()
+
+    return ConcurrencyLimitV2.model_validate(concurrency_limit)
+
+
+@pytest.mark.parametrize("endpoint", ["increment", "increment-with-lease"])
+async def test_increment_concurrency_limit_locked_respects_low_avg(
+    endpoint: str,
+    locked_tag_concurrency_limit_low_avg: ConcurrencyLimitV2,
+    client: AsyncClient,
+    session: AsyncSession,
+):
+    """
+    Test that concurrency limits respect low avg_slot_occupancy_seconds.
+
+    When a limit has reasonable avg occupancy (e.g., 2 seconds), we should use
+    that value rather than forcing it up to the configured max (default 30s).
+    This ensures fast-running tasks retry quickly.
+
+    This applies to all concurrency limits, not just tag-based ones.
+    """
+    await bulk_update_denied_slots(
+        session=session,
+        concurrency_limit_ids=[locked_tag_concurrency_limit_low_avg.id],
+        slots=10,
+    )
+    await session.commit()
+
+    response = await client.post(
+        f"/v2/concurrency_limits/{endpoint}",
+        json={
+            "names": [locked_tag_concurrency_limit_low_avg.name],
+            "slots": 1,
+            "mode": "concurrency",
+        },
+    )
+    assert response.status_code == 423
+
+    # For limits with low avg occupancy, Retry-After should use the actual
+    # avg_slot_occupancy_seconds rather than forcing it up to the configured max
+    retry_after = float(response.headers["Retry-After"])
+
+    # Should be around 2 seconds (the actual avg_slot_occupancy_seconds)
+    # with some randomization from clamped_poisson_interval. Check for reasonable bounds.
+    assert 1 < retry_after < 5, (
+        f"Expected ~2s with jitter, got {retry_after}s. "
+        f"avg_slot_occupancy_seconds is {locked_tag_concurrency_limit_low_avg.avg_slot_occupancy_seconds}s, "
+        f"should not be forced up to the configured max"
+    )
 
 
 @pytest.mark.parametrize("endpoint", ["increment", "increment-with-lease"])
