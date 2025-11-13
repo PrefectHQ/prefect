@@ -5,6 +5,7 @@ from pydantic import AliasChoices, AliasPath, Field
 from pydantic_settings import SettingsConfigDict
 
 from prefect.settings.base import PrefectBaseSettings, build_settings_config
+from prefect.types import SecondsTimeDelta
 
 
 class ServicesBaseSetting(PrefectBaseSettings):
@@ -228,7 +229,7 @@ class ServerServicesLateRunsSettings(ServicesBaseSetting):
         ),
     )
 
-    after_seconds: timedelta = Field(
+    after_seconds: SecondsTimeDelta = Field(
         default=timedelta(seconds=15),
         description="""
         The late runs service will mark runs as late after they have exceeded their scheduled start time by this many seconds. Defaults to `5` seconds.
