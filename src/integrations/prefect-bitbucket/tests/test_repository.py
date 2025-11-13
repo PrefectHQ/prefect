@@ -292,3 +292,30 @@ class TestBitBucketRepository:
             url
             == "https://devops.team%2Bci%40scalefocus.com:p%40ss%3Aword%231@bitbucket.org/my-team/my-repo.git"
         )
+
+    def test_create_repo_url_escapes_forward_slash_in_token(self):
+        """Regression test for issue #19419: tokens with forward slashes must be URL-encoded.
+
+        Bitbucket access tokens can contain forward slashes (base64 encoding uses them).
+        These must be encoded as %2F to avoid being interpreted as path separators.
+        """
+        credentials = BitBucketCredentials(
+            username="x-token-auth", token="abc123/def456/ghi789"
+        )
+
+        block = BitBucketRepository(
+            repository="https://bitbucket.org/my-team/my-repo.git",
+            bitbucket_credentials=credentials,
+        )
+
+        url = block._create_repo_url()
+        # forward slashes should be encoded as %2F
+        assert (
+            url
+            == "https://x-token-auth:abc123%2Fdef456%2Fghi789@bitbucket.org/my-team/my-repo.git"
+        )
+        # ensure raw slashes don't appear in the credentials portion
+        credentials_part = url.split("@")[0].split("//")[1]
+        assert "/" not in credentials_part.split(":")[1], (
+            "token should not contain unencoded slashes"
+        )
