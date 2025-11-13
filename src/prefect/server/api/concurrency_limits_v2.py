@@ -17,11 +17,19 @@ from prefect.server.database import PrefectDBInterface, provide_database_interfa
 from prefect.server.schemas import actions
 from prefect.server.utilities.schemas import PrefectBaseModel
 from prefect.server.utilities.server import PrefectRouter
+from prefect.settings.context import get_current_settings
 from prefect.types._concurrency import ConcurrencyLeaseHolder
+from prefect.utilities.math import clamped_poisson_interval
 
 router: PrefectRouter = PrefectRouter(
     prefix="/v2/concurrency_limits", tags=["Concurrency Limits V2"]
 )
+
+# Max retry delay (in seconds) for non-tag concurrency limits when slot occupancy is high.
+# Tag-based limits use the legacy tag_concurrency_slot_wait_seconds setting (default 30s)
+# to restore V1 behavior. Non-tag limits use this higher value to allow more uniform queues
+# to check more frequently while still preventing excessive delays from long-running tasks.
+DEFAULT_SLOT_WAIT_SECONDS = 30.0
 
 
 @router.post("/", status_code=status.HTTP_201_CREATED)
@@ -217,6 +225,24 @@ async def _generate_concurrency_locked_response(
     limits: list[schemas.core.ConcurrencyLimitV2],
     slots: int,
 ) -> HTTPException:
+    """
+    Generate a 423 Locked response when concurrency slots cannot be acquired.
+
+    Calculates an appropriate Retry-After header value based on the blocking limit's
+    characteristics. For limits without slot decay, caps avg_slot_occupancy_seconds
+    at a configured maximum to prevent excessive retry delays from long-running tasks:
+
+    - Tag-based limits (name starts with "tag:"): Capped at tag_concurrency_slot_wait_seconds
+      (default 30s) to restore V1 behavior that users relied on
+    - Other limits: Capped at DEFAULT_SLOT_WAIT_SECONDS (30s) to allow more uniform queues
+      while still preventing astronomical delays
+
+    Low average occupancies are always respected (e.g., 2s stays 2s, not forced higher).
+    Limits with slot decay use the decay rate directly without capping.
+
+    The final retry value includes jitter via clamped_poisson_interval to prevent
+    thundering herd when many tasks retry simultaneously.
+    """
     active_limits = [limit for limit in limits if bool(limit.active)]
 
     await models.concurrency_limits_v2.bulk_update_denied_slots(
@@ -234,13 +260,20 @@ async def _generate_concurrency_locked_response(
     blocking_limit = max((limit for limit in active_limits), key=num_blocking_slots)
     blocking_slots = num_blocking_slots(blocking_limit)
 
-    wait_time_per_slot = (
-        blocking_limit.avg_slot_occupancy_seconds
-        if blocking_limit.slot_decay_per_second == 0.0
-        else (1.0 / blocking_limit.slot_decay_per_second)
-    )
+    if blocking_limit.slot_decay_per_second == 0.0:
+        settings = get_current_settings()
+        max_wait = (
+            settings.server.tasks.tag_concurrency_slot_wait_seconds
+            if blocking_limit.name.startswith("tag:")
+            else DEFAULT_SLOT_WAIT_SECONDS
+        )
+        wait_time_per_slot = min(blocking_limit.avg_slot_occupancy_seconds, max_wait)
+    else:
+        wait_time_per_slot = 1.0 / blocking_limit.slot_decay_per_second
 
-    retry_after = wait_time_per_slot * blocking_slots
+    retry_after = clamped_poisson_interval(
+        average_interval=wait_time_per_slot * blocking_slots
+    )
 
     return HTTPException(
         status_code=status.HTTP_423_LOCKED,
