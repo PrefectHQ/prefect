@@ -100,3 +100,52 @@ def test_format_git_credentials_no_token_raises():
         ValueError, match="Token or password is required for BitBucket authentication"
     ):
         credentials.format_git_credentials("https://bitbucket.org/org/repo.git")
+
+
+def test_format_git_credentials_escapes_forward_slash():
+    """Regression test for issue #19419: tokens with forward slashes must be URL-encoded.
+
+    Bitbucket access tokens can contain forward slashes (base64 encoding uses them).
+    These must be encoded as %2F to avoid being interpreted as path separators.
+    """
+    credentials = BitBucketCredentials(token="abc123/def456/ghi789")
+    result = credentials.format_git_credentials("https://bitbucket.org/org/repo.git")
+    # forward slashes should be encoded as %2F
+    assert (
+        result
+        == "https://x-token-auth:abc123%2Fdef456%2Fghi789@bitbucket.org/org/repo.git"
+    )
+    # ensure raw slashes don't appear in the credentials portion
+    credentials_part = result.split("@")[0].split("//")[1]
+    assert "/" not in credentials_part, (
+        "credentials should not contain unencoded slashes"
+    )
+
+
+def test_format_git_credentials_escapes_base64_characters():
+    """Ensure base64 characters (+, /, =) in tokens are properly escaped.
+
+    Base64-encoded tokens use A-Z, a-z, 0-9, +, /, and = characters.
+    All special characters must be URL-encoded for use in credentials.
+    """
+    credentials = BitBucketCredentials(token="aBc+DeF/gHi=")
+    result = credentials.format_git_credentials("https://bitbucket.org/org/repo.git")
+    # + should be %2B, / should be %2F, = should be %3D
+    assert (
+        result == "https://x-token-auth:aBc%2BDeF%2FgHi%3D@bitbucket.org/org/repo.git"
+    )
+
+
+def test_format_git_credentials_server_escapes_special_characters():
+    """Ensure special characters in server credentials are URL-encoded."""
+    credentials = BitBucketCredentials(
+        token="token/with/slashes", username="user@domain.com"
+    )
+    result = credentials.format_git_credentials(
+        "https://bitbucketserver.com/scm/project/repo.git"
+    )
+    # both username and token should have special characters encoded
+    assert (
+        result
+        == "https://user%40domain.com:token%2Fwith%2Fslashes@bitbucketserver.com/scm/project/repo.git"
+    )
