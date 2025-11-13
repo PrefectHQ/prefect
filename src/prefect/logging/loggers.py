@@ -344,6 +344,7 @@ class LogEavesdropper(logging.Handler):
 
     _target_logger: Optional[logging.Logger]
     _lines: List[str]
+    _original_handler_levels: dict[logging.Handler, int]
 
     def __init__(self, eavesdrop_on: str, level: int = logging.NOTSET):
         """
@@ -356,6 +357,7 @@ class LogEavesdropper(logging.Handler):
         super().__init__(level=level)
         self.eavesdrop_on = eavesdrop_on
         self._target_logger = None
+        self._original_handler_levels = {}
 
         # It's important that we use a very minimalistic formatter for use cases where
         # we may present these logs back to the user.  We shouldn't leak filenames,
@@ -367,7 +369,17 @@ class LogEavesdropper(logging.Handler):
     def __enter__(self) -> Self:
         self._target_logger = logging.getLogger(self.eavesdrop_on)
         self._original_level = self._target_logger.level
-        self._target_logger.level = self.level
+        effective_level = self._target_logger.getEffectiveLevel()
+
+        if self.level < effective_level:
+            self._original_handler_levels = {}
+            for handler in self._target_logger.handlers:
+                self._original_handler_levels[handler] = handler.level
+                if handler.level < effective_level:
+                    handler.setLevel(effective_level)
+
+            self._target_logger.level = self.level
+
         self._target_logger.addHandler(self)
         self._lines = []
         return self
@@ -376,6 +388,9 @@ class LogEavesdropper(logging.Handler):
         if self._target_logger:
             self._target_logger.removeHandler(self)
             self._target_logger.level = self._original_level
+
+            for handler, original_level in self._original_handler_levels.items():
+                handler.setLevel(original_level)
 
     def emit(self, record: LogRecord) -> None:
         """The logging.Handler implementation, not intended to be called directly."""
