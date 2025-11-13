@@ -50,6 +50,38 @@ NonNegativeTimeDelta = Annotated[
     timedelta, AfterValidator(_validate_non_negative_timedelta)
 ]
 
+
+def _convert_seconds_to_timedelta(value: Any) -> Any:
+    """
+    Convert numeric values to timedelta for backward compatibility.
+
+    Accepts:
+    - int/float: interpreted as seconds
+    - str that can be parsed as float: interpreted as seconds
+    - timedelta: passed through unchanged
+    - str in ISO 8601 duration or time format: handled by Pydantic
+    """
+    if isinstance(value, timedelta):
+        return value
+
+    if isinstance(value, (int, float)):
+        return timedelta(seconds=value)
+
+    if isinstance(value, str):
+        # Try to parse as a numeric string first
+        try:
+            seconds = float(value)
+            return timedelta(seconds=seconds)
+        except ValueError:
+            # Not a numeric string, let Pydantic handle it
+            # (ISO 8601 duration format, time format, etc.)
+            pass
+
+    return value
+
+
+SecondsTimeDelta = Annotated[timedelta, BeforeValidator(_convert_seconds_to_timedelta)]
+
 TimeZone = Annotated[
     str,
     Field(
@@ -255,6 +287,7 @@ __all__ = [
     "Name",
     "NameOrEmpty",
     "NonEmptyishName",
+    "SecondsTimeDelta",
     "ValidAssetKey",
     "SecretDict",
     "StatusCode",
