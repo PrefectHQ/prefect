@@ -40,7 +40,7 @@ from pathlib import Path
 from shutil import copytree
 from tempfile import TemporaryDirectory
 from typing import Optional, Tuple, Union
-from urllib.parse import quote, urlparse, urlunparse
+from urllib.parse import urlparse, urlunparse
 
 from pydantic import Field, model_validator
 from typing_extensions import Self
@@ -49,7 +49,7 @@ from prefect.exceptions import InvalidRepositoryURLError
 from prefect.filesystems import ReadableDeploymentStorage
 from prefect.utilities.asyncutils import sync_compatible
 from prefect.utilities.processutils import run_process
-from prefect_bitbucket.credentials import BitBucketCredentials
+from prefect_bitbucket.credentials import BitBucketCredentials, _quote_credential
 
 
 class BitBucketRepository(ReadableDeploymentStorage):
@@ -124,8 +124,8 @@ class BitBucketRepository(ReadableDeploymentStorage):
             if username is None:
                 username = "x-token-auth"
             # Encode special characters in username and token
-            safe_username = quote(username or "")
-            safe_token = quote(token or "")
+            safe_username = _quote_credential(username or "")
+            safe_token = _quote_credential(token or "")
             updated_components = url_components._replace(
                 netloc=f"{safe_username}:{safe_token}@{url_components.netloc}"
             )
