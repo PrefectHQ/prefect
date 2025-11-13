@@ -7,7 +7,7 @@ sidebarTitle: concurrency_limits_v2
 
 ## Functions
 
-### `create_concurrency_limit_v2` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/concurrency_limits_v2.py#L28" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `create_concurrency_limit_v2` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/concurrency_limits_v2.py#L36" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 create_concurrency_limit_v2(concurrency_limit: actions.ConcurrencyLimitV2Create, db: PrefectDBInterface = Depends(provide_database_interface)) -> schemas.core.ConcurrencyLimitV2
@@ -19,55 +19,55 @@ Create a task run concurrency limit.
 For more information, see https://docs.prefect.io/v3/how-to-guides/workflows/global-concurrency-limits.
 
 
-### `read_concurrency_limit_v2` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/concurrency_limits_v2.py#L46" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `read_concurrency_limit_v2` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/concurrency_limits_v2.py#L54" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_concurrency_limit_v2(id_or_name: Union[UUID, str] = Path(..., description='The ID or name of the concurrency limit', alias='id_or_name'), db: PrefectDBInterface = Depends(provide_database_interface)) -> schemas.responses.GlobalConcurrencyLimitResponse
 ```
 
-### `read_all_concurrency_limits_v2` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/concurrency_limits_v2.py#L76" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `read_all_concurrency_limits_v2` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/concurrency_limits_v2.py#L84" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_all_concurrency_limits_v2(limit: int = LimitBody(), offset: int = Body(0, ge=0), db: PrefectDBInterface = Depends(provide_database_interface)) -> List[schemas.responses.GlobalConcurrencyLimitResponse]
 ```
 
-### `update_concurrency_limit_v2` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/concurrency_limits_v2.py#L97" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `update_concurrency_limit_v2` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/concurrency_limits_v2.py#L105" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 update_concurrency_limit_v2(concurrency_limit: actions.ConcurrencyLimitV2Update, id_or_name: Union[UUID, str] = Path(..., description='The ID or name of the concurrency limit', alias='id_or_name'), db: PrefectDBInterface = Depends(provide_database_interface)) -> None
 ```
 
-### `delete_concurrency_limit_v2` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/concurrency_limits_v2.py#L128" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `delete_concurrency_limit_v2` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/concurrency_limits_v2.py#L136" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 delete_concurrency_limit_v2(id_or_name: Union[UUID, str] = Path(..., description='The ID or name of the concurrency limit', alias='id_or_name'), db: PrefectDBInterface = Depends(provide_database_interface)) -> None
 ```
 
-### `bulk_increment_active_slots` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/concurrency_limits_v2.py#L254" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `bulk_increment_active_slots` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/concurrency_limits_v2.py#L287" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 bulk_increment_active_slots(slots: int = Body(..., gt=0), names: List[str] = Body(..., min_items=1), mode: Literal['concurrency', 'rate_limit'] = Body('concurrency'), create_if_missing: Optional[bool] = Body(None, deprecated='Limits must be explicitly created before acquiring concurrency slots.'), db: PrefectDBInterface = Depends(provide_database_interface)) -> List[MinimalConcurrencyLimitResponse]
 ```
 
-### `bulk_increment_active_slots_with_lease` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/concurrency_limits_v2.py#L289" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `bulk_increment_active_slots_with_lease` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/concurrency_limits_v2.py#L322" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 bulk_increment_active_slots_with_lease(slots: int = Body(..., gt=0), names: List[str] = Body(..., min_items=1), mode: Literal['concurrency', 'rate_limit'] = Body('concurrency'), lease_duration: float = Body(300, ge=60, le=60 * 60 * 24, description='The duration of the lease in seconds.'), holder: Optional[ConcurrencyLeaseHolder] = Body(None, description='The holder of the lease with type (flow_run, task_run, or deployment) and id.'), db: PrefectDBInterface = Depends(provide_database_interface)) -> ConcurrencyLimitWithLeaseResponse
 ```
 
-### `bulk_decrement_active_slots` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/concurrency_limits_v2.py#L343" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `bulk_decrement_active_slots` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/concurrency_limits_v2.py#L376" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 bulk_decrement_active_slots(slots: int = Body(..., gt=0), names: List[str] = Body(..., min_items=1), occupancy_seconds: Optional[float] = Body(None, gt=0.0), create_if_missing: bool = Body(None, deprecated='Limits must be explicitly created before decrementing active slots.'), db: PrefectDBInterface = Depends(provide_database_interface)) -> List[MinimalConcurrencyLimitResponse]
 ```
 
-### `bulk_decrement_active_slots_with_lease` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/concurrency_limits_v2.py#L377" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `bulk_decrement_active_slots_with_lease` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/concurrency_limits_v2.py#L410" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 bulk_decrement_active_slots_with_lease(lease_id: UUID = Body(..., description='The ID of the lease corresponding to the concurrency limits to decrement.', embed=True), db: PrefectDBInterface = Depends(provide_database_interface)) -> None
 ```
 
-### `renew_concurrency_lease` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/concurrency_limits_v2.py#L403" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `renew_concurrency_lease` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/concurrency_limits_v2.py#L436" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 renew_concurrency_lease(lease_id: UUID = Path(..., description='The ID of the lease to renew'), lease_duration: float = Body(300, ge=60, le=60 * 60 * 24, description='The duration of the lease in seconds.', embed=True)) -> None
@@ -75,7 +75,7 @@ renew_concurrency_lease(lease_id: UUID = Path(..., description='The ID of the le
 
 ## Classes
 
-### `MinimalConcurrencyLimitResponse` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/concurrency_limits_v2.py#L156" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `MinimalConcurrencyLimitResponse` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/concurrency_limits_v2.py#L164" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 **Methods:**
 
@@ -97,7 +97,7 @@ Reset the fields of the model that are in the `_reset_fields` set.
 - A new instance of the model with the reset fields.
 
 
-### `ConcurrencyLimitWithLeaseResponse` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/concurrency_limits_v2.py#L162" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `ConcurrencyLimitWithLeaseResponse` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/concurrency_limits_v2.py#L170" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 **Methods:**
 
