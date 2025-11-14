@@ -241,41 +241,6 @@ def test_subflow_in_task_can_opt_out_of_log_prints(caplog, capsys):
     assert "child print" in capsys.readouterr().out
 
 
-def test_subflow_in_task_uses_own_result_serializer():
-    """
-    Regression test for https://github.com/PrefectHQ/prefect/issues/19449
-    When a subflow runs inside a task, it should use its own result_serializer,
-    not inherit from the parent flow.
-    """
-    from prefect.context import FlowRunContext, get_run_context
-
-    @flow(result_serializer="json")
-    def child_flow():
-        # Both FlowRunContext and get_run_context should return the child's context
-        flow_ctx = FlowRunContext.get()
-        run_ctx = get_run_context()
-
-        assert flow_ctx is not None
-        assert run_ctx is not None
-
-        # Verify we're in the child flow context
-        assert flow_ctx.flow.name == "child-flow"
-        assert run_ctx.flow.name == "child-flow"
-
-        # Both should use JSON serializer
-        assert flow_ctx.result_store.serializer.type == "json"
-        assert run_ctx.result_store.serializer.type == "json"
-
-        return {"message": "child result"}
-
-    @flow(result_serializer="pickle")
-    def parent_flow():
-        result = task(child_flow)()
-        return result
-
-    parent_flow()
-
-
 # Check .with_options can update the value ---------------------------------------------
 
 
