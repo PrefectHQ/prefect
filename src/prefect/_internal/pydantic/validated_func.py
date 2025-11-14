@@ -73,6 +73,7 @@ class ValidatedFunction:
         self.positional_only_args: set[str] = set()
         self.v_args_name = V_ARGS_NAME
         self.v_kwargs_name = V_KWARGS_NAME
+        self._needs_rebuild = False
 
         # Check for conflicts with internal field names
         reserved_names = {
@@ -236,8 +237,14 @@ class ValidatedFunction:
         # This is necessary when using `from __future__ import annotations` or when
         # parameters reference types not in the current scope
         # Only rebuild if we detected forward references to avoid performance overhead
+        # If rebuild fails (e.g., forward-referenced types not yet defined), defer to validation time
         if has_forward_refs:
-            self.model.model_rebuild(_types_namespace=self.raw_function.__globals__)
+            try:
+                self.model.model_rebuild(_types_namespace=self.raw_function.__globals__)
+            except (NameError, AttributeError):
+                # Forward references can't be resolved yet (e.g., types defined after decorator)
+                # Model will be rebuilt during validate_call_args when types are available
+                self._needs_rebuild = True
 
     def validate_call_args(
         self, args: tuple[Any, ...], kwargs: dict[str, Any]
@@ -301,6 +308,17 @@ class ValidatedFunction:
             values[V_POSITIONAL_ONLY_NAME] = positional_only_passed_as_kw
         if duplicate_kwargs:
             values[V_DUPLICATE_KWARGS] = duplicate_kwargs
+
+        # Rebuild model if needed to resolve any forward references that weren't available
+        # at initialization time (e.g., when using `from __future__ import annotations`)
+        # Only rebuild if we previously failed to resolve forward refs at init time
+        if self._needs_rebuild:
+            # Try rebuilding with raise_errors=False to handle any remaining issues gracefully
+            self.model.model_rebuild(
+                _types_namespace=self.raw_function.__globals__, raise_errors=False
+            )
+            # Clear the flag - we only need to rebuild once
+            self._needs_rebuild = False
 
         # Validate using the model
         try:
