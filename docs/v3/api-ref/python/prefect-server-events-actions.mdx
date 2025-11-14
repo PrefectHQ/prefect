@@ -13,7 +13,7 @@ and carries them out.  Also includes the various concrete subtypes of Actions
 
 ## Functions
 
-### `record_action_happening` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1713" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `record_action_happening` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1769" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 record_action_happening(id: UUID) -> None
@@ -23,7 +23,7 @@ record_action_happening(id: UUID) -> None
 Record that an action has happened, with an expiration of an hour.
 
 
-### `action_has_already_happened` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1718" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `action_has_already_happened` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1774" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 action_has_already_happened(id: UUID) -> bool
@@ -33,7 +33,7 @@ action_has_already_happened(id: UUID) -> bool
 Check if the action has already happened
 
 
-### `consumer` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1724" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `consumer` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1780" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 consumer() -> AsyncGenerator[MessageHandler, None]
@@ -66,7 +66,7 @@ Perform the requested Action
 fail(self, triggered_action: 'TriggeredAction', reason: str) -> None
 ```
 
-#### `logging_context` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L250" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `logging_context` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L306" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 logging_context(self, triggered_action: 'TriggeredAction') -> Dict[str, Any]
@@ -93,13 +93,13 @@ Reset the fields of the model that are in the `_reset_fields` set.
 - A new instance of the model with the reset fields.
 
 
-#### `succeed` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L187" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `succeed` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L215" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 succeed(self, triggered_action: 'TriggeredAction') -> None
 ```
 
-### `DoNothing` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L267" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `DoNothing` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L323" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Do nothing when an Automation is triggered
@@ -107,7 +107,7 @@ Do nothing when an Automation is triggered
 
 **Methods:**
 
-#### `act` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L272" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `act` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L328" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 act(self, triggered_action: 'TriggeredAction') -> None
@@ -122,17 +122,17 @@ describe_for_cli(self) -> str
 A human-readable description of the action
 
 
-### `EmitEventAction` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L279" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `EmitEventAction` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L335" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 **Methods:**
 
-#### `act` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L280" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `act` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L336" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 act(self, triggered_action: 'TriggeredAction') -> None
 ```
 
-#### `create_event` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L289" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `create_event` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L345" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 create_event(self, triggered_action: 'TriggeredAction') -> 'Event'
@@ -150,7 +150,7 @@ describe_for_cli(self) -> str
 A human-readable description of the action
 
 
-### `ExternalDataAction` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L293" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `ExternalDataAction` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L349" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Base class for Actions that require data from an external source such as
@@ -168,25 +168,25 @@ describe_for_cli(self) -> str
 A human-readable description of the action
 
 
-#### `events_api_client` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L311" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `events_api_client` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L367" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 events_api_client(self, triggered_action: 'TriggeredAction') -> PrefectServerEventsAPIClient
 ```
 
-#### `orchestration_client` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L297" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `orchestration_client` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L353" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 orchestration_client(self, triggered_action: 'TriggeredAction') -> 'OrchestrationClient'
 ```
 
-#### `reason_from_response` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L323" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `reason_from_response` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L379" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 reason_from_response(self, response: Response) -> str
 ```
 
-### `JinjaTemplateAction` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L387" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `JinjaTemplateAction` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L443" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Base class for Actions that use Jinja templates supplied by the user and
@@ -196,43 +196,43 @@ and the orchestration API.
 
 **Methods:**
 
-#### `events_api_client` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L311" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `events_api_client` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L367" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 events_api_client(self, triggered_action: 'TriggeredAction') -> PrefectServerEventsAPIClient
 ```
 
-#### `instantiate_object` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L438" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `instantiate_object` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L494" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 instantiate_object(self, model: Type[PrefectBaseModel], data: Dict[str, Any], triggered_action: 'TriggeredAction', resource: Optional['Resource'] = None) -> PrefectBaseModel
 ```
 
-#### `orchestration_client` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L297" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `orchestration_client` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L353" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 orchestration_client(self, triggered_action: 'TriggeredAction') -> 'OrchestrationClient'
 ```
 
-#### `reason_from_response` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L323" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `reason_from_response` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L379" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 reason_from_response(self, response: Response) -> str
 ```
 
-#### `templates_in_dictionary` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L417" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `templates_in_dictionary` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L473" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 templates_in_dictionary(cls, dict_: dict[Any, Any | dict[Any, Any]]) -> list[tuple[dict[Any, Any], dict[Any, str]]]
 ```
 
-#### `validate_template` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L406" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `validate_template` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L462" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 validate_template(cls, template: str, field_name: str) -> str
 ```
 
-### `DeploymentAction` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L632" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `DeploymentAction` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L688" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Base class for Actions that operate on Deployments and need to infer them from
@@ -241,7 +241,7 @@ events
 
 **Methods:**
 
-#### `deployment_id_to_use` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L661" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `deployment_id_to_use` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L717" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 deployment_id_to_use(self, triggered_action: 'TriggeredAction') -> UUID
@@ -256,13 +256,13 @@ describe_for_cli(self) -> str
 A human-readable description of the action
 
 
-#### `selected_deployment_requires_id` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L651" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `selected_deployment_requires_id` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L707" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 selected_deployment_requires_id(self) -> Self
 ```
 
-### `DeploymentCommandAction` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L677" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `DeploymentCommandAction` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L733" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Executes a command against a matching deployment
@@ -270,13 +270,13 @@ Executes a command against a matching deployment
 
 **Methods:**
 
-#### `act` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L682" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `act` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L738" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 act(self, triggered_action: 'TriggeredAction') -> None
 ```
 
-#### `command` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L712" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `command` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L768" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 command(self, orchestration: 'OrchestrationClient', deployment_id: UUID, triggered_action: 'TriggeredAction') -> Response
@@ -285,19 +285,19 @@ command(self, orchestration: 'OrchestrationClient', deployment_id: UUID, trigger
 Execute the deployment command
 
 
-#### `events_api_client` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L311" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `events_api_client` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L367" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 events_api_client(self, triggered_action: 'TriggeredAction') -> PrefectServerEventsAPIClient
 ```
 
-#### `orchestration_client` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L297" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `orchestration_client` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L353" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 orchestration_client(self, triggered_action: 'TriggeredAction') -> 'OrchestrationClient'
 ```
 
-#### `reason_from_response` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L323" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `reason_from_response` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L379" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 reason_from_response(self, response: Response) -> str
@@ -309,7 +309,7 @@ reason_from_response(self, response: Response) -> str
 selected_deployment_requires_id(self)
 ```
 
-### `RunDeployment` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L721" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `RunDeployment` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L777" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Runs the given deployment with the given parameters
@@ -317,19 +317,19 @@ Runs the given deployment with the given parameters
 
 **Methods:**
 
-#### `act` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L682" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `act` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L738" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 act(self, triggered_action: 'TriggeredAction') -> None
 ```
 
-#### `command` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L750" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `command` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L806" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 command(self, orchestration: 'OrchestrationClient', deployment_id: UUID, triggered_action: 'TriggeredAction') -> Response
 ```
 
-#### `command` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L712" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `command` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L768" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 command(self, orchestration: 'OrchestrationClient', deployment_id: UUID, triggered_action: 'TriggeredAction') -> Response
@@ -338,37 +338,37 @@ command(self, orchestration: 'OrchestrationClient', deployment_id: UUID, trigger
 Execute the deployment command
 
 
-#### `instantiate_object` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L438" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `instantiate_object` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L494" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 instantiate_object(self, model: Type[PrefectBaseModel], data: Dict[str, Any], triggered_action: 'TriggeredAction', resource: Optional['Resource'] = None) -> PrefectBaseModel
 ```
 
-#### `render_parameters` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L864" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `render_parameters` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L920" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 render_parameters(self, triggered_action: 'TriggeredAction') -> Dict[str, Any]
 ```
 
-#### `templates_in_dictionary` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L417" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `templates_in_dictionary` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L473" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 templates_in_dictionary(cls, dict_: dict[Any, Any | dict[Any, Any]]) -> list[tuple[dict[Any, Any], dict[Any, str]]]
 ```
 
-#### `validate_parameters` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L807" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `validate_parameters` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L863" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 validate_parameters(cls, value: dict[str, Any] | None) -> dict[str, Any] | None
 ```
 
-#### `validate_template` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L406" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `validate_template` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L462" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 validate_template(cls, template: str, field_name: str) -> str
 ```
 
-### `PauseDeployment` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L962" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `PauseDeployment` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1018" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Pauses the given Deployment
@@ -376,19 +376,19 @@ Pauses the given Deployment
 
 **Methods:**
 
-#### `act` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L682" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `act` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L738" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 act(self, triggered_action: 'TriggeredAction') -> None
 ```
 
-#### `command` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L969" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `command` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1025" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 command(self, orchestration: 'OrchestrationClient', deployment_id: UUID, triggered_action: 'TriggeredAction') -> Response
 ```
 
-#### `command` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L712" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `command` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L768" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 command(self, orchestration: 'OrchestrationClient', deployment_id: UUID, triggered_action: 'TriggeredAction') -> Response
@@ -397,7 +397,7 @@ command(self, orchestration: 'OrchestrationClient', deployment_id: UUID, trigger
 Execute the deployment command
 
 
-### `ResumeDeployment` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L978" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `ResumeDeployment` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1034" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Resumes the given Deployment
@@ -405,19 +405,19 @@ Resumes the given Deployment
 
 **Methods:**
 
-#### `act` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L682" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `act` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L738" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 act(self, triggered_action: 'TriggeredAction') -> None
 ```
 
-#### `command` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L985" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `command` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1041" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 command(self, orchestration: 'OrchestrationClient', deployment_id: UUID, triggered_action: 'TriggeredAction') -> Response
 ```
 
-#### `command` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L712" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `command` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L768" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 command(self, orchestration: 'OrchestrationClient', deployment_id: UUID, triggered_action: 'TriggeredAction') -> Response
@@ -426,7 +426,7 @@ command(self, orchestration: 'OrchestrationClient', deployment_id: UUID, trigger
 Execute the deployment command
 
 
-### `FlowRunAction` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L994" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `FlowRunAction` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1050" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 An action that operates on a flow run
@@ -434,31 +434,31 @@ An action that operates on a flow run
 
 **Methods:**
 
-#### `events_api_client` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L311" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `events_api_client` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L367" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 events_api_client(self, triggered_action: 'TriggeredAction') -> PrefectServerEventsAPIClient
 ```
 
-#### `flow_run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L997" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `flow_run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1053" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 flow_run(self, triggered_action: 'TriggeredAction') -> UUID
 ```
 
-#### `orchestration_client` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L297" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `orchestration_client` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L353" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 orchestration_client(self, triggered_action: 'TriggeredAction') -> 'OrchestrationClient'
 ```
 
-#### `reason_from_response` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L323" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `reason_from_response` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L379" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 reason_from_response(self, response: Response) -> str
 ```
 
-### `FlowRunStateChangeAction` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1013" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `FlowRunStateChangeAction` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1069" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Changes the state of a flow run associated with the trigger
@@ -466,19 +466,19 @@ Changes the state of a flow run associated with the trigger
 
 **Methods:**
 
-#### `act` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1020" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `act` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1076" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 act(self, triggered_action: 'TriggeredAction') -> None
 ```
 
-#### `flow_run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L997" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `flow_run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1053" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 flow_run(self, triggered_action: 'TriggeredAction') -> UUID
 ```
 
-#### `new_state` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1017" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `new_state` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1073" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 new_state(self, triggered_action: 'TriggeredAction') -> StateCreate
@@ -487,7 +487,7 @@ new_state(self, triggered_action: 'TriggeredAction') -> StateCreate
 Return the new state for the flow run
 
 
-### `ChangeFlowRunState` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1054" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `ChangeFlowRunState` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1110" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Changes the state of a flow run associated with the trigger
@@ -495,19 +495,19 @@ Changes the state of a flow run associated with the trigger
 
 **Methods:**
 
-#### `act` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1020" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `act` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1076" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 act(self, triggered_action: 'TriggeredAction') -> None
 ```
 
-#### `new_state` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1072" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `new_state` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1128" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 new_state(self, triggered_action: 'TriggeredAction') -> StateCreate
 ```
 
-#### `new_state` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1017" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `new_state` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1073" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 new_state(self, triggered_action: 'TriggeredAction') -> StateCreate
@@ -516,7 +516,7 @@ new_state(self, triggered_action: 'TriggeredAction') -> StateCreate
 Return the new state for the flow run
 
 
-### `CancelFlowRun` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1085" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `CancelFlowRun` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1141" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Cancels a flow run associated with the trigger
@@ -524,19 +524,19 @@ Cancels a flow run associated with the trigger
 
 **Methods:**
 
-#### `act` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1020" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `act` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1076" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 act(self, triggered_action: 'TriggeredAction') -> None
 ```
 
-#### `new_state` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1090" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `new_state` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1146" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 new_state(self, triggered_action: 'TriggeredAction') -> StateCreate
 ```
 
-#### `new_state` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1017" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `new_state` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1073" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 new_state(self, triggered_action: 'TriggeredAction') -> StateCreate
@@ -545,7 +545,7 @@ new_state(self, triggered_action: 'TriggeredAction') -> StateCreate
 Return the new state for the flow run
 
 
-### `SuspendFlowRun` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1097" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `SuspendFlowRun` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1153" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Suspends a flow run associated with the trigger
@@ -553,19 +553,19 @@ Suspends a flow run associated with the trigger
 
 **Methods:**
 
-#### `act` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1020" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `act` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1076" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 act(self, triggered_action: 'TriggeredAction') -> None
 ```
 
-#### `new_state` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1102" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `new_state` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1158" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 new_state(self, triggered_action: 'TriggeredAction') -> StateCreate
 ```
 
-#### `new_state` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1017" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `new_state` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1073" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 new_state(self, triggered_action: 'TriggeredAction') -> StateCreate
@@ -574,7 +574,7 @@ new_state(self, triggered_action: 'TriggeredAction') -> StateCreate
 Return the new state for the flow run
 
 
-### `ResumeFlowRun` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1116" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `ResumeFlowRun` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1172" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Resumes a paused or suspended flow run associated with the trigger
@@ -582,19 +582,19 @@ Resumes a paused or suspended flow run associated with the trigger
 
 **Methods:**
 
-#### `act` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1121" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `act` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1177" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 act(self, triggered_action: 'TriggeredAction') -> None
 ```
 
-#### `flow_run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L997" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `flow_run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1053" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 flow_run(self, triggered_action: 'TriggeredAction') -> UUID
 ```
 
-### `CallWebhook` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1150" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `CallWebhook` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1206" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Call a webhook when an Automation is triggered.
@@ -602,13 +602,13 @@ Call a webhook when an Automation is triggered.
 
 **Methods:**
 
-#### `act` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1227" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `act` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1283" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 act(self, triggered_action: 'TriggeredAction') -> None
 ```
 
-#### `ensure_payload_is_a_string` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1164" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `ensure_payload_is_a_string` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1220" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 ensure_payload_is_a_string(cls, value: Union[str, Dict[str, Any], None]) -> Optional[str]
@@ -620,19 +620,19 @@ may currently be a dictionary, as well as the API, where older versions of the
 frontend may be sending a JSON object with the single `"message"` key.
 
 
-#### `instantiate_object` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L438" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `instantiate_object` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L494" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 instantiate_object(self, model: Type[PrefectBaseModel], data: Dict[str, Any], triggered_action: 'TriggeredAction', resource: Optional['Resource'] = None) -> PrefectBaseModel
 ```
 
-#### `templates_in_dictionary` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L417" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `templates_in_dictionary` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L473" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 templates_in_dictionary(cls, dict_: dict[Any, Any | dict[Any, Any]]) -> list[tuple[dict[Any, Any], dict[Any, str]]]
 ```
 
-#### `validate_payload_templates` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1181" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `validate_payload_templates` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1237" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 validate_payload_templates(cls, value: Optional[str]) -> Optional[str]
@@ -641,13 +641,13 @@ validate_payload_templates(cls, value: Optional[str]) -> Optional[str]
 Validate user-provided payload template.
 
 
-#### `validate_template` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L406" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `validate_template` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L462" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 validate_template(cls, template: str, field_name: str) -> str
 ```
 
-### `SendNotification` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1250" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `SendNotification` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1306" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Send a notification when an Automation is triggered
@@ -655,43 +655,43 @@ Send a notification when an Automation is triggered
 
 **Methods:**
 
-#### `act` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1301" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `act` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1357" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 act(self, triggered_action: 'TriggeredAction') -> None
 ```
 
-#### `instantiate_object` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L438" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `instantiate_object` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L494" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 instantiate_object(self, model: Type[PrefectBaseModel], data: Dict[str, Any], triggered_action: 'TriggeredAction', resource: Optional['Resource'] = None) -> PrefectBaseModel
 ```
 
-#### `is_valid_template` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1261" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `is_valid_template` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1317" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 is_valid_template(cls, value: str, info: ValidationInfo) -> str
 ```
 
-#### `render` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1313" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `render` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1369" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 render(self, triggered_action: 'TriggeredAction') -> List[str]
 ```
 
-#### `templates_in_dictionary` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L417" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `templates_in_dictionary` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L473" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 templates_in_dictionary(cls, dict_: dict[Any, Any | dict[Any, Any]]) -> list[tuple[dict[Any, Any], dict[Any, str]]]
 ```
 
-#### `validate_template` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L406" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `validate_template` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L462" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 validate_template(cls, template: str, field_name: str) -> str
 ```
 
-### `WorkPoolAction` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1317" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `WorkPoolAction` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1373" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Base class for Actions that operate on Work Pools and need to infer them from
@@ -709,29 +709,29 @@ describe_for_cli(self) -> str
 A human-readable description of the action
 
 
-#### `selected_work_pool_requires_id` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1337" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `selected_work_pool_requires_id` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1393" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 selected_work_pool_requires_id(self) -> Self
 ```
 
-#### `work_pool_id_to_use` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1346" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `work_pool_id_to_use` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1402" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 work_pool_id_to_use(self, triggered_action: 'TriggeredAction') -> UUID
 ```
 
-### `WorkPoolCommandAction` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1362" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `WorkPoolCommandAction` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1418" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 **Methods:**
 
-#### `act` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1381" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `act` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1437" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 act(self, triggered_action: 'TriggeredAction') -> None
 ```
 
-#### `command` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1410" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `command` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1466" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 command(self, orchestration: 'OrchestrationClient', work_pool: WorkPool, triggered_action: 'TriggeredAction') -> Response
@@ -740,31 +740,31 @@ command(self, orchestration: 'OrchestrationClient', work_pool: WorkPool, trigger
 Issue the command to the Work Pool
 
 
-#### `events_api_client` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L311" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `events_api_client` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L367" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 events_api_client(self, triggered_action: 'TriggeredAction') -> PrefectServerEventsAPIClient
 ```
 
-#### `orchestration_client` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L297" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `orchestration_client` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L353" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 orchestration_client(self, triggered_action: 'TriggeredAction') -> 'OrchestrationClient'
 ```
 
-#### `reason_from_response` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L323" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `reason_from_response` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L379" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 reason_from_response(self, response: Response) -> str
 ```
 
-#### `target_work_pool` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1367" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `target_work_pool` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1423" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 target_work_pool(self, triggered_action: 'TriggeredAction') -> WorkPool
 ```
 
-### `PauseWorkPool` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1419" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `PauseWorkPool` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1475" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Pauses a Work Pool
@@ -772,19 +772,19 @@ Pauses a Work Pool
 
 **Methods:**
 
-#### `act` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1381" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `act` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1437" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 act(self, triggered_action: 'TriggeredAction') -> None
 ```
 
-#### `command` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1426" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `command` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1482" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 command(self, orchestration: 'OrchestrationClient', work_pool: WorkPool, triggered_action: 'TriggeredAction') -> Response
 ```
 
-#### `command` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1410" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `command` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1466" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 command(self, orchestration: 'OrchestrationClient', work_pool: WorkPool, triggered_action: 'TriggeredAction') -> Response
@@ -793,13 +793,13 @@ command(self, orchestration: 'OrchestrationClient', work_pool: WorkPool, trigger
 Issue the command to the Work Pool
 
 
-#### `target_work_pool` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1367" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `target_work_pool` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1423" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 target_work_pool(self, triggered_action: 'TriggeredAction') -> WorkPool
 ```
 
-### `ResumeWorkPool` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1435" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `ResumeWorkPool` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1491" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Resumes a Work Pool
@@ -807,19 +807,19 @@ Resumes a Work Pool
 
 **Methods:**
 
-#### `act` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1381" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `act` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1437" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 act(self, triggered_action: 'TriggeredAction') -> None
 ```
 
-#### `command` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1442" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `command` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1498" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 command(self, orchestration: 'OrchestrationClient', work_pool: WorkPool, triggered_action: 'TriggeredAction') -> Response
 ```
 
-#### `command` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1410" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `command` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1466" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 command(self, orchestration: 'OrchestrationClient', work_pool: WorkPool, triggered_action: 'TriggeredAction') -> Response
@@ -828,13 +828,13 @@ command(self, orchestration: 'OrchestrationClient', work_pool: WorkPool, trigger
 Issue the command to the Work Pool
 
 
-#### `target_work_pool` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1367" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `target_work_pool` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1423" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 target_work_pool(self, triggered_action: 'TriggeredAction') -> WorkPool
 ```
 
-### `WorkQueueAction` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1451" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `WorkQueueAction` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1507" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Base class for Actions that operate on Work Queues and need to infer them from
@@ -852,29 +852,29 @@ describe_for_cli(self) -> str
 A human-readable description of the action
 
 
-#### `selected_work_queue_requires_id` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1470" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `selected_work_queue_requires_id` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1526" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 selected_work_queue_requires_id(self) -> Self
 ```
 
-#### `work_queue_id_to_use` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1480" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `work_queue_id_to_use` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1536" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 work_queue_id_to_use(self, triggered_action: 'TriggeredAction') -> UUID
 ```
 
-### `WorkQueueCommandAction` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1496" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `WorkQueueCommandAction` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1552" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 **Methods:**
 
-#### `act` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1499" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `act` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1555" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 act(self, triggered_action: 'TriggeredAction') -> None
 ```
 
-#### `command` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1529" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `command` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1585" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 command(self, orchestration: 'OrchestrationClient', work_queue_id: UUID, triggered_action: 'TriggeredAction') -> Response
@@ -883,19 +883,19 @@ command(self, orchestration: 'OrchestrationClient', work_queue_id: UUID, trigger
 Issue the command to the Work Queue
 
 
-#### `events_api_client` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L311" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `events_api_client` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L367" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 events_api_client(self, triggered_action: 'TriggeredAction') -> PrefectServerEventsAPIClient
 ```
 
-#### `orchestration_client` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L297" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `orchestration_client` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L353" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 orchestration_client(self, triggered_action: 'TriggeredAction') -> 'OrchestrationClient'
 ```
 
-#### `reason_from_response` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L323" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `reason_from_response` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L379" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 reason_from_response(self, response: Response) -> str
@@ -907,7 +907,7 @@ reason_from_response(self, response: Response) -> str
 selected_work_queue_requires_id(self) -> Self
 ```
 
-### `PauseWorkQueue` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1538" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `PauseWorkQueue` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1594" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Pauses a Work Queue
@@ -915,19 +915,19 @@ Pauses a Work Queue
 
 **Methods:**
 
-#### `act` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1499" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `act` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1555" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 act(self, triggered_action: 'TriggeredAction') -> None
 ```
 
-#### `command` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1545" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `command` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1601" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 command(self, orchestration: 'OrchestrationClient', work_queue_id: UUID, triggered_action: 'TriggeredAction') -> Response
 ```
 
-#### `command` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1529" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `command` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1585" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 command(self, orchestration: 'OrchestrationClient', work_queue_id: UUID, triggered_action: 'TriggeredAction') -> Response
@@ -936,7 +936,7 @@ command(self, orchestration: 'OrchestrationClient', work_queue_id: UUID, trigger
 Issue the command to the Work Queue
 
 
-### `ResumeWorkQueue` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1554" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `ResumeWorkQueue` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1610" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Resumes a Work Queue
@@ -944,19 +944,19 @@ Resumes a Work Queue
 
 **Methods:**
 
-#### `act` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1499" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `act` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1555" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 act(self, triggered_action: 'TriggeredAction') -> None
 ```
 
-#### `command` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1561" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `command` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1617" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 command(self, orchestration: 'OrchestrationClient', work_queue_id: UUID, triggered_action: 'TriggeredAction') -> Response
 ```
 
-#### `command` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1529" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `command` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1585" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 command(self, orchestration: 'OrchestrationClient', work_queue_id: UUID, triggered_action: 'TriggeredAction') -> Response
@@ -965,7 +965,7 @@ command(self, orchestration: 'OrchestrationClient', work_queue_id: UUID, trigger
 Issue the command to the Work Queue
 
 
-### `AutomationAction` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1570" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `AutomationAction` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1626" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Base class for Actions that operate on Automations and need to infer them from
@@ -974,7 +974,7 @@ events
 
 **Methods:**
 
-#### `automation_id_to_use` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1599" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `automation_id_to_use` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1655" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 automation_id_to_use(self, triggered_action: 'TriggeredAction') -> UUID
@@ -989,23 +989,23 @@ describe_for_cli(self) -> str
 A human-readable description of the action
 
 
-#### `selected_automation_requires_id` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1589" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `selected_automation_requires_id` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1645" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 selected_automation_requires_id(self) -> Self
 ```
 
-### `AutomationCommandAction` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1615" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `AutomationCommandAction` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1671" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 **Methods:**
 
-#### `act` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1618" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `act` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1674" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 act(self, triggered_action: 'TriggeredAction') -> None
 ```
 
-#### `command` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1646" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `command` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1702" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 command(self, events: PrefectServerEventsAPIClient, automation_id: UUID, triggered_action: 'TriggeredAction') -> Response
@@ -1014,19 +1014,19 @@ command(self, events: PrefectServerEventsAPIClient, automation_id: UUID, trigger
 Issue the command to the Work Queue
 
 
-#### `events_api_client` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L311" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `events_api_client` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L367" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 events_api_client(self, triggered_action: 'TriggeredAction') -> PrefectServerEventsAPIClient
 ```
 
-#### `orchestration_client` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L297" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `orchestration_client` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L353" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 orchestration_client(self, triggered_action: 'TriggeredAction') -> 'OrchestrationClient'
 ```
 
-#### `reason_from_response` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L323" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `reason_from_response` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L379" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 reason_from_response(self, response: Response) -> str
@@ -1038,7 +1038,7 @@ reason_from_response(self, response: Response) -> str
 selected_automation_requires_id(self) -> Self
 ```
 
-### `PauseAutomation` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1655" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `PauseAutomation` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1711" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Pauses a Work Queue
@@ -1046,19 +1046,19 @@ Pauses a Work Queue
 
 **Methods:**
 
-#### `act` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1618" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `act` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1674" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 act(self, triggered_action: 'TriggeredAction') -> None
 ```
 
-#### `command` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1662" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `command` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1718" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 command(self, events: PrefectServerEventsAPIClient, automation_id: UUID, triggered_action: 'TriggeredAction') -> Response
 ```
 
-#### `command` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1646" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `command` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1702" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 command(self, events: PrefectServerEventsAPIClient, automation_id: UUID, triggered_action: 'TriggeredAction') -> Response
@@ -1067,7 +1067,7 @@ command(self, events: PrefectServerEventsAPIClient, automation_id: UUID, trigger
 Issue the command to the Work Queue
 
 
-### `ResumeAutomation` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1671" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `ResumeAutomation` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1727" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Resumes a Work Queue
@@ -1075,19 +1075,19 @@ Resumes a Work Queue
 
 **Methods:**
 
-#### `act` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1618" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `act` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1674" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 act(self, triggered_action: 'TriggeredAction') -> None
 ```
 
-#### `command` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1678" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `command` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1734" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 command(self, events: PrefectServerEventsAPIClient, automation_id: UUID, triggered_action: 'TriggeredAction') -> Response
 ```
 
-#### `command` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1646" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `command` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/actions.py#L1702" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 command(self, events: PrefectServerEventsAPIClient, automation_id: UUID, triggered_action: 'TriggeredAction') -> Response
