@@ -39,13 +39,42 @@ class ConcurrencyLeaseStorage(LeaseStorage[ConcurrencyLimitLeaseMetadata]):
         self, lease_id: UUID
     ) -> ResourceLease[ConcurrencyLimitLeaseMetadata] | None: ...
 
-    async def renew_lease(self, lease_id: UUID, ttl: timedelta) -> None: ...
+    async def renew_lease(self, lease_id: UUID, ttl: timedelta) -> bool | None:
+        """
+        Renew a resource lease.
+
+        Args:
+            lease_id: The ID of the lease to renew.
+            ttl: The new amount of time the lease should be held for.
+
+        Returns:
+            True if the lease was successfully renewed, False if the lease
+            does not exist or has already expired. None may be returned by
+            legacy implementations for backwards compatibility (treated as success).
+        """
+        ...
 
     async def revoke_lease(self, lease_id: UUID) -> None: ...
 
-    async def read_active_lease_ids(self) -> list[UUID]: ...
+    async def read_active_lease_ids(
+        self, limit: int = 100, offset: int = 0
+    ) -> list[UUID]: ...
 
     async def read_expired_lease_ids(self, limit: int = 100) -> list[UUID]: ...
+
+    async def list_holders_for_limit(
+        self, limit_id: UUID
+    ) -> list[tuple[UUID, ConcurrencyLeaseHolder]]:
+        """
+        List all holders for a given concurrency limit.
+
+        Args:
+            limit_id: The ID of the concurrency limit to list holders for.
+
+        Returns:
+            A list of tuples containing the lease ID and ConcurrencyLeaseHolder objects representing active holders.
+        """
+        ...
 
 
 def get_concurrency_lease_storage() -> ConcurrencyLeaseStorage:

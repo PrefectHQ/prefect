@@ -76,7 +76,7 @@ async def create_flojo_deployment(prefect_client: PrefectClient) -> UUID:
         schedules=[schedule],
         parameters={"foo": "bar"},
         tags=["foo", "bar"],
-        parameter_openapi_schema={},
+        parameter_openapi_schema={"type": "object", "properties": {}},
     )
     return deployment_id
 

@@ -4984,6 +4984,221 @@ class TestTaskHooksOnFailure:
         assert state.type == StateType.FAILED
         assert my_mock.call_args_list == [call("failed1")]
 
+
+class TestTaskHooksOnRunning:
+    def test_noniterable_hook_raises(self):
+        def running_hook():
+            pass
+
+        with pytest.raises(
+            TypeError,
+            match=re.escape(
+                "Expected iterable for 'on_running'; got function instead. Please"
+                " provide a list of hooks to 'on_running':\n\n"
+                "@task(on_running=[hook1, hook2])\ndef my_task():\n\tpass"
+            ),
+        ):
+
+            @task(on_running=running_hook)
+            def task1():
+                pass
+
+    def test_noncallable_hook_raises(self):
+        with pytest.raises(
+            TypeError,
+            match=re.escape(
+                "Expected callables in 'on_running'; got str instead. Please provide"
+                " a list of hooks to 'on_running':\n\n"
+                "@task(on_running=[hook1, hook2])\ndef my_task():\n\tpass"
+            ),
+        ):
+
+            @task(on_running=["test"])
+            def task1():
+                pass
+
+    def test_callable_noncallable_hook_raises(self):
+        def running_hook():
+            pass
+
+        with pytest.raises(
+            TypeError,
+            match=re.escape(
+                "Expected callables in 'on_running'; got str instead. Please provide"
+                " a list of hooks to 'on_running':\n\n"
+                "@task(on_running=[hook1, hook2])\ndef my_task():\n\tpass"
+            ),
+        ):
+
+            @task(on_running=[running_hook, "test"])
+            def task2():
+                pass
+
+    def test_decorated_on_running_hooks_run_on_running(self):
+        my_mock = MagicMock()
+
+        @task
+        def my_task():
+            pass
+
+        @my_task.on_running
+        def running1(task, task_run, state):
+            my_mock("running1")
+
+        @my_task.on_running
+        def running2(task, task_run, state):
+            my_mock("running2")
+
+        @flow
+        def my_flow():
+            return my_task(return_state=True)
+
+        state = my_flow()
+        assert state.type == StateType.COMPLETED
+        assert my_mock.call_args_list == [call("running1"), call("running2")]
+
+    def test_on_running_hooks_run_on_running(self):
+        my_mock = MagicMock()
+
+        def running1(task, task_run, state):
+            my_mock("running1")
+
+        def running2(task, task_run, state):
+            my_mock("running2")
+
+        @task(on_running=[running1, running2])
+        def my_task():
+            pass
+
+        @flow
+        def my_flow():
+            return my_task(return_state=True)
+
+        state = my_flow()
+        assert state.type == StateType.COMPLETED
+        assert my_mock.call_args_list == [call("running1"), call("running2")]
+
+    def test_on_running_hooks_run_on_both_completed_and_failed(self):
+        my_mock = MagicMock()
+
+        def running1(task, task_run, state):
+            my_mock("running")
+
+        @task(on_running=[running1])
+        def successful_task():
+            pass
+
+        @task(on_running=[running1])
+        def failing_task():
+            raise Exception("oops")
+
+        @flow
+        def my_flow():
+            successful_task()
+            try:
+                failing_task()
+            except Exception:
+                pass
+
+        my_flow()
+        assert my_mock.call_args_list == [call("running"), call("running")]
+
+    def test_other_running_hooks_run_if_a_hook_fails(self):
+        my_mock = MagicMock()
+
+        def running1(task, task_run, state):
+            my_mock("running1")
+
+        def exception_hook(task, task_run, state):
+            raise Exception("bad hook")
+
+        def running2(task, task_run, state):
+            my_mock("running2")
+
+        @task(on_running=[running1, exception_hook, running2])
+        def my_task():
+            pass
+
+        @flow
+        def my_flow():
+            return my_task(return_state=True)
+
+        state = my_flow()
+        assert state.type == StateType.COMPLETED
+        assert my_mock.call_args_list == [call("running1"), call("running2")]
+
+    @pytest.mark.parametrize(
+        "hook1, hook2",
+        [
+            (create_hook, create_hook),
+            (create_hook, create_async_hook),
+            (create_async_hook, create_hook),
+            (create_async_hook, create_async_hook),
+        ],
+    )
+    def test_on_running_hooks_work_with_sync_and_async(self, hook1, hook2):
+        my_mock = MagicMock()
+        hook1_with_mock = hook1(my_mock)
+        hook2_with_mock = hook2(my_mock)
+
+        @task(on_running=[hook1_with_mock, hook2_with_mock])
+        def my_task():
+            pass
+
+        @flow
+        def my_flow():
+            return my_task(return_state=True)
+
+        state = my_flow()
+        assert state.type == StateType.COMPLETED
+        assert my_mock.call_args_list == [call(), call()]
+
+    def test_on_running_hooks_fire_on_retry_with_delay(self):
+        """Test that on_running hooks fire on initial run AND on retry with delay."""
+        my_mock = MagicMock()
+
+        def running_hook(task, task_run, state):
+            my_mock("running")
+
+        @task(on_running=[running_hook], retries=1, retry_delay_seconds=0.1)
+        def my_task():
+            # Fail on first run, succeed on retry
+            if my_mock.call_count < 2:
+                raise ValueError("failing")
+            return "success"
+
+        @flow
+        def my_flow():
+            return my_task(return_state=True)
+
+        state = my_flow()
+        assert state.type == StateType.COMPLETED
+        # Hook should fire twice: once on initial run, once on retry
+        assert my_mock.call_args_list == [call("running"), call("running")]
+
+    def test_on_running_hooks_fire_on_retry_without_delay(self):
+        """Test that on_running hooks fire on initial run AND on retry without delay."""
+        my_mock = MagicMock()
+
+        def running_hook(task, task_run, state):
+            my_mock("running")
+
+        @task(on_running=[running_hook], retries=1)
+        def my_task():
+            # Fail on first run, succeed on retry
+            if my_mock.call_count < 2:
+                raise ValueError("failing")
+            return "success"
+
+        @flow
+        def my_flow():
+            return my_task(return_state=True)
+
+        state = my_flow()
+        assert state.type == StateType.COMPLETED
+        # Hook should fire twice: once on initial run, once on retry
+        assert my_mock.call_args_list == [call("running"), call("running")]
+
     async def test_task_condition_fn_raises_when_not_a_callable(self):
         with pytest.raises(TypeError):
 
@@ -5764,3 +5979,59 @@ class TestDelay:
         assert await get_background_task_run_parameters(
             add_em_up, future.state.state_details.task_parameters_id
         ) == {"parameters": {"args": (42,), "kwargs": {"y": 42}}, "context": ANY}
+
+
+class TestAsyncTaskFromSyncTask:
+    """Tests for submitting async tasks from within sync tasks."""
+
+    def test_async_task_submit_from_sync_task_with_exception(self):
+        """
+        Test that an async task that raises an exception can be submitted
+        from within a sync task without causing a TypeError about
+        awaiting a bool.
+
+        Regression test for issue where mixed sync/async task transactions
+        would fail with "object bool can't be used in 'await' expression"
+        during transaction rollback.
+        """
+
+        @task
+        async def async_task():
+            raise ValueError("aah!")
+
+        @task
+        def sync_task():
+            future = async_task.submit()
+            # This should raise ValueError, not TypeError
+            return future.result()
+
+        @flow
+        def my_flow():
+            return sync_task()
+
+        # The flow should fail with ValueError from the async task,
+        # not TypeError from transaction handling
+        with pytest.raises(ValueError, match="aah!"):
+            my_flow()
+
+    def test_async_task_submit_from_sync_task_success(self):
+        """
+        Test that an async task can successfully be submitted and awaited
+        from within a sync task.
+        """
+
+        @task
+        async def async_task():
+            return 42
+
+        @task
+        def sync_task():
+            future = async_task.submit()
+            return future.result()
+
+        @flow
+        def my_flow():
+            return sync_task()
+
+        result = my_flow()
+        assert result == 42

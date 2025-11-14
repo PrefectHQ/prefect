@@ -9,12 +9,14 @@ dependencies = [
   # don't allow versions from 2023.3.2 to 2023.5 (inclusive) due to issue with
   # get_client starting in 2023.3.2 (fixed in 2023.6.0)
   # https://github.com/dask/distributed/issues/7763
-  "distributed>=2022.5.0,!=2023.3.2,!=2023.3.2.1,!=2023.4.*,!=2023.5.*",
+  # don't allow version 2024.10.0 due to AttributeError with DaskTaskRunner and .map()
+  # https://github.com/PrefectHQ/prefect/issues/18994
+  "distributed>=2022.5.0,!=2023.3.2,!=2023.3.2.1,!=2023.4.*,!=2023.5.*,!=2024.10.0",
 ]
 dynamic = ["version"]
 description = "Prefect integrations with the Dask execution framework."
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 license = { text = "Apache License 2.0" }
 keywords = ["prefect"]
 authors = [{ name = "Prefect Technologies, Inc.", email = "help@prefect.io" }]
@@ -24,7 +26,6 @@ classifiers = [
   "Intended Audience :: System Administrators",
   "License :: OSI Approved :: Apache Software License",
   "Programming Language :: Python :: 3 :: Only",
-  "Programming Language :: Python :: 3.9",
   "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
@@ -39,7 +40,7 @@ dev = [
   # Dask and its distributed scheduler follow the same release schedule and version,
   # so here we apply the same restrictions as for the distributed package up above in
   # project.dependencies
-  "dask[dataframe]>=2022.5.0,!=2023.3.2,!=2023.3.2.1,!=2023.4.*,!=2023.5.*",
+  "dask[dataframe]>=2022.5.0,!=2023.3.2,!=2023.3.2.1,!=2023.4.*,!=2023.5.*,!=2024.10.0",
   "interrogate",
   "mkdocs-gen-files",
   "mkdocs-material",

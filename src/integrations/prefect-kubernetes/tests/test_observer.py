@@ -1,9 +1,12 @@
+import logging
 import uuid
 from contextlib import asynccontextmanager
+from io import StringIO
 from time import sleep
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+from prefect_kubernetes._logging import KopfObjectJsonFormatter
 from prefect_kubernetes.observer import (
     _replicate_pod_event,
     start_observer,
@@ -216,8 +219,9 @@ class TestReplicatePodEvent:
             "test-worker",
         }
 
-    @pytest.mark.usefixtures("mock_orchestration_client")
-    async def test_event_deduplication(self, mock_events_client: AsyncMock):
+    async def test_event_deduplication(
+        self, mock_events_client: AsyncMock, mock_orchestration_client: AsyncMock
+    ):
         """Test that checks from existing events when receiving events on startup"""
         pod_id = uuid.uuid4()
         await _replicate_pod_event(
@@ -230,6 +234,21 @@ class TestReplicatePodEvent:
             status={"phase": "Running"},
             logger=MagicMock(),
         )
+
+        # Verify the request was made with correct payload structure
+        mock_orchestration_client.request.assert_called_once()
+        call_args = mock_orchestration_client.request.call_args
+        assert call_args[0] == ("POST", "/events/filter")
+
+        # Verify the json payload has the correct structure: {"filter": {...}}
+        json_payload = call_args[1]["json"]
+        assert "filter" in json_payload, "Expected 'filter' key in json payload"
+
+        # Verify the nested filter contains expected fields
+        event_filter = json_payload["filter"]
+        assert "event" in event_filter, "Expected 'event' field in filter"
+        assert "resource" in event_filter, "Expected 'resource' field in filter"
+        assert "occurred" in event_filter, "Expected 'occurred' field in filter"
 
         # Verify no event was emitted since one already existed
         mock_events_client.emit.assert_not_called()
@@ -270,3 +289,201 @@ class TestStartAndStopObserver:
         start_observer()
         sleep(1)
         stop_observer()
+
+
+class TestLoggingConfiguration:
+    """Tests for the logging configuration logic in start_observer()"""
+
+    @pytest.mark.usefixtures("mock_events_client", "mock_orchestration_client")
+    def test_json_formatter_configures_kopf_logger(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        """
+        Test that when Prefect uses JSON formatting, kopf logger gets its own
+        handler with KopfObjectJsonFormatter and propagation is disabled.
+        """
+        # Stop any existing observer first
+        stop_observer()
+
+        # Set up Prefect to use JSON formatting
+        monkeypatch.setenv("PREFECT_LOGGING_HANDLERS_CONSOLE_FORMATTER", "json")
+
+        # Import and setup logging fresh to pick up env var
+        from prefect.logging.configuration import PROCESS_LOGGING_CONFIG, setup_logging
+
+        PROCESS_LOGGING_CONFIG.clear()
+        setup_logging(incremental=False)
+
+        # Clear any existing kopf logger configuration
+        kopf_logger = logging.getLogger("kopf")
+        kopf_logger.handlers.clear()
+        kopf_logger.propagate = True
+
+        # Start the observer which should configure kopf logging
+        try:
+            start_observer()
+            sleep(0.5)  # Give it time to configure
+
+            # Verify kopf logger has its own handler
+            assert len(kopf_logger.handlers) > 0, "kopf logger should have a handler"
+
+            # Verify the handler has the correct formatter
+            handler = kopf_logger.handlers[0]
+            assert isinstance(handler.formatter, KopfObjectJsonFormatter), (
+                f"Expected KopfObjectJsonFormatter, got {type(handler.formatter)}"
+            )
+
+            # Verify propagation is disabled
+            assert kopf_logger.propagate is False, (
+                "kopf logger propagation should be disabled"
+            )
+        finally:
+            stop_observer()
+            monkeypatch.delenv("PREFECT_LOGGING_HANDLERS_CONSOLE_FORMATTER")
+
+    @pytest.mark.usefixtures("mock_events_client", "mock_orchestration_client")
+    def test_standard_formatter_uses_default_behavior(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        """
+        Test that when Prefect uses standard formatting (default),
+        kopf logger uses default propagation behavior.
+        """
+        # Stop any existing observer first
+        stop_observer()
+
+        # Use default logging configuration (standard formatter)
+        from prefect.logging.configuration import PROCESS_LOGGING_CONFIG, setup_logging
+
+        PROCESS_LOGGING_CONFIG.clear()
+        setup_logging(incremental=False)
+
+        # Clear any existing kopf logger configuration
+        kopf_logger = logging.getLogger("kopf")
+        kopf_logger.handlers.clear()
+        kopf_logger.propagate = True
+
+        # Start the observer
+        try:
+            start_observer()
+            sleep(0.5)
+
+            # Verify kopf logger doesn't have a dedicated handler added by start_observer
+            # (it should propagate to root logger since we're using standard formatting)
+            assert len(kopf_logger.handlers) == 0, (
+                "kopf logger should not have handlers with standard formatting"
+            )
+
+            # Verify propagation is still enabled (default behavior)
+            assert kopf_logger.propagate is True, (
+                "kopf logger propagation should remain enabled with standard formatting"
+            )
+        finally:
+            stop_observer()
+
+    @pytest.mark.usefixtures("mock_events_client", "mock_orchestration_client")
+    def test_no_duplicate_logs_with_json_formatting(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        """
+        Test that kopf logs don't appear duplicated when JSON formatting is enabled.
+        """
+        # Stop any existing observer first
+        stop_observer()
+
+        # Set up JSON formatting
+        monkeypatch.setenv("PREFECT_LOGGING_HANDLERS_CONSOLE_FORMATTER", "json")
+
+        from prefect.logging.configuration import PROCESS_LOGGING_CONFIG, setup_logging
+
+        PROCESS_LOGGING_CONFIG.clear()
+        setup_logging(incremental=False)
+
+        # Clear kopf logger
+        kopf_logger = logging.getLogger("kopf.test")
+        kopf_logger.handlers.clear()
+        kopf_logger.propagate = True
+
+        try:
+            start_observer()
+            sleep(0.5)
+
+            # Create a custom handler to capture logs
+            # (caplog won't work since propagation is disabled)
+            captured_logs: list[logging.LogRecord] = []
+
+            class CaptureHandler(logging.Handler):
+                def emit(self, record: logging.LogRecord):
+                    captured_logs.append(record)
+
+            capture_handler = CaptureHandler()
+            kopf_logger.addHandler(capture_handler)
+
+            # Emit a test message
+            kopf_logger.warning("Test message for duplicate check")
+
+            # Count how many times the message appears
+            matching_records = [
+                r
+                for r in captured_logs
+                if "Test message for duplicate check" in r.message
+            ]
+
+            assert len(matching_records) == 1, (
+                f"Expected 1 log message, got {len(matching_records)}"
+            )
+        finally:
+            stop_observer()
+            monkeypatch.delenv("PREFECT_LOGGING_HANDLERS_CONSOLE_FORMATTER")
+
+    @pytest.mark.usefixtures("mock_events_client", "mock_orchestration_client")
+    def test_kopf_logs_visible_with_json_formatting(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        """
+        Test that kopf logs are actually emitted and visible when JSON formatting is enabled.
+        """
+        # Stop any existing observer first
+        stop_observer()
+
+        # Set up JSON formatting
+        monkeypatch.setenv("PREFECT_LOGGING_HANDLERS_CONSOLE_FORMATTER", "json")
+
+        from prefect.logging.configuration import PROCESS_LOGGING_CONFIG, setup_logging
+
+        PROCESS_LOGGING_CONFIG.clear()
+        setup_logging(incremental=False)
+
+        # Clear kopf logger
+        kopf_logger = logging.getLogger("kopf.test")
+        kopf_logger.handlers.clear()
+        kopf_logger.propagate = True
+
+        try:
+            start_observer()
+            sleep(0.5)
+
+            # Create a string buffer to capture output
+            log_capture = StringIO()
+            test_handler = logging.StreamHandler(log_capture)
+            test_handler.setFormatter(KopfObjectJsonFormatter())
+            kopf_logger.addHandler(test_handler)
+
+            # Emit a test log message
+            kopf_logger.warning("Test message for visibility check")
+
+            # Get the captured output
+            log_output = log_capture.getvalue()
+
+            # Verify the message was emitted
+            assert "Test message for visibility check" in log_output, (
+                "kopf log message should be visible in output"
+            )
+
+            # Verify it's JSON formatted
+            assert '"message"' in log_output or '"msg"' in log_output, (
+                "Log output should be JSON formatted"
+            )
+        finally:
+            stop_observer()
+            monkeypatch.delenv("PREFECT_LOGGING_HANDLERS_CONSOLE_FORMATTER")

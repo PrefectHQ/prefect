@@ -8,12 +8,12 @@ from uuid import UUID
 
 import jsonschema.exceptions
 import sqlalchemy as sa
-from fastapi import Body, Depends, HTTPException, Path, Response, status
-from starlette.background import BackgroundTasks
+from fastapi import Body, Depends, HTTPException, Path, Response
 
 import prefect.server.api.dependencies as dependencies
 import prefect.server.models as models
 import prefect.server.schemas as schemas
+from prefect._internal.compatibility.starlette import status
 from prefect.server.api.validation import (
     validate_job_variables_for_deployment,
     validate_job_variables_for_deployment_flow_run,
@@ -63,13 +63,13 @@ async def create_deployment(
     db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> schemas.responses.DeploymentResponse:
     """
-    Gracefully creates a new deployment from the provided schema. If a deployment with
+    Creates a new deployment from the provided schema. If a deployment with
     the same name and flow_id already exists, the deployment is updated.
 
     If the deployment has an active schedule, flow runs will be scheduled.
     When upserting, any scheduled runs from the existing deployment will be deleted.
 
-    For more information, see https://docs.prefect.io/v3/deploy.
+    For more information, see https://docs.prefect.io/v3/concepts/deployments.
     """
 
     data = deployment.model_dump(exclude_unset=True)
@@ -511,7 +511,7 @@ async def paginate_deployments(
 
 @router.post("/get_scheduled_flow_runs")
 async def get_scheduled_flow_runs_for_deployments(
-    background_tasks: BackgroundTasks,
+    docket: dependencies.Docket,
     deployment_ids: list[UUID] = Body(
         default=..., description="The deployment IDs to get scheduled runs for"
     ),
@@ -551,9 +551,7 @@ async def get_scheduled_flow_runs_for_deployments(
             for orm_flow_run in orm_flow_runs
         ]
 
-    background_tasks.add_task(
-        mark_deployments_ready,
-        db=db,
+    await docket.add(mark_deployments_ready)(
         deployment_ids=deployment_ids,
     )
 

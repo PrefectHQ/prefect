@@ -26,14 +26,14 @@ jobs:
           persist-credentials: false
 
       - name: Set up uv
-        uses: astral-sh/setup-uv@v6
+        uses: astral-sh/setup-uv@v7
         with:
           enable-cache: true
           python-version: "3.12"
           cache-dependency-glob: "src/integrations/prefect-kubernetes/integration_tests/pyproject.toml"
 
       - name: Set up Kind cluster
-        uses: helm/kind-action@v1.12.0
+        uses: helm/kind-action@v1.13.0
         with:
           cluster_name: prefect-test
 

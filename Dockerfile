@@ -1,5 +1,5 @@
 # The version of Python in the final image
-ARG PYTHON_VERSION=3.9
+ARG PYTHON_VERSION=3.10
 # The base image to use for the final image; Prefect and its Python requirements will
 # be installed in this image. The default is the official Python slim image.
 # The following images are also available in this file:
@@ -7,11 +7,38 @@ ARG PYTHON_VERSION=3.9
 # Any image tag can be used, but it must have apt and pip.
 ARG BASE_IMAGE=python:${PYTHON_VERSION}-slim
 # The version used to build the Python distributable.
-ARG BUILD_PYTHON_VERSION=3.9
+ARG BUILD_PYTHON_VERSION=3.10
 # THe version used to build the UI distributable.
-ARG NODE_VERSION=18.18.0
+ARG NODE_VERSION=20.19.0
+# SQLite version to install (format: X.YY.Z becomes XYYZZOO in filename)
+ARG SQLITE_VERSION=3.50.4
+ARG SQLITE_YEAR=2025
+ARG SQLITE_FILE_VERSION=3500400
 # Any extra Python requirements to install
 ARG EXTRA_PIP_PACKAGES=""
+
+# Build SQLite from source to address CVE-2025-6965
+# This stage is cached separately to avoid recompiling on every build
+FROM python:${PYTHON_VERSION}-slim AS sqlite-builder
+
+ARG SQLITE_VERSION
+ARG SQLITE_YEAR
+ARG SQLITE_FILE_VERSION
+
+RUN apt-get update && \
+    apt-get install --no-install-recommends -y \
+    build-essential \
+    wget \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+RUN wget -q https://sqlite.org/${SQLITE_YEAR}/sqlite-autoconf-${SQLITE_FILE_VERSION}.tar.gz && \
+    tar xzf sqlite-autoconf-${SQLITE_FILE_VERSION}.tar.gz && \
+    cd sqlite-autoconf-${SQLITE_FILE_VERSION} && \
+    ./configure --prefix=/usr/local && \
+    make -j$(nproc) && \
+    make install && \
+    cd .. && \
+    rm -rf sqlite-autoconf-${SQLITE_FILE_VERSION} sqlite-autoconf-${SQLITE_FILE_VERSION}.tar.gz
 
 # Build the UI distributable.
 FROM --platform=$BUILDPLATFORM node:${NODE_VERSION}-bullseye-slim AS ui-builder
@@ -42,7 +69,7 @@ WORKDIR /opt/prefect
 RUN apt-get update && \
     apt-get install --no-install-recommends -y \
     gpg \
-    git=1:2.* \
+    git>=1:2.47.3 \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Install UV from official image - pin to specific version for build caching
@@ -77,6 +104,12 @@ SHELL ["/bin/bash", "--login", "-c"]
 # Build the final image with Prefect installed and our entrypoint configured
 FROM ${BASE_IMAGE} AS final
 
+# Redeclare ARGs needed in this stage
+ARG PYTHON_VERSION
+ARG SQLITE_VERSION
+ARG SQLITE_YEAR
+ARG SQLITE_FILE_VERSION
+
 ENV LC_ALL=C.UTF-8
 ENV LANG=C.UTF-8
 
@@ -84,8 +117,12 @@ ENV UV_COMPILE_BYTECODE=1
 ENV UV_LINK_MODE=copy
 ENV UV_SYSTEM_PYTHON=1
 
+# Ensure Python uses the upgraded SQLite library
+ENV LD_LIBRARY_PATH=/usr/local/lib
+
 LABEL maintainer="help@prefect.io" \
     io.prefect.python-version=${PYTHON_VERSION} \
+    io.prefect.sqlite-version=${SQLITE_VERSION} \
     org.label-schema.schema-version="1.0" \
     org.label-schema.name="prefect" \
     org.label-schema.url="https://www.prefect.io/"
@@ -97,8 +134,15 @@ RUN apt-get update && \
     apt-get install --no-install-recommends -y \
     tini=0.19.* \
     build-essential \
-    git=1:2.* \
+    git>=1:2.47.3 \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# Copy pre-compiled SQLite ${SQLITE_VERSION} from sqlite-builder stage
+COPY --from=sqlite-builder /usr/local/lib/libsqlite3* /usr/local/lib/
+COPY --from=sqlite-builder /usr/local/include/sqlite3*.h /usr/local/include/
+COPY --from=sqlite-builder /usr/local/bin/sqlite3 /usr/local/bin/
+COPY --from=sqlite-builder /usr/local/lib/pkgconfig/sqlite3.pc /usr/local/lib/pkgconfig/
+RUN ldconfig
 
 # Install UV from official image - pin to specific version for build caching
 COPY --from=ghcr.io/astral-sh/uv:0.6.17 /uv /bin/uv

@@ -6,9 +6,11 @@ import enum
 import json
 import logging
 import uuid
+from collections import deque
 from contextlib import AsyncExitStack
 from datetime import timedelta
 from functools import partial
+from types import TracebackType
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -30,6 +32,9 @@ from slugify import slugify
 import prefect
 from prefect.events.clients import get_events_client
 from prefect.events.schemas.events import Event, RelatedResource, Resource
+from prefect.exceptions import ObjectNotFound
+from prefect.states import Crashed
+from prefect.utilities.engine import propose_state
 
 if TYPE_CHECKING:
     from mypy_boto3_sqs.type_defs import MessageTypeDef
@@ -41,6 +46,8 @@ logger.setLevel(logging.INFO)
 
 _last_event_cache: LRUCache[uuid.UUID, Event] = LRUCache(maxsize=1000)
 
+_ECS_DEFAULT_CONTAINER_NAME = "prefect"
+
 _ECS_EVENT_DETAIL_MAP: dict[
     str, Literal["task", "container-instance", "deployment"]
 ] = {
@@ -48,6 +55,18 @@ _ECS_EVENT_DETAIL_MAP: dict[
     "ECS Container Instance State Change": "container-instance",
     "ECS Deployment": "deployment",
 }
+
+EcsTaskLastStatus = Literal[
+    "PROVISIONING",
+    "PENDING",
+    "ACTIVATING",
+    "RUNNING",
+    "DEACTIVATING",
+    "STOPPING",
+    "DEPROVISIONING",
+    "STOPPED",
+    "DELETED",
+]
 
 
 class FilterCase(enum.Enum):
@@ -77,6 +96,7 @@ class AsyncEcsEventHandler(Protocol):
 
 class EventHandlerFilters(TypedDict):
     tags: TagsFilter
+    last_status: LastStatusFilter
 
 
 class TagsFilter:
@@ -92,6 +112,14 @@ class TagsFilter:
             or tag_value == tags.get(tag_name)
             for tag_name, tag_value in self.tags.items()
         )
+
+
+class LastStatusFilter:
+    def __init__(self, *statuses: EcsTaskLastStatus):
+        self.statuses = statuses
+
+    def is_match(self, last_status: EcsTaskLastStatus) -> bool:
+        return not self.statuses or last_status in self.statuses
 
 
 HandlerWithFilters = NamedTuple(
@@ -125,9 +153,15 @@ class EcsTaskTagsReader:
             print(f"Error reading tags for task {task_arn}: {e}")
             return {}
 
+        if not (tasks := response.get("tasks", [])):
+            return {}
+
+        if len(tasks) == 0:
+            return {}
+
         tags = {
             tag["key"]: tag["value"]
-            for tag in response.get("tasks", [{}])[0].get("tags", [])
+            for tag in tasks[0].get("tags", [])
             if "key" in tag and "value" in tag
         }
         self._cache[task_arn] = tags
@@ -142,6 +176,15 @@ class EcsTaskTagsReader:
     async def __aexit__(self, *args: Any) -> None:
         if self.ecs_client:
             await self.ecs_client.__aexit__(*args)
+
+
+SQS_MEMORY = 10
+SQS_CONSECUTIVE_FAILURES = 3
+SQS_BACKOFF = 1
+SQS_MAX_BACKOFF_ATTEMPTS = 5
+
+OBSERVER_RESTART_BASE_DELAY = 30
+OBSERVER_MAX_RESTART_ATTEMPTS = 5
 
 
 class SqsSubscriber:
@@ -166,30 +209,76 @@ class SqsSubscriber:
                     == "AWS.SimpleQueueService.NonExistentQueue"
                 ):
                     logger.warning(
-                        f"SQS queue '{self.queue_name}' does not exist in region '{self.queue_region or 'default'}'. "
-                        "To enable ECS event replication, deploy an SQS queue using the prefect-aws CLI and "
-                        "configure the PREFECT_INTEGRATIONS_AWS_ECS_OBSERVER_SQS_QUEUE_NAME environment variable "
-                        "on your worker to point to the deployed queue."
+                        (
+                            "SQS queue '%s' does not exist in region '%s'. "
+                            "This worker will continue to submit ECS tasks, but event replication "
+                            "and crash detection will not work. To enable ECS event replication and "
+                            "crash detection, deploy an SQS queue using "
+                            "`prefect-aws ecs-worker deploy-events` and configure the "
+                            "PREFECT_INTEGRATIONS_AWS_ECS_OBSERVER_SQS_QUEUE_NAME environment "
+                            "variable on your worker to point to the deployed queue."
+                        ),
+                        self.queue_name,
+                        self.queue_region or "default",
                     )
                     return
                 raise
 
+            track_record: deque[bool] = deque(
+                [True] * SQS_CONSECUTIVE_FAILURES, maxlen=SQS_CONSECUTIVE_FAILURES
+            )
+            failures: deque[tuple[Exception, TracebackType | None]] = deque(
+                maxlen=SQS_MEMORY
+            )
+            backoff_count = 0
+
             while True:
-                messages = await sqs_client.receive_message(
-                    QueueUrl=queue_url,
-                    MaxNumberOfMessages=10,
-                    WaitTimeSeconds=20,
-                )
-                for message in messages.get("Messages", []):
-                    if not (receipt_handle := message.get("ReceiptHandle")):
-                        continue
-
-                    yield message
-
-                    await sqs_client.delete_message(
+                try:
+                    messages = await sqs_client.receive_message(
                         QueueUrl=queue_url,
-                        ReceiptHandle=receipt_handle,
+                        MaxNumberOfMessages=10,
+                        WaitTimeSeconds=20,
                     )
+                    for message in messages.get("Messages", []):
+                        if not (receipt_handle := message.get("ReceiptHandle")):
+                            continue
+
+                        yield message
+
+                        await sqs_client.delete_message(
+                            QueueUrl=queue_url,
+                            ReceiptHandle=receipt_handle,
+                        )
+
+                    backoff_count = 0
+                except Exception as e:
+                    track_record.append(False)
+                    failures.append((e, e.__traceback__))
+                    logger.debug("Failed to receive messages from SQS", exc_info=e)
+
+                if not any(track_record):
+                    backoff_count += 1
+
+                    if backoff_count > SQS_MAX_BACKOFF_ATTEMPTS:
+                        logger.error(
+                            "SQS polling exceeded maximum backoff attempts (%s). "
+                            "Last %s errors: %s",
+                            SQS_MAX_BACKOFF_ATTEMPTS,
+                            len(failures),
+                            [str(e) for e, _ in failures],
+                        )
+                        raise RuntimeError(
+                            f"SQS polling failed after {SQS_MAX_BACKOFF_ATTEMPTS} backoff attempts"
+                        )
+
+                    track_record.extend([True] * SQS_CONSECUTIVE_FAILURES)
+                    failures.clear()
+                    backoff_seconds = SQS_BACKOFF * 2**backoff_count
+                    logger.debug(
+                        "Backing off due to consecutive errors, using increased interval of %s seconds.",
+                        backoff_seconds,
+                    )
+                    await asyncio.sleep(backoff_seconds)
 
 
 class EcsObserver:
@@ -250,9 +339,12 @@ class EcsObserver:
                     logger.debug("Unknown event type: %s. Skipping.", detail_type)
                     continue
 
+                last_status = body.get("detail", {}).get("lastStatus")
                 event_type = _ECS_EVENT_DETAIL_MAP[detail_type]
                 for handler, filters in self.event_handlers[event_type]:
-                    if filters["tags"].is_match(tags):
+                    if filters["tags"].is_match(tags) and filters[
+                        "last_status"
+                    ].is_match(last_status):
                         logger.debug(
                             "Running handler %s for message",
                             handler.__name__,
@@ -270,12 +362,16 @@ class EcsObserver:
         event_type: Literal["task", "container-instance", "deployment"],
         /,
         tags: dict[str, str | FilterCase] | None = None,
+        statuses: list[EcsTaskLastStatus] | None = None,
     ):
         def decorator(fn: EcsEventHandler | AsyncEcsEventHandler):
             self.event_handlers[event_type].append(
                 HandlerWithFilters(
                     handler=fn,
-                    filters={"tags": TagsFilter(**(tags or {}))},
+                    filters={
+                        "tags": TagsFilter(**(tags or {})),
+                        "last_status": LastStatusFilter(*(statuses or [])),
+                    },
                 )
             )
             return fn
@@ -333,7 +429,7 @@ def _related_resources_from_tags(tags: dict[str, str]) -> list[RelatedResource]:
                     "prefect.resource.id": f"prefect.worker.ecs.{slugify(worker_name)}",
                     "prefect.resource.role": "worker",
                     "prefect.resource.name": worker_name,
-                    "prefect.worker-type": "kubernetes",
+                    "prefect.worker-type": "ecs",
                     "prefect.version": prefect.__version__,
                 }
             )
@@ -414,25 +510,176 @@ async def replicate_ecs_event(event: dict[str, Any], tags: dict[str, str]):
             handler_logger.exception("Error emitting event %s", event_id)
 
 
+@ecs_observer.on_event(
+    "task", tags={"prefect.io/flow-run-id": FilterCase.PRESENT}, statuses=["STOPPED"]
+)
+async def mark_runs_as_crashed(event: dict[str, Any], tags: dict[str, str]):
+    handler_logger = logger.getChild("mark_runs_as_crashed")
+
+    task_arn = event.get("detail", {}).get("taskArn")
+    if not task_arn:
+        handler_logger.debug("No task ARN in event. Skipping.")
+        return
+
+    flow_run_id = tags.get("prefect.io/flow-run-id")
+
+    async with prefect.get_client() as orchestration_client:
+        try:
+            flow_run = await orchestration_client.read_flow_run(
+                flow_run_id=uuid.UUID(flow_run_id)
+            )
+        except ObjectNotFound:
+            logger.debug(f"Flow run {flow_run_id} not found, skipping")
+            return
+
+        assert flow_run.state is not None, "Expected flow run state to be set"
+
+        # Exit early for final or scheduled states
+        if flow_run.state.is_final() or flow_run.state.is_scheduled():
+            logger.debug(
+                f"Flow run {flow_run_id} is in final or scheduled state, skipping"
+            )
+            return
+
+        containers = event.get("detail", {}).get("containers", [])
+
+        containers_with_non_zero_exit_codes = [
+            container
+            for container in containers
+            if container.get("exitCode") is None or container.get("exitCode") != 0
+        ]
+
+        if any(containers_with_non_zero_exit_codes):
+            container_identifiers = [
+                c.get("name") or c.get("containerArn") for c in containers
+            ]
+            handler_logger.info(
+                "The following containers stopped with a non-zero exit code: %s. Marking flow run %s as crashed",
+                container_identifiers,
+                flow_run_id,
+            )
+            await propose_state(
+                client=orchestration_client,
+                state=Crashed(
+                    message=f"The following containers stopped with a non-zero exit code: {container_identifiers}"
+                ),
+                flow_run_id=uuid.UUID(flow_run_id),
+            )
+
+
+@ecs_observer.on_event(
+    "task",
+    tags={"prefect.io/degregister-task-definition": "true"},
+    statuses=["STOPPED"],
+)
+async def deregister_task_definition(event: dict[str, Any], tags: dict[str, str]):
+    handler_logger = logger.getChild("deregister_task_definition")
+
+    if not (task_definition_arn := event.get("detail", {}).get("taskDefinitionArn")):
+        handler_logger.debug("No task definition ARN in event. Skipping.")
+        return
+
+    async with aiobotocore.session.get_session().create_client("ecs") as ecs_client:
+        await ecs_client.deregister_task_definition(taskDefinition=task_definition_arn)
+        handler_logger.info(
+            "Task definition %s successfully deregistered", task_definition_arn
+        )
+
+
 _observer_task: asyncio.Task[None] | None = None
+_observer_restart_count: int = 0
+_observer_restart_task: asyncio.Task[None] | None = None
+
+
+async def _restart_observer_after_delay(delay: int):
+    """Restart the observer after a delay."""
+    global _observer_task, _observer_restart_count, _observer_restart_task
+
+    logger.info(
+        "ECS observer will restart in %s seconds (attempt %s of %s)",
+        delay,
+        _observer_restart_count,
+        OBSERVER_MAX_RESTART_ATTEMPTS,
+    )
+    await asyncio.sleep(delay)
+
+    # Start the observer again
+    _observer_task = asyncio.create_task(ecs_observer.run())
+    _observer_task.add_done_callback(_observer_task_done)
+    _observer_restart_task = None
+    logger.info("ECS observer restarted")
+
+
+def _observer_task_done(task: asyncio.Task[None]):
+    global _observer_restart_count, _observer_restart_task
+
+    if task.cancelled():
+        logger.debug("ECS observer task cancelled")
+        _observer_restart_count = 0
+    elif task.exception():
+        logger.error("ECS observer task crashed", exc_info=task.exception())
+        _observer_restart_count += 1
+
+        if _observer_restart_count <= OBSERVER_MAX_RESTART_ATTEMPTS:
+            # Schedule a restart with exponential backoff
+            delay = OBSERVER_RESTART_BASE_DELAY * (2 ** (_observer_restart_count - 1))
+            try:
+                loop = asyncio.get_event_loop()
+                _observer_restart_task = loop.create_task(
+                    _restart_observer_after_delay(delay)
+                )
+            except RuntimeError:
+                logger.error(
+                    "Cannot schedule observer restart: no event loop available"
+                )
+        else:
+            logger.error(
+                "ECS observer has crashed %s times, giving up on automatic restarts",
+                _observer_restart_count,
+            )
+    else:
+        logger.debug("ECS observer task completed")
+        _observer_restart_count = 0
 
 
 async def start_observer():
-    global _observer_task
+    global _observer_task, _observer_restart_count, _observer_restart_task
     if _observer_task:
         return
 
+    # Cancel any pending restart task
+    if _observer_restart_task and not _observer_restart_task.done():
+        _observer_restart_task.cancel()
+        try:
+            await _observer_restart_task
+        except asyncio.CancelledError:
+            pass
+        _observer_restart_task = None
+
+    _observer_restart_count = 0
     _observer_task = asyncio.create_task(ecs_observer.run())
+    _observer_task.add_done_callback(_observer_task_done)
     logger.debug("ECS observer started")
 
 
 async def stop_observer():
-    global _observer_task
+    global _observer_task, _observer_restart_count, _observer_restart_task
+
+    # Cancel any pending restart task
+    if _observer_restart_task and not _observer_restart_task.done():
+        _observer_restart_task.cancel()
+        try:
+            await _observer_restart_task
+        except asyncio.CancelledError:
+            pass
+        _observer_restart_task = None
+
     if not _observer_task:
         return
 
     task = _observer_task
     _observer_task = None
+    _observer_restart_count = 0
 
     task.cancel()
     try:

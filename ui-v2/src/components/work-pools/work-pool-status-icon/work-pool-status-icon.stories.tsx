@@ -11,7 +11,7 @@ const meta: Meta<typeof WorkPoolStatusIcon> = {
 	argTypes: {
 		status: {
 			control: "select",
-			options: ["ready", "paused", "not_ready"],
+			options: ["READY", "PAUSED", "NOT_READY"],
 		},
 		showTooltip: {
 			control: "boolean",
@@ -24,32 +24,32 @@ type Story = StoryObj<typeof WorkPoolStatusIcon>;
 
 export const Ready: Story = {
 	args: {
-		status: "ready",
+		status: "READY",
 	},
 };
 
 export const Paused: Story = {
 	args: {
-		status: "paused",
+		status: "PAUSED",
 	},
 };
 
 export const NotReady: Story = {
 	args: {
-		status: "not_ready",
+		status: "NOT_READY",
 	},
 };
 
 export const WithoutTooltip: Story = {
 	args: {
-		status: "ready",
+		status: "READY",
 		showTooltip: false,
 	},
 };
 
 export const CustomSize: Story = {
 	args: {
-		status: "paused",
+		status: "PAUSED",
 		className: "h-6 w-6",
 	},
 };
@@ -58,15 +58,15 @@ export const AllStatuses: Story = {
 	render: () => (
 		<div className="flex items-center space-x-4">
 			<div className="flex flex-col items-center space-y-2">
-				<WorkPoolStatusIcon status="ready" />
+				<WorkPoolStatusIcon status="READY" />
 				<span className="text-sm">Ready</span>
 			</div>
 			<div className="flex flex-col items-center space-y-2">
-				<WorkPoolStatusIcon status="paused" />
+				<WorkPoolStatusIcon status="PAUSED" />
 				<span className="text-sm">Paused</span>
 			</div>
 			<div className="flex flex-col items-center space-y-2">
-				<WorkPoolStatusIcon status="not_ready" />
+				<WorkPoolStatusIcon status="NOT_READY" />
 				<span className="text-sm">Not Ready</span>
 			</div>
 		</div>

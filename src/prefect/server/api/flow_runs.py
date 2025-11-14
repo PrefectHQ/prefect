@@ -10,15 +10,15 @@ from uuid import UUID
 
 import orjson
 import sqlalchemy as sa
+from docket import Depends as DocketDepends
+from docket import Retry
 from fastapi import (
-    BackgroundTasks,
     Body,
     Depends,
     HTTPException,
     Path,
     Query,
     Response,
-    status,
 )
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import ORJSONResponse, PlainTextResponse, StreamingResponse
@@ -27,6 +27,7 @@ from sqlalchemy.exc import IntegrityError
 import prefect.server.api.dependencies as dependencies
 import prefect.server.models as models
 import prefect.server.schemas as schemas
+from prefect._internal.compatibility.starlette import status
 from prefect.logging import get_logger
 from prefect.server.api.run_history import run_history
 from prefect.server.api.validation import validate_job_variables_for_deployment_flow_run
@@ -78,7 +79,7 @@ async def create_flow_run(
 
     If no state is provided, the flow run will be created in a PENDING state.
 
-    For more information, see https://docs.prefect.io/v3/develop/write-flows.
+    For more information, see https://docs.prefect.io/v3/concepts/flows.
     """
     # hydrate the input model into a full flow run / state model
     flow_run_object = schemas.core.FlowRun(
@@ -574,7 +575,7 @@ async def read_flow_runs(
 
 @router.delete("/{id:uuid}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_flow_run(
-    background_tasks: BackgroundTasks,
+    docket: dependencies.Docket,
     flow_run_id: UUID = Path(..., description="The flow run id", alias="id"),
     db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> None:
@@ -589,10 +590,15 @@ async def delete_flow_run(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Flow run not found"
         )
-    background_tasks.add_task(delete_flow_run_logs, db, flow_run_id)
+    await docket.add(delete_flow_run_logs)(flow_run_id=flow_run_id)
 
 
-async def delete_flow_run_logs(db: PrefectDBInterface, flow_run_id: UUID) -> None:
+async def delete_flow_run_logs(
+    *,
+    db: PrefectDBInterface = DocketDepends(provide_database_interface),
+    flow_run_id: UUID,
+    retry: Retry = Retry(attempts=5, delay=datetime.timedelta(seconds=0.5)),
+) -> None:
     async with db.session_context(begin_transaction=True) as session:
         await models.logs.delete_logs(
             session=session,

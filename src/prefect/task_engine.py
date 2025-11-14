@@ -39,11 +39,10 @@ from prefect._internal.compatibility import deprecated
 from prefect.cache_policies import CachePolicy
 from prefect.client.orchestration import PrefectClient, SyncPrefectClient, get_client
 from prefect.client.schemas import TaskRun
-from prefect.client.schemas.objects import RunInput, State
+from prefect.client.schemas.objects import ConcurrencyLeaseHolder, RunInput, State
+from prefect.concurrency._asyncio import concurrency as _aconcurrency
+from prefect.concurrency._sync import concurrency as _concurrency
 from prefect.concurrency.context import ConcurrencyContext
-from prefect.concurrency.v1.asyncio import concurrency as aconcurrency
-from prefect.concurrency.v1.context import ConcurrencyContext as ConcurrencyContextV1
-from prefect.concurrency.v1.sync import concurrency
 from prefect.context import (
     AssetContext,
     AsyncClientContext,
@@ -340,7 +339,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                 data=exc_or_state,
                 message=f"Task run encountered unexpected {failure_type}: {repr(exc_or_state)}",
             )
-            if asyncio.iscoroutinefunction(retry_condition):
+            if inspect.iscoroutinefunction(retry_condition):
                 should_retry = run_coro_as_sync(
                     retry_condition(self.task, self.task_run, state)
                 )
@@ -372,6 +371,8 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             hooks = task.on_failure_hooks
         elif state.is_completed() and task.on_completion_hooks:
             hooks = task.on_completion_hooks
+        elif state.is_running() and task.on_running_hooks:
+            hooks = task.on_running_hooks
         else:
             hooks = None
 
@@ -429,6 +430,10 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             )
             time.sleep(interval)
             state = self.set_state(new_state)
+
+        # Call on_running hooks after the task has entered the Running state
+        if state.is_running():
+            self.call_hooks(state)
 
     def set_state(self, state: State[R], force: bool = False) -> State[R]:
         last_state = self.state
@@ -571,6 +576,9 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             )
 
             self.set_state(new_state, force=True)
+            # Call on_running hooks if we transitioned to a Running state (immediate retry)
+            if new_state.is_running():
+                self.call_hooks(new_state)
             self.retries: int = self.retries + 1
             return True
         elif self.retries >= self.task.retries:
@@ -665,7 +673,6 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                     persist_result=persist_result,
                 )
             )
-            stack.enter_context(ConcurrencyContextV1())
             stack.enter_context(ConcurrencyContext())
 
             self.logger: "logging.Logger" = task_run_logger(
@@ -779,6 +786,9 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                 new_state,
                 force=True,
             )
+            # Call on_running hooks if we transitioned to a Running state
+            if self.state.is_running():
+                self.call_hooks()
 
     # --------------------------
     #
@@ -816,9 +826,13 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                     self.call_hooks()
                     return
 
-                # Acquire a concurrency slot for each tag, but only if a limit
-                # matching the tag already exists.
-                with concurrency(list(self.task_run.tags), self.task_run.id):
+                with _concurrency(
+                    names=[f"tag:{tag}" for tag in self.task_run.tags],
+                    occupy=1,
+                    holder=ConcurrencyLeaseHolder(type="task_run", id=self.task_run.id),
+                    lease_duration=60,
+                    suppress_warnings=True,
+                ):
                     self.begin_run()
                     try:
                         yield
@@ -918,7 +932,7 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                 data=exc_or_state,
                 message=f"Task run encountered unexpected {failure_type}: {repr(exc_or_state)}",
             )
-            if asyncio.iscoroutinefunction(retry_condition):
+            if inspect.iscoroutinefunction(retry_condition):
                 should_retry = await retry_condition(self.task, self.task_run, state)
             elif inspect.isfunction(retry_condition):
                 should_retry = retry_condition(self.task, self.task_run, state)
@@ -949,6 +963,8 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             hooks = task.on_failure_hooks
         elif state.is_completed() and task.on_completion_hooks:
             hooks = task.on_completion_hooks
+        elif state.is_running() and task.on_running_hooks:
+            hooks = task.on_running_hooks
         else:
             hooks = None
 
@@ -1020,6 +1036,10 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             )
             await anyio.sleep(interval)
             state = await self.set_state(new_state)
+
+        # Call on_running hooks after the task has entered the Running state
+        if state.is_running():
+            await self.call_hooks(state)
 
     async def set_state(self, state: State, force: bool = False) -> State:
         last_state = self.state
@@ -1162,6 +1182,9 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             )
 
             await self.set_state(new_state, force=True)
+            # Call on_running hooks if we transitioned to a Running state (immediate retry)
+            if new_state.is_running():
+                await self.call_hooks(new_state)
             self.retries: int = self.retries + 1
             return True
         elif self.retries >= self.task.retries:
@@ -1368,6 +1391,9 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                 new_state,
                 force=True,
             )
+            # Call on_running hooks if we transitioned to a Running state
+            if self.state.is_running():
+                await self.call_hooks()
 
     # --------------------------
     #
@@ -1406,9 +1432,14 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                     yield
                     await self.call_hooks()
                     return
-                # Acquire a concurrency slot for each tag, but only if a limit
-                # matching the tag already exists.
-                async with aconcurrency(list(self.task_run.tags), self.task_run.id):
+
+                async with _aconcurrency(
+                    names=[f"tag:{tag}" for tag in self.task_run.tags],
+                    occupy=1,
+                    holder=ConcurrencyLeaseHolder(type="task_run", id=self.task_run.id),
+                    lease_duration=60,
+                    suppress_warnings=True,
+                ):
                     await self.begin_run()
                     try:
                         yield

@@ -4,10 +4,11 @@ from datetime import datetime, timedelta, timezone
 from uuid import UUID
 
 from prefect.server.concurrency.lease_storage import (
-    ConcurrencyLeaseStorage as _ConcurrencyLeaseStorage,
+    ConcurrencyLeaseHolder,
+    ConcurrencyLimitLeaseMetadata,
 )
 from prefect.server.concurrency.lease_storage import (
-    ConcurrencyLimitLeaseMetadata,
+    ConcurrencyLeaseStorage as _ConcurrencyLeaseStorage,
 )
 from prefect.server.utilities.leasing import ResourceLease
 
@@ -52,21 +53,42 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
     ) -> ResourceLease[ConcurrencyLimitLeaseMetadata] | None:
         return self.leases.get(lease_id)
 
-    async def renew_lease(self, lease_id: UUID, ttl: timedelta) -> None:
+    async def renew_lease(self, lease_id: UUID, ttl: timedelta) -> bool:
+        """
+        Atomically renew a concurrency lease by updating its expiration.
+
+        Checks if the lease exists before updating the expiration index,
+        preventing orphaned index entries.
+
+        Args:
+            lease_id: The ID of the lease to renew
+            ttl: The new time-to-live duration
+
+        Returns:
+            True if the lease was renewed, False if it didn't exist
+        """
+        if lease_id not in self.leases:
+            # Clean up any orphaned expiration entry
+            self.expirations.pop(lease_id, None)
+            return False
+
         self.expirations[lease_id] = datetime.now(timezone.utc) + ttl
+        return True
 
     async def revoke_lease(self, lease_id: UUID) -> None:
         self.leases.pop(lease_id, None)
         self.expirations.pop(lease_id, None)
 
-    async def read_active_lease_ids(self, limit: int = 100) -> list[UUID]:
+    async def read_active_lease_ids(
+        self, limit: int = 100, offset: int = 0
+    ) -> list[UUID]:
         now = datetime.now(timezone.utc)
         active_leases = [
             lease_id
             for lease_id, expiration in self.expirations.items()
             if expiration > now
         ]
-        return active_leases[:limit]
+        return active_leases[offset : offset + limit]
 
     async def read_expired_lease_ids(self, limit: int = 100) -> list[UUID]:
         now = datetime.now(timezone.utc)
@@ -76,3 +98,22 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
             if expiration < now
         ]
         return expired_leases[:limit]
+
+    async def list_holders_for_limit(
+        self, limit_id: UUID
+    ) -> list[tuple[UUID, ConcurrencyLeaseHolder]]:
+        """List all holders for a given concurrency limit."""
+        now = datetime.now(timezone.utc)
+        holders_with_leases: list[tuple[UUID, ConcurrencyLeaseHolder]] = []
+
+        for lease_id, lease in self.leases.items():
+            # Check if lease is active and for the specified limit
+            if (
+                limit_id in lease.resource_ids
+                and self.expirations.get(lease_id, now) > now
+                and lease.metadata
+                and lease.metadata.holder
+            ):
+                holders_with_leases.append((lease.id, lease.metadata.holder))
+
+        return holders_with_leases

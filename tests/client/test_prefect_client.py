@@ -6,7 +6,7 @@ from contextlib import asynccontextmanager
 from datetime import timedelta
 from typing import Any, Generator, List
 from unittest import mock
-from unittest.mock import MagicMock, Mock
+from unittest.mock import AsyncMock, MagicMock, Mock
 from uuid import UUID, uuid4
 
 import anyio
@@ -86,12 +86,13 @@ from prefect.settings import (
     PREFECT_API_URL,
     PREFECT_CLIENT_CSRF_SUPPORT_ENABLED,
     PREFECT_CLOUD_API_URL,
+    PREFECT_SERVER_DOCKET_NAME,
     PREFECT_TESTING_UNIT_TEST_MODE,
     temporary_settings,
 )
 from prefect.states import Completed, Pending, Running, Scheduled, State
 from prefect.tasks import task
-from prefect.testing.utilities import AsyncMock, exceptions_equal
+from prefect.testing.utilities import exceptions_equal
 from prefect.types._datetime import DateTime, now
 from prefect.utilities.pydantic import parse_obj_as
 
@@ -534,7 +535,13 @@ class TestClientContextManager:
 
 @pytest.mark.parametrize("enabled", [True, False])
 async def test_client_runs_migrations_for_ephemeral_app_only_once(enabled, monkeypatch):
-    with temporary_settings(updates={PREFECT_API_DATABASE_MIGRATE_ON_START: enabled}):
+    unique_docket = f"test-docket-{uuid4().hex[:8]}"
+    with temporary_settings(
+        updates={
+            PREFECT_API_DATABASE_MIGRATE_ON_START: enabled,
+            PREFECT_SERVER_DOCKET_NAME: unique_docket,
+        }
+    ):
         # turn on lifespan for this test; it turns off after its run once per process
         monkeypatch.setattr(prefect.server.api.server, "LIFESPAN_RAN_FOR_APP", set())
 
@@ -560,11 +567,26 @@ async def test_client_runs_migrations_for_ephemeral_app_only_once(enabled, monke
 async def test_client_runs_migrations_for_two_different_ephemeral_apps(
     enabled, monkeypatch
 ):
-    with temporary_settings(updates={PREFECT_API_DATABASE_MIGRATE_ON_START: enabled}):
+    unique_docket_1 = f"test-docket-{uuid4().hex[:8]}"
+    unique_docket_2 = f"test-docket-{uuid4().hex[:8]}"
+
+    with temporary_settings(
+        updates={
+            PREFECT_API_DATABASE_MIGRATE_ON_START: enabled,
+            PREFECT_SERVER_DOCKET_NAME: unique_docket_1,
+        }
+    ):
         # turn on lifespan for this test; it turns off after its run once per process
         monkeypatch.setattr(prefect.server.api.server, "LIFESPAN_RAN_FOR_APP", set())
 
         app = create_app(ephemeral=True, ignore_cache=True)
+
+    with temporary_settings(
+        updates={
+            PREFECT_API_DATABASE_MIGRATE_ON_START: enabled,
+            PREFECT_SERVER_DOCKET_NAME: unique_docket_2,
+        }
+    ):
         app2 = create_app(ephemeral=True, ignore_cache=True)
 
         mock = AsyncMock()
@@ -666,7 +688,7 @@ async def test_create_then_read_deployment(prefect_client, storage_document_id):
         parameters={"foo": "bar"},
         tags=["foo", "bar"],
         storage_document_id=storage_document_id,
-        parameter_openapi_schema={},
+        parameter_openapi_schema={"type": "object", "properties": {}},
     )
 
     lookup = await prefect_client.read_deployment(deployment_id)
@@ -681,7 +703,27 @@ async def test_create_then_read_deployment(prefect_client, storage_document_id):
     assert lookup.parameters == {"foo": "bar"}
     assert lookup.tags == ["foo", "bar"]
     assert lookup.storage_document_id == storage_document_id
-    assert lookup.parameter_openapi_schema == {}
+    assert lookup.parameter_openapi_schema == {"type": "object", "properties": {}}
+
+
+async def test_create_deployment_with_empty_schema_normalizes(prefect_client):
+    """Test that passing an empty dict for parameter_openapi_schema gets normalized server-side."""
+
+    @flow
+    def foo():
+        pass
+
+    flow_id = await prefect_client.create_flow(foo)
+
+    deployment_id = await prefect_client.create_deployment(
+        flow_id=flow_id,
+        name="test-deployment",
+        parameter_openapi_schema={},
+    )
+
+    # Verify it was normalized to valid schema by the server
+    lookup = await prefect_client.read_deployment(deployment_id)
+    assert lookup.parameter_openapi_schema == {"type": "object", "properties": {}}
 
 
 async def test_read_deployment_errors_on_invalid_uuid(prefect_client):
@@ -706,7 +748,7 @@ async def test_update_deployment(prefect_client, storage_document_id):
         tags=["foo", "bar"],
         paused=True,
         storage_document_id=storage_document_id,
-        parameter_openapi_schema={},
+        parameter_openapi_schema={"type": "object", "properties": {}},
     )
 
     deployment = await prefect_client.read_deployment(deployment_id)
@@ -755,7 +797,7 @@ async def test_update_deployment_to_remove_schedules(
         parameters={"foo": "bar"},
         tags=["foo", "bar"],
         storage_document_id=storage_document_id,
-        parameter_openapi_schema={},
+        parameter_openapi_schema={"type": "object", "properties": {}},
     )
 
     deployment = await prefect_client.read_deployment(deployment_id)
@@ -1610,6 +1652,46 @@ async def test_prefect_api_ssl_cert_file_default_setting_fallback(
 
     # Verify the context was passed to the client
     assert verify_ctx == mock_context
+
+
+async def test_prefect_client_preserves_custom_ssl_context(monkeypatch):
+    custom_context = ssl.create_default_context()
+
+    monkeypatch.setattr(
+        "ssl.create_default_context",
+        Mock(side_effect=AssertionError("should not create a new SSL context")),
+    )
+
+    httpx_client_mock = Mock()
+    monkeypatch.setattr(
+        "prefect.client.orchestration.PrefectHttpxAsyncClient", httpx_client_mock
+    )
+
+    with temporary_settings(updates={PREFECT_API_TLS_INSECURE_SKIP_VERIFY: False}):
+        get_client(httpx_settings={"verify": custom_context})
+
+    call_kwargs = httpx_client_mock.call_args[1]
+    assert call_kwargs["verify"] is custom_context
+
+
+def test_sync_prefect_client_preserves_custom_ssl_context(monkeypatch):
+    custom_context = ssl.create_default_context()
+
+    monkeypatch.setattr(
+        "ssl.create_default_context",
+        Mock(side_effect=AssertionError("should not create a new SSL context")),
+    )
+
+    httpx_client_mock = Mock()
+    monkeypatch.setattr(
+        "prefect.client.orchestration.PrefectHttpxSyncClient", httpx_client_mock
+    )
+
+    with temporary_settings(updates={PREFECT_API_TLS_INSECURE_SKIP_VERIFY: False}):
+        get_client(sync_client=True, httpx_settings={"verify": custom_context})
+
+    call_kwargs = httpx_client_mock.call_args[1]
+    assert call_kwargs["verify"] is custom_context
 
 
 class TestClientAPIVersionRequests:
@@ -2601,7 +2683,10 @@ async def test_server_error_does_not_raise_on_client():
     async def raise_error():
         raise ValueError("test")
 
-    app = create_app(ephemeral=True)
+    with temporary_settings(
+        {PREFECT_SERVER_DOCKET_NAME: f"test-docket-{uuid4().hex[:8]}"}
+    ):
+        app = create_app(ephemeral=True)
     app.api_app.add_api_route("/raise_error", raise_error)
 
     async with PrefectClient(
@@ -2612,7 +2697,10 @@ async def test_server_error_does_not_raise_on_client():
 
 
 async def test_prefect_client_follow_redirects():
-    app = create_app(ephemeral=True)
+    with temporary_settings(
+        {PREFECT_SERVER_DOCKET_NAME: f"test-docket-{uuid4().hex[:8]}"}
+    ):
+        app = create_app(ephemeral=True)
 
     httpx_settings = {"follow_redirects": True}
     async with PrefectClient(api=app, httpx_settings=httpx_settings) as client:
@@ -3122,3 +3210,25 @@ class TestPrefectClientWorkerHeartbeat:
                 "name": "test-worker",
                 "heartbeat_interval_seconds": 10,
             }
+
+
+class TestPrefectClientMethods:
+    """Tests that the sync and async clients contains the same methods"""
+
+    def test_methods(self):
+        sync_client_methods = set(dir(get_client(sync_client=True)))
+        async_client_methods = set(dir(get_client(sync_client=False)))
+
+        exclude_methods = {
+            "__aenter__",
+            "__aexit__",
+            "_ephemeral_lifespan",
+            "_exit_stack",
+            "_loop",
+            "loop",
+        }
+
+        assert (
+            async_client_methods - exclude_methods
+            == sync_client_methods - exclude_methods
+        )

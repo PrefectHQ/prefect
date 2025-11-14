@@ -41,11 +41,11 @@ from prefect.client.orchestration import PrefectClient, SyncPrefectClient, get_c
 from prefect.client.schemas import FlowRun, TaskRun
 from prefect.client.schemas.filters import FlowRunFilter
 from prefect.client.schemas.sorting import FlowRunSort
-from prefect.concurrency.asyncio import (
+from prefect.concurrency._leases import (
     amaintain_concurrency_lease,
+    maintain_concurrency_lease,
 )
 from prefect.concurrency.context import ConcurrencyContext
-from prefect.concurrency.sync import maintain_concurrency_lease
 from prefect.concurrency.v1.context import ConcurrencyContext as ConcurrencyContextV1
 from prefect.context import (
     AsyncClientContext,
@@ -53,6 +53,8 @@ from prefect.context import (
     SettingsContext,
     SyncClientContext,
     TagsContext,
+    _deployment_id,
+    _deployment_parameters,
     get_settings_context,
     hydrated_context,
     serialize_context,
@@ -626,6 +628,13 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
                     else should_persist_result(),
                 )
             )
+            # Set deployment context vars only if this is the top-level deployment run
+            # (nested flows will inherit via ContextVar propagation)
+            if self.flow_run.deployment_id and not _deployment_id.get():
+                id_token = _deployment_id.set(self.flow_run.deployment_id)
+                params_token = _deployment_parameters.set(self.flow_run.parameters)
+                stack.callback(_deployment_id.reset, id_token)
+                stack.callback(_deployment_parameters.reset, params_token)
             stack.enter_context(ConcurrencyContextV1())
             stack.enter_context(ConcurrencyContext())
             if lease_id := self.state.state_details.deployment_concurrency_lease_id:
@@ -731,9 +740,16 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
                     # Do not capture generator exits as crashes
                     raise
                 except BaseException as exc:
-                    # BaseExceptions are caught and handled as crashes
-                    self.handle_crash(exc)
-                    raise
+                    # We don't want to crash a flow run if the user code finished executing
+                    if self.flow_run.state and not self.flow_run.state.is_final():
+                        # BaseExceptions are caught and handled as crashes
+                        self.handle_crash(exc)
+                        raise
+                    else:
+                        self.logger.debug(
+                            "BaseException was raised after user code finished executing",
+                            exc_info=exc,
+                        )
                 finally:
                     # If debugging, use the more complete `repr` than the usual `str` description
                     display_state = (
@@ -1196,6 +1212,13 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
                     else should_persist_result(),
                 )
             )
+            # Set deployment context vars only if this is the top-level deployment run
+            # (nested flows will inherit via ContextVar propagation)
+            if self.flow_run.deployment_id and not _deployment_id.get():
+                id_token = _deployment_id.set(self.flow_run.deployment_id)
+                params_token = _deployment_parameters.set(self.flow_run.parameters)
+                stack.callback(_deployment_id.reset, id_token)
+                stack.callback(_deployment_parameters.reset, params_token)
             stack.enter_context(ConcurrencyContextV1())
             stack.enter_context(ConcurrencyContext())
             if lease_id := self.state.state_details.deployment_concurrency_lease_id:
@@ -1305,9 +1328,16 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
                     # Do not capture generator exits as crashes
                     raise
                 except BaseException as exc:
-                    # BaseExceptions are caught and handled as crashes
-                    await self.handle_crash(exc)
-                    raise
+                    # We don't want to crash a flow run if the user code finished executing
+                    if self.flow_run.state and not self.flow_run.state.is_final():
+                        # BaseExceptions are caught and handled as crashes
+                        await self.handle_crash(exc)
+                        raise
+                    else:
+                        self.logger.debug(
+                            "BaseException was raised after user code finished executing",
+                            exc_info=exc,
+                        )
                 finally:
                     # If debugging, use the more complete `repr` than the usual `str` description
                     display_state = (

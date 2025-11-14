@@ -2,15 +2,16 @@ from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
 from typing import Any, AsyncGenerator, Dict, List, Tuple
 from unittest import mock
+from unittest.mock import AsyncMock
 
 import httpx
 import pytest
 from httpx import AsyncClient, Request, Response
-from starlette import status
 
 import prefect
 import prefect.client
 import prefect.client.constants
+from prefect._internal.compatibility.starlette import status
 from prefect.client.base import (
     PrefectHttpxAsyncClient,
     PrefectResponse,
@@ -29,7 +30,6 @@ from prefect.settings import (
     PREFECT_SERVER_ALLOW_EPHEMERAL_MODE,
     temporary_settings,
 )
-from prefect.testing.utilities import AsyncMock
 
 now = datetime.now(timezone.utc)
 

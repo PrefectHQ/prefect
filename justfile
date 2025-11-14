@@ -31,11 +31,16 @@ clean: check-uv
     deactivate || true
     rm -rf .venv
 
+# Symlink all AGENTS.md files to CLAUDE.md
+symlink-agents-to-claude:
+    ./scripts/symlink_agents_to_claude.py
+
 # Generate API reference documentation for all modules
 api-ref-all:
     uvx --with-editable . \
-        --refresh-package mdxify \
-        mdxify@latest \
+        --python 3.12 \
+        --isolated \
+        mdxify \
         --all \
         --root-module prefect \
         --output-dir docs/v3/api-ref/python \
@@ -63,6 +68,33 @@ api-ref-clean:
 # Generate example pages
 generate-examples:
     uv run --isolated -p 3.13 --with anyio scripts/generate_example_pages.py
+
+# Generate OpenAPI documentation
+generate-openapi:
+    uv run --isolated -p 3.10 --with 'pydantic>=2.9.0' ./scripts/generate_mintlify_openapi_docs.py
+
+# Generate settings schema and reference
+generate-settings:
+    uv run --isolated -p 3.10 --with 'pydantic>=2.9.0' ./scripts/generate_settings_schema.py
+    uv run --isolated -p 3.10 --with 'pydantic>=2.9.0' ./scripts/generate_settings_ref.py
+
+generate-cli-docs:
+    uv run --isolated ./scripts/generate_cli_docs.py
+
+# Generate all documentation (OpenAPI, settings, API ref, examples)
+generate-docs:
+    @echo "Generating all documentation..."
+    @echo "1. Generating OpenAPI docs..."
+    @just generate-openapi
+    @echo "2. Generating settings schema and reference..."
+    @just generate-settings
+    @echo "3. Generating API reference..."
+    @just api-ref-all
+    @echo "4. Generating CLI docs..."
+    @just generate-cli-docs
+    @echo "5. Generating example pages..."
+    @just generate-examples
+    @echo "Documentation generation complete!"
 
 # Prepare release notes from a GitHub draft release
 # Usage: just prepare-release 3.5.0

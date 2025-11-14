@@ -18,7 +18,6 @@ import sys
 import warnings
 from typing import TYPE_CHECKING, Any, Callable, Optional, Union
 
-import dateparser
 from pydantic import BaseModel
 from typing_extensions import ParamSpec, TypeAlias, TypeVar
 
@@ -64,6 +63,8 @@ def _coerce_datetime(
         return dt
     with warnings.catch_warnings():
         warnings.filterwarnings("ignore", category=DeprecationWarning)
+        import dateparser
+
         return dateparser.parse(dt)
 
 
@@ -87,7 +88,16 @@ def generate_deprecation_message(
         if TYPE_CHECKING:
             assert start_date is not None
 
-        end_date = start_date + datetime.timedelta(days=182.625)
+        if sys.version_info >= (3, 13):
+            from whenever import PlainDateTime
+
+            end_date = (
+                PlainDateTime.from_py_datetime(start_date).add(months=6).py_datetime()
+            )
+        else:
+            import pendulum
+
+            end_date = pendulum.instance(start_date).add(months=6)
 
     if when:
         when = " when " + when
@@ -106,15 +116,14 @@ def deprecated_callable(
     help: str = "",
 ) -> Callable[[Callable[P, R]], Callable[P, R]]:
     def decorator(fn: Callable[P, R]) -> Callable[P, R]:
-        message = generate_deprecation_message(
-            name=to_qualified_name(fn),
-            start_date=start_date,
-            end_date=end_date,
-            help=help,
-        )
-
         @functools.wraps(fn)
         def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
+            message = generate_deprecation_message(
+                name=to_qualified_name(fn),
+                start_date=start_date,
+                end_date=end_date,
+                help=help,
+            )
             warnings.warn(message, PrefectDeprecationWarning, stacklevel=stacklevel)
             return fn(*args, **kwargs)
 
@@ -131,17 +140,16 @@ def deprecated_class(
     help: str = "",
 ) -> Callable[[type[T]], type[T]]:
     def decorator(cls: type[T]) -> type[T]:
-        message = generate_deprecation_message(
-            name=to_qualified_name(cls),
-            start_date=start_date,
-            end_date=end_date,
-            help=help,
-        )
-
         original_init = cls.__init__
 
         @functools.wraps(original_init)
         def new_init(self: T, *args: Any, **kwargs: Any) -> None:
+            message = generate_deprecation_message(
+                name=to_qualified_name(cls),
+                start_date=start_date,
+                end_date=end_date,
+                help=help,
+            )
             warnings.warn(message, PrefectDeprecationWarning, stacklevel=stacklevel)
             original_init(self, *args, **kwargs)
 
@@ -177,14 +185,6 @@ def deprecated_parameter(
     when = when or (lambda _: True)
 
     def decorator(fn: Callable[P, R]) -> Callable[P, R]:
-        message = generate_deprecation_message(
-            name=f"The parameter {name!r} for {fn.__name__!r}",
-            start_date=start_date,
-            end_date=end_date,
-            help=help,
-            when=when_message,
-        )
-
         @functools.wraps(fn)
         def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
             try:
@@ -194,6 +194,13 @@ def deprecated_parameter(
                 parameters = kwargs
 
             if name in parameters and when(parameters[name]):
+                message = generate_deprecation_message(
+                    name=f"The parameter {name!r} for {fn.__name__!r}",
+                    start_date=start_date,
+                    end_date=end_date,
+                    help=help,
+                    when=when_message,
+                )
                 warnings.warn(message, PrefectDeprecationWarning, stacklevel=stacklevel)
 
             return fn(*args, **kwargs)
@@ -238,19 +245,18 @@ def deprecated_field(
     # Replaces the model's __init__ method with one that performs an additional warning
     # check
     def decorator(model_cls: type[M]) -> type[M]:
-        message = generate_deprecation_message(
-            name=f"The field {name!r} in {model_cls.__name__!r}",
-            start_date=start_date,
-            end_date=end_date,
-            help=help,
-            when=when_message,
-        )
-
         cls_init = model_cls.__init__
 
         @functools.wraps(model_cls.__init__)
         def __init__(__pydantic_self__: M, **data: Any) -> None:
             if name in data.keys() and when(data[name]):
+                message = generate_deprecation_message(
+                    name=f"The field {name!r} in {model_cls.__name__!r}",
+                    start_date=start_date,
+                    end_date=end_date,
+                    help=help,
+                    when=when_message,
+                )
                 warnings.warn(message, PrefectDeprecationWarning, stacklevel=stacklevel)
 
             cls_init(__pydantic_self__, **data)

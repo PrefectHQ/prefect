@@ -1,4 +1,6 @@
 import asyncio
+import inspect
+import sys
 from uuid import UUID
 
 import pytest
@@ -207,5 +209,9 @@ class TestDBInject:
         ) -> PrefectDBInterface:
             return db
 
-        assert asyncio.iscoroutinefunction(coroutine_with_injected_db)
+        if sys.version_info < (3, 10):
+            # `inspect.iscoroutinefunction` is not flexible enough in Python 3.9
+            assert asyncio.iscoroutinefunction(coroutine_with_injected_db)
+        else:
+            assert inspect.iscoroutinefunction(coroutine_with_injected_db)
         assert asyncio.run(coroutine_with_injected_db(42)) is self.db

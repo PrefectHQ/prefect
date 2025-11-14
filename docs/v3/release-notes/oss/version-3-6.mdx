@@ -1,0 +1,97 @@
+---
+title: 3.6
+---
+
+## 3.6.2 - The Missing Link
+
+*Released on November 13, 2025*
+
+**Enhancements ➕**
+
+* Add causal link from automation action events to triggering events by [@zzstoatzz](https://github.com/zzstoatzz) in [#19426](https://github.com/PrefectHQ/prefect/pull/19426)
+
+**Bug Fixes 🐞**
+
+* cap retry-after for concurrency limits to prevent excessive delays by [@zzstoatzz](https://github.com/zzstoatzz) in [#19428](https://github.com/PrefectHQ/prefect/pull/19428)
+* accept numeric values for PREFECT_API_SERVICES_LATE_RUNS_AFTER_SECONDS by [@zzstoatzz](https://github.com/zzstoatzz) in [#19434](https://github.com/PrefectHQ/prefect/pull/19434)
+* add work_queue_id to DeploymentResponse by [@zzstoatzz](https://github.com/zzstoatzz) in [#19417](https://github.com/PrefectHQ/prefect/pull/19417)
+
+**Development & Tidiness 🧹**
+* correct GitHub Actions conditional syntax in integration release workflow by [@zzstoatzz](https://github.com/zzstoatzz) in [#19439](https://github.com/PrefectHQ/prefect/pull/19439)
+
+**Full Changelog**: https://github.com/PrefectHQ/prefect/compare/3.6.1...3.6.2
+
+
+---
+
+## 3.6.1 - Pop, Lock it, Docket
+
+*Released on November 10, 2025*
+
+**Enhancements ➕**
+
+* Add logfire sampling configuration and fix boolean env var handling by [@zzstoatzz](https://github.com/zzstoatzz) in [#19383](https://github.com/PrefectHQ/prefect/pull/19383)
+
+**Bug Fixes 🐞**
+
+* Fix interactive deploy CLI selecting wrong flow when opting out by [@zzstoatzz](https://github.com/zzstoatzz) in [#19392](https://github.com/PrefectHQ/prefect/pull/19392)
+* Fix deployment.parameters in nested flows using ContextVars by [@zzstoatzz](https://github.com/zzstoatzz) in [#19366](https://github.com/PrefectHQ/prefect/pull/19366)
+
+**Integrations & Dependencies 🤝**
+
+* Upgrade pydocket to stable 0.13.0 release by [@zzstoatzz](https://github.com/zzstoatzz) in [#19401](https://github.com/PrefectHQ/prefect/pull/19401)
+
+**Documentation 📓**
+
+* Add client methods for querying events via REST API by [@zzstoatzz](https://github.com/zzstoatzz) in [#19382](https://github.com/PrefectHQ/prefect/pull/19382)
+
+**Full Changelog**: https://github.com/PrefectHQ/prefect/compare/3.6.0...3.6.1
+
+
+---
+
+## 3.6.0 - Throw it on the docket and we'll get to it in a jiffy
+
+This release adds [`pydocket`](https://github.com/chrisguidry/docket), a background task system, to replace FastAPI's `background_tasks`. Background tasks now include automatic retries and can optionally use Redis as a backing layer for enhanced durable execution.
+
+*Released on November 07, 2025*
+
+**Enhancements ➕➕**
+
+* Replace FastAPI `background_task` usage with `pydocket` by [@desertaxle](https://github.com/desertaxle) in [#19377](https://github.com/PrefectHQ/prefect/pull/19377)
+* Emit events for deployment pull step execution by [@zzstoatzz](https://github.com/zzstoatzz) in [#19339](https://github.com/PrefectHQ/prefect/pull/19339)
+
+**Bug Fixes 🐞**
+
+* Fix import order dependency and circular import issues by [@zzstoatzz](https://github.com/zzstoatzz) in [#19344](https://github.com/PrefectHQ/prefect/pull/19344)
+* Fix `deployment.parameters` in subprocess flows by [@zzstoatzz](https://github.com/zzstoatzz) in [#19331](https://github.com/PrefectHQ/prefect/pull/19331)
+* Fix misleading `pyright` error when calling async task with wrong argument types by [@zzstoatzz](https://github.com/zzstoatzz) in [#19327](https://github.com/PrefectHQ/prefect/pull/19327)
+* Fix `EventsWorker` singleton leak in `prefect_test_harness` by [@zzstoatzz](https://github.com/zzstoatzz) in [#19343](https://github.com/PrefectHQ/prefect/pull/19343)
+* Fix `run_deployment` execution graph display when called from tasks by [@desertaxle](https://github.com/desertaxle) in [#19361](https://github.com/PrefectHQ/prefect/pull/19361)
+* Fix automation deletion deadlock by enforcing consistent lock ordering by [@zzstoatzz](https://github.com/zzstoatzz) in [#19369](https://github.com/PrefectHQ/prefect/pull/19369)
+
+**Integrations & Dependencies 🤝**
+
+* Update `prefect-ui-library` to latest version by [@znicholasbrown](https://github.com/znicholasbrown) in [#19350](https://github.com/PrefectHQ/prefect/pull/19350)
+
+**Development & Tidiness 🧹**
+
+* Remove legacy settings imports from CLI by [@desertaxle](https://github.com/desertaxle) in [#19353](https://github.com/PrefectHQ/prefect/pull/19353)
+* Clean up root directory by [@zzstoatzz](https://github.com/zzstoatzz) in [#19355](https://github.com/PrefectHQ/prefect/pull/19355)
+* Replace Optional with pipe syntax in _trim_traceback function by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#19358](https://github.com/PrefectHQ/prefect/pull/19358)
+* Auto-close superseded documentation PRs by [@zzstoatzz](https://github.com/zzstoatzz) in [#19357](https://github.com/PrefectHQ/prefect/pull/19357)
+* Add [@chrisguidry](https://github.com/chrisguidry) as a CODEOWNER by [@desertaxle](https://github.com/desertaxle) in [#19368](https://github.com/PrefectHQ/prefect/pull/19368)
+* Sync UI v2 OpenAPI schema with node v20.19.0 by [@zzstoatzz](https://github.com/zzstoatzz) in [#19373](https://github.com/PrefectHQ/prefect/pull/19373)
+* Migrate `RedisStorageContainer` from `sync_compatible` to `async_dispatch` by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#19363](https://github.com/PrefectHQ/prefect/pull/19363)
+
+**Documentation 📓**
+
+* Add Pulumi section to Infrastructure as Code documentation by [@bdalpe](https://github.com/bdalpe) in [#19352](https://github.com/PrefectHQ/prefect/pull/19352)
+* Fix link in ECS worker docs by [@mattiamatrix](https://github.com/mattiamatrix) in [#19364](https://github.com/PrefectHQ/prefect/pull/19364)
+
+
+**Full Changelog**: https://github.com/PrefectHQ/prefect/compare/3.5.0...3.6.0
+
+
+---
+

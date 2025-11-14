@@ -26,7 +26,6 @@ from prefect.settings.sources import (
     PyprojectTomlConfigSettingsSource,
 )
 from prefect.utilities.collections import visit_collection
-from prefect.utilities.pydantic import handle_secret_render
 
 
 class PrefectBaseSettings(BaseSettings):
@@ -88,6 +87,39 @@ class PrefectBaseSettings(BaseSettings):
             PyprojectTomlConfigSettingsSource(settings_cls),
             ProfileSettingsTomlLoader(settings_cls),
         )
+
+    @staticmethod
+    def _settings_warn_unused_config_keys(
+        sources: tuple[object, ...],
+        model_config: SettingsConfigDict,
+    ) -> None:
+        """
+        Override PrefectBaseSettings._settings_warn_unused_config_keys to ensure
+        Prefect’s TOML sources satisfy pydantic-settings 2.11’s unused-config check
+        without renaming public config keys. This method suppresses warnings when
+        Prefect sources are configured.
+
+        In the future pydantic-settings's init might stop invoking this method, so we
+        should remove this method.
+        """
+        warn_method = getattr(BaseSettings, "_settings_warn_unused_config_keys", None)
+        if warn_method is None:
+            return
+
+        adjusted_config = dict(model_config)
+
+        if any(
+            isinstance(source, PrefectTomlConfigSettingsSource) for source in sources
+        ):
+            adjusted_config["toml_file"] = None
+
+        if any(
+            isinstance(source, PyprojectTomlConfigSettingsSource) for source in sources
+        ):
+            adjusted_config["pyproject_toml_table_header"] = None
+            adjusted_config["pyproject_toml_depth"] = None
+
+        warn_method(sources, adjusted_config)
 
     def to_environment_variables(
         self,
@@ -163,6 +195,8 @@ class PrefectBaseSettings(BaseSettings):
                 if child_jsonable:
                     jsonable_self[key] = child_jsonable
         if info.context and info.context.get("include_secrets") is True:
+            from prefect.utilities.pydantic import handle_secret_render
+
             jsonable_self.update(
                 {
                     field_name: visit_collection(
@@ -235,7 +269,7 @@ def _to_environment_variable_value(
     value: list[object] | set[object] | tuple[object] | Any,
 ) -> str:
     if isinstance(value, (list, set, tuple)):
-        return ",".join(str(v) for v in value)
+        return ",".join(str(v) for v in sorted(value, key=str))
     if isinstance(value, dict):
         return json.dumps(value)
     return str(value)

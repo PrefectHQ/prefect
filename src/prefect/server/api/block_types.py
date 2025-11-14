@@ -21,7 +21,7 @@ async def create_block_type(
     """
     Create a new block type.
 
-    For more information, see https://docs.prefect.io/v3/develop/blocks.
+    For more information, see https://docs.prefect.io/v3/concepts/blocks.
     """
     # API-created blocks cannot start with the word "Prefect"
     # as it is reserved for system use

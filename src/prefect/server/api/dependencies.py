@@ -10,10 +10,12 @@ from base64 import b64decode
 from typing import Annotated, Any, Optional
 from uuid import UUID
 
-from fastapi import Body, Depends, Header, HTTPException, status
+from docket import Docket as Docket_
+from fastapi import Body, Depends, Header, HTTPException
 from packaging.version import Version
 from starlette.requests import Request
 
+from prefect._internal.compatibility.starlette import status
 from prefect.server import schemas
 from prefect.settings import PREFECT_API_DEFAULT_LIMIT
 
@@ -194,3 +196,10 @@ def get_prefect_client_version(
     if client_version := PREFECT_CLIENT_USER_AGENT_PATTERN.match(user_agent):
         return client_version.group(1)
     return None
+
+
+def docket(request: Request) -> Docket_:
+    return request.app.state.docket
+
+
+Docket = Annotated[Docket_, Depends(docket)]

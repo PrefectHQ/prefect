@@ -17,7 +17,7 @@ from textwrap import dedent
 from time import sleep
 from typing import TYPE_CHECKING, Any, Coroutine, Generator, List, Union
 from unittest import mock
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import anyio
 import pytest
@@ -29,7 +29,7 @@ from prefect import __version__, aserve, flow, serve, task
 from prefect._experimental.bundles import create_bundle_for_flow_run
 from prefect._internal.compatibility.deprecated import PrefectDeprecationWarning
 from prefect._versioning import VersionType
-from prefect.cli.deploy import _PullStepStorage
+from prefect.cli.deploy._storage import _PullStepStorage
 from prefect.client.orchestration import PrefectClient, SyncPrefectClient
 from prefect.client.schemas.actions import DeploymentScheduleCreate
 from prefect.client.schemas.objects import (
@@ -59,7 +59,7 @@ from prefect.exceptions import ScriptError
 from prefect.flows import Flow
 from prefect.logging.loggers import flow_run_logger
 from prefect.runner.runner import Runner
-from prefect.runner.server import perform_health_check, start_webserver
+from prefect.runner.server import perform_health_check
 from prefect.schedules import Cron, Interval
 from prefect.settings import (
     PREFECT_DEFAULT_DOCKER_BUILD_NAMESPACE,
@@ -71,7 +71,6 @@ from prefect.settings import (
     temporary_settings,
 )
 from prefect.states import Cancelling, Crashed
-from prefect.testing.utilities import AsyncMock
 from prefect.types._datetime import now
 from prefect.utilities import processutils
 from prefect.utilities.annotations import freeze
@@ -110,6 +109,38 @@ class ClassNameClassmethod:
     @classmethod
     def dummy_flow_classmethod(cls):
         pass
+
+
+class ClassWithInstanceMethod:
+    def __init__(self, value: int):
+        self.value = value
+
+    @flow
+    def instance_method_flow(self, x: int):
+        return self.value + x
+
+
+def instance_on_cancellation(flow, flow_run, state):
+    logger = flow_run_logger(flow_run, flow)
+    logger.info("Instance method flow was cancelled!")
+
+
+class ClassWithCancellableFlow:
+    @flow(on_cancellation=[instance_on_cancellation], log_prints=True)
+    def cancellable_flow(self, sleep_time: int = 100):
+        sleep(sleep_time)
+
+
+def instance_on_crashed(flow, flow_run, state):
+    logger = flow_run_logger(flow_run, flow)
+    logger.info("Instance method flow crashed!")
+
+
+class ClassWithCrashingFlow:
+    @flow(on_crashed=[instance_on_crashed], log_prints=True)
+    def crashing_flow(self):
+        print("Oh boy, here I go crashing again...")
+        os.kill(os.getpid(), signal.SIGTERM)
 
 
 @task
@@ -396,28 +427,6 @@ class TestServe:
         serve(deployment)
 
         mock_runner_start.assert_awaited_once()
-
-    def test_log_level_lowercasing(self, monkeypatch: pytest.MonkeyPatch):
-        runner_mock = mock.MagicMock()
-        log_level = "DEBUG"
-
-        # Mock build_server to return a webserver mock object
-        with mock.patch(
-            "prefect.runner.server.build_server", new_callable=mock.AsyncMock
-        ) as mock_build_server:
-            webserver_mock = mock.MagicMock()
-            mock_build_server.return_value = webserver_mock
-
-            # Patch uvicorn.run to verify it's called with the correct arguments
-            with mock.patch("uvicorn.run") as mock_uvicorn:
-                start_webserver(runner_mock, log_level=log_level)
-                # Assert build_server was called once with the runner
-                mock_build_server.assert_called_once_with(runner_mock)
-
-                # Assert uvicorn.run was called with the lowercase log_level and the webserver mock
-                mock_uvicorn.assert_called_once_with(
-                    webserver_mock, host=mock.ANY, port=mock.ANY, log_level="debug"
-                )
 
     def test_serve_in_async_context_raises_error(self, monkeypatch: pytest.MonkeyPatch):
         monkeypatch.setattr(
@@ -1716,6 +1725,138 @@ class TestRunner:
         assert flow_run.state
         assert flow_run.state.is_completed()
 
+    async def test_runner_temp_dir_creation_is_idempotent(self):
+        """
+        Test that Runner temp directory creation is idempotent
+        and handles the case where the directory already exists.
+
+        This tests the fix for the race condition where multiple flow runs
+        could try to create the same temp directory when the runner is
+        entered as a context manager.
+        """
+        runner = Runner()
+
+        # Manually create the temp directory to simulate race condition
+        runner._tmp_dir.mkdir(parents=True, exist_ok=False)
+
+        # Now entering the runner context should not fail even though
+        # the directory already exists (with exist_ok=True fix)
+        async with runner:
+            assert runner.started
+            assert runner._tmp_dir.exists()
+
+        # Directory should be cleaned up after exiting context
+        assert not runner._tmp_dir.exists()
+
+    async def test_runner_handles_deleted_flow_run_in_propose_crashed_state(
+        self, prefect_client: PrefectClient, monkeypatch: pytest.MonkeyPatch
+    ):
+        """
+        Regression test for https://github.com/PrefectHQ/prefect/issues/19141
+
+        Ensures the runner doesn't crash when trying to propose a crashed state
+        for a flow run that has been deleted.
+        """
+        from prefect.exceptions import ObjectNotFound
+
+        runner = Runner()
+
+        deployment_id = await (await dummy_flow_1.to_deployment(__file__)).apply()
+
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            deployment_id=deployment_id
+        )
+
+        # Mock propose_state to raise ObjectNotFound (simulating a deleted flow run)
+        original_propose_state = prefect.runner.runner.propose_state
+
+        async def mock_propose_state(*args, **kwargs):
+            if kwargs.get("flow_run_id") == flow_run.id:
+                raise ObjectNotFound(
+                    Exception("Flow run not found"), help_message="Flow run was deleted"
+                )
+            return await original_propose_state(*args, **kwargs)
+
+        monkeypatch.setattr(prefect.runner.runner, "propose_state", mock_propose_state)
+
+        async with runner:
+            # This should not crash the runner
+            await runner._propose_crashed_state(flow_run, "Test crash message")
+
+        # Runner should continue running without crashing
+
+    async def test_runner_handles_deleted_flow_run_in_mark_as_cancelled(
+        self, prefect_client: PrefectClient, monkeypatch: pytest.MonkeyPatch
+    ):
+        """
+        Regression test for https://github.com/PrefectHQ/prefect/issues/19141
+
+        Ensures the runner doesn't crash when trying to mark a deleted flow run
+        as cancelled.
+        """
+        from prefect.exceptions import ObjectNotFound
+
+        runner = Runner()
+
+        deployment_id = await (await dummy_flow_1.to_deployment(__file__)).apply()
+
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            deployment_id=deployment_id
+        )
+
+        async with runner:
+            # Mock set_flow_run_state to raise ObjectNotFound
+            async def mock_set_state(*args, **kwargs):
+                raise ObjectNotFound(
+                    Exception("Flow run not found"), help_message="Flow run was deleted"
+                )
+
+            monkeypatch.setattr(runner._client, "set_flow_run_state", mock_set_state)
+
+            # This should not crash the runner
+            await runner._mark_flow_run_as_cancelled(flow_run)
+
+        # Runner should continue running without crashing
+
+    async def test_runner_handles_deleted_flow_run_after_completion(
+        self, prefect_client: PrefectClient, monkeypatch: pytest.MonkeyPatch
+    ):
+        """
+        Regression test for https://github.com/PrefectHQ/prefect/issues/19141
+
+        Ensures the runner doesn't crash when trying to read a flow run after
+        completion if the flow run has been deleted.
+        """
+        from prefect.exceptions import ObjectNotFound
+
+        runner = Runner()
+
+        deployment_id = await (await dummy_flow_1.to_deployment(__file__)).apply()
+
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            deployment_id=deployment_id
+        )
+
+        # Mock read_flow_run to raise ObjectNotFound after the process completes
+        original_read = prefect_client.read_flow_run
+        call_count = {"count": 0}
+
+        async def mock_read_flow_run(*args, **kwargs):
+            call_count["count"] += 1
+            # First call succeeds (for initial read), second call fails (after completion)
+            if call_count["count"] > 1:
+                raise ObjectNotFound(
+                    Exception("Flow run not found"), help_message="Flow run was deleted"
+                )
+            return await original_read(*args, **kwargs)
+
+        monkeypatch.setattr(prefect_client, "read_flow_run", mock_read_flow_run)
+
+        # This should not crash the runner - it should complete successfully
+        await runner.execute_flow_run(flow_run_id=flow_run.id)
+
+        # Runner should have handled the ObjectNotFound gracefully
+
     class TestRunnerBundleExecution:
         @pytest.fixture(autouse=True)
         def mock_subprocess_check_call(self, monkeypatch: pytest.MonkeyPatch):
@@ -1993,6 +2134,102 @@ async def test_runner_emits_cancelled_event(
             "prefect.resource.role": "tag",
         },
     ]
+
+
+async def test_runner_can_execute_instance_method_flow(
+    prefect_client: PrefectClient,
+):
+    """Test that instance method flows can be executed via multiprocessing."""
+    runner = Runner(query_seconds=1)
+
+    # Create an instance and add its flow method
+    flow_instance = ClassWithInstanceMethod(10)
+    deployment_id = await runner.add_flow(
+        flow_instance.instance_method_flow,
+        name="instance-method-test",
+    )
+
+    flow_run = await prefect_client.create_flow_run_from_deployment(
+        deployment_id=deployment_id,
+        parameters={"x": 5},
+    )
+
+    async with runner:
+        await runner.execute_flow_run(flow_run_id=flow_run.id)
+
+    flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
+    assert flow_run.state
+    assert flow_run.state.is_completed()
+
+
+async def test_runner_runs_on_cancellation_hooks_for_instance_method_flows(
+    prefect_client: PrefectClient,
+    caplog: pytest.LogCaptureFixture,
+):
+    """Test that cancellation hooks work correctly for instance method flows."""
+    runner = Runner(query_seconds=1)
+
+    # Create an instance and add its flow method with cancellation hook
+    flow_instance = ClassWithCancellableFlow()
+    deployment_id = await runner.add_flow(
+        flow_instance.cancellable_flow,
+        name="cancellable-instance-method",
+    )
+
+    async with runner:
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            deployment_id=deployment_id
+        )
+
+        execute_task = asyncio.create_task(runner.execute_flow_run(flow_run.id))
+
+        # Wait for flow to start running
+        while True:
+            await anyio.sleep(0.5)
+            flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
+            assert flow_run.state
+            if flow_run.state.is_running():
+                break
+
+        # Cancel the flow run
+        await prefect_client.set_flow_run_state(
+            flow_run_id=flow_run.id,
+            state=flow_run.state.model_copy(
+                update={"name": "Cancelling", "type": StateType.CANCELLING}
+            ),
+        )
+
+        await execute_task
+
+    flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
+    assert flow_run.state.is_cancelled()
+    assert "Instance method flow was cancelled!" in caplog.text
+
+
+async def test_runner_runs_on_crashed_hooks_for_instance_method_flows(
+    prefect_client: PrefectClient,
+    caplog: pytest.LogCaptureFixture,
+):
+    """Test that crashed hooks work correctly for instance method flows."""
+    runner = Runner()
+
+    # Create an instance and add its flow method with crashed hook
+    flow_instance = ClassWithCrashingFlow()
+    deployment_id = await runner.add_flow(
+        flow_instance.crashing_flow,
+        name="crashing-instance-method",
+    )
+
+    flow_run = await prefect_client.create_flow_run_from_deployment(
+        deployment_id=deployment_id
+    )
+
+    await runner.execute_flow_run(flow_run.id)
+
+    flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
+    assert flow_run.state
+    assert flow_run.state.is_crashed()
+    assert "Instance method flow crashed!" in caplog.text
 
 
 class TestRunnerDeployment:
@@ -2784,6 +3021,35 @@ class TestRunnerDeployment:
             dummy_flow_1, name="flow-from-my.python.module"
         )
         assert deployment2.name == "flow-from-my.python.module"
+
+    def test_deployment_name_with_dots_from_storage(self, temp_storage: MockStorage):
+        # regression test for deployment name truncation in from_storage
+        # names with dots like "v2.0.1" should not be truncated to "v2"
+        deployment = RunnerDeployment.from_storage(
+            storage=temp_storage,
+            entrypoint="flows.py:test_flow",
+            name="pricing-subflow-v2.0.1",
+        )
+        assert deployment.name == "pricing-subflow-v2.0.1"
+
+        # test with multiple dots
+        deployment2 = RunnerDeployment.from_storage(
+            storage=temp_storage,
+            entrypoint="flows.py:test_flow",
+            name="my-flow-v1.2.3.4",
+        )
+        assert deployment2.name == "my-flow-v1.2.3.4"
+
+    async def test_deployment_name_with_dots_from_storage_async(
+        self, temp_storage: MockStorage
+    ):
+        # regression test for deployment name truncation in afrom_storage
+        deployment = await RunnerDeployment.afrom_storage(
+            storage=temp_storage,
+            entrypoint="flows.py:test_flow",
+            name="pricing-subflow-v2.0.1",
+        )
+        assert deployment.name == "pricing-subflow-v2.0.1"
 
     async def test_from_flow_with_frozen_parameters(
         self, prefect_client: PrefectClient

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import abc
-import asyncio
 import copy
 import inspect
 import logging
@@ -400,7 +399,7 @@ class Transaction(BaseTransaction):
             self.logger.info(f"Running {hook_type} hook {hook_name!r}")
 
         try:
-            if asyncio.iscoroutinefunction(hook):
+            if inspect.iscoroutinefunction(hook):
                 run_coro_as_sync(hook(self))
             else:
                 hook(self)
@@ -489,7 +488,9 @@ class AsyncTransaction(BaseTransaction):
 
         # do this below reset so that get_transaction() returns the relevant txn
         if parent and self.state == TransactionState.ROLLED_BACK:
-            await parent.rollback()
+            maybe_coro = parent.rollback()
+            if inspect.isawaitable(maybe_coro):
+                await maybe_coro
 
     async def commit(self) -> bool:
         if self.state in [TransactionState.ROLLED_BACK, TransactionState.COMMITTED]:
@@ -558,7 +559,7 @@ class AsyncTransaction(BaseTransaction):
             self.logger.info(f"Running {hook_type} hook {hook_name!r}")
 
         try:
-            if asyncio.iscoroutinefunction(hook):
+            if inspect.iscoroutinefunction(hook):
                 await hook(self)
             else:
                 await anyio.to_thread.run_sync(hook, self)

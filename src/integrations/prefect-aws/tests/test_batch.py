@@ -3,7 +3,7 @@ from uuid import UUID
 
 import boto3
 import pytest
-from moto import mock_batch, mock_iam
+from moto import mock_aws
 from prefect_aws.batch import abatch_submit, batch_submit
 
 from prefect import flow
@@ -20,13 +20,13 @@ def assert_valid_job_id(job_id: Optional[str]):
 
 @pytest.fixture(scope="function")
 def batch_client(aws_credentials):
-    with mock_batch():
+    with mock_aws():
         yield boto3.client("batch", region_name="us-east-1")
 
 
 @pytest.fixture(scope="function")
 def iam_client(aws_credentials):
-    with mock_iam():
+    with mock_aws():
         yield boto3.client("iam", region_name="us-east-1")
 
 

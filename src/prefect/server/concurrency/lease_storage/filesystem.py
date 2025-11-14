@@ -9,10 +9,11 @@ from uuid import UUID
 import anyio
 
 from prefect.server.concurrency.lease_storage import (
-    ConcurrencyLeaseStorage as _ConcurrencyLeaseStorage,
+    ConcurrencyLeaseHolder,
+    ConcurrencyLimitLeaseMetadata,
 )
 from prefect.server.concurrency.lease_storage import (
-    ConcurrencyLimitLeaseMetadata,
+    ConcurrencyLeaseStorage as _ConcurrencyLeaseStorage,
 )
 from prefect.server.utilities.leasing import ResourceLease
 from prefect.settings.context import get_current_settings
@@ -162,11 +163,26 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
             await self._remove_from_expiration_index(lease_id)
             return None
 
-    async def renew_lease(self, lease_id: UUID, ttl: timedelta) -> None:
+    async def renew_lease(self, lease_id: UUID, ttl: timedelta) -> bool:
+        """
+        Atomically renew a concurrency lease by updating its expiration.
+
+        Checks if the lease exists and updates both the lease file and index,
+        preventing race conditions from creating orphaned index entries.
+
+        Args:
+            lease_id: The ID of the lease to renew
+            ttl: The new time-to-live duration
+
+        Returns:
+            True if the lease was renewed, False if it didn't exist
+        """
         lease_file = self._lease_file_path(lease_id)
 
         if not lease_file.exists():
-            return
+            # Clean up any orphaned index entry
+            await self._remove_from_expiration_index(lease_id)
+            return False
 
         try:
             with open(lease_file, "r") as f:
@@ -177,15 +193,25 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
             lease_data["expiration"] = new_expiration.isoformat()
 
             self._ensure_storage_path()
+
+            # Write updated lease file
             with open(lease_file, "w") as f:
                 json.dump(lease_data, f)
 
+            # Verify file still exists after write (could have been deleted)
+            if not lease_file.exists():
+                # Lease was deleted during update - clean up index
+                await self._remove_from_expiration_index(lease_id)
+                return False
+
             # Update expiration index
             await self._update_expiration_index(lease_id, new_expiration)
+            return True
         except (json.JSONDecodeError, KeyError, ValueError):
             # Clean up corrupted lease file
             lease_file.unlink(missing_ok=True)
             await self._remove_from_expiration_index(lease_id)
+            return False
 
     async def revoke_lease(self, lease_id: UUID) -> None:
         lease_file = self._lease_file_path(lease_id)
@@ -194,26 +220,27 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
         # Remove from expiration index
         await self._remove_from_expiration_index(lease_id)
 
-    async def read_active_lease_ids(self, limit: int = 100) -> list[UUID]:
-        active_leases: list[UUID] = []
+    async def read_active_lease_ids(
+        self, limit: int = 100, offset: int = 0
+    ) -> list[UUID]:
         now = datetime.now(timezone.utc)
 
         expiration_index = await self._load_expiration_index()
 
+        # Collect all active leases first
+        all_active: list[UUID] = []
         for lease_id_str, expiration_str in expiration_index.items():
-            if len(active_leases) >= limit:
-                break
-
             try:
                 lease_id = UUID(lease_id_str)
                 expiration = datetime.fromisoformat(expiration_str)
 
                 if expiration > now:
-                    active_leases.append(lease_id)
+                    all_active.append(lease_id)
             except (ValueError, TypeError):
                 continue
 
-        return active_leases
+        # Apply offset and limit
+        return all_active[offset : offset + limit]
 
     async def read_expired_lease_ids(self, limit: int = 100) -> list[UUID]:
         expired_leases: list[UUID] = []
@@ -235,3 +262,38 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
                 continue
 
         return expired_leases
+
+    async def list_holders_for_limit(
+        self, limit_id: UUID
+    ) -> list[tuple[UUID, ConcurrencyLeaseHolder]]:
+        """List all holders for a given concurrency limit."""
+        now = datetime.now(timezone.utc)
+        holders_with_leases: list[tuple[UUID, ConcurrencyLeaseHolder]] = []
+
+        # Get all active lease IDs - need to paginate through all
+        all_active_lease_ids: list[UUID] = []
+        offset = 0
+        batch_size = 100
+        while True:
+            batch = await self.read_active_lease_ids(limit=batch_size, offset=offset)
+            if not batch:
+                break
+            all_active_lease_ids.extend(batch)
+            if len(batch) < batch_size:
+                break
+            offset += batch_size
+
+        active_lease_ids = all_active_lease_ids
+
+        for lease_id in active_lease_ids:
+            lease = await self.read_lease(lease_id)
+            if (
+                lease
+                and limit_id in lease.resource_ids
+                and lease.expiration > now
+                and lease.metadata
+                and lease.metadata.holder
+            ):
+                holders_with_leases.append((lease.id, lease.metadata.holder))
+
+        return holders_with_leases

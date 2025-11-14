@@ -2,10 +2,11 @@ import contextlib
 import datetime
 import math
 import random
-from datetime import timedelta
+from datetime import timedelta, timezone
 from itertools import product
 from typing import Optional
 from unittest import mock
+from unittest.mock import AsyncMock
 from uuid import uuid4
 
 import pytest
@@ -58,8 +59,11 @@ from prefect.server.orchestration.rules import (
 from prefect.server.schemas import actions, states
 from prefect.server.schemas.responses import SetStateStatus
 from prefect.server.schemas.states import StateType
-from prefect.settings import PREFECT_DEPLOYMENT_CONCURRENCY_SLOT_WAIT_SECONDS
-from prefect.testing.utilities import AsyncMock
+from prefect.settings import (
+    PREFECT_DEPLOYMENT_CONCURRENCY_SLOT_WAIT_SECONDS,
+    PREFECT_SERVER_CONCURRENCY_INITIAL_DEPLOYMENT_LEASE_DURATION,
+    temporary_settings,
+)
 from prefect.types._datetime import DateTime, now, parse_datetime
 
 # Convert constants from sets to lists for deterministic ordering of tests
@@ -4555,3 +4559,46 @@ class TestFlowConcurrencyLimits:
 
         lease_ids = await lease_storage.read_active_lease_ids()
         assert len(lease_ids) == 1
+
+    async def test_configurable_initial_lease_duration(
+        self,
+        session,
+        initialize_orchestration,
+        flow,
+    ):
+        """Test that SecureFlowConcurrencySlots uses configurable initial lease timeout."""
+        deployment = await self.create_deployment_with_concurrency_limit(
+            session, 1, flow
+        )
+
+        pending_transition = (states.StateType.SCHEDULED, states.StateType.PENDING)
+
+        # Use temporary_settings to set custom initial lease timeout
+        with temporary_settings(
+            updates={
+                PREFECT_SERVER_CONCURRENCY_INITIAL_DEPLOYMENT_LEASE_DURATION: 123.0
+            }
+        ):
+            ctx = await initialize_orchestration(
+                session, "flow", *pending_transition, deployment_id=deployment.id
+            )
+
+            created_at = datetime.datetime.now(timezone.utc)
+
+            async with contextlib.AsyncExitStack() as stack:
+                ctx = await stack.enter_async_context(
+                    SecureFlowConcurrencySlots(ctx, *pending_transition)
+                )
+                await ctx.validate_proposed_state()
+
+            assert ctx.response_status == SetStateStatus.ACCEPT
+            lease_id = ctx.validated_state.state_details.deployment_concurrency_lease_id
+            assert lease_id is not None
+
+            # Verify the lease was created with updated TTL
+            lease_storage = get_concurrency_lease_storage()
+            lease = await lease_storage.read_lease(lease_id=lease_id)
+            assert lease is not None
+
+            actual_ttl_seconds = (lease.expiration - created_at).total_seconds()
+            assert abs(actual_ttl_seconds - 123.0) < 1  # Within 1 second

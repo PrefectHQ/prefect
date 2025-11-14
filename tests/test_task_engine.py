@@ -19,10 +19,6 @@ from prefect.client.orchestration import PrefectClient, SyncPrefectClient
 from prefect.client.schemas.objects import StateType
 from prefect.concurrency.asyncio import concurrency as aconcurrency
 from prefect.concurrency.sync import concurrency
-from prefect.concurrency.v1._asyncio import (
-    acquire_concurrency_slots,
-    release_concurrency_slots,
-)
 from prefect.context import (
     EngineContext,
     FlowRunContext,
@@ -1960,6 +1956,14 @@ class TestTimeout:
         )
         assert response.active_slots == 0
 
+    async def test_does_not_raise_timeout_error_when_async_task_is_cancelled(self):
+        @task(timeout_seconds=10)
+        async def async_task():
+            raise asyncio.CancelledError()
+
+        with pytest.raises(asyncio.CancelledError):
+            await async_task()
+
 
 class TestPersistence:
     async def test_task_can_return_result_record(self):
@@ -2621,24 +2625,24 @@ class TestTaskConcurrencyLimits:
             task_run_id = TaskRunContext.get().task_run.id
             return 42
 
-        with mock.patch(
-            "prefect.concurrency.v1.asyncio.acquire_concurrency_slots",
-            wraps=acquire_concurrency_slots,
-        ) as acquire_spy:
-            with mock.patch(
-                "prefect.concurrency.v1.asyncio.release_concurrency_slots",
-                wraps=release_concurrency_slots,
-            ) as release_spy:
-                await bar()
+        with mock.patch("prefect.task_engine._aconcurrency") as mock_aconcurrency:
+            # Set up the mock to act as an async context manager
+            mock_aconcurrency.return_value.__aenter__ = mock.AsyncMock(
+                return_value=None
+            )
+            mock_aconcurrency.return_value.__aexit__ = mock.AsyncMock(return_value=None)
 
-                acquire_spy.assert_called_once_with(
-                    ["limit-tag"], task_run_id=task_run_id, timeout_seconds=None
-                )
+            await bar()
 
-                names, _task_run_id, occupy_seconds = release_spy.call_args[0]
-                assert names == ["limit-tag"]
-                assert _task_run_id == task_run_id
-                assert occupy_seconds > 0
+            # Check that aconcurrency was called with the correct V2 limit names and holder
+            mock_aconcurrency.assert_called_once()
+            args, kwargs = mock_aconcurrency.call_args
+            assert args == ()  # No positional args in new implementation
+            assert kwargs["names"] == ["tag:limit-tag"]
+            assert kwargs["occupy"] == 1
+            assert kwargs["holder"] is not None
+            assert kwargs["holder"].type == "task_run"
+            assert kwargs["holder"].id == task_run_id
 
     def test_tag_concurrency_sync(self):
         task_run_id = None
@@ -2649,27 +2653,22 @@ class TestTaskConcurrencyLimits:
             task_run_id = TaskRunContext.get().task_run.id
             return 42
 
-        with mock.patch(
-            "prefect.concurrency.v1.sync.acquire_concurrency_slots",
-            wraps=acquire_concurrency_slots,
-        ) as acquire_spy:
-            with mock.patch(
-                "prefect.concurrency.v1.sync.release_concurrency_slots",
-                wraps=release_concurrency_slots,
-            ) as release_spy:
-                bar()
+        with mock.patch("prefect.task_engine._concurrency") as mock_concurrency:
+            # Set up the mock to act as a context manager
+            mock_concurrency.return_value.__enter__ = mock.Mock(return_value=None)
+            mock_concurrency.return_value.__exit__ = mock.Mock(return_value=None)
 
-                acquire_spy.assert_called_once_with(
-                    ["limit-tag"],
-                    task_run_id=task_run_id,
-                    timeout_seconds=None,
-                    _sync=True,
-                )
+            bar()
 
-                names, _task_run_id, occupy_seconds = release_spy.call_args[0]
-                assert names == ["limit-tag"]
-                assert _task_run_id == task_run_id
-                assert occupy_seconds > 0
+            # Check that concurrency was called with the correct V2 limit names and holder
+            mock_concurrency.assert_called_once()
+            args, kwargs = mock_concurrency.call_args
+            assert args == ()  # No positional args in new implementation
+            assert kwargs["names"] == ["tag:limit-tag"]
+            assert kwargs["occupy"] == 1
+            assert kwargs["holder"] is not None
+            assert kwargs["holder"].type == "task_run"
+            assert kwargs["holder"].id == task_run_id
 
     async def test_tag_concurrency_is_taken_prior_to_running_state(
         self, events_pipeline, prefect_client
@@ -2698,9 +2697,9 @@ class TestTaskConcurrencyLimits:
                     task_run_id = task_run_context.task_run.id
             raise BaseException("stop concurrency")  # Simulate acquisition failure
 
-        # Mock the sync concurrency function called by SyncTaskRunEngine.call_task_fn
+        # Mock the V2 concurrency function at the task_engine level
         with mock.patch(
-            "prefect.concurrency.v1.sync.acquire_concurrency_slots",
+            "prefect.task_engine._concurrency",
             side_effect=side_effect,
         ):
             # The task call itself should raise because the mocked function raises
@@ -2748,9 +2747,9 @@ class TestTaskConcurrencyLimits:
                     task_run_id = task_run_context.task_run.id
             raise BaseException("stop concurrency")  # Simulate acquisition failure
 
-        # Mock the async concurrency function called by AsyncTaskRunEngine.start
+        # Mock the V2 async concurrency function at the task_engine level
         with mock.patch(
-            "prefect.concurrency.v1.asyncio.acquire_concurrency_slots",
+            "prefect.task_engine._aconcurrency",
             side_effect=side_effect,
         ):
             # The task call itself should raise because the mocked function raises
@@ -2780,28 +2779,23 @@ class TestTaskConcurrencyLimits:
             task_run_id = TaskRunContext.get().task_run.id
             return 42
 
-        with mock.patch(
-            "prefect.concurrency.v1.sync.acquire_concurrency_slots",
-            wraps=acquire_concurrency_slots,
-        ) as acquire_spy:
-            with mock.patch(
-                "prefect.concurrency.v1.sync.release_concurrency_slots",
-                wraps=release_concurrency_slots,
-            ) as release_spy:
-                with tags("limit-tag"):
-                    bar()
+        with mock.patch("prefect.task_engine._concurrency") as mock_concurrency:
+            # Set up the mock to act as a context manager
+            mock_concurrency.return_value.__enter__ = mock.Mock(return_value=None)
+            mock_concurrency.return_value.__exit__ = mock.Mock(return_value=None)
 
-                acquire_spy.assert_called_once_with(
-                    ["limit-tag"],
-                    task_run_id=task_run_id,
-                    timeout_seconds=None,
-                    _sync=True,
-                )
+            with tags("limit-tag"):
+                bar()
 
-                names, _task_run_id, occupy_seconds = release_spy.call_args[0]
-                assert names == ["limit-tag"]
-                assert _task_run_id == task_run_id
-                assert occupy_seconds > 0
+            # Check that concurrency was called with the correct V2 limit names and holder
+            mock_concurrency.assert_called_once()
+            args, kwargs = mock_concurrency.call_args
+            assert args == ()  # No positional args in new implementation
+            assert kwargs["names"] == ["tag:limit-tag"]
+            assert kwargs["occupy"] == 1
+            assert kwargs["holder"] is not None
+            assert kwargs["holder"].type == "task_run"
+            assert kwargs["holder"].id == task_run_id
 
     async def test_tag_concurrency_with_tags_context(self):
         task_run_id = None
@@ -2812,61 +2806,69 @@ class TestTaskConcurrencyLimits:
             task_run_id = TaskRunContext.get().task_run.id
             return 42
 
-        with mock.patch(
-            "prefect.concurrency.v1.asyncio.acquire_concurrency_slots",
-            wraps=acquire_concurrency_slots,
-        ) as acquire_spy:
-            with mock.patch(
-                "prefect.concurrency.v1.asyncio.release_concurrency_slots",
-                wraps=release_concurrency_slots,
-            ) as release_spy:
-                with tags("limit-tag"):
-                    await bar()
+        with mock.patch("prefect.task_engine._aconcurrency") as mock_aconcurrency:
+            # Set up the mock to act as an async context manager
+            mock_aconcurrency.return_value.__aenter__ = mock.AsyncMock(
+                return_value=None
+            )
+            mock_aconcurrency.return_value.__aexit__ = mock.AsyncMock(return_value=None)
 
-                acquire_spy.assert_called_once_with(
-                    ["limit-tag"], task_run_id=task_run_id, timeout_seconds=None
-                )
+            with tags("limit-tag"):
+                await bar()
 
-                names, _task_run_id, occupy_seconds = release_spy.call_args[0]
-                assert names == ["limit-tag"]
-                assert _task_run_id == task_run_id
-                assert occupy_seconds > 0
+            # Check that aconcurrency was called with the correct V2 limit names and holder
+            mock_aconcurrency.assert_called_once()
+            args, kwargs = mock_aconcurrency.call_args
+            assert args == ()
+            assert kwargs["names"] == ["tag:limit-tag"]
+            assert kwargs["occupy"] == 1
+            assert kwargs["holder"] is not None
+            assert kwargs["holder"].type == "task_run"
+            assert kwargs["holder"].id == task_run_id
 
     async def test_no_tags_no_concurrency(self):
         @task
         async def bar():
             return 42
 
-        with mock.patch(
-            "prefect.concurrency.v1._asyncio.acquire_concurrency_slots",
-            wraps=acquire_concurrency_slots,
-        ) as acquire_spy:
-            with mock.patch(
-                "prefect.concurrency.v1._asyncio.release_concurrency_slots",
-                wraps=release_concurrency_slots,
-            ) as release_spy:
-                await bar()
+        with mock.patch("prefect.task_engine._aconcurrency") as mock_aconcurrency:
+            # Set up the mock to act as an async context manager
+            mock_aconcurrency.return_value.__aenter__ = mock.AsyncMock(
+                return_value=None
+            )
+            mock_aconcurrency.return_value.__aexit__ = mock.AsyncMock(return_value=None)
 
-                assert acquire_spy.call_count == 0
-                assert release_spy.call_count == 0
+            await bar()
+
+            # Should be called with empty names when there are no tags
+            mock_aconcurrency.assert_called_once()
+            args, kwargs = mock_aconcurrency.call_args
+            assert args == ()
+            assert kwargs["names"] == []
+            assert kwargs["occupy"] == 1
+            assert kwargs["holder"] is not None
+            assert kwargs["holder"].type == "task_run"
 
     def test_no_tags_no_concurrency_sync(self):
         @task
         def bar():
             return 42
 
-        with mock.patch(
-            "prefect.concurrency.v1.sync.acquire_concurrency_slots",
-            wraps=acquire_concurrency_slots,
-        ) as acquire_spy:
-            with mock.patch(
-                "prefect.concurrency.v1.sync.release_concurrency_slots",
-                wraps=release_concurrency_slots,
-            ) as release_spy:
-                bar()
+        with mock.patch("prefect.task_engine._concurrency") as mock_concurrency:
+            # Set up the mock to act as a sync context manager
+            mock_concurrency.return_value.__enter__ = mock.MagicMock(return_value=None)
+            mock_concurrency.return_value.__exit__ = mock.MagicMock(return_value=None)
 
-                assert acquire_spy.call_count == 0
-                assert release_spy.call_count == 0
+            bar()
+
+            # Should be called with empty names when there are no tags
+            mock_concurrency.assert_called_once()
+            args, kwargs = mock_concurrency.call_args
+            assert args == ()
+            assert kwargs["names"] == []
+            assert kwargs["occupy"] == 1
+            assert kwargs["holder"] is not None
+            assert kwargs["holder"].type == "task_run"
 
     async def test_tag_concurrency_does_not_create_limits(self, prefect_client):
         task_run_id = None
@@ -2877,16 +2879,27 @@ class TestTaskConcurrencyLimits:
             task_run_id = TaskRunContext.get().task_run.id
             return 42
 
-        with mock.patch(
-            "prefect.concurrency.v1.asyncio.acquire_concurrency_slots",
-            wraps=acquire_concurrency_slots,
-        ) as acquire_spy:
+        with mock.patch("prefect.task_engine._aconcurrency") as mock_aconcurrency:
+            # Set up the mock to act as an async context manager
+            mock_aconcurrency.return_value.__aenter__ = mock.AsyncMock(
+                return_value=None
+            )
+            mock_aconcurrency.return_value.__aexit__ = mock.AsyncMock(return_value=None)
+
             await bar()
 
-            acquire_spy.assert_called_once_with(
-                ["limit-tag"], task_run_id=task_run_id, timeout_seconds=None
-            )
+            # Check that aconcurrency was called with the correct V2 limit names and holder
+            mock_aconcurrency.assert_called_once()
+            args, kwargs = mock_aconcurrency.call_args
+            assert args == ()
+            assert kwargs["names"] == ["tag:limit-tag"]
+            assert kwargs["occupy"] == 1
+            assert kwargs["holder"] is not None
+            assert kwargs["holder"].type == "task_run"
+            assert kwargs["holder"].id == task_run_id
 
+            # V2 global concurrency limits are different from V1 limits
+            # We don't expect V1 limits to be created
             limits = await prefect_client.read_concurrency_limits(10, 0)
             assert len(limits) == 0
 
@@ -3285,3 +3298,140 @@ class TestTransactionHooks:
             foo()
 
         spy.assert_called_once()
+
+
+class TestTaskTagConcurrencyWarnings:
+    """Tests to ensure that automatic tag-based concurrency checks don't produce noisy warnings."""
+
+    def test_task_with_tags_no_concurrency_limit_no_warning_sync(self, caplog):
+        """Verify sync tasks with tags don't log warnings when no concurrency limit exists."""
+
+        @task(tags=["test-tag"])
+        def tagged_task():
+            return 42
+
+        with caplog.at_level(logging.WARNING):
+            result = tagged_task()
+
+        assert result == 42
+
+        # Check that there are no WARNING logs about missing concurrency limits
+        warning_records = [
+            record
+            for record in caplog.records
+            if record.levelname == "WARNING"
+            and "Concurrency limits" in record.message
+            and "do not exist" in record.message
+        ]
+        assert len(warning_records) == 0, (
+            f"Expected no concurrency warnings, but found {len(warning_records)}: "
+            f"{[r.message for r in warning_records]}"
+        )
+
+    async def test_task_with_tags_no_concurrency_limit_no_warning_async(self, caplog):
+        """Verify async tasks with tags don't log warnings when no concurrency limit exists."""
+
+        @task(tags=["test-tag"])
+        async def tagged_task():
+            return 42
+
+        with caplog.at_level(logging.WARNING):
+            result = await tagged_task()
+
+        assert result == 42
+
+        # Check that there are no WARNING logs about missing concurrency limits
+        warning_records = [
+            record
+            for record in caplog.records
+            if record.levelname == "WARNING"
+            and "Concurrency limits" in record.message
+            and "do not exist" in record.message
+        ]
+        assert len(warning_records) == 0, (
+            f"Expected no concurrency warnings, but found {len(warning_records)}: "
+            f"{[r.message for r in warning_records]}"
+        )
+
+    def test_task_with_multiple_tags_no_concurrency_limit_no_warning_sync(self, caplog):
+        """Verify sync tasks with multiple tags don't log warnings when no concurrency limits exist."""
+
+        @task(tags=["tag1", "tag2", "tag3"])
+        def multi_tagged_task():
+            return "success"
+
+        with caplog.at_level(logging.WARNING):
+            result = multi_tagged_task()
+
+        assert result == "success"
+
+        # Check that there are no WARNING logs about missing concurrency limits
+        warning_records = [
+            record
+            for record in caplog.records
+            if record.levelname == "WARNING"
+            and "Concurrency limits" in record.message
+            and "do not exist" in record.message
+        ]
+        assert len(warning_records) == 0, (
+            f"Expected no concurrency warnings, but found {len(warning_records)}: "
+            f"{[r.message for r in warning_records]}"
+        )
+
+    def test_explicit_concurrency_call_with_nonexistent_limit_shows_warning(
+        self, caplog
+    ):
+        """Verify explicit concurrency() calls still show warnings when limit doesn't exist."""
+
+        @task
+        def task_with_explicit_concurrency():
+            with concurrency("nonexistent-limit"):
+                return "done"
+
+        with caplog.at_level(logging.WARNING):
+            result = task_with_explicit_concurrency()
+
+        assert result == "done"
+
+        # Check that there IS a WARNING log about missing concurrency limit
+        warning_records = [
+            record
+            for record in caplog.records
+            if record.levelname == "WARNING"
+            and "Concurrency limits" in record.message
+            and "do not exist" in record.message
+        ]
+        assert len(warning_records) == 1, (
+            f"Expected exactly 1 concurrency warning for explicit call, "
+            f"but found {len(warning_records)}"
+        )
+        assert "nonexistent-limit" in warning_records[0].message
+
+    async def test_explicit_concurrency_call_with_nonexistent_limit_shows_warning_async(
+        self, caplog
+    ):
+        """Verify explicit async concurrency() calls still show warnings when limit doesn't exist."""
+
+        @task
+        async def task_with_explicit_concurrency():
+            async with aconcurrency("nonexistent-limit"):
+                return "done"
+
+        with caplog.at_level(logging.WARNING):
+            result = await task_with_explicit_concurrency()
+
+        assert result == "done"
+
+        # Check that there IS a WARNING log about missing concurrency limit
+        warning_records = [
+            record
+            for record in caplog.records
+            if record.levelname == "WARNING"
+            and "Concurrency limits" in record.message
+            and "do not exist" in record.message
+        ]
+        assert len(warning_records) == 1, (
+            f"Expected exactly 1 concurrency warning for explicit call, "
+            f"but found {len(warning_records)}"
+        )
+        assert "nonexistent-limit" in warning_records[0].message

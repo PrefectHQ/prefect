@@ -1,65 +1,21 @@
 from collections.abc import Generator
 from contextlib import contextmanager
-from typing import Optional, TypeVar, Union
-from uuid import UUID
+from typing import TYPE_CHECKING, Optional, TypeVar, Union
 
-from typing_extensions import Literal
-
-from prefect.client.schemas.responses import (
-    ConcurrencyLimitWithLeaseResponse,
-    MinimalConcurrencyLimitResponse,
-)
-from prefect.concurrency._leases import maintain_concurrency_lease
-from prefect.utilities.asyncutils import run_coro_as_sync
-
-from ._asyncio import (
-    aacquire_concurrency_slots,
-    aacquire_concurrency_slots_with_lease,
-    arelease_concurrency_slots_with_lease,
-)
 from ._events import (
     emit_concurrency_acquisition_events,
-    emit_concurrency_release_events,
+)
+from ._sync import (
+    acquire_concurrency_slots as _acquire_concurrency_slots,
+)
+from ._sync import (
+    concurrency as _concurrency_internal,
 )
 
+if TYPE_CHECKING:
+    from prefect.client.schemas.objects import ConcurrencyLeaseHolder
+
 T = TypeVar("T")
-
-
-def _release_concurrency_slots_with_lease(lease_id: UUID) -> None:
-    run_coro_as_sync(arelease_concurrency_slots_with_lease(lease_id))
-
-
-def _acquire_concurrency_slots(
-    names: list[str],
-    slots: int,
-    mode: Literal["concurrency", "rate_limit"] = "concurrency",
-    timeout_seconds: Optional[float] = None,
-    max_retries: Optional[int] = None,
-    strict: bool = False,
-) -> list[MinimalConcurrencyLimitResponse]:
-    result = run_coro_as_sync(
-        aacquire_concurrency_slots(
-            names, slots, mode, timeout_seconds, max_retries, strict
-        )
-    )
-    return result
-
-
-def _acquire_concurrency_slots_with_lease(
-    names: list[str],
-    slots: int,
-    mode: Literal["concurrency", "rate_limit"] = "concurrency",
-    timeout_seconds: Optional[float] = None,
-    max_retries: Optional[int] = None,
-    lease_duration: float = 300,
-    strict: bool = False,
-) -> ConcurrencyLimitWithLeaseResponse:
-    result = run_coro_as_sync(
-        aacquire_concurrency_slots_with_lease(
-            names, slots, mode, timeout_seconds, max_retries, lease_duration, strict
-        )
-    )
-    return result
 
 
 @contextmanager
@@ -70,6 +26,7 @@ def concurrency(
     max_retries: Optional[int] = None,
     lease_duration: float = 300,
     strict: bool = False,
+    holder: "Optional[ConcurrencyLeaseHolder]" = None,
 ) -> Generator[None, None, None]:
     """A context manager that acquires and releases concurrency slots from the
     given concurrency limits.
@@ -83,6 +40,8 @@ def concurrency(
         lease_duration: The duration of the lease for the acquired slots in seconds.
         strict: A boolean specifying whether to raise an error if the concurrency limit does not exist.
             Defaults to `False`.
+        holder: A dictionary containing information about the holder of the concurrency slots.
+            Typically includes 'type' and 'id' keys.
 
     Raises:
         TimeoutError: If the slots are not acquired within the given timeout.
@@ -101,36 +60,17 @@ def concurrency(
         resource_heavy()
     ```
     """
-    if not names:
-        yield
-        return
-
-    names = names if isinstance(names, list) else [names]
-
-    acquisition_response = _acquire_concurrency_slots_with_lease(
-        names,
-        occupy,
+    with _concurrency_internal(
+        names=names,
+        occupy=occupy,
         timeout_seconds=timeout_seconds,
-        strict=strict,
-        lease_duration=lease_duration,
         max_retries=max_retries,
-    )
-    emitted_events = emit_concurrency_acquisition_events(
-        acquisition_response.limits, occupy
-    )
-
-    try:
-        with maintain_concurrency_lease(
-            acquisition_response.lease_id,
-            lease_duration,
-            raise_on_lease_renewal_failure=strict,
-        ):
-            yield
-    finally:
-        _release_concurrency_slots_with_lease(acquisition_response.lease_id)
-        emit_concurrency_release_events(
-            acquisition_response.limits, occupy, emitted_events
-        )
+        lease_duration=lease_duration,
+        strict=strict,
+        holder=holder,
+        suppress_warnings=False,
+    ):
+        yield
 
 
 def rate_limit(

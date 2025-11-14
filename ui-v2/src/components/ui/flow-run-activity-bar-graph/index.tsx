@@ -89,7 +89,7 @@ const CustomBar = (props: CustomShapeProps) => {
 	);
 };
 
-type EnrichedFlowRun = components["schemas"]["FlowRun"] & {
+type EnrichedFlowRun = components["schemas"]["FlowRunResponse"] & {
 	deployment: components["schemas"]["DeploymentResponse"];
 	flow?: components["schemas"]["Flow"];
 };

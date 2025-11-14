@@ -231,6 +231,21 @@ class EventIDFilter(EventDataFilter):
         return True
 
 
+class EventTextFilter(EventDataFilter):
+    """Filter by text search across event content."""
+
+    query: str = Field(
+        description="Text search query string",
+        examples=[
+            "error",
+            "error -debug",
+            '"connection timeout"',
+            "+required -excluded",
+        ],
+        max_length=200,
+    )
+
+
 class EventOrder(AutoEnum):
     ASC = "ASC"
     DESC = "DESC"
@@ -262,6 +277,10 @@ class EventFilter(EventDataFilter):
     id: EventIDFilter = Field(
         default_factory=lambda: EventIDFilter(id=[]),
         description="Filter criteria for the events' ID",
+    )
+    text: Optional[EventTextFilter] = Field(
+        default=None,
+        description="Filter criteria for text search across event content",
     )
 
     order: EventOrder = Field(

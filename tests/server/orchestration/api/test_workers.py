@@ -5,10 +5,11 @@ from typing import List
 import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
-from starlette import status
 
 import prefect
 import prefect.server
+from prefect._internal.compatibility.starlette import status
+from prefect._internal.testing import retry_asserts
 from prefect.client.schemas.actions import WorkPoolCreate
 from prefect.client.schemas.objects import WorkPool, WorkQueue
 from prefect.server import models, schemas
@@ -1988,8 +1989,8 @@ class TestGetScheduledRuns:
         await session.commit()
         return deployment
 
-    async def test_get_all_runs(self, client, work_pools):
-        response = await client.post(
+    async def test_get_all_runs(self, hosted_api_client, work_pools):
+        response = await hosted_api_client.post(
             f"/work_pools/{work_pools['wp_a'].name}/get_scheduled_flow_runs",
         )
         assert response.status_code == status.HTTP_200_OK, response.text
@@ -2002,8 +2003,8 @@ class TestGetScheduledRuns:
         # runs are not sorted by time because they're sorted by queue priority
         assert data != sorted(data, key=lambda r: r.flow_run.next_scheduled_start_time)
 
-    async def test_get_all_runs_limit(self, client, work_pools):
-        response = await client.post(
+    async def test_get_all_runs_limit(self, hosted_api_client, work_pools):
+        response = await hosted_api_client.post(
             f"/work_pools/{work_pools['wp_a'].name}/get_scheduled_flow_runs",
             json=dict(limit=7),
         )
@@ -2013,8 +2014,8 @@ class TestGetScheduledRuns:
         )
         assert len(data) == 7
 
-    async def test_get_all_runs_wq_aa(self, client, work_pools, work_queues):
-        response = await client.post(
+    async def test_get_all_runs_wq_aa(self, hosted_api_client, work_pools, work_queues):
+        response = await hosted_api_client.post(
             f"/work_pools/{work_pools['wp_a'].name}/get_scheduled_flow_runs",
             json=dict(work_queue_names=[work_queues["wq_aa"].name]),
         )
@@ -2024,8 +2025,10 @@ class TestGetScheduledRuns:
         )
         assert len(data) == 5
 
-    async def test_get_all_runs_wq_aa_wq_ab(self, client, work_pools, work_queues):
-        response = await client.post(
+    async def test_get_all_runs_wq_aa_wq_ab(
+        self, hosted_api_client, work_pools, work_queues
+    ):
+        response = await hosted_api_client.post(
             f"/work_pools/{work_pools['wp_a'].name}/get_scheduled_flow_runs",
             json=dict(
                 work_queue_names=[
@@ -2040,16 +2043,20 @@ class TestGetScheduledRuns:
         )
         assert len(data) == 10
 
-    async def test_get_all_runs_wq_ba_wrong_pool(self, client, work_pools, work_queues):
-        response = await client.post(
+    async def test_get_all_runs_wq_ba_wrong_pool(
+        self, hosted_api_client, work_pools, work_queues
+    ):
+        response = await hosted_api_client.post(
             f"/work_pools/{work_pools['wp_a'].name}/get_scheduled_flow_runs",
             json=dict(work_queue_names=[work_queues["wq_ba"].name]),
         )
 
         assert response.status_code == status.HTTP_404_NOT_FOUND, response.text
 
-    async def test_get_all_runs_scheduled_before(self, client, work_pools, work_queues):
-        response = await client.post(
+    async def test_get_all_runs_scheduled_before(
+        self, hosted_api_client, work_pools, work_queues
+    ):
+        response = await hosted_api_client.post(
             f"/work_pools/{work_pools['wp_a'].name}/get_scheduled_flow_runs",
             json=dict(scheduled_before=datetime.now(timezone.utc).isoformat()),
         )
@@ -2059,8 +2066,8 @@ class TestGetScheduledRuns:
         )
         assert len(data) == 6
 
-    async def test_get_all_runs_scheduled_after(self, client, work_pools):
-        response = await client.post(
+    async def test_get_all_runs_scheduled_after(self, hosted_api_client, work_pools):
+        response = await hosted_api_client.post(
             f"/work_pools/{work_pools['wp_a'].name}/get_scheduled_flow_runs",
             json=dict(scheduled_after=datetime.now(timezone.utc).isoformat()),
         )
@@ -2070,8 +2077,10 @@ class TestGetScheduledRuns:
         )
         assert len(data) == 9
 
-    async def test_get_all_runs_scheduled_before_and_after(self, client, work_pools):
-        response = await client.post(
+    async def test_get_all_runs_scheduled_before_and_after(
+        self, hosted_api_client, work_pools
+    ):
+        response = await hosted_api_client.post(
             f"/work_pools/{work_pools['wp_a'].name}/get_scheduled_flow_runs",
             json=dict(
                 scheduled_before=str(datetime.now(timezone.utc) - timedelta(hours=1)),
@@ -2085,40 +2094,43 @@ class TestGetScheduledRuns:
         assert len(data) == 0
 
     async def test_updates_last_polled_on_a_single_work_queue(
-        self, client, work_queues, work_pools
+        self, hosted_api_client, work_queues, work_pools
     ):
         now = datetime.now(timezone.utc)
-        poll_response = await client.post(
+        poll_response = await hosted_api_client.post(
             f"/work_pools/{work_pools['wp_a'].name}/get_scheduled_flow_runs",
             json=dict(work_queue_names=[work_queues["wq_aa"].name]),
         )
         assert poll_response.status_code == status.HTTP_200_OK
 
-        work_queue_response = await client.get(
+        work_queue_response = await hosted_api_client.get(
             f"/work_pools/{work_pools['wp_a'].name}/queues/{work_queues['wq_aa'].name}"
         )
         assert work_queue_response.status_code == status.HTTP_200_OK
 
         work_queue = parse_obj_as(WorkQueue, work_queue_response.json())
-        work_queues_response = await client.post(
-            f"/work_pools/{work_pools['wp_a'].name}/queues/filter"
-        )
-        assert work_queues_response.status_code == status.HTTP_200_OK
 
-        work_queues = parse_obj_as(List[WorkQueue], work_queues_response.json())
+        async for attempt in retry_asserts(max_attempts=10, delay=0.5):
+            with attempt:
+                work_queues_response = await hosted_api_client.post(
+                    f"/work_pools/{work_pools['wp_a'].name}/queues/filter"
+                )
+                assert work_queues_response.status_code == status.HTTP_200_OK
 
-        for work_queue in work_queues:
-            if work_queue.name == "AA":
-                assert work_queue.last_polled is not None
-                assert work_queue.last_polled > now
-            else:
-                assert work_queue.last_polled is None
+                work_queues = parse_obj_as(List[WorkQueue], work_queues_response.json())
+
+                for work_queue in work_queues:
+                    if work_queue.name == "AA":
+                        assert work_queue.last_polled is not None
+                        assert work_queue.last_polled > now
+                    else:
+                        assert work_queue.last_polled is None
 
     async def test_updates_last_polled_on_a_multiple_work_queues(
-        self, client, work_queues, work_pools
+        self, hosted_api_client, work_queues, work_pools
     ):
         now = datetime.now(timezone.utc)
-        poll_response = await client.post(
+        poll_response = await hosted_api_client.post(
             f"/work_pools/{work_pools['wp_a'].name}/get_scheduled_flow_runs",
             json=dict(
                 work_queue_names=[
@@ -2129,22 +2141,24 @@ class TestGetScheduledRuns:
         )
         assert poll_response.status_code == status.HTTP_200_OK
 
-        work_queues_response = await client.post(
-            f"/work_pools/{work_pools['wp_a'].name}/queues/filter"
-        )
-        assert work_queues_response.status_code == status.HTTP_200_OK
+        async for attempt in retry_asserts(max_attempts=10, delay=0.5):
+            with attempt:
+                work_queues_response = await hosted_api_client.post(
+                    f"/work_pools/{work_pools['wp_a'].name}/queues/filter"
+                )
+                assert work_queues_response.status_code == status.HTTP_200_OK
 
-        work_queues = parse_obj_as(List[WorkQueue], work_queues_response.json())
+                work_queues = parse_obj_as(List[WorkQueue], work_queues_response.json())
 
-        for work_queue in work_queues:
-            if work_queue.name == "AA" or work_queue.name == "AB":
-                assert work_queue.last_polled is not None
-                assert work_queue.last_polled > now
-            else:
-                assert work_queue.last_polled is None
+                for work_queue in work_queues:
+                    if work_queue.name == "AA" or work_queue.name == "AB":
+                        assert work_queue.last_polled is not None
+                        assert work_queue.last_polled > now
+                    else:
+                        assert work_queue.last_polled is None
 
     async def test_updates_last_polled_on_a_full_work_pool(
-        self, client, session, work_queues, work_pools
+        self, hosted_api_client, session, work_queues, work_pools
     ):
         work_pool = work_pools["wp_a"]
         work_queues["wq_aa"].status = WorkQueueStatus.NOT_READY
@@ -2153,27 +2167,29 @@ class TestGetScheduledRuns:
         await session.commit()
 
         now = datetime.now(timezone.utc)
-        poll_response = await client.post(
+        poll_response = await hosted_api_client.post(
             f"/work_pools/{work_pool.name}/get_scheduled_flow_runs",
         )
         assert poll_response.status_code == status.HTTP_200_OK
 
-        work_queues_response = await client.post(
-            f"/work_pools/{work_pool.name}/queues/filter"
-        )
-        assert work_queues_response.status_code == status.HTTP_200_OK
+        async for attempt in retry_asserts(max_attempts=10, delay=0.5):
+            with attempt:
+                work_queues_response = await hosted_api_client.post(
+                    f"/work_pools/{work_pool.name}/queues/filter"
+                )
+                assert work_queues_response.status_code == status.HTTP_200_OK
 
-        work_queues = parse_obj_as(List[WorkQueue], work_queues_response.json())
+                work_queues = parse_obj_as(List[WorkQueue], work_queues_response.json())
 
-        for work_queue in work_queues:
-            assert work_queue.last_polled is not None, (
-                "Work queue should have updated last_polled"
-            )
-            assert work_queue.last_polled > now
+                for work_queue in work_queues:
+                    assert work_queue.last_polled is not None, (
+                        "Work queue should have updated last_polled"
+                    )
+                    assert work_queue.last_polled > now
 
     async def test_updates_statuses_on_a_full_work_pool(
         self,
-        client,
+        hosted_api_client,
         session,
         work_queues,
         work_pools,
@@ -2208,47 +2224,57 @@ class TestGetScheduledRuns:
 
         await session.commit()
 
-        poll_response = await client.post(
+        poll_response = await hosted_api_client.post(
             f"/work_pools/{work_pool.name}/get_scheduled_flow_runs",
         )
         assert poll_response.status_code == status.HTTP_200_OK
 
-        work_queues_response = await client.post(
-            f"/work_pools/{work_pool.name}/queues/filter"
-        )
-        assert work_queues_response.status_code == status.HTTP_200_OK
+        async for attempt in retry_asserts(max_attempts=10, delay=0.5):
+            with attempt:
+                work_queues_response = await hosted_api_client.post(
+                    f"/work_pools/{work_pool.name}/queues/filter"
+                )
+                assert work_queues_response.status_code == status.HTTP_200_OK
 
-        work_queues = parse_obj_as(List[WorkQueue], work_queues_response.json())
+                work_queues = parse_obj_as(List[WorkQueue], work_queues_response.json())
 
-        for work_queue in work_queues:
-            if work_queue.id == wq_not_ready.id:
-                assert work_queue.status == WorkQueueStatus.READY
-            elif work_queue.id == wq_paused.id:
-                # paused work queues should stay paused
-                assert work_queue.status == WorkQueueStatus.PAUSED
-            elif work_queue.id == wq_ready.id:
-                assert work_queue.status == WorkQueueStatus.READY
+                for work_queue in work_queues:
+                    if work_queue.id == wq_not_ready.id:
+                        assert work_queue.status == WorkQueueStatus.READY
+                    elif work_queue.id == wq_paused.id:
+                        # paused work queues should stay paused
+                        assert work_queue.status == WorkQueueStatus.PAUSED
+                    elif work_queue.id == wq_ready.id:
+                        assert work_queue.status == WorkQueueStatus.READY
 
-        for deployment in deployments:
-            await session.refresh(deployment)
-            assert deployment.status == DeploymentStatus.READY
+        async for attempt in retry_asserts(max_attempts=10, delay=0.5):
+            with attempt:
+                for deployment in deployments:
+                    await session.refresh(deployment)
+                    assert deployment.status == DeploymentStatus.READY
 
     async def test_ensure_deployments_associated_with_work_pool_have_deployment_status_of_ready(
-        self, client, work_pools, deployment
+        self, hosted_api_client, work_pools, deployment
     ):
         assert deployment.last_polled is None
-        deployment_response = await client.get(f"/deployments/{deployment.id}")
+        deployment_response = await hosted_api_client.get(
+            f"/deployments/{deployment.id}"
+        )
         assert deployment_response.status_code == status.HTTP_200_OK
         assert deployment_response.json()["status"] == "NOT_READY"
 
         # trigger a poll of the work queue, which should update the deployment status
         deployment_work_pool_name = work_pools["wp_a"].name
-        queue_response = await client.post(
-            f"/work_pools/{deployment_work_pool_name}/get_scheduled_flow_runs",
-        )
-        assert queue_response.status_code == status.HTTP_200_OK
+        async for attempt in retry_asserts(max_attempts=10, delay=0.5):
+            with attempt:
+                queue_response = await hosted_api_client.post(
+                    f"/work_pools/{deployment_work_pool_name}/get_scheduled_flow_runs",
+                )
+                assert queue_response.status_code == status.HTTP_200_OK
 
-        # get the updated deployment
-        updated_deployment_response = await client.get(f"/deployments/{deployment.id}")
-        assert updated_deployment_response.status_code == status.HTTP_200_OK
-        assert updated_deployment_response.json()["status"] == "READY"
+                # get the updated deployment
+                updated_deployment_response = await hosted_api_client.get(
+                    f"/deployments/{deployment.id}"
+                )
+                assert updated_deployment_response.status_code == status.HTTP_200_OK
+                assert updated_deployment_response.json()["status"] == "READY"

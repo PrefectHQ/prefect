@@ -7,15 +7,15 @@ import datetime
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
 from uuid import UUID
 
+from docket import Depends as DocketDepends
+from docket import Retry
 from fastapi import (
-    BackgroundTasks,
     Body,
     Depends,
     HTTPException,
     Path,
     Response,
     WebSocket,
-    status,
 )
 from fastapi.responses import ORJSONResponse
 from starlette.websockets import WebSocketDisconnect
@@ -23,6 +23,7 @@ from starlette.websockets import WebSocketDisconnect
 import prefect.server.api.dependencies as dependencies
 import prefect.server.models as models
 import prefect.server.schemas as schemas
+from prefect._internal.compatibility.starlette import status
 from prefect.logging import get_logger
 from prefect.server.api.run_history import run_history
 from prefect.server.database import PrefectDBInterface, provide_database_interface
@@ -63,7 +64,7 @@ async def create_task_run(
 
     If no state is provided, the task run will be created in a PENDING state.
 
-    For more information, see https://docs.prefect.io/v3/develop/write-tasks.
+    For more information, see https://docs.prefect.io/v3/concepts/tasks.
     """
     # hydrate the input model into a full task run / state model
     task_run_dict = task_run.model_dump()
@@ -268,7 +269,7 @@ async def paginate_task_runs(
 
 @router.delete("/{id:uuid}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_task_run(
-    background_tasks: BackgroundTasks,
+    docket: dependencies.Docket,
     task_run_id: UUID = Path(..., description="The task run id", alias="id"),
     db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> None:
@@ -281,10 +282,15 @@ async def delete_task_run(
         )
     if not result:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Task not found")
-    background_tasks.add_task(delete_task_run_logs, db, task_run_id)
+    await docket.add(delete_task_run_logs)(task_run_id=task_run_id)
 
 
-async def delete_task_run_logs(db: PrefectDBInterface, task_run_id: UUID) -> None:
+async def delete_task_run_logs(
+    *,
+    db: PrefectDBInterface = DocketDepends(provide_database_interface),
+    task_run_id: UUID,
+    retry: Retry = Retry(attempts=5, delay=datetime.timedelta(seconds=0.5)),
+) -> None:
     async with db.session_context(begin_transaction=True) as session:
         await models.logs.delete_logs(
             session=session,

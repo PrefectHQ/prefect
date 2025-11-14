@@ -9,6 +9,7 @@ from unittest.mock import patch
 from prefect_dbt.utilities import (
     find_profiles_dir,
     format_resource_id,
+    kwargs_to_args,
     replace_with_env_var_call,
 )
 
@@ -206,3 +207,125 @@ class TestFormatResourceId:
         expected = MAX_ASSET_KEY_LENGTH
 
         assert result == expected
+
+
+class TestKwargsToArgs:
+    """Test cases for kwargs_to_args function."""
+
+    def test_kwargs_to_args_with_simple_kwargs(self) -> None:
+        """Test with simple kwargs."""
+        kwargs = {"a": 1, "b": 2, "c": 3}
+
+        result = kwargs_to_args(kwargs)
+        expected = ["--a", "1", "--b", "2", "--c", "3"]
+
+        assert result == expected
+
+    def test_kwargs_to_args_with_boolean_kwargs(self) -> None:
+        """Test with boolean kwargs."""
+        kwargs = {"a": True, "b": False, "c": True}
+
+        result = kwargs_to_args(kwargs)
+        expected = ["--a", "--no-b", "--c"]
+
+        assert result == expected
+
+    def test_kwargs_to_args_with_list_kwargs(self) -> None:
+        """Test with list kwargs."""
+        kwargs = {"a": [1, 2, 3], "b": [4, 5, 6]}
+
+        result = kwargs_to_args(kwargs)
+        expected = ["--a", "1", "2", "3", "--b", "4", "5", "6"]
+
+        assert result == expected
+
+    def test_kwargs_to_args_with_existing_args(self) -> None:
+        """Test with existing args that don't conflict with kwargs."""
+        kwargs = {"a": 1, "b": 2}
+        args = ["--c", "3", "--d", "4"]
+
+        result = kwargs_to_args(kwargs, args)
+        expected = ["--c", "3", "--d", "4", "--a", "1", "--b", "2"]
+
+        assert result == expected
+
+    def test_kwargs_to_args_args_priority_over_kwargs(self) -> None:
+        """Test that args take priority over kwargs when conflicts exist."""
+        kwargs = {"a": 1, "b": 2, "c": 3}
+        args = ["--a", "10", "--d", "4"]
+
+        result = kwargs_to_args(kwargs, args)
+        expected = ["--a", "10", "--d", "4", "--b", "2", "--c", "3"]
+
+        assert result == expected
+
+    def test_kwargs_to_args_boolean_conflict(self) -> None:
+        """Test boolean flag conflicts between args and kwargs."""
+        kwargs = {"a": True, "b": False}
+        args = ["--a", "--no-b"]
+
+        result = kwargs_to_args(kwargs, args)
+        expected = ["--a", "--no-b"]
+
+        assert result == expected
+
+    def test_kwargs_to_args_list_conflict(self) -> None:
+        """Test list flag conflicts between args and kwargs."""
+        kwargs = {"a": [1, 2, 3], "b": [4, 5]}
+        args = ["--a", "10", "20"]
+
+        result = kwargs_to_args(kwargs, args)
+        expected = ["--a", "10", "20", "--b", "4", "5"]
+
+        assert result == expected
+
+    def test_kwargs_to_args_no_args_provided(self) -> None:
+        """Test behavior when no args are provided (backward compatibility)."""
+        kwargs = {"a": 1, "b": 2}
+
+        result = kwargs_to_args(kwargs)
+        expected = ["--a", "1", "--b", "2"]
+
+        assert result == expected
+
+    def test_kwargs_to_args_preserves_positional_args(self) -> None:
+        """Test that positional arguments (like dbt commands) are preserved.
+
+        This test verifies the fix for issue #18980 where the dbt command
+        was being dropped from the args list.
+        """
+        # This is the exact case from issue #18980
+        kwargs = {
+            "profiles_dir": "/path/to/profiles",
+            "project_dir": "/path/to/project",
+            "target_path": "target",
+        }
+        args = ["debug", "--target", "prod"]
+
+        result = kwargs_to_args(kwargs, args)
+
+        # The command "debug" should be preserved at the beginning
+        assert result[0] == "debug"
+        # The user's --target flag should be preserved
+        assert "--target" in result
+        assert "prod" in result
+        # The kwargs should be added
+        assert "--profiles-dir" in result
+        assert "/path/to/profiles" in result
+
+        # Specifically test the order: positional args first, then flags
+        assert result[:3] == ["debug", "--target", "prod"]
+
+    def test_kwargs_to_args_multiple_positional_args(self) -> None:
+        """Test that multiple positional arguments are preserved."""
+        kwargs = {"some_flag": "value"}
+        args = ["command", "subcommand", "--option", "val"]
+
+        result = kwargs_to_args(kwargs, args)
+
+        # Both positional args should be preserved
+        assert result[:2] == ["command", "subcommand"]
+        assert "--option" in result
+        assert "val" in result
+        assert "--some-flag" in result
+        assert "value" in result

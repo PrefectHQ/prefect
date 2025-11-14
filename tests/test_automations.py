@@ -237,3 +237,31 @@ async def test_find_automation(automation: Automation):
     # Test finding nonexistent name returns None
     found = await client.find_automation("nonexistent_name")
     assert found is None
+
+
+async def test_concurrent_automation_deletion():
+    """Test that concurrent automation deletions don't deadlock."""
+    import asyncio
+
+    automations_to_create = [
+        Automation(
+            name=f"concurrent-test-{i}",
+            trigger=EventTrigger(
+                expect={"prefect.flow-run.Completed"},
+                posture=Posture.Reactive,
+                threshold=1,
+            ),
+            actions=[DoNothing()],
+        )
+        for i in range(10)
+    ]
+
+    created_automations = await asyncio.gather(
+        *[automation.create() for automation in automations_to_create]
+    )
+
+    await asyncio.gather(*[automation.adelete() for automation in created_automations])
+
+    for automation in created_automations:
+        with pytest.raises(ValueError):
+            await Automation.read(id=automation.id)

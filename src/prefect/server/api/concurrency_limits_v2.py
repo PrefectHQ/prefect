@@ -2,11 +2,12 @@ from datetime import datetime, timedelta, timezone
 from typing import List, Literal, Optional, Union
 from uuid import UUID
 
-from fastapi import Body, Depends, HTTPException, Path, status
+from fastapi import Body, Depends, HTTPException, Path
 from sqlalchemy.ext.asyncio import AsyncSession
 
 import prefect.server.models as models
 import prefect.server.schemas as schemas
+from prefect._internal.compatibility.starlette import status
 from prefect.server.api.dependencies import LimitBody
 from prefect.server.concurrency.lease_storage import (
     ConcurrencyLimitLeaseMetadata,
@@ -16,11 +17,19 @@ from prefect.server.database import PrefectDBInterface, provide_database_interfa
 from prefect.server.schemas import actions
 from prefect.server.utilities.schemas import PrefectBaseModel
 from prefect.server.utilities.server import PrefectRouter
+from prefect.settings.context import get_current_settings
 from prefect.types._concurrency import ConcurrencyLeaseHolder
+from prefect.utilities.math import clamped_poisson_interval
 
 router: PrefectRouter = PrefectRouter(
     prefix="/v2/concurrency_limits", tags=["Concurrency Limits V2"]
 )
+
+# Max retry delay (in seconds) for non-tag concurrency limits when slot occupancy is high.
+# Tag-based limits use the legacy tag_concurrency_slot_wait_seconds setting (default 30s)
+# to restore V1 behavior. Non-tag limits use this higher value to allow more uniform queues
+# to check more frequently while still preventing excessive delays from long-running tasks.
+DEFAULT_SLOT_WAIT_SECONDS = 30.0
 
 
 @router.post("/", status_code=status.HTTP_201_CREATED)
@@ -31,7 +40,7 @@ async def create_concurrency_limit_v2(
     """
     Create a task run concurrency limit.
 
-    For more information, see https://docs.prefect.io/v3/develop/global-concurrency-limits.
+    For more information, see https://docs.prefect.io/v3/how-to-guides/workflows/global-concurrency-limits.
     """
     async with db.session_context(begin_transaction=True) as session:
         model = await models.concurrency_limits_v2.create_concurrency_limit(
@@ -216,6 +225,24 @@ async def _generate_concurrency_locked_response(
     limits: list[schemas.core.ConcurrencyLimitV2],
     slots: int,
 ) -> HTTPException:
+    """
+    Generate a 423 Locked response when concurrency slots cannot be acquired.
+
+    Calculates an appropriate Retry-After header value based on the blocking limit's
+    characteristics. For limits without slot decay, caps avg_slot_occupancy_seconds
+    at a configured maximum to prevent excessive retry delays from long-running tasks:
+
+    - Tag-based limits (name starts with "tag:"): Capped at tag_concurrency_slot_wait_seconds
+      (default 30s) to restore V1 behavior that users relied on
+    - Other limits: Capped at DEFAULT_SLOT_WAIT_SECONDS (30s) to allow more uniform queues
+      while still preventing astronomical delays
+
+    Low average occupancies are always respected (e.g., 2s stays 2s, not forced higher).
+    Limits with slot decay use the decay rate directly without capping.
+
+    The final retry value includes jitter via clamped_poisson_interval to prevent
+    thundering herd when many tasks retry simultaneously.
+    """
     active_limits = [limit for limit in limits if bool(limit.active)]
 
     await models.concurrency_limits_v2.bulk_update_denied_slots(
@@ -233,13 +260,20 @@ async def _generate_concurrency_locked_response(
     blocking_limit = max((limit for limit in active_limits), key=num_blocking_slots)
     blocking_slots = num_blocking_slots(blocking_limit)
 
-    wait_time_per_slot = (
-        blocking_limit.avg_slot_occupancy_seconds
-        if blocking_limit.slot_decay_per_second == 0.0
-        else (1.0 / blocking_limit.slot_decay_per_second)
-    )
+    if blocking_limit.slot_decay_per_second == 0.0:
+        settings = get_current_settings()
+        max_wait = (
+            settings.server.tasks.tag_concurrency_slot_wait_seconds
+            if blocking_limit.name.startswith("tag:")
+            else DEFAULT_SLOT_WAIT_SECONDS
+        )
+        wait_time_per_slot = min(blocking_limit.avg_slot_occupancy_seconds, max_wait)
+    else:
+        wait_time_per_slot = 1.0 / blocking_limit.slot_decay_per_second
 
-    retry_after = wait_time_per_slot * blocking_slots
+    retry_after = clamped_poisson_interval(
+        average_interval=wait_time_per_slot * blocking_slots
+    )
 
     return HTTPException(
         status_code=status.HTTP_423_LOCKED,
@@ -316,7 +350,7 @@ async def bulk_increment_active_slots_with_lease(
             ttl=timedelta(seconds=lease_duration),
             metadata=ConcurrencyLimitLeaseMetadata(
                 slots=slots,
-                holder=holder.model_dump() if holder else None,
+                holder=holder,
             ),
         )
         return ConcurrencyLimitWithLeaseResponse(
@@ -410,13 +444,24 @@ async def renew_concurrency_lease(
     ),
 ) -> None:
     lease_storage = get_concurrency_lease_storage()
-    lease = await lease_storage.read_lease(lease_id)
-    if not lease:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Lease not found"
-        )
 
-    await lease_storage.renew_lease(
+    # Atomically renew the lease (checks existence and updates index in single operation)
+    renewed = await lease_storage.renew_lease(
         lease_id=lease_id,
         ttl=timedelta(seconds=lease_duration),
     )
+
+    # Handle the three possible return values:
+    # - True: lease successfully renewed
+    # - False: lease not found or expired
+    # - None: legacy implementation (check lease existence to determine success)
+    lease = None
+    if renewed is None:
+        # Legacy implementation returned None - check if lease actually exists
+        lease = await lease_storage.read_lease(lease_id)
+
+    if renewed is False or (renewed is None and lease is None):
+        raise HTTPException(
+            status_code=status.HTTP_410_GONE,
+            detail="Lease not found - it may have expired or been revoked",
+        )

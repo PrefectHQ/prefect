@@ -10,6 +10,7 @@ from datetime import timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Optional
 from unittest import mock
+from unittest.mock import AsyncMock
 from uuid import UUID, uuid4
 
 import pytest
@@ -19,10 +20,10 @@ from typer import Exit
 
 import prefect
 from prefect.blocks.system import Secret
-from prefect.cli.deploy import (
+from prefect.cli.deploy._storage import _PullStepStorage
+from prefect.cli.deploy._triggers import (
     _create_deployment_triggers,
     _initialize_deployment_triggers,
-    _PullStepStorage,
 )
 from prefect.client.orchestration import PrefectClient, ServerType
 from prefect.client.schemas.actions import (
@@ -59,7 +60,6 @@ from prefect.settings import (
     temporary_settings,
 )
 from prefect.testing.cli import invoke_and_assert
-from prefect.testing.utilities import AsyncMock
 from prefect.types._datetime import parse_datetime
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.filesystem import tmpchdir
@@ -72,7 +72,7 @@ TEST_PROJECTS_DIR = prefect.__development_base_path__ / "tests" / "test-projects
 
 @pytest.fixture
 def interactive_console(monkeypatch: pytest.MonkeyPatch):
-    monkeypatch.setattr("prefect.cli.deploy.is_interactive", lambda: True)
+    monkeypatch.setattr("prefect.cli.root.is_interactive", lambda: True)
 
     # `readchar` does not like the fake stdin provided by typer isolation so we provide
     # a version that does not require a fd to be attached
@@ -196,7 +196,7 @@ def mock_provide_password(monkeypatch: pytest.MonkeyPatch):
             return original_prompt(message, password=password, **kwargs)
 
     original_prompt = prefect.cli._prompts.prompt
-    monkeypatch.setattr("prefect.cli.deploy.prompt", new_prompt)
+    monkeypatch.setattr("prefect.cli._prompts.prompt", new_prompt)
 
 
 @pytest.fixture
@@ -4718,6 +4718,88 @@ class TestDeployPattern:
         )
         assert deployment.name == "test-name-1"
 
+    @pytest.mark.usefixtures("interactive_console", "project_dir")
+    async def test_deploy_opt_out_of_existing_deployments(
+        self, work_pool, prefect_client
+    ):
+        """
+        Regression test for issue #19378.
+        When user selects "No, configure a new deployment", the CLI should
+        prompt for a new deployment configuration instead of using the first
+        deployment in the list.
+        """
+        prefect_file = Path("prefect.yaml")
+        with prefect_file.open(mode="r") as f:
+            contents = yaml.safe_load(f)
+
+        contents["deployments"] = [
+            {
+                "name": "test-name-1",
+                "description": "test-description-1",
+                "entrypoint": "./flows/hello.py:my_flow",
+                "work_pool": {"name": work_pool.name},
+            },
+            {
+                "name": "test-name-2",
+                "description": "test-description-2",
+                "entrypoint": "./flows/hello.py:my_flow",
+                "work_pool": {"name": work_pool.name},
+            },
+        ]
+
+        with prefect_file.open(mode="w") as f:
+            yaml.safe_dump(contents, f)
+
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command="deploy",
+            expected_code=0,
+            user_input=(
+                # Navigate down twice to get past both existing deployments
+                readchar.key.DOWN
+                + readchar.key.DOWN
+                # Select "No, configure a new deployment"
+                + readchar.key.ENTER
+                # Select the flow "An important name" (navigate down 2 times)
+                + readchar.key.DOWN
+                + readchar.key.DOWN
+                + readchar.key.ENTER
+                # Provide a new deployment name
+                + "new-deployment"
+                + readchar.key.ENTER
+                # Decline schedule
+                + "n"
+                + readchar.key.ENTER
+                # Decline remote storage
+                + "n"
+                + readchar.key.ENTER
+                # Reject saving configuration
+                + "n"
+                + readchar.key.ENTER
+            ),
+            expected_output_contains=[
+                "Would you like to use an existing deployment configuration?",
+                "No, configure a new deployment",
+            ],
+        )
+
+        # Verify that we did NOT create a deployment with test-name-1's config
+        # (which would be the bug behavior - it would inherit test-description-1)
+        deployments = await prefect_client.read_deployments()
+        deployment_by_name = {d.name: d for d in deployments}
+
+        # Should have created "new-deployment", not "test-name-1"
+        assert "new-deployment" in deployment_by_name, (
+            f"Expected 'new-deployment' to be created, but found: {list(deployment_by_name.keys())}"
+        )
+        new_deployment = deployment_by_name["new-deployment"]
+
+        # The bug would cause test-description-1 to be inherited
+        # The fix ensures we get a fresh deployment without inheriting from test-name-1
+        assert new_deployment.description != "test-description-1", (
+            "Bug detected: new deployment inherited description from test-name-1"
+        )
+
 
 @pytest.mark.usefixtures("interactive_console", "project_dir")
 class TestSaveUserInputs:
@@ -5175,7 +5257,7 @@ class TestDeploymentTrigger:
                 yaml.safe_dump(contents, f)
 
             with mock.patch(
-                "prefect.cli.deploy._create_deployment_triggers",
+                "prefect.cli.deploy._core._create_deployment_triggers",
                 AsyncMock(),
             ) as create_triggers:
                 await run_sync_in_worker_thread(
@@ -5215,7 +5297,7 @@ class TestDeploymentTrigger:
             )
 
             with mock.patch(
-                "prefect.cli.deploy._create_deployment_triggers",
+                "prefect.cli.deploy._core._create_deployment_triggers",
                 AsyncMock(),
             ) as create_triggers:
                 await run_sync_in_worker_thread(
@@ -5256,7 +5338,7 @@ class TestDeploymentTrigger:
             )
 
             with mock.patch(
-                "prefect.cli.deploy._create_deployment_triggers",
+                "prefect.cli.deploy._core._create_deployment_triggers",
                 AsyncMock(),
             ) as create_triggers:
                 await run_sync_in_worker_thread(
@@ -5297,7 +5379,7 @@ class TestDeploymentTrigger:
             )
 
             with mock.patch(
-                "prefect.cli.deploy._create_deployment_triggers",
+                "prefect.cli.deploy._core._create_deployment_triggers",
                 AsyncMock(),
             ) as create_triggers:
                 await run_sync_in_worker_thread(
@@ -5339,7 +5421,7 @@ class TestDeploymentTrigger:
             )
 
             with mock.patch(
-                "prefect.cli.deploy._create_deployment_triggers",
+                "prefect.cli.deploy._core._create_deployment_triggers",
                 AsyncMock(),
             ) as create_triggers:
                 await run_sync_in_worker_thread(
@@ -5385,7 +5467,7 @@ class TestDeploymentTrigger:
             )
 
             with mock.patch(
-                "prefect.cli.deploy._create_deployment_triggers",
+                "prefect.cli.deploy._core._create_deployment_triggers",
                 AsyncMock(),
             ) as create_triggers:
                 await run_sync_in_worker_thread(
@@ -5441,22 +5523,22 @@ class TestDeploymentTrigger:
             with prefect_file.open(mode="w") as f:
                 yaml.safe_dump(contents, f)
 
-            with mock.patch(
-                "prefect.cli.deploy._create_deployment_triggers",
-                AsyncMock(),
-            ) as create_triggers:
-                await run_sync_in_worker_thread(
-                    invoke_and_assert,
-                    command=(
-                        "deploy ./flows/hello.py:my_flow -n test-name-1"
-                        f" --trigger '{json.dumps(cli_trigger_spec)}'"
-                    ),
-                    expected_code=0,
-                )
+                with mock.patch(
+                    "prefect.cli.deploy._core._create_deployment_triggers",
+                    AsyncMock(),
+                ) as create_triggers:
+                    await run_sync_in_worker_thread(
+                        invoke_and_assert,
+                        command=(
+                            "deploy ./flows/hello.py:my_flow -n test-name-1"
+                            f" --trigger '{json.dumps(cli_trigger_spec)}'"
+                        ),
+                        expected_code=0,
+                    )
 
-                _, _, triggers = create_triggers.call_args[0]
-                assert len(triggers) == 1
-                assert triggers == expected_triggers
+                    _, _, triggers = create_triggers.call_args[0]
+                    assert len(triggers) == 1
+                    assert triggers == expected_triggers
 
         @pytest.mark.usefixtures("project_dir")
         async def test_invalid_trigger_parsing(self, docker_work_pool):
@@ -5471,7 +5553,7 @@ class TestDeploymentTrigger:
 
             for invalid_trigger in [invalid_json_str_trigger, invalid_yaml_trigger]:
                 with mock.patch(
-                    "prefect.cli.deploy._create_deployment_triggers",
+                    "prefect.cli.deploy._core._create_deployment_triggers",
                     AsyncMock(),
                 ):
                     await run_sync_in_worker_thread(

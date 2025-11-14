@@ -37,7 +37,9 @@ class TestRunDeployment:
         flow_id = await prefect_client.create_flow_from_name("foo")
 
         deployment_id = await prefect_client.create_deployment(
-            name="foo-deployment", flow_id=flow_id, parameter_openapi_schema={}
+            name="foo-deployment",
+            flow_id=flow_id,
+            parameter_openapi_schema={"type": "object", "properties": {}},
         )
         deployment = await prefect_client.read_deployment(deployment_id)
 
@@ -443,6 +445,53 @@ class TestRunDeployment:
             ]
         }
 
+    async def test_tracks_parent_task_when_called_from_task(
+        self, test_deployment, use_hosted_api_server, prefect_client
+    ):
+        """
+        Test that when run_deployment is called from within a task,
+        the wrapper task run tracks the calling task as a parent
+        in task_inputs["__parents__"].
+
+        This is important for the execution graph to correctly display
+        the deployment flow run as nested under the calling task.
+
+        Regression test for https://github.com/PrefectHQ/prefect/issues/19359
+        """
+        deployment = test_deployment
+
+        @task
+        async def trigger_deployment():
+            return await run_deployment(
+                f"foo/{deployment.name}",
+                timeout=0,
+                poll_interval=0,
+            )
+
+        @flow
+        async def parent_flow():
+            return await trigger_deployment(return_state=True)
+
+        parent_state = await parent_flow(return_state=True)
+        calling_task_state = await parent_state.result()
+        child_flow_run = await calling_task_state.result()
+
+        # The wrapper task run should exist and be linked to the child flow run
+        assert child_flow_run.parent_task_run_id is not None
+        wrapper_task_run = await prefect_client.read_task_run(
+            child_flow_run.parent_task_run_id
+        )
+
+        # The wrapper task run should have the calling task as its parent
+        # in the __parents__ field, which enables proper execution graph display
+        assert "__parents__" in wrapper_task_run.task_inputs
+        assert wrapper_task_run.task_inputs["__parents__"] == [
+            TaskRunResult(
+                input_type="task_run",
+                id=calling_task_state.state_details.task_run_id,
+            )
+        ]
+
     async def test_propagates_otel_trace_to_deployment_flow_run(
         self,
         test_deployment: DeploymentResponse,
@@ -459,7 +508,9 @@ class TestRunDeployment:
         flow_id = await prefect_client.create_flow(child_flow)
 
         deployment_id = await prefect_client.create_deployment(
-            name="foo-deployment", flow_id=flow_id, parameter_openapi_schema={}
+            name="foo-deployment",
+            flow_id=flow_id,
+            parameter_openapi_schema={"type": "object", "properties": {}},
         )
         deployment = await prefect_client.read_deployment(deployment_id)
 
