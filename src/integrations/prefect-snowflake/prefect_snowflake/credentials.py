@@ -3,7 +3,7 @@
 import re
 import warnings
 from pathlib import Path
-from typing import Any, Optional, Union
+from typing import Any
 
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.serialization import (
@@ -54,8 +54,11 @@ class SnowflakeCredentials(CredentialsBlock):
             [Snowflake documentation](https://docs.snowflake.com/en/user-guide/python-connector-api.html#connect)
             for details, and note that `externalbrowser` will only
             work in an environment where a browser is available.
+        workload_identity_provider (str): The workload identity provider to use when
+            authenticator is set to `workload_identity`.
         token (SecretStr): The OAuth or JWT Token to provide when
-            authenticator is set to OAuth.
+            authenticator is set to `oauth`, or workload_identity_provider is set to
+            `oidc`.
         endpoint (str): The Okta endpoint to use when authenticator is
             set to `okta_endpoint`, e.g. `https://<okta_account_name>.okta.com`.
         role (str): The name of the default role to use.
@@ -79,17 +82,19 @@ class SnowflakeCredentials(CredentialsBlock):
         description="The snowflake account name.",
         examples=["nh12345.us-east-2.aws"],
     )
-    user: str = Field(..., description="The user name used to authenticate.")
-    password: Optional[SecretStr] = Field(
+    user: str | None = Field(
+        default=None, description="The user name used to authenticate."
+    )
+    password: SecretStr | None = Field(
         default=None, description="The password used to authenticate."
     )
-    private_key: Optional[SecretBytes] = Field(
+    private_key: SecretBytes | None = Field(
         default=None, description="The PEM used to authenticate."
     )
-    private_key_path: Optional[Path] = Field(
+    private_key_path: Path | None = Field(
         default=None, description="The path to the private key."
     )
-    private_key_passphrase: Optional[SecretStr] = Field(
+    private_key_passphrase: SecretStr | None = Field(
         default=None, description="The password to use for the private key."
     )
     authenticator: Literal[
@@ -99,26 +104,33 @@ class SnowflakeCredentials(CredentialsBlock):
         "okta_endpoint",
         "oauth",
         "username_password_mfa",
+        "workload_identity",
     ] = Field(  # noqa
         default="snowflake",
         description=("The type of authenticator to use for initializing connection."),
     )
-    token: Optional[SecretStr] = Field(
+    workload_identity_provider: Literal["aws", "azure", "gcp", "oidc"] | None = Field(
+        default=None,
+        description=(
+            "The workload identity provider to use for initializing the connection."
+        ),
+    )
+    token: SecretStr | None = Field(
         default=None,
         description=(
             "The OAuth or JWT Token to provide when authenticator is set to `oauth`."
         ),
     )
-    endpoint: Optional[str] = Field(
+    endpoint: str | None = Field(
         default=None,
         description=(
             "The Okta endpoint to use when authenticator is set to `okta_endpoint`."
         ),
     )
-    role: Optional[str] = Field(
+    role: str | None = Field(
         default=None, description="The name of the default role to use."
     )
-    autocommit: Optional[bool] = Field(
+    autocommit: bool | None = Field(
         default=None, description="Whether to automatically commit."
     )
 
@@ -133,6 +145,7 @@ class SnowflakeCredentials(CredentialsBlock):
             "private_key_path",
             "authenticator",
             "token",
+            "workload_identity_provider",
         )
         if not any(values.get(param) for param in auth_params):
             auth_str = ", ".join(auth_params)
@@ -192,7 +205,45 @@ class SnowflakeCredentials(CredentialsBlock):
             )
         return values
 
-    def resolve_private_key(self) -> Optional[bytes]:
+    @model_validator(mode="before")
+    def _validate_workload_identity_kwargs(cls, values):
+        """
+        Ensure a workload identity provider value has been provided by the user.
+        """
+        authenticator = values.get("authenticator")
+        workload_identity_provider = values.get("workload_identity_provider")
+        if authenticator == "workload_identity" and not workload_identity_provider:
+            raise ValueError(
+                "If authenticator is set to `workload_identity`, "
+                "`workload_identity_provider` must be provided"
+            )
+
+        token = values.get("token")
+        if (
+            authenticator == "workload_identity"
+            and workload_identity_provider == "oidc"
+            and not token
+        ):
+            raise ValueError(
+                "If workload_identity_provider is set to `oidc`, `token` must be "
+                "provided"
+            )
+
+        return values
+
+    @model_validator(mode="before")
+    def _validate_user_kwargs(cls, values):
+        """
+        Ensure a user value is provided for all authenticators except `workload_identity`.
+        """
+        authenticator = values.get("authenticator")
+        if authenticator != "workload_identity" and not values.get("user"):
+            raise ValueError(
+                f"If authenticator is set to `{authenticator}`, `user` must be provided"
+            )
+        return values
+
+    def resolve_private_key(self) -> bytes | None:
         """
         Converts a PEM encoded private key into a DER binary key.
 
@@ -235,7 +286,7 @@ class SnowflakeCredentials(CredentialsBlock):
         )
 
     @staticmethod
-    def _decode_secret(secret: Union[SecretStr, SecretBytes]) -> Optional[bytes]:
+    def _decode_secret(secret: SecretStr | SecretBytes) -> bytes | None:
         """
         Decode the provided secret into bytes. If the secret is not a
         string or bytes, or it is whitespace, then return None.
@@ -244,8 +295,7 @@ class SnowflakeCredentials(CredentialsBlock):
             secret: The value to decode.
 
         Returns:
-            The decoded secret as bytes.
-
+            The decoded secret as bytes or None.
         """
         if isinstance(secret, (SecretStr, SecretBytes)):
             secret = secret.get_secret_value()

@@ -36,7 +36,7 @@ def prefect_db():
 
 
 @pytest.fixture()
-def credentials_params():
+def credentials_params() -> dict[str, str]:
     return {
         "account": "account",
         "user": "user",
@@ -45,7 +45,7 @@ def credentials_params():
 
 
 @pytest.fixture()
-def private_credentials_params():
+def private_credentials_params() -> dict[str, str | bytes]:
     return {
         "account": "account",
         "user": "user",
@@ -55,7 +55,7 @@ def private_credentials_params():
 
 
 @pytest.fixture()
-def private_key_path_credentials_params():
+def private_key_path_credentials_params() -> dict[str, str]:
     return {
         "account": "account",
         "user": "user",
@@ -65,7 +65,7 @@ def private_key_path_credentials_params():
 
 
 @pytest.fixture()
-def private_no_pass_credentials_params():
+def private_no_pass_credentials_params() -> dict[str, str | bytes]:
     return {
         "account": "account",
         "user": "user",
@@ -87,12 +87,31 @@ def private_no_pass_connector_params(private_no_pass_credentials_params):
 
 
 @pytest.fixture()
-def private_malformed_credentials_params():
+def private_malformed_credentials_params() -> dict[str, str | bytes]:
     return {
         "account": "account",
         "user": "user",
         "password": "letmein",
         "private_key": _read_test_file("test_cert_malformed_format.p8"),
+    }
+
+
+@pytest.fixture()
+def workload_identity_credentials_params() -> dict[str, str]:
+    return {
+        "account": "account",
+        "authenticator": "workload_identity",
+        "workload_identity_provider": "aws",
+    }
+
+
+@pytest.fixture()
+def workload_identity_oidc_credentials_params() -> dict[str, str]:
+    return {
+        "account": "account",
+        "authenticator": "workload_identity",
+        "workload_identity_provider": "oidc",
+        "token": "token",
     }
 
 

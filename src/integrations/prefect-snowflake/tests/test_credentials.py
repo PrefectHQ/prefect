@@ -69,6 +69,59 @@ def test_snowflake_credentials_validate_okta_endpoint_kwargs(credentials_params)
     assert snowflake_credentials.endpoint == "https://account_name.okta.com"
 
 
+def test_snowflake_credentials_validate_user_kwargs(credentials_params):
+    credentials_params_missing = credentials_params.copy()
+    credentials_params_missing.pop("user")
+    with pytest.raises(ValueError, match="`user` must be provided"):
+        SnowflakeCredentials(**credentials_params_missing)
+
+
+def test_snowflake_workload_identity_credentials_init(
+    workload_identity_credentials_params,
+):
+    snowflake_credentials = SnowflakeCredentials(**workload_identity_credentials_params)
+    actual_credentials_params = snowflake_credentials.model_dump()
+    for param in workload_identity_credentials_params:
+        actual = actual_credentials_params[param]
+        expected = workload_identity_credentials_params[param]
+        assert actual == expected
+
+
+def test_snowflake_credentials_validate_workload_identity_missing_provider(
+    workload_identity_credentials_params,
+):
+    credentials_params_missing = workload_identity_credentials_params.copy()
+    credentials_params_missing.pop("workload_identity_provider")
+    with pytest.raises(
+        ValueError, match="`workload_identity_provider` must be provided"
+    ):
+        SnowflakeCredentials(**credentials_params_missing)
+
+
+def test_snowflake_credentials_validate_workload_identity_missing_token(
+    workload_identity_oidc_credentials_params,
+):
+    credentials_params_missing = workload_identity_oidc_credentials_params.copy()
+    credentials_params_missing.pop("token")
+    with pytest.raises(ValueError, match="`token` must be provided"):
+        SnowflakeCredentials(**credentials_params_missing)
+
+
+def test_snowflake_workload_identity_oidc_credentials_init(
+    workload_identity_oidc_credentials_params,
+):
+    snowflake_credentials = SnowflakeCredentials(
+        **workload_identity_oidc_credentials_params
+    )
+    actual_credentials_params = snowflake_credentials.model_dump()
+    for param in workload_identity_oidc_credentials_params:
+        actual = actual_credentials_params[param]
+        expected = workload_identity_oidc_credentials_params[param]
+        if isinstance(actual, SecretStr):
+            actual = actual.get_secret_value()
+        assert actual == expected
+
+
 def test_snowflake_credentials_support_deprecated_okta_endpoint(credentials_params):
     credentials_params_missing = credentials_params.copy()
     credentials_params_missing.pop("password")
@@ -265,6 +318,35 @@ def test_get_client_okta_endpoint(
         account="account",
         user="user",
         authenticator="https://account_name.okta.com",
+    )
+
+
+def test_get_client_workload_identity(
+    workload_identity_credentials_params, snowflake_connect_mock: MagicMock
+):
+    snowflake_credentials = SnowflakeCredentials(**workload_identity_credentials_params)
+    snowflake_credentials.get_client()
+    snowflake_connect_mock.assert_called_with(
+        application="Prefect_Snowflake_Collection",
+        account="account",
+        authenticator="workload_identity",
+        workload_identity_provider="aws",
+    )
+
+
+def test_get_client_workload_identity_oidc(
+    workload_identity_oidc_credentials_params, snowflake_connect_mock: MagicMock
+):
+    snowflake_credentials = SnowflakeCredentials(
+        **workload_identity_oidc_credentials_params
+    )
+    snowflake_credentials.get_client()
+    snowflake_connect_mock.assert_called_with(
+        application="Prefect_Snowflake_Collection",
+        account="account",
+        authenticator="workload_identity",
+        workload_identity_provider="oidc",
+        token="token",
     )
 
 
