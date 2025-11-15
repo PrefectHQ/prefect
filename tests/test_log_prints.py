@@ -215,6 +215,32 @@ def test_subflow_can_opt_out_of_log_prints(caplog, capsys):
     assert "hello world!" in capsys.readouterr().out
 
 
+def test_subflow_in_task_can_opt_out_of_log_prints(caplog, capsys):
+    """
+    Regression test for https://github.com/PrefectHQ/prefect/issues/19449
+    When a subflow runs inside a task, it should respect its own log_prints
+    setting, not inherit from the parent flow.
+    """
+
+    @flow(log_prints=False)
+    def child_flow():
+        print("child print")
+
+    @flow(log_prints=True)
+    def parent_flow():
+        print("parent print")
+        task(child_flow)()
+
+    parent_flow()
+
+    # Parent flow's print should be logged
+    assert "parent print" in caplog.text
+
+    # Child flow opted out, so should NOT be logged
+    assert "child print" not in caplog.text
+    assert "child print" in capsys.readouterr().out
+
+
 # Check .with_options can update the value ---------------------------------------------
 
 
