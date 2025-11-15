@@ -572,11 +572,23 @@ class EcsServiceStack(Stack):
             "EcsTaskExecutionRole",
             role_name=f"{self.work_pool_name.value_as_string}-task-execution-role",
             assumed_by=iam.ServicePrincipal("ecs-tasks.amazonaws.com"),
-            managed_policies=[
-                iam.ManagedPolicy.from_aws_managed_policy_name(
-                    "service-role/AmazonECSTaskExecutionRolePolicy"
-                )
-            ],
+        )
+
+        # Add inline policy with the same permissions as AmazonECSTaskExecutionRolePolicy
+        # This avoids CDK metadata warnings from using from_aws_managed_policy_name
+        role.add_to_policy(
+            iam.PolicyStatement(
+                effect=iam.Effect.ALLOW,
+                actions=[
+                    "ecr:GetAuthorizationToken",
+                    "ecr:BatchCheckLayerAvailability",
+                    "ecr:GetDownloadUrlForLayer",
+                    "ecr:BatchGetImage",
+                    "logs:CreateLogStream",
+                    "logs:PutLogEvents",
+                ],
+                resources=["*"],
+            )
         )
 
         # Grant access to the appropriate Prefect auth secret
