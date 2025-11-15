@@ -167,6 +167,7 @@
               "v3/how-to-guides/automations/creating-automations",
               "v3/how-to-guides/automations/creating-deployment-triggers",
               "v3/how-to-guides/automations/chaining-deployments-with-events",
+              "v3/how-to-guides/automations/cancel-late-runs",
               "v3/how-to-guides/automations/access-parameters-in-templates",
               "v3/how-to-guides/automations/passing-event-payloads-to-flows"
             ]
