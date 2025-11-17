@@ -1134,18 +1134,86 @@ class TestFlowCrashDetection:
 
 
 class TestPauseFlowRun:
-    async def test_tasks_cannot_be_paused(self):
+    async def test_pause_flow_run_from_task_pauses_parent_flow(
+        self, prefect_client, events_pipeline
+    ):
+        """Test that calling pause_flow_run from within a task pauses the parent flow."""
+
         @task
-        async def the_little_task_that_pauses():
-            await pause_flow_run()
+        async def task_that_pauses():
+            await pause_flow_run(timeout=0.1)
             return True
 
         @flow
-        async def the_mountain():
-            return await the_little_task_that_pauses()
+        async def flow_with_pausing_task():
+            return await task_that_pauses()
 
-        with pytest.raises(RuntimeError, match="Cannot pause task runs.*"):
-            await the_mountain()
+        # The flow should timeout because it gets paused and never resumed
+        with pytest.raises(FlowPauseTimeout):
+            await flow_with_pausing_task()
+
+        # Verify the flow run was actually paused
+        flow_runs = await prefect_client.read_flow_runs()
+        assert len(flow_runs) >= 1
+        # The most recent flow run should have been paused
+        flow_run = flow_runs[0]
+        assert flow_run.state.is_paused() or flow_run.state.is_failed()
+
+    async def test_pause_flow_run_from_task_with_input(self, prefect_client):
+        """Test that pause_flow_run from within a task can receive input and resume."""
+        flow_run_id = None
+
+        class ApprovalInput(RunInput):
+            approved: bool
+
+        @task
+        async def get_approval():
+            approval = await pause_flow_run(
+                timeout=10, poll_interval=2, wait_for_input=ApprovalInput
+            )
+            return approval.approved
+
+        @flow(persist_result=False)
+        async def flow_with_approval_task():
+            nonlocal flow_run_id
+            context = FlowRunContext.get()
+            flow_run_id = context.flow_run.id
+
+            approved = await get_approval()
+            return approved
+
+        async def flow_resumer():
+            # Wait on flow run to start
+            while not flow_run_id:
+                await anyio.sleep(0.1)
+
+            # Wait on flow run to pause
+            flow_run = await prefect_client.read_flow_run(flow_run_id)
+            while not flow_run.state.is_paused():
+                await asyncio.sleep(0.1)
+                flow_run = await prefect_client.read_flow_run(flow_run_id)
+
+            keyset = flow_run.state.state_details.run_input_keyset
+            assert keyset
+
+            # Wait for the flow run input schema to be saved
+            while not (await read_flow_run_input(keyset["schema"], flow_run_id)):
+                await asyncio.sleep(0.1)
+
+            await resume_flow_run(flow_run_id, run_input={"approved": True})
+
+        flow_run_state, _ = await asyncio.gather(
+            flow_with_approval_task(return_state=True),
+            flow_resumer(),
+        )
+        approved = await flow_run_state.result()
+        assert approved is True
+
+        # Ensure that the flow run did create the corresponding schema input
+        schema = await read_flow_run_input(
+            key="paused-1-schema", flow_run_id=flow_run_id
+        )
+        assert schema is not None
 
     async def test_paused_flows_fail_if_not_resumed(self):
         @task
