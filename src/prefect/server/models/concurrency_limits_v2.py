@@ -7,12 +7,13 @@ from sqlalchemy.sql.elements import ColumnElement
 
 import prefect.server.schemas as schemas
 from prefect.server.database import PrefectDBInterface, db_injector, orm_models
+from prefect.server.utilities.database import greatest, least
 from prefect.settings import get_current_settings
 
 
 def active_slots_after_decay(db: PrefectDBInterface) -> ColumnElement[float]:
     # Active slots will decay at a rate of `slot_decay_per_second` per second.
-    return sa.func.greatest(
+    return greatest(
         0,
         db.ConcurrencyLimitV2.active_slots
         - sa.func.floor(
@@ -47,9 +48,9 @@ def denied_slots_after_decay(db: PrefectDBInterface) -> ColumnElement[float]:
     )
 
     # Clamp avg_slot_occupancy_seconds with minimum bound to prevent division by zero
-    clamped_occupancy = sa.func.greatest(
+    clamped_occupancy = greatest(
         sa.literal(MINIMUM_OCCUPANCY_SECONDS_PER_SLOT),
-        sa.func.least(
+        least(
             sa.cast(db.ConcurrencyLimitV2.avg_slot_occupancy_seconds, sa.Float),
             max_wait_for_limit,
         ),
@@ -65,7 +66,7 @@ def denied_slots_after_decay(db: PrefectDBInterface) -> ColumnElement[float]:
         else_=(1.0 / clamped_occupancy),  # Concurrency limits - use clamped value
     )
 
-    return sa.func.greatest(
+    return greatest(
         0,
         db.ConcurrencyLimitV2.denied_slots
         - sa.func.floor(
