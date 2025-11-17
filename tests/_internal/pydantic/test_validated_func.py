@@ -506,7 +506,7 @@ class TestModel(BaseModel):
         def process_data(model: MyModel, count: int = 0) -> dict:
             return {"name": model.name, "count": count}
 
-        # Spy on model_rebuild to ensure it's NOT called
+        # Spy on model_rebuild to ensure it's NOT called during initialization
         with patch.object(BaseModel, "model_rebuild") as mock_rebuild:
             vf = ValidatedFunction(process_data)
 
@@ -515,8 +515,59 @@ class TestModel(BaseModel):
 
         # The model should work correctly without rebuild
         instance = MyModel(name="test")
-        result = vf.validate_call_args((instance,), {"count": 5})
+
+        # Also verify model_rebuild is NOT called during validation
+        with patch.object(vf.model, "model_rebuild") as mock_rebuild:
+            result = vf.validate_call_args((instance,), {"count": 5})
+
+            # model_rebuild should NOT be called during validation either
+            mock_rebuild.assert_not_called()
 
         assert isinstance(result["model"], MyModel)
         assert result["model"].name == "test"
         assert result["count"] == 5
+
+    def test_forward_ref_defined_after_decorator(self):
+        """Test that forward references work when type is defined after the function.
+
+        This is a regression test for issue #19447.
+        When using `from __future__ import annotations`, the @flow decorator
+        was failing if a forward-referenced Pydantic model was defined after
+        the function using it.
+        """
+        # First, define A and the function WITHOUT B defined yet
+        namespace = {}
+        exec(
+            """
+from __future__ import annotations
+from pydantic import BaseModel, Field
+
+class A(BaseModel):
+    a: B = Field()
+
+def process_model(model: A):
+    return model
+""",
+            namespace,
+        )
+
+        # At this point, B doesn't exist yet. Creating ValidatedFunction should not fail
+        # (it should defer the model rebuild until validation time)
+        vf = ValidatedFunction(namespace["process_model"])
+
+        # Now define B in the namespace
+        exec(
+            """
+class B(BaseModel):
+    b: str = Field()
+""",
+            namespace,
+        )
+
+        # Update the function's globals to include B
+        namespace["process_model"].__globals__.update(namespace)
+
+        # Now test that validation actually works at runtime
+        result = vf.validate_call_args((), {"model": {"a": {"b": "test"}}})
+
+        assert result["model"].a.b == "test"
