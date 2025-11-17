@@ -1,12 +1,14 @@
 """Classes and helper functions for creating a worker that can run job services in Snowpark Container Services."""
 
+from __future__ import annotations
+
 import datetime
 import os
 import shlex
 import sys
 import time
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Literal, Optional
+from typing import TYPE_CHECKING, Any, Literal
 from uuid import UUID
 
 import anyio
@@ -105,11 +107,11 @@ class SPCSWorkerConfiguration(BaseJobConfiguration):
         description="The image to use for the Prefect container in the task. This value defaults to a Prefect base image matching your local versions.",
         examples=["docker.io/prefecthq/prefect:3-latest"],
     )
-    image_registry: Optional[str] = Field(
+    image_registry: str | None = Field(
         default=None,
         description="The fully qualified name of the Snowflake image registry.",
     )
-    entrypoint: Optional[str] = Field(
+    entrypoint: str | None = Field(
         default=DEFAULT_CONTAINER_ENTRYPOINT,
         description=(
             "The entrypoint of the container you wish to run."
@@ -128,7 +130,7 @@ class SPCSWorkerConfiguration(BaseJobConfiguration):
         default_factory=list,
         description="The names of the external access integrations that the service should be created with.",
     )
-    compute_pool: Optional[str] = Field(
+    compute_pool: str | None = Field(
         default=None,
         description="The fully-qualified name of the compute pool to run services in.",
         examples=["common.compute.my_compute_pool"],
@@ -137,11 +139,11 @@ class SPCSWorkerConfiguration(BaseJobConfiguration):
         default=SPCS_DEFAULT_CPU_REQUEST,
         description=f"CPU allocation request for the job service. If not provided, a default value of {SPCS_DEFAULT_CPU_REQUEST} will be used.",
     )
-    cpu_limit: Optional[str] = Field(
+    cpu_limit: str | None = Field(
         default=SPCS_DEFAULT_CPU_LIMIT,
         description="CPU allocation limit for the job service. If not provided, there will be no limit.",
     )
-    gpu_count: Optional[int] = Field(
+    gpu_count: int | None = Field(
         default=None,
         description="The number of GPUs to use. If not provided, no GPUs will be used.",
     )
@@ -152,7 +154,7 @@ class SPCSWorkerConfiguration(BaseJobConfiguration):
             f"If not provided, a default value of {SPCS_DEFAULT_MEMORY_REQUEST} will be used unless present on the task definition."
         ),
     )
-    memory_limit: Optional[str] = Field(
+    memory_limit: str | None = Field(
         default=SPCS_DEFAULT_MEMORY_LIMIT,
         description="Memory allocation limit for the job service. If not provided, defaults to the same value as memory_request.",
     )
@@ -172,10 +174,10 @@ class SPCSWorkerConfiguration(BaseJobConfiguration):
         default_factory=list,
         description="The list of predefined metrics groups that should be logged to the event table.",
     )
-    query_warehouse: Optional[str] = Field(
+    query_warehouse: str | None = Field(
         default=None, description="The query warehouse of the job service."
     )
-    service_comment: Optional[str] = Field(
+    service_comment: str | None = Field(
         default=None,
         description="Specify a comment for the job service. Visible in certain Snowflake logs.",
     )
@@ -199,8 +201,8 @@ class SPCSWorkerConfiguration(BaseJobConfiguration):
     def prepare_for_flow_run(
         self,
         flow_run: "FlowRun",
-        deployment: Optional["DeploymentResponse"] = None,
-        flow: Optional["Flow"] = None,
+        deployment: "DeploymentResponse" | None = None,
+        flow: "Flow" | None = None,
     ) -> None:
         """Prepares the job configuration for a flow run."""
         super().prepare_for_flow_run(flow_run, deployment, flow)
@@ -310,11 +312,11 @@ class SPCSServiceTemplateVariables(BaseVariables):
         description="The image to use for the Prefect container in the task. This value defaults to a Prefect base image matching your local versions.",
         examples=["docker.io/prefecthq/prefect:3-latest"],
     )
-    image_registry: Optional[str] = Field(
+    image_registry: str | None = Field(
         default=None,
         description="The fully qualified name of the Snowflake image registry.",
     )
-    entrypoint: Optional[str] = Field(
+    entrypoint: str | None = Field(
         default=DEFAULT_CONTAINER_ENTRYPOINT,
         description=(
             "The entrypoint of the container you wish to run. "
@@ -333,7 +335,7 @@ class SPCSServiceTemplateVariables(BaseVariables):
         default_factory=list,
         description="The names of the external access integrations that the service should be created with.",
     )
-    compute_pool: Optional[str] = Field(
+    compute_pool: str | None = Field(
         default=None,
         description="The fully-qualified name of the compute pool to run services in.",
         examples=["common.compute.my_compute_pool"],
@@ -342,11 +344,11 @@ class SPCSServiceTemplateVariables(BaseVariables):
         default=SPCS_DEFAULT_CPU_REQUEST,
         description=f"CPU allocation request for the job service. If not provided, a default value of {SPCS_DEFAULT_CPU_REQUEST} will be used.",
     )
-    cpu_limit: Optional[str] = Field(
+    cpu_limit: str | None = Field(
         default=SPCS_DEFAULT_CPU_LIMIT,
         description="CPU allocation limit for the job service. If not provided, there will be no limit.",
     )
-    gpu_count: Optional[int] = Field(
+    gpu_count: int | None = Field(
         default=None,
         description="The number of GPUs to use. If not provided, no GPUs will be used.",
     )
@@ -357,7 +359,7 @@ class SPCSServiceTemplateVariables(BaseVariables):
             f"If not provided, a default value of {SPCS_DEFAULT_MEMORY_REQUEST} will be used unless present on the task definition."
         ),
     )
-    memory_limit: Optional[str] = Field(
+    memory_limit: str | None = Field(
         default=SPCS_DEFAULT_MEMORY_LIMIT,
         description="Memory allocation limit for the job service. If not provided, defaults to the same value as memory_request.",
     )
@@ -377,10 +379,10 @@ class SPCSServiceTemplateVariables(BaseVariables):
         default_factory=list,
         description="The list of predefined metrics groups that should be logged to the event table.",
     )
-    query_warehouse: Optional[str] = Field(
+    query_warehouse: str | None = Field(
         default=None, description="The query warehouse of the job service."
     )
-    service_comment: Optional[str] = Field(
+    service_comment: str | None = Field(
         default=None,
         description="Specify a comment for the job service. Visible in certain Snowflake logs.",
     )
@@ -437,7 +439,7 @@ class SPCSWorker(BaseWorker):
         self,
         flow_run: FlowRun,
         configuration: SPCSWorkerConfiguration,
-        task_status: Optional[anyio.abc.TaskStatus] = None,
+        task_status: anyio.abc.TaskStatus | None = None,
     ) -> BaseWorkerResult:
         """Run a flow as a service job in Snowpark Container Services.
 
@@ -667,7 +669,7 @@ class SPCSWorker(BaseWorker):
         return connection_parameters
 
     @staticmethod
-    def _slugify_service_name(service_name: str, flow_run_id: UUID) -> Optional[str]:
+    def _slugify_service_name(service_name: str, flow_run_id: UUID) -> str | None:
         """Generates a service name to match the configured name, ensuring it's SPCS compatible."""
         # Must match `/?[a-zA-Z0-9][a-zA-Z0-9_]+` in the end.
         if not service_name:
