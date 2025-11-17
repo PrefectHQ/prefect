@@ -776,10 +776,23 @@ def get_run_context() -> Union[FlowRunContext, TaskRunContext]:
         RuntimeError: If called outside of a flow or task run.
     """
     task_run_ctx = TaskRunContext.get()
+    flow_run_ctx = FlowRunContext.get()
+
+    # When both contexts exist, determine which represents the currently executing code.
+    # If the flow_run_id from the flow context differs from the task's flow_run_id,
+    # we're in a subflow running inside a task, so prefer the flow context.
+    # Otherwise, we're in a regular task within the flow, so prefer the task context.
+    if task_run_ctx and flow_run_ctx:
+        if (
+            flow_run_ctx.flow_run
+            and flow_run_ctx.flow_run.id != task_run_ctx.task_run.flow_run_id
+        ):
+            return flow_run_ctx
+        return task_run_ctx
+
     if task_run_ctx:
         return task_run_ctx
 
-    flow_run_ctx = FlowRunContext.get()
     if flow_run_ctx:
         return flow_run_ctx
 
