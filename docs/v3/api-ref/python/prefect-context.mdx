@@ -52,7 +52,7 @@ Get the current run context from within a task or flow function.
 - `RuntimeError`: If called outside of a flow or task run.
 
 
-### `get_settings_context` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/context.py#L791" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `get_settings_context` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/context.py#L804" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_settings_context() -> SettingsContext
@@ -66,7 +66,7 @@ Generally, the settings that are being used are a combination of values from the
 profile and environment. See `prefect.context.use_profile` for more details.
 
 
-### `tags` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/context.py#L808" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `tags` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/context.py#L821" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 tags(*new_tags: str) -> Generator[set[str], None, None]
@@ -130,7 +130,7 @@ with tags("a", "b"):
 ```
 
 
-### `use_profile` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/context.py#L875" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `use_profile` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/context.py#L888" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 use_profile(profile: Union[Profile, str], override_environment_variables: bool = False, include_current_context: bool = True) -> Generator[SettingsContext, Any, None]
@@ -151,7 +151,7 @@ with the current settings context as a base. If not set, the use_base settings
 will be loaded from the environment and defaults.
 
 
-### `root_settings_context` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/context.py#L927" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `root_settings_context` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/context.py#L940" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 root_settings_context() -> SettingsContext
