@@ -302,7 +302,8 @@
               "v3/examples/run-dbt-with-prefect",
               "v3/examples/atproto-dashboard-with-prefect-assets",
               "v3/examples/simple-web-scraper",
-              "v3/examples/ai-data-analyst-with-pydantic-ai"
+              "v3/examples/ai-data-analyst-with-pydantic-ai",
+              "v3/examples/ai-database-cleanup-with-approval"
             ]
           }
         ],
