@@ -11,7 +11,7 @@ import sys
 import textwrap
 import time
 from functools import partial
-from typing import List, Optional
+from typing import Optional
 
 import anyio
 import typer
