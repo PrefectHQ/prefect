@@ -248,6 +248,13 @@ def build_image(
             "Defaults to the standard Python base image"
         ),
     ),
+    build_arg: list[str] = typer.Option(
+        [],
+        help=(
+            "This will directly pass a --build-arg into the docker build process. "
+            "Can be added to the command line multiple times."
+        ),
+    ),
     dry_run: bool = False,
 ):
     """
@@ -279,6 +286,9 @@ def build_image(
 
     if flavor:
         command += ["--build-arg", f"BASE_IMAGE=prefect-{flavor}"]
+
+    for arg in build_arg:
+        command += ["--build-arg", arg]
 
     if dry_run:
         print(" ".join(command))
