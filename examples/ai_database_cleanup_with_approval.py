@@ -17,15 +17,8 @@
 #
 # Build trust incrementally by monitoring decisions in lower-risk environments before enabling AI autonomy in production.
 #
-# ## Complete Working Example
-#
-# This simplified example shows the core patterns. For a production-ready implementation with:
-# - Full deployment configuration (`prefect.yaml`)
-# - Scheduled cleanup runs
-# - Environment variable management
-# - Both approval modes working
-#
-# See: [github.com/zzstoatzz/prefect-mcp-server-demo](https://github.com/zzstoatzz/prefect-mcp-server-demo)
+# For a full deployment example with scheduling and environment configuration, see:
+# [github.com/zzstoatzz/prefect-mcp-server-demo](https://github.com/zzstoatzz/prefect-mcp-server-demo)
 #
 # ## Setup
 #
@@ -34,7 +27,7 @@
 # uv add prefect
 #
 # # For AI approval, add pydantic-ai
-# uv add pydantic-ai[prefect]
+# uv add 'pydantic-ai[prefect]'
 # export ANTHROPIC_API_KEY='your-key'
 # ```
 #
@@ -85,10 +78,11 @@ class RetentionConfig(BaseModel):
     )
 
 
-# ## Human Approval: Pause and Review
+# <AccordionGroup>
+#
+# <Accordion title="Human Approval: Pause and Review">
 #
 # When using `approval_type="human"`, the flow pauses and shows a form in the UI.
-# See [interactive workflows guide](/v3/advanced/interactive) for more on pause/resume.
 
 
 class CleanupApproval(RunInput):
@@ -113,17 +107,11 @@ def get_human_approval(preview: str, count: int) -> tuple[bool, str]:
     return approval.approve, approval.notes
 
 
-# ## AI Approval: Autonomous Investigation
+# </Accordion>
 #
-# When using `approval_type="ai"`, a pydantic-ai agent investigates using Prefect MCP tools.
+# <Accordion title="AI Approval: Autonomous Investigation">
 #
-# The agent can:
-# - Query recent flow runs to detect anomalies
-# - Check deployment schedules and health
-# - Review work pool status
-# - Search documentation for best practices
-#
-# It returns a structured decision with confidence and reasoning.
+# When using `approval_type="ai"`, a pydantic-ai agent investigates using Prefect MCP tools to decide if cleanup is safe.
 
 AGENT_PROMPT = """you are a prefect infrastructure operations agent reviewing a proposed database cleanup.
 
@@ -198,9 +186,9 @@ investigate using your prefect mcp tools and decide if safe to proceed.
     return decision.approved, decision.reasoning
 
 
-# ## Main Cleanup Flow
+# </Accordion>
 #
-# The orchestration flow that ties everything together.
+# <Accordion title="Main Cleanup Flow">
 
 
 @flow(name="database-cleanup", log_prints=True)
@@ -268,6 +256,10 @@ async def database_cleanup_flow(config: RetentionConfig | None = None) -> dict:
     return {"status": "completed", "deleted": deleted}
 
 
+# </Accordion>
+#
+# </AccordionGroup>
+#
 # ## Deployment Examples
 
 if __name__ == "__main__":
@@ -290,16 +282,6 @@ if __name__ == "__main__":
         tags=["database-maintenance", "cleanup"],
     )
 
-# ## Key Takeaways
-#
-# **Progressive Automation**: Start conservative with human oversight, graduate to AI autonomy as confidence grows
-#
-# **Structured Configuration**: Define cleanup policies as Pydantic models for type safety and automatic UI forms
-#
-# **Flexible Approval**: Single parameter switches between human pause/resume and AI agent investigation
-#
-# **Production Safety**: Always preview, support dry-run mode, batch deletions, handle errors gracefully
-#
 # ## Related Documentation
 #
 # - [Database Maintenance Guide](/v3/advanced/database-maintenance) - SQL queries, retention strategies, VACUUM
