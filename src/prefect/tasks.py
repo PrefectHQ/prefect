@@ -1074,82 +1074,96 @@ class Task(Generic[P, R]):
 
             return task_run
 
+    # PRIORITY OVERLOADS: Clean ParamSpec signatures for normal usage (no return_state/wait_for)
+    # These preserve full parameter type checking when users call tasks normally
+    @overload
+    def __call__(
+        self: "Task[P, Coroutine[Any, Any, R]]",
+        *args: P.args,
+        **kwargs: P.kwargs,
+    ) -> Coroutine[Any, Any, R]: ...
+
+    @overload
+    def __call__(
+        self: "Task[P, R]",
+        *args: P.args,
+        **kwargs: P.kwargs,
+    ) -> R: ...
+
     @overload
     def __call__(
         self: "Task[P, NoReturn]",
         *args: P.args,
-        return_state: Literal[False] = False,
-        wait_for: Optional[OneOrManyFutureOrResult[Any]] = None,
         **kwargs: P.kwargs,
     ) -> None:
         # `NoReturn` matches if a type can't be inferred for the function which stops a
         # sync function from matching the `Coroutine` overload
         ...
 
+    # SECONDARY OVERLOADS: With return_state/wait_for using Any
+    # When return_state or wait_for are used, we can't preserve ParamSpec semantics,
+    # so we use Any for parameters. This is an acceptable tradeoff since these
+    # are advanced use cases.
     @overload
     def __call__(
-        self: "Task[P, Coroutine[Any, Any, R]]",
-        *args: P.args,
-        **kwargs: P.kwargs,
+        self: "Task[..., Coroutine[Any, Any, R]]",
+        *args: Any,
+        return_state: Literal[False],
+        wait_for: Optional[OneOrManyFutureOrResult[Any]] = None,
+        **kwargs: Any,
     ) -> Coroutine[Any, Any, R]: ...
 
     @overload
     def __call__(
-        self: "Task[P, R]",
-        *args: P.args,
-        **kwargs: P.kwargs,
-    ) -> R: ...
+        self: "Task[..., Coroutine[Any, Any, R]]",
+        *args: Any,
+        return_state: Literal[True],
+        wait_for: Optional[OneOrManyFutureOrResult[Any]] = None,
+        **kwargs: Any,
+    ) -> State[R]: ...
 
-    # Keyword parameters `return_state` and `wait_for` aren't allowed after the
-    # ParamSpec `*args` parameter, so we lose return type typing when either of
-    # those are provided.
-    # TODO: Find a way to expose this functionality without losing type information
-
-    # NOTE: return_state=False overloads must come before return_state=True
-    # When pyright can't match argument types, it falls back to these overloads with *args
-    # and picks the first match. We want the default (False) behavior.
     @overload
     def __call__(
-        self: "Task[P, Coroutine[Any, Any, R]]",
-        *args: P.args,
-        return_state: Literal[False] = False,
+        self: "Task[..., R]",
+        *args: Any,
+        return_state: Literal[False],
         wait_for: Optional[OneOrManyFutureOrResult[Any]] = None,
-        **kwargs: P.kwargs,
+        **kwargs: Any,
+    ) -> R: ...
+
+    @overload
+    def __call__(
+        self: "Task[..., R]",
+        *args: Any,
+        return_state: Literal[True],
+        wait_for: Optional[OneOrManyFutureOrResult[Any]] = None,
+        **kwargs: Any,
+    ) -> State[R]: ...
+
+    @overload
+    def __call__(
+        self: "Task[..., Coroutine[Any, Any, R]]",
+        *args: Any,
+        wait_for: OneOrManyFutureOrResult[Any],
+        return_state: Literal[False] = False,
+        **kwargs: Any,
     ) -> Coroutine[Any, Any, R]: ...
 
     @overload
     def __call__(
-        self: "Task[P, Coroutine[Any, Any, R]]",
-        *args: P.args,
-        return_state: Literal[True] = True,
-        wait_for: Optional[OneOrManyFutureOrResult[Any]] = None,
-        **kwargs: P.kwargs,
-    ) -> State[R]: ...
-
-    @overload
-    def __call__(
-        self: "Task[P, R]",
-        *args: P.args,
+        self: "Task[..., R]",
+        *args: Any,
+        wait_for: OneOrManyFutureOrResult[Any],
         return_state: Literal[False] = False,
-        wait_for: Optional[OneOrManyFutureOrResult[Any]] = None,
-        **kwargs: P.kwargs,
+        **kwargs: Any,
     ) -> R: ...
 
-    @overload
     def __call__(
-        self: "Task[P, R]",
-        *args: P.args,
-        return_state: Literal[True] = True,
-        wait_for: Optional[OneOrManyFutureOrResult[Any]] = None,
-        **kwargs: P.kwargs,
-    ) -> State[R]: ...
-
-    def __call__(
-        self: "Union[Task[P, R], Task[P, NoReturn]]",
-        *args: P.args,
+        self: "Union[Task[..., R], Task[..., NoReturn]]",
+        *args: Any,
         return_state: bool = False,
         wait_for: Optional[OneOrManyFutureOrResult[Any]] = None,
-        **kwargs: P.kwargs,
+        **kwargs: Any,
     ) -> Union[R, State[R], None]:
         """
         Run the task and return the result. If `return_state` is True returns
