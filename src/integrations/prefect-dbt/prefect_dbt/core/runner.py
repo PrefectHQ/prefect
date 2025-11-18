@@ -42,7 +42,6 @@ from prefect_dbt.core._tracker import NodeTaskTracker
 from prefect_dbt.core.settings import PrefectDbtSettings
 from prefect_dbt.utilities import format_resource_id, kwargs_to_args
 
-
 FAILURE_STATUSES = [
     RunStatus.Error,
     TestStatus.Error,
@@ -150,13 +149,13 @@ class PrefectDbtRunner:
         self._config: Optional[RuntimeConfig] = None
         self._graph: Optional[Graph] = None
         self._skipped_nodes: set[str] = set()
-        
+
         self._event_queue: Optional[queue.PriorityQueue] = None
         self._callback_thread: Optional[threading.Thread] = None
         self._shutdown_event: Optional[threading.Event] = None
         self._queue_counter = 0  # Counter for tiebreaking in PriorityQueue
         self._queue_counter_lock = threading.Lock()  # Thread-safe counter increment
-        
+
     @property
     def target_path(self) -> Path:
         return self._target_path or self.settings.target_path
@@ -439,12 +438,10 @@ class PrefectDbtRunner:
             self._event_queue = queue.PriorityQueue(maxsize=0)
             self._shutdown_event = threading.Event()
             self._callback_thread = threading.Thread(
-                target=self._callback_worker,
-                daemon=True,
-                name="dbt-callback-processor"
+                target=self._callback_worker, daemon=True, name="dbt-callback-processor"
             )
             self._callback_thread.start()
-    
+
     def _stop_callback_processor(self) -> None:
         """Stop the background thread and wait for queue to drain."""
         if self._shutdown_event:
@@ -455,12 +452,14 @@ class PrefectDbtRunner:
                 # Use counter -1 to ensure sentinel is processed first among priority 0 items
                 with self._queue_counter_lock:
                     sentinel_counter = self._queue_counter - 1
-                self._event_queue.put((0, sentinel_counter, None), timeout=0.1)  # Priority 0 to process immediately
+                self._event_queue.put(
+                    (0, sentinel_counter, None), timeout=0.1
+                )  # Priority 0 to process immediately
             except queue.Full:
                 pass
         if self._callback_thread and self._callback_thread.is_alive():
             self._callback_thread.join(timeout=5.0)
-        
+
     def _callback_worker(self) -> None:
         """Background worker thread that processes queued events."""
         while not self._shutdown_event.is_set():
@@ -471,10 +470,10 @@ class PrefectDbtRunner:
                 _, _, event_data = self._event_queue.get(timeout=0.1)
                 if event_data is None:  # Sentinel to shutdown
                     break
-                
+
                 callback_func, event_msg = event_data
                 callback_func(event_msg)
-                
+
             except queue.Empty:
                 continue
             finally:
@@ -484,7 +483,7 @@ class PrefectDbtRunner:
 
     def _get_event_priority(self, event: EventMsg) -> int:
         """Get priority for an event. Lower number = higher priority.
-        
+
         Priority levels:
         - 0: NodeStart (highest - must create tasks before other events)
         - 1: NodeFinished (medium - update task status)
@@ -499,13 +498,13 @@ class PrefectDbtRunner:
             return 2
 
     def _queue_callback(
-        self, 
-        callback_func: Callable[[EventMsg], None], 
+        self,
+        callback_func: Callable[[EventMsg], None],
         event: EventMsg,
-        priority: Optional[int] = None
+        priority: Optional[int] = None,
     ) -> None:
         """Helper method to queue a callback for background processing.
-        
+
         Args:
             callback_func: The callback function to execute
             event: The event message
@@ -515,20 +514,22 @@ class PrefectDbtRunner:
             # Fallback to synchronous if queue not initialized
             callback_func(event)
             return
-        
+
         # Determine priority if not provided
         if priority is None:
             priority = self._get_event_priority(event)
-        
+
         # Get a unique counter value for tiebreaking (ensures items with same priority
         # can be ordered without comparing EventMsg objects)
         with self._queue_counter_lock:
             counter = self._queue_counter
             self._queue_counter += 1
-        
+
         # Queue the callback for background processing (non-blocking)
         try:
-            self._event_queue.put((priority, counter, (callback_func, event)), block=False)
+            self._event_queue.put(
+                (priority, counter, (callback_func, event)), block=False
+            )
         except queue.Full:
             # If queue is full, fall back to synchronous processing
             # This prevents blocking dbt but may slow it down
@@ -542,32 +543,32 @@ class PrefectDbtRunner:
         add_test_edges: bool = False,
     ) -> Callable[[EventMsg], None]:
         """Creates a single unified callback that efficiently filters and routes dbt events.
-        
+
         This approach optimizes performance by:
         1. Using a dictionary dispatch table for O(1) routing (faster than if/elif chains)
         2. Minimizing attribute access by caching event.info.name once
         3. Using set membership checks for the most common case (logging events)
         4. Only ONE callback registered with dbtRunner
-        
+
         Note: While we cannot avoid the function call overhead entirely (dbt's API limitation),
         this implementation minimizes the work done per event to the absolute minimum.
         """
-        
+
         # Start the callback processor if not already started
         self._start_callback_processor()
-        
+
         # Pre-compute event name constants (for use in dispatch table)
         _NODE_START = "NodeStart"
         _NODE_FINISHED = "NodeFinished"
-        
+
         def _process_logging_sync(event: EventMsg) -> None:
             """Actual logging logic - runs in background thread."""
             event_data = MessageToDict(event.data, preserving_proto_field_name=True)
-            
+
             # Handle logging for all events with node_info
             if event_data.get("node_info"):
                 node_id = self._get_dbt_event_node_id(event)
-                
+
                 # Skip logging for skipped nodes
                 if node_id not in self._skipped_nodes:
                     flow_run_context: Optional[dict[str, Any]] = context.get(
@@ -609,18 +610,14 @@ class PrefectDbtRunner:
             if node_id in self._skipped_nodes:
                 return
 
-            manifest_node, prefect_config = self._get_manifest_node_and_config(
-                node_id
-            )
+            manifest_node, prefect_config = self._get_manifest_node_and_config(node_id)
 
             if manifest_node:
                 enable_assets = (
                     prefect_config.get("enable_assets", True)
                     and not self.disable_assets
                 )
-                self._call_task(
-                    task_state, manifest_node, context, enable_assets
-                )
+                self._call_task(task_state, manifest_node, context, enable_assets)
 
         def _process_node_finished_sync(event: EventMsg) -> None:
             """Actual node finished logic - runs in background thread."""
@@ -636,17 +633,12 @@ class PrefectDbtRunner:
                 event_message = self.get_dbt_event_msg(event)
                 task_state.set_node_status(node_id, event_data, event_message)
 
-                node_info: Optional[dict[str, Any]] = event_data.get(
-                    "node_info"
-                )
+                node_info: Optional[dict[str, Any]] = event_data.get("node_info")
                 node_status: Optional[str] = (
                     node_info.get("node_status") if node_info else None
                 )
 
-                if (
-                    node_status in SKIPPED_STATUSES
-                    or node_status in FAILURE_STATUSES
-                ):
+                if node_status in SKIPPED_STATUSES or node_status in FAILURE_STATUSES:
                     self._set_graph_from_manifest(add_test_edges=add_test_edges)
                     for dep_node_id in self.graph.get_dependent_nodes(  # type: ignore[reportUnknownMemberType]
                         UniqueId(node_id)
@@ -671,15 +663,15 @@ class PrefectDbtRunner:
             EventLevel.WARN: 3,
             EventLevel.ERROR: 4,
         }
-        
+
         # Get the minimum priority level we should log
         # If log_level is INFO (2), we log INFO (2), WARN (3), ERROR (4)
         # If log_level is WARN (3), we log WARN (3), ERROR (4)
         _min_log_priority = _EVENT_LEVEL_PRIORITY.get(log_level, 2)  # Default to INFO
-        
+
         def unified_callback(event: EventMsg) -> None:
             """Ultra-efficient callback that minimizes work per event.
-            
+
             Optimization strategy:
             1. Route critical events (NodeStart/NodeFinished) immediately
             2. For logging events, apply early filtering BEFORE queuing:
@@ -688,10 +680,10 @@ class PrefectDbtRunner:
                - This dramatically reduces queue operations for irrelevant events
             3. Single attribute access cached in local variable
             4. Dictionary lookup for routing (O(1))
-            
+
             This is the most efficient possible implementation given dbt's callback API
             limitations. We cannot avoid the function call, but we minimize all other work.
-            
+
             Performance notes:
             - Early filtering prevents queuing ~70-90% of events that would never be logged
             - Dictionary .get() is O(1) and faster than 'in' check + separate lookup
@@ -699,11 +691,11 @@ class PrefectDbtRunner:
             """
             # Single attribute access - cache it to avoid repeated lookups
             event_name = event.info.name
-            
+
             # Single dictionary lookup handles both existence check and routing
             # Returns None for events not in dispatch table (fast path for logging)
             dispatch_result = _EVENT_DISPATCH.get(event_name)
-            
+
             if dispatch_result is not None:
                 # Critical event (NodeStart/NodeFinished) - always process
                 handler, priority = dispatch_result
@@ -713,13 +705,13 @@ class PrefectDbtRunner:
                 # Check log level first (cheap attribute access)
                 event_level = event.info.level
                 event_priority = _EVENT_LEVEL_PRIORITY.get(event_level, -1)
-                
+
                 # Skip events below our log level threshold
                 # If log_level is INFO (2), skip DEBUG (0) and TEST (1)
                 # If log_level is WARN (3), skip DEBUG (0), TEST (1), INFO (2)
                 if event_priority < _min_log_priority:
                     return  # Don't queue - won't be logged anyway
-                
+
                 # Check if event has a message (cheap attribute access)
                 # Some events might not have messages, so we skip those
                 try:
@@ -732,7 +724,7 @@ class PrefectDbtRunner:
                         return  # Whitespace-only message - don't queue
                 except (AttributeError, TypeError):
                     return  # No message attribute - don't queue
-                
+
                 # Event passed all filters - queue for logging
                 self._queue_callback(_process_logging_sync, event)
 
@@ -745,25 +737,25 @@ class PrefectDbtRunner:
         context: dict[str, Any],
     ) -> Callable[[EventMsg], None]:
         """Creates a callback function for logging dbt events.
-        
+
         DEPRECATED: This method is kept for backward compatibility but is no longer
         used. Use _create_unified_callback instead for better performance.
         """
         # Start the callback processor if not already started
         self._start_callback_processor()
-        
+
         def _process_logging_sync(event: EventMsg) -> None:
             """Actual logging logic - runs in background thread."""
             # Skip logging for NodeStart and NodeFinished events - they have their own callbacks
             if event.info.name in ("NodeStart", "NodeFinished"):
                 return
-                
+
             event_data = MessageToDict(event.data, preserving_proto_field_name=True)
-            
+
             # Handle logging for all events with node_info
             if event_data.get("node_info"):
                 node_id = self._get_dbt_event_node_id(event)
-                
+
                 # Skip logging for skipped nodes
                 if node_id not in self._skipped_nodes:
                     flow_run_context: Optional[dict[str, Any]] = context.get(
@@ -804,7 +796,7 @@ class PrefectDbtRunner:
             # Early filter: Skip NodeStart and NodeFinished events - they have their own callbacks
             if event.info.name in ("NodeStart", "NodeFinished"):
                 return
-            
+
             # Only queue events that will actually be processed
             self._queue_callback(_process_logging_sync, event)
 
@@ -814,13 +806,13 @@ class PrefectDbtRunner:
         self, task_state: NodeTaskTracker, context: dict[str, Any]
     ) -> Callable[[EventMsg], None]:
         """Creates a callback function for starting tasks when nodes start.
-        
+
         DEPRECATED: This method is kept for backward compatibility but is no longer
         used. Use _create_unified_callback instead for better performance.
         """
         # Start the callback processor if not already started
         self._start_callback_processor()
-        
+
         def _process_node_started_sync(event: EventMsg) -> None:
             """Actual node started logic - runs in background thread."""
             if event.info.name == "NodeStart":
@@ -837,20 +829,18 @@ class PrefectDbtRunner:
                         prefect_config.get("enable_assets", True)
                         and not self.disable_assets
                     )
-                    self._call_task(
-                        task_state, manifest_node, context, enable_assets
-                    )
+                    self._call_task(task_state, manifest_node, context, enable_assets)
 
         def node_started_callback(event: EventMsg) -> None:
             """Non-blocking callback wrapper that queues node started processing.
-            
+
             NodeStart events are queued with highest priority (0) to ensure
             tasks are created before other events for the same node are processed.
             """
             # Early filter: Only process NodeStart events
             if event.info.name != "NodeStart":
                 return
-            
+
             # Queue with highest priority to process before other events
             self._queue_callback(_process_node_started_sync, event, priority=0)
 
@@ -863,13 +853,13 @@ class PrefectDbtRunner:
         add_test_edges: bool = False,
     ) -> Callable[[EventMsg], None]:
         """Creates a callback function for ending tasks when nodes finish.
-        
+
         DEPRECATED: This method is kept for backward compatibility but is no longer
         used. Use _create_unified_callback instead for better performance.
         """
         # Start the callback processor if not already started
         self._start_callback_processor()
-        
+
         def _process_node_finished_sync(event: EventMsg) -> None:
             """Actual node finished logic - runs in background thread."""
             if event.info.name == "NodeFinished":
@@ -880,14 +870,14 @@ class PrefectDbtRunner:
                 manifest_node, _ = self._get_manifest_node_and_config(node_id)
 
                 if manifest_node:
-                    event_data = MessageToDict(event.data, preserving_proto_field_name=True)
+                    event_data = MessageToDict(
+                        event.data, preserving_proto_field_name=True
+                    )
                     # Store the status before ending the task
                     event_message = self.get_dbt_event_msg(event)
                     task_state.set_node_status(node_id, event_data, event_message)
 
-                    node_info: Optional[dict[str, Any]] = event_data.get(
-                        "node_info"
-                    )
+                    node_info: Optional[dict[str, Any]] = event_data.get("node_info")
                     node_status: Optional[str] = (
                         node_info.get("node_status") if node_info else None
                     )
@@ -904,14 +894,14 @@ class PrefectDbtRunner:
 
         def node_finished_callback(event: EventMsg) -> None:
             """Non-blocking callback wrapper that queues node finished processing.
-            
+
             NodeFinished events are queued with medium priority (1) to ensure
             they're processed after NodeStart but before regular logging events.
             """
             # Early filter: Only process NodeFinished events
             if event.info.name != "NodeFinished":
                 return
-            
+
             # Queue with medium priority (automatically set by _queue_callback)
             self._queue_callback(_process_node_finished_sync, event, priority=1)
 
