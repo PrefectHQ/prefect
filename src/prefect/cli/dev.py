@@ -248,7 +248,7 @@ def build_image(
             "Defaults to the standard Python base image"
         ),
     ),
-    build_arg: List[str] = typer.Option(
+    build_arg: list[str] = typer.Option(
         [],
         help=(
             "This will directly pass a --build-arg into the docker build process. "
