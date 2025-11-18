@@ -724,6 +724,20 @@ def sqlite_greatest_as_max(
     return compiler.process(sa.func.max(*element.clauses), **kwargs)
 
 
+class least(functions.ReturnTypeFromArgs[T]):
+    inherit_cache: bool = True
+
+
+@compiles(least, "sqlite")
+def sqlite_least_as_min(
+    element: least[Any], compiler: SQLCompiler, **kwargs: Any
+) -> str:
+    # SQLite doesn't have LEAST(), use MIN() instead.
+    # Note: Like MAX(), SQLite MIN() returns NULL if _any_ clause is NULL,
+    # whereas PostgreSQL LEAST() only returns NULL if _all_ clauses are NULL.
+    return compiler.process(sa.func.min(*element.clauses), **kwargs)
+
+
 def get_dialect(obj: Union[str, Session, sa.Engine]) -> type[sa.Dialect]:
     """
     Get the dialect of a session, engine, or connection url.

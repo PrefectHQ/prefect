@@ -1,7 +1,9 @@
 import asyncio
+from datetime import datetime, timedelta, timezone
 from uuid import UUID
 
 import pytest
+import sqlalchemy as sa
 from pydantic import ValidationError
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -16,6 +18,7 @@ from prefect.server.models.concurrency_limits_v2 import (
     bulk_update_denied_slots,
     create_concurrency_limit,
     delete_concurrency_limit,
+    denied_slots_after_decay,
     read_all_concurrency_limits,
     read_concurrency_limit,
     update_concurrency_limit,
@@ -602,6 +605,159 @@ async def test_bulk_update_denied_slots(
 
     refreshed = await read_concurrency_limit(
         session=session, concurrency_limit_id=locked_concurrency_limit.id
+    )
+    assert refreshed
+    assert refreshed.denied_slots == 10
+
+
+async def test_denied_slots_decay_uses_clamped_value_for_tag_limits(
+    session: AsyncSession,
+    db: PrefectDBInterface,
+):
+    """Verify tag limits decay at clamped rate (30s in OSS)."""
+    # Create limit with long avg_slot_occupancy_seconds
+    limit = await create_concurrency_limit(
+        session=session,
+        concurrency_limit=ConcurrencyLimitV2(
+            name="tag:test-long-occupancy",
+            limit=10,
+            avg_slot_occupancy_seconds=120.0,  # 2 minutes
+        ),
+    )
+    await session.commit()
+
+    # Add 10 denied slots
+    await bulk_update_denied_slots(
+        session=session,
+        concurrency_limit_ids=[limit.id],
+        slots=10,
+    )
+    await session.commit()
+
+    # Backdate updated timestamp by 30.5 seconds
+    backdated_time = datetime.now(timezone.utc) - timedelta(seconds=30.5)
+    await session.execute(
+        sa.update(db.ConcurrencyLimitV2)
+        .where(db.ConcurrencyLimitV2.id == limit.id)
+        .values(updated=backdated_time)
+    )
+    await session.commit()
+
+    # Trigger recalculation while preserving backdated timestamp
+    await session.execute(
+        sa.update(db.ConcurrencyLimitV2)
+        .where(db.ConcurrencyLimitV2.id == limit.id)
+        .values(
+            denied_slots=denied_slots_after_decay(db) + 0,
+            updated=backdated_time,  # Preserve timestamp
+        )
+    )
+    await session.commit()
+
+    # Verify: With 30s clamp, decay_rate = 1/30 = 0.0333 slots/s
+    # 30.5s * 0.0333 = 1.02 slots decayed
+    # Expected: 10 - floor(1.02) = 9 denied_slots
+    refreshed = await read_concurrency_limit(
+        session=session, concurrency_limit_id=limit.id
+    )
+    assert refreshed
+    assert refreshed.denied_slots == 9
+
+
+async def test_denied_slots_decay_uses_clamped_value_for_non_tag_limits(
+    session: AsyncSession,
+    db: PrefectDBInterface,
+):
+    """Verify non-tag limits decay at clamped rate (30s in OSS)."""
+    limit = await create_concurrency_limit(
+        session=session,
+        concurrency_limit=ConcurrencyLimitV2(
+            name="global:test-long-occupancy",
+            limit=10,
+            avg_slot_occupancy_seconds=120.0,
+        ),
+    )
+    await session.commit()
+
+    await bulk_update_denied_slots(
+        session=session,
+        concurrency_limit_ids=[limit.id],
+        slots=30,
+    )
+    await session.commit()
+
+    backdated_time = datetime.now(timezone.utc) - timedelta(seconds=30.5)
+    await session.execute(
+        sa.update(db.ConcurrencyLimitV2)
+        .where(db.ConcurrencyLimitV2.id == limit.id)
+        .values(updated=backdated_time)
+    )
+    await session.commit()
+
+    await session.execute(
+        sa.update(db.ConcurrencyLimitV2)
+        .where(db.ConcurrencyLimitV2.id == limit.id)
+        .values(
+            denied_slots=denied_slots_after_decay(db) + 0,
+            updated=backdated_time,
+        )
+    )
+    await session.commit()
+
+    # Verify: With 30s clamp, decay_rate = 1/30 = 0.0333 slots/s
+    # 30.5s * 0.0333 = 1.02 slots decayed
+    # Expected: 30 - 1 = 29 denied_slots
+    refreshed = await read_concurrency_limit(
+        session=session, concurrency_limit_id=limit.id
+    )
+    assert refreshed
+    assert refreshed.denied_slots == 29
+
+
+async def test_denied_slots_decay_not_clamped_for_rate_limits(
+    session: AsyncSession,
+    db: PrefectDBInterface,
+):
+    """Verify rate limits use slot_decay_per_second directly (no clamping)."""
+    limit = await create_concurrency_limit(
+        session=session,
+        concurrency_limit=ConcurrencyLimitV2(
+            name="rate:test-explicit-decay",
+            limit=10,
+            slot_decay_per_second=2.0,  # 2 slots per second
+            avg_slot_occupancy_seconds=120.0,  # Should be ignored
+        ),
+    )
+    await session.commit()
+
+    await bulk_update_denied_slots(
+        session=session,
+        concurrency_limit_ids=[limit.id],
+        slots=20,
+    )
+    await session.commit()
+
+    backdated_time = datetime.now(timezone.utc) - timedelta(seconds=5.0)
+    await session.execute(
+        sa.update(db.ConcurrencyLimitV2)
+        .where(db.ConcurrencyLimitV2.id == limit.id)
+        .values(updated=backdated_time)
+    )
+    await session.commit()
+
+    await session.execute(
+        sa.update(db.ConcurrencyLimitV2)
+        .where(db.ConcurrencyLimitV2.id == limit.id)
+        .values(
+            denied_slots=denied_slots_after_decay(db) + 0,
+            updated=backdated_time,
+        )
+    )
+    await session.commit()
+
+    # Verify: 20 - floor(5s * 2.0 slots/s) = 10 denied_slots
+    refreshed = await read_concurrency_limit(
+        session=session, concurrency_limit_id=limit.id
     )
     assert refreshed
     assert refreshed.denied_slots == 10

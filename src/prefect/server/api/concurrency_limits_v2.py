@@ -25,12 +25,6 @@ router: PrefectRouter = PrefectRouter(
     prefix="/v2/concurrency_limits", tags=["Concurrency Limits V2"]
 )
 
-# Max retry delay (in seconds) for non-tag concurrency limits when slot occupancy is high.
-# Tag-based limits use the legacy tag_concurrency_slot_wait_seconds setting (default 30s)
-# to restore V1 behavior. Non-tag limits use this higher value to allow more uniform queues
-# to check more frequently while still preventing excessive delays from long-running tasks.
-DEFAULT_SLOT_WAIT_SECONDS = 30.0
-
 
 @router.post("/", status_code=status.HTTP_201_CREATED)
 async def create_concurrency_limit_v2(
@@ -234,8 +228,8 @@ async def _generate_concurrency_locked_response(
 
     - Tag-based limits (name starts with "tag:"): Capped at tag_concurrency_slot_wait_seconds
       (default 30s) to restore V1 behavior that users relied on
-    - Other limits: Capped at DEFAULT_SLOT_WAIT_SECONDS (30s) to allow more uniform queues
-      while still preventing astronomical delays
+    - Other limits: Capped at maximum_concurrency_slot_wait_seconds (default 30s) to allow
+      more uniform queues while still preventing astronomical delays
 
     Low average occupancies are always respected (e.g., 2s stays 2s, not forced higher).
     Limits with slot decay use the decay rate directly without capping.
@@ -265,7 +259,7 @@ async def _generate_concurrency_locked_response(
         max_wait = (
             settings.server.tasks.tag_concurrency_slot_wait_seconds
             if blocking_limit.name.startswith("tag:")
-            else DEFAULT_SLOT_WAIT_SECONDS
+            else settings.server.concurrency.maximum_concurrency_slot_wait_seconds
         )
         wait_time_per_slot = min(blocking_limit.avg_slot_occupancy_seconds, max_wait)
     else:

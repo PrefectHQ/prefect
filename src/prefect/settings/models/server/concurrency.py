@@ -22,3 +22,9 @@ class ServerConcurrencySettings(PrefectBaseSettings):
         le=3600.0,  # Maximum 1 hour
         description="Initial duration for deployment concurrency lease in seconds.",
     )
+
+    maximum_concurrency_slot_wait_seconds: float = Field(
+        default=30,
+        ge=0,
+        description="The maximum number of seconds to wait before retrying when a concurrency slot cannot be acquired.",
+    )

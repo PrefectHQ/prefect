@@ -1164,6 +1164,16 @@
                     ],
                     "title": "Initial Deployment Lease Duration",
                     "type": "number"
+                },
+                "maximum_concurrency_slot_wait_seconds": {
+                    "default": 30,
+                    "description": "The maximum number of seconds to wait before retrying when a concurrency slot cannot be acquired.",
+                    "minimum": 0,
+                    "supported_environment_variables": [
+                        "PREFECT_SERVER_CONCURRENCY_MAXIMUM_CONCURRENCY_SLOT_WAIT_SECONDS"
+                    ],
+                    "title": "Maximum Concurrency Slot Wait Seconds",
+                    "type": "number"
                 }
             },
             "title": "ServerConcurrencySettings",

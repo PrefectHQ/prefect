@@ -7,11 +7,13 @@ from sqlalchemy.sql.elements import ColumnElement
 
 import prefect.server.schemas as schemas
 from prefect.server.database import PrefectDBInterface, db_injector, orm_models
+from prefect.server.utilities.database import greatest, least
+from prefect.settings import get_current_settings
 
 
 def active_slots_after_decay(db: PrefectDBInterface) -> ColumnElement[float]:
     # Active slots will decay at a rate of `slot_decay_per_second` per second.
-    return sa.func.greatest(
+    return greatest(
         0,
         db.ConcurrencyLimitV2.active_slots
         - sa.func.floor(
@@ -22,28 +24,53 @@ def active_slots_after_decay(db: PrefectDBInterface) -> ColumnElement[float]:
 
 
 def denied_slots_after_decay(db: PrefectDBInterface) -> ColumnElement[float]:
-    # Denied slots decay at a rate of `slot_decay_per_second` per second if it's
-    # greater than 0, otherwise it decays at a rate of `avg_slot_occupancy_seconds`.
-    # The combination of `denied_slots` and `slot_decay_per_second` /
-    # `avg_slot_occupancy_seconds` is used to by the API to give a best guess at
-    # when slots will be available again.
-    return sa.func.greatest(
+    """
+    Calculate denied_slots after applying decay.
+
+    Denied slots decay at a rate of `slot_decay_per_second` per second if it's
+    greater than 0 (rate limits), otherwise for concurrency limits it decays at
+    a rate based on clamped `avg_slot_occupancy_seconds`.
+
+    The clamping matches the retry-after calculation to prevent denied_slots from
+    accumulating when clients retry faster than the unclamped decay rate.
+    """
+    settings = get_current_settings()
+
+    # Determine max_wait based on limit name prefix
+    max_wait_for_limit = sa.case(
+        (
+            db.ConcurrencyLimitV2.name.like("tag:%"),
+            sa.literal(settings.server.tasks.tag_concurrency_slot_wait_seconds),
+        ),
+        else_=sa.literal(
+            settings.server.concurrency.maximum_concurrency_slot_wait_seconds
+        ),
+    )
+
+    # Clamp avg_slot_occupancy_seconds with minimum bound to prevent division by zero
+    clamped_occupancy = greatest(
+        sa.literal(MINIMUM_OCCUPANCY_SECONDS_PER_SLOT),
+        least(
+            sa.cast(db.ConcurrencyLimitV2.avg_slot_occupancy_seconds, sa.Float),
+            max_wait_for_limit,
+        ),
+    )
+
+    # Calculate decay rate: use slot_decay_per_second for rate limits,
+    # use 1/clamped_occupancy for concurrency limits
+    decay_rate_per_second = sa.case(
+        (
+            db.ConcurrencyLimitV2.slot_decay_per_second > 0.0,
+            db.ConcurrencyLimitV2.slot_decay_per_second,  # Rate limits - no clamping
+        ),
+        else_=(1.0 / clamped_occupancy),  # Concurrency limits - use clamped value
+    )
+
+    return greatest(
         0,
         db.ConcurrencyLimitV2.denied_slots
         - sa.func.floor(
-            sa.case(
-                (
-                    db.ConcurrencyLimitV2.slot_decay_per_second > 0.0,
-                    db.ConcurrencyLimitV2.slot_decay_per_second,
-                ),
-                else_=(
-                    1.0
-                    / sa.cast(
-                        db.ConcurrencyLimitV2.avg_slot_occupancy_seconds,
-                        sa.Float,
-                    )
-                ),
-            )
+            decay_rate_per_second
             * sa.func.date_diff_seconds(db.ConcurrencyLimitV2.updated)
         ),
     )
