@@ -6323,3 +6323,31 @@ class TestDeployingUsingCustomPrefectFile:
         )
 
         assert await invalid_update_deployment.apply()
+
+
+class TestDeploymentTriggerTemplating:
+    """Regression tests for deployment trigger templating (issue #19348)"""
+
+    async def test_deployment_trigger_with_boolean_enabled_after_templating(self):
+        """
+        Regression test for issue #19348: ensure that trigger initialization
+        works correctly when the 'enabled' field is a boolean (as it would be
+        after Jinja template resolution from "{{ prefect.variables.is_prod }}").
+
+        This test verifies that the fix (moving trigger initialization after
+        templating) allows boolean values to pass validation.
+        """
+        # Simulate a trigger spec AFTER templating has resolved the Jinja variable
+        # from "{{ prefect.variables.is_prod }}" to True
+        trigger_spec = {
+            "enabled": True,  # This would have been "{{ prefect.variables.is_prod }}" before templating
+            "match": {"prefect.resource.id": "prefect.flow-run.*"},
+            "expect": ["prefect.flow-run.Completed"],
+        }
+
+        # This should not raise a validation error
+        triggers = _initialize_deployment_triggers("test-deployment", [trigger_spec])
+
+        assert len(triggers) == 1
+        assert triggers[0].enabled is True
+        assert triggers[0].name == "test-deployment__automation_1"
