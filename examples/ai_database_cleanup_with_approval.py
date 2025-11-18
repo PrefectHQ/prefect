@@ -11,20 +11,11 @@
 # but it's risky: too automated and you might delete important data, too manual and it becomes a constant burden.
 #
 # This example shows how to build a cleanup workflow that evolves with your confidence:
-# **Start with human approval** → **Graduate to AI autonomy**
 #
-# ## The Evolution Path
+# - **Start with human approval**: Preview what will be deleted, pause the flow, and manually approve/reject via a UI form
+# - **Graduate to AI autonomy**: Switch to an AI agent that investigates system health using Prefect MCP tools and returns structured decisions with confidence scores
 #
-# **Week 1-2: Human Oversight**
-# - Preview what will be deleted before taking action
-# - Pause the flow and review via a UI form
-# - Manually approve or reject each cleanup
-#
-# **Week 3-4: AI Autonomy**
-# - Switch to an AI agent that investigates system health
-# - Agent uses Prefect MCP tools to query deployments, flow runs, and system state
-# - Returns structured decisions with confidence scores and reasoning
-# - You monitor agent decisions and build trust
+# Build trust incrementally by monitoring decisions in lower-risk environments before enabling AI autonomy in production.
 #
 # ## Complete Working Example
 #
