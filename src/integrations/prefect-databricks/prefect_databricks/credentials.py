@@ -2,8 +2,9 @@
 
 from typing import Any, Dict, Optional
 
+import httpx
 from httpx import AsyncClient
-from pydantic import Field, SecretStr
+from pydantic import Field, SecretStr, model_validator
 
 from prefect.blocks.core import Block
 
@@ -16,6 +17,9 @@ class DatabricksCredentials(Block):
         databricks_instance:
             Databricks instance used in formatting the endpoint URL.
         token: The token to authenticate with Databricks.
+        client_id: The service principal client ID.
+        client_secret: The service principal client secret.
+        tenant_id: The Azure tenant ID (optional, for Azure Databricks).
         client_kwargs: Additional keyword arguments to pass to AsyncClient.
 
     Examples:
@@ -33,12 +37,83 @@ class DatabricksCredentials(Block):
         default=...,
         description="Databricks instance used in formatting the endpoint URL.",
     )
-    token: SecretStr = Field(
-        default=..., description="The token to authenticate with Databricks."
+    token: Optional[SecretStr] = Field(
+        default=None, description="The token to authenticate with Databricks."
+    )
+    client_id: Optional[SecretStr] = Field(
+        default=None,
+        description="The service principal client ID. Required if token is not provided.",
+    )
+    client_secret: Optional[SecretStr] = Field(
+        default=None,
+        description="The service principal client secret. Required if token is not provided.",
+    )
+    tenant_id: Optional[str] = Field(
+        default=None,
+        description="The Azure tenant ID (optional, for Azure Databricks).",
     )
     client_kwargs: Optional[Dict[str, Any]] = Field(
         default=None, description="Additional keyword arguments to pass to AsyncClient."
     )
+
+    @model_validator(mode="after")
+    def validate_credentials(self):
+        if not self.token and not (self.client_id and self.client_secret):
+            raise ValueError(
+                "Either 'token' or both 'client_id' and 'client_secret' must be provided."
+            )
+        return self
+
+    def get_access_token(self) -> str:
+        """
+        Gets an access token for Databricks.
+
+        Returns:
+            The access token.
+        """
+        if self.token:
+            return self.token.get_secret_value()
+
+        if not self.client_id or not self.client_secret:
+            raise ValueError(
+                "Client credentials are required if token is not provided."
+            )
+
+        # Service Principal Authentication
+        if self.tenant_id:
+            # Azure Databricks
+            token_url = (
+                f"https://login.microsoftonline.com/{self.tenant_id}/oauth2/v2.0/token"
+            )
+            # Resource ID for Azure Databricks is standard
+            scope = "2ff814a6-3304-4ab8-85cb-cd0e6f879c1d/.default"
+            data = {
+                "grant_type": "client_credentials",
+                "client_id": self.client_id.get_secret_value(),
+                "client_secret": self.client_secret.get_secret_value(),
+                "scope": scope,
+            }
+        else:
+            # AWS/GCP Databricks
+            token_url = f"https://{self.databricks_instance}/oidc/v1/token"
+            data = {
+                "grant_type": "client_credentials",
+                "scope": "all-apis",
+            }
+
+        # Making the request
+        auth: Any = None
+        if not self.tenant_id:
+            # Standard Databricks OAuth uses Basic Auth with client credentials
+            auth = (
+                self.client_id.get_secret_value(),
+                self.client_secret.get_secret_value(),
+            )
+
+        with httpx.Client() as client:
+            response = client.post(token_url, data=data, auth=auth)
+            response.raise_for_status()
+            return response.json()["access_token"]
 
     def get_client(self) -> AsyncClient:
         """
@@ -66,8 +141,7 @@ class DatabricksCredentials(Block):
         base_url = f"https://{self.databricks_instance}/api/"
 
         client_kwargs = self.client_kwargs or {}
-        client_kwargs["headers"] = {
-            "Authorization": f"Bearer {self.token.get_secret_value()}"
-        }
+        token = self.get_access_token()
+        client_kwargs["headers"] = {"Authorization": f"Bearer {token}"}
         client = AsyncClient(base_url=base_url, **client_kwargs)
         return client
