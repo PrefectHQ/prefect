@@ -10,7 +10,8 @@ if TYPE_CHECKING:
     from prefect.client.base import ServerType
     from prefect.client.orchestration.routes import ServerRoutes
 
-HTTP_METHODS: TypeAlias = Literal["GET", "POST", "PUT", "DELETE", "PATCH"]
+# make sure we uncomment this before we put it up for review
+# HTTP_METHODS: TypeAlias = Literal["GET", "POST", "PUT", "DELETE", "PATCH"]
 
 
 class BaseClient:
