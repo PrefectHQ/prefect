@@ -11,9 +11,8 @@ from pydantic import Field, field_validator
 
 from prefect import task
 from prefect.blocks.abstract import ObjectStorageBlock
-from prefect.exceptions import MissingContextError
 from prefect.filesystems import WritableDeploymentStorage, WritableFileSystem
-from prefect.logging import get_logger, get_run_logger
+from prefect.logging import get_run_logger
 from prefect.utilities.asyncutils import run_sync_in_worker_thread, sync_compatible
 from prefect.utilities.filesystem import filter_files
 
@@ -108,6 +107,33 @@ def _get_bucket(
     return bucket_obj
 
 
+async def _download_blob_as_bytes(
+    bucket: str,
+    blob: str,
+    gcp_credentials: GcpCredentials,
+    chunk_size: Optional[int] = None,
+    encryption_key: Optional[str] = None,
+    timeout: Union[float, Tuple[float, float]] = 60,
+    project: Optional[str] = None,
+    **download_kwargs: Dict[str, Any],
+) -> bytes:
+    """
+    Internal function to download a blob as bytes.
+
+    This is the core implementation called by both the task wrapper
+    and the GCS storage block.
+    """
+    bucket_obj = await _get_bucket_async(bucket, gcp_credentials, project=project)
+    blob_obj = bucket_obj.blob(
+        blob, chunk_size=chunk_size, encryption_key=encryption_key
+    )
+
+    contents = await run_sync_in_worker_thread(
+        blob_obj.download_as_bytes, timeout=timeout, **download_kwargs
+    )
+    return contents
+
+
 @task
 @sync_compatible
 async def cloud_storage_download_blob_as_bytes(
@@ -160,21 +186,53 @@ async def cloud_storage_download_blob_as_bytes(
         example_cloud_storage_download_blob_flow()
         ```
     """
-    try:
-        logger = get_run_logger()
-    except MissingContextError:
-        logger = get_logger("prefect.gcp.cloud_storage")
+    logger = get_run_logger()
     logger.info("Downloading blob named %s from the %s bucket", blob, bucket)
 
+    return await _download_blob_as_bytes(
+        bucket=bucket,
+        blob=blob,
+        gcp_credentials=gcp_credentials,
+        chunk_size=chunk_size,
+        encryption_key=encryption_key,
+        timeout=timeout,
+        project=project,
+        **download_kwargs,
+    )
+
+
+async def _download_blob_to_file(
+    bucket: str,
+    blob: str,
+    path: Union[str, Path],
+    gcp_credentials: GcpCredentials,
+    chunk_size: Optional[int] = None,
+    encryption_key: Optional[str] = None,
+    timeout: Union[float, Tuple[float, float]] = 60,
+    project: Optional[str] = None,
+    **download_kwargs: Dict[str, Any],
+) -> Union[str, Path]:
+    """
+    Internal function to download a blob to a file.
+
+    This is the core implementation called by both the task wrapper
+    and the GCS storage block.
+    """
     bucket_obj = await _get_bucket_async(bucket, gcp_credentials, project=project)
     blob_obj = bucket_obj.blob(
         blob, chunk_size=chunk_size, encryption_key=encryption_key
     )
 
-    contents = await run_sync_in_worker_thread(
-        blob_obj.download_as_bytes, timeout=timeout, **download_kwargs
+    if os.path.isdir(path):
+        if isinstance(path, Path):
+            path = path.joinpath(blob)  # keep as Path if Path is passed
+        else:
+            path = os.path.join(path, blob)  # keep as str if a str is passed
+
+    await run_sync_in_worker_thread(
+        blob_obj.download_to_filename, path, timeout=timeout, **download_kwargs
     )
-    return contents
+    return path
 
 
 @task
@@ -232,29 +290,55 @@ async def cloud_storage_download_blob_to_file(
         example_cloud_storage_download_blob_flow()
         ```
     """
-    try:
-        logger = get_run_logger()
-    except MissingContextError:
-        logger = get_logger("prefect.gcp.cloud_storage")
+    logger = get_run_logger()
     logger.info(
         "Downloading blob named %s from the %s bucket to %s", blob, bucket, path
     )
 
+    return await _download_blob_to_file(
+        bucket=bucket,
+        blob=blob,
+        path=path,
+        gcp_credentials=gcp_credentials,
+        chunk_size=chunk_size,
+        encryption_key=encryption_key,
+        timeout=timeout,
+        project=project,
+        **download_kwargs,
+    )
+
+
+async def _upload_blob_from_string(
+    data: Union[str, bytes],
+    bucket: str,
+    blob: str,
+    gcp_credentials: GcpCredentials,
+    content_type: Optional[str] = None,
+    chunk_size: Optional[int] = None,
+    encryption_key: Optional[str] = None,
+    timeout: Union[float, Tuple[float, float]] = 60,
+    project: Optional[str] = None,
+    **upload_kwargs: Dict[str, Any],
+) -> str:
+    """
+    Internal function to upload a blob from a string or bytes.
+
+    This is the core implementation called by both the task wrapper
+    and the GCS storage block.
+    """
     bucket_obj = await _get_bucket_async(bucket, gcp_credentials, project=project)
     blob_obj = bucket_obj.blob(
         blob, chunk_size=chunk_size, encryption_key=encryption_key
     )
 
-    if os.path.isdir(path):
-        if isinstance(path, Path):
-            path = path.joinpath(blob)  # keep as Path if Path is passed
-        else:
-            path = os.path.join(path, blob)  # keep as str if a str is passed
-
     await run_sync_in_worker_thread(
-        blob_obj.download_to_filename, path, timeout=timeout, **download_kwargs
+        blob_obj.upload_from_string,
+        data,
+        content_type=content_type,
+        timeout=timeout,
+        **upload_kwargs,
     )
-    return path
+    return blob
 
 
 @task
@@ -313,25 +397,21 @@ async def cloud_storage_upload_blob_from_string(
         example_cloud_storage_upload_blob_from_string_flow()
         ```
     """
-    try:
-        logger = get_run_logger()
-    except MissingContextError:
-        logger = get_logger("prefect.gcp.cloud_storage")
+    logger = get_run_logger()
     logger.info("Uploading blob named %s to the %s bucket", blob, bucket)
 
-    bucket_obj = await _get_bucket_async(bucket, gcp_credentials, project=project)
-    blob_obj = bucket_obj.blob(
-        blob, chunk_size=chunk_size, encryption_key=encryption_key
-    )
-
-    await run_sync_in_worker_thread(
-        blob_obj.upload_from_string,
-        data,
+    return await _upload_blob_from_string(
+        data=data,
+        bucket=bucket,
+        blob=blob,
+        gcp_credentials=gcp_credentials,
         content_type=content_type,
+        chunk_size=chunk_size,
+        encryption_key=encryption_key,
         timeout=timeout,
+        project=project,
         **upload_kwargs,
     )
-    return blob
 
 
 @task
@@ -691,7 +771,7 @@ class GcsBucket(WritableDeploymentStorage, WritableFileSystem, ObjectStorageBloc
             local_file_path = os.path.join(local_path, relative_blob_path)
             os.makedirs(os.path.dirname(local_file_path), exist_ok=True)
 
-            file_path = await cloud_storage_download_blob_to_file.fn(
+            file_path = await _download_blob_to_file(
                 bucket=self.bucket,
                 blob=blob_path,
                 path=local_file_path,
@@ -793,7 +873,7 @@ class GcsBucket(WritableDeploymentStorage, WritableFileSystem, ObjectStorageBloc
             A bytes or string representation of the blob object.
         """
         path = self._resolve_path(path)
-        contents = await cloud_storage_download_blob_as_bytes.fn(
+        contents = await _download_blob_as_bytes(
             bucket=self.bucket, blob=path, gcp_credentials=self.gcp_credentials
         )
         return contents
@@ -812,7 +892,7 @@ class GcsBucket(WritableDeploymentStorage, WritableFileSystem, ObjectStorageBloc
             The path that the contents were written to.
         """
         path = self._resolve_path(path)
-        await cloud_storage_upload_blob_from_string.fn(
+        await _upload_blob_from_string(
             data=content,
             bucket=self.bucket,
             blob=path,
