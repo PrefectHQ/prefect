@@ -1,8 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Literal
-
-from typing_extensions import TypeAlias
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from httpx import AsyncClient, Client, Response
