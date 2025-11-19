@@ -1342,6 +1342,21 @@ Initial duration for deployment concurrency lease in seconds.
 **Supported environment variables**:
 `PREFECT_SERVER_CONCURRENCY_INITIAL_DEPLOYMENT_LEASE_DURATION`
 
+### `maximum_concurrency_slot_wait_seconds`
+The maximum number of seconds to wait before retrying when a concurrency slot cannot be acquired.
+
+**Type**: `number`
+
+**Default**: `30`
+
+**Constraints**:
+- Minimum: 0
+
+**TOML dotted key path**: `server.concurrency.maximum_concurrency_slot_wait_seconds`
+
+**Supported environment variables**:
+`PREFECT_SERVER_CONCURRENCY_MAXIMUM_CONCURRENCY_SLOT_WAIT_SECONDS`
+
 ---
 ## ServerDatabaseSettings
 Settings for controlling server database behavior
