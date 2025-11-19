@@ -12,7 +12,7 @@ from pydantic import Field, field_validator
 from prefect import task
 from prefect.blocks.abstract import ObjectStorageBlock
 from prefect.filesystems import WritableDeploymentStorage, WritableFileSystem
-from prefect.logging import disable_run_logger, get_run_logger
+from prefect.logging import get_run_logger
 from prefect.utilities.asyncutils import run_sync_in_worker_thread, sync_compatible
 from prefect.utilities.filesystem import filter_files
 
@@ -681,14 +681,13 @@ class GcsBucket(WritableDeploymentStorage, WritableFileSystem, ObjectStorageBloc
             local_file_path = os.path.join(local_path, relative_blob_path)
             os.makedirs(os.path.dirname(local_file_path), exist_ok=True)
 
-            with disable_run_logger():
-                file_path = await cloud_storage_download_blob_to_file.fn(
-                    bucket=self.bucket,
-                    blob=blob_path,
-                    path=local_file_path,
-                    gcp_credentials=self.gcp_credentials,
-                )
-                file_paths.append(file_path)
+            file_path = await cloud_storage_download_blob_to_file.fn(
+                bucket=self.bucket,
+                blob=blob_path,
+                path=local_file_path,
+                gcp_credentials=self.gcp_credentials,
+            )
+            file_paths.append(file_path)
         return file_paths
 
     @sync_compatible
@@ -784,10 +783,9 @@ class GcsBucket(WritableDeploymentStorage, WritableFileSystem, ObjectStorageBloc
             A bytes or string representation of the blob object.
         """
         path = self._resolve_path(path)
-        with disable_run_logger():
-            contents = await cloud_storage_download_blob_as_bytes.fn(
-                bucket=self.bucket, blob=path, gcp_credentials=self.gcp_credentials
-            )
+        contents = await cloud_storage_download_blob_as_bytes.fn(
+            bucket=self.bucket, blob=path, gcp_credentials=self.gcp_credentials
+        )
         return contents
 
     @sync_compatible
@@ -804,13 +802,12 @@ class GcsBucket(WritableDeploymentStorage, WritableFileSystem, ObjectStorageBloc
             The path that the contents were written to.
         """
         path = self._resolve_path(path)
-        with disable_run_logger():
-            await cloud_storage_upload_blob_from_string.fn(
-                data=content,
-                bucket=self.bucket,
-                blob=path,
-                gcp_credentials=self.gcp_credentials,
-            )
+        await cloud_storage_upload_blob_from_string.fn(
+            data=content,
+            bucket=self.bucket,
+            blob=path,
+            gcp_credentials=self.gcp_credentials,
+        )
         return path
 
     # NEW BLOCK INTERFACE METHODS BELOW
