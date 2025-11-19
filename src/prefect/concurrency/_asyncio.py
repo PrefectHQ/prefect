@@ -22,9 +22,11 @@ from prefect.concurrency._leases import amaintain_concurrency_lease
 from prefect.concurrency.context import ConcurrencyContext
 from prefect.logging import get_logger
 from prefect.logging.loggers import get_run_logger
-from prefect.utilities.timeout import timeout_async
 
-from .services import ConcurrencySlotAcquisitionService
+from .services import (
+    ConcurrencySlotAcquisitionService,
+    ConcurrencySlotAcquisitionWithLeaseService,
+)
 
 if TYPE_CHECKING:
     from prefect.client.schemas.objects import ConcurrencyLeaseHolder
@@ -92,57 +94,12 @@ async def aacquire_concurrency_slots_with_lease(
     holder: "Optional[ConcurrencyLeaseHolder]" = None,
     suppress_warnings: bool = False,
 ) -> ConcurrencyLimitWithLeaseResponse:
+    service = ConcurrencySlotAcquisitionWithLeaseService.instance(frozenset(names))
+    future = service.send(
+        (slots, mode, timeout_seconds, max_retries, lease_duration, strict, holder)
+    )
     try:
-        # Use a run logger if available
-        logger = get_run_logger()
-    except Exception:
-        logger = get_logger("concurrency")
-
-    try:
-        with timeout_async(seconds=timeout_seconds):
-            async with get_client() as client:
-                while True:
-                    try:
-                        response = await client.increment_concurrency_slots_with_lease(
-                            names=names,
-                            slots=slots,
-                            mode=mode,
-                            lease_duration=lease_duration,
-                            holder=holder,
-                        )
-                        retval = ConcurrencyLimitWithLeaseResponse.model_validate(
-                            response.json()
-                        )
-                        if not retval.limits:
-                            if strict:
-                                raise ConcurrencySlotAcquisitionError(
-                                    f"Concurrency limits {names!r} must be created before acquiring slots"
-                                )
-                            else:
-                                log_level = (
-                                    logging.DEBUG
-                                    if suppress_warnings
-                                    else logging.WARNING
-                                )
-                                logger.log(
-                                    log_level,
-                                    f"Concurrency limits {names!r} do not exist - skipping acquisition.",
-                                )
-
-                        return retval
-                    except httpx.HTTPStatusError as exc:
-                        if not exc.response.status_code == 423:  # HTTP_423_LOCKED
-                            raise
-
-                        if max_retries is not None and max_retries <= 0:
-                            raise exc
-                        retry_after = float(exc.response.headers["Retry-After"])
-                        logger.debug(
-                            f"Unable to acquire concurrency slot. Retrying in {retry_after} second(s)."
-                        )
-                        await asyncio.sleep(retry_after)
-                        if max_retries is not None:
-                            max_retries -= 1
+        response = await asyncio.wrap_future(future)
     except TimeoutError as timeout:
         raise AcquireConcurrencySlotTimeoutError(
             f"Attempt to acquire concurrency slots timed out after {timeout_seconds} second(s)"
@@ -151,6 +108,28 @@ async def aacquire_concurrency_slots_with_lease(
         raise ConcurrencySlotAcquisitionError(
             f"Unable to acquire concurrency slots on {names!r}"
         ) from exc
+
+    retval = ConcurrencyLimitWithLeaseResponse.model_validate(response.json())
+
+    if not retval.limits:
+        if strict:
+            raise ConcurrencySlotAcquisitionError(
+                f"Concurrency limits {names!r} must be created before acquiring slots"
+            )
+        else:
+            try:
+                # Use a run logger if available
+                task_logger = get_run_logger()
+            except Exception:
+                task_logger = get_logger("concurrency")
+
+            log_level = logging.DEBUG if suppress_warnings else logging.WARNING
+            task_logger.log(
+                log_level,
+                f"Concurrency limits {names!r} do not exist - skipping acquisition.",
+            )
+
+    return retval
 
 
 async def arelease_concurrency_slots(

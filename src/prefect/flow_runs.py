@@ -249,9 +249,8 @@ async def _in_process_pause(
     if TYPE_CHECKING:
         assert client is not None
 
-    if TaskRunContext.get():
-        raise RuntimeError("Cannot pause task runs.")
-
+    # Get the flow run context - this works even when called from within a task
+    # since both FlowRunContext and TaskRunContext are independently active
     context = FlowRunContext.get()
     if not context:
         raise RuntimeError("Flow runs can only be paused from within a flow run.")
