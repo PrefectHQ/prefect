@@ -7,7 +7,7 @@ before reproducing, `rg` for documentation in `docs/` that may be relevant to th
 if a `repros/` directory already exists (it will be locally gitignored), `rg` for relevant SDK usage to gain context.
 
 
-To reproduce, create a file named by issue number (ie. `1234.py`) in a locally gitignored (.git/info/exclude) `repros/` directory with a minimal reproducible example that reproduces the issue.
+To reproduce, create a file named by issue number (ie. `1234.py`) in a locally gitignored (.git/info/exclude) `repros/` directory with a minimal reproducible example that reproduces the issue. Because `repros/` is gitignored, you should NEVER reference it in a PR body, instead put the entire reproduction script in a python snippet inside a `<details>` tag.
 
 If the reproduction requires external dependencies, use `uv` to inline script dependencies to install them like this:
 
