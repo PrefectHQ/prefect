@@ -162,3 +162,55 @@ def test_format_validation_error_no_deployment_errors():
     # Extra fields are ignored, so this should validate fine
     model = PrefectYamlModel.model_validate(raw_data)
     assert model.deployments == []
+
+
+def test_format_validation_error_with_top_level_field_error():
+    """Test error formatting for top-level field validation errors (issue #19467)."""
+    raw_data = {
+        "prefect-version": 3,  # Should be a string, not an int
+        "deployments": [
+            {
+                "name": "my-deployment",
+                "entrypoint": "flow.py:my_flow",
+            }
+        ],
+    }
+
+    with pytest.raises(ValidationError) as exc_info:
+        PrefectYamlModel.model_validate(raw_data)
+
+    result = _format_validation_error(exc_info.value, raw_data)
+
+    assert "Invalid top-level fields in config file:" in result
+    assert "prefect-version: Input should be a valid string" in result
+    assert "https://docs.prefect.io/v3/how-to-guides/deployments/prefect-yaml" in result
+    # Should not include deployment error section
+    assert "Invalid fields in deployments:" not in result
+
+
+def test_format_validation_error_with_both_top_level_and_deployment_errors():
+    """Test error formatting when both top-level and deployment errors exist."""
+    raw_data = {
+        "name": 123,  # Should be a string
+        "deployments": [
+            {
+                "name": "my-deployment",
+                "entrypoint": "flow.py:my_flow",
+                "tags": {},  # Should be list or string
+            }
+        ],
+    }
+
+    with pytest.raises(ValidationError) as exc_info:
+        PrefectYamlModel.model_validate(raw_data)
+
+    result = _format_validation_error(exc_info.value, raw_data)
+
+    # Should have both sections
+    assert "Invalid top-level fields in config file:" in result
+    assert "name: Input should be a valid string" in result
+    assert "Invalid fields in deployments:" in result
+    assert "my-deployment: tags" in result
+    # Should have both links
+    assert "https://docs.prefect.io/v3/how-to-guides/deployments/prefect-yaml" in result
+    assert "https://docs.prefect.io/v3/concepts/deployments#deployment-schema" in result
