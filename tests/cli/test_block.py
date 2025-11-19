@@ -1,3 +1,4 @@
+import json
 import re
 import uuid
 
@@ -296,6 +297,45 @@ async def test_listing_blocks_after_saving_a_block():
             "wildblock",
             "secret/wildblock",
         ],
+    )
+
+
+async def test_block_ls_json_output():
+    """Test block ls command with JSON output flag."""
+    block_id_1 = await system.Secret(value="test value 1").save("block1")
+    block_id_2 = await system.Secret(value="test value 2").save("block2")
+
+    result = await run_sync_in_worker_thread(
+        invoke_and_assert,
+        command=["block", "ls", "-o", "json"],
+        expected_code=0,
+    )
+
+    output_data = json.loads(result.stdout.strip())
+    assert isinstance(output_data, list)
+
+    output_ids = {item["id"] for item in output_data}
+    assert str(block_id_1) in output_ids
+    assert str(block_id_2) in output_ids
+
+
+def test_block_ls_json_output_empty():
+    """Test block ls with JSON output when no blocks exist."""
+    result = invoke_and_assert(
+        command=["block", "ls", "-o", "json"],
+        expected_code=0,
+    )
+
+    output_data = json.loads(result.stdout.strip())
+    assert output_data == []
+
+
+def test_block_ls_invalid_output_format():
+    """Test block ls with invalid output format."""
+    invoke_and_assert(
+        command=["block", "ls", "-o", "xml"],
+        expected_code=1,
+        expected_output_contains="Only 'json' output format is supported.",
     )
 
 
