@@ -104,6 +104,12 @@ async def ls(
     limit: int = typer.Option(15, help="Maximum number of flow runs to list"),
     state: List[str] = typer.Option(None, help="Name of the flow run's state"),
     state_type: List[str] = typer.Option(None, help="Type of the flow run's state"),
+    output: Optional[str] = typer.Option(
+        None,
+        "--output",
+        "-o",
+        help="Specify an output format. Currently supports: json",
+    ),
 ):
     """
     View recent flow runs or flow runs for specific flows.
@@ -128,6 +134,8 @@ async def ls(
 
     $ prefect flow-runs ls --state-type RUNNING --state-type FAILED
     """
+    if output and output.lower() != "json":
+        exit_with_error("Only 'json' output format is supported.")
 
     # Handling `state` and `state_type` argument validity in the function instead of by specifying
     # List[StateType] and List[StateName] in the type hints, allows users to provide
@@ -193,31 +201,39 @@ async def ls(
         }
 
         if not flow_runs:
+            if output and output.lower() == "json":
+                app.console.print("[]")
+                return
             exit_with_success("No flow runs found.")
 
-    table = Table(title="Flow Runs")
-    table.add_column("ID", justify="right", style="cyan", no_wrap=True)
-    table.add_column("Flow", style="blue", no_wrap=True)
-    table.add_column("Name", style="green", no_wrap=True)
-    table.add_column("State", no_wrap=True)
-    table.add_column("When", style="bold", no_wrap=True)
+    if output and output.lower() == "json":
+        flow_runs_json = [flow_run.model_dump(mode="json") for flow_run in flow_runs]
+        json_output = orjson.dumps(flow_runs_json, option=orjson.OPT_INDENT_2).decode()
+        app.console.print(json_output)
+    else:
+        table = Table(title="Flow Runs")
+        table.add_column("ID", justify="right", style="cyan", no_wrap=True)
+        table.add_column("Flow", style="blue", no_wrap=True)
+        table.add_column("Name", style="green", no_wrap=True)
+        table.add_column("State", no_wrap=True)
+        table.add_column("When", style="bold", no_wrap=True)
 
-    for flow_run in sorted(flow_runs, key=lambda d: d.created, reverse=True):
-        flow = flows_by_id[flow_run.flow_id]
-        timestamp = (
-            flow_run.state.state_details.scheduled_time
-            if flow_run.state.is_scheduled()
-            else flow_run.state.timestamp
-        )
-        table.add_row(
-            str(flow_run.id),
-            str(flow.name),
-            str(flow_run.name),
-            str(flow_run.state.type.value),
-            human_friendly_diff(timestamp),
-        )
+        for flow_run in sorted(flow_runs, key=lambda d: d.created, reverse=True):
+            flow = flows_by_id[flow_run.flow_id]
+            timestamp = (
+                flow_run.state.state_details.scheduled_time
+                if flow_run.state.is_scheduled()
+                else flow_run.state.timestamp
+            )
+            table.add_row(
+                str(flow_run.id),
+                str(flow.name),
+                str(flow_run.name),
+                str(flow_run.state.type.value),
+                human_friendly_diff(timestamp),
+            )
 
-    app.console.print(table)
+        app.console.print(table)
 
 
 @flow_run_app.command()
