@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 import signal
 import subprocess
@@ -178,8 +179,6 @@ def test_inspect_flow_run_with_web_flag_no_ui_url(
 
 def test_inspect_flow_run_with_json_output(flow_run: FlowRun):
     """Test flow-run inspect command with JSON output flag."""
-    import json
-
     result = invoke_and_assert(
         command=["flow-run", "inspect", str(flow_run.id), "--output", "json"],
         expected_code=0,
@@ -353,8 +352,6 @@ def test_ls_json_output(
     running_flow_run: FlowRun,
 ):
     """Test flow-run ls command with JSON output flag."""
-    import json
-
     result = invoke_and_assert(
         command=["flow-run", "ls", "-o", "json"],
         expected_code=0,
@@ -372,8 +369,6 @@ def test_ls_json_output(
 
 def test_ls_json_output_empty():
     """Test flow-run ls with JSON output when no flow runs exist."""
-    import json
-
     result = invoke_and_assert(
         command=["flow-run", "ls", "-o", "json"],
         expected_code=0,
@@ -391,8 +386,6 @@ def test_ls_json_output_with_state_filter(
     running_flow_run: FlowRun,
 ):
     """Test flow-run ls with JSON output and state filter."""
-    import json
-
     result = invoke_and_assert(
         command=["flow-run", "ls", "--state", "Running", "-o", "json"],
         expected_code=0,
