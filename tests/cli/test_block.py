@@ -342,7 +342,7 @@ def test_block_ls_invalid_output_format():
 async def test_block_ls_json_output_obfuscates_secrets():
     """Test block ls with JSON output obfuscates secret values."""
     secret_value = "super-secret-password-12345"
-    await system.Secret(value=secret_value).save("test-secret-block")
+    block_id = await system.Secret(value=secret_value).save("test-secret-block")
 
     result = await run_sync_in_worker_thread(
         invoke_and_assert,
@@ -353,6 +353,14 @@ async def test_block_ls_json_output_obfuscates_secrets():
     output_data = json.loads(result.stdout.strip())
     assert isinstance(output_data, list)
     assert len(output_data) > 0
+
+    test_block = next((item for item in output_data if item["id"] == str(block_id)), None)
+    assert test_block is not None, f"Block {block_id} not found in output"
+
+    obfuscated_value = test_block.get("data", {}).get("value")
+    assert isinstance(obfuscated_value, str), "Expected obfuscated value to be a string"
+    assert obfuscated_value != secret_value, "Secret value should not be in cleartext"
+    assert re.fullmatch(r"\*+", obfuscated_value), f"Expected obfuscated value to be asterisks, got: {obfuscated_value}"
 
     json_str = result.stdout
     assert secret_value not in json_str
