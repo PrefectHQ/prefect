@@ -11,8 +11,9 @@ from pydantic import Field, field_validator
 
 from prefect import task
 from prefect.blocks.abstract import ObjectStorageBlock
+from prefect.exceptions import MissingContextError
 from prefect.filesystems import WritableDeploymentStorage, WritableFileSystem
-from prefect.logging import get_run_logger
+from prefect.logging import get_logger, get_run_logger
 from prefect.utilities.asyncutils import run_sync_in_worker_thread, sync_compatible
 from prefect.utilities.filesystem import filter_files
 
@@ -159,7 +160,10 @@ async def cloud_storage_download_blob_as_bytes(
         example_cloud_storage_download_blob_flow()
         ```
     """
-    logger = get_run_logger()
+    try:
+        logger = get_run_logger()
+    except MissingContextError:
+        logger = get_logger("prefect.gcp.cloud_storage")
     logger.info("Downloading blob named %s from the %s bucket", blob, bucket)
 
     bucket_obj = await _get_bucket_async(bucket, gcp_credentials, project=project)
@@ -228,7 +232,10 @@ async def cloud_storage_download_blob_to_file(
         example_cloud_storage_download_blob_flow()
         ```
     """
-    logger = get_run_logger()
+    try:
+        logger = get_run_logger()
+    except MissingContextError:
+        logger = get_logger("prefect.gcp.cloud_storage")
     logger.info(
         "Downloading blob named %s from the %s bucket to %s", blob, bucket, path
     )
@@ -306,7 +313,10 @@ async def cloud_storage_upload_blob_from_string(
         example_cloud_storage_upload_blob_from_string_flow()
         ```
     """
-    logger = get_run_logger()
+    try:
+        logger = get_run_logger()
+    except MissingContextError:
+        logger = get_logger("prefect.gcp.cloud_storage")
     logger.info("Uploading blob named %s to the %s bucket", blob, bucket)
 
     bucket_obj = await _get_bucket_async(bucket, gcp_credentials, project=project)
