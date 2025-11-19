@@ -339,6 +339,25 @@ def test_block_ls_invalid_output_format():
     )
 
 
+async def test_block_ls_json_output_obfuscates_secrets():
+    """Test block ls with JSON output obfuscates secret values."""
+    secret_value = "super-secret-password-12345"
+    await system.Secret(value=secret_value).save("test-secret-block")
+
+    result = await run_sync_in_worker_thread(
+        invoke_and_assert,
+        command=["block", "ls", "-o", "json"],
+        expected_code=0,
+    )
+
+    output_data = json.loads(result.stdout.strip())
+    assert isinstance(output_data, list)
+    assert len(output_data) > 0
+
+    json_str = result.stdout
+    assert secret_value not in json_str
+
+
 def test_listing_system_block_types(register_block_types):
     expected_output = (
         "Block Types",

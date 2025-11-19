@@ -271,7 +271,7 @@ async def block_ls(
         exit_with_error("Only 'json' output format is supported.")
 
     async with get_client() as client:
-        blocks = await client.read_block_documents()
+        blocks = await client.read_block_documents(include_secrets=False)
 
     if not blocks:
         if output and output.lower() == "json":
