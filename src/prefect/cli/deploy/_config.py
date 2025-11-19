@@ -19,12 +19,14 @@ from ._models import PrefectYamlModel
 
 def _format_validation_error(exc: ValidationError, raw_data: dict[str, Any]) -> str:
     """Format Pydantic validation errors into user-friendly messages."""
-    errors: dict[str, set[str]] = {}
+    deployment_errors: dict[str, set[str]] = {}
+    top_level_errors: list[tuple[str, str]] = []
 
     for error in exc.errors():
         loc = error.get("loc", ())
+        msg = error.get("msg", "Invalid value")
 
-        # Get deployment context
+        # Handle deployment-level errors
         if len(loc) >= 2 and loc[0] == "deployments" and isinstance(loc[1], int):
             idx = loc[1]
             deployments = raw_data.get("deployments", [])
@@ -44,19 +46,38 @@ def _format_validation_error(exc: ValidationError, raw_data: dict[str, Any]) -> 
 
             if field_parts:
                 field = field_parts[0]  # Just use the top-level field
-                if name not in errors:
-                    errors[name] = set()
-                errors[name].add(field)
+                if name not in deployment_errors:
+                    deployment_errors[name] = set()
+                deployment_errors[name].add(field)
+        # Handle top-level field errors (prefect-version, name, build, push, pull, etc.)
+        elif len(loc) >= 1 and isinstance(loc[0], str):
+            field_name = loc[0]
+            top_level_errors.append((field_name, msg))
 
-    if not errors:
+    if not deployment_errors and not top_level_errors:
         return "Validation error in config file"
 
-    lines = ["Invalid fields in deployments:\n"]
-    for name, fields in sorted(errors.items()):
-        lines.append(f"  • {name}: {', '.join(sorted(fields))}")
-    lines.append(
-        "\nFor valid deployment fields and examples, go to: https://docs.prefect.io/v3/concepts/deployments#deployment-schema"
-    )
+    lines = []
+
+    # Format top-level errors
+    if top_level_errors:
+        lines.append("Invalid top-level fields in config file:\n")
+        for field_name, msg in top_level_errors:
+            lines.append(f"  • {field_name}: {msg}")
+        lines.append(
+            "\nFor valid prefect.yaml fields, see: https://docs.prefect.io/v3/how-to-guides/deployments/prefect-yaml"
+        )
+
+    # Format deployment-level errors
+    if deployment_errors:
+        if top_level_errors:
+            lines.append("")  # blank line separator
+        lines.append("Invalid fields in deployments:\n")
+        for name, fields in sorted(deployment_errors.items()):
+            lines.append(f"  • {name}: {', '.join(sorted(fields))}")
+        lines.append(
+            "\nFor valid deployment fields and examples, go to: https://docs.prefect.io/v3/concepts/deployments#deployment-schema"
+        )
 
     return "\n".join(lines)
 
