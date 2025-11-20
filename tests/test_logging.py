@@ -910,13 +910,13 @@ class TestAPILogHandler:
         ):
             assert PREFECT_LOGGING_TO_API_MAX_LOG_SIZE.value() == 10_000
 
-    def test_max_log_size_capped_by_cloud_setting(self):
+    def test_max_log_size_respects_custom_value_on_cloud(self):
         with temporary_settings(
             set_defaults={PREFECT_API_URL: "https://api.prefect.cloud/api"},
             updates={PREFECT_LOGGING_TO_API_MAX_LOG_SIZE: 1_000_000},
             restore_defaults={PREFECT_LOGGING_TO_API_MAX_LOG_SIZE},
         ):
-            assert PREFECT_LOGGING_TO_API_MAX_LOG_SIZE.value() == 25_000
+            assert PREFECT_LOGGING_TO_API_MAX_LOG_SIZE.value() == 1_000_000
 
     def test_max_log_size_does_not_change_for_self_hosted(self):
         with temporary_settings(
