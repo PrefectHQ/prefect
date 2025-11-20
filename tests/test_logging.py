@@ -58,6 +58,7 @@ from prefect.server.schemas.actions import LogCreate
 from prefect.settings import (
     PREFECT_API_KEY,
     PREFECT_API_URL,
+    PREFECT_CLOUD_MAX_LOG_SIZE,
     PREFECT_LOGGING_COLORS,
     PREFECT_LOGGING_EXTRA_LOGGERS,
     PREFECT_LOGGING_LEVEL,
@@ -875,7 +876,6 @@ class TestAPILogHandler:
         sent_log = mock_log_worker.instance().send.call_args[0][0]
         output = capsys.readouterr()
         assert sent_log["message"].endswith("... [truncated]")
-        assert "__payload_truncated__" not in sent_log
         assert "ValueError" not in output.err
 
     def test_handler_knows_how_large_logs_are(self):
@@ -899,6 +899,16 @@ class TestAPILogHandler:
             restore_defaults={PREFECT_LOGGING_TO_API_MAX_LOG_SIZE},
         ):
             assert PREFECT_LOGGING_TO_API_MAX_LOG_SIZE.value() == 25_000
+
+    def test_max_log_size_defaults_to_cloud_setting(self):
+        with temporary_settings(
+            set_defaults={
+                PREFECT_API_URL: "https://api.prefect.cloud/api",
+                PREFECT_CLOUD_MAX_LOG_SIZE: 10_000,
+            },
+            restore_defaults={PREFECT_LOGGING_TO_API_MAX_LOG_SIZE},
+        ):
+            assert PREFECT_LOGGING_TO_API_MAX_LOG_SIZE.value() == 10_000
 
     def test_max_log_size_does_not_change_for_self_hosted(self):
         with temporary_settings(

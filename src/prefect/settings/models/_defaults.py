@@ -150,3 +150,14 @@ def default_ui_url(settings: "Settings") -> str | None:
     ui_url = ui_url.replace("/workspaces/", "/workspace/")
 
     return ui_url
+
+
+def default_logging_to_api_max_log_size(settings: "Settings") -> int:
+    """Default log size for API logging, honoring Cloud limits when connected."""
+    cloud_api_url = settings.cloud.api_url
+    api_url = settings.api.url
+
+    if api_url and cloud_api_url and api_url.startswith(cloud_api_url):
+        return settings.cloud.max_log_size
+
+    return 1_000_000

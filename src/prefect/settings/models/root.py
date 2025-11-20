@@ -23,6 +23,7 @@ from prefect.utilities.collections import deep_merge_dicts, set_in_dict
 
 from ._defaults import (
     default_database_connection_url,
+    default_logging_to_api_max_log_size,
     default_profiles_path,
     default_ui_url,
     substitute_home_template,
@@ -237,14 +238,8 @@ class Settings(PrefectBaseSettings):
             self.server.database.connection_url = SecretStr(db_url)
             self.server.database.__pydantic_fields_set__.remove("connection_url")
 
-        cloud_api_url = self.cloud.api_url
-        if (
-            self.api.url
-            and cloud_api_url
-            and self.api.url.startswith(cloud_api_url)
-            and "max_log_size" not in self.logging.to_api.__pydantic_fields_set__
-        ):
-            self.logging.to_api.max_log_size = 25_000
+        if "max_log_size" not in self.logging.to_api.__pydantic_fields_set__:
+            self.logging.to_api.max_log_size = default_logging_to_api_max_log_size(self)
             self.logging.to_api.__pydantic_fields_set__.discard("max_log_size")
 
         return self
