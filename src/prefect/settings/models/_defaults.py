@@ -154,10 +154,11 @@ def default_ui_url(settings: "Settings") -> str | None:
 
 def default_logging_to_api_max_log_size(settings: "Settings") -> int:
     """Default log size for API logging, honoring Cloud limits when connected."""
+    base_max_log_size = settings.logging.to_api.max_log_size
     cloud_api_url = settings.cloud.api_url
     api_url = settings.api.url
 
     if api_url and cloud_api_url and api_url.startswith(cloud_api_url):
         return settings.cloud.max_log_size
 
-    return 1_000_000
+    return base_max_log_size
