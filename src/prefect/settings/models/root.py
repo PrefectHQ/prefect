@@ -237,6 +237,16 @@ class Settings(PrefectBaseSettings):
             self.server.database.connection_url = SecretStr(db_url)
             self.server.database.__pydantic_fields_set__.remove("connection_url")
 
+        cloud_api_url = self.cloud.api_url
+        if (
+            self.api.url
+            and cloud_api_url
+            and self.api.url.startswith(cloud_api_url)
+            and "max_log_size" not in self.logging.to_api.__pydantic_fields_set__
+        ):
+            self.logging.to_api.max_log_size = 25_000
+            self.logging.to_api.__pydantic_fields_set__.discard("max_log_size")
+
         return self
 
     @model_validator(mode="after")
