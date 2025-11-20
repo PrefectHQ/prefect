@@ -173,6 +173,84 @@ This change affects you if: you rely on side effects in your tasks
 
 Prefect 3.0 introduces a powerful idempotency engine. By default, tasks in a flow run are automatically cached if they are called more than once with the same inputs. If you rely on tasks with side effects, this may result in surprising behavior. To disable caching, pass `cache_policy=None` to your task.
 
+### Unmapped mutable objects in mapped tasks
+
+<info>
+This change affects you if: you use `unmapped()` to pass mutable objects (like lists or dicts) to mapped tasks.
+</info>
+
+In Prefect 2.0, when passing a mutable object (such as a list or dict) using `unmapped()` to a mapped task, each task instance appeared to receive an independent copy of the object. In Prefect 3.0, the unmapped object is shared by reference across all mapped task runs. If any task mutates the object, all other concurrently running tasks will see those mutations, potentially causing race conditions and unexpected behavior.
+
+<Warning>
+When migrating from Prefect 2.0 to Prefect 3, be aware that mutable objects passed via `unmapped()` are now shared across all mapped tasks. Mutating these objects can lead to race conditions.
+</Warning>
+
+To avoid this issue, create a copy of the mutable object within each task before modifying it:
+
+<CodeGroup>
+```python Problematic (Prefect 3.0)
+from prefect import flow, task, unmapped
+
+@task
+def process_item(item: str, shared_state: dict):
+    # This mutation affects ALL tasks!
+    shared_state["current_item"] = item
+    # Race condition: another task may overwrite this before we read it
+    print(f"Processing {shared_state['current_item']}")
+
+@flow
+def my_flow():
+    shared_state = {"current_item": None}
+
+    # All tasks share the same dict reference
+    process_item.map(
+        item=["A", "B", "C"],
+        shared_state=unmapped(shared_state)
+    )
+```
+
+```python Recommended (Prefect 3.0)
+from prefect import flow, task, unmapped
+from copy import deepcopy
+
+@task
+def process_item(item: str, shared_state: dict):
+    # Create a copy for this task
+    local_state = deepcopy(shared_state)
+    local_state["current_item"] = item
+    print(f"Processing {local_state['current_item']}")
+
+@flow
+def my_flow():
+    shared_state = {"current_item": None}
+
+    process_item.map(
+        item=["A", "B", "C"],
+        shared_state=unmapped(shared_state)
+    )
+```
+
+```python Alternative: Pass immutable values
+from prefect import flow, task, unmapped
+
+@task
+def process_item(item: str, config_value: str):
+    # Immutable strings are safe to share
+    print(f"Processing {item} with config: {config_value}")
+
+@flow
+def my_flow():
+    config = "production"
+
+    process_item.map(
+        item=["A", "B", "C"],
+        config_value=unmapped(config)
+    )
+```
+</CodeGroup>
+
+If you need to share read-only configuration or settings across tasks, consider using immutable types (strings, tuples, frozen dataclasses) instead of mutable objects.
+
 ### Workers
 
 <info>
