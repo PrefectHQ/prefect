@@ -464,10 +464,12 @@ class PrefectDbtRunner:
         """Background worker thread that processes queued events."""
         while not self._shutdown_event.is_set():
             event_data = None
+            item_retrieved = False
             try:
                 # Get event with timeout to periodically check shutdown
                 # PriorityQueue returns (priority, counter, item) tuples
                 _, _, event_data = self._event_queue.get(timeout=0.1)
+                item_retrieved = True
                 if event_data is None:  # Sentinel to shutdown
                     break
 
@@ -478,7 +480,8 @@ class PrefectDbtRunner:
                 continue
             finally:
                 # Always call task_done() exactly once per successfully retrieved item
-                if event_data is not None:
+                # This includes the None sentinel used for shutdown
+                if item_retrieved:
                     self._event_queue.task_done()
 
     def _get_event_priority(self, event: EventMsg) -> int:
