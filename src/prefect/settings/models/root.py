@@ -238,8 +238,18 @@ class Settings(PrefectBaseSettings):
             self.server.database.connection_url = SecretStr(db_url)
             self.server.database.__pydantic_fields_set__.remove("connection_url")
 
+        is_cloud_api = (
+            self.api.url
+            and self.cloud.api_url
+            and self.api.url.startswith(self.cloud.api_url)
+        )
+
         if "max_log_size" not in self.logging.to_api.__pydantic_fields_set__:
             self.logging.to_api.max_log_size = default_logging_to_api_max_log_size(self)
+            self.logging.to_api.__pydantic_fields_set__.discard("max_log_size")
+
+        if is_cloud_api and self.logging.to_api.max_log_size > self.cloud.max_log_size:
+            self.logging.to_api.max_log_size = self.cloud.max_log_size
             self.logging.to_api.__pydantic_fields_set__.discard("max_log_size")
 
         return self
