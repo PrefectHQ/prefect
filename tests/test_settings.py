@@ -216,7 +216,7 @@ SUPPORTED_SETTINGS = {
     "PREFECT_CLI_WRAP_LINES": {"test_value": True},
     "PREFECT_CLOUD_API_URL": {"test_value": "https://cloud.prefect.io"},
     "PREFECT_CLOUD_ENABLE_ORCHESTRATION_TELEMETRY": {"test_value": True},
-    "PREFECT_CLOUD_MAX_LOG_SIZE": {"test_value": 30_000},
+    "PREFECT_CLOUD_MAX_LOG_SIZE": {"test_value": 25_000},
     "PREFECT_CLOUD_UI_URL": {"test_value": "https://cloud.prefect.io"},
     "PREFECT_DEBUG_MODE": {"test_value": True},
     "PREFECT_DEFAULT_DOCKER_BUILD_NAMESPACE": {"test_value": "prefect", "legacy": True},
