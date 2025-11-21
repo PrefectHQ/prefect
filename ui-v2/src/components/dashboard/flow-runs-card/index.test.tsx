@@ -214,6 +214,7 @@ describe("FlowRunsCard", () => {
 			flow_runs: {
 				operator: "and_",
 				parent_task_run_id: {
+					operator: "and_",
 					is_null_: true,
 				},
 			},
@@ -260,6 +261,7 @@ describe("FlowRunsCard", () => {
 					all_: ["production"],
 				},
 				parent_task_run_id: {
+					operator: "and_",
 					is_null_: true,
 				},
 			},

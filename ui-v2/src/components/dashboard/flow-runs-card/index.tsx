@@ -39,6 +39,7 @@ export function FlowRunsCard({ filter }: FlowRunsCardProps) {
 
 		if (filter?.hideSubflows) {
 			flowRunsFilterObj.parent_task_run_id = {
+				operator: "and_",
 				is_null_: true,
 			};
 		}
