@@ -74,6 +74,8 @@ from prefect.workers.base import (
     BaseWorkerResult,
 )
 
+pytestmark = pytest.mark.usefixtures("asserting_events_worker")
+
 
 class WorkerTestImpl(BaseWorker[BaseJobConfiguration, Any, BaseWorkerResult]):
     type: str = "test"
