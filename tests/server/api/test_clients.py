@@ -273,3 +273,43 @@ async def test_get_orchestration_client_after_create_app_final():
     #
     #    AttributeError: 'PrefectRouter' object has no attribute 'routes'. Did you mean: 'route'?
     OrchestrationClient()
+
+
+async def test_orchestration_client_works_with_readonly_ui_directory():
+    """
+    Regression test for https://github.com/PrefectHQ/prefect/issues/19317
+
+    OrchestrationClient should not fail when the UI static directory is read-only,
+    as it doesn't need the UI (it uses in-memory ASGI transport).
+
+    This simulates the scenario where background services run in read-only containers
+    (common security practice) and need to use OrchestrationClient for API calls.
+    """
+    import os
+    import tempfile
+
+    from prefect.settings import PREFECT_UI_STATIC_DIRECTORY
+
+    # Create a read-only directory to simulate rootless/secure containers
+    with tempfile.TemporaryDirectory() as tmpdir:
+        readonly_dir = os.path.join(tmpdir, "readonly")
+        os.makedirs(readonly_dir)
+        os.chmod(readonly_dir, 0o555)  # Read + execute only, no write
+
+        ui_static_dir = os.path.join(readonly_dir, "ui_build")
+
+        try:
+            # Point UI static directory to the read-only location
+            with temporary_settings(
+                updates={PREFECT_UI_STATIC_DIRECTORY: ui_static_dir}
+            ):
+                # This should NOT raise PermissionError
+                # Background services don't need UI, so it should skip UI directory creation
+                client = OrchestrationClient()
+
+                # Verify the client is functional
+                assert client._http_client is not None
+                assert "/api" in client._http_client.base_url.path
+        finally:
+            # Clean up: restore write permissions so tempdir can be deleted
+            os.chmod(readonly_dir, 0o755)
