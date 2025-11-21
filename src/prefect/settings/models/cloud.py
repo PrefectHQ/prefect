@@ -45,6 +45,11 @@ class CloudSettings(PrefectBaseSettings):
         description="Whether or not to enable orchestration telemetry.",
     )
 
+    max_log_size: int = Field(
+        default=25_000,
+        description="Maximum size in characters for a single log when sending logs to Prefect Cloud.",
+    )
+
     ui_url: Optional[str] = Field(
         default=None,
         description="The URL of the Prefect Cloud UI. If not set, the client will attempt to infer it.",
