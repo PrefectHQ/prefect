@@ -893,43 +893,59 @@ class TestAPILogHandler:
         handler = APILogHandler()
         assert handler._get_payload_size(dict_log) == log_size  # type: ignore[reportPrivateUsage]
 
+    @pytest.mark.usefixtures("disable_hosted_api_server")
     def test_max_log_size_defaults_to_cloud_value(self):
         with temporary_settings(
-            set_defaults={PREFECT_API_URL: "https://api.prefect.cloud/api"},
+            updates={PREFECT_API_URL: "https://api.prefect.cloud/api"},
             restore_defaults={PREFECT_LOGGING_TO_API_MAX_LOG_SIZE},
-        ):
-            assert PREFECT_LOGGING_TO_API_MAX_LOG_SIZE.value() == 25_000
+        ) as settings:
+            assert settings.logging.to_api.max_log_size == 25_000
 
+    @pytest.mark.usefixtures("disable_hosted_api_server")
     def test_max_log_size_defaults_to_cloud_setting(self):
         with temporary_settings(
-            set_defaults={
+            updates={
                 PREFECT_API_URL: "https://api.prefect.cloud/api",
                 PREFECT_CLOUD_MAX_LOG_SIZE: 10_000,
             },
             restore_defaults={PREFECT_LOGGING_TO_API_MAX_LOG_SIZE},
-        ):
-            assert PREFECT_LOGGING_TO_API_MAX_LOG_SIZE.value() == 10_000
+        ) as settings:
+            assert settings.logging.to_api.max_log_size == 10_000
 
-    def test_max_log_size_respects_custom_value_on_cloud(self):
+    @pytest.mark.usefixtures("disable_hosted_api_server")
+    def test_max_log_size_respects_custom_value_lower_than_cloud(self):
         with temporary_settings(
-            set_defaults={PREFECT_API_URL: "https://api.prefect.cloud/api"},
-            updates={PREFECT_LOGGING_TO_API_MAX_LOG_SIZE: 1_000_000},
-            restore_defaults={PREFECT_LOGGING_TO_API_MAX_LOG_SIZE},
-        ):
-            assert PREFECT_LOGGING_TO_API_MAX_LOG_SIZE.value() == 1_000_000
+            updates={
+                PREFECT_API_URL: "https://api.prefect.cloud/api",
+                PREFECT_LOGGING_TO_API_MAX_LOG_SIZE: 10_000,
+            },
+        ) as settings:
+            assert settings.logging.to_api.max_log_size == 10_000
 
+    @pytest.mark.usefixtures("disable_hosted_api_server")
+    def test_max_log_size_capped_at_cloud_max(self):
+        with temporary_settings(
+            updates={
+                PREFECT_API_URL: "https://api.prefect.cloud/api",
+                PREFECT_LOGGING_TO_API_MAX_LOG_SIZE: 1_000_000,
+            },
+        ) as settings:
+            assert settings.logging.to_api.max_log_size == 25_000
+
+    @pytest.mark.usefixtures("disable_hosted_api_server")
     def test_max_log_size_does_not_change_for_self_hosted(self):
         with temporary_settings(
-            set_defaults={PREFECT_API_URL: "http://example.com/api"},
+            updates={PREFECT_API_URL: "http://example.com/api"},
             restore_defaults={PREFECT_LOGGING_TO_API_MAX_LOG_SIZE},
-        ):
-            assert PREFECT_LOGGING_TO_API_MAX_LOG_SIZE.value() == 1_000_000
+        ) as settings:
+            assert settings.logging.to_api.max_log_size == 1_000_000
 
+    @pytest.mark.usefixtures("disable_hosted_api_server")
     def test_max_log_size_default_when_not_connected(self):
         with temporary_settings(
             restore_defaults={PREFECT_API_URL, PREFECT_LOGGING_TO_API_MAX_LOG_SIZE}
-        ):
-            assert PREFECT_LOGGING_TO_API_MAX_LOG_SIZE.value() == 1_000_000
+        ) as settings:
+            assert settings.logging.to_api.max_log_size == 1_000_000
 
 
 WORKER_ID = uuid.uuid4()

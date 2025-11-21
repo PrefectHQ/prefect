@@ -859,6 +859,41 @@ class TestSettingsClass:
             "valid_setting_names output did not match supported settings. Please update SUPPORTED_SETTINGS if you are adding or removing a setting."
         )
 
+    @pytest.mark.usefixtures("disable_hosted_api_server")
+    def test_connected_to_cloud_true_when_api_url_matches_cloud(self):
+        with temporary_settings(
+            updates={PREFECT_API_URL: "https://api.prefect.cloud/api"}
+        ) as settings:
+            assert settings.connected_to_cloud is True
+
+    @pytest.mark.usefixtures("disable_hosted_api_server")
+    def test_connected_to_cloud_true_with_accounts_subdomain(self):
+        with temporary_settings(
+            updates={
+                PREFECT_API_URL: "https://api.prefect.cloud/api/accounts/foo/workspaces/bar"
+            }
+        ) as settings:
+            assert settings.connected_to_cloud is True
+
+    @pytest.mark.usefixtures("disable_hosted_api_server")
+    def test_connected_to_cloud_false_for_self_hosted(self):
+        with temporary_settings(
+            updates={PREFECT_API_URL: "http://localhost:4200/api"}
+        ) as settings:
+            assert settings.connected_to_cloud is False
+
+    @pytest.mark.usefixtures("disable_hosted_api_server")
+    def test_connected_to_cloud_false_when_no_api_url(self):
+        with temporary_settings(restore_defaults={PREFECT_API_URL}) as settings:
+            assert settings.connected_to_cloud is False
+
+    @pytest.mark.usefixtures("disable_hosted_api_server")
+    def test_connected_to_cloud_false_with_different_domain(self):
+        with temporary_settings(
+            updates={PREFECT_API_URL: "https://example.com/api"}
+        ) as settings:
+            assert settings.connected_to_cloud is False
+
 
 class TestSettingAccess:
     def test_get_value_root_setting(self):
