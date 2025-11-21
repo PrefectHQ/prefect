@@ -57,8 +57,8 @@ class LoggingToAPISettings(PrefectBaseSettings):
     max_log_size: int = Field(
         default=1_000_000,
         description=(
-            "The maximum size in bytes for a single log. Defaults to `PREFECT_CLOUD_MAX_LOG_SIZE`"
-            " when connected to Prefect Cloud, otherwise 1,000,000."
+            "The maximum size in characters for a single log. When connected to Prefect Cloud, "
+            "this value is capped at `PREFECT_CLOUD_MAX_LOG_SIZE` (default 25,000)."
         ),
     )
 

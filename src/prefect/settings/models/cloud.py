@@ -47,7 +47,7 @@ class CloudSettings(PrefectBaseSettings):
 
     max_log_size: int = Field(
         default=25_000,
-        description="Maximum log size allowed when sending logs to Prefect Cloud.",
+        description="Maximum size in characters for a single log when sending logs to Prefect Cloud.",
     )
 
     ui_url: Optional[str] = Field(
