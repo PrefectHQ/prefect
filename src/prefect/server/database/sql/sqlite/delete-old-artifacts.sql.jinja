@@ -1,0 +1,21 @@
+-- Deletes artifacts in batch that have no associated flow runs with them - meaning their associated flow runs have been deleted.
+--
+-- SQLite version - has some limitations compared to PostgreSQL:
+-- - No DELETE...USING (uses WHERE IN with subquery instead)
+-- - No FOR UPDATE SKIP LOCKED (not needed for SQLite's locking model)
+-- - RETURNING is supported in SQLite 3.35+
+--
+-- Parameters:
+--   :limit  - Maximum number of artifacts to delete
+
+WITH doomed_artifacts AS (
+    SELECT artifact.id as id
+    FROM artifact
+    LEFT OUTER JOIN flow_run ON artifact.flow_run_id = flow_run.id
+    WHERE flow_run.id IS NULL
+    ORDER BY artifact.flow_run_id, artifact.created ASC
+    LIMIT :limit
+)
+DELETE FROM artifact
+WHERE id IN (SELECT id FROM doomed_artifacts)
+RETURNING (SELECT COUNT(*) FROM doomed_artifacts)

@@ -39,6 +39,7 @@ def _known_service_modules() -> list[ModuleType]:
     from prefect.server.logs import stream as logs_stream
     from prefect.server.services import (
         cancellation_cleanup,
+        db_vacuum,
         foreman,
         late_runs,
         pause_expirations,
@@ -51,6 +52,7 @@ def _known_service_modules() -> list[ModuleType]:
     return [
         # Orchestration services
         cancellation_cleanup,
+        db_vacuum,
         foreman,
         late_runs,
         pause_expirations,
