@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 import signal
 import subprocess
@@ -178,8 +179,6 @@ def test_inspect_flow_run_with_web_flag_no_ui_url(
 
 def test_inspect_flow_run_with_json_output(flow_run: FlowRun):
     """Test flow-run inspect command with JSON output flag."""
-    import json
-
     result = invoke_and_assert(
         command=["flow-run", "inspect", str(flow_run.id), "--output", "json"],
         expected_code=0,
@@ -345,6 +344,70 @@ def test_ls_limit(
             found_count += 1
 
     assert found_count == 2
+
+
+def test_ls_json_output(
+    scheduled_flow_run: FlowRun,
+    completed_flow_run: FlowRun,
+    running_flow_run: FlowRun,
+):
+    """Test flow-run ls command with JSON output flag."""
+    result = invoke_and_assert(
+        command=["flow-run", "ls", "-o", "json"],
+        expected_code=0,
+    )
+
+    # Parse JSON output and verify it's valid JSON array
+    output_data = json.loads(result.stdout.strip())
+    assert isinstance(output_data, list)
+
+    output_ids = {item["id"] for item in output_data}
+    assert str(scheduled_flow_run.id) in output_ids
+    assert str(completed_flow_run.id) in output_ids
+    assert str(running_flow_run.id) in output_ids
+
+
+def test_ls_json_output_empty():
+    """Test flow-run ls with JSON output when no flow runs exist."""
+    result = invoke_and_assert(
+        command=["flow-run", "ls", "-o", "json"],
+        expected_code=0,
+    )
+
+    output_data = json.loads(result.stdout.strip())
+    assert output_data == []
+
+    assert "No flow runs found" not in result.stdout
+
+
+def test_ls_json_output_with_state_filter(
+    scheduled_flow_run: FlowRun,
+    completed_flow_run: FlowRun,
+    running_flow_run: FlowRun,
+):
+    """Test flow-run ls with JSON output and state filter."""
+    result = invoke_and_assert(
+        command=["flow-run", "ls", "--state", "Running", "-o", "json"],
+        expected_code=0,
+    )
+
+    # Parse JSON output
+    output_data = json.loads(result.stdout.strip())
+    assert isinstance(output_data, list)
+
+    output_ids = {item["id"] for item in output_data}
+    assert str(running_flow_run.id) in output_ids
+    assert str(scheduled_flow_run.id) not in output_ids
+    assert str(completed_flow_run.id) not in output_ids
+
+
+def test_ls_invalid_output_format():
+    """Test flow-run ls with invalid output format."""
+    invoke_and_assert(
+        command=["flow-run", "ls", "-o", "xml"],
+        expected_code=1,
+        expected_output_contains="Only 'json' output format is supported.",
+    )
 
 
 class TestCancelFlowRun:

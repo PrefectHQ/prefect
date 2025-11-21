@@ -246,13 +246,6 @@ async def _run_single_deploy(
             console=app.console, deploy_config=deploy_config, actions=actions
         )
 
-    if trigger_specs := _gather_deployment_trigger_definitions(
-        options.get("triggers"), deploy_config.get("triggers")
-    ):
-        triggers = _initialize_deployment_triggers(deployment_name, trigger_specs)
-    else:
-        triggers = []
-
     # Prefer the originally captured pull_steps (taken before resolution) to
     # preserve unresolved block placeholders in the deployment spec. Only fall
     # back to the config/actions/default if no pull steps were provided.
@@ -303,9 +296,35 @@ async def _run_single_deploy(
 
     _schedules = deploy_config.pop("schedules")
 
+    # Save triggers before templating to preserve event template parameters
+    _triggers = deploy_config.pop("triggers", None)
+
     deploy_config = apply_values(deploy_config, step_outputs, warn_on_notset=True)
     deploy_config["parameter_openapi_schema"] = _parameter_schema
     deploy_config["schedules"] = _schedules
+
+    # This initialises triggers after templating to ensure that jinja variables are resolved
+    # Use the pre-templated trigger specs to preserve event template parameters like {{ event.name }}
+    # while still applying templating to trigger-level fields like enabled
+    if trigger_specs := _gather_deployment_trigger_definitions(
+        options.get("triggers"), _triggers
+    ):
+        # Apply templating only to non-parameter trigger fields to preserve event templates
+        templated_trigger_specs = []
+        for spec in trigger_specs:
+            # Save parameters before templating
+            parameters = spec.pop("parameters", None)
+            # Apply templating to trigger fields (e.g., enabled)
+            templated_spec = apply_values(spec, step_outputs, warn_on_notset=False)
+            # Restore parameters without templating
+            if parameters is not None:
+                templated_spec["parameters"] = parameters
+            templated_trigger_specs.append(templated_spec)
+        triggers = _initialize_deployment_triggers(
+            deployment_name, templated_trigger_specs
+        )
+    else:
+        triggers = []
 
     if isinstance(deploy_config.get("concurrency_limit"), dict):
         deploy_config["concurrency_options"] = {
