@@ -262,7 +262,6 @@ class APILogHandler(logging.Handler):
                 message=truncated_message,
             ).model_dump(mode="json")
 
-            log["__payload_truncated__"] = True
             log["__payload_size__"] = self._get_payload_size(log)
 
         return log
