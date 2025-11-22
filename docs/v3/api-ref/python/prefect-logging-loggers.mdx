@@ -132,7 +132,7 @@ If `print` sends data to a file other than `sys.stdout` or `sys.stderr`, it will
 not be forwarded to the Prefect logger either.
 
 
-### `patch_print` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/logging/loggers.py#L312" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `patch_print` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/logging/loggers.py#L334" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 patch_print()
@@ -169,7 +169,7 @@ getChild(self, suffix: str, extra: dict[str, Any] | None = None) -> 'PrefectLogA
 process(self, msg: str, kwargs: MutableMapping[str, Any]) -> tuple[str, MutableMapping[str, Any]]
 ```
 
-### `LogEavesdropper` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/logging/loggers.py#L327" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `LogEavesdropper` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/logging/loggers.py#L349" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 A context manager that collects logs for the duration of the context
@@ -192,7 +192,7 @@ Another one!"
 
 **Methods:**
 
-#### `emit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/logging/loggers.py#L380" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `emit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/logging/loggers.py#L402" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 emit(self, record: LogRecord) -> None
@@ -201,7 +201,7 @@ emit(self, record: LogRecord) -> None
 The logging.Handler implementation, not intended to be called directly.
 
 
-#### `text` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/logging/loggers.py#L384" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `text` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/logging/loggers.py#L406" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 text(self) -> str

@@ -70,14 +70,14 @@ Each service can be excluded here as well.
 ### `build_image` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/dev.py#L227" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-build_image(arch: str = typer.Option(None, help=f'The architecture to build the container for. Defaults to the architecture of the host Python. [default: {platform.machine()}]'), python_version: str = typer.Option(None, help=f'The Python version to build the container for. Defaults to the version of the host Python. [default: {python_version_minor()}]'), flavor: str = typer.Option(None, help="An alternative flavor to build, for example 'conda'. Defaults to the standard Python base image"), dry_run: bool = False)
+build_image(arch: str = typer.Option(None, help=f'The architecture to build the container for. Defaults to the architecture of the host Python. [default: {platform.machine()}]'), python_version: str = typer.Option(None, help=f'The Python version to build the container for. Defaults to the version of the host Python. [default: {python_version_minor()}]'), flavor: str = typer.Option(None, help="An alternative flavor to build, for example 'conda'. Defaults to the standard Python base image"), build_arg: list[str] = typer.Option([], help='This will directly pass a --build-arg into the docker build process. Can be added to the command line multiple times.'), dry_run: bool = False)
 ```
 
 
 Build a docker image for development.
 
 
-### `container` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/dev.py#L296" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `container` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/dev.py#L306" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 container(bg: bool = False, name = 'prefect-dev', api: bool = True, tag: Optional[str] = None)

@@ -7,19 +7,19 @@ sidebarTitle: __init__
 
 ## Functions
 
-### `check_variable_value` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/types/__init__.py#L75" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `check_variable_value` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/types/__init__.py#L107" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 check_variable_value(value: object) -> object
 ```
 
-### `cast_none_to_empty_dict` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/types/__init__.py#L95" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `cast_none_to_empty_dict` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/types/__init__.py#L127" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 cast_none_to_empty_dict(value: Any) -> dict[str, Any]
 ```
 
-### `validate_set_T_from_delim_string` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/types/__init__.py#L117" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `validate_set_T_from_delim_string` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/types/__init__.py#L149" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 validate_set_T_from_delim_string(value: Union[str, T, set[T], None], type_: Any, delim: str | None = None) -> set[T]
@@ -32,7 +32,7 @@ e.g. `PREFECT_CLIENT_RETRY_EXTRA_CODES=429,502,503` -> `{429, 502, 503}`
 e.g. `PREFECT_CLIENT_RETRY_EXTRA_CODES=429` -> `{429}`
 
 
-### `parse_retry_delay_input` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/types/__init__.py#L151" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `parse_retry_delay_input` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/types/__init__.py#L183" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 parse_retry_delay_input(value: Any) -> Any
@@ -44,7 +44,7 @@ for TaskRetryDelaySeconds (int, float, list\[float], or None).
 Handles comma-separated strings for lists of delays.
 
 
-### `convert_none_to_empty_dict` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/types/__init__.py#L202" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `convert_none_to_empty_dict` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/types/__init__.py#L234" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 convert_none_to_empty_dict(v: Optional[KeyValueLabels]) -> KeyValueLabels
@@ -52,4 +52,4 @@ convert_none_to_empty_dict(v: Optional[KeyValueLabels]) -> KeyValueLabels
 
 ## Classes
 
-### `SecretDict` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/types/__init__.py#L113" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `SecretDict` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/types/__init__.py#L145" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
