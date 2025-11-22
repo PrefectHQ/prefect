@@ -7,7 +7,7 @@ class TestReadCollectionViews:
     def collection_view_url(self, view):
         return (
             "https://raw.githubusercontent.com/"
-            "PrefectHQ/prefect-collection-registry/main/"
+            "PrefectHQ/prefect-collection-registry/6939db85b49e4cb4c009124d8b12052a7663be8a/"
             f"views/aggregate-{view}-metadata.json"
         )
 
