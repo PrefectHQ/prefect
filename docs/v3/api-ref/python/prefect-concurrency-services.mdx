@@ -7,12 +7,52 @@ sidebarTitle: services
 
 ## Classes
 
-### `ConcurrencySlotAcquisitionService` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/concurrency/services.py#L23" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `ConcurrencySlotAcquisitionService` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/concurrency/services.py#L34" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 **Methods:**
 
-#### `acquire` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/concurrency/services.py#L37" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `acquire` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/concurrency/services.py#L48" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 acquire(self, slots: int, mode: Literal['concurrency', 'rate_limit'], timeout_seconds: Optional[float] = None, max_retries: Optional[int] = None) -> httpx.Response
 ```
+
+### `ConcurrencySlotAcquisitionWithLeaseService` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/concurrency/services.py#L78" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+A service that acquires concurrency slots with leases.
+
+This service serializes acquisition attempts for a given set of limit names,
+preventing thundering herd issues when many tasks try to acquire slots simultaneously.
+Each unique set of limit names gets its own singleton service instance.
+
+**Args:**
+- `concurrency_limit_names`: A frozenset of concurrency limit names to acquire slots from.
+
+
+**Methods:**
+
+#### `acquire` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/concurrency/services.py#L102" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+acquire(self, slots: int, mode: Literal['concurrency', 'rate_limit'], timeout_seconds: Optional[float] = None, max_retries: Optional[int] = None, lease_duration: float = 300, strict: bool = False, holder: Optional['ConcurrencyLeaseHolder'] = None) -> httpx.Response
+```
+
+Acquire concurrency slots with a lease, with retry logic for 423 responses.
+
+**Args:**
+- `slots`: Number of slots to acquire
+- `mode`: Either "concurrency" or "rate_limit"
+- `timeout_seconds`: Optional timeout for the entire acquisition attempt
+- `max_retries`: Maximum number of retries on 423 LOCKED responses
+- `lease_duration`: Duration of the lease in seconds
+- `strict`: Whether to raise errors for missing limits
+- `holder`: Optional holder information for the lease
+
+**Returns:**
+- HTTP response from the server
+
+**Raises:**
+- `httpx.HTTPStatusError`: If the server returns an error other than 423 LOCKED
+- `TimeoutError`: If acquisition times out
+

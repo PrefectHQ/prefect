@@ -25,7 +25,7 @@ View details about a flow run.
 ### `ls` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/flow_run.py#L102" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-ls(flow_name: List[str] = typer.Option(None, help='Name of the flow'), limit: int = typer.Option(15, help='Maximum number of flow runs to list'), state: List[str] = typer.Option(None, help="Name of the flow run's state"), state_type: List[str] = typer.Option(None, help="Type of the flow run's state"))
+ls(flow_name: List[str] = typer.Option(None, help='Name of the flow'), limit: int = typer.Option(15, help='Maximum number of flow runs to list'), state: List[str] = typer.Option(None, help="Name of the flow run's state"), state_type: List[str] = typer.Option(None, help="Type of the flow run's state"), output: Optional[str] = typer.Option(None, '--output', '-o', help='Specify an output format. Currently supports: json'))
 ```
 
 
@@ -52,7 +52,7 @@ $ prefect flow-runs ls --state-type RUNNING
 $ prefect flow-runs ls --state-type RUNNING --state-type FAILED
 
 
-### `delete` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/flow_run.py#L224" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `delete` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/flow_run.py#L240" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 delete(id: UUID)
@@ -62,7 +62,7 @@ delete(id: UUID)
 Delete a flow run by ID.
 
 
-### `cancel` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/flow_run.py#L243" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `cancel` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/flow_run.py#L259" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 cancel(id: UUID)
@@ -72,7 +72,7 @@ cancel(id: UUID)
 Cancel a flow run by ID.
 
 
-### `logs` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/flow_run.py#L264" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `logs` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/flow_run.py#L280" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 logs(id: UUID, head: bool = typer.Option(False, '--head', '-h', help=f'Show the first {LOGS_WITH_LIMIT_FLAG_DEFAULT_NUM_LOGS} logs instead of all logs.'), num_logs: int = typer.Option(None, '--num-logs', '-n', help=f'Number of logs to show when using the --head or --tail flag. If None, defaults to {LOGS_WITH_LIMIT_FLAG_DEFAULT_NUM_LOGS}.', min=1), reverse: bool = typer.Option(False, '--reverse', '-r', help='Reverse the logs order to print the most recent logs first'), tail: bool = typer.Option(False, '--tail', '-t', help=f'Show the last {LOGS_WITH_LIMIT_FLAG_DEFAULT_NUM_LOGS} logs instead of all logs.'))
@@ -82,7 +82,7 @@ logs(id: UUID, head: bool = typer.Option(False, '--head', '-h', help=f'Show the 
 View logs for a flow run.
 
 
-### `execute` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/flow_run.py#L386" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `execute` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/flow_run.py#L402" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 execute(id: Optional[UUID] = typer.Argument(None, help='ID of the flow run to execute'))

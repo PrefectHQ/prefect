@@ -7,7 +7,7 @@ sidebarTitle: root
 
 ## Functions
 
-### `canonical_environment_prefix` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/settings/models/root.py#L375" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `canonical_environment_prefix` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/settings/models/root.py#L390" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 canonical_environment_prefix(settings: 'Settings') -> str
@@ -25,7 +25,16 @@ See https://docs.pydantic.dev/latest/concepts/pydantic_settings
 
 **Methods:**
 
-#### `copy_with_update` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/settings/models/root.py#L252" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `connected_to_cloud` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/settings/models/root.py#L256" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+connected_to_cloud(self) -> bool
+```
+
+True when the API URL points at the configured Prefect Cloud API.
+
+
+#### `copy_with_update` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/settings/models/root.py#L267" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 copy_with_update(self: Self, updates: Optional[Mapping['Setting', Any]] = None, set_defaults: Optional[Mapping['Setting', Any]] = None, restore_defaults: Optional[Iterable['Setting']] = None) -> Self
@@ -44,7 +53,7 @@ the given settings will only be overridden if they were not set.
 - A new Settings object.
 
 
-#### `emit_warnings` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/settings/models/root.py#L243" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `emit_warnings` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/settings/models/root.py#L249" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 emit_warnings(self) -> Self
@@ -53,7 +62,7 @@ emit_warnings(self) -> Self
 More post-hoc validation of settings, including warnings for misconfigurations.
 
 
-#### `hash_key` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/settings/models/root.py#L323" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `hash_key` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/settings/models/root.py#L338" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 hash_key(self) -> str

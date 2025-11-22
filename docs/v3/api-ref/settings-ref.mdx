@@ -446,6 +446,18 @@ Whether or not to enable orchestration telemetry.
 **Supported environment variables**:
 `PREFECT_CLOUD_ENABLE_ORCHESTRATION_TELEMETRY`
 
+### `max_log_size`
+Maximum size in characters for a single log when sending logs to Prefect Cloud.
+
+**Type**: `integer`
+
+**Default**: `25000`
+
+**TOML dotted key path**: `cloud.max_log_size`
+
+**Supported environment variables**:
+`PREFECT_CLOUD_MAX_LOG_SIZE`
+
 ### `ui_url`
 The URL of the Prefect Cloud UI. If not set, the client will attempt to infer it.
 
@@ -688,7 +700,7 @@ The number of logs to batch before sending to the API.
 `PREFECT_LOGGING_TO_API_BATCH_SIZE`
 
 ### `max_log_size`
-The maximum size in bytes for a single log.
+The maximum size in characters for a single log. When connected to Prefect Cloud, this value is capped at `PREFECT_CLOUD_MAX_LOG_SIZE` (default 25,000).
 
 **Type**: `integer`
 
@@ -1341,6 +1353,21 @@ Initial duration for deployment concurrency lease in seconds.
 
 **Supported environment variables**:
 `PREFECT_SERVER_CONCURRENCY_INITIAL_DEPLOYMENT_LEASE_DURATION`
+
+### `maximum_concurrency_slot_wait_seconds`
+The maximum number of seconds to wait before retrying when a concurrency slot cannot be acquired.
+
+**Type**: `number`
+
+**Default**: `30`
+
+**Constraints**:
+- Minimum: 0
+
+**TOML dotted key path**: `server.concurrency.maximum_concurrency_slot_wait_seconds`
+
+**Supported environment variables**:
+`PREFECT_SERVER_CONCURRENCY_MAXIMUM_CONCURRENCY_SLOT_WAIT_SECONDS`
 
 ---
 ## ServerDatabaseSettings

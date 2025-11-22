@@ -116,7 +116,13 @@ Intercept the PostgreSQL-only JSON / JSONB operators and translate them to SQLit
 sqlite_greatest_as_max(element: greatest[Any], compiler: SQLCompiler, **kwargs: Any) -> str
 ```
 
-### `get_dialect` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/database.py#L727" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `sqlite_least_as_min` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/database.py#L732" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+sqlite_least_as_min(element: least[Any], compiler: SQLCompiler, **kwargs: Any) -> str
+```
+
+### `get_dialect` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/database.py#L741" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_dialect(obj: Union[str, Session, sa.Engine]) -> type[sa.Dialect]
@@ -271,3 +277,5 @@ Platform-independent calculation of the number of seconds between two timestamps
 
 
 ### `greatest` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/database.py#L704" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+### `least` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/database.py#L727" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>

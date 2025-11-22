@@ -7,67 +7,78 @@ sidebarTitle: concurrency_limits_v2
 
 ## Functions
 
-### `active_slots_after_decay` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/concurrency_limits_v2.py#L12" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `active_slots_after_decay` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/concurrency_limits_v2.py#L14" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 active_slots_after_decay(db: PrefectDBInterface) -> ColumnElement[float]
 ```
 
-### `denied_slots_after_decay` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/concurrency_limits_v2.py#L24" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `denied_slots_after_decay` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/concurrency_limits_v2.py#L26" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 denied_slots_after_decay(db: PrefectDBInterface) -> ColumnElement[float]
 ```
 
-### `create_concurrency_limit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/concurrency_limits_v2.py#L62" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+Calculate denied_slots after applying decay.
+
+Denied slots decay at a rate of `slot_decay_per_second` per second if it's
+greater than 0 (rate limits), otherwise for concurrency limits it decays at
+a rate based on clamped `avg_slot_occupancy_seconds`.
+
+The clamping matches the retry-after calculation to prevent denied_slots from
+accumulating when clients retry faster than the unclamped decay rate.
+
+
+### `create_concurrency_limit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/concurrency_limits_v2.py#L89" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 create_concurrency_limit(db: PrefectDBInterface, session: AsyncSession, concurrency_limit: Union[schemas.actions.ConcurrencyLimitV2Create, schemas.core.ConcurrencyLimitV2]) -> orm_models.ConcurrencyLimitV2
 ```
 
-### `read_concurrency_limit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/concurrency_limits_v2.py#L78" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `read_concurrency_limit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/concurrency_limits_v2.py#L105" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_concurrency_limit(db: PrefectDBInterface, session: AsyncSession, concurrency_limit_id: Optional[UUID] = None, name: Optional[str] = None) -> Union[orm_models.ConcurrencyLimitV2, None]
 ```
 
-### `read_all_concurrency_limits` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/concurrency_limits_v2.py#L98" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `read_all_concurrency_limits` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/concurrency_limits_v2.py#L125" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_all_concurrency_limits(db: PrefectDBInterface, session: AsyncSession, limit: int, offset: int) -> Sequence[orm_models.ConcurrencyLimitV2]
 ```
 
-### `update_concurrency_limit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/concurrency_limits_v2.py#L116" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `update_concurrency_limit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/concurrency_limits_v2.py#L143" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 update_concurrency_limit(db: PrefectDBInterface, session: AsyncSession, concurrency_limit: schemas.actions.ConcurrencyLimitV2Update, concurrency_limit_id: Optional[UUID] = None, name: Optional[str] = None) -> bool
 ```
 
-### `delete_concurrency_limit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/concurrency_limits_v2.py#L148" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `delete_concurrency_limit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/concurrency_limits_v2.py#L175" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 delete_concurrency_limit(db: PrefectDBInterface, session: AsyncSession, concurrency_limit_id: Optional[UUID] = None, name: Optional[str] = None) -> bool
 ```
 
-### `bulk_read_concurrency_limits` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/concurrency_limits_v2.py#L169" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `bulk_read_concurrency_limits` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/concurrency_limits_v2.py#L196" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 bulk_read_concurrency_limits(db: PrefectDBInterface, session: AsyncSession, names: List[str]) -> List[orm_models.ConcurrencyLimitV2]
 ```
 
-### `bulk_increment_active_slots` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/concurrency_limits_v2.py#L184" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `bulk_increment_active_slots` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/concurrency_limits_v2.py#L211" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 bulk_increment_active_slots(db: PrefectDBInterface, session: AsyncSession, concurrency_limit_ids: List[UUID], slots: int) -> bool
 ```
 
-### `bulk_decrement_active_slots` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/concurrency_limits_v2.py#L213" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `bulk_decrement_active_slots` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/concurrency_limits_v2.py#L240" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 bulk_decrement_active_slots(db: PrefectDBInterface, session: AsyncSession, concurrency_limit_ids: List[UUID], slots: int, occupancy_seconds: Optional[float] = None) -> bool
 ```
 
-### `bulk_update_denied_slots` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/concurrency_limits_v2.py#L261" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `bulk_update_denied_slots` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/concurrency_limits_v2.py#L288" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 bulk_update_denied_slots(db: PrefectDBInterface, session: AsyncSession, concurrency_limit_ids: List[UUID], slots: int) -> bool
