@@ -11,7 +11,9 @@ export const story: StoryObj = { name: "FlowRunStateTabs" };
 export default {
 	title: "Dashboard/FlowRunStateTabs",
 	component: function FlowRunStateTabsStories() {
-		const [selectedState, setSelectedState] = useState<StateType | "ALL">("ALL");
+		const [selectedState, setSelectedState] = useState<StateType | "ALL">(
+			"ALL",
+		);
 
 		// Create sample flow runs with different states
 		const flowRuns = [
@@ -79,11 +81,26 @@ export default {
 					<h3 className="text-sm font-semibold mb-2">Component Details</h3>
 					<ul className="text-xs space-y-1 text-muted-foreground">
 						<li>• Total flow runs: {flowRuns.length}</li>
-						<li>• Completed: {flowRuns.filter((r) => r.state_type === "COMPLETED").length}</li>
-						<li>• Failed: {flowRuns.filter((r) => r.state_type === "FAILED").length}</li>
-						<li>• Running: {flowRuns.filter((r) => r.state_type === "RUNNING").length}</li>
-						<li>• Scheduled: {flowRuns.filter((r) => r.state_type === "SCHEDULED").length}</li>
-						<li>• Cancelled: {flowRuns.filter((r) => r.state_type === "CANCELLED").length}</li>
+						<li>
+							• Completed:{" "}
+							{flowRuns.filter((r) => r.state_type === "COMPLETED").length}
+						</li>
+						<li>
+							• Failed:{" "}
+							{flowRuns.filter((r) => r.state_type === "FAILED").length}
+						</li>
+						<li>
+							• Running:{" "}
+							{flowRuns.filter((r) => r.state_type === "RUNNING").length}
+						</li>
+						<li>
+							• Scheduled:{" "}
+							{flowRuns.filter((r) => r.state_type === "SCHEDULED").length}
+						</li>
+						<li>
+							• Cancelled:{" "}
+							{flowRuns.filter((r) => r.state_type === "CANCELLED").length}
+						</li>
 					</ul>
 				</div>
 			</div>
