@@ -5,6 +5,7 @@ import { StateBadge } from "@/components/ui/state-badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 type StateType = components["schemas"]["StateType"];
+type TabState = StateType | "ALL";
 
 const STATE_TYPES: readonly StateType[] = [
 	"FAILED",
@@ -14,10 +15,12 @@ const STATE_TYPES: readonly StateType[] = [
 	"CANCELLED",
 ] as const;
 
+const TAB_STATES: readonly TabState[] = ["ALL", ...STATE_TYPES] as const;
+
 type FlowRunStateTabsProps = {
 	flowRuns: FlowRun[];
-	selectedState: StateType | "ALL";
-	onStateChange: (state: StateType | "ALL") => void;
+	selectedState: TabState;
+	onStateChange: (state: TabState) => void;
 };
 
 export const FlowRunStateTabs = ({
@@ -49,8 +52,14 @@ export const FlowRunStateTabs = ({
 		return stateCounts;
 	}, [flowRuns]);
 
+	const handleValueChange = (value: string) => {
+		if (TAB_STATES.includes(value as TabState)) {
+			onStateChange(value as TabState);
+		}
+	};
+
 	return (
-		<Tabs value={selectedState} onValueChange={onStateChange}>
+		<Tabs value={selectedState} onValueChange={handleValueChange}>
 			<TabsList>
 				<TabsTrigger value="ALL">
 					<span className="font-medium">All</span>
