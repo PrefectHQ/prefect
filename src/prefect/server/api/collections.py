@@ -12,9 +12,7 @@ router = PrefectRouter(prefix="/collections", tags=["Collections"])
 
 GLOBAL_COLLECTIONS_VIEW_CACHE: TTLCache = TTLCache(maxsize=200, ttl=60 * 10)
 
-REGISTRY_VIEWS = (
-    "https://raw.githubusercontent.com/PrefectHQ/prefect-collection-registry/main/views"
-)
+REGISTRY_VIEWS = "https://raw.githubusercontent.com/PrefectHQ/prefect-collection-registry/6939db85b49e4cb4c009124d8b12052a7663be8a/views"
 KNOWN_VIEWS = {
     "aggregate-block-metadata": f"{REGISTRY_VIEWS}/aggregate-block-metadata.json",
     "aggregate-flow-metadata": f"{REGISTRY_VIEWS}/aggregate-flow-metadata.json",
