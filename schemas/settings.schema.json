@@ -287,6 +287,15 @@
                     "title": "Enable Orchestration Telemetry",
                     "type": "boolean"
                 },
+                "max_log_size": {
+                    "default": 25000,
+                    "description": "Maximum size in characters for a single log when sending logs to Prefect Cloud.",
+                    "supported_environment_variables": [
+                        "PREFECT_CLOUD_MAX_LOG_SIZE"
+                    ],
+                    "title": "Max Log Size",
+                    "type": "integer"
+                },
                 "ui_url": {
                     "anyOf": [
                         {
@@ -556,7 +565,7 @@
                 },
                 "max_log_size": {
                     "default": 1000000,
-                    "description": "The maximum size in bytes for a single log.",
+                    "description": "The maximum size in characters for a single log. When connected to Prefect Cloud, this value is capped at `PREFECT_CLOUD_MAX_LOG_SIZE` (default 25,000).",
                     "supported_environment_variables": [
                         "PREFECT_LOGGING_TO_API_MAX_LOG_SIZE"
                     ],
