@@ -151,35 +151,35 @@ def test_format_git_credentials_server_escapes_special_characters():
     )
 
 
-def test_format_git_credentials_corporate_instance():
-    """Regression test for issue #19512: corporate instances without 'bitbucketserver' in hostname.
+def test_format_git_credentials_self_hosted_instance():
+    """Regression test for issue #19512: self-hosted instances without 'bitbucketserver' in hostname.
 
-    Corporate BitBucket Server instances may not have 'bitbucketserver' in their hostname
-    (e.g., git.corporate.com), but still require username:password authentication.
+    Self-hosted BitBucket Server instances may not have 'bitbucketserver' in their hostname
+    (e.g., git.example.com), but still require username:password authentication.
     When username is provided, it should use username:password format regardless of hostname.
     """
     credentials = BitBucketCredentials(token="my-token", username="myuser")
     result = credentials.format_git_credentials(
-        "https://git.corporate.com/scm/project/repo.git"
+        "https://git.example.com/scm/project/repo.git"
     )
     # Should use username:password format, not x-token-auth:
-    assert result == "https://myuser:my-token@git.corporate.com/scm/project/repo.git"
+    assert result == "https://myuser:my-token@git.example.com/scm/project/repo.git"
 
 
-def test_format_git_credentials_corporate_instance_with_special_chars():
-    """Test corporate instances with special characters in credentials.
+def test_format_git_credentials_self_hosted_instance_with_special_chars():
+    """Test self-hosted instances with special characters in credentials.
 
-    Ensures that username:password auth works correctly for corporate instances
+    Ensures that username:password auth works correctly for self-hosted instances
     even when credentials contain special characters that need URL encoding.
     """
     credentials = BitBucketCredentials(
         password="p@ss!word/123", username="user@domain.com"
     )
     result = credentials.format_git_credentials(
-        "https://git.corporate.com/scm/project/repo.git"
+        "https://git.example.com/scm/project/repo.git"
     )
     # Both username and password should be URL-encoded
     assert (
         result
-        == "https://user%40domain.com:p%40ss%21word%2F123@git.corporate.com/scm/project/repo.git"
+        == "https://user%40domain.com:p%40ss%21word%2F123@git.example.com/scm/project/repo.git"
     )
