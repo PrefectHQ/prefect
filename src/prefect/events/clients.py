@@ -40,6 +40,7 @@ from prefect.settings import (
     PREFECT_DEBUG_MODE,
     PREFECT_SERVER_ALLOW_EPHEMERAL_MODE,
 )
+from prefect.settings import PREFECT_EVENTS_MAXIMUM_SIZE_BYTES
 
 if TYPE_CHECKING:
     from prefect.events.filters import EventFilter
@@ -361,7 +362,20 @@ class PrefectEventsClient(EventsClient):
 
     async def _emit(self, event: Event) -> None:
         self._log_debug("Emitting event id=%s.", event.id)
+        encoded = event.model_dump_json().encode()
+        max_size = PREFECT_EVENTS_MAXIMUM_SIZE_BYTES.value()
 
+        if len(encoded) > max_size:
+            logger.warning(
+                "Refusing to Emit event of size %s",
+                extra={
+                    "event_id": str(event.id),
+                    "event": event.event[:100],
+                    "length": len(encoded),
+                },
+            )
+            return
+        
         self._unconfirmed_events.append(event)
 
         logger.debug(
