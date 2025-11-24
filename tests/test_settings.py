@@ -11,7 +11,7 @@ from typing import Any, Callable, Generator
 
 import pydantic
 import pytest
-import toml
+import tomlkit
 from pydantic_core import to_jsonable_python
 from sqlalchemy import make_url
 
@@ -555,8 +555,8 @@ def temporary_toml_file(tmp_path: Path) -> Generator[Callable[[str], None], None
 
         def _create_temp_toml(content: str, path: Path = toml_file) -> None:
             nonlocal toml_file
-            with path.open("w") as f:
-                toml.dump(content, f)  # type: ignore
+            with path.open("wb") as f:
+                f.write(tomlkit.dumps(content).encode())  # type: ignore
             toml_file = path  # update toml_file in case path was changed
 
         yield _create_temp_toml
@@ -1459,14 +1459,14 @@ class TestSettingsSources:
         pyproject_toml_data = {
             "tool": {"prefect": {"client": {"retry_extra_codes": "200"}}}
         }
-        with open("pyproject.toml", "w") as f:
-            toml.dump(pyproject_toml_data, f)
+        with open("pyproject.toml", "wb") as f:
+            f.write(tomlkit.dumps(pyproject_toml_data).encode())
 
         assert Settings().client.retry_extra_codes == {200}
 
         prefect_toml_data = {"client": {"retry_extra_codes": "300"}}
-        with open("prefect.toml", "w") as f:
-            toml.dump(prefect_toml_data, f)
+        with open("prefect.toml", "wb") as f:
+            f.write(tomlkit.dumps(prefect_toml_data).encode())
 
         assert Settings().client.retry_extra_codes == {300}
 
@@ -1699,17 +1699,16 @@ class TestSettingsSources:
             )
         )
 
-        with open("pyproject.toml", "w") as f:
-            toml.dump(
-                {"tool": {"prefect": {"profiles_path": str(pyproject_profiles_path)}}},
-                f,
-            )
+        with open("pyproject.toml", "wb") as f:
+            f.write(tomlkit.dumps(
+                {"tool": {"prefect": {"profiles_path": str(pyproject_profiles_path)}}}
+            ).encode())
 
         assert Settings().profiles_path == pyproject_profiles_path
         assert Settings().client.retry_extra_codes == {420, 500}
 
-        with open("prefect.toml", "w") as f:
-            toml.dump({"profiles_path": str(toml_profiles_path)}, f)
+        with open("prefect.toml", "wb") as f:
+            f.write(tomlkit.dumps({"profiles_path": str(toml_profiles_path)}).encode())
 
         assert Settings().profiles_path == toml_profiles_path
         assert Settings().client.retry_extra_codes == {300}
@@ -2507,14 +2506,13 @@ class TestSettingValues:
             # with profile loading
             pytest.skip("Can only set PREFECT_TESTING_TEST_SETTING when in test mode")
 
-        with open(temporary_profiles_path, "w") as f:
-            toml.dump(
+        with open(temporary_profiles_path, "wb") as f:
+            f.write(tomlkit.dumps(
                 {
                     "active": "test",
                     "profiles": {"test": {setting: to_jsonable_python(value)}},
-                },
-                f,
-            )
+                }
+            ).encode())
 
         self.check_setting_value(setting, value, expected_value)
 

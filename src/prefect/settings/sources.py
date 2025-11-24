@@ -5,7 +5,8 @@ from pathlib import Path
 from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple, Type
 
 import dotenv
-import toml
+import tomlkit
+
 from cachetools import TTLCache
 from pydantic import AliasChoices
 from pydantic.fields import FieldInfo
@@ -33,7 +34,8 @@ def _read_toml_file(path: Path) -> dict[str, Any]:
     cache_key = f"toml_file:{path}:{modified_time}"
     if value := _file_cache.get(cache_key):
         return value
-    data = toml.load(path)  # type: ignore
+    with path.open("rb") as f:
+        data = tomlkit.load(f)  # type: ignore
     _file_cache[cache_key] = data
     return data
 
@@ -139,7 +141,7 @@ class ProfileSettingsTomlLoader(PydanticBaseSettingsSource):
 
         try:
             all_profile_data = _read_toml_file(self.profiles_path)
-        except toml.TomlDecodeError:
+        except tomlkit.exceptions.TOMLKitError:
             warnings.warn(
                 f"Failed to load profiles from {self.profiles_path}. Please ensure the file is valid TOML."
             )

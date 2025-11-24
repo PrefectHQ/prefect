@@ -538,7 +538,7 @@ def _memoize_block_auto_registration(
     Decorator to handle skipping the wrapped function if the block registry has
     not changed since the last invocation
     """
-    import toml
+    import tomlkit
 
     import prefect.plugins
     from prefect.blocks.core import Block
@@ -567,9 +567,10 @@ def _memoize_block_auto_registration(
         memo_store_path = PREFECT_MEMO_STORE_PATH.value()
         try:
             if memo_store_path.exists():
-                saved_blocks_loading_hash = toml.load(memo_store_path).get(
-                    "block_auto_registration"
-                )
+                with memo_store_path.open("rb") as f:
+                    saved_blocks_loading_hash = tomlkit.load(f).get(
+                        "block_auto_registration"
+                    )
                 if (
                     saved_blocks_loading_hash is not None
                     and current_blocks_loading_hash == saved_blocks_loading_hash
@@ -595,8 +596,8 @@ def _memoize_block_auto_registration(
                 if not memo_store_path.exists():
                     memo_store_path.touch(mode=0o0600)
 
-                memo_store_path.write_text(
-                    toml.dumps({"block_auto_registration": current_blocks_loading_hash})
+                memo_store_path.write_bytes(
+                    tomlkit.dumps({"block_auto_registration": current_blocks_loading_hash}).encode()
                 )
             except Exception as exc:
                 logger.warning(

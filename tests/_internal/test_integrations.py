@@ -1,11 +1,12 @@
-import toml
+import tomlkit
 
 import prefect
 from prefect._internal.integrations import KNOWN_EXTRAS_FOR_PACKAGES
 
 
 def test_known_extras_for_packages():
-    pyproject_contents = toml.load(prefect.__development_base_path__ / "pyproject.toml")
+    with (prefect.__development_base_path__ / "pyproject.toml").open("rb") as f:
+        pyproject_contents = tomlkit.load(f)
 
     # Extract the extras_require dictionary
     extras_require = pyproject_contents["project"]["optional-dependencies"]
