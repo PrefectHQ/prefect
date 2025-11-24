@@ -1700,9 +1700,15 @@ class TestSettingsSources:
         )
 
         with open("pyproject.toml", "wb") as f:
-            f.write(tomlkit.dumps(
-                {"tool": {"prefect": {"profiles_path": str(pyproject_profiles_path)}}}
-            ).encode())
+            f.write(
+                tomlkit.dumps(
+                    {
+                        "tool": {
+                            "prefect": {"profiles_path": str(pyproject_profiles_path)}
+                        }
+                    }
+                ).encode()
+            )
 
         assert Settings().profiles_path == pyproject_profiles_path
         assert Settings().client.retry_extra_codes == {420, 500}
@@ -2507,12 +2513,14 @@ class TestSettingValues:
             pytest.skip("Can only set PREFECT_TESTING_TEST_SETTING when in test mode")
 
         with open(temporary_profiles_path, "wb") as f:
-            f.write(tomlkit.dumps(
-                {
-                    "active": "test",
-                    "profiles": {"test": {setting: to_jsonable_python(value)}},
-                }
-            ).encode())
+            f.write(
+                tomlkit.dumps(
+                    {
+                        "active": "test",
+                        "profiles": {"test": {setting: to_jsonable_python(value)}},
+                    }
+                ).encode()
+            )
 
         self.check_setting_value(setting, value, expected_value)
 

@@ -321,7 +321,9 @@ class TestMemoizeBlockAutoRegistration:
     @pytest.fixture
     def memo_store_with_accurate_key(self, current_block_registry_hash):
         PREFECT_MEMO_STORE_PATH.value().write_bytes(
-            tomlkit.dumps({"block_auto_registration": current_block_registry_hash}).encode()
+            tomlkit.dumps(
+                {"block_auto_registration": current_block_registry_hash}
+            ).encode()
         )
 
     async def test_runs_wrapped_function_on_missing_key(

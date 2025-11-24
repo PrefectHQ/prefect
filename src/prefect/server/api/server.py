@@ -597,7 +597,9 @@ def _memoize_block_auto_registration(
                     memo_store_path.touch(mode=0o0600)
 
                 memo_store_path.write_bytes(
-                    tomlkit.dumps({"block_auto_registration": current_blocks_loading_hash}).encode()
+                    tomlkit.dumps(
+                        {"block_auto_registration": current_blocks_loading_hash}
+                    ).encode()
                 )
             except Exception as exc:
                 logger.warning(
