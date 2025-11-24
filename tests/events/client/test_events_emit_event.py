@@ -8,6 +8,7 @@ import pytest
 from prefect.events import emit_event
 from prefect.events.clients import AssertingEventsClient
 from prefect.events.worker import EventsWorker
+from prefect.exceptions import EventTooLarge
 from prefect.settings import (
     PREFECT_API_URL,
     PREFECT_EVENTS_MAXIMUM_SIZE_BYTES,
@@ -82,7 +83,7 @@ def test_raises_for_events_exceeding_maximum_size(
     asserting_events_worker: EventsWorker,
 ):
     with temporary_settings(updates={PREFECT_EVENTS_MAXIMUM_SIZE_BYTES: 100}):
-        with pytest.raises(ValueError, match="Event is too large to emit"):
+        with pytest.raises(EventTooLarge, match="Event is too large to emit"):
             emit_event(
                 event="vogon.poetry.read",
                 resource={"prefect.resource.id": "vogon.poem.oh-freddled-gruntbuggly"},

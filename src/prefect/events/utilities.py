@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
 import prefect.types._datetime
+from prefect.exceptions import EventTooLarge
 from prefect.logging.loggers import get_logger
 from prefect.settings import PREFECT_EVENTS_MAXIMUM_SIZE_BYTES
 
@@ -96,12 +97,15 @@ def emit_event(
 
         event_obj = Event(**event_kwargs)
 
-        if event_obj.size_bytes > PREFECT_EVENTS_MAXIMUM_SIZE_BYTES.value():
-            raise ValueError("Event is too large to emit")
+        max_size = PREFECT_EVENTS_MAXIMUM_SIZE_BYTES.value()
+        if event_obj.size_bytes > max_size:
+            raise EventTooLarge(event_obj.size_bytes, max_size)
 
         worker_instance.send(event_obj)
 
         return event_obj
+    except EventTooLarge:
+        raise
     except Exception:
         logger.exception(f"Error emitting event: {event}")
         return None
