@@ -503,45 +503,51 @@ class SPCSWorker(BaseWorker):
             # We need to run SQL commands using snowflake-connector for now.
             cur = session.cursor()
 
-            sql_template = (
-                "EXECUTE JOB SERVICE\n"
-                "\tIN COMPUTE POOL {compute_pool}\n"
-                "\tNAME = {database}.{schema}.{job_service_name}\n"
-                "\tASYNC = TRUE\n"
-                "{query_warehouse}"
-                "{service_comment}"
-                "{external_access_integrations}"
-                "FROM SPECIFICATION $${job_manifest_yaml}$$;"
-            )
-
             query_warehouse = (
-                f"\tQUERY_WAREHOUSE = {configuration.query_warehouse}\n"
+                "\tQUERY_WAREHOUSE = IDENTIFIER(%s)\n"
                 if configuration.query_warehouse is not None
                 else ""
             )
             service_comment = (
-                f"\tCOMMENT = '{configuration.service_comment}'\n"
-                if configuration.service_comment is not None
-                else ""
-            )
-            external_access_integrations = (
-                f"\tEXTERNAL_ACCESS_INTEGRATIONS = ({', '.join(configuration.external_access_integrations)})\n"
-                if configuration.external_access_integrations
-                else ""
+                "\tCOMMENT = %s\n" if configuration.service_comment is not None else ""
             )
 
-            sql_cmd = sql_template.format(
-                compute_pool=compute_pool,
-                database=database,
-                schema=schema,
-                job_service_name=job_service_name,
-                query_warehouse=query_warehouse,
-                service_comment=service_comment,
-                external_access_integrations=external_access_integrations,
-                job_manifest_yaml=job_manifest_yaml,
+            eai_placeholders = ""
+            if configuration.external_access_integrations:
+                eai_placeholders = ", ".join(
+                    ["IDENTIFIER(%s)"] * len(configuration.external_access_integrations)
+                )
+                external_access_integrations = (
+                    f"\tEXTERNAL_ACCESS_INTEGRATIONS = ({eai_placeholders})\n"
+                )
+            else:
+                external_access_integrations = ""
+
+            sql_template = (
+                "EXECUTE JOB SERVICE\n"
+                "\tIN COMPUTE POOL IDENTIFIER(%s)\n"
+                "\tNAME = IDENTIFIER(%s)\n"
+                "\tASYNC = TRUE\n"
+                f"{query_warehouse}"
+                f"{service_comment}"
+                f"{external_access_integrations}"
+                "FROM SPECIFICATION %s;"
             )
 
-            cur.execute(sql_cmd)
+            params = [compute_pool, f"{database}.{schema}.{job_service_name}"]
+
+            if configuration.query_warehouse is not None:
+                params.append(configuration.query_warehouse)
+
+            if configuration.service_comment is not None:
+                params.append(configuration.service_comment)
+
+            if configuration.external_access_integrations:
+                params.extend(configuration.external_access_integrations)
+
+            params.append(job_manifest_yaml)
+
+            cur.execute(sql_template, params)
 
         return job_service_name
 

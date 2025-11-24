@@ -403,14 +403,21 @@ async def test_create_and_start_service_sql_generation(
         )
 
     mock_cursor.execute.assert_called_once()
-    sql_cmd = mock_cursor.execute.call_args[0][0]
+    call_args = mock_cursor.execute.call_args[0]
+    sql_cmd = call_args[0]
+    params = call_args[1]
 
     assert "EXECUTE JOB SERVICE" in sql_cmd
     assert "ASYNC = TRUE" in sql_cmd
-    assert "test_pool" in sql_cmd
-    assert "QUERY_WAREHOUSE = test_warehouse" in sql_cmd
-    assert "COMMENT = 'Test comment'" in sql_cmd
-    assert "EXTERNAL_ACCESS_INTEGRATIONS = (integration1, integration2)" in sql_cmd
+    assert "IDENTIFIER(%s)" in sql_cmd
+    assert "QUERY_WAREHOUSE = IDENTIFIER(%s)" in sql_cmd
+    assert "COMMENT = %s" in sql_cmd
+    assert "EXTERNAL_ACCESS_INTEGRATIONS = (IDENTIFIER(%s), IDENTIFIER(%s))" in sql_cmd
+
+    assert "test_warehouse" in params
+    assert "Test comment" in params
+    assert "integration1" in params
+    assert "integration2" in params
     assert service_name is not None
 
 
@@ -994,3 +1001,87 @@ async def test_worker_with_custom_timeouts(
         result = await worker.run(flow_run=worker_flow_run, configuration=config)
 
     assert result.status_code == 0
+
+
+async def test_sql_injection_protection_with_malicious_inputs(
+    snowflake_credentials, worker_flow_run, mock_snowflake_connection
+):
+    _, _, mock_cursor = mock_snowflake_connection
+
+    malicious_warehouse = "warehouse'; DROP TABLE users; --"
+    malicious_comment = "comment'; DELETE FROM services; --"
+    malicious_eai = ["eai1'; GRANT ALL PRIVILEGES; --", "eai2'; DROP DATABASE; --"]
+
+    config = await create_job_configuration(
+        snowflake_credentials,
+        worker_flow_run,
+        {
+            "query_warehouse": malicious_warehouse,
+            "service_comment": malicious_comment,
+            "external_access_integrations": malicious_eai,
+        },
+    )
+
+    async with SPCSWorker(work_pool_name="test-pool") as worker:
+        worker._create_and_start_service(flow_run=worker_flow_run, configuration=config)
+
+    mock_cursor.execute.assert_called_once()
+    sql_cmd, params = mock_cursor.execute.call_args[0]
+
+    semicolon_count = sql_cmd.count(";")
+    assert semicolon_count == 1, (
+        f"Expected exactly 1 semicolon in SQL, found {semicolon_count}"
+    )
+
+    assert "IDENTIFIER(%s)" in sql_cmd
+    assert "COMMENT = %s" in sql_cmd
+
+    assert malicious_warehouse in params
+    assert malicious_comment in params
+    assert malicious_eai[0] in params
+    assert malicious_eai[1] in params
+
+    assert "DROP TABLE" not in sql_cmd
+    assert "DELETE FROM" not in sql_cmd
+    assert "GRANT ALL" not in sql_cmd
+    assert "DROP DATABASE" not in sql_cmd
+
+
+async def test_sql_uses_bind_parameters_for_all_user_inputs(
+    snowflake_credentials, worker_flow_run, mock_snowflake_connection
+):
+    _, _, mock_cursor = mock_snowflake_connection
+
+    config = await create_job_configuration(
+        snowflake_credentials,
+        worker_flow_run,
+        {
+            "external_access_integrations": ["eai1", "eai2", "eai3"],
+            "query_warehouse": "my_warehouse",
+            "service_comment": "My service comment",
+        },
+    )
+
+    async with SPCSWorker(work_pool_name="test-pool") as worker:
+        worker._create_and_start_service(flow_run=worker_flow_run, configuration=config)
+
+    mock_cursor.execute.assert_called_once()
+    call_args = mock_cursor.execute.call_args[0]
+
+    assert len(call_args) == 2, "execute should be called with SQL and params"
+
+    sql_cmd = call_args[0]
+    params = call_args[1]
+
+    assert "IDENTIFIER(%s)" in sql_cmd
+    assert "COMMENT = %s" in sql_cmd
+    assert "FROM SPECIFICATION %s;" in sql_cmd
+
+    assert isinstance(params, list)
+    assert len(params) >= 6
+
+    assert "my_warehouse" in params
+    assert "My service comment" in params
+    assert "eai1" in params
+    assert "eai2" in params
+    assert "eai3" in params
