@@ -27,6 +27,8 @@ from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.processutils import open_process
 from prefect.workers.base import BaseJobConfiguration, BaseWorker
 
+pytestmark = pytest.mark.usefixtures("asserting_events_worker")
+
 
 class MockKubernetesWorker(BaseWorker):
     type = "kubernetes-test"
