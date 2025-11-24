@@ -1,20 +1,18 @@
 import { useQuery } from "@tanstack/react-query";
 import { useCallback, useMemo, useState } from "react";
-import {
-	buildFilterDeploymentsQuery,
-	type Deployment,
-} from "@/api/deployments";
+import { buildFilterDeploymentsQuery } from "@/api/deployments";
 import type { FlowRun } from "@/api/flow-runs";
 import { buildListFlowsQuery, type Flow } from "@/api/flows";
+import type { components } from "@/api/prefect";
 import { FlowRunActivityBarChart } from "@/components/ui/flow-run-activity-bar-graph";
 import useDebounce from "@/hooks/use-debounce";
 
 const BAR_WIDTH = 8;
 const BAR_GAP = 4;
 
-type EnrichedFlowRun = FlowRun & {
-	deployment: Deployment;
-	flow?: Flow;
+type EnrichedFlowRun = components["schemas"]["FlowRunResponse"] & {
+	deployment: components["schemas"]["DeploymentResponse"];
+	flow?: components["schemas"]["Flow"];
 };
 
 type FlowRunsChartProps = {
@@ -102,7 +100,7 @@ export function FlowRunsChart({ flowRuns, dateRange }: FlowRunsChartProps) {
 
 	const deploymentMap = useMemo(() => {
 		if (!deployments) {
-			return new Map<string, Deployment>();
+			return new Map<string, components["schemas"]["DeploymentResponse"]>();
 		}
 		return new Map(
 			deployments.map((deployment) => [deployment.id, deployment]),
@@ -115,28 +113,30 @@ export function FlowRunsChart({ flowRuns, dateRange }: FlowRunsChartProps) {
 			return [];
 		}
 
-		return flowRuns
-			.filter((flowRun) => flowRun.deployment_id != null)
-			.map((flowRun) => {
-				const flow = flowMap.get(flowRun.flow_id);
-				// We've already filtered out null deployment_ids above, so this is safe
-				const deployment = flowRun.deployment_id
-					? deploymentMap.get(flowRun.deployment_id)
-					: undefined;
+		const enriched: EnrichedFlowRun[] = [];
 
-				// Only include flow runs that have a deployment
-				// (required by EnrichedFlowRun type)
-				if (!deployment) {
-					return null;
-				}
+		for (const flowRun of flowRuns) {
+			if (flowRun.deployment_id == null) {
+				continue;
+			}
 
-				return {
-					...flowRun,
-					deployment,
-					flow,
-				};
-			})
-			.filter((flowRun): flowRun is EnrichedFlowRun => flowRun !== null);
+			const flow = flowMap.get(flowRun.flow_id);
+			const deployment = deploymentMap.get(flowRun.deployment_id);
+
+			// Only include flow runs that have a deployment
+			// (required by EnrichedFlowRun type)
+			if (!deployment) {
+				continue;
+			}
+
+			enriched.push({
+				...flowRun,
+				deployment,
+				flow,
+			});
+		}
+
+		return enriched;
 	}, [flowRuns, flowMap, deploymentMap]);
 
 	return (
