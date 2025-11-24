@@ -150,6 +150,10 @@ class Event(PrefectBaseModel):
     )
 
     @property
+    def size_bytes(self) -> int:
+        return len(self.model_dump_json().encode())
+
+    @property
     def involved_resources(self) -> Sequence[Resource]:
         return [self.resource] + list(self.related)
 
