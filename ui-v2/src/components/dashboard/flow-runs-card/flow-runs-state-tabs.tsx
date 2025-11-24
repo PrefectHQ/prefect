@@ -1,8 +1,8 @@
 import { useMemo } from "react";
 import type { FlowRun } from "@/api/flow-runs";
 import type { components } from "@/api/prefect";
-import { StateBadge } from "@/components/ui/state-badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { cn } from "@/utils";
 
 type StateType = components["schemas"]["StateType"];
 type TabState = StateType | "ALL";
@@ -16,6 +16,46 @@ const STATE_TYPES: readonly StateType[] = [
 ] as const;
 
 const TAB_STATES: readonly TabState[] = ["ALL", ...STATE_TYPES] as const;
+
+const STATE_PILL_COLORS: Record<StateType, string> = {
+	COMPLETED: "bg-green-600",
+	FAILED: "bg-red-600",
+	RUNNING: "bg-blue-700",
+	CANCELLED: "bg-gray-800",
+	CRASHED: "bg-orange-600",
+	PAUSED: "bg-gray-800",
+	PENDING: "bg-gray-800",
+	SCHEDULED: "bg-yellow-700",
+	CANCELLING: "bg-gray-800",
+};
+
+type FlowRunStateCountPillProps = {
+	states: StateType[];
+	count: number;
+	active: boolean;
+};
+
+const FlowRunStateCountPill = ({
+	states,
+	count,
+	active,
+}: FlowRunStateCountPillProps) => (
+	<div className="flex flex-col items-center gap-1">
+		<span className="h-1 w-4 rounded-full grid auto-cols-fr grid-flow-col overflow-hidden">
+			{states.map((state) => (
+				<span key={state} className={STATE_PILL_COLORS[state]} />
+			))}
+		</span>
+		<span
+			className={cn(
+				"text-lg font-bold",
+				active ? "text-foreground" : "text-muted-foreground",
+			)}
+		>
+			{count}
+		</span>
+	</div>
+);
 
 type FlowRunStateTabsProps = {
 	flowRuns: FlowRun[];
@@ -60,17 +100,30 @@ export const FlowRunStateTabs = ({
 
 	return (
 		<Tabs value={selectedState} onValueChange={handleValueChange}>
-			<TabsList>
-				<TabsTrigger value="ALL">
-					<span className="font-medium">All</span>
-					<span className="ml-1.5 text-muted-foreground">{counts.ALL}</span>
+			<TabsList className="flex justify-between w-full">
+				<TabsTrigger
+					value="ALL"
+					aria-label="All runs"
+					className="bg-transparent shadow-none data-[state=active]:shadow-none border-none"
+				>
+					<FlowRunStateCountPill
+						states={STATE_TYPES}
+						count={counts.ALL}
+						active={selectedState === "ALL"}
+					/>
 				</TabsTrigger>
 				{STATE_TYPES.map((stateType) => (
-					<TabsTrigger key={stateType} value={stateType}>
-						<StateBadge type={stateType} className="text-xs" />
-						<span className="ml-1.5 text-muted-foreground">
-							{counts[stateType]}
-						</span>
+					<TabsTrigger
+						key={stateType}
+						value={stateType}
+						aria-label={`${stateType.toLowerCase()} runs`}
+						className="bg-transparent shadow-none data-[state=active]:shadow-none border-none"
+					>
+						<FlowRunStateCountPill
+							states={[stateType]}
+							count={counts[stateType]}
+							active={selectedState === stateType}
+						/>
 					</TabsTrigger>
 				))}
 			</TabsList>

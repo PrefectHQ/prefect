@@ -269,7 +269,7 @@ describe("FlowRunStateTabs", () => {
 		);
 	});
 
-	it("renders StateBadge components for each state tab", () => {
+	it("renders pill indicators for each state tab", () => {
 		const flowRuns = [createFakeFlowRun()];
 		const onStateChange = vi.fn();
 
@@ -281,12 +281,23 @@ describe("FlowRunStateTabs", () => {
 			/>,
 		);
 
-		// StateBadge components should be rendered with the state names
-		expect(screen.getByText("Failed")).toBeInTheDocument();
-		expect(screen.getByText("Running")).toBeInTheDocument();
-		expect(screen.getByText("Completed")).toBeInTheDocument();
-		expect(screen.getByText("Scheduled")).toBeInTheDocument();
-		expect(screen.getByText("Cancelled")).toBeInTheDocument();
+		// Each state tab should be accessible with aria-label
+		expect(screen.getByRole("tab", { name: /all runs/i })).toBeInTheDocument();
+		expect(
+			screen.getByRole("tab", { name: /failed runs/i }),
+		).toBeInTheDocument();
+		expect(
+			screen.getByRole("tab", { name: /running runs/i }),
+		).toBeInTheDocument();
+		expect(
+			screen.getByRole("tab", { name: /completed runs/i }),
+		).toBeInTheDocument();
+		expect(
+			screen.getByRole("tab", { name: /scheduled runs/i }),
+		).toBeInTheDocument();
+		expect(
+			screen.getByRole("tab", { name: /cancelled runs/i }),
+		).toBeInTheDocument();
 	});
 
 	it("handles multiple flow runs with the same state type", () => {
