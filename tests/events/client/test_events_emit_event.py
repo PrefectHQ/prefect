@@ -8,8 +8,10 @@ import pytest
 from prefect.events import emit_event
 from prefect.events.clients import AssertingEventsClient
 from prefect.events.worker import EventsWorker
+from prefect.exceptions import EventTooLarge
 from prefect.settings import (
     PREFECT_API_URL,
+    PREFECT_EVENTS_MAXIMUM_SIZE_BYTES,
     temporary_settings,
 )
 from prefect.types import DateTime
@@ -74,6 +76,23 @@ def test_returns_event(asserting_events_worker: EventsWorker):
     assert isinstance(asserting_events_worker._client, AssertingEventsClient)
     assert len(asserting_events_worker._client.events) == 1
     assert emitted_event == asserting_events_worker._client.events[0]
+
+
+@pytest.mark.usefixtures("reset_worker_events")
+def test_raises_for_events_exceeding_maximum_size(
+    asserting_events_worker: EventsWorker,
+):
+    with temporary_settings(updates={PREFECT_EVENTS_MAXIMUM_SIZE_BYTES: 100}):
+        with pytest.raises(EventTooLarge, match="Event is too large to emit"):
+            emit_event(
+                event="vogon.poetry.read",
+                resource={"prefect.resource.id": "vogon.poem.oh-freddled-gruntbuggly"},
+                payload={"text": "X" * 200},
+            )
+
+    asserting_events_worker.drain()
+    client = asserting_events_worker._client
+    assert client.events == []
 
 
 @pytest.mark.usefixtures("reset_worker_events")

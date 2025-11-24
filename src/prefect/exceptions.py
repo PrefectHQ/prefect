@@ -446,6 +446,17 @@ class ConfigurationError(PrefectException):
     """
 
 
+class EventTooLarge(PrefectException):
+    """
+    Raised when an event exceeds the configured maximum size.
+    """
+
+    def __init__(self, size: int, maximum: int):
+        super().__init__(f"Event is too large to emit ({size} > {maximum} bytes)")
+        self.size = size
+        self.maximum = maximum
+
+
 class ProfileSettingsValidationError(PrefectException):
     """
     Raised when a profile settings are invalid.
