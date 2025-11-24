@@ -61,7 +61,7 @@ if TYPE_CHECKING:
     from prefect.transactions import IsolationLevel
 
 
-ResultStorage = Union[WritableFileSystem, str]
+ResultStorage = Union[WritableFileSystem, str, Path]
 ResultSerializer = Union[Serializer, str]
 LITERAL_TYPES: set[type] = {type(None), bool, UUID}
 
