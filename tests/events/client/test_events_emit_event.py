@@ -92,7 +92,7 @@ def test_raises_for_events_exceeding_maximum_size(
 
     asserting_events_worker.drain()
     client = asserting_events_worker._client
-    assert len(client.events) == 0
+    assert client.events == []
 
 
 @pytest.mark.usefixtures("reset_worker_events")

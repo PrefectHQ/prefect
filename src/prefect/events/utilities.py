@@ -8,7 +8,7 @@ from uuid import UUID
 import prefect.types._datetime
 from prefect.exceptions import EventTooLarge
 from prefect.logging.loggers import get_logger
-from prefect.settings import PREFECT_EVENTS_MAXIMUM_SIZE_BYTES
+from prefect.settings import get_current_settings
 
 from .clients import (
     AssertingEventsClient,
@@ -97,7 +97,7 @@ def emit_event(
 
         event_obj = Event(**event_kwargs)
 
-        max_size = PREFECT_EVENTS_MAXIMUM_SIZE_BYTES.value()
+        max_size = get_current_settings().server.events.maximum_size_bytes
         if event_obj.size_bytes > max_size:
             raise EventTooLarge(event_obj.size_bytes, max_size)
 
