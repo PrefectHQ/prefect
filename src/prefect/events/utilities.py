@@ -7,6 +7,7 @@ from uuid import UUID
 
 import prefect.types._datetime
 from prefect.logging.loggers import get_logger
+from prefect.settings import PREFECT_EVENTS_MAXIMUM_SIZE_BYTES
 
 from .clients import (
     AssertingEventsClient,
@@ -94,6 +95,10 @@ def emit_event(
                 event_kwargs["follows"] = follows.id
 
         event_obj = Event(**event_kwargs)
+
+        if event_obj.size_bytes > PREFECT_EVENTS_MAXIMUM_SIZE_BYTES.value():
+            raise ValueError("Event is too large to emit")
+
         worker_instance.send(event_obj)
 
         return event_obj
