@@ -90,8 +90,9 @@ def test_raises_for_events_exceeding_maximum_size(
                 payload={"text": "X" * 200},
             )
 
-    assert isinstance(asserting_events_worker._client, AssertingEventsClient)
-    assert asserting_events_worker._client.events == []
+    asserting_events_worker.drain()
+    client = asserting_events_worker._client
+    assert len(client.events) == 0
 
 
 @pytest.mark.usefixtures("reset_worker_events")
