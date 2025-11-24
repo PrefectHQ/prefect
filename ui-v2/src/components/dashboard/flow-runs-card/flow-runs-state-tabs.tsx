@@ -30,7 +30,7 @@ const STATE_PILL_COLORS: Record<StateType, string> = {
 };
 
 type FlowRunStateCountPillProps = {
-	states: StateType[];
+	states: readonly StateType[];
 	count: number;
 	active: boolean;
 };
