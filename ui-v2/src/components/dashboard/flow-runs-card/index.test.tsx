@@ -108,7 +108,7 @@ describe("FlowRunsCard", () => {
 		expect(await screen.findByText("No flow runs found")).toBeInTheDocument();
 	});
 
-	it("shows placeholder content when flow runs exist", async () => {
+	it("shows loading skeleton when flow runs exist but chart is loading", async () => {
 		const flowRuns = [createFakeFlowRun()];
 
 		const queryClient = new QueryClient();
@@ -122,9 +122,11 @@ describe("FlowRunsCard", () => {
 
 		render(<FlowRunsCardRouter />, { wrapper });
 
+		// The chart shows a skeleton while loading enrichment data or calculating bar count
 		expect(
-			await screen.findByText("Flow runs chart and table will appear here"),
+			await screen.findByRole("generic", { name: "" }),
 		).toBeInTheDocument();
+		expect(screen.getByText("1 total")).toBeInTheDocument();
 	});
 
 	it("applies date range filter correctly", async () => {
