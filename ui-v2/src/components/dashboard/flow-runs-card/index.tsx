@@ -153,6 +153,10 @@ export function FlowRunsCard({ filter }: FlowRunsCardProps) {
 		(isLoadingFlows && flowIds.length > 0) ||
 		(isLoadingDeployments && deploymentIds.length > 0);
 
+	// Use debounced value if available, otherwise use immediate value
+	// This prevents showing empty chart on initial render while still being responsive
+	const effectiveNumberOfBars = debouncedNumberOfBars || numberOfBars;
+
 	return (
 		<Card>
 			<CardHeader>
@@ -168,15 +172,17 @@ export function FlowRunsCard({ filter }: FlowRunsCardProps) {
 					<div className="my-8 text-center text-sm text-muted-foreground">
 						<p>No flow runs found</p>
 					</div>
-				) : isLoadingEnrichment ? (
-					<Skeleton className="h-24 w-full" />
+				) : isLoadingEnrichment || effectiveNumberOfBars === 0 ? (
+					<div className="w-full" ref={chartRef}>
+						<Skeleton className="h-24 w-full" />
+					</div>
 				) : (
 					<div className="w-full" ref={chartRef}>
 						<FlowRunActivityBarChart
 							enrichedFlowRuns={enrichedFlowRuns}
 							startDate={startDate}
 							endDate={endDate}
-							numberOfBars={debouncedNumberOfBars || numberOfBars}
+							numberOfBars={effectiveNumberOfBars}
 							barWidth={BAR_WIDTH}
 							className="h-24 w-full"
 						/>
