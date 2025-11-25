@@ -29,7 +29,7 @@
         </p-context-nav-item>
       </a>
 
-      <p-context-nav-item @click="openJoinCommunityModal">
+      <p-context-nav-item v-if="showPromotionalContent" @click="openJoinCommunityModal">
         Join the Community
         <JoinTheCommunityModal :show-modal="showJoinCommunityModal || !joinTheCommunityModalDismissed" @update:show-modal="updateShowModal" />
       </p-context-nav-item>
