@@ -64,6 +64,7 @@ def is_port_in_use(port: int) -> bool:
 @pytest.fixture(scope="session")
 async def hosted_api_server(
     unused_tcp_port_factory: Callable[[], int],
+    test_database_connection_url: Optional[str],
 ) -> AsyncGenerator[str, None]:
     """
     Runs an instance of the Prefect API server in a subprocess instead of the using the
@@ -74,6 +75,9 @@ async def hosted_api_server(
     Yields:
         The API URL
     """
+    # Ensure the per-worker database URL override is applied before we start the server
+    _ = test_database_connection_url
+
     port = unused_tcp_port_factory()
     print(f"Running hosted API server on port {port}")
 
