@@ -155,37 +155,39 @@ class SlackWebhook(AppriseNotificationBlock):
         webhook_url = self.url.get_secret_value()
         match = self._SLACK_WEBHOOK_URL_PATTERN.match(webhook_url)
 
+        # If it's not a recognized Slack webhook shape, delegate to the base behavior.
+        # This lets restricted-URL checks and existing Apprise validation run as before.
         if not match:
-            raise ValueError(
-                "Invalid Slack webhook URL. Expected format: "
-                "https://hooks.slack.com/services/TOKEN_A/TOKEN_B/TOKEN_C or "
-                "https://hooks.slack-gov.com/services/TOKEN_A/TOKEN_B/TOKEN_C"
-            )
+            self._start_apprise_client(self.url)
+            return
 
         host = match.group("host")
 
+        # Standard Slack: let Apprise handle it like it always has.
         if host == "hooks.slack.com":
             self._start_apprise_client(self.url)
-        else:
-            try:
-                from apprise.plugins.slack import NotifySlack
-            except ImportError:
-                from apprise.plugins.NotifySlack import (
-                    NotifySlack,  # pyright: ignore[reportMissingImports]
-                )
+            return
 
-            token_a = match.group("token_a")
-            token_b = match.group("token_b")
-            token_c = match.group("token_c")
-
-            slack_instance = NotifySlack(
-                token_a=token_a,
-                token_b=token_b,
-                token_c=token_c,
+        # GovCloud: we know it's a valid Slack webhook and host is hooks.slack-gov.com
+        try:
+            from apprise.plugins.slack import NotifySlack
+        except ImportError:
+            from apprise.plugins.NotifySlack import (
+                NotifySlack,  # pyright: ignore[reportMissingImports]
             )
-            slack_instance.webhook_url = f"https://{host}/services"
 
-            self._start_apprise_client(SecretStr(slack_instance.url()))
+        token_a = match.group("token_a")
+        token_b = match.group("token_b")
+        token_c = match.group("token_c")
+
+        slack_instance = NotifySlack(
+            token_a=token_a,
+            token_b=token_b,
+            token_c=token_c,
+        )
+        slack_instance.webhook_url = f"https://{host}/services"
+
+        self._start_apprise_client(SecretStr(slack_instance.url()))
 
 
 class MicrosoftTeamsWebhook(AppriseNotificationBlock):

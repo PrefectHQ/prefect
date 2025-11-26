@@ -259,16 +259,6 @@ class TestSlackWebhook:
                 body="test", title="", notify_type=PREFECT_NOTIFY_TYPE_DEFAULT
             )
 
-    def test_invalid_url_raises_error(self):
-        """Test that invalid Slack webhook URLs raise ValueError."""
-        with pytest.raises(ValueError, match="Invalid Slack webhook URL"):
-            SlackWebhook(url="https://example.com/not-a-slack-webhook")
-
-    def test_invalid_url_missing_tokens_raises_error(self):
-        """Test that URLs missing tokens raise ValueError."""
-        with pytest.raises(ValueError, match="Invalid Slack webhook URL"):
-            SlackWebhook(url="https://hooks.slack.com/services/")
-
     def test_is_picklable(self):
         """Test that SlackWebhook blocks can be pickled."""
         block = SlackWebhook(
