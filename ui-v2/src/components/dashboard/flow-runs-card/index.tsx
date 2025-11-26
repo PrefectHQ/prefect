@@ -3,10 +3,15 @@ import { useCallback, useMemo, useState } from "react";
 import { buildFilterDeploymentsQuery } from "@/api/deployments";
 import { buildFilterFlowRunsQuery, type FlowRunsFilter } from "@/api/flow-runs";
 import { buildListFlowsQuery } from "@/api/flows";
+import type { components } from "@/api/prefect";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { FlowRunActivityBarChart } from "@/components/ui/flow-run-activity-bar-graph";
 import { Skeleton } from "@/components/ui/skeleton";
 import useDebounce from "@/hooks/use-debounce";
+import { FlowRunStateTabs } from "./flow-runs-state-tabs";
+
+type StateType = components["schemas"]["StateType"];
+type TabState = StateType | "ALL";
 
 type FlowRunsCardProps = {
 	filter?: {
@@ -23,6 +28,7 @@ const BAR_GAP = 4;
 export function FlowRunsCard({ filter }: FlowRunsCardProps) {
 	const [numberOfBars, setNumberOfBars] = useState<number>(0);
 	const debouncedNumberOfBars = useDebounce(numberOfBars, 150);
+	const [selectedState, setSelectedState] = useState<TabState>("ALL");
 
 	const chartRef = useCallback((node: HTMLDivElement | null) => {
 		if (!node) return;
@@ -69,12 +75,26 @@ export function FlowRunsCard({ filter }: FlowRunsCardProps) {
 			};
 		}
 
+		// Add state type filtering
+		if (selectedState !== "ALL") {
+			flowRunsFilterObj.state = {
+				operator: "and_" as const,
+				type: { any_: [selectedState] },
+			};
+		}
+
 		if (Object.keys(flowRunsFilterObj).length > 1) {
 			baseFilter.flow_runs = flowRunsFilterObj;
 		}
 
 		return baseFilter;
-	}, [filter?.startDate, filter?.endDate, filter?.tags, filter?.hideSubflows]);
+	}, [
+		filter?.startDate,
+		filter?.endDate,
+		filter?.tags,
+		filter?.hideSubflows,
+		selectedState,
+	]);
 
 	const { data: flowRuns } = useSuspenseQuery(
 		buildFilterFlowRunsQuery(flowRunsFilter, 30000),
@@ -161,6 +181,11 @@ export function FlowRunsCard({ filter }: FlowRunsCardProps) {
 		<Card>
 			<CardHeader>
 				<CardTitle>Flow Runs</CardTitle>
+				<FlowRunStateTabs
+					flowRuns={enrichedFlowRuns}
+					selectedState={selectedState}
+					onStateChange={setSelectedState}
+				/>
 				{flowRuns.length > 0 && (
 					<span className="text-sm text-muted-foreground">
 						{flowRuns.length} total
