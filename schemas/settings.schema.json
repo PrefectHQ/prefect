@@ -2071,6 +2071,16 @@
                     ],
                     "title": "Enabled",
                     "type": "boolean"
+                },
+                "read_batch_size": {
+                    "default": 1,
+                    "description": "The number of events the task run recorder will attempt to read from the message broker in one batch.",
+                    "exclusiveMinimum": 0,
+                    "supported_environment_variables": [
+                        "PREFECT_SERVER_SERVICES_TASK_RUN_RECORDER_READ_BATCH_SIZE"
+                    ],
+                    "title": "Read Batch Size",
+                    "type": "integer"
                 }
             },
             "title": "ServerServicesTaskRunRecorderSettings",
@@ -2088,6 +2098,16 @@
                     ],
                     "title": "Enabled",
                     "type": "boolean"
+                },
+                "read_batch_size": {
+                    "default": 1,
+                    "description": "The number of events the triggers service will attempt to read from the message broker in one batch.",
+                    "exclusiveMinimum": 0,
+                    "supported_environment_variables": [
+                        "PREFECT_SERVER_SERVICES_TRIGGERS_READ_BATCH_SIZE"
+                    ],
+                    "title": "Read Batch Size",
+                    "type": "integer"
                 },
                 "pg_notify_reconnect_interval_seconds": {
                     "default": 10,
