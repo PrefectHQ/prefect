@@ -33,7 +33,7 @@ Navigate to your workspace's **Webhooks** page and create a new webhook with thi
 {
   "event": "github.{{ headers.get('x-github-event', 'unknown') }}.{{ body.action|default('no-action') }}",
   "resource": {
-    "prefect.resource.id": "{% set pr_body = body.pull_request.body|default('') %}{% if '/flow-run/' in pr_body %}prefect.flow-run.{{ pr_body.split('/flow-run/')[1].split('/')[0].split('?')[0].split('#')[0].split('\n')[0] }}{% else %}github.pr.{{ body.pull_request.number|default(0) }}{% endif %}",
+    "prefect.resource.id": "{% set frid = body.pull_request.body|flow_run_id %}{% if frid %}prefect.flow-run.{{ frid }}{% else %}github.pr.{{ body.pull_request.number|default(0) }}{% endif %}",
     "pr.number": "{{ body.pull_request.number|default(0) }}",
     "pr.merged": "{{ body.pull_request.merged|default(false) }}",
     "pr.title": "{{ body.pull_request.title|default('')|truncate(100) }}"
@@ -41,11 +41,7 @@ Navigate to your workspace's **Webhooks** page and create a new webhook with thi
 }
 ```
 
-This template:
-- Sets the event type to `github.pull_request.<action>` (e.g., `github.pull_request.closed`)
-- Extracts the flow run ID from any Prefect Cloud URL in the PR body
-- Falls back to `github.pr.<number>` if no flow run URL is found
-- Includes `pr.merged` as a resource label for filtering
+This template uses the `flow_run_id` filter to extract a flow run UUID from any Prefect Cloud URL in the PR body. If no flow run URL is found, it falls back to `github.pr.<number>`. The `pr.merged` label enables filtering for merged PRs only.
 
 Copy the webhook URL for the next step.
 
