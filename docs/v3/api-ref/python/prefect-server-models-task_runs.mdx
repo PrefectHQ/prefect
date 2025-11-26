@@ -129,7 +129,7 @@ Returns:
     int: count of task runs
 
 
-### `count_task_runs_by_state` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/task_runs.py#L398" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `count_task_runs_by_state` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/task_runs.py#L418" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 count_task_runs_by_state(db: PrefectDBInterface, session: AsyncSession, flow_filter: Optional[schemas.filters.FlowFilter] = None, flow_run_filter: Optional[schemas.filters.FlowRunFilter] = None, task_run_filter: Optional[schemas.filters.TaskRunFilter] = None, deployment_filter: Optional[schemas.filters.DeploymentFilter] = None) -> schemas.states.CountByState
@@ -149,7 +149,7 @@ Returns:
     schemas.states.CountByState: count of task runs by state
 
 
-### `delete_task_run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/task_runs.py#L445" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `delete_task_run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/task_runs.py#L465" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 delete_task_run(db: PrefectDBInterface, session: AsyncSession, task_run_id: UUID) -> bool
@@ -166,7 +166,7 @@ Delete a task run by id.
 - whether or not the task run was deleted
 
 
-### `set_task_run_state` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/task_runs.py#L465" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `set_task_run_state` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/task_runs.py#L485" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 set_task_run_state(session: AsyncSession, task_run_id: UUID, state: schemas.states.State, force: bool = False, task_policy: Optional[Type[TaskRunOrchestrationPolicy]] = None, orchestration_parameters: Optional[Dict[str, Any]] = None) -> OrchestrationResult
@@ -193,7 +193,7 @@ the state transition. If True, orchestration rules are not applied.
 - OrchestrationResult object
 
 
-### `with_system_labels_for_task_run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/task_runs.py#L549" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `with_system_labels_for_task_run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/task_runs.py#L569" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 with_system_labels_for_task_run(session: AsyncSession, task_run: schemas.core.TaskRun) -> schemas.core.KeyValueLabels
