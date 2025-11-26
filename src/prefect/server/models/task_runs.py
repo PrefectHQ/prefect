@@ -379,16 +379,36 @@ async def count_task_runs(
         int: count of task runs
     """
 
-    query = select(sa.func.count(None)).select_from(db.TaskRun)
+    if flow_filter or flow_run_filter or deployment_filter:
+        query = select(sa.func.count(None)).select_from(db.TaskRun)
+        query = query.join(db.FlowRun, db.TaskRun.flow_run_id == db.FlowRun.id)
 
-    query = await _apply_task_run_filters(
-        db,
-        query,
-        flow_filter=flow_filter,
-        flow_run_filter=flow_run_filter,
-        task_run_filter=task_run_filter,
-        deployment_filter=deployment_filter,
-    )
+        if flow_run_filter:
+            query = query.where(flow_run_filter.as_sql_filter())
+
+        if flow_filter:
+            query = query.join(db.Flow, db.Flow.id == db.FlowRun.flow_id)
+            query = query.where(flow_filter.as_sql_filter())
+
+        if deployment_filter:
+            query = query.join(
+                db.Deployment, db.Deployment.id == db.FlowRun.deployment_id
+            )
+            query = query.where(deployment_filter.as_sql_filter())
+
+        if task_run_filter:
+            query = query.where(task_run_filter.as_sql_filter())
+    else:
+        query = select(sa.func.count(None)).select_from(db.TaskRun)
+
+        query = await _apply_task_run_filters(
+            db,
+            query,
+            flow_filter=flow_filter,
+            flow_run_filter=flow_run_filter,
+            task_run_filter=task_run_filter,
+            deployment_filter=deployment_filter,
+        )
 
     result = await session.execute(query)
     return result.scalar_one()
