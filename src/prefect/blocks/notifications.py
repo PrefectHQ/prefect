@@ -170,7 +170,9 @@ class SlackWebhook(AppriseNotificationBlock):
             try:
                 from apprise.plugins.slack import NotifySlack
             except ImportError:
-                from apprise.plugins.NotifySlack import NotifySlack  # pyright: ignore[reportMissingImports]
+                from apprise.plugins.NotifySlack import (
+                    NotifySlack,  # pyright: ignore[reportMissingImports]
+                )
 
             token_a = match.group("token_a")
             token_b = match.group("token_b")
