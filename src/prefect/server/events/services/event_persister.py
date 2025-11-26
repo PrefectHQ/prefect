@@ -109,6 +109,7 @@ class EventPersister(RunInEphemeralServers, Service):
             "events",
             group="event-persister",
             name=generate_unique_consumer_name("event-persister"),
+            read_batch_size=self.service_settings().read_batch_size,
         )
 
         async with create_handler(
