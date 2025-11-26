@@ -163,6 +163,12 @@ class Event(PrefectBaseModel):
         return {related.role: related for related in reversed(self.related)}
 
     @property
+    def url(self) -> Optional[str]:
+        """Returns the UI URL for this event"""
+        from prefect.utilities.urls import url_for
+        return url_for(self, url_type="ui")
+
+    @property
     def resources_in_role(self) -> Mapping[str, Sequence[RelatedResource]]:
         """Returns a mapping of roles to related resources in that role"""
         resources: Dict[str, List[RelatedResource]] = defaultdict(list)
