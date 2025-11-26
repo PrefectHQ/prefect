@@ -60,13 +60,17 @@ services:
     command: prefect server start --no-services
     ports:
       - "4200:4200"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request as u; u.urlopen('http://localhost:4200/api/health', timeout=1)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
 
   prefect-services:
     image: prefecthq/prefect:3-latest
     depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
+      prefect-server:
         condition: service_healthy
     environment:
       PREFECT_API_DATABASE_CONNECTION_URL: postgresql+asyncpg://prefect:prefect@postgres:5432/prefect
@@ -81,10 +85,11 @@ services:
     image: prefecthq/prefect:3-latest
     depends_on:
       prefect-server:
-        condition: service_started
+        condition: service_healthy
     environment:
       PREFECT_API_URL: http://prefect-server:4200/api
     command: prefect worker start --pool local-pool
+    restart: on-failure
 
 volumes:
   postgres_data:
