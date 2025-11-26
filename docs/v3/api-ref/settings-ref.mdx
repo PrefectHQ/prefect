@@ -1892,6 +1892,18 @@ The number of events the event persister will attempt to insert in one batch.
 **Supported environment variables**:
 `PREFECT_SERVER_SERVICES_EVENT_PERSISTER_BATCH_SIZE`, `PREFECT_API_SERVICES_EVENT_PERSISTER_BATCH_SIZE`
 
+### `read_batch_size`
+The number of events the event persister will attempt to read from the message broker in one batch.
+
+**Type**: `integer`
+
+**Default**: `1`
+
+**TOML dotted key path**: `server.services.event_persister.read_batch_size`
+
+**Supported environment variables**:
+`PREFECT_SERVER_SERVICES_EVENT_PERSISTER_READ_BATCH_SIZE`, `PREFECT_API_SERVICES_EVENT_PERSISTER_READ_BATCH_SIZE`
+
 ### `flush_interval`
 The maximum number of seconds between flushes of the event persister.
 

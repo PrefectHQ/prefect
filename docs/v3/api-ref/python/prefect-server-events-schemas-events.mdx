@@ -7,7 +7,7 @@ sidebarTitle: events
 
 ## Functions
 
-### `matches` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/schemas/events.py#L239" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `matches` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/schemas/events.py#L243" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 matches(expected: str, value: Optional[str]) -> bool
@@ -161,13 +161,13 @@ The client-side view of an event that has happened to a Resource
 
 **Methods:**
 
-#### `enforce_maximum_related_resources` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/schemas/events.py#L166" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `enforce_maximum_related_resources` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/schemas/events.py#L170" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 enforce_maximum_related_resources(cls, value: List[RelatedResource]) -> List[RelatedResource]
 ```
 
-#### `find_resource_label` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/schemas/events.py#L185" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `find_resource_label` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/schemas/events.py#L189" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 find_resource_label(self, label: str) -> Optional[str]
@@ -178,7 +178,7 @@ related resources.  If the label starts with `related:<role>:`, search for the
 first matching label in a related resource with that role.
 
 
-#### `involved_resources` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/schemas/events.py#L148" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `involved_resources` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/schemas/events.py#L152" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 involved_resources(self) -> Sequence[Resource]
@@ -190,7 +190,7 @@ involved_resources(self) -> Sequence[Resource]
 model_validate_list(cls, obj: Any) -> list[Self]
 ```
 
-#### `receive` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/schemas/events.py#L177" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `receive` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/schemas/events.py#L181" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 receive(self, received: Optional[prefect.types._datetime.DateTime] = None) -> 'ReceivedEvent'
@@ -208,7 +208,7 @@ Reset the fields of the model that are in the `_reset_fields` set.
 - A new instance of the model with the reset fields.
 
 
-#### `resource_in_role` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/schemas/events.py#L152" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `resource_in_role` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/schemas/events.py#L156" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 resource_in_role(self) -> Mapping[str, RelatedResource]
@@ -217,7 +217,7 @@ resource_in_role(self) -> Mapping[str, RelatedResource]
 Returns a mapping of roles to the first related resource in that role
 
 
-#### `resources_in_role` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/schemas/events.py#L157" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `resources_in_role` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/schemas/events.py#L161" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 resources_in_role(self) -> Mapping[str, Sequence[RelatedResource]]
@@ -226,7 +226,13 @@ resources_in_role(self) -> Mapping[str, Sequence[RelatedResource]]
 Returns a mapping of roles to related resources in that role
 
 
-### `ReceivedEvent` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/schemas/events.py#L198" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `size_bytes` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/schemas/events.py#L148" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+size_bytes(self) -> int
+```
+
+### `ReceivedEvent` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/schemas/events.py#L202" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 The server-side view of an event that has happened to a Resource after it has
@@ -235,13 +241,13 @@ been received by the server
 
 **Methods:**
 
-#### `as_database_resource_rows` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/schemas/events.py#L218" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `as_database_resource_rows` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/schemas/events.py#L222" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 as_database_resource_rows(self) -> List[Dict[str, Any]]
 ```
 
-#### `as_database_row` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/schemas/events.py#L211" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `as_database_row` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/schemas/events.py#L215" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 as_database_row(self) -> dict[str, Any]
@@ -278,59 +284,59 @@ If the internal flag is true on entry, return True immediately.
 Otherwise, block until another `set()` is called, then return True.
 
 
-### `ResourceSpecification` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/schemas/events.py#L259" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `ResourceSpecification` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/schemas/events.py#L263" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 **Methods:**
 
-#### `deepcopy` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/schemas/events.py#L328" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `deepcopy` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/schemas/events.py#L332" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 deepcopy(self) -> 'ResourceSpecification'
 ```
 
-#### `get` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/schemas/events.py#L315" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/schemas/events.py#L319" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get(self, key: str, default: Optional[Union[str, List[str]]] = None) -> Optional[List[str]]
 ```
 
-#### `includes` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/schemas/events.py#L273" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `includes` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/schemas/events.py#L277" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 includes(self, candidates: Iterable[Resource]) -> bool
 ```
 
-#### `items` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/schemas/events.py#L288" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `items` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/schemas/events.py#L292" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 items(self) -> Iterable[Tuple[str, List[str]]]
 ```
 
-#### `matches` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/schemas/events.py#L281" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `matches` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/schemas/events.py#L285" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 matches(self, resource: Resource) -> bool
 ```
 
-#### `matches_every_resource` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/schemas/events.py#L260" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `matches_every_resource` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/schemas/events.py#L264" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 matches_every_resource(self) -> bool
 ```
 
-#### `matches_every_resource_of_kind` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/schemas/events.py#L263" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `matches_every_resource_of_kind` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/schemas/events.py#L267" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 matches_every_resource_of_kind(self, prefix: str) -> bool
 ```
 
-#### `pop` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/schemas/events.py#L305" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `pop` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/schemas/events.py#L309" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 pop(self, key: str, default: Optional[Union[str, List[str]]] = None) -> Optional[List[str]]
 ```
 
-### `EventPage` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/schemas/events.py#L332" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `EventPage` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/schemas/events.py#L336" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 A single page of events returned from the API, with an optional link to the
@@ -357,7 +363,7 @@ Reset the fields of the model that are in the `_reset_fields` set.
 - A new instance of the model with the reset fields.
 
 
-### `EventCount` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/schemas/events.py#L345" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `EventCount` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/schemas/events.py#L349" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 The count of events with the given filter value
