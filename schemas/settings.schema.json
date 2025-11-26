@@ -1723,7 +1723,7 @@
                 },
                 "read_batch_size": {
                     "default": 1,
-                    "description": "The number of events the event persister will attempt to read from the event queue in one batch.",
+                    "description": "The number of events the event persister will attempt to read from the message broker in one batch.",
                     "exclusiveMinimum": 0,
                     "supported_environment_variables": [
                         "PREFECT_SERVER_SERVICES_EVENT_PERSISTER_READ_BATCH_SIZE",

@@ -29,7 +29,7 @@ existing tables.
 - Total number of deleted records
 
 
-### `create_handler` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/services/event_persister.py#L145" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `create_handler` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/services/event_persister.py#L146" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 create_handler(batch_size: int = 20, flush_every: timedelta = timedelta(seconds=5), trim_every: timedelta = timedelta(minutes=15)) -> AsyncGenerator[MessageHandler, None]
@@ -145,7 +145,7 @@ started_event(self) -> asyncio.Event
 started_event(self, value: asyncio.Event) -> None
 ```
 
-#### `stop` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/services/event_persister.py#L129" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `stop` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/services/event_persister.py#L130" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 stop(self) -> None
