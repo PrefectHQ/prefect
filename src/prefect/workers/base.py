@@ -944,10 +944,15 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
         for scope in self._scheduled_task_scopes:
             scope.cancel()
 
-        # Emit stopped event before closing client
         if self._started_event:
             try:
-                await self._emit_worker_stopped_event(self._started_event)
+                await asyncio.wait_for(
+                    self._emit_worker_stopped_event(self._started_event), timeout=2.0
+                )
+            except asyncio.TimeoutError:
+                self._logger.debug(
+                    "Worker stopped event emission timed out after 2 seconds"
+                )
             except Exception:
                 self._logger.exception("Failed to emit worker stopped event")
 
