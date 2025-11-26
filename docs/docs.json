@@ -257,7 +257,8 @@
             "group": "Automations",
             "pages": [
               "v3/advanced/detect-zombie-flows",
-              "v3/advanced/use-custom-event-grammar"
+              "v3/advanced/use-custom-event-grammar",
+              "v3/advanced/resume-flow-run-on-pr-merge"
             ]
           },
           {
