@@ -379,11 +379,7 @@ async def count_task_runs(
         int: count of task runs
     """
 
-    if (
-        flow_filter
-        or flow_run_filter
-        or deployment_filter
-    ):
+    if flow_filter or flow_run_filter or deployment_filter:
         query = select(sa.func.count(None)).select_from(db.TaskRun)
         query = query.join(db.FlowRun, db.TaskRun.flow_run_id == db.FlowRun.id)
 
@@ -395,7 +391,9 @@ async def count_task_runs(
             query = query.where(flow_filter.as_sql_filter())
 
         if deployment_filter:
-            query = query.join(db.Deployment, db.Deployment.id == db.FlowRun.deployment_id)
+            query = query.join(
+                db.Deployment, db.Deployment.id == db.FlowRun.deployment_id
+            )
             query = query.where(deployment_filter.as_sql_filter())
 
         if task_run_filter:
