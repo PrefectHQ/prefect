@@ -26,7 +26,7 @@
     "@prefecthq/eslint-config": "1.0.32",
     "@types/lodash.merge": "^4.6.9",
     "@vitejs/plugin-vue": "^6.0.1",
-    "autoprefixer": "10.4.21",
+    "autoprefixer": "10.4.22",
     "eslint": "^8.57.1",
     "ts-node": "10.9.2",
     "typescript": "^5.9.2",
