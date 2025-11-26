@@ -75,6 +75,17 @@ class ServerServicesEventPersisterSettings(ServicesBaseSetting):
         ),
     )
 
+    read_batch_size: int = Field(
+        default=1,
+        gt=0,
+        description="The number of events the event persister will attempt to read from the message broker in one batch.",
+        validation_alias=AliasChoices(
+            AliasPath("read_batch_size"),
+            "prefect_server_services_event_persister_read_batch_size",
+            "prefect_api_services_event_persister_read_batch_size",
+        ),
+    )
+
     flush_interval: float = Field(
         default=5,
         gt=0.0,

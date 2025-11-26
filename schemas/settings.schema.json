@@ -1721,6 +1721,17 @@
                     "title": "Batch Size",
                     "type": "integer"
                 },
+                "read_batch_size": {
+                    "default": 1,
+                    "description": "The number of events the event persister will attempt to read from the event queue in one batch.",
+                    "exclusiveMinimum": 0,
+                    "supported_environment_variables": [
+                        "PREFECT_SERVER_SERVICES_EVENT_PERSISTER_READ_BATCH_SIZE",
+                        "PREFECT_API_SERVICES_EVENT_PERSISTER_READ_BATCH_SIZE"
+                    ],
+                    "title": "Read Batch Size",
+                    "type": "integer"
+                },
                 "flush_interval": {
                     "default": 5,
                     "description": "The maximum number of seconds between flushes of the event persister.",
