@@ -78,6 +78,7 @@ export function FlowRunsCard({ filter }: FlowRunsCardProps) {
 		// Add state type filtering
 		if (selectedState !== "ALL") {
 			flowRunsFilterObj.state = {
+				operator: "and_" as const,
 				type: { any_: [selectedState] },
 			};
 		}
