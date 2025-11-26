@@ -17,6 +17,7 @@ from prefect.blocks.notifications import (
     OpsgenieWebhook,
     PagerDutyWebHook,
     SendgridEmail,
+    SlackWebhook,
     TwilioSMS,
 )
 from prefect.flows import flow
@@ -145,6 +146,146 @@ class TestAppriseNotificationBlock:
             "'https://127.0.0.1/foo/bar' is not a valid URL.  It resolves to the "
             "private address 127.0.0.1."
         )
+
+
+class TestSlackWebhook:
+    """Tests for SlackWebhook notification block, including Slack GovCloud support."""
+
+    async def test_notify_async_standard_slack(self):
+        """Test notification with standard hooks.slack.com URL."""
+        with patch("apprise.Apprise", autospec=True) as AppriseMock:
+            apprise_instance_mock = AppriseMock.return_value
+            apprise_instance_mock.async_notify = AsyncMock()
+
+            block = SlackWebhook(
+                url="https://hooks.slack.com/services/T1234/B5678/abcdefghijk"
+            )
+            await block.notify("test")
+
+            AppriseMock.assert_called_once()
+            apprise_instance_mock.add.assert_called_once_with(
+                servers="https://hooks.slack.com/services/T1234/B5678/abcdefghijk"
+            )
+            apprise_instance_mock.async_notify.assert_awaited_once_with(
+                body="test", title="", notify_type=PREFECT_NOTIFY_TYPE_DEFAULT
+            )
+
+    async def test_notify_async_slack_gov(self):
+        """Test notification with Slack GovCloud hooks.slack-gov.com URL."""
+        with patch("apprise.Apprise", autospec=True) as AppriseMock:
+            apprise_instance_mock = AppriseMock.return_value
+            apprise_instance_mock.async_notify = AsyncMock()
+
+            block = SlackWebhook(
+                url="https://hooks.slack-gov.com/services/T1234/B5678/abcdefghijk"
+            )
+            await block.notify("test")
+
+            AppriseMock.assert_called_once()
+            apprise_instance_mock.add.assert_called_once()
+            call_args = apprise_instance_mock.add.call_args
+            added_url = call_args[1]["servers"]
+            assert "slack://" in added_url
+            assert "T1234" in added_url
+            assert "B5678" in added_url
+            assert "abcdefghijk" in added_url
+
+            apprise_instance_mock.async_notify.assert_awaited_once_with(
+                body="test", title="", notify_type=PREFECT_NOTIFY_TYPE_DEFAULT
+            )
+
+    async def test_notify_async_slack_gov_uses_correct_webhook_url(self):
+        """Test that Slack GovCloud URLs use the correct webhook host."""
+        with patch(
+            "prefect.blocks.notifications.SlackWebhook._start_apprise_client"
+        ) as mock_start:
+            _block = SlackWebhook(
+                url="https://hooks.slack-gov.com/services/T1234/B5678/abcdefghijk"
+            )
+            assert _block is not None
+
+            mock_start.assert_called_once()
+            call_args = mock_start.call_args[0][0]
+            url_value = call_args.get_secret_value()
+            assert "slack://" in url_value
+
+    def test_notify_sync_standard_slack(self):
+        """Test sync notification with standard hooks.slack.com URL."""
+        with patch("apprise.Apprise", autospec=True) as AppriseMock:
+            apprise_instance_mock = AppriseMock.return_value
+            apprise_instance_mock.async_notify = AsyncMock()
+
+            block = SlackWebhook(
+                url="https://hooks.slack.com/services/T1234/B5678/abcdefghijk"
+            )
+
+            @flow
+            def test_flow():
+                block.notify("test")
+
+            test_flow()
+
+            AppriseMock.assert_called_once()
+            apprise_instance_mock.add.assert_called_once_with(
+                servers="https://hooks.slack.com/services/T1234/B5678/abcdefghijk"
+            )
+            apprise_instance_mock.async_notify.assert_called_once_with(
+                body="test", title="", notify_type=PREFECT_NOTIFY_TYPE_DEFAULT
+            )
+
+    def test_notify_sync_slack_gov(self):
+        """Test sync notification with Slack GovCloud URL."""
+        with patch("apprise.Apprise", autospec=True) as AppriseMock:
+            apprise_instance_mock = AppriseMock.return_value
+            apprise_instance_mock.async_notify = AsyncMock()
+
+            block = SlackWebhook(
+                url="https://hooks.slack-gov.com/services/T1234/B5678/abcdefghijk"
+            )
+
+            @flow
+            def test_flow():
+                block.notify("test")
+
+            test_flow()
+
+            AppriseMock.assert_called_once()
+            apprise_instance_mock.add.assert_called_once()
+            call_args = apprise_instance_mock.add.call_args
+            added_url = call_args[1]["servers"]
+            assert "slack://" in added_url
+
+            apprise_instance_mock.async_notify.assert_called_once_with(
+                body="test", title="", notify_type=PREFECT_NOTIFY_TYPE_DEFAULT
+            )
+
+    def test_invalid_url_raises_error(self):
+        """Test that invalid Slack webhook URLs raise ValueError."""
+        with pytest.raises(ValueError, match="Invalid Slack webhook URL"):
+            SlackWebhook(url="https://example.com/not-a-slack-webhook")
+
+    def test_invalid_url_missing_tokens_raises_error(self):
+        """Test that URLs missing tokens raise ValueError."""
+        with pytest.raises(ValueError, match="Invalid Slack webhook URL"):
+            SlackWebhook(url="https://hooks.slack.com/services/")
+
+    def test_is_picklable(self):
+        """Test that SlackWebhook blocks can be pickled."""
+        block = SlackWebhook(
+            url="https://hooks.slack.com/services/T1234/B5678/abcdefghijk"
+        )
+        pickled = cloudpickle.dumps(block)
+        unpickled = cloudpickle.loads(pickled)
+        assert isinstance(unpickled, SlackWebhook)
+
+    def test_is_picklable_slack_gov(self):
+        """Test that SlackWebhook blocks with GovCloud URLs can be pickled."""
+        block = SlackWebhook(
+            url="https://hooks.slack-gov.com/services/T1234/B5678/abcdefghijk"
+        )
+        pickled = cloudpickle.dumps(block)
+        unpickled = cloudpickle.loads(pickled)
+        assert isinstance(unpickled, SlackWebhook)
 
 
 class TestMattermostWebhook:
