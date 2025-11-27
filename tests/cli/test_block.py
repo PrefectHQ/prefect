@@ -1,3 +1,4 @@
+import json
 import re
 import uuid
 
@@ -297,6 +298,76 @@ async def test_listing_blocks_after_saving_a_block():
             "secret/wildblock",
         ],
     )
+
+
+async def test_block_ls_json_output():
+    """Test block ls command with JSON output flag."""
+    block_id_1 = await system.Secret(value="test value 1").save("block1")
+    block_id_2 = await system.Secret(value="test value 2").save("block2")
+
+    result = await run_sync_in_worker_thread(
+        invoke_and_assert,
+        command=["block", "ls", "-o", "json"],
+        expected_code=0,
+    )
+
+    output_data = json.loads(result.stdout.strip())
+    assert isinstance(output_data, list)
+
+    output_ids = {item["id"] for item in output_data}
+    assert str(block_id_1) in output_ids
+    assert str(block_id_2) in output_ids
+
+
+def test_block_ls_json_output_empty():
+    """Test block ls with JSON output when no blocks exist."""
+    result = invoke_and_assert(
+        command=["block", "ls", "-o", "json"],
+        expected_code=0,
+    )
+
+    output_data = json.loads(result.stdout.strip())
+    assert output_data == []
+
+
+def test_block_ls_invalid_output_format():
+    """Test block ls with invalid output format."""
+    invoke_and_assert(
+        command=["block", "ls", "-o", "xml"],
+        expected_code=1,
+        expected_output_contains="Only 'json' output format is supported.",
+    )
+
+
+async def test_block_ls_json_output_obfuscates_secrets():
+    """Test block ls with JSON output obfuscates secret values."""
+    secret_value = "super-secret-password-12345"
+    block_id = await system.Secret(value=secret_value).save("test-secret-block")
+
+    result = await run_sync_in_worker_thread(
+        invoke_and_assert,
+        command=["block", "ls", "-o", "json"],
+        expected_code=0,
+    )
+
+    output_data = json.loads(result.stdout.strip())
+    assert isinstance(output_data, list)
+    assert len(output_data) > 0
+
+    test_block = next(
+        (item for item in output_data if item["id"] == str(block_id)), None
+    )
+    assert test_block is not None, f"Block {block_id} not found in output"
+
+    obfuscated_value = test_block.get("data", {}).get("value")
+    assert isinstance(obfuscated_value, str), "Expected obfuscated value to be a string"
+    assert obfuscated_value != secret_value, "Secret value should not be in cleartext"
+    assert re.fullmatch(r"\*+", obfuscated_value), (
+        f"Expected obfuscated value to be asterisks, got: {obfuscated_value}"
+    )
+
+    json_str = result.stdout
+    assert secret_value not in json_str
 
 
 def test_listing_system_block_types(register_block_types):
