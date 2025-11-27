@@ -1,10 +1,11 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
-import type { components } from "@/api/prefect";
-import { buildListTaskRunsQuery, type TaskRunsFilter } from "@/api/task-runs";
+import {
+	buildListTaskRunsQuery,
+	type TaskRun,
+	type TaskRunsFilter,
+} from "@/api/task-runs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-
-type StateType = components["schemas"]["StateType"];
 
 type TaskRunsCardProps = {
 	filter?: {
@@ -23,17 +24,20 @@ type TaskRunCounts = {
 	failurePercentage: number;
 };
 
-const calculateCounts = (
-	taskRuns: Array<{ state_type: StateType }>,
-): TaskRunCounts => {
+const calculateCounts = (taskRuns: TaskRun[]): TaskRunCounts => {
 	const total = taskRuns.length;
-	const running = taskRuns.filter((tr) => tr.state_type === "RUNNING").length;
-	const completed = taskRuns.filter(
-		(tr) => tr.state_type === "COMPLETED",
-	).length;
-	const failed = taskRuns.filter(
-		(tr) => tr.state_type === "FAILED" || tr.state_type === "CRASHED",
-	).length;
+	let running = 0;
+	let completed = 0;
+	let failed = 0;
+
+	for (const run of taskRuns) {
+		const stateType = run.state_type;
+		if (!stateType) continue;
+
+		if (stateType === "RUNNING") running += 1;
+		else if (stateType === "COMPLETED") completed += 1;
+		else if (stateType === "FAILED" || stateType === "CRASHED") failed += 1;
+	}
 
 	const completionPercentage = total > 0 ? (completed / total) * 100 : 0;
 	const failurePercentage = total > 0 ? (failed / total) * 100 : 0;
@@ -51,7 +55,7 @@ const calculateCounts = (
 export function TaskRunsCard({ filter }: TaskRunsCardProps) {
 	const taskRunsFilter: TaskRunsFilter = useMemo(() => {
 		const baseFilter: TaskRunsFilter = {
-			sort: "START_TIME_DESC",
+			sort: "ID_DESC",
 			offset: 0,
 		};
 

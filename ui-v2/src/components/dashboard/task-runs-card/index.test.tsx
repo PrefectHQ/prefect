@@ -42,7 +42,7 @@ describe("TaskRunsCard", () => {
 
 		const queryClient = new QueryClient();
 		const queryOptions = buildListTaskRunsQuery({
-			sort: "START_TIME_DESC",
+			sort: "ID_DESC",
 			offset: 0,
 		});
 		queryClient.setQueryData(queryOptions.queryKey, [taskRun1, taskRun2]);
@@ -63,7 +63,7 @@ describe("TaskRunsCard", () => {
 
 		const queryClient = new QueryClient();
 		const queryOptions = buildListTaskRunsQuery({
-			sort: "START_TIME_DESC",
+			sort: "ID_DESC",
 			offset: 0,
 		});
 		queryClient.setQueryData(queryOptions.queryKey, taskRuns);
@@ -78,7 +78,7 @@ describe("TaskRunsCard", () => {
 	it("does not display count when no task runs exist", async () => {
 		const queryClient = new QueryClient();
 		const queryOptions = buildListTaskRunsQuery({
-			sort: "START_TIME_DESC",
+			sort: "ID_DESC",
 			offset: 0,
 		});
 		queryClient.setQueryData(queryOptions.queryKey, []);
@@ -94,7 +94,7 @@ describe("TaskRunsCard", () => {
 	it("shows empty message when no task runs", async () => {
 		const queryClient = new QueryClient();
 		const queryOptions = buildListTaskRunsQuery({
-			sort: "START_TIME_DESC",
+			sort: "ID_DESC",
 			offset: 0,
 		});
 		queryClient.setQueryData(queryOptions.queryKey, []);
@@ -145,7 +145,7 @@ describe("TaskRunsCard", () => {
 
 		const queryClient = new QueryClient();
 		const queryOptions = buildListTaskRunsQuery({
-			sort: "START_TIME_DESC",
+			sort: "ID_DESC",
 			offset: 0,
 		});
 		queryClient.setQueryData(queryOptions.queryKey, taskRuns);
@@ -209,7 +209,7 @@ describe("TaskRunsCard", () => {
 
 		const queryClient = new QueryClient();
 		const queryOptions = buildListTaskRunsQuery({
-			sort: "START_TIME_DESC",
+			sort: "ID_DESC",
 			offset: 0,
 		});
 		queryClient.setQueryData(queryOptions.queryKey, taskRuns);
@@ -261,7 +261,7 @@ describe("TaskRunsCard", () => {
 
 		const queryClient = new QueryClient();
 		const queryOptions = buildListTaskRunsQuery({
-			sort: "START_TIME_DESC",
+			sort: "ID_DESC",
 			offset: 0,
 		});
 		queryClient.setQueryData(queryOptions.queryKey, taskRuns);
@@ -287,7 +287,7 @@ describe("TaskRunsCard", () => {
 
 		const queryClient = new QueryClient();
 		const queryOptions = buildListTaskRunsQuery({
-			sort: "START_TIME_DESC",
+			sort: "ID_DESC",
 			offset: 0,
 			task_runs: {
 				operator: "and_",
@@ -323,7 +323,7 @@ describe("TaskRunsCard", () => {
 
 		const queryClient = new QueryClient();
 		const queryOptions = buildListTaskRunsQuery({
-			sort: "START_TIME_DESC",
+			sort: "ID_DESC",
 			offset: 0,
 			task_runs: {
 				operator: "and_",
@@ -361,7 +361,7 @@ describe("TaskRunsCard", () => {
 
 		const queryClient = new QueryClient();
 		const queryOptions = buildListTaskRunsQuery({
-			sort: "START_TIME_DESC",
+			sort: "ID_DESC",
 			offset: 0,
 			task_runs: {
 				operator: "and_",
@@ -398,7 +398,7 @@ describe("TaskRunsCard", () => {
 
 		const queryClient = new QueryClient();
 		const queryOptions = buildListTaskRunsQuery({
-			sort: "START_TIME_DESC",
+			sort: "ID_DESC",
 			offset: 0,
 		});
 		queryClient.setQueryData(queryOptions.queryKey, taskRuns);
@@ -422,7 +422,7 @@ describe("TaskRunsCard", () => {
 
 		const queryClient = new QueryClient();
 		const queryOptions = buildListTaskRunsQuery({
-			sort: "START_TIME_DESC",
+			sort: "ID_DESC",
 			offset: 0,
 		});
 		queryClient.setQueryData(queryOptions.queryKey, taskRuns);
@@ -452,7 +452,7 @@ describe("TaskRunsCard", () => {
 
 		const queryClient = new QueryClient();
 		const queryOptions = buildListTaskRunsQuery({
-			sort: "START_TIME_DESC",
+			sort: "ID_DESC",
 			offset: 0,
 		});
 		queryClient.setQueryData(queryOptions.queryKey, taskRuns);
@@ -484,7 +484,7 @@ describe("TaskRunsCard", () => {
 
 		const queryClient = new QueryClient();
 		const queryOptions = buildListTaskRunsQuery({
-			sort: "START_TIME_DESC",
+			sort: "ID_DESC",
 			offset: 0,
 		});
 		queryClient.setQueryData(queryOptions.queryKey, taskRuns);
