@@ -7,6 +7,8 @@ import {
 } from "@/api/task-runs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
+export { TaskRunStats } from "./task-runs-stats";
+
 type TaskRunsCardProps = {
 	filter?: {
 		startDate?: string;
