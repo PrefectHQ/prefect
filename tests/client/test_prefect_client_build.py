@@ -1,11 +1,12 @@
 from pathlib import Path
 
 import pytest
-import toml
+import tomlkit
 
 
 def get_dependencies_from_pyproject(pyproject_path: Path) -> dict[str, str]:
-    pyproject_data = toml.load(pyproject_path)
+    with pyproject_path.open("rb") as f:
+        pyproject_data = tomlkit.load(f)
 
     dependencies = pyproject_data.get("project", {}).get("dependencies", [])
     return {dep.split(">=")[0].strip(): dep for dep in dependencies}

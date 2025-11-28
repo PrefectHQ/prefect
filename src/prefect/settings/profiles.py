@@ -11,7 +11,7 @@ from typing import (
     Optional,
 )
 
-import toml
+import tomlkit
 from pydantic import (
     BaseModel,
     BeforeValidator,
@@ -276,7 +276,8 @@ def _read_profiles_from(path: Path) -> ProfilesCollection:
         <SETTING: str> = <value: Any>
         ```
     """
-    contents = toml.loads(path.read_text())
+    with path.open("rb") as f:
+        contents = tomlkit.load(f)
     active_profile = contents.get("active")
     raw_profiles = contents.get("profiles", {})
 
@@ -296,7 +297,7 @@ def _write_profiles_to(path: Path, profiles: ProfilesCollection) -> None:
     if not path.exists():
         path.parent.mkdir(parents=True, exist_ok=True)
         path.touch(mode=0o600)
-    path.write_text(toml.dumps(profiles.to_dict()))
+    path.write_bytes(tomlkit.dumps(profiles.to_dict()).encode())
 
 
 def load_profiles(include_defaults: bool = True) -> ProfilesCollection:

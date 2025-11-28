@@ -3,7 +3,7 @@ import os
 from pathlib import Path
 
 import pytest
-import toml
+import tomlkit
 from prefect_kubernetes.settings import KubernetesSettings
 
 
@@ -66,7 +66,7 @@ def test_set_values_via_prefect_toml_file(tmp_path: Path):
             },
         },
     }
-    toml_path.write_text(toml.dumps(toml_data))
+    toml_path.write_bytes(tomlkit.dumps(toml_data).encode())
 
     original_dir = os.getcwd()
     try:
@@ -99,7 +99,7 @@ def test_set_values_via_pyproject_toml_file(tmp_path: Path):
             },
         },
     }
-    pyproject_toml_path.write_text(toml.dumps(pyproject_toml_data))
+    pyproject_toml_path.write_bytes(tomlkit.dumps(pyproject_toml_data).encode())
 
     original_dir = os.getcwd()
     try:
