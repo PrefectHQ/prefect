@@ -196,6 +196,10 @@ SUPPORTED_SETTINGS = {
         "test_value": timedelta(minutes=10),
         "legacy": True,
     },
+    "PREFECT_API_SERVICES_TASK_RUN_RECORDER_ENABLED": {
+        "test_value": True,
+        "legacy": True,
+    },
     "PREFECT_API_SERVICES_TRIGGERS_ENABLED": {"test_value": True, "legacy": True},
     "PREFECT_API_SSL_CERT_FILE": {"test_value": "/path/to/cert"},
     "PREFECT_API_TASK_CACHE_KEY_MAX_LENGTH": {"test_value": 10, "legacy": True},
@@ -458,6 +462,8 @@ SUPPORTED_SETTINGS = {
         "test_value": timedelta(minutes=10)
     },
     "PREFECT_SERVER_SERVICES_TASK_RUN_RECORDER_ENABLED": {"test_value": True},
+    "PREFECT_SERVER_SERVICES_TASK_RUN_RECORDER_BATCH_SIZE": {"test_value": 1},
+    "PREFECT_SERVER_SERVICES_TASK_RUN_RECORDER_FLUSH_INTERVAL": {"test_value": 1.0},
     "PREFECT_SERVER_SERVICES_TASK_RUN_RECORDER_READ_BATCH_SIZE": {"test_value": 1},
     "PREFECT_SERVER_SERVICES_TRIGGERS_ENABLED": {"test_value": True},
     "PREFECT_SERVER_SERVICES_TRIGGERS_READ_BATCH_SIZE": {"test_value": 1},

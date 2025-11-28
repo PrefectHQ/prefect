@@ -478,6 +478,18 @@ class ServerServicesTaskRunRecorderSettings(ServicesBaseSetting):
         description="The number of task runs the task run recorder will attempt to read from the message broker in one batch.",
     )
 
+    batch_size: int = Field(
+        default=1,
+        gt=0,
+        description="The number of task runs the task run recorder will attempt to insert in one batch.",
+    )
+
+    flush_interval: float = Field(
+        default=5,
+        gt=0.0,
+        description="The maximum number of seconds between flushes of the task run recorder.",
+    )
+
 
 class ServerServicesTriggersSettings(ServicesBaseSetting):
     """
