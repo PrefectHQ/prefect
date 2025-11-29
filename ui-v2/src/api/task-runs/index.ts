@@ -280,3 +280,43 @@ export const useDeleteTaskRun = () => {
 	});
 	return { deleteTaskRun, ...rest };
 };
+
+export type TaskRunsHistoryFilter =
+	components["schemas"]["Body_task_run_history_task_runs_history_post"];
+
+export type HistoryResponse = components["schemas"]["HistoryResponse-Output"];
+
+export type HistoryResponseState =
+	components["schemas"]["HistoryResponseState"];
+
+/**
+ * Builds a query configuration for fetching task runs history
+ *
+ * @param filter - Filter parameters for the task runs history query.
+ * @returns Query configuration object for use with TanStack Query
+ *
+ * @example
+ * ```ts
+ * const { data } = useSuspenseQuery(buildTaskRunsHistoryQuery({
+ *   history_start: "2024-01-01T00:00:00Z",
+ *   history_end: "2024-01-02T00:00:00Z",
+ *   history_interval: 3600
+ * }));
+ * ```
+ */
+export const buildTaskRunsHistoryQuery = (
+	filter: TaskRunsHistoryFilter,
+	refetchInterval = 30_000,
+) => {
+	return queryOptions({
+		queryKey: [...queryKeyFactory.lists(), "history", filter],
+		queryFn: async () => {
+			const res = await getQueryService().POST("/task_runs/history", {
+				body: filter,
+			});
+			return res.data ?? [];
+		},
+		staleTime: 1000,
+		refetchInterval,
+	});
+};
