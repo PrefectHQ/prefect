@@ -286,7 +286,8 @@ export type TaskRunsHistoryFilter =
 
 export type HistoryResponse = components["schemas"]["HistoryResponse-Output"];
 
-export type HistoryResponseState = components["schemas"]["HistoryResponseState"];
+export type HistoryResponseState =
+	components["schemas"]["HistoryResponseState"];
 
 /**
  * Builds a query configuration for fetching task runs history

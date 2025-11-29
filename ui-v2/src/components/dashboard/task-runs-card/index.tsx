@@ -137,7 +137,9 @@ export function TaskRunsCard({ filter }: TaskRunsCardProps) {
 								</p>
 							</div>
 							<div className="space-y-1">
-								<p className="text-sm font-medium text-muted-foreground">Total</p>
+								<p className="text-sm font-medium text-muted-foreground">
+									Total
+								</p>
 								<p className="text-2xl font-bold">{counts.total}</p>
 							</div>
 						</div>

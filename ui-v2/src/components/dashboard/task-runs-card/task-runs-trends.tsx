@@ -1,22 +1,16 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
-import {
-	CartesianGrid,
-	Line,
-	LineChart,
-	XAxis,
-	YAxis,
-} from "recharts";
+import { CartesianGrid, Line, LineChart, XAxis, YAxis } from "recharts";
 import {
 	buildTaskRunsHistoryQuery,
 	type HistoryResponse,
 	type TaskRunsHistoryFilter,
 } from "@/api/task-runs";
 import {
+	type ChartConfig,
 	ChartContainer,
 	ChartTooltip,
 	ChartTooltipContent,
-	type ChartConfig,
 } from "@/components/ui/chart";
 
 type TaskRunsTrendsProps = {
