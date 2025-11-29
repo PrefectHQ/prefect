@@ -1,13 +1,15 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { useMemo } from "react";
+import { Suspense, useMemo } from "react";
 import {
 	buildListTaskRunsQuery,
 	type TaskRun,
 	type TaskRunsFilter,
 } from "@/api/task-runs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { TaskRunsTrends } from "./task-runs-trends";
 
 export { TaskRunStats } from "./task-runs-stats";
+export { TaskRunsTrends } from "./task-runs-trends";
 
 type TaskRunsCardProps = {
 	filter?: {
@@ -108,35 +110,40 @@ export function TaskRunsCard({ filter }: TaskRunsCardProps) {
 						<p>No task runs found</p>
 					</div>
 				) : (
-					<div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-						<div className="space-y-1">
-							<p className="text-sm font-medium text-muted-foreground">
-								Running
-							</p>
-							<p className="text-2xl font-bold">{counts.running}</p>
+					<div className="space-y-4">
+						<div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+							<div className="space-y-1">
+								<p className="text-sm font-medium text-muted-foreground">
+									Running
+								</p>
+								<p className="text-2xl font-bold">{counts.running}</p>
+							</div>
+							<div className="space-y-1">
+								<p className="text-sm font-medium text-muted-foreground">
+									Completed
+								</p>
+								<p className="text-2xl font-bold">{counts.completed}</p>
+								<p className="text-xs text-muted-foreground">
+									{counts.completionPercentage.toFixed(1)}%
+								</p>
+							</div>
+							<div className="space-y-1">
+								<p className="text-sm font-medium text-muted-foreground">
+									Failed
+								</p>
+								<p className="text-2xl font-bold">{counts.failed}</p>
+								<p className="text-xs text-muted-foreground">
+									{counts.failurePercentage.toFixed(1)}%
+								</p>
+							</div>
+							<div className="space-y-1">
+								<p className="text-sm font-medium text-muted-foreground">Total</p>
+								<p className="text-2xl font-bold">{counts.total}</p>
+							</div>
 						</div>
-						<div className="space-y-1">
-							<p className="text-sm font-medium text-muted-foreground">
-								Completed
-							</p>
-							<p className="text-2xl font-bold">{counts.completed}</p>
-							<p className="text-xs text-muted-foreground">
-								{counts.completionPercentage.toFixed(1)}%
-							</p>
-						</div>
-						<div className="space-y-1">
-							<p className="text-sm font-medium text-muted-foreground">
-								Failed
-							</p>
-							<p className="text-2xl font-bold">{counts.failed}</p>
-							<p className="text-xs text-muted-foreground">
-								{counts.failurePercentage.toFixed(1)}%
-							</p>
-						</div>
-						<div className="space-y-1">
-							<p className="text-sm font-medium text-muted-foreground">Total</p>
-							<p className="text-2xl font-bold">{counts.total}</p>
-						</div>
+						<Suspense fallback={null}>
+							<TaskRunsTrends filter={filter} />
+						</Suspense>
 					</div>
 				)}
 			</CardContent>
