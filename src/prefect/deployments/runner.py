@@ -712,6 +712,10 @@ class RunnerDeployment(BaseModel):
             concurrency_options = {
                 "collision_strategy": concurrency_limit.collision_strategy
             }
+            if concurrency_limit.grace_period_seconds is not None:
+                concurrency_options["grace_period_seconds"] = (
+                    concurrency_limit.grace_period_seconds
+                )
             concurrency_limit = concurrency_limit.limit
         else:
             concurrency_options = None
@@ -856,6 +860,10 @@ class RunnerDeployment(BaseModel):
             concurrency_options = {
                 "collision_strategy": concurrency_limit.collision_strategy
             }
+            if concurrency_limit.grace_period_seconds is not None:
+                concurrency_options["grace_period_seconds"] = (
+                    concurrency_limit.grace_period_seconds
+                )
             concurrency_limit = concurrency_limit.limit
         else:
             concurrency_options = None
@@ -966,6 +974,10 @@ class RunnerDeployment(BaseModel):
             concurrency_options = {
                 "collision_strategy": concurrency_limit.collision_strategy
             }
+            if concurrency_limit.grace_period_seconds is not None:
+                concurrency_options["grace_period_seconds"] = (
+                    concurrency_limit.grace_period_seconds
+                )
             concurrency_limit = concurrency_limit.limit
         else:
             concurrency_options = None
@@ -1092,6 +1104,10 @@ class RunnerDeployment(BaseModel):
             concurrency_options = {
                 "collision_strategy": concurrency_limit.collision_strategy
             }
+            if concurrency_limit.grace_period_seconds is not None:
+                concurrency_options["grace_period_seconds"] = (
+                    concurrency_limit.grace_period_seconds
+                )
             concurrency_limit = concurrency_limit.limit
         else:
             concurrency_options = None

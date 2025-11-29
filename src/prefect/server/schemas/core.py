@@ -175,6 +175,12 @@ class ConcurrencyOptions(BaseModel):
     """
 
     collision_strategy: ConcurrencyLimitStrategy
+    grace_period_seconds: int = Field(
+        default=600,
+        ge=60,
+        le=86400,
+        description="Grace period in seconds for infrastructure to start before concurrency slots are revoked",
+    )
 
 
 class FlowRun(TimeSeriesBaseModel, ORMBaseModel):
