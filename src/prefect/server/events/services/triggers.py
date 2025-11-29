@@ -37,7 +37,10 @@ class ReactiveTriggers(RunInEphemeralServers, Service):
             f"ReactiveTriggers starting with unique consumer name: {consumer_name}"
         )
         self.consumer: Consumer = create_consumer(
-            "events", group="reactive-triggers", name=consumer_name
+            "events",
+            group="reactive-triggers",
+            name=consumer_name,
+            read_batch_size=self.service_settings().read_batch_size,
         )
 
         async with triggers.consumer() as handler:
