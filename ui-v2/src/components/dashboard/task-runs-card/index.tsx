@@ -43,8 +43,11 @@ const calculateCounts = (taskRuns: TaskRun[]): TaskRunCounts => {
 		else if (stateType === "FAILED" || stateType === "CRASHED") failed += 1;
 	}
 
-	const completionPercentage = total > 0 ? (completed / total) * 100 : 0;
-	const failurePercentage = total > 0 ? (failed / total) * 100 : 0;
+	const totalFinished = completed + failed;
+	const completionPercentage =
+		totalFinished > 0 ? (completed / totalFinished) * 100 : 0;
+	const failurePercentage =
+		totalFinished > 0 ? (failed / totalFinished) * 100 : 0;
 
 	return {
 		total,
