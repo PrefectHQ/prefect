@@ -219,7 +219,9 @@ describe("TaskRunsCard", () => {
 		render(<TaskRunsCardRouter />, { wrapper });
 
 		expect(await screen.findByText("Completed")).toBeInTheDocument();
-		expect(screen.getByText("50.0%")).toBeInTheDocument();
+		// With totalFinished = completed + failed = 2 + 1 = 3
+		// completionPercentage = 2/3 * 100 = 66.7%
+		expect(screen.getByText("66.7%")).toBeInTheDocument();
 	});
 
 	it("displays failed count including crashed state", async () => {
