@@ -183,12 +183,14 @@ class TestSlackWebhook:
 
             AppriseMock.assert_called_once()
             apprise_instance_mock.add.assert_called_once()
+            # For GovCloud, we add a NotifySlack instance directly (not a URL string)
             call_args = apprise_instance_mock.add.call_args
-            added_url = call_args[1]["servers"]
-            assert "slack://" in added_url
-            assert "T1234" in added_url
-            assert "B5678" in added_url
-            assert "abcdefghijk" in added_url
+            added_instance = call_args[0][0]  # positional arg, not keyword
+            # Verify the instance has the correct webhook_url for GovCloud
+            assert added_instance.webhook_url == "https://hooks.slack-gov.com/services"
+            assert added_instance.token_a == "T1234"
+            assert added_instance.token_b == "B5678"
+            assert added_instance.token_c == "abcdefghijk"
 
             apprise_instance_mock.async_notify.assert_awaited_once_with(
                 body="test", title="", notify_type=PREFECT_NOTIFY_TYPE_DEFAULT
@@ -196,18 +198,22 @@ class TestSlackWebhook:
 
     async def test_notify_async_slack_gov_uses_correct_webhook_url(self):
         """Test that Slack GovCloud URLs use the correct webhook host."""
-        with patch(
-            "prefect.blocks.notifications.SlackWebhook._start_apprise_client"
-        ) as mock_start:
-            _block = SlackWebhook(
-                url="https://hooks.slack-gov.com/services/T1234/B5678/abcdefghijk"
-            )
-            assert _block is not None
+        try:
+            from apprise.plugins.slack import NotifySlack
+        except ImportError:
+            from apprise.plugins.NotifySlack import NotifySlack
 
-            mock_start.assert_called_once()
-            call_args = mock_start.call_args[0][0]
-            url_value = call_args.get_secret_value()
-            assert "slack://" in url_value
+        block = SlackWebhook(
+            url="https://hooks.slack-gov.com/services/T1234/B5678/abcdefghijk"
+        )
+        # The apprise client should have been initialized with a NotifySlack instance
+        # that has the correct webhook_url for GovCloud
+        assert hasattr(block, "_apprise_client")
+        servers = list(block._apprise_client)
+        assert len(servers) == 1
+        slack_instance = servers[0]
+        assert isinstance(slack_instance, NotifySlack)
+        assert slack_instance.webhook_url == "https://hooks.slack-gov.com/services"
 
     def test_notify_sync_standard_slack(self):
         """Test sync notification with standard hooks.slack.com URL."""
@@ -251,9 +257,10 @@ class TestSlackWebhook:
 
             AppriseMock.assert_called_once()
             apprise_instance_mock.add.assert_called_once()
+            # For GovCloud, we add a NotifySlack instance directly (not a URL string)
             call_args = apprise_instance_mock.add.call_args
-            added_url = call_args[1]["servers"]
-            assert "slack://" in added_url
+            added_instance = call_args[0][0]  # positional arg, not keyword
+            assert added_instance.webhook_url == "https://hooks.slack-gov.com/services"
 
             apprise_instance_mock.async_notify.assert_called_once_with(
                 body="test", title="", notify_type=PREFECT_NOTIFY_TYPE_DEFAULT

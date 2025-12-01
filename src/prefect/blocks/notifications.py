@@ -169,6 +169,12 @@ class SlackWebhook(AppriseNotificationBlock):
             return
 
         # GovCloud: we know it's a valid Slack webhook and host is hooks.slack-gov.com
+        # We must add the NotifySlack instance directly to the apprise client
+        # (rather than passing slack_instance.url()) because the webhook_url
+        # override is an instance attribute that would be lost if apprise
+        # re-parsed the URL string.
+        from apprise import Apprise, AppriseAsset
+
         try:
             from apprise.plugins.slack import NotifySlack
         except ImportError:
@@ -187,7 +193,13 @@ class SlackWebhook(AppriseNotificationBlock):
         )
         slack_instance.webhook_url = f"https://{host}/services"
 
-        self._start_apprise_client(SecretStr(slack_instance.url()))
+        prefect_app_data = AppriseAsset(
+            app_id="Prefect Notifications",
+            app_desc="Prefect Notifications",
+            app_url="https://prefect.io",
+        )
+        self._apprise_client = Apprise(asset=prefect_app_data)
+        self._apprise_client.add(slack_instance)
 
 
 class MicrosoftTeamsWebhook(AppriseNotificationBlock):
