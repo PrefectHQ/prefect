@@ -98,6 +98,34 @@ pull:
         credentials: "{{ prefect.blocks.bitbucket-credentials.my-bitbucket-credentials-block }}"
 ```
 
+### Using a Bitbucket Repository Block in `prefect.yaml`
+
+If you want to pull your deployment's code from a Bitbucket Repository **using a repository block**, you can do so by using the `pull_with_block` step in your `prefect.yaml` file.
+
+```yaml
+pull:
+  - prefect.deployments.steps.pull.pull_with_block:
+      block_document_name: my-bitbucket-repo-block
+      block_type_slug: bitbucket-repository
+```
+
+Make sure you have created the Bitbucket Repository block before running the deployment:
+
+```python
+from prefect_bitbucket import BitbucketRepository
+
+BitbucketRepository(
+    repository="https://bitbucket.org/org/private-repo.git",
+    reference="main",
+).save("my-bitbucket-repo-block")
+```
+
+Build and apply the deployment:
+
+```bash
+prefect deployment build --apply
+```
+
 ### Interact with a Bitbucket repository
 
 The code below shows how to reference a particular branch or tag of a Bitbucket repository.
