@@ -24,6 +24,7 @@ from prefect.server.events.ordering import (
 from prefect.server.events.ordering import (
     CausalOrdering as _CausalOrdering,
 )
+from prefect.server.events.ordering.memory import EventBeingProcessed
 from prefect.server.events.schemas.events import Event, ReceivedEvent
 from prefect_redis.client import get_async_redis_client
 
@@ -33,14 +34,6 @@ logger = get_logger(__name__)
 # How long we'll wait for an in-flight event to be processed for follower handling,
 # which crucially needs to be lower than the stream ack deadline
 IN_FLIGHT_EVENT_TIMEOUT = timedelta(seconds=8)
-
-
-class EventBeingProcessed(Exception):
-    """Indicates that an event is currently being processed and should not be processed
-    until it is finished.  This may happen due to Redis Streams redelivering a message."""
-
-    def __init__(self, event: ReceivedEvent):
-        self.event = event
 
 
 class CausalOrdering(_CausalOrdering):
