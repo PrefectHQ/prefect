@@ -271,6 +271,28 @@ class AsyncPostgresConfiguration(BaseDatabaseConfiguration):
                 pg_ctx.verify_mode = ssl.CERT_REQUIRED
                 connect_args["ssl"] = pg_ctx
 
+            iam_settings = get_current_settings().server.database.sqlalchemy.connect_args.iam
+            if iam_settings.enabled:
+                url = sa.engine.make_url(self.connection_url)
+
+                async def get_iam_token() -> str:
+                    def _get_token() -> str:
+                        import boto3
+
+                        session = boto3.Session()
+                        client = session.client("rds")
+                        token = client.generate_db_auth_token(
+                            DBHostname=url.host,
+                            Port=url.port,
+                            DBUsername=url.username,
+                            Region=iam_settings.region_name or session.region_name,
+                        )
+                        return token
+
+                    return await loop.run_in_executor(None, _get_token)
+
+                connect_args["password"] = get_iam_token
+
             if connect_args:
                 kwargs["connect_args"] = connect_args
 
