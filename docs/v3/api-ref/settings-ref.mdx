@@ -2343,6 +2343,18 @@ Whether or not to start the task run recorder service in the server application.
 **Supported environment variables**:
 `PREFECT_SERVER_SERVICES_TASK_RUN_RECORDER_ENABLED`, `PREFECT_API_SERVICES_TASK_RUN_RECORDER_ENABLED`
 
+### `read_batch_size`
+The number of task runs the task run recorder will attempt to read from the message broker in one batch.
+
+**Type**: `integer`
+
+**Default**: `1`
+
+**TOML dotted key path**: `server.services.task_run_recorder.read_batch_size`
+
+**Supported environment variables**:
+`PREFECT_SERVER_SERVICES_TASK_RUN_RECORDER_READ_BATCH_SIZE`
+
 ---
 ## ServerServicesTriggersSettings
 Settings for controlling the triggers service
@@ -2357,6 +2369,18 @@ Whether or not to start the triggers service in the server application.
 
 **Supported environment variables**:
 `PREFECT_SERVER_SERVICES_TRIGGERS_ENABLED`, `PREFECT_API_SERVICES_TRIGGERS_ENABLED`
+
+### `read_batch_size`
+The number of events the triggers service will attempt to read from the message broker in one batch.
+
+**Type**: `integer`
+
+**Default**: `1`
+
+**TOML dotted key path**: `server.services.triggers.read_batch_size`
+
+**Supported environment variables**:
+`PREFECT_SERVER_SERVICES_TRIGGERS_READ_BATCH_SIZE`
 
 ### `pg_notify_reconnect_interval_seconds`
 
