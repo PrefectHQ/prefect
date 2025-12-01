@@ -270,6 +270,7 @@ class TaskRunRecorder(RunInEphemeralServers, Service):
             "events",
             group="task-run-recorder",
             name=generate_unique_consumer_name("task-run-recorder"),
+            read_batch_size=self.service_settings().read_batch_size,
         )
 
         async with consumer() as handler:
