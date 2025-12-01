@@ -1,11 +1,5 @@
 import sys
-from unittest.mock import AsyncMock, MagicMock
-
-# Mock boto3 before importing anything that might use it
-mock_boto3 = MagicMock()
-sys.modules["boto3"] = mock_boto3
-
-from unittest.mock import patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -16,6 +10,14 @@ from prefect.settings import (
     PREFECT_SERVER_DATABASE_SQLALCHEMY_CONNECT_ARGS_IAM_REGION_NAME,
     temporary_settings,
 )
+
+
+@pytest.fixture
+def mock_boto3():
+    with patch("sys.modules", new={**sys.modules}) as modules:
+        mock = MagicMock()
+        modules["boto3"] = mock
+        yield mock
 
 
 @pytest.mark.asyncio
@@ -41,41 +43,44 @@ async def test_iam_auth_configuration_default_region():
             with patch(
                 "prefect.server.database.configurations.TRACKER"
             ) as mock_tracker:
-                with patch(
-                    "prefect.server.database.configurations.logfire"
-                ) as mock_logfire:
+                with patch("prefect.server.database.configurations.logfire"):
                     mock_tracker.active = False
 
                     # Configure the mock boto3
-                    mock_session = MagicMock()
-                    mock_boto3.Session.return_value = mock_session
-                    mock_client = MagicMock()
-                    mock_session.client.return_value = mock_client
-                    mock_client.generate_db_auth_token.return_value = "iam-token"
-                    mock_session.region_name = "us-east-1"
+                    # We need to patch where it is imported.
+                    # Since it is imported inside the function, we can patch sys.modules or use patch.dict
+                    with patch.dict("sys.modules", {"boto3": MagicMock()}):
+                        import boto3
 
-                    await config.engine()
+                        mock_session = MagicMock()
+                        boto3.Session.return_value = mock_session
+                        mock_client = MagicMock()
+                        mock_session.client.return_value = mock_client
+                        mock_client.generate_db_auth_token.return_value = "iam-token"
+                        mock_session.region_name = "us-east-1"
 
-                    assert mock_create_engine.called
-                    call_args = mock_create_engine.call_args
-                    connect_args = call_args.kwargs.get("connect_args")
-                    assert connect_args is not None
-                    assert "password" in connect_args
-                    assert callable(connect_args["password"])
+                        await config.engine()
 
-                    # Test the password callable
-                    password_callable = connect_args["password"]
-                    token = await password_callable()
-                    assert token == "iam-token"
+                        assert mock_create_engine.called
+                        call_args = mock_create_engine.call_args
+                        connect_args = call_args.kwargs.get("connect_args")
+                        assert connect_args is not None
+                        assert "password" in connect_args
+                        assert callable(connect_args["password"])
 
-                    mock_boto3.Session.assert_called()
-                    mock_session.client.assert_called_with("rds")
-                    mock_client.generate_db_auth_token.assert_called_with(
-                        DBHostname="host",
-                        Port=5432,
-                        DBUsername="user",
-                        Region="us-east-1",
-                    )
+                        # Test the password callable
+                        password_callable = connect_args["password"]
+                        token = await password_callable()
+                        assert token == "iam-token"
+
+                        boto3.Session.assert_called()
+                        mock_session.client.assert_called_with("rds")
+                        mock_client.generate_db_auth_token.assert_called_with(
+                            DBHostname="host",
+                            Port=5432,
+                            DBUsername="user",
+                            Region="us-east-1",
+                        )
 
 
 @pytest.mark.asyncio
@@ -107,29 +112,29 @@ async def test_iam_auth_configuration_custom_region():
             with patch(
                 "prefect.server.database.configurations.TRACKER"
             ) as mock_tracker:
-                with patch(
-                    "prefect.server.database.configurations.logfire"
-                ) as mock_logfire:
+                with patch("prefect.server.database.configurations.logfire"):
                     mock_tracker.active = False
 
-                    # Configure the mock boto3
-                    mock_session = MagicMock()
-                    mock_boto3.Session.return_value = mock_session
-                    mock_client = MagicMock()
-                    mock_session.client.return_value = mock_client
-                    mock_client.generate_db_auth_token.return_value = "iam-token-eu"
-                    mock_session.region_name = "us-east-1"  # Default is different
+                    with patch.dict("sys.modules", {"boto3": MagicMock()}):
+                        import boto3
 
-                    await config.engine()
+                        mock_session = MagicMock()
+                        boto3.Session.return_value = mock_session
+                        mock_client = MagicMock()
+                        mock_session.client.return_value = mock_client
+                        mock_client.generate_db_auth_token.return_value = "iam-token-eu"
+                        mock_session.region_name = "us-east-1"  # Default is different
 
-                    call_args = mock_create_engine.call_args
-                    connect_args = call_args.kwargs.get("connect_args")
-                    password_callable = connect_args["password"]
-                    token = await password_callable()
+                        await config.engine()
 
-                    mock_client.generate_db_auth_token.assert_called_with(
-                        DBHostname="host",
-                        Port=5432,
-                        DBUsername="user",
-                        Region="eu-west-1",
-                    )
+                        call_args = mock_create_engine.call_args
+                        connect_args = call_args.kwargs.get("connect_args")
+                        password_callable = connect_args["password"]
+                        await password_callable()
+
+                        mock_client.generate_db_auth_token.assert_called_with(
+                            DBHostname="host",
+                            Port=5432,
+                            DBUsername="user",
+                            Region="eu-west-1",
+                        )
