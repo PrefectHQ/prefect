@@ -285,7 +285,7 @@ class AsyncPostgresConfiguration(BaseDatabaseConfiguration):
                         client = session.client("rds")
                         token = client.generate_db_auth_token(
                             DBHostname=url.host,
-                            Port=url.port,
+                            Port=url.port or 5432,
                             DBUsername=url.username,
                             Region=iam_settings.region_name or session.region_name,
                         )
