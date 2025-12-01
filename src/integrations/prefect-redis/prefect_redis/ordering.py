@@ -176,7 +176,7 @@ class CausalOrdering(_CausalOrdering):
         # done being processed as a quicker alternative to sitting on the waitlist
         if await self.event_has_started_processing(event.follows):
             try:
-                async with anyio.fail_after(IN_FLIGHT_EVENT_TIMEOUT.total_seconds()):
+                with anyio.fail_after(IN_FLIGHT_EVENT_TIMEOUT.total_seconds()):
                     while not await self.event_has_been_seen(event.follows):
                         await asyncio.sleep(0.25)
                     return
