@@ -1,11 +1,8 @@
 # global
-*                                    @cicdw @desertaxle @zzstoatzz @chrisguidry
+*                                    @cicdw @desertaxle @zzstoatzz
 
 # ui
 /ui                                  @znicholasbrown
-
-# integrations
-/src/integrations/prefect-dbt        @cicdw @desertaxle @zzstoatzz @kevingrismore
 
 # imports
 /src/prefect/__init__.py             @aaazzam @chrisguidry @cicdw @desertaxle @zzstoatzz
