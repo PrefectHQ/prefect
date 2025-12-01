@@ -1,6 +1,6 @@
 import urllib
 from typing import Type
-from unittest.mock import AsyncMock, call, patch
+from unittest.mock import AsyncMock, MagicMock, call, patch
 
 import cloudpickle
 import pytest
@@ -283,6 +283,73 @@ class TestSlackWebhook:
         pickled = cloudpickle.dumps(block)
         unpickled = cloudpickle.loads(pickled)
         assert isinstance(unpickled, SlackWebhook)
+
+    async def test_slack_gov_posts_to_correct_url(self):
+        """Regression test: verify GovCloud webhooks POST to hooks.slack-gov.com.
+
+        This test mocks at the HTTP request level to verify the actual URL that
+        would be used for the POST request, ensuring the webhook_url override
+        is properly applied.
+        """
+        import requests
+
+        block = SlackWebhook(
+            url="https://hooks.slack-gov.com/services/TABC123/BDEF456/secrettoken"
+        )
+
+        posted_url = None
+
+        def mock_request(method, url, **kwargs):
+            nonlocal posted_url
+            posted_url = url
+            mock_response = MagicMock()
+            mock_response.status_code = 200
+            mock_response.text = "ok"
+            mock_response.content = b"ok"
+            return mock_response
+
+        with patch.object(requests, "request", side_effect=mock_request):
+            await block.notify("test message")
+
+        # The POST should go to slack-gov.com, NOT slack.com
+        assert posted_url is not None, "No HTTP request was made"
+        assert "hooks.slack-gov.com" in posted_url, (
+            f"Expected POST to hooks.slack-gov.com but got: {posted_url}"
+        )
+        assert "hooks.slack.com" not in posted_url, (
+            f"Should NOT post to hooks.slack.com but got: {posted_url}"
+        )
+        # Verify the full URL structure
+        assert posted_url == (
+            "https://hooks.slack-gov.com/services/TABC123/BDEF456/secrettoken"
+        )
+
+    async def test_standard_slack_posts_to_correct_url(self):
+        """Verify standard Slack webhooks still POST to hooks.slack.com."""
+        import requests
+
+        block = SlackWebhook(
+            url="https://hooks.slack.com/services/TABC123/BDEF456/secrettoken"
+        )
+
+        posted_url = None
+
+        def mock_request(method, url, **kwargs):
+            nonlocal posted_url
+            posted_url = url
+            mock_response = MagicMock()
+            mock_response.status_code = 200
+            mock_response.text = "ok"
+            mock_response.content = b"ok"
+            return mock_response
+
+        with patch.object(requests, "request", side_effect=mock_request):
+            await block.notify("test message")
+
+        assert posted_url is not None, "No HTTP request was made"
+        assert posted_url == (
+            "https://hooks.slack.com/services/TABC123/BDEF456/secrettoken"
+        )
 
 
 class TestMattermostWebhook:
