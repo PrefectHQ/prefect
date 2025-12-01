@@ -51,6 +51,26 @@ class SQLAlchemyTLSSettings(PrefectBaseSettings):
     )
 
 
+class SQLAlchemyIAMSettings(PrefectBaseSettings):
+    """
+    Settings for controlling IAM authentication behavior when using a PostgreSQL database.
+    """
+
+    model_config: ClassVar[SettingsConfigDict] = build_settings_config(
+        ("server", "database", "sqlalchemy", "connect_args", "iam")
+    )
+
+    enabled: bool = Field(
+        default=False,
+        description="Controls whether to use IAM authentication for PostgreSQL connections.",
+    )
+
+    region_name: Optional[str] = Field(
+        default=None,
+        description="The AWS region to use for IAM authentication. If not provided, it will be inferred from the environment.",
+    )
+
+
 class SQLAlchemyConnectArgsSettings(PrefectBaseSettings):
     """
     Settings for controlling SQLAlchemy connection behavior; note that these settings only take effect when
@@ -88,26 +108,6 @@ class SQLAlchemyConnectArgsSettings(PrefectBaseSettings):
     iam: SQLAlchemyIAMSettings = Field(
         default_factory=SQLAlchemyIAMSettings,
         description="Settings for controlling IAM authentication for PostgreSQL connections.",
-    )
-
-
-class SQLAlchemyIAMSettings(PrefectBaseSettings):
-    """
-    Settings for controlling IAM authentication behavior when using a PostgreSQL database.
-    """
-
-    model_config: ClassVar[SettingsConfigDict] = build_settings_config(
-        ("server", "database", "sqlalchemy", "connect_args", "iam")
-    )
-
-    enabled: bool = Field(
-        default=False,
-        description="Controls whether to use IAM authentication for PostgreSQL connections.",
-    )
-
-    region_name: Optional[str] = Field(
-        default=None,
-        description="The AWS region to use for IAM authentication. If not provided, it will be inferred from the environment.",
     )
 
 
