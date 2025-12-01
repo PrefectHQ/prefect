@@ -1,0 +1,71 @@
+name: Windows Mapping Performance Tests
+
+# Test task mapping and submitting performance on Windows vs Linux
+# Related to issue #19581: Windows is 2x slower to create tasks when mapping or submitting
+
+on:
+  # Temporarily enabled for PR to inspect behavior
+  pull_request:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/windows-mapping-performance-tests.yaml"
+      - "scripts/test_windows_mapping_performance.py"
+  workflow_dispatch: {}
+
+permissions: {}
+
+jobs:
+  test-mapping-performance:
+    name: Test Mapping Performance (${{ matrix.os }})
+
+    strategy:
+      matrix:
+        os:
+          - windows-latest
+          - ubuntu-latest
+      fail-fast: false
+
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+
+    permissions:
+      contents: read
+
+    env:
+      PY_COLORS: 1
+      NUM_TASKS: 100
+
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Set up uv and Python
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+          python-version: "3.12"
+          cache-dependency-glob: "pyproject.toml"
+
+      - name: Run mapping performance test
+        run: |
+          uv run python scripts/test_windows_mapping_performance.py
+
+  summarize-results:
+    name: Summarize Performance Results
+    runs-on: ubuntu-latest
+    needs: [test-mapping-performance]
+    if: always()
+
+    steps:
+      - name: Summary
+        run: |
+          echo "## Task Mapping Performance Comparison" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "This workflow tests task mapping and submitting performance on Windows vs Linux." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Check the individual job logs above for detailed timing information." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Related to issue #19581" >> $GITHUB_STEP_SUMMARY
