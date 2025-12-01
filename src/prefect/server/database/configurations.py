@@ -271,7 +271,9 @@ class AsyncPostgresConfiguration(BaseDatabaseConfiguration):
                 pg_ctx.verify_mode = ssl.CERT_REQUIRED
                 connect_args["ssl"] = pg_ctx
 
-            iam_settings = get_current_settings().server.database.sqlalchemy.connect_args.iam
+            iam_settings = (
+                get_current_settings().server.database.sqlalchemy.connect_args.iam
+            )
             if iam_settings.enabled:
                 url = sa.engine.make_url(self.connection_url)
 
