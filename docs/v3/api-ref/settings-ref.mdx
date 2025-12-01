@@ -446,6 +446,18 @@ Whether or not to enable orchestration telemetry.
 **Supported environment variables**:
 `PREFECT_CLOUD_ENABLE_ORCHESTRATION_TELEMETRY`
 
+### `max_log_size`
+Maximum size in characters for a single log when sending logs to Prefect Cloud.
+
+**Type**: `integer`
+
+**Default**: `25000`
+
+**TOML dotted key path**: `cloud.max_log_size`
+
+**Supported environment variables**:
+`PREFECT_CLOUD_MAX_LOG_SIZE`
+
 ### `ui_url`
 The URL of the Prefect Cloud UI. If not set, the client will attempt to infer it.
 
@@ -688,7 +700,7 @@ The number of logs to batch before sending to the API.
 `PREFECT_LOGGING_TO_API_BATCH_SIZE`
 
 ### `max_log_size`
-The maximum size in bytes for a single log.
+The maximum size in characters for a single log. When connected to Prefect Cloud, this value is capped at `PREFECT_CLOUD_MAX_LOG_SIZE` (default 25,000).
 
 **Type**: `integer`
 
@@ -1342,6 +1354,21 @@ Initial duration for deployment concurrency lease in seconds.
 **Supported environment variables**:
 `PREFECT_SERVER_CONCURRENCY_INITIAL_DEPLOYMENT_LEASE_DURATION`
 
+### `maximum_concurrency_slot_wait_seconds`
+The maximum number of seconds to wait before retrying when a concurrency slot cannot be acquired.
+
+**Type**: `number`
+
+**Default**: `30`
+
+**Constraints**:
+- Minimum: 0
+
+**TOML dotted key path**: `server.concurrency.maximum_concurrency_slot_wait_seconds`
+
+**Supported environment variables**:
+`PREFECT_SERVER_CONCURRENCY_MAXIMUM_CONCURRENCY_SLOT_WAIT_SECONDS`
+
 ---
 ## ServerDatabaseSettings
 Settings for controlling server database behavior
@@ -1865,6 +1892,18 @@ The number of events the event persister will attempt to insert in one batch.
 **Supported environment variables**:
 `PREFECT_SERVER_SERVICES_EVENT_PERSISTER_BATCH_SIZE`, `PREFECT_API_SERVICES_EVENT_PERSISTER_BATCH_SIZE`
 
+### `read_batch_size`
+The number of events the event persister will attempt to read from the message broker in one batch.
+
+**Type**: `integer`
+
+**Default**: `1`
+
+**TOML dotted key path**: `server.services.event_persister.read_batch_size`
+
+**Supported environment variables**:
+`PREFECT_SERVER_SERVICES_EVENT_PERSISTER_READ_BATCH_SIZE`, `PREFECT_API_SERVICES_EVENT_PERSISTER_READ_BATCH_SIZE`
+
 ### `flush_interval`
 The maximum number of seconds between flushes of the event persister.
 
@@ -2304,6 +2343,18 @@ Whether or not to start the task run recorder service in the server application.
 **Supported environment variables**:
 `PREFECT_SERVER_SERVICES_TASK_RUN_RECORDER_ENABLED`, `PREFECT_API_SERVICES_TASK_RUN_RECORDER_ENABLED`
 
+### `read_batch_size`
+The number of task runs the task run recorder will attempt to read from the message broker in one batch.
+
+**Type**: `integer`
+
+**Default**: `1`
+
+**TOML dotted key path**: `server.services.task_run_recorder.read_batch_size`
+
+**Supported environment variables**:
+`PREFECT_SERVER_SERVICES_TASK_RUN_RECORDER_READ_BATCH_SIZE`
+
 ---
 ## ServerServicesTriggersSettings
 Settings for controlling the triggers service
@@ -2318,6 +2369,18 @@ Whether or not to start the triggers service in the server application.
 
 **Supported environment variables**:
 `PREFECT_SERVER_SERVICES_TRIGGERS_ENABLED`, `PREFECT_API_SERVICES_TRIGGERS_ENABLED`
+
+### `read_batch_size`
+The number of events the triggers service will attempt to read from the message broker in one batch.
+
+**Type**: `integer`
+
+**Default**: `1`
+
+**TOML dotted key path**: `server.services.triggers.read_batch_size`
+
+**Supported environment variables**:
+`PREFECT_SERVER_SERVICES_TRIGGERS_READ_BATCH_SIZE`
 
 ### `pg_notify_reconnect_interval_seconds`
 

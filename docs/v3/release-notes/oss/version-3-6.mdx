@@ -2,6 +2,61 @@
 title: 3.6
 ---
 
+## 3.6.4 - No Deployment Left Unparametrized
+
+*Released on November 21, 2025*
+
+**Bug Fixes 🐞**
+
+* fix: preserve event template parameters in deployment triggers by [@zzstoatzz](https://github.com/zzstoatzz) in [#19504](https://github.com/PrefectHQ/prefect/pull/19504)
+* Fix truncating log behavior by [@jakekaplan](https://github.com/jakekaplan) in [#19496](https://github.com/PrefectHQ/prefect/pull/19496)
+
+**Integrations & Dependencies 🤝**
+
+* Chore: Bump ui library by [@znicholasbrown](https://github.com/znicholasbrown) in [#19492](https://github.com/PrefectHQ/prefect/pull/19492)
+
+**Documentation 📓**
+
+* docs: Add migration note about unmapped mutable objects by [@zzstoatzz](https://github.com/zzstoatzz) in [#19494](https://github.com/PrefectHQ/prefect/pull/19494)
+
+
+**Full Changelog**: https://github.com/PrefectHQ/prefect/compare/3.6.3...3.6.4
+
+
+---
+
+## 3.6.3 - That's JSON Bourne
+
+*Released on November 19, 2025*
+
+**Enhancements ➕➕**
+
+* Add `-o json` output option to `prefect flow-run ls` command by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#19484](https://github.com/PrefectHQ/prefect/pull/19484)
+* fix: allow pause_flow_run() to pause parent flow when called from task by [@zzstoatzz](https://github.com/zzstoatzz) in [#19457](https://github.com/PrefectHQ/prefect/pull/19457)
+
+**Bug Fixes 🐞**
+* Use acquisition service pattern for lease-based concurrency slots by [@bunchesofdonald](https://github.com/bunchesofdonald) in [#19451](https://github.com/PrefectHQ/prefect/pull/19451)
+* fix: respect subflow attributes (log_prints, result_storage) when running inside task by [@zzstoatzz](https://github.com/zzstoatzz) in [#19450](https://github.com/PrefectHQ/prefect/pull/19450)
+* fix: defer forward reference resolution in ValidatedFunction by [@zzstoatzz](https://github.com/zzstoatzz) in [#19452](https://github.com/PrefectHQ/prefect/pull/19452)
+* fix: validate deployment triggers after templating so jinja-based booleans work, should close #19348 by [@iclectic](https://github.com/iclectic) in [#19414](https://github.com/PrefectHQ/prefect/pull/19414)
+* fix: show detailed validation errors for top-level prefect.yaml fields by [@zzstoatzz](https://github.com/zzstoatzz) in [#19468](https://github.com/PrefectHQ/prefect/pull/19468)
+* Clamp denied_slots decay rate to match retry-after calculation by [@bunchesofdonald](https://github.com/bunchesofdonald) in [#19466](https://github.com/PrefectHQ/prefect/pull/19466)
+* Fix: Enable parameter type checking for [@task](https://github.com/task) decorator by [@zzstoatzz](https://github.com/zzstoatzz) in [#19459](https://github.com/PrefectHQ/prefect/pull/19459)
+
+**Development & Tidiness 🧹**
+
+* add --build-arg to dev build-image command to allow direct passing of… by [@conrade-ctc](https://github.com/conrade-ctc) in [#19473](https://github.com/PrefectHQ/prefect/pull/19473)
+
+**Documentation 📓**
+
+* Add database cleanup example with human/AI approval by [@zzstoatzz](https://github.com/zzstoatzz) in [#19456](https://github.com/PrefectHQ/prefect/pull/19456)
+
+
+**Full Changelog**: https://github.com/PrefectHQ/prefect/compare/3.6.2...3.6.3
+
+
+---
+
 ## 3.6.2 - The Missing Link
 
 *Released on November 13, 2025*

@@ -129,6 +129,10 @@ SUPPORTED_SETTINGS = {
         "test_value": 100,
         "legacy": True,
     },
+    "PREFECT_API_SERVICES_EVENT_PERSISTER_READ_BATCH_SIZE": {
+        "test_value": 10,
+        "legacy": True,
+    },
     "PREFECT_API_SERVICES_EVENT_PERSISTER_ENABLED": {
         "test_value": True,
         "legacy": True,
@@ -216,6 +220,7 @@ SUPPORTED_SETTINGS = {
     "PREFECT_CLI_WRAP_LINES": {"test_value": True},
     "PREFECT_CLOUD_API_URL": {"test_value": "https://cloud.prefect.io"},
     "PREFECT_CLOUD_ENABLE_ORCHESTRATION_TELEMETRY": {"test_value": True},
+    "PREFECT_CLOUD_MAX_LOG_SIZE": {"test_value": 25_000},
     "PREFECT_CLOUD_UI_URL": {"test_value": "https://cloud.prefect.io"},
     "PREFECT_DEBUG_MODE": {"test_value": True},
     "PREFECT_DEFAULT_DOCKER_BUILD_NAMESPACE": {"test_value": "prefect", "legacy": True},
@@ -415,6 +420,7 @@ SUPPORTED_SETTINGS = {
     "PREFECT_SERVER_SERVICES_EVENT_LOGGER_ENABLED": {"test_value": True},
     "PREFECT_SERVER_SERVICES_EVENT_PERSISTER_BATCH_SIZE": {"test_value": 10},
     "PREFECT_SERVER_SERVICES_EVENT_PERSISTER_BATCH_SIZE_DELETE": {"test_value": 20},
+    "PREFECT_SERVER_SERVICES_EVENT_PERSISTER_READ_BATCH_SIZE": {"test_value": 10},
     "PREFECT_SERVER_SERVICES_EVENT_PERSISTER_ENABLED": {"test_value": True},
     "PREFECT_SERVER_SERVICES_EVENT_PERSISTER_FLUSH_INTERVAL": {"test_value": 10.0},
     "PREFECT_SERVER_SERVICES_FOREMAN_DEPLOYMENT_LAST_POLLED_TIMEOUT_SECONDS": {
@@ -454,7 +460,9 @@ SUPPORTED_SETTINGS = {
         "test_value": timedelta(minutes=10)
     },
     "PREFECT_SERVER_SERVICES_TASK_RUN_RECORDER_ENABLED": {"test_value": True},
+    "PREFECT_SERVER_SERVICES_TASK_RUN_RECORDER_READ_BATCH_SIZE": {"test_value": 1},
     "PREFECT_SERVER_SERVICES_TRIGGERS_ENABLED": {"test_value": True},
+    "PREFECT_SERVER_SERVICES_TRIGGERS_READ_BATCH_SIZE": {"test_value": 1},
     "PREFECT_SERVER_SERVICES_TRIGGERS_PG_NOTIFY_HEARTBEAT_INTERVAL_SECONDS": {
         "test_value": 5
     },
@@ -857,6 +865,41 @@ class TestSettingsClass:
         ), (
             "valid_setting_names output did not match supported settings. Please update SUPPORTED_SETTINGS if you are adding or removing a setting."
         )
+
+    @pytest.mark.usefixtures("disable_hosted_api_server")
+    def test_connected_to_cloud_true_when_api_url_matches_cloud(self):
+        with temporary_settings(
+            updates={PREFECT_API_URL: "https://api.prefect.cloud/api"}
+        ) as settings:
+            assert settings.connected_to_cloud is True
+
+    @pytest.mark.usefixtures("disable_hosted_api_server")
+    def test_connected_to_cloud_true_with_accounts_subdomain(self):
+        with temporary_settings(
+            updates={
+                PREFECT_API_URL: "https://api.prefect.cloud/api/accounts/foo/workspaces/bar"
+            }
+        ) as settings:
+            assert settings.connected_to_cloud is True
+
+    @pytest.mark.usefixtures("disable_hosted_api_server")
+    def test_connected_to_cloud_false_for_self_hosted(self):
+        with temporary_settings(
+            updates={PREFECT_API_URL: "http://localhost:4200/api"}
+        ) as settings:
+            assert settings.connected_to_cloud is False
+
+    @pytest.mark.usefixtures("disable_hosted_api_server")
+    def test_connected_to_cloud_false_when_no_api_url(self):
+        with temporary_settings(restore_defaults={PREFECT_API_URL}) as settings:
+            assert settings.connected_to_cloud is False
+
+    @pytest.mark.usefixtures("disable_hosted_api_server")
+    def test_connected_to_cloud_false_with_different_domain(self):
+        with temporary_settings(
+            updates={PREFECT_API_URL: "https://example.com/api"}
+        ) as settings:
+            assert settings.connected_to_cloud is False
 
 
 class TestSettingAccess:

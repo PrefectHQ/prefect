@@ -6,7 +6,9 @@ from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
 import prefect.types._datetime
+from prefect.exceptions import EventTooLarge
 from prefect.logging.loggers import get_logger
+from prefect.settings import get_current_settings
 
 from .clients import (
     AssertingEventsClient,
@@ -94,9 +96,16 @@ def emit_event(
                 event_kwargs["follows"] = follows.id
 
         event_obj = Event(**event_kwargs)
+
+        max_size = get_current_settings().server.events.maximum_size_bytes
+        if event_obj.size_bytes > max_size:
+            raise EventTooLarge(event_obj.size_bytes, max_size)
+
         worker_instance.send(event_obj)
 
         return event_obj
+    except EventTooLarge:
+        raise
     except Exception:
         logger.exception(f"Error emitting event: {event}")
         return None

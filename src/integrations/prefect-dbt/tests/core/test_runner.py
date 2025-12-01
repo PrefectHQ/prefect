@@ -475,10 +475,10 @@ class TestPrefectDbtRunnerInvoke:
             result = test_flow()
 
         assert result.success is True
-        # Verify callbacks were created
+        # Verify callbacks were created (unified callback approach uses 1 callback)
         mock_dbt_runner_class.assert_called_once()
         call_args = mock_dbt_runner_class.call_args
-        assert len(call_args[1]["callbacks"]) == 3
+        assert len(call_args[1]["callbacks"]) == 1
 
     def test_invoke_with_force_nodes_as_tasks(
         self, mock_dbt_runner_class, mock_settings_context_manager
@@ -494,10 +494,10 @@ class TestPrefectDbtRunnerInvoke:
             result = runner.invoke(["run"])
 
         assert result.success is True
-        # Verify callbacks were created
+        # Verify callbacks were created (unified callback approach uses 1 callback)
         mock_dbt_runner_class.assert_called_once()
         call_args = mock_dbt_runner_class.call_args
-        assert len(call_args[1]["callbacks"]) == 3
+        assert len(call_args[1]["callbacks"]) == 1
 
     def test_invoke_sets_log_level_none_in_context(
         self, mock_dbt_runner_class, mock_settings_context_manager
@@ -652,17 +652,19 @@ class TestPrefectDbtRunnerCallbackCreation:
     def test_create_node_finished_callback_returns_callable(self, mock_task_state):
         """Test that node finished callback creation returns a callable."""
         runner = PrefectDbtRunner()
+        context = {"test": "context"}
 
-        callback = runner._create_node_finished_callback(mock_task_state)
+        callback = runner._create_node_finished_callback(mock_task_state, context)
 
         assert callable(callback)
 
     def test_create_node_finished_callback_with_add_test_edges(self, mock_task_state):
         """Test that node finished callback works with add_test_edges."""
         runner = PrefectDbtRunner()
+        context = {"test": "context"}
 
         callback = runner._create_node_finished_callback(
-            mock_task_state, add_test_edges=True
+            mock_task_state, context, add_test_edges=True
         )
 
         assert callable(callback)
@@ -691,6 +693,11 @@ class TestPrefectDbtRunnerCallbackCreation:
             mock_event.data.node_info.unique_id = mock_manifest_node.unique_id
 
             callback(mock_event)
+
+            # Wait for the queue to process the callback (since callbacks are now async)
+            if runner_disabled._event_queue:
+                runner_disabled._event_queue.join()
+                runner_disabled._stop_callback_processor()
 
             mock_call_task.assert_called_once_with(
                 mock_task_state, mock_manifest_node, context, False
@@ -1014,10 +1021,10 @@ class TestPrefectDbtRunnerBuildCommands:
             mock_context.return_value = {"flow_run_context": {"id": "test"}}
             runner.invoke(["build"])
 
-        # Verify callbacks were created with add_test_edges=True
+        # Verify callbacks were created with add_test_edges=True (unified callback approach uses 1 callback)
         mock_dbt_runner_class.assert_called_once()
         call_args = mock_dbt_runner_class.call_args
-        assert len(call_args[1]["callbacks"]) == 3
+        assert len(call_args[1]["callbacks"]) == 1
 
     def test_invoke_retry_build_command_sets_add_test_edges_true(
         self, mock_dbt_runner_class, mock_settings_context_manager, tmp_path: Path

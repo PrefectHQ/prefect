@@ -7,14 +7,17 @@ import {
 	buildFilterWorkPoolsQuery,
 	buildListWorkPoolWorkersQuery,
 } from "@/api/work-pools";
-import { DashboardWorkPoolsCard } from "@/components/dashboard";
+import {
+	DashboardWorkPoolsCard,
+	FlowRunsCard,
+	TaskRunsCard,
+} from "@/components/dashboard";
 import { FlowRunTagsSelect } from "@/components/flow-runs/flow-run-tags-select";
 import {
 	Breadcrumb,
 	BreadcrumbItem,
 	BreadcrumbList,
 } from "@/components/ui/breadcrumb";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
 	type DateRangeSelectAroundUnit,
 	type DateRangeSelectValue,
@@ -316,34 +319,25 @@ export function RouteComponent() {
 					<div className="grid grid-cols-1 gap-4 items-start xl:grid-cols-2">
 						{/* Main content - Flow Runs Card */}
 						<div className="space-y-4">
-							<Card>
-								<CardHeader>
-									<CardTitle>Flow Runs</CardTitle>
-								</CardHeader>
-								<CardContent className="space-y-4">
-									<div className="h-64 bg-muted rounded-md flex items-center justify-center">
-										<span className="text-muted-foreground">
-											Flow runs chart and table will appear here
-										</span>
-									</div>
-								</CardContent>
-							</Card>
+							<FlowRunsCard
+								filter={{
+									startDate: search.from,
+									endDate: search.to,
+									tags: search.tags,
+									hideSubflows: search.hideSubflows,
+								}}
+							/>
 						</div>
 
 						{/* Sidebar - Task Runs and Work Pools Cards */}
 						<div className="grid grid-cols-1 gap-4">
-							<Card>
-								<CardHeader>
-									<CardTitle>Cumulative Task Runs</CardTitle>
-								</CardHeader>
-								<CardContent>
-									<div className="h-48 bg-muted rounded-md flex items-center justify-center">
-										<span className="text-muted-foreground">
-											Cumulative task runs chart will appear here
-										</span>
-									</div>
-								</CardContent>
-							</Card>
+							<TaskRunsCard
+								filter={{
+									startDate: search.from,
+									endDate: search.to,
+									tags: search.tags,
+								}}
+							/>
 
 							<DashboardWorkPoolsCard
 								filter={{

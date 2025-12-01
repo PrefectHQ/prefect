@@ -97,6 +97,8 @@ class BitBucketCredentials(CredentialsBlock):
         BitBucket has different authentication formats:
         - BitBucket Server: username:token format required
         - BitBucket Cloud: x-token-auth:token prefix
+        - Self-hosted instances: If username is provided, username:token format is used
+          regardless of hostname (supports instances without 'bitbucketserver' in URL)
 
         Args:
             url: Repository URL (e.g., "https://bitbucket.org/org/repo.git")
@@ -127,6 +129,13 @@ class BitBucketCredentials(CredentialsBlock):
                 raise ValueError(
                     "Username is required for BitBucket Server authentication"
                 )
+            credentials = (
+                f"{_quote_credential(self.username)}:{_quote_credential(token_value)}"
+            )
+        # If username is provided, use username:password auth
+        # This supports self-hosted BitBucket Server instances that don't have
+        # 'bitbucketserver' in their hostname
+        elif self.username:
             credentials = (
                 f"{_quote_credential(self.username)}:{_quote_credential(token_value)}"
             )

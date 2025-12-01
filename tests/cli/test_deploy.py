@@ -6351,3 +6351,135 @@ class TestDeploymentTriggerTemplating:
         assert len(triggers) == 1
         assert triggers[0].enabled is True
         assert triggers[0].name == "test-deployment__automation_1"
+
+    async def test_deployment_trigger_event_parameters_preserved(
+        self, project_dir: Path, prefect_client: PrefectClient
+    ):
+        """
+        Regression test for issue #19501: ensure that event template parameters
+        in triggers are preserved during deployment, not stripped out by apply_values().
+
+        When triggers with parameters like {"name": "{{ event.name }}"} are deployed,
+        these runtime event templates should be preserved in the automation action,
+        not removed because they're not in the build step outputs.
+        """
+        await prefect_client.create_work_pool(
+            WorkPoolCreate(name="test-pool", type="test")
+        )
+
+        # Create a flow file
+        flow_file = project_dir / "flow.py"
+        flow_file.write_text("""
+from prefect import flow
+
+@flow
+def say_hello(name: str) -> str:
+    return f"Hello, {name}!"
+""")
+
+        # Create prefect.yaml with triggers that have event template parameters
+        prefect_yaml = project_dir / "prefect.yaml"
+        prefect_yaml.write_text("""
+deployments:
+  - name: say-hello
+    entrypoint: flow.py:say_hello
+    work_pool:
+      name: test-pool
+    triggers:
+      - type: event
+        enabled: true
+        match:
+          prefect.resource.id: hello.world
+        expect:
+          - external.resource.pinged
+        parameters:
+          name: "{{ event.name }}"
+""")
+
+        # Deploy the flow
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command="deploy --all",
+            expected_code=0,
+        )
+
+        # Read the created automation
+        automations = await prefect_client.read_automations_by_name(
+            "say-hello__automation_1"
+        )
+        assert len(automations) == 1
+        automation = automations[0]
+
+        # Verify the automation action has the event template parameter preserved
+        assert len(automation.actions) == 1
+        action = automation.actions[0]
+        assert action.parameters == {"name": "{{ event.name }}"}
+
+    async def test_deployment_trigger_prefect_kind_jinja_parameters_preserved(
+        self, project_dir: Path, prefect_client: PrefectClient
+    ):
+        """
+        Regression test for issue #19501 (second case): ensure that event template
+        parameters using the __prefect_kind: jinja structure are preserved.
+
+        This tests the case where parameters are structured as:
+        {"event_id": {"template": "{{ event.id }}", "__prefect_kind": "jinja"}}
+        """
+        await prefect_client.create_work_pool(
+            WorkPoolCreate(name="test-pool", type="test")
+        )
+
+        # Create a flow file
+        flow_file = project_dir / "flow.py"
+        flow_file.write_text("""
+from prefect import flow
+
+@flow
+def process_event(event_id: str, fan_out: bool = False):
+    return f"Processing {event_id}"
+""")
+
+        # Create prefect.yaml with triggers using __prefect_kind structure
+        prefect_yaml = project_dir / "prefect.yaml"
+        prefect_yaml.write_text("""
+deployments:
+  - name: process-event
+    entrypoint: flow.py:process_event
+    work_pool:
+      name: test-pool
+    triggers:
+      - type: event
+        enabled: true
+        match:
+          prefect.resource.name: test-resource
+        expect:
+          - prefect.asset.materialization.succeeded
+        parameters:
+          event_id:
+            template: "{{ event.id }}"
+            __prefect_kind: jinja
+          fan_out: true
+""")
+
+        # Deploy the flow
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command="deploy --all",
+            expected_code=0,
+        )
+
+        # Read the created automation
+        automations = await prefect_client.read_automations_by_name(
+            "process-event__automation_1"
+        )
+        assert len(automations) == 1
+        automation = automations[0]
+
+        # Verify the automation action has the event template parameter preserved
+        assert len(automation.actions) == 1
+        action = automation.actions[0]
+        # Both the template and __prefect_kind should be preserved
+        assert "event_id" in action.parameters
+        assert action.parameters["event_id"]["template"] == "{{ event.id }}"
+        assert action.parameters["event_id"]["__prefect_kind"] == "jinja"
+        assert action.parameters["fan_out"] is True
