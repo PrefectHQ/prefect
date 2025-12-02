@@ -4,6 +4,7 @@ import pytest
 
 from prefect.server import models
 from prefect.server.orchestration.global_policy import (
+    CrashChildTaskRuns,
     IncrementFlowRunCount,
     IncrementRunTime,
     IncrementTaskRunCount,
@@ -556,3 +557,141 @@ class TestPausingRules:
             await ctx.validate_proposed_state()
 
         assert ctx.run.run_count == 42
+
+
+class TestCrashChildTaskRuns:
+    """Tests for CrashChildTaskRuns transform that crashes child tasks when flow crashes."""
+
+    async def test_crash_child_task_runs_when_flow_crashes(
+        self,
+        session,
+        initialize_orchestration,
+    ):
+        """When a flow transitions to CRASHED, its child task runs should also be crashed."""
+        initial_state_type = states.StateType.RUNNING
+        proposed_state_type = states.StateType.CRASHED
+        intended_transition = (initial_state_type, proposed_state_type)
+        ctx = await initialize_orchestration(
+            session,
+            "flow",
+            *intended_transition,
+        )
+
+        # Create child task runs in RUNNING state
+        task_runs = []
+        for i in range(3):
+            task_run = await models.task_runs.create_task_run(
+                session=session,
+                task_run=core.TaskRun(
+                    task_key=f"test-task-{i}",
+                    flow_run_id=ctx.run.id,
+                    state=states.Running(),
+                    dynamic_key=str(i),
+                ),
+            )
+            task_runs.append(task_run)
+
+        await session.commit()
+
+        # Verify task runs are in RUNNING state
+        for task_run in task_runs:
+            await session.refresh(task_run)
+            assert task_run.state.type == states.StateType.RUNNING
+
+        # Apply the transform
+        async with CrashChildTaskRuns(ctx, *intended_transition) as ctx:
+            await ctx.validate_proposed_state()
+
+        # Verify task runs are now in CRASHED state
+        for task_run in task_runs:
+            await session.refresh(task_run)
+            assert task_run.state.type == states.StateType.CRASHED
+            assert "parent flow run crashed" in task_run.state.message
+
+    async def test_does_not_crash_already_terminal_task_runs(
+        self,
+        session,
+        initialize_orchestration,
+    ):
+        """Task runs already in terminal states should not be modified."""
+        initial_state_type = states.StateType.RUNNING
+        proposed_state_type = states.StateType.CRASHED
+        intended_transition = (initial_state_type, proposed_state_type)
+        ctx = await initialize_orchestration(
+            session,
+            "flow",
+            *intended_transition,
+        )
+
+        # Create a completed task run
+        completed_task = await models.task_runs.create_task_run(
+            session=session,
+            task_run=core.TaskRun(
+                task_key="completed-task",
+                flow_run_id=ctx.run.id,
+                state=states.Completed(),
+                dynamic_key="0",
+            ),
+        )
+
+        # Create a running task run
+        running_task = await models.task_runs.create_task_run(
+            session=session,
+            task_run=core.TaskRun(
+                task_key="running-task",
+                flow_run_id=ctx.run.id,
+                state=states.Running(),
+                dynamic_key="1",
+            ),
+        )
+
+        await session.commit()
+
+        # Apply the transform
+        async with CrashChildTaskRuns(ctx, *intended_transition) as ctx:
+            await ctx.validate_proposed_state()
+
+        # Completed task should still be COMPLETED
+        await session.refresh(completed_task)
+        assert completed_task.state.type == states.StateType.COMPLETED
+
+        # Running task should now be CRASHED
+        await session.refresh(running_task)
+        assert running_task.state.type == states.StateType.CRASHED
+
+    async def test_does_not_crash_tasks_for_non_crashed_transitions(
+        self,
+        session,
+        initialize_orchestration,
+    ):
+        """Task runs should not be affected when flow transitions to non-CRASHED states."""
+        initial_state_type = states.StateType.RUNNING
+        proposed_state_type = states.StateType.COMPLETED
+        intended_transition = (initial_state_type, proposed_state_type)
+        ctx = await initialize_orchestration(
+            session,
+            "flow",
+            *intended_transition,
+        )
+
+        # Create a running task run (this would be a bug in real code,
+        # but tests the transform doesn't act on non-crash transitions)
+        task_run = await models.task_runs.create_task_run(
+            session=session,
+            task_run=core.TaskRun(
+                task_key="test-task",
+                flow_run_id=ctx.run.id,
+                state=states.Running(),
+                dynamic_key="0",
+            ),
+        )
+
+        await session.commit()
+
+        # Apply the transform
+        async with CrashChildTaskRuns(ctx, *intended_transition) as ctx:
+            await ctx.validate_proposed_state()
+
+        # Task should still be RUNNING (not crashed)
+        await session.refresh(task_run)
+        assert task_run.state.type == states.StateType.RUNNING

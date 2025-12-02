@@ -27,8 +27,9 @@ from prefect.server.orchestration.rules import (
     TaskOrchestrationContext,
     TaskRunUniversalTransform,
 )
-from prefect.server.schemas import core
+from prefect.server.schemas import core, filters, states
 from prefect.server.schemas.core import FlowRunPolicy
+from prefect.server.schemas.states import StateType
 
 
 def COMMON_GLOBAL_TRANSFORMS() -> list[
@@ -81,6 +82,7 @@ class GlobalFlowPolicy(BaseOrchestrationPolicy[orm_models.FlowRun, core.FlowRunP
             UpdateSubflowStateDetails,
             IncrementFlowRunCount,
             RemoveResumingIndicator,
+            CrashChildTaskRuns,
         ]
 
 
@@ -463,3 +465,53 @@ class UpdateStateDetails(
             task_run = await context.task_run()
             context.proposed_state.state_details.flow_run_id = task_run.flow_run_id
             context.proposed_state.state_details.task_run_id = task_run.id
+
+
+class CrashChildTaskRuns(
+    BaseUniversalTransform[orm_models.FlowRun, core.FlowRunPolicy]
+):
+    """
+    When a flow run transitions to CRASHED state, mark all non-terminal
+    child task runs as CRASHED as well.
+
+    This ensures task runs don't remain stuck in RUNNING state when their
+    parent flow crashes due to infrastructure issues (e.g., OOM kills).
+    """
+
+    async def after_transition(
+        self, context: OrchestrationContext[orm_models.FlowRun, core.FlowRunPolicy]
+    ) -> None:
+        if self.nullified_transition():
+            return
+
+        # Only act when transitioning TO crashed state
+        if (
+            context.validated_state is not None
+            and context.validated_state.type == StateType.CRASHED
+        ):
+            NON_TERMINAL_STATES = list(set(StateType) - states.TERMINAL_STATES)
+
+            child_task_runs = await models.task_runs.read_task_runs(
+                session=context.session,
+                flow_run_filter=filters.FlowRunFilter(
+                    id=filters.FlowRunFilterId(any_=[context.run.id])
+                ),
+                task_run_filter=filters.TaskRunFilter(
+                    state=filters.TaskRunFilterState(
+                        type=filters.TaskRunFilterStateType(any_=NON_TERMINAL_STATES)
+                    )
+                ),
+                limit=1000,
+            )
+
+            for task_run in child_task_runs:
+                # Create a fresh state for each task run to avoid ID conflicts
+                crashed_state = states.Crashed(
+                    message="Task run crashed because its parent flow run crashed."
+                )
+                await models.task_runs.set_task_run_state(
+                    session=context.session,
+                    task_run_id=task_run.id,
+                    state=crashed_state,
+                    force=True,
+                )
