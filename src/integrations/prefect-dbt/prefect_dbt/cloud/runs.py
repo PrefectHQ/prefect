@@ -8,6 +8,7 @@ from httpx import HTTPStatusError
 from typing_extensions import Literal
 
 from prefect import flow, task
+from prefect.cache_policies import NO_CACHE
 from prefect.logging import get_run_logger
 from prefect_dbt.cloud.credentials import DbtCloudCredentials
 from prefect_dbt.cloud.exceptions import (
@@ -38,12 +39,14 @@ class DbtCloudJobRunStatus(Enum):
         return status_code in [cls.SUCCESS.value, cls.FAILED.value, cls.CANCELLED.value]
 
 
+# Use NO_CACHE to ensure fresh status data on each call during polling loops
 @task(
     name="Get dbt Cloud job run details",
     description="Retrieves details of a dbt Cloud job run "
     "for the run with the given run_id.",
     retries=3,
     retry_delay_seconds=10,
+    cache_policy=NO_CACHE,
 )
 async def get_dbt_cloud_run_info(
     dbt_cloud_credentials: DbtCloudCredentials,
