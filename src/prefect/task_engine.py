@@ -79,8 +79,11 @@ from prefect.states import (
     Retrying,
     Running,
     exception_to_crashed_state,
+    exception_to_crashed_state_sync,
     exception_to_failed_state,
+    exception_to_failed_state_sync,
     return_value_to_state,
+    return_value_to_state_sync,
 )
 from prefect.telemetry.run_telemetry import RunTelemetry
 from prefect.transactions import (
@@ -515,13 +518,11 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         else:
             expiration = None
 
-        terminal_state = run_coro_as_sync(
-            return_value_to_state(
-                result,
-                result_store=get_result_store(),
-                key=transaction.key,
-                expiration=expiration,
-            )
+        terminal_state = return_value_to_state_sync(
+            result,
+            result_store=get_result_store(),
+            key=transaction.key,
+            expiration=expiration,
         )
 
         # Avoid logging when running this rollback hook since it is not user-defined
@@ -601,13 +602,11 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         self._telemetry.record_exception(exc)
         if not self.handle_retry(exc):
             # If the task has no retries left, or the retry condition is not met, set the task to failed.
-            state = run_coro_as_sync(
-                exception_to_failed_state(
-                    exc,
-                    message="Task run encountered an exception",
-                    result_store=get_result_store(),
-                    write_result=True,
-                )
+            state = exception_to_failed_state_sync(
+                exc,
+                message="Task run encountered an exception",
+                result_store=get_result_store(),
+                write_result=True,
             )
             self.set_state(state)
             self._raised = exc
@@ -629,7 +628,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             self._raised = exc
 
     def handle_crash(self, exc: BaseException) -> None:
-        state = run_coro_as_sync(exception_to_crashed_state(exc))
+        state = exception_to_crashed_state_sync(exc)
         self.logger.error(f"Crash detected! {state.message}")
         self.logger.debug("Crash details:", exc_info=exc)
         self.set_state(state, force=True)
@@ -718,15 +717,13 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
 
                 try:
                     if not self.task_run:
-                        self.task_run = run_coro_as_sync(
-                            self.task.create_local_run(
-                                id=task_run_id,
-                                parameters=self.parameters,
-                                flow_run_context=parent_flow_run_context,
-                                parent_task_run_context=parent_task_run_context,
-                                wait_for=self.wait_for,
-                                extra_task_inputs=dependencies,
-                            )
+                        self.task_run = self.task.create_local_run_sync(
+                            id=task_run_id,
+                            parameters=self.parameters,
+                            flow_run_context=parent_flow_run_context,
+                            parent_task_run_context=parent_task_run_context,
+                            wait_for=self.wait_for,
+                            extra_task_inputs=dependencies,
                         )
                         # Emit an event to capture that the task run was in the `PENDING` state.
                         self._last_event = emit_task_run_state_change_event(
@@ -781,6 +778,22 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                 scheduled_time - prefect.types._datetime.now("UTC")
             ).total_seconds()
             await anyio.sleep(sleep_time if sleep_time > 0 else 0)
+            new_state = Retrying() if self.state.name == "AwaitingRetry" else Running()
+            self.set_state(
+                new_state,
+                force=True,
+            )
+            # Call on_running hooks if we transitioned to a Running state
+            if self.state.is_running():
+                self.call_hooks()
+
+    def wait_until_ready_sync(self) -> None:
+        """Sync version: Waits until the scheduled time (if its the future), then enters Running."""
+        if scheduled_time := self.state.state_details.scheduled_time:
+            sleep_time = (
+                scheduled_time - prefect.types._datetime.now("UTC")
+            ).total_seconds()
+            time.sleep(sleep_time if sleep_time > 0 else 0)
             new_state = Retrying() if self.state.name == "AwaitingRetry" else Running()
             self.set_state(
                 new_state,
@@ -1529,7 +1542,7 @@ def run_task_sync(
 
     with engine.start(task_run_id=task_run_id, dependencies=dependencies):
         while engine.is_running():
-            run_coro_as_sync(engine.wait_until_ready())
+            engine.wait_until_ready_sync()
             with (
                 engine.asset_context(),
                 engine.run_context(),
@@ -1594,7 +1607,7 @@ def run_generator_task_sync(
 
     with engine.start(task_run_id=task_run_id, dependencies=dependencies):
         while engine.is_running():
-            run_coro_as_sync(engine.wait_until_ready())
+            engine.wait_until_ready_sync()
             with (
                 engine.asset_context(),
                 engine.run_context(),

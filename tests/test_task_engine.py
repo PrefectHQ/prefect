@@ -7,7 +7,7 @@ from datetime import timedelta
 from pathlib import Path
 from typing import List, Optional
 from unittest import mock
-from unittest.mock import AsyncMock, MagicMock, call, patch
+from unittest.mock import AsyncMock, MagicMock, Mock, call, patch
 from uuid import UUID, uuid4
 
 import anyio
@@ -1327,8 +1327,8 @@ class TestTaskRetries:
         events_pipeline,
         monkeypatch,
     ):
-        mock_sleep = AsyncMock()
-        monkeypatch.setattr(anyio, "sleep", mock_sleep)
+        mock_sleep = Mock()
+        monkeypatch.setattr(time, "sleep", mock_sleep)
 
         @task(retries=3, retry_delay_seconds=retry_delay_seconds)
         def flaky_function():
