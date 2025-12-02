@@ -100,7 +100,7 @@ BlockDocumentName = Annotated[
     Name,
     AfterValidator(
         partial(
-            raise_on_name_alphanumeric_dashes_only, field_name="Block document name"
+            raise_on_name_alphanumeric_dashes_underscores_only, field_name="Block document name"
         )
     ),
 ]
