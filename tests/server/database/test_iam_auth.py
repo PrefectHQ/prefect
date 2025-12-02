@@ -74,7 +74,9 @@ async def test_iam_auth_configuration_default_region():
                         assert token == "iam-token"
 
                         boto3.Session.assert_called()
-                        mock_session.client.assert_called_with("rds", region_name="us-east-1")
+                        mock_session.client.assert_called_with(
+                            "rds", region_name="us-east-1"
+                        )
                         mock_client.generate_db_auth_token.assert_called_with(
                             DBHostname="host",
                             Port=5432,

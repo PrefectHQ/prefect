@@ -282,11 +282,6 @@ class AsyncPostgresConfiguration(BaseDatabaseConfiguration):
 
                     session = boto3.Session()
                     region = iam_settings.region_name or session.region_name
-                    if not region and "rds.amazonaws.com" in url.host:
-                        parts = url.host.split(".")
-                        if len(parts) >= 4:
-                            region = parts[2]
-
                     client = session.client("rds", region_name=region)
                     token = client.generate_db_auth_token(
                         DBHostname=url.host,
@@ -298,7 +293,6 @@ class AsyncPostgresConfiguration(BaseDatabaseConfiguration):
 
                 # IAM authentication requires SSL
                 if "ssl" not in connect_args:
-                    import ssl
                     # Use PROTOCOL_TLS_CLIENT to avoid loading default system certs
                     # and to avoid DeprecationWarning for PROTOCOL_TLS
                     ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
