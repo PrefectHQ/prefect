@@ -70,11 +70,11 @@ async def test_iam_auth_configuration_default_region():
 
                         # Test the password callable
                         password_callable = connect_args["password"]
-                        token = await password_callable()
+                        token = password_callable()
                         assert token == "iam-token"
 
                         boto3.Session.assert_called()
-                        mock_session.client.assert_called_with("rds")
+                        mock_session.client.assert_called_with("rds", region_name="us-east-1")
                         mock_client.generate_db_auth_token.assert_called_with(
                             DBHostname="host",
                             Port=5432,
@@ -130,7 +130,7 @@ async def test_iam_auth_configuration_custom_region():
                         call_args = mock_create_engine.call_args
                         connect_args = call_args.kwargs.get("connect_args")
                         password_callable = connect_args["password"]
-                        await password_callable()
+                        password_callable()
 
                         mock_client.generate_db_auth_token.assert_called_with(
                             DBHostname="host",

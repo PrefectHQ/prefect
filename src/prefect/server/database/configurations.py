@@ -277,21 +277,34 @@ class AsyncPostgresConfiguration(BaseDatabaseConfiguration):
             if iam_settings.enabled:
                 url = sa.engine.make_url(self.connection_url)
 
-                async def get_iam_token() -> str:
-                    def _get_token() -> str:
-                        import boto3
+                def get_iam_token() -> str:
+                    import boto3
 
-                        session = boto3.Session()
-                        client = session.client("rds")
-                        token = client.generate_db_auth_token(
-                            DBHostname=url.host,
-                            Port=url.port or 5432,
-                            DBUsername=url.username,
-                            Region=iam_settings.region_name or session.region_name,
-                        )
-                        return token
+                    session = boto3.Session()
+                    region = iam_settings.region_name or session.region_name
+                    if not region and "rds.amazonaws.com" in url.host:
+                        parts = url.host.split(".")
+                        if len(parts) >= 4:
+                            region = parts[2]
 
-                    return await loop.run_in_executor(None, _get_token)
+                    client = session.client("rds", region_name=region)
+                    token = client.generate_db_auth_token(
+                        DBHostname=url.host,
+                        Port=url.port or 5432,
+                        DBUsername=url.username,
+                        Region=region,
+                    )
+                    return token
+
+                # IAM authentication requires SSL
+                if "ssl" not in connect_args:
+                    import ssl
+                    # Use PROTOCOL_TLS_CLIENT to avoid loading default system certs
+                    # and to avoid DeprecationWarning for PROTOCOL_TLS
+                    ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+                    ctx.check_hostname = False
+                    ctx.verify_mode = ssl.CERT_NONE
+                    connect_args["ssl"] = ctx
 
                 connect_args["password"] = get_iam_token
 
