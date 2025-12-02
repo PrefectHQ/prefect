@@ -8,6 +8,7 @@ from httpx import HTTPStatusError
 from typing_extensions import Literal
 
 from prefect import flow, task
+from prefect.cache_policies import NO_CACHE
 from prefect.logging import get_run_logger
 from prefect_dbt.cloud.credentials import DbtCloudCredentials
 from prefect_dbt.cloud.exceptions import (
@@ -38,12 +39,14 @@ class DbtCloudJobRunStatus(Enum):
         return status_code in [cls.SUCCESS.value, cls.FAILED.value, cls.CANCELLED.value]
 
 
+# Use NO_CACHE to ensure fresh status data on each call during polling loops
 @task(
     name="Get dbt Cloud job run details",
     description="Retrieves details of a dbt Cloud job run "
     "for the run with the given run_id.",
     retries=3,
     retry_delay_seconds=10,
+    cache_policy=NO_CACHE,
 )
 async def get_dbt_cloud_run_info(
     dbt_cloud_credentials: DbtCloudCredentials,
@@ -274,20 +277,16 @@ async def wait_for_dbt_cloud_job_run(
     """
     logger = get_run_logger()
     seconds_waited_for_run_completion = 0
-    wait_for = []
     while seconds_waited_for_run_completion <= max_wait_seconds:
-        run_data_future = await get_dbt_cloud_run_info(
+        run_data = await get_dbt_cloud_run_info(
             dbt_cloud_credentials=dbt_cloud_credentials,
             run_id=run_id,
-            wait_for=wait_for,
         )
-        run_data = run_data_future
         run_status_code = run_data.get("status")
 
         if DbtCloudJobRunStatus.is_terminal_status_code(run_status_code):
             return DbtCloudJobRunStatus(run_status_code), run_data
 
-        wait_for = [run_data_future]
         logger.debug(
             "dbt Cloud job run with ID %i has status %s. Waiting for %i seconds.",
             run_id,
