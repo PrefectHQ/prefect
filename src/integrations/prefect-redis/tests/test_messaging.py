@@ -628,3 +628,89 @@ async def test_cleanup_empty_consumer_groups(redis: Redis):
     groups_after = await redis.xinfo_groups(stream_name)
     assert len(groups_after) == 1
     assert groups_after[0]["name"] == "ephemeral-active-group"
+
+
+async def test_retry_counts_cleaned_up_after_dlq(
+    redis: Redis,
+    deduplicating_publisher: Publisher,
+    consumer: Consumer,
+):
+    """Test that _retry_counts is cleaned up after a message is moved to DLQ.
+
+    This is a regression test for a memory leak where message IDs were never
+    removed from the _retry_counts dict, causing unbounded memory growth over time.
+    See: https://github.com/PrefectHQ/prefect/issues/18605
+    """
+    # Verify _retry_counts starts empty
+    assert consumer._retry_counts == {}
+
+    async def always_fail(message: Message):
+        raise ValueError("Simulated failure")
+
+    consumer_task = asyncio.create_task(consumer.run(always_fail))
+
+    try:
+        async with deduplicating_publisher as p:
+            await p.publish_data(b"will-fail", {"my-message-id": "leak-test"})
+
+        # Wait for message to appear in DLQ
+        while True:
+            dlq_size = await redis.scard(consumer.subscription.dlq_key)
+            if dlq_size > 0:
+                break
+            await asyncio.sleep(0.1)
+
+    finally:
+        if not consumer_task.done():
+            consumer_task.cancel()
+            try:
+                await consumer_task
+            except (asyncio.CancelledError, Exception):
+                pass
+
+    # After message is moved to DLQ, _retry_counts should be cleaned up
+    assert consumer._retry_counts == {}, (
+        f"_retry_counts should be empty after DLQ, but contains: {consumer._retry_counts}"
+    )
+
+
+async def test_retry_counts_cleaned_up_after_success(
+    redis: Redis,
+    deduplicating_publisher: Publisher,
+    consumer: Consumer,
+):
+    """Test that _retry_counts is cleaned up after a message succeeds on retry.
+
+    This is a regression test for a memory leak where message IDs were never
+    removed from the _retry_counts dict, causing unbounded memory growth over time.
+    See: https://github.com/PrefectHQ/prefect/issues/18605
+    """
+    # Verify _retry_counts starts empty
+    assert consumer._retry_counts == {}
+
+    attempt_count = 0
+
+    async def fail_then_succeed(message: Message):
+        nonlocal attempt_count
+        attempt_count += 1
+        if attempt_count == 1:
+            raise ValueError("First attempt fails")
+        # Second attempt succeeds
+        raise StopConsumer(ack=True)
+
+    consumer_task = asyncio.create_task(consumer.run(fail_then_succeed))
+
+    try:
+        async with deduplicating_publisher as p:
+            await p.publish_data(b"will-retry", {"my-message-id": "retry-success-test"})
+
+        await consumer_task
+
+    except asyncio.CancelledError:
+        pass
+
+    # After message succeeds on retry, _retry_counts should be cleaned up
+    assert consumer._retry_counts == {}, (
+        f"_retry_counts should be empty after success, but contains: {consumer._retry_counts}"
+    )
+    assert attempt_count == 2, "Message should have been processed twice"
