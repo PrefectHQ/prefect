@@ -142,7 +142,7 @@ dev = [
     "pluggy>=1.5.0",
     "pyright>=1.1.390",
     "pytest>=8.3.4",
-    "pytest-asyncio>=0.25.3",
+    "pytest-asyncio<1.1",
     "pytest-cov>=6.0",
     "pytest-env>=1.1.5",
     "pytest-flakefinder>=1.1.0",
