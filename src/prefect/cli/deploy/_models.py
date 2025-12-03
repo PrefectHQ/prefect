@@ -100,6 +100,7 @@ class ConcurrencyLimitSpec(BaseModel):
 
     limit: Optional[int] = None
     collision_strategy: Optional[str] = None
+    grace_period_seconds: Optional[int] = None
 
 
 class RawScheduleConfig(BaseModel):
