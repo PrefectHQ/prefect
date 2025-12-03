@@ -7,7 +7,6 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 from prefect._experimental.sla.objects import SlaTypes
 from prefect.client.schemas.actions import DeploymentScheduleCreate
 from prefect.client.schemas.schedules import SCHEDULE_TYPES
-from prefect.events import DeploymentTriggerTypes
 
 
 class WorkPoolConfig(BaseModel):
@@ -52,7 +51,9 @@ class DeploymentConfig(BaseModel):
     work_pool: Optional[WorkPoolConfig] = None
 
     # automations metadata
-    triggers: Optional[List[DeploymentTriggerTypes]] = None
+    # Triggers are stored as raw dicts to allow Jinja templating (e.g., enabled: "{{ prefect.variables.is_prod }}")
+    # Strict validation happens later in _initialize_deployment_triggers after template resolution
+    triggers: Optional[List[Dict[str, Any]]] = None
     sla: Optional[List[SlaTypes]] = None
 
 
