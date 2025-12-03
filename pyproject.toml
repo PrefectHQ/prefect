@@ -81,7 +81,7 @@ dependencies = [
     "uv>=0.6.0",
     "semver>=3.0.4",
     "pluggy>=1.6.0",
-    "pydocket==0.13.0b2",
+    "pydocket>=0.13.0",
 ]
 [project.urls]
 Changelog = "https://github.com/PrefectHQ/prefect/releases"
@@ -141,7 +141,7 @@ dev = [
     "pre-commit>=4.1.0",
     "pluggy>=1.5.0",
     "pyright>=1.1.390",
-    "pytest<9",
+    "pytest>=8.3.4",
     "pytest-asyncio<1.1",
     "pytest-cov>=6.0",
     "pytest-env>=1.1.5",

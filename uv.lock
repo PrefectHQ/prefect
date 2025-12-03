@@ -4068,7 +4068,7 @@ requires-dist = [
     { name = "pydantic-core", specifier = ">=2.12.0,<3.0.0" },
     { name = "pydantic-extra-types", specifier = ">=2.8.2,<3.0.0" },
     { name = "pydantic-settings", specifier = ">2.2.1,!=2.9.0,<3.0.0" },
-    { name = "pydocket", specifier = "==0.13.0b2" },
+    { name = "pydocket", specifier = ">=0.13.0" },
     { name = "python-dateutil", specifier = ">=2.8.2,<3.0.0" },
     { name = "python-slugify", specifier = ">=5.0,<9.0" },
     { name = "pytz", specifier = ">=2021.1,<2026" },
@@ -4118,7 +4118,7 @@ dev = [
     { name = "pluggy", specifier = ">=1.5.0" },
     { name = "pre-commit", specifier = ">=4.1.0" },
     { name = "pyright", specifier = ">=1.1.390" },
-    { name = "pytest", specifier = "<9" },
+    { name = "pytest", specifier = ">=8.3.4" },
     { name = "pytest-asyncio", specifier = "<1.1" },
     { name = "pytest-cov", specifier = ">=6.0" },
     { name = "pytest-env", specifier = ">=1.1.5" },
@@ -4883,7 +4883,7 @@ wheels = [
 
 [[package]]
 name = "pydocket"
-version = "0.13.0b2"
+version = "0.13.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "cloudpickle" },
@@ -4900,9 +4900,9 @@ dependencies = [
     { name = "typing-extensions" },
     { name = "uuid7" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/c3/ec/e97233051086559e185fffcfa2afa1a8fd21df64473f228732f14481afbb/pydocket-0.13.0b2.tar.gz", hash = "sha256:4bc7659de9cfbd4654b6b2f32d727b05060c7156c6a7b132a18615f1794878f5", size = 240893, upload-time = "2025-11-07T01:17:40.937Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/b5/0c/1d3424e1bb8a578c3baa250b58e9960ca6160f14e0132d129da57e7f58d5/pydocket-0.13.0.tar.gz", hash = "sha256:5b181da91ac873c886b70f6533a7d7f9dd46ca4b546c719c059ba85a1169ffb9", size = 249997, upload-time = "2025-11-10T16:16:56.817Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/0b/fb/aa722dd18c7a89438c964528a77d4746599231865cb2d1b3e859f1543aed/pydocket-0.13.0b2-py3-none-any.whl", hash = "sha256:24138f5d6f2ce05bd6b5584af670a1a35681ae744b1cf800b6a29e0448ef569f", size = 51092, upload-time = "2025-11-07T01:17:38.135Z" },
+    { url = "https://files.pythonhosted.org/packages/8f/79/164a7b8ade4d9aaae7b487315ad977f9b17a5da9f64954208e2167652d18/pydocket-0.13.0-py3-none-any.whl", hash = "sha256:39fffaf7dbc3e586b9b838de2ddcc96f7a6c51c1a95a09014ee2bf90adbe13c1", size = 51275, upload-time = "2025-11-10T16:16:55.529Z" },
 ]
 
 [[package]]
