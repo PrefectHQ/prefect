@@ -52,6 +52,7 @@ from prefect.client.schemas.filters import (
     FlowRunFilterStartTime,
     FlowRunFilterStateName,
 )
+from prefect.exceptions import ObjectNotFound
 from prefect.flow_runs import pause_flow_run
 from prefect.input import RunInput
 
@@ -247,6 +248,9 @@ async def database_cleanup_flow(config: RetentionConfig | None = None) -> dict:
             for run in batch:
                 try:
                     await client.delete_flow_run(run.id)
+                    deleted += 1
+                except ObjectNotFound:
+                    # Already deleted (e.g., by concurrent cleanup) - treat as success
                     deleted += 1
                 except Exception as e:
                     print(f"failed to delete {run.id}: {e}")
