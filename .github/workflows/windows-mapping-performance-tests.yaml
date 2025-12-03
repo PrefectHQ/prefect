@@ -7,7 +7,10 @@ on:
   # Temporarily enabled for PR to inspect behavior
   pull_request:
     branches:
-      - main
+      - fix-19581
+    paths:
+      - ".github/workflows/windows-mapping-performance-tests.yaml"
+      - "scripts/test_windows_mapping_performance.py"
   workflow_dispatch: {}
 
 permissions: {}
