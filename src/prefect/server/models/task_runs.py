@@ -440,6 +440,7 @@ async def count_task_runs_by_state(
         select(db.TaskRun.state_type, sa.func.count(None).label("count"))
         .select_from(db.TaskRun)
         .group_by(db.TaskRun.state_type)
+        .where(db.TaskRun.state_type.isnot(None))
     )
 
     query = await _apply_task_run_filters(
