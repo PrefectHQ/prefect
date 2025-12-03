@@ -460,6 +460,13 @@ class PrefectDbtRunner:
         if self._callback_thread and self._callback_thread.is_alive():
             self._callback_thread.join(timeout=5.0)
 
+        # Reset state so next invoke() can create a fresh callback processor
+        self._event_queue = None
+        self._callback_thread = None
+        self._shutdown_event = None
+        self._queue_counter = 0
+        self._skipped_nodes = set()
+
     def _callback_worker(self) -> None:
         """Background worker thread that processes queued events."""
         while not self._shutdown_event.is_set():
