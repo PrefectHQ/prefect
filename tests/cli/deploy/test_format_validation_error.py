@@ -214,3 +214,39 @@ def test_format_validation_error_with_both_top_level_and_deployment_errors():
     # Should have both links
     assert "https://docs.prefect.io/v3/how-to-guides/deployments/prefect-yaml" in result
     assert "https://docs.prefect.io/v3/concepts/deployments#deployment-schema" in result
+
+
+def test_trigger_with_templated_enabled_field_should_not_raise():
+    """
+    Regression test for issue #19501: triggers with templated 'enabled' field
+    should be accepted during YAML loading, allowing template resolution later.
+
+    The 'enabled' field may contain a Jinja template like
+    '{{ prefect.variables.deployment_trigger_is_active }}' which will be
+    resolved to a boolean after variable resolution. The YAML validation
+    should accept this string and defer strict type validation until after
+    templating occurs.
+    """
+    raw_data = {
+        "deployments": [
+            {
+                "name": "my-deployment",
+                "entrypoint": "flow.py:my_flow",
+                "triggers": [
+                    {
+                        "type": "event",
+                        "enabled": "{{ prefect.variables.deployment_trigger_is_active }}",
+                        "match": {"prefect.resource.id": "hello.world"},
+                        "expect": ["external.resource.pinged"],
+                    }
+                ],
+            }
+        ]
+    }
+
+    # This should NOT raise a validation error - the trigger should be accepted
+    # as a raw dict and validated later after template resolution
+    model = PrefectYamlModel.model_validate(raw_data)
+    assert len(model.deployments) == 1
+    assert model.deployments[0].triggers is not None
+    assert len(model.deployments[0].triggers) == 1
