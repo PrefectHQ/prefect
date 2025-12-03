@@ -83,6 +83,7 @@ jobs:
               name: Client Tests
               modules: >-
                 tests/
+                -vv
                 --ignore=tests/typesafety
                 --ignore=tests/server/
                 --ignore=tests/events/server
