@@ -23,10 +23,13 @@ from prefect.states import (
     StateGroup,
     aget_state_exception,
     araise_state_exception,
+    exception_to_crashed_state_sync,
+    exception_to_failed_state_sync,
     get_state_exception,
     is_state_iterable,
     raise_state_exception,
     return_value_to_state,
+    return_value_to_state_sync,
 )
 from prefect.utilities.annotations import quote
 
@@ -432,3 +435,191 @@ def test_state_returns_expected_result(ignore_prefect_deprecation_warnings):
         )
     )
     assert state.result() == "test"
+
+
+class TestExceptionToCrashedStateSync:
+    async def test_returns_crashed_state_for_generic_exception(self):
+        # Run in async context because anyio.get_cancelled_exc_class() requires it
+        exc = RuntimeError("something went wrong")
+        state = exception_to_crashed_state_sync(exc)
+        assert state.is_crashed()
+        assert "Execution was interrupted by an unexpected exception" in state.message
+        assert "RuntimeError: something went wrong" in state.message
+        assert state.data is exc
+
+    async def test_returns_crashed_state_for_keyboard_interrupt(self):
+        exc = KeyboardInterrupt()
+        state = exception_to_crashed_state_sync(exc)
+        assert state.is_crashed()
+        assert "Execution was aborted by an interrupt signal" in state.message
+
+    async def test_returns_crashed_state_for_system_exit(self):
+        exc = SystemExit(1)
+        state = exception_to_crashed_state_sync(exc)
+        assert state.is_crashed()
+        assert "Execution was aborted by Python system exit call" in state.message
+
+    async def test_stores_exception_in_result_store_when_provided(self):
+        exc = ValueError("test error")
+        store = ResultStore()
+        state = exception_to_crashed_state_sync(exc, result_store=store)
+        assert state.is_crashed()
+        assert isinstance(state.data, ResultRecord)
+        result = await state.result(raise_on_failure=False)
+        assert isinstance(result, ValueError)
+        assert str(result) == "test error"
+
+
+class TestExceptionToFailedStateSync:
+    def test_returns_failed_state_with_passed_exception(self):
+        exc = ValueError("test error")
+        state = exception_to_failed_state_sync(exc)
+        assert state.is_failed()
+        assert "ValueError: test error" in state.message
+        assert state.data is exc
+        assert state.state_details.retriable is False
+
+    def test_raises_if_no_exception_and_no_active_exception(self):
+        with pytest.raises(ValueError, match="no active exception"):
+            exception_to_failed_state_sync()
+
+    def test_captures_active_exception(self):
+        try:
+            raise RuntimeError("active error")
+        except RuntimeError:
+            state = exception_to_failed_state_sync()
+            assert state.is_failed()
+            assert "RuntimeError: active error" in state.message
+
+    async def test_stores_exception_in_result_store_when_provided(self):
+        exc = ValueError("test error")
+        store = ResultStore()
+        state = exception_to_failed_state_sync(exc, result_store=store)
+        assert state.is_failed()
+        assert isinstance(state.data, ResultRecord)
+        result = await state.result(raise_on_failure=False)
+        assert isinstance(result, ValueError)
+        assert str(result) == "test error"
+
+    def test_persists_result_when_write_result_is_true(self):
+        exc = ValueError("test error")
+        store = ResultStore()
+        state = exception_to_failed_state_sync(
+            exc, result_store=store, write_result=True
+        )
+        assert state.is_failed()
+        assert isinstance(state.data, ResultRecord)
+        assert Path(state.data.metadata.storage_key).exists()
+
+    def test_prepends_existing_message(self):
+        exc = ValueError("test error")
+        state = exception_to_failed_state_sync(exc, message="Context:")
+        assert state.message == "Context: ValueError: test error"
+
+
+class TestReturnValueToStateSync:
+    @pytest.fixture
+    def store(self):
+        return ResultStore()
+
+    def test_returns_single_state_unaltered(self, store):
+        state = Completed(data="hello!")
+        result = return_value_to_state_sync(state, store)
+        assert result is state
+
+    def test_returns_single_state_with_null_data(self, store):
+        state = Completed(data=None)
+        result_state = return_value_to_state_sync(state, store)
+        assert result_state is state
+        assert isinstance(result_state.data, ResultRecord)
+        assert result_state.result() is None
+
+    def test_returns_single_state_with_data_to_persist(self, store):
+        state = Completed(data=1)
+        result_state = return_value_to_state_sync(state, store, write_result=True)
+        assert result_state is state
+        assert isinstance(result_state.data, ResultRecord)
+        assert Path(result_state.data.metadata.storage_key).exists()
+        assert result_state.result() == 1
+
+    def test_returns_persisted_result_records_unaltered(self, store):
+        record = store.create_result_record(42)
+        result_state = return_value_to_state_sync(record, store)
+        assert result_state.data == record
+        assert result_state.result() == 42
+
+    def test_returns_single_state_unaltered_with_user_created_reference(self, store):
+        result = store.create_result_record("test")
+        state = Completed(data=result)
+        result_state = return_value_to_state_sync(state, store)
+        assert result_state is state
+        assert result_state.data is state.data
+        assert result_state.data == result
+        assert result_state.result() == "test"
+
+    def test_all_completed_states(self, store):
+        states = [Completed(message="hi"), Completed(message="bye")]
+        result_state = return_value_to_state_sync(states, store)
+        assert result_state.result() == states
+        assert result_state.message == "All states completed."
+        assert result_state.is_completed()
+
+    def test_some_failed_states(self, store):
+        states = [
+            Completed(message="hi"),
+            Failed(message="bye"),
+            Failed(message="err"),
+        ]
+        result_state = return_value_to_state_sync(states, store)
+        assert result_state.result(raise_on_failure=False) == states
+        assert result_state.message == "2/3 states failed."
+        assert result_state.is_failed()
+
+    def test_some_unfinal_states(self, store):
+        states = [
+            Completed(message="hi"),
+            Running(message="bye"),
+            Pending(message="err"),
+        ]
+        result_state = return_value_to_state_sync(states, store)
+        assert result_state.result(raise_on_failure=False) == states
+        assert result_state.message == "2/3 states are not final."
+        assert result_state.is_failed()
+
+    @pytest.mark.parametrize("run_identifier", ["task_run_id", "flow_run_id"])
+    def test_single_state_in_future_is_processed(self, run_identifier, store):
+        state = Completed(data="test", state_details={run_identifier: uuid.uuid4()})
+        result_state = return_value_to_state_sync(state, store)
+        assert result_state.result() == state
+        assert result_state.is_completed()
+        assert result_state.message == "All states completed."
+
+    def test_non_prefect_types_return_completed_state(self, store):
+        result_state = return_value_to_state_sync("foo", store)
+        assert result_state.is_completed()
+        assert result_state.result() == "foo"
+
+    def test_some_cancelled_states(self, store):
+        states = [Completed(message="hi"), Cancelled(message="bye")]
+        result_state = return_value_to_state_sync(states, store)
+        assert result_state.result(raise_on_failure=False) == states
+        assert result_state.message == "1/2 states cancelled."
+        assert result_state.is_cancelled()
+
+    def test_some_paused_states(self, store):
+        states = [Completed(message="hi"), Paused(message="bye")]
+        result_state = return_value_to_state_sync(states, store)
+        # Paused states cannot have their result retrieved
+        assert result_state.message == "1/2 states paused."
+        assert result_state.is_paused()
+        assert isinstance(result_state.data, ResultRecord)
+
+    def test_generator_converted_to_list(self, store):
+        def gen():
+            yield 1
+            yield 2
+            yield 3
+
+        result_state = return_value_to_state_sync(gen(), store)
+        assert result_state.is_completed()
+        assert result_state.result() == [1, 2, 3]
