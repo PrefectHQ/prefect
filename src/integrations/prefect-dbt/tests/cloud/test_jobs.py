@@ -1,5 +1,6 @@
 import json
 import os
+from unittest.mock import patch
 
 import pytest
 import respx
@@ -14,6 +15,8 @@ from prefect_dbt.cloud.jobs import (
     DbtCloudJobRunCancelled,
     DbtCloudJobRunFailed,
     DbtCloudJobRunTriggerFailed,
+    _asset_as_resource,
+    _create_asset_from_node_data,
     get_dbt_cloud_job_info,
     get_run_id,
     retry_dbt_cloud_job_run_subset_and_wait_for_completion,
@@ -25,6 +28,7 @@ from prefect_dbt.cloud.models import TriggerJobRunOptions
 
 import prefect
 from prefect import flow
+from prefect.assets import Asset, AssetProperties
 from prefect.logging.loggers import disable_run_logger
 
 
@@ -915,6 +919,139 @@ class TestTriggerWaitRetryDbtCloudJobRun:
             ):
                 await run_dbt_cloud_job(dbt_cloud_job=dbt_cloud_job, targeted_retries=0)
 
+    @patch("prefect_dbt.cloud.jobs.emit_event")
+    async def test_run_with_create_assets(self, mock_emit_event, dbt_cloud_job):
+        """Test that assets are created when create_assets=True."""
+        manifest_data = {
+            "metadata": {"adapter_type": "postgres"},
+            "nodes": {
+                "model.my_project.model1": {
+                    "unique_id": "model.my_project.model1",
+                    "name": "model1",
+                    "relation_name": "my_schema.model1",
+                    "description": "First model",
+                    "resource_type": "model",
+                    "config": {"meta": {"owner": "data-team"}},
+                },
+                "model.my_project.model2": {
+                    "unique_id": "model.my_project.model2",
+                    "name": "model2",
+                    "relation_name": "my_schema.model2",
+                    "description": "Second model",
+                    "resource_type": "model",
+                    "config": {},
+                },
+                "seed.my_project.seed1": {
+                    "unique_id": "seed.my_project.seed1",
+                    "name": "seed1",
+                    "relation_name": "my_schema.seed1",
+                    "description": "A seed",
+                    "resource_type": "seed",
+                    "config": {},
+                },
+                "test.my_project.test1": {
+                    "unique_id": "test.my_project.test1",
+                    "name": "test1",
+                    "resource_type": "test",
+                    "config": {},
+                },
+            },
+        }
+
+        with respx.mock(using="httpx") as respx_mock:
+            respx_mock.route(host="127.0.0.1").pass_through()
+            respx_mock.post(
+                "https://cloud.getdbt.com/api/v2/accounts/123456789/jobs/10000/run/",
+                headers=HEADERS,
+            ).mock(
+                return_value=Response(
+                    200, json={"data": {"id": 10000, "project_id": 12345}}
+                )
+            )
+            respx_mock.get(
+                "https://cloud.getdbt.com/api/v2/accounts/123456789/runs/10000/",
+                headers=HEADERS,
+            ).mock(
+                return_value=Response(200, json={"data": {"id": 10000, "status": 10}})
+            )
+            respx_mock.get(
+                "https://cloud.getdbt.com/api/v2/accounts/123456789/runs/10000/artifacts/",
+                headers=HEADERS,
+            ).mock(return_value=Response(200, json={"data": ["manifest.json"]}))
+
+            respx_mock.get(
+                "https://cloud.getdbt.com/api/v2/accounts/123456789/runs/10000/artifacts/manifest.json",
+                headers=HEADERS,
+            ).mock(return_value=Response(200, json=manifest_data))
+
+            result = await run_dbt_cloud_job(
+                dbt_cloud_job=dbt_cloud_job, create_assets=True
+            )
+
+            assert result == {
+                "id": 10000,
+                "status": 10,
+                "artifact_paths": ["manifest.json"],
+            }
+
+            assert mock_emit_event.call_count == 3
+
+            first_call = mock_emit_event.call_args_list[0]
+            assert first_call[1]["event"] == "prefect.asset.materialization.succeeded"
+            assert "prefect.resource.id" in first_call[1]["resource"]
+            assert first_call[1]["resource"]["prefect.resource.id"].startswith(
+                "postgres://"
+            )
+            assert first_call[1]["related"] == [
+                {
+                    "prefect.resource.id": "dbt-cloud",
+                    "prefect.resource.role": "asset-materialized-by",
+                }
+            ]
+
+    @patch("prefect_dbt.cloud.jobs.emit_event")
+    async def test_run_with_create_assets_error_handling(
+        self, mock_emit_event, dbt_cloud_job
+    ):
+        """Test that job succeeds even when asset creation fails."""
+        with respx.mock(using="httpx") as respx_mock:
+            respx_mock.route(host="127.0.0.1").pass_through()
+            respx_mock.post(
+                "https://cloud.getdbt.com/api/v2/accounts/123456789/jobs/10000/run/",
+                headers=HEADERS,
+            ).mock(
+                return_value=Response(
+                    200, json={"data": {"id": 10000, "project_id": 12345}}
+                )
+            )
+            respx_mock.get(
+                "https://cloud.getdbt.com/api/v2/accounts/123456789/runs/10000/",
+                headers=HEADERS,
+            ).mock(
+                return_value=Response(200, json={"data": {"id": 10000, "status": 10}})
+            )
+            respx_mock.get(
+                "https://cloud.getdbt.com/api/v2/accounts/123456789/runs/10000/artifacts/",
+                headers=HEADERS,
+            ).mock(return_value=Response(200, json={"data": ["manifest.json"]}))
+
+            respx_mock.get(
+                "https://cloud.getdbt.com/api/v2/accounts/123456789/runs/10000/artifacts/manifest.json",
+                headers=HEADERS,
+            ).mock(return_value=Response(500, json={"error": "Internal server error"}))
+
+            result = await run_dbt_cloud_job(
+                dbt_cloud_job=dbt_cloud_job, create_assets=True
+            )
+
+            assert result == {
+                "id": 10000,
+                "status": 10,
+                "artifact_paths": ["manifest.json"],
+            }
+
+            mock_emit_event.assert_not_called()
+
 
 def test_get_job(dbt_cloud_job):
     with respx.mock(using="httpx", assert_all_called=False) as respx_mock:
@@ -928,3 +1065,76 @@ def test_get_job(dbt_cloud_job):
             )
         )
         assert dbt_cloud_job.get_job()["id"] == 10000
+
+
+class TestAssetCreation:
+    def test_create_asset_from_node_data_with_owner(self):
+        """Test creating an asset from node data with owner metadata."""
+        node_data = {
+            "unique_id": "model.my_project.my_model",
+            "name": "my_model",
+            "relation_name": "my_schema.my_model",
+            "description": "A test model",
+            "config": {"meta": {"owner": "data-team"}},
+        }
+
+        asset = _create_asset_from_node_data(node_data, "postgres")
+
+        assert asset.key == "postgres://my_schema/my_model"
+        assert asset.properties.name == "my_model"
+        assert asset.properties.description == "A test model"
+        assert asset.properties.owners == ["data-team"]
+
+    def test_create_asset_from_node_data_without_owner(self):
+        """Test creating an asset from node data without owner metadata."""
+        node_data = {
+            "unique_id": "model.my_project.my_model",
+            "name": "my_model",
+            "relation_name": "my_schema.my_model",
+            "description": "A test model",
+            "config": {},
+        }
+
+        asset = _create_asset_from_node_data(node_data, "snowflake")
+
+        assert asset.key == "snowflake://my_schema/my_model"
+        assert asset.properties.owners is None
+
+    def test_create_asset_from_node_data_missing_relation_name(self):
+        """Test that missing relation_name raises ValueError."""
+        node_data = {
+            "unique_id": "model.my_project.my_model",
+            "name": "my_model",
+            "description": "A test model",
+        }
+
+        with pytest.raises(ValueError, match="Relation name not found"):
+            _create_asset_from_node_data(node_data, "postgres")
+
+    def test_asset_as_resource_with_all_properties(self):
+        """Test converting asset to resource format with all properties."""
+        asset = Asset(
+            key="postgres://schema.table",
+            properties=AssetProperties(
+                name="My Table",
+                description="A test table",
+                owners=["team-a", "team-b"],
+            ),
+        )
+
+        resource = _asset_as_resource(asset)
+
+        assert resource["prefect.resource.id"] == "postgres://schema.table"
+        assert resource["prefect.resource.name"] == "My Table"
+        assert resource["prefect.asset.description"] == "A test table"
+        assert json.loads(resource["prefect.asset.owners"]) == ["team-a", "team-b"]
+
+    def test_asset_as_resource_minimal(self):
+        """Test converting asset to resource format with minimal properties."""
+        asset = Asset(key="postgres://schema.table")
+
+        resource = _asset_as_resource(asset)
+
+        assert resource["prefect.resource.id"] == "postgres://schema.table"
+        assert "prefect.resource.name" not in resource
+        assert "prefect.asset.description" not in resource
