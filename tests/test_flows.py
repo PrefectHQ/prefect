@@ -334,6 +334,71 @@ class TestResultPersistence:
         assert my_flow.persist_result is True
         assert new_flow.persist_result is True
 
+    def test_result_storage_accepts_path_object(self, tmpdir):
+        from pathlib import Path
+
+        storage_path = Path(tmpdir) / "results"
+
+        @flow(result_storage=storage_path)
+        def my_flow():
+            return 42
+
+        assert my_flow.result_storage == storage_path
+        assert my_flow.persist_result is True
+
+    def test_result_storage_with_path_string(self, tmpdir):
+        from pathlib import Path
+
+        storage_path = Path(tmpdir) / "results"
+
+        @flow(result_storage=storage_path, persist_result=True)
+        def my_flow():
+            return {"data": "test"}
+
+        result = my_flow()
+        assert result == {"data": "test"}
+
+    def test_result_storage_path_with_with_options(self, tmpdir):
+        from pathlib import Path
+
+        path1 = Path(tmpdir) / "path1"
+        path2 = Path(tmpdir) / "path2"
+
+        @flow(result_storage=path1)
+        def base():
+            pass
+
+        new_flow = base.with_options(result_storage=path2)
+
+        assert base.result_storage == path1
+        assert new_flow.result_storage == path2
+        assert base.persist_result is True
+        assert new_flow.persist_result is True
+
+    def test_result_storage_path_relative(self):
+        from pathlib import Path
+
+        @flow(result_storage=Path("./relative/path"))
+        def my_flow():
+            return "test"
+
+        assert my_flow.result_storage == Path("./relative/path")
+        assert my_flow.persist_result is True
+
+    def test_result_storage_unsaved_block_still_rejected(self, tmpdir):
+        import pytest
+
+        block = LocalFileSystem(basepath=str(tmpdir))
+
+        with pytest.raises(
+            TypeError,
+            match="Result storage configuration must be persisted server-side",
+        ):
+
+            @flow(result_storage=block)
+            def my_flow():
+                pass
+
 
 class TestFlowWithOptions:
     def test_with_options_allows_override_of_flow_settings(self):

@@ -10,6 +10,7 @@ import datetime
 import inspect
 from copy import copy
 from functools import partial, update_wrapper
+from pathlib import Path
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -571,7 +572,7 @@ class Task(Generic[P, R]):
         self.retry_jitter_factor = retry_jitter_factor
         self.persist_result = persist_result
 
-        if result_storage and not isinstance(result_storage, str):
+        if result_storage and not isinstance(result_storage, (str, Path)):
             if getattr(result_storage, "_block_document_id", None) is None:
                 raise TypeError(
                     "Result storage configuration must be persisted server-side."
