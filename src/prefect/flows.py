@@ -372,7 +372,7 @@ class Flow(Generic[P, R]):
                 persist_result = True
 
         self.persist_result = persist_result
-        if result_storage and not isinstance(result_storage, str):
+        if result_storage and not isinstance(result_storage, (str, Path)):
             if getattr(result_storage, "_block_document_id", None) is None:
                 raise TypeError(
                     "Result storage configuration must be persisted server-side."
