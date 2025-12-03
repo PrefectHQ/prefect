@@ -36,6 +36,11 @@ from typing_extensions import ParamSpec, Self
 
 import prefect.types._datetime
 from prefect._internal.compatibility import deprecated
+from prefect._states import (
+    exception_to_crashed_state_sync,
+    exception_to_failed_state_sync,
+    return_value_to_state_sync,
+)
 from prefect.cache_policies import CachePolicy
 from prefect.client.orchestration import PrefectClient, SyncPrefectClient, get_client
 from prefect.client.schemas import TaskRun
@@ -79,11 +84,8 @@ from prefect.states import (
     Retrying,
     Running,
     exception_to_crashed_state,
-    exception_to_crashed_state_sync,
     exception_to_failed_state,
-    exception_to_failed_state_sync,
     return_value_to_state,
-    return_value_to_state_sync,
 )
 from prefect.telemetry.run_telemetry import RunTelemetry
 from prefect.transactions import (

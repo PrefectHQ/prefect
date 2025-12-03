@@ -4,6 +4,11 @@ from pathlib import Path
 import pytest
 
 from prefect import flow
+from prefect._states import (
+    exception_to_crashed_state_sync,
+    exception_to_failed_state_sync,
+    return_value_to_state_sync,
+)
 from prefect.exceptions import CancelledRun, CrashedRun, FailedRun
 from prefect.results import (
     ResultRecord,
@@ -23,13 +28,10 @@ from prefect.states import (
     StateGroup,
     aget_state_exception,
     araise_state_exception,
-    exception_to_crashed_state_sync,
-    exception_to_failed_state_sync,
     get_state_exception,
     is_state_iterable,
     raise_state_exception,
     return_value_to_state,
-    return_value_to_state_sync,
 )
 from prefect.utilities.annotations import quote
 
