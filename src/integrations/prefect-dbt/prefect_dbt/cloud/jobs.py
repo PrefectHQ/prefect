@@ -1,6 +1,7 @@
 """Module containing tasks and flows for interacting with dbt Cloud jobs"""
 
 import asyncio
+import json
 import shlex
 import time
 from json import JSONDecodeError
@@ -11,8 +12,10 @@ from pydantic import Field
 from typing_extensions import Literal
 
 from prefect import flow, task
+from prefect.assets import Asset, AssetProperties
 from prefect.blocks.abstract import JobBlock, JobRun
 from prefect.context import FlowRunContext
+from prefect.events import emit_event
 from prefect.logging import get_run_logger
 from prefect.utilities.asyncutils import sync_compatible
 from prefect_dbt.cloud.credentials import DbtCloudCredentials
@@ -36,6 +39,7 @@ from prefect_dbt.cloud.runs import (
     wait_for_dbt_cloud_job_run,
 )
 from prefect_dbt.cloud.utils import extract_user_message
+from prefect_dbt.utilities import format_resource_id
 
 EXE_COMMANDS = ("build", "run", "test", "seed", "snapshot")
 
@@ -1087,10 +1091,133 @@ class DbtCloudJob(JobBlock):
         return run
 
 
+MATERIALIZATION_NODE_TYPES = {"model", "seed", "snapshot"}
+
+
+def _create_asset_from_node_data(node_data: Dict[str, Any], adapter_type: str) -> Asset:
+    """
+    Create an Asset from manifest node data.
+
+    Args:
+        node_data: The node data from the dbt manifest.
+        adapter_type: The adapter type from the manifest metadata.
+
+    Returns:
+        An Asset object representing the dbt node.
+
+    Raises:
+        ValueError: If relation_name is not found in the node data.
+    """
+    relation_name = node_data.get("relation_name")
+    if not relation_name:
+        raise ValueError(
+            f"Relation name not found in manifest node: {node_data.get('unique_id')}"
+        )
+
+    asset_key = format_resource_id(adapter_type, relation_name)
+
+    name = node_data.get("name", "")
+    description = node_data.get("description", "")
+
+    meta = node_data.get("config", {}).get("meta", {})
+    owner = meta.get("owner")
+    owners = [owner] if owner and isinstance(owner, str) else None
+
+    return Asset(
+        key=asset_key,
+        properties=AssetProperties(
+            name=name,
+            description=description,
+            owners=owners,
+        ),
+    )
+
+
+def _asset_as_resource(asset: Asset) -> Dict[str, str]:
+    """Convert Asset to event resource format."""
+    resource: Dict[str, str] = {"prefect.resource.id": asset.key}
+
+    if asset.properties:
+        if asset.properties.name:
+            resource["prefect.resource.name"] = asset.properties.name
+
+        if asset.properties.description:
+            resource["prefect.asset.description"] = asset.properties.description
+
+        if asset.properties.url:
+            resource["prefect.asset.url"] = asset.properties.url
+
+        if asset.properties.owners:
+            resource["prefect.asset.owners"] = json.dumps(asset.properties.owners)
+
+    return resource
+
+
+async def _materialize_job_assets(
+    dbt_cloud_job_run: DbtCloudJobRun,
+) -> None:
+    """
+    Materialize assets for a completed dbt Cloud job.
+
+    Fetches the manifest.json artifact from the completed job run and creates
+    asset materialization events for all model, seed, and snapshot nodes.
+
+    Args:
+        dbt_cloud_job_run: The completed dbt Cloud job run.
+    """
+    logger = get_run_logger()
+    run_id = dbt_cloud_job_run.run_id
+
+    try:
+        manifest = await dbt_cloud_job_run.get_run_artifacts.aio(
+            dbt_cloud_job_run, path="manifest.json"
+        )
+
+        adapter_type = manifest.get("metadata", {}).get("adapter_type")
+        if not adapter_type:
+            logger.warning(
+                f"Adapter type not found in manifest for dbt Cloud job run {run_id}. "
+                "Skipping asset creation."
+            )
+            return
+
+        assets_created = 0
+        for node_id, node_data in manifest.get("nodes", {}).items():
+            resource_type = node_data.get("resource_type")
+
+            if resource_type not in MATERIALIZATION_NODE_TYPES:
+                continue
+
+            try:
+                asset = _create_asset_from_node_data(node_data, adapter_type)
+
+                emit_event(
+                    event="prefect.asset.materialization.succeeded",
+                    resource=_asset_as_resource(asset),
+                    related=[
+                        {
+                            "prefect.resource.id": "dbt-cloud",
+                            "prefect.resource.role": "asset-materialized-by",
+                        }
+                    ],
+                )
+                assets_created += 1
+            except Exception as node_ex:
+                logger.warning(f"Failed to create asset for node {node_id}: {node_ex}")
+
+        logger.info(
+            f"Created {assets_created} asset materializations for dbt Cloud job run {run_id}"
+        )
+
+    except Exception as ex:
+        logger.warning(f"Failed to create assets for dbt Cloud job run {run_id}: {ex}")
+
+
 @flow
 async def run_dbt_cloud_job(
     dbt_cloud_job: DbtCloudJob,
     targeted_retries: int = 3,
+    create_assets: bool = False,
 ) -> Dict[str, Any]:
     """
     Flow that triggers and waits for a dbt Cloud job run, retrying a
@@ -1100,6 +1227,9 @@ async def run_dbt_cloud_job(
         dbt_cloud_job: Block that holds the information and
             methods to interact with a dbt Cloud job.
         targeted_retries: The number of times to retry failed steps.
+        create_assets: If True, automatically creates Prefect assets for
+            dbt models, seeds, and snapshots after successful job completion.
+            Defaults to False.
 
     Examples:
         ```python
@@ -1113,7 +1243,7 @@ async def run_dbt_cloud_job(
             dbt_cloud_job = DbtCloudJob(
                 dbt_cloud_credentials=dbt_cloud_credentials, job_id=154217
             )
-            return run_dbt_cloud_job(dbt_cloud_job=dbt_cloud_job)
+            return run_dbt_cloud_job(dbt_cloud_job=dbt_cloud_job, create_assets=True)
 
         run_dbt_cloud_job_flow()
         ```
@@ -1122,18 +1252,24 @@ async def run_dbt_cloud_job(
 
     run = await task(dbt_cloud_job.trigger.aio)(dbt_cloud_job)
 
-    # Always try waiting for completion at least once
+    async def _handle_successful_completion(
+        dbt_cloud_job_run: DbtCloudJobRun,
+        result: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        if create_assets:
+            await _materialize_job_assets(dbt_cloud_job_run)
+        return result
+
     try:
         await task(run.wait_for_completion.aio)(run)
         result = await task(run.fetch_result.aio)(run)
-        return result
+        return await _handle_successful_completion(run, result)
     except DbtCloudJobRunFailed:
         if targeted_retries <= 0:
             raise DbtCloudJobRunFailed(
                 f"dbt Cloud job {run.run_id} failed after {targeted_retries} retries."
             )
 
-        # Continue with retries if targeted_retries > 0
         remaining_retries = targeted_retries
         while remaining_retries > 0:
             logger.info(
@@ -1144,7 +1280,7 @@ async def run_dbt_cloud_job(
             try:
                 await task(run.wait_for_completion.aio)(run)
                 result = await task(run.fetch_result.aio)(run)
-                return result
+                return await _handle_successful_completion(run, result)
             except DbtCloudJobRunFailed:
                 if remaining_retries <= 0:
                     break
