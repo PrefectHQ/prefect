@@ -75,6 +75,17 @@ class ServerServicesEventPersisterSettings(ServicesBaseSetting):
         ),
     )
 
+    read_batch_size: int = Field(
+        default=1,
+        gt=0,
+        description="The number of events the event persister will attempt to read from the message broker in one batch.",
+        validation_alias=AliasChoices(
+            AliasPath("read_batch_size"),
+            "prefect_server_services_event_persister_read_batch_size",
+            "prefect_api_services_event_persister_read_batch_size",
+        ),
+    )
+
     flush_interval: float = Field(
         default=5,
         gt=0.0,
@@ -449,6 +460,12 @@ class ServerServicesTaskRunRecorderSettings(ServicesBaseSetting):
         ),
     )
 
+    read_batch_size: int = Field(
+        default=1,
+        gt=0,
+        description="The number of task runs the task run recorder will attempt to read from the message broker in one batch.",
+    )
+
 
 class ServerServicesTriggersSettings(ServicesBaseSetting):
     """
@@ -467,6 +484,12 @@ class ServerServicesTriggersSettings(ServicesBaseSetting):
             "prefect_server_services_triggers_enabled",
             "prefect_api_services_triggers_enabled",
         ),
+    )
+
+    read_batch_size: int = Field(
+        default=1,
+        gt=0,
+        description="The number of events the triggers service will attempt to read from the message broker in one batch.",
     )
 
     pg_notify_reconnect_interval_seconds: int = Field(

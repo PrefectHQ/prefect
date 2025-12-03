@@ -10,6 +10,8 @@ from prefect_dbt.cloud.runs import (
     list_dbt_cloud_run_artifacts,
 )
 
+from prefect import flow
+
 
 class TestGetDbtCloudRunInfo:
     async def test_get_dbt_cloud_run_info(self, dbt_cloud_credentials):
@@ -41,6 +43,49 @@ class TestGetDbtCloudRunInfo:
                     dbt_cloud_credentials=dbt_cloud_credentials,
                     run_id=12,
                 )
+
+    async def test_get_dbt_cloud_run_info_returns_fresh_data_on_each_call(
+        self, dbt_cloud_credentials
+    ):
+        """Test that get_dbt_cloud_run_info returns fresh data on each call.
+
+        This test verifies that the NO_CACHE policy is working correctly by
+        ensuring that repeated calls with the same inputs return different
+        results when the API returns different responses.
+        """
+        call_count = 0
+
+        def side_effect(request):
+            nonlocal call_count
+            call_count += 1
+            if call_count == 1:
+                return Response(200, json={"data": {"id": 12, "status": 3}})
+            else:
+                return Response(200, json={"data": {"id": 12, "status": 10}})
+
+        @flow
+        async def test_flow():
+            with respx.mock(using="httpx") as respx_mock:
+                respx_mock.get(
+                    "https://cloud.getdbt.com/api/v2/accounts/123456789/runs/12/",
+                    headers={"Authorization": "Bearer my_api_key"},
+                ).mock(side_effect=side_effect)
+
+                first_response = await get_dbt_cloud_run_info(
+                    dbt_cloud_credentials=dbt_cloud_credentials,
+                    run_id=12,
+                )
+                second_response = await get_dbt_cloud_run_info(
+                    dbt_cloud_credentials=dbt_cloud_credentials,
+                    run_id=12,
+                )
+                return first_response, second_response
+
+        first, second = await test_flow()
+
+        assert first["status"] == 3, "First call should return status 3 (RUNNING)"
+        assert second["status"] == 10, "Second call should return status 10 (SUCCESS)"
+        assert call_count == 2, "API should be called twice, not cached"
 
 
 class TestDbtCloudListRunArtifacts:
