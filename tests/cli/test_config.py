@@ -1,7 +1,7 @@
 import sys
 
 import pytest
-import toml
+import tomlkit
 from typer import Exit
 
 import prefect.context
@@ -596,8 +596,8 @@ def test_view_with_env_file_and_profile(tmp_path):
 def test_view_with_prefect_toml_file(tmp_path):
     with tmpchdir(tmp_path):
         toml_data = {"client": {"retry_extra_codes": "300"}}
-        with open("prefect.toml", "w") as f:
-            toml.dump(toml_data, f)
+        with open("prefect.toml", "wb") as f:
+            f.write(tomlkit.dumps(toml_data).encode())
 
         res = invoke_and_assert(["config", "view"])
 
@@ -610,8 +610,8 @@ def test_view_with_prefect_toml_file_and_env_var(monkeypatch, tmp_path):
 
     with tmpchdir(tmp_path):
         toml_data = {"client": {"retry_extra_codes": "300"}}
-        with open("prefect.toml", "w") as f:
-            toml.dump(toml_data, f)
+        with open("prefect.toml", "wb") as f:
+            f.write(tomlkit.dumps(toml_data).encode())
 
         res = invoke_and_assert(["config", "view"])
 
@@ -622,8 +622,8 @@ def test_view_with_prefect_toml_file_and_env_var(monkeypatch, tmp_path):
 def test_view_with_prefect_toml_file_and_profile(tmp_path):
     with tmpchdir(tmp_path):
         toml_data = {"client": {"retry_extra_codes": "300"}}
-        with open("prefect.toml", "w") as f:
-            toml.dump(toml_data, f)
+        with open("prefect.toml", "wb") as f:
+            f.write(tomlkit.dumps(toml_data).encode())
 
         with prefect.context.use_profile(
             prefect.settings.Profile(
@@ -641,8 +641,8 @@ def test_view_with_prefect_toml_file_and_profile(tmp_path):
 def test_view_with_pyproject_toml_file(tmp_path):
     with tmpchdir(tmp_path):
         toml_data = {"tool": {"prefect": {"client": {"retry_extra_codes": "300"}}}}
-        with open("pyproject.toml", "w") as f:
-            toml.dump(toml_data, f)
+        with open("pyproject.toml", "wb") as f:
+            f.write(tomlkit.dumps(toml_data).encode())
 
         res = invoke_and_assert(["config", "view"])
 
@@ -655,8 +655,8 @@ def test_view_with_pyproject_toml_file_and_env_var(monkeypatch, tmp_path):
 
     with tmpchdir(tmp_path):
         toml_data = {"tool": {"prefect": {"client": {"retry_extra_codes": "300"}}}}
-        with open("pyproject.toml", "w") as f:
-            toml.dump(toml_data, f)
+        with open("pyproject.toml", "wb") as f:
+            f.write(tomlkit.dumps(toml_data).encode())
 
         res = invoke_and_assert(["config", "view"])
 
@@ -667,8 +667,8 @@ def test_view_with_pyproject_toml_file_and_env_var(monkeypatch, tmp_path):
 def test_view_with_pyproject_toml_file_and_profile(tmp_path):
     with tmpchdir(tmp_path):
         toml_data = {"tool": {"prefect": {"client": {"retry_extra_codes": "300"}}}}
-        with open("pyproject.toml", "w") as f:
-            toml.dump(toml_data, f)
+        with open("pyproject.toml", "wb") as f:
+            f.write(tomlkit.dumps(toml_data).encode())
 
         with prefect.context.use_profile(
             prefect.settings.Profile(
