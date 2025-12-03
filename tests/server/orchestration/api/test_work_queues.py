@@ -971,7 +971,7 @@ class TestGetRunsInWorkQueue:
 
     async def test_read_work_queue_runs_does_not_update_a_paused_work_queues_status(
         self,
-        hosted_api_client,
+        ephemeral_client_with_lifespan,
         work_queue,
         session,
     ):
@@ -979,25 +979,29 @@ class TestGetRunsInWorkQueue:
         new_data = WorkQueueUpdate(is_paused=True).model_dump(
             mode="json", exclude_unset=True
         )
-        response = await hosted_api_client.patch(
+        response = await ephemeral_client_with_lifespan.patch(
             f"/work_queues/{work_queue.id}", json=new_data
         )
         assert response.status_code == status.HTTP_204_NO_CONTENT
 
         # Verify the work queue is PAUSED
-        wq_response = await hosted_api_client.get(f"/work_queues/{work_queue.id}")
+        wq_response = await ephemeral_client_with_lifespan.get(
+            f"/work_queues/{work_queue.id}"
+        )
         assert wq_response.status_code == status.HTTP_200_OK
         assert wq_response.json()["status"] == "PAUSED"
         assert wq_response.json()["is_paused"] is True
 
         # Trigger a polling operation
-        response = await hosted_api_client.post(
+        response = await ephemeral_client_with_lifespan.post(
             f"/work_queues/{work_queue.id}/get_runs",
         )
         assert response.status_code == status.HTTP_200_OK
 
         # Verify the work queue status is still PAUSED
-        wq_response = await hosted_api_client.get(f"/work_queues/{work_queue.id}")
+        wq_response = await ephemeral_client_with_lifespan.get(
+            f"/work_queues/{work_queue.id}"
+        )
         assert wq_response.status_code == status.HTTP_200_OK
         assert wq_response.json()["status"] == "PAUSED"
 
