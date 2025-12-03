@@ -6037,36 +6037,46 @@ class TestAsyncTaskFromSyncTask:
         assert result == 42
 
 
-class TestCreateLocalRunSync:
+class TestCreateTaskRunLocally:
+    """Tests for the internal _create_task_run_locally function."""
+
     def test_creates_task_run_with_pending_state(self):
+        from prefect.task_engine import _create_task_run_locally
+
         @task
         def my_task(x: int):
             return x
 
-        task_run = my_task.create_local_run_sync(parameters={"x": 42})
+        task_run = _create_task_run_locally(task=my_task, parameters={"x": 42})
         assert task_run is not None
         assert task_run.state.is_pending()
         assert task_run.task_key == my_task.task_key
 
     def test_uses_provided_id(self):
+        from prefect.task_engine import _create_task_run_locally
+
         @task
         def my_task():
             return 1
 
         custom_id = uuid4()
-        task_run = my_task.create_local_run_sync(id=custom_id)
+        task_run = _create_task_run_locally(task=my_task, id=custom_id)
         assert task_run.id == custom_id
 
     def test_generates_dynamic_key_without_flow_context(self):
+        from prefect.task_engine import _create_task_run_locally
+
         @task
         def my_task():
             return 1
 
-        task_run = my_task.create_local_run_sync()
+        task_run = _create_task_run_locally(task=my_task)
         assert task_run.dynamic_key.startswith(my_task.task_key)
         assert task_run.name == my_task.name
 
     def test_sets_task_run_name_with_flow_context(self):
+        from prefect.task_engine import _create_task_run_locally
+
         @task
         def my_task():
             return 1
@@ -6074,12 +6084,14 @@ class TestCreateLocalRunSync:
         @flow
         def my_flow():
             ctx = FlowRunContext.get()
-            return my_task.create_local_run_sync(flow_run_context=ctx)
+            return _create_task_run_locally(task=my_task, flow_run_context=ctx)
 
         task_run = my_flow()
         assert task_run.name.startswith("my_task-")
 
     def test_collects_task_inputs_from_parameters(self):
+        from prefect.task_engine import _create_task_run_locally
+
         @task
         def upstream_task():
             return 1
@@ -6092,7 +6104,8 @@ class TestCreateLocalRunSync:
         def my_flow():
             upstream_future = upstream_task.submit()
             ctx = FlowRunContext.get()
-            return my_task.create_local_run_sync(
+            return _create_task_run_locally(
+                task=my_task,
                 parameters={"x": upstream_future},
                 flow_run_context=ctx,
             )
@@ -6104,6 +6117,8 @@ class TestCreateLocalRunSync:
         assert isinstance(task_input, TaskRunResult)
 
     def test_applies_tags_from_context(self):
+        from prefect.task_engine import _create_task_run_locally
+
         @task(tags=["task-tag"])
         def my_task():
             return 1
@@ -6111,23 +6126,27 @@ class TestCreateLocalRunSync:
         @flow
         def my_flow():
             with tags("context-tag"):
-                return my_task.create_local_run_sync()
+                return _create_task_run_locally(task=my_task)
 
         task_run = my_flow()
         assert "task-tag" in task_run.tags
         assert "context-tag" in task_run.tags
 
     def test_sets_empirical_policy_from_task_settings(self):
+        from prefect.task_engine import _create_task_run_locally
+
         @task(retries=3, retry_delay_seconds=10, retry_jitter_factor=0.5)
         def my_task():
             return 1
 
-        task_run = my_task.create_local_run_sync()
+        task_run = _create_task_run_locally(task=my_task)
         assert task_run.empirical_policy.retries == 3
         assert task_run.empirical_policy.retry_delay == 10
         assert task_run.empirical_policy.retry_jitter_factor == 0.5
 
     def test_sets_flow_run_id_from_context(self):
+        from prefect.task_engine import _create_task_run_locally
+
         @task
         def my_task():
             return 1
@@ -6135,7 +6154,7 @@ class TestCreateLocalRunSync:
         @flow
         def my_flow():
             ctx = FlowRunContext.get()
-            return my_task.create_local_run_sync(flow_run_context=ctx)
+            return _create_task_run_locally(task=my_task, flow_run_context=ctx)
 
         task_run = my_flow()
         assert task_run.flow_run_id is not None
