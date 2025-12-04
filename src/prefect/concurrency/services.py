@@ -139,20 +139,17 @@ class ConcurrencySlotAcquisitionWithLeaseService(
             httpx.HTTPStatusError: If the server returns an error other than 423 LOCKED
             TimeoutError: If acquisition times out
         """
+        use_cache = _should_use_cache(self.concurrency_limit_names, holder)
         cache_key = frozenset(self.concurrency_limit_names)
-
-        # Check if we've cached that these tags have no limits
-        with _cache_lock:
-            has_no_limits = _no_limits_cache.get(cache_key, False)
-
-        if has_no_limits:
-            # Return a synthetic response indicating no limits exist
-            # This avoids the API call entirely
-            return _create_empty_limits_response()
 
         with timeout_async(seconds=timeout_seconds):
             while True:
                 try:
+                    if use_cache:
+                        with _cache_lock:
+                            if _no_limits_cache.get(cache_key, False):
+                                return _create_empty_limits_response()
+
                     response = (
                         await self._client.increment_concurrency_slots_with_lease(
                             names=self.concurrency_limit_names,
@@ -163,16 +160,14 @@ class ConcurrencySlotAcquisitionWithLeaseService(
                         )
                     )
 
-                    # Check if the response indicates no limits exist
-                    # and cache that result to avoid future API calls
-                    try:
-                        response_data = response.json()
-                        if not response_data.get("limits"):
-                            with _cache_lock:
-                                _no_limits_cache[cache_key] = True
-                    except Exception:
-                        # If we can't parse the response, don't cache anything
-                        pass
+                    if use_cache:
+                        try:
+                            response_data = response.json()
+                            if not response_data.get("limits"):
+                                with _cache_lock:
+                                    _no_limits_cache[cache_key] = True
+                        except Exception:
+                            pass
 
                     return response
                 except httpx.HTTPStatusError as exc:
@@ -189,6 +184,24 @@ class ConcurrencySlotAcquisitionWithLeaseService(
                     await asyncio.sleep(retry_after)
                     if max_retries is not None:
                         max_retries -= 1
+
+
+def _should_use_cache(
+    names: list[str], holder: Optional["ConcurrencyLeaseHolder"]
+) -> bool:
+    """Determine if caching should be used for this concurrency acquisition.
+
+    Caching is only enabled for task-run tag-based concurrency checks to avoid
+    unnecessary API calls when no limits exist for those tags. This specifically
+    targets the task engine path that uses names like "tag:..." with a task_run holder.
+    """
+    if holder is None:
+        return False
+    if getattr(holder, "type", None) != "task_run":
+        return False
+    if not names:
+        return False
+    return all(name.startswith("tag:") for name in names)
 
 
 def _create_empty_limits_response() -> httpx.Response:
