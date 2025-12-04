@@ -6,12 +6,6 @@ updates:
     schedule:
       interval: "daily"
     labels: ["development"]
-
-  - package-ecosystem: "npm"
-    directory: '/ui/'
-    schedule:
-      interval: "weekly"
-    labels: ["ui", "ui-dependency"]
   
   - package-ecosystem: "npm"
     directory: '/ui-v2/'
@@ -32,6 +26,7 @@ updates:
           - "@eslint*"
           - "eslint*"
           - "typescript-eslint"
+
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
