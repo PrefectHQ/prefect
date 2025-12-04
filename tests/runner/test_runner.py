@@ -938,6 +938,94 @@ class TestRunner:
         # We should get at least 5 heartbeats since the flow should take about 5 seconds to run
         assert len(heartbeat_events) > 5
 
+    async def test_runner_does_not_emit_heartbeat_after_flow_run_completes(
+        self,
+    ):
+        """
+        Regression test for https://github.com/PrefectHQ/prefect/issues/19598
+
+        The heartbeat loop can emit heartbeats for flow runs that have already
+        completed due to a race condition:
+
+        1. The heartbeat loop iterates over _flow_run_process_map and collects
+           flow run references
+        2. Before the heartbeat is actually emitted, the flow run completes
+           and reaches a terminal state
+        3. The heartbeat is still emitted AFTER the terminal state event
+
+        This can incorrectly trigger zombie flow detection automations.
+
+        The fix should check if the flow run is still in the process map before
+        emitting the heartbeat event.
+        """
+        from uuid import UUID
+
+        collected_events: list[Event] = []
+        flow_run_removed_from_map = False
+
+        # Create a mock flow run
+        flow_run = FlowRun(
+            id=UUID("12345678-1234-1234-1234-123456789abc"),
+            name="test-flow-run",
+            flow_id=UUID("00000000-0000-0000-0000-000000000001"),
+            state=State(type=StateType.RUNNING, name="Running"),
+        )
+
+        async def mock_emit(event: Event):
+            """Capture emitted events."""
+            collected_events.append(event)
+
+        async def mock_get_flow_and_deployment(fr):
+            """
+            Simulate the flow run completing while preparing the heartbeat.
+
+            This happens in production when the async lookup to get flow/deployment
+            info takes some time, and the flow run completes during that time.
+            """
+            nonlocal flow_run_removed_from_map
+            # Simulate the flow run being removed from the map (as happens when it completes)
+            if flow_run.id in runner._flow_run_process_map:
+                del runner._flow_run_process_map[flow_run.id]
+                flow_run_removed_from_map = True
+            return None, None
+
+        runner = Runner(name="test-runner", heartbeat_seconds=30)
+
+        # Add the flow run to the process map
+        runner._flow_run_process_map[flow_run.id] = {
+            "pid": 12345,
+            "flow_run": flow_run,
+        }
+
+        # Patch the methods
+        with patch.object(
+            runner, "_get_flow_and_deployment", mock_get_flow_and_deployment
+        ):
+            with patch.object(runner, "_events_client") as mock_events_client:
+                mock_events_client.emit = mock_emit
+
+                # Run the heartbeat emission
+                await runner._emit_flow_run_heartbeats()
+
+        # Verify the flow run was removed from the map during the test
+        assert flow_run_removed_from_map, (
+            "Test setup error: flow run should have been removed"
+        )
+
+        # The bug: a heartbeat was emitted even though the flow run was removed
+        # from the process map before the emit happened
+        heartbeat_events = [
+            e for e in collected_events if e.event == "prefect.flow-run.heartbeat"
+        ]
+
+        # After the fix, no heartbeat should be emitted for a flow run that's
+        # no longer in the process map
+        assert len(heartbeat_events) == 0, (
+            f"Expected no heartbeats for completed flow run, but got {len(heartbeat_events)}. "
+            "A heartbeat was emitted after the flow run was removed from the process map, "
+            "which can incorrectly trigger zombie flow detection automations."
+        )
+
     async def test_runner_heartbeats_include_deployment_version(
         self,
         prefect_client: PrefectClient,

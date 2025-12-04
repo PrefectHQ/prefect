@@ -1052,16 +1052,30 @@ class Runner:
     async def _emit_flow_run_heartbeats(self):
         coros: list[Coroutine[Any, Any, Any]] = []
         for entry in self._flow_run_process_map.values():
-            coros.append(self._emit_flow_run_heartbeat(entry["flow_run"]))
+            coros.append(
+                self._emit_flow_run_heartbeat(entry["flow_run"], check_incomplete=True)
+            )
         await asyncio.gather(*coros)
 
-    async def _emit_flow_run_heartbeat(self, flow_run: "FlowRun"):
+    async def _emit_flow_run_heartbeat(
+        self, flow_run: "FlowRun", check_incomplete: bool = False
+    ):
         from prefect import __version__
 
         related: list[RelatedResource] = []
         tags: list[str] = []
 
         flow, deployment = await self._get_flow_and_deployment(flow_run)
+
+        # When check_incomplete is True (used by the periodic heartbeat loop),
+        # verify the flow run is still being tracked before emitting a heartbeat.
+        # The flow run may have completed between when we started preparing the
+        # heartbeat and now, and we don't want to emit heartbeats for completed
+        # flow runs as this can incorrectly trigger zombie flow detection automations.
+        # See: https://github.com/PrefectHQ/prefect/issues/19598
+        if check_incomplete and flow_run.id not in self._flow_run_process_map:
+            return
+
         if deployment:
             related.append(deployment.as_related_resource())
             tags.extend(deployment.tags)
