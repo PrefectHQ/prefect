@@ -2186,6 +2186,56 @@ async def test_user_defined_capacity_provider_strategy_with_launch_type(
 
 
 @pytest.mark.usefixtures("ecs_mocks")
+async def test_ec2_task_definition_with_null_launch_type_uses_cluster_capacity_provider(
+    aws_credentials: AwsCredentials, flow_run: FlowRun
+):
+    """
+    Test that EC2-compatible task definitions can run without an explicit launchType
+    to allow AWS cluster default capacity providers to work.
+
+    Regression test for https://github.com/PrefectHQ/prefect/issues/19627
+    """
+    # Create an EC2-compatible task definition
+    ec2_task_definition = {
+        "containerDefinitions": [
+            {
+                "cpu": 1024,
+                "image": "prefecthq/prefect:3-latest",
+                "memory": 2048,
+                "name": "prefect",
+            },
+        ],
+        "family": "prefect-ec2",
+        "requiresCompatibilities": ["EC2"],
+    }
+
+    # Configure with the EC2 task definition and no launch_type
+    # (simulating user setting launch_type to null to use cluster capacity provider)
+    configuration = await construct_configuration_with_job_template(
+        template_overrides=dict(
+            task_definition=ec2_task_definition,
+        ),
+        aws_credentials=aws_credentials,
+    )
+    # Explicitly clear launch_type to simulate user setting it to null
+    configuration.task_run_request["launchType"] = None
+
+    async with ECSWorker(work_pool_name="test") as worker:
+        original_run_task = worker._create_task_run
+        mock_run_task = MagicMock(side_effect=original_run_task)
+        worker._create_task_run = mock_run_task
+
+        result = await worker.run(flow_run, configuration)
+
+    assert result.status_code == 0
+
+    # launchType should NOT be in the request, allowing AWS cluster
+    # default capacity provider to be used
+    run_kwargs = mock_run_task.call_args[0][1]
+    assert "launchType" not in run_kwargs
+
+
+@pytest.mark.usefixtures("ecs_mocks")
 async def test_user_defined_environment_variables_in_task_run_request_template(
     aws_credentials: AwsCredentials, flow_run: FlowRun
 ):
