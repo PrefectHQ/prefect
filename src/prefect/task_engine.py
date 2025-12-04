@@ -880,23 +880,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                     self._is_started = False
                     self._client = None
 
-    async def wait_until_ready(self) -> None:
-        """Waits until the scheduled time (if its the future), then enters Running."""
-        if scheduled_time := self.state.state_details.scheduled_time:
-            sleep_time = (
-                scheduled_time - prefect.types._datetime.now("UTC")
-            ).total_seconds()
-            await anyio.sleep(sleep_time if sleep_time > 0 else 0)
-            new_state = Retrying() if self.state.name == "AwaitingRetry" else Running()
-            self.set_state(
-                new_state,
-                force=True,
-            )
-            # Call on_running hooks if we transitioned to a Running state
-            if self.state.is_running():
-                self.call_hooks()
-
-    def wait_until_ready_sync(self) -> None:
+    def wait_until_ready(self) -> None:
         """Sync version: Waits until the scheduled time (if its the future), then enters Running."""
         if scheduled_time := self.state.state_details.scheduled_time:
             sleep_time = (
@@ -1651,7 +1635,7 @@ def run_task_sync(
 
     with engine.start(task_run_id=task_run_id, dependencies=dependencies):
         while engine.is_running():
-            engine.wait_until_ready_sync()
+            engine.wait_until_ready()
             with (
                 engine.asset_context(),
                 engine.run_context(),
@@ -1716,7 +1700,7 @@ def run_generator_task_sync(
 
     with engine.start(task_run_id=task_run_id, dependencies=dependencies):
         while engine.is_running():
-            engine.wait_until_ready_sync()
+            engine.wait_until_ready()
             with (
                 engine.asset_context(),
                 engine.run_context(),
