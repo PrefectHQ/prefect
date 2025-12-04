@@ -456,6 +456,7 @@ class FlowRunClient(BaseClient):
             value: The input value.
             sender: The sender of the input.
         """
+        from prefect.client.schemas.objects import FlowRunInput
 
         # Initialize the input to ensure that the key is valid.
         FlowRunInput(flow_run_id=flow_run_id, key=key, value=value)
