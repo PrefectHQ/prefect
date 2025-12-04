@@ -71,8 +71,6 @@ class SQLAlchemyConnectArgsSettings(PrefectBaseSettings):
         description="PostgreSQL schema name to set in search_path when using a PostgreSQL database with the Prefect backend.",
         validation_alias=AliasChoices(
             AliasPath("search_path"),
-            "prefect_server_database_search_path",
-            "prefect_api_database_search_path",
             "prefect_server_database_schema",
             "prefect_api_database_schema",
         ),
