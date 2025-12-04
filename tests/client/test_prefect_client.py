@@ -1808,7 +1808,7 @@ class TestClientAPIKey:
         bearer = HTTPBearer()
 
         # Returns given credentials if an Authorization
-        # header is passed, otherwise raises 403
+        # header is passed, otherwise raises 401
         @app.get("/api/check_for_auth_header")
         async def check_for_auth_header(credentials=Depends(bearer)):
             return credentials.credentials
@@ -1825,7 +1825,7 @@ class TestClientAPIKey:
     async def test_client_no_auth_header_without_api_key(self, test_app: FastAPI):
         async with PrefectClient(test_app) as client:
             with pytest.raises(
-                httpx.HTTPStatusError, match=str(status.HTTP_403_FORBIDDEN)
+                httpx.HTTPStatusError, match=str(status.HTTP_401_UNAUTHORIZED)
             ):
                 await client._client.get("/check_for_auth_header")
 
@@ -1843,7 +1843,7 @@ class TestClientAuthString:
         basic = HTTPBasic()
 
         # Returns given credentials if an Authorization
-        # header is passed, otherwise raises 403
+        # header is passed, otherwise raises 401
         @app.get("/api/check_for_auth_header")
         async def check_for_auth_header(credentials=Depends(basic)):
             return {"username": credentials.username, "password": credentials.password}
