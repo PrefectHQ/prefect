@@ -32,6 +32,9 @@
   "integrations": {
     "ga4": {
       "measurementId": "G-8GR5P04T5Y"
+    },
+    "gtm": {
+      "tagId": "GTM-XXXXXX"
     }
   },
   "logo": {
