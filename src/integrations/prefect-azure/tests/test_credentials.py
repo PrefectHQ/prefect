@@ -1,4 +1,4 @@
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 from azure.storage.blob.aio import BlobClient, BlobServiceClient, ContainerClient
@@ -160,3 +160,158 @@ def test_get_azuredevops_auth_header_missing_token():
 
     with pytest.raises(ValueError, match="Azure DevOps Personal Access Token.*not set"):
         test_flow()
+
+
+class TestAzureBlobStorageCredentialsSPN:
+    """Tests for Service Principal Name (SPN) authentication in AzureBlobStorageCredentials."""
+
+    def test_spn_credentials_with_all_fields(self, account_url: str) -> None:
+        """Test that SPN credentials work when all three fields are provided."""
+        creds = AzureBlobStorageCredentials(
+            account_url=account_url,
+            tenant_id="test-tenant-id",
+            client_id="test-client-id",
+            client_secret=SecretStr("test-client-secret"),
+        )
+        assert creds.tenant_id == "test-tenant-id"
+        assert creds.client_id == "test-client-id"
+        assert creds.client_secret.get_secret_value() == "test-client-secret"
+
+    def test_spn_credentials_missing_tenant_id(self, account_url: str) -> None:
+        """Test validation error when tenant_id is missing."""
+        with pytest.raises(
+            ValueError,
+            match="If any of `tenant_id`, `client_id`, or `client_secret` are provided",
+        ):
+            AzureBlobStorageCredentials(
+                account_url=account_url,
+                client_id="test-client-id",
+                client_secret=SecretStr("test-client-secret"),
+            )
+
+    def test_spn_credentials_missing_client_id(self, account_url: str) -> None:
+        """Test validation error when client_id is missing."""
+        with pytest.raises(
+            ValueError,
+            match="If any of `tenant_id`, `client_id`, or `client_secret` are provided",
+        ):
+            AzureBlobStorageCredentials(
+                account_url=account_url,
+                tenant_id="test-tenant-id",
+                client_secret=SecretStr("test-client-secret"),
+            )
+
+    def test_spn_credentials_missing_client_secret(self, account_url: str) -> None:
+        """Test validation error when client_secret is missing."""
+        with pytest.raises(
+            ValueError,
+            match="If any of `tenant_id`, `client_id`, or `client_secret` are provided",
+        ):
+            AzureBlobStorageCredentials(
+                account_url=account_url,
+                tenant_id="test-tenant-id",
+                client_id="test-client-id",
+            )
+
+    def test_spn_credentials_require_account_url(self) -> None:
+        """Test validation error when SPN fields are provided without account_url."""
+        with pytest.raises(
+            ValueError,
+            match="If service principal credentials are provided.*account_url",
+        ):
+            AzureBlobStorageCredentials(
+                connection_string="fake-connection-string",
+                tenant_id="test-tenant-id",
+                client_id="test-client-id",
+                client_secret=SecretStr("test-client-secret"),
+            )
+
+    def test_spn_credentials_cannot_use_connection_string(self) -> None:
+        """Test validation error when SPN fields are used with connection_string.
+
+        Note: This test verifies that SPN + connection_string is rejected.
+        The validation fails because SPN requires account_url, which effectively
+        prevents using SPN with connection_string.
+        """
+        with pytest.raises(
+            ValueError,
+            match="If service principal credentials are provided.*account_url",
+        ):
+            AzureBlobStorageCredentials(
+                connection_string="fake-connection-string",
+                tenant_id="test-tenant-id",
+                client_id="test-client-id",
+                client_secret=SecretStr("test-client-secret"),
+            )
+
+    def test_spn_get_client_uses_client_secret_credential(
+        self, account_url: str
+    ) -> None:
+        """Test that get_client uses ClientSecretCredential when SPN fields are provided."""
+        creds = AzureBlobStorageCredentials(
+            account_url=account_url,
+            tenant_id="test-tenant-id",
+            client_id="test-client-id",
+            client_secret=SecretStr("test-client-secret"),
+        )
+
+        with patch(
+            "prefect_azure.credentials.AClientSecretCredential"
+        ) as mock_credential:
+            mock_credential.return_value = MagicMock()
+            client = creds.get_client()
+
+            mock_credential.assert_called_once_with(
+                tenant_id="test-tenant-id",
+                client_id="test-client-id",
+                client_secret="test-client-secret",
+            )
+            assert isinstance(client, BlobServiceClient)
+
+    def test_spn_get_blob_client_uses_client_secret_credential(
+        self, account_url: str
+    ) -> None:
+        """Test that get_blob_client uses ClientSecretCredential when SPN fields are provided."""
+        creds = AzureBlobStorageCredentials(
+            account_url=account_url,
+            tenant_id="test-tenant-id",
+            client_id="test-client-id",
+            client_secret=SecretStr("test-client-secret"),
+        )
+
+        with patch(
+            "prefect_azure.credentials.AClientSecretCredential"
+        ) as mock_credential:
+            mock_credential.return_value = MagicMock()
+            client = creds.get_blob_client("container", "blob")
+
+            mock_credential.assert_called_once_with(
+                tenant_id="test-tenant-id",
+                client_id="test-client-id",
+                client_secret="test-client-secret",
+            )
+            assert isinstance(client, BlobClient)
+
+    def test_spn_get_container_client_uses_client_secret_credential(
+        self, account_url: str
+    ) -> None:
+        """Test that get_container_client uses ClientSecretCredential when SPN fields are provided."""
+        creds = AzureBlobStorageCredentials(
+            account_url=account_url,
+            tenant_id="test-tenant-id",
+            client_id="test-client-id",
+            client_secret=SecretStr("test-client-secret"),
+        )
+
+        with patch(
+            "prefect_azure.credentials.AClientSecretCredential"
+        ) as mock_credential:
+            mock_credential.return_value = MagicMock()
+            client = creds.get_container_client("container")
+
+            mock_credential.assert_called_once_with(
+                tenant_id="test-tenant-id",
+                client_id="test-client-id",
+                client_secret="test-client-secret",
+            )
+            assert isinstance(client, ContainerClient)

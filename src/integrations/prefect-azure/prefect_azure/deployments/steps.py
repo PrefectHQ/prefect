@@ -37,7 +37,7 @@ For more information about using deployment steps, check out out the Prefect [do
 from pathlib import Path, PurePosixPath
 from typing import Dict, Optional
 
-from azure.identity import DefaultAzureCredential
+from azure.identity import ClientSecretCredential, DefaultAzureCredential
 from azure.storage.blob import ContainerClient
 
 from prefect.utilities.filesystem import filter_files, relative_path_to_current_platform
@@ -58,6 +58,8 @@ def push_to_azure_blob_storage(
         credentials: A dictionary of credentials with keys `connection_string` or
             `account_url` and values of the corresponding connection string or
             account url. If both are provided, `connection_string` will be used.
+            Optionally, can include `tenant_id`, `client_id`, and `client_secret`
+            for service principal authentication when using `account_url`.
         ignore_file: The path to a file containing patterns of files to ignore when
             pushing to Azure Blob Storage. If not provided, the default `.prefectignore`
             file will be used.
@@ -92,10 +94,20 @@ def push_to_azure_blob_storage(
             credentials["connection_string"], container_name=container
         )
     elif credentials.get("account_url") is not None:
+        spn_fields = ["tenant_id", "client_id", "client_secret"]
+        if all(credentials.get(field) is not None for field in spn_fields):
+            credential = ClientSecretCredential(
+                tenant_id=credentials["tenant_id"],
+                client_id=credentials["client_id"],
+                client_secret=credentials["client_secret"],
+            )
+        else:
+            credential = DefaultAzureCredential()
+
         container_client = ContainerClient(
             account_url=credentials["account_url"],
             container_name=container,
-            credential=DefaultAzureCredential(),
+            credential=credential,
         )
     else:
         raise ValueError(
@@ -143,6 +155,8 @@ def pull_from_azure_blob_storage(
         credentials: A dictionary of credentials with keys `connection_string` or
             `account_url` and values of the corresponding connection string or
             account url. If both are provided, `connection_string` will be used.
+            Optionally, can include `tenant_id`, `client_id`, and `client_secret`
+            for service principal authentication when using `account_url`.
 
     Note:
         Azure Storage account needs to have Hierarchical Namespace disabled.
@@ -177,10 +191,20 @@ def pull_from_azure_blob_storage(
             credentials["connection_string"], container_name=container
         )
     elif credentials.get("account_url") is not None:
+        spn_fields = ["tenant_id", "client_id", "client_secret"]
+        if all(credentials.get(field) is not None for field in spn_fields):
+            credential = ClientSecretCredential(
+                tenant_id=credentials["tenant_id"],
+                client_id=credentials["client_id"],
+                client_secret=credentials["client_secret"],
+            )
+        else:
+            credential = DefaultAzureCredential()
+
         container_client = ContainerClient(
             account_url=credentials["account_url"],
             container_name=container,
-            credential=DefaultAzureCredential(),
+            credential=credential,
         )
     else:
         raise ValueError(

@@ -5,7 +5,12 @@ import functools
 from typing import TYPE_CHECKING, Any, Dict, Optional
 
 from azure.identity import ClientSecretCredential, DefaultAzureCredential
-from azure.identity.aio import DefaultAzureCredential as ADefaultAzureCredential
+from azure.identity.aio import (
+    ClientSecretCredential as AClientSecretCredential,
+)
+from azure.identity.aio import (
+    DefaultAzureCredential as ADefaultAzureCredential,
+)
 from azure.mgmt.containerinstance import ContainerInstanceManagementClient
 from azure.mgmt.resource import ResourceManagementClient
 from pydantic import Field, PrivateAttr, SecretStr, model_validator
@@ -115,6 +120,32 @@ class AzureBlobStorageCredentials(Block):
             "Azure credentials."
         ),
     )
+    tenant_id: Optional[str] = Field(
+        default=None,
+        title="Tenant ID",
+        description=(
+            "The service principal tenant ID. "
+            "If provided along with client_id and client_secret, "
+            "will use ClientSecretCredential for authentication."
+        ),
+    )
+    client_id: Optional[str] = Field(
+        default=None,
+        title="Client ID",
+        description=(
+            "The service principal client ID. "
+            "If provided along with tenant_id and client_secret, "
+            "will use ClientSecretCredential for authentication."
+        ),
+    )
+    client_secret: Optional[SecretStr] = Field(
+        default=None,
+        description=(
+            "The service principal client secret. "
+            "If provided along with tenant_id and client_id, "
+            "will use ClientSecretCredential for authentication."
+        ),
+    )
 
     @model_validator(mode="before")
     @classmethod
@@ -122,10 +153,20 @@ class AzureBlobStorageCredentials(Block):
         cls, values: Dict[str, Any]
     ) -> Dict[str, Any]:
         """
-        Checks that either a connection string or account URL is provided, not both.
+        Validates authentication configuration.
+
+        Ensures exactly one authentication mode is used:
+        - connection_string only, OR
+        - account_url only (uses DefaultAzureCredential), OR
+        - account_url + all three SPN fields (uses ClientSecretCredential)
         """
         has_account_url = values.get("account_url") is not None
         has_conn_str = values.get("connection_string") is not None
+
+        spn_fields = ("tenant_id", "client_id", "client_secret")
+        has_any_spn = any(values.get(key) is not None for key in spn_fields)
+        has_all_spn = all(values.get(key) is not None for key in spn_fields)
+
         if not has_account_url and not has_conn_str:
             raise ValueError(
                 "Must provide either a connection string or an account URL."
@@ -133,6 +174,21 @@ class AzureBlobStorageCredentials(Block):
         if has_account_url and has_conn_str:
             raise ValueError(
                 "Must provide either a connection string or account URL, but not both."
+            )
+        if has_any_spn and not has_all_spn:
+            raise ValueError(
+                "If any of `tenant_id`, `client_id`, or `client_secret` are provided, "
+                "all must be provided."
+            )
+        if has_any_spn and not has_account_url:
+            raise ValueError(
+                "If service principal credentials are provided, "
+                "`account_url` must also be provided."
+            )
+        if has_any_spn and has_conn_str:
+            raise ValueError(
+                "Service principal credentials cannot be used with a connection string. "
+                "Use `account_url` instead."
             )
         return values
 
@@ -164,7 +220,7 @@ class AzureBlobStorageCredentials(Block):
             ```
         """
         if self.connection_string is None:
-            self._credential = self._credential or ADefaultAzureCredential()
+            self._credential = self._credential or self._create_credential()
             return BlobServiceClient(
                 account_url=self.account_url,
                 credential=self._credential,
@@ -208,7 +264,7 @@ class AzureBlobStorageCredentials(Block):
             ```
         """
         if self.connection_string is None:
-            self._credential = self._credential or ADefaultAzureCredential()
+            self._credential = self._credential or self._create_credential()
             return BlobClient(
                 account_url=self.account_url,
                 container_name=container,
@@ -254,7 +310,7 @@ class AzureBlobStorageCredentials(Block):
             ```
         """
         if self.connection_string is None:
-            self._credential = self._credential or ADefaultAzureCredential()
+            self._credential = self._credential or self._create_credential()
             return ContainerClient(
                 account_url=self.account_url,
                 container_name=container,
@@ -265,6 +321,25 @@ class AzureBlobStorageCredentials(Block):
             self.connection_string.get_secret_value(), container
         )
         return container_client
+
+    def _create_credential(self):
+        """
+        Creates an Azure credential initialized with data from this block's fields.
+
+        Returns:
+            An initialized Azure `TokenCredential` ready to use with Azure SDK client
+            classes. Returns `ClientSecretCredential` if service principal fields are
+            provided, otherwise returns `DefaultAzureCredential`.
+        """
+        spn_fields = (self.tenant_id, self.client_id, self.client_secret)
+        if spn_fields == (None, None, None):
+            return ADefaultAzureCredential()
+
+        return AClientSecretCredential(
+            tenant_id=self.tenant_id,
+            client_id=self.client_id,
+            client_secret=self.client_secret.get_secret_value(),
+        )
 
     async def aclose(self):
         """Cleanup resources."""
