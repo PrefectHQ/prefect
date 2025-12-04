@@ -1,5 +1,6 @@
 export const DOCS_LINKS = {
 	"artifacts-guide": "https://docs.prefect.io/v3/develop/artifacts",
+	"getting-started": "https://docs.prefect.io/latest/getting-started/overview/",
 	"automations-guide":
 		"https://docs.prefect.io/v3/automate/events/automations-triggers",
 	"blocks-guide": "https://docs.prefect.io/v3/develop/blocks",
