@@ -88,11 +88,11 @@ from pydantic import ConfigDict
 from typing_extensions import Self
 
 from prefect.input.actions import (
-    create_flow_run_input,
-    create_flow_run_input_from_model,
+    acreate_flow_run_input,
+    acreate_flow_run_input_from_model,
+    afilter_flow_run_input,
+    aread_flow_run_input,
     ensure_flow_run_id,
-    filter_flow_run_input,
-    read_flow_run_input,
 )
 from prefect.utilities.asyncutils import sync_compatible
 
@@ -179,23 +179,17 @@ class BaseRunInput(pydantic.BaseModel):
         else:
             schema = cls.model_json_schema(by_alias=True)
 
-        coro = create_flow_run_input(
+        await acreate_flow_run_input(
             key=keyset["schema"], value=schema, flow_run_id=flow_run_id
         )
-        if TYPE_CHECKING:
-            assert inspect.iscoroutine(coro)
-        await coro
 
         description = cls._description if isinstance(cls._description, str) else None
         if description:
-            coro = create_flow_run_input(
+            await acreate_flow_run_input(
                 key=keyset["description"],
                 value=description,
                 flow_run_id=flow_run_id,
             )
-            if TYPE_CHECKING:
-                assert inspect.iscoroutine(coro)
-            await coro
 
     @classmethod
     @sync_compatible
@@ -208,7 +202,7 @@ class BaseRunInput(pydantic.BaseModel):
             - flow_run_id (UUID, optional): the flow run ID to load the input for
         """
         flow_run_id = ensure_flow_run_id(flow_run_id)
-        value = await read_flow_run_input(keyset["response"], flow_run_id=flow_run_id)
+        value = await aread_flow_run_input(keyset["response"], flow_run_id=flow_run_id)
         if value:
             instance = cls(**value)
         else:
@@ -488,16 +482,12 @@ class GetInputHandler(Generic[R]):
             raise StopAsyncIteration
 
     async def filter_for_inputs(self) -> list["FlowRunInput"]:
-        flow_run_inputs_coro = filter_flow_run_input(
+        flow_run_inputs = await afilter_flow_run_input(
             key_prefix=self.key_prefix,
             limit=1,
             exclude_keys=self.exclude_keys,
             flow_run_id=self.flow_run_id,
         )
-        if TYPE_CHECKING:
-            assert inspect.iscoroutine(flow_run_inputs_coro)
-
-        flow_run_inputs = await flow_run_inputs_coro
 
         if flow_run_inputs:
             self.exclude_keys.add(*[i.key for i in flow_run_inputs])
@@ -574,16 +564,12 @@ class GetAutomaticInputHandler(Generic[T]):
             raise StopAsyncIteration
 
     async def filter_for_inputs(self) -> list["FlowRunInput"]:
-        flow_run_inputs_coro = filter_flow_run_input(
+        flow_run_inputs = await afilter_flow_run_input(
             key_prefix=self.key_prefix,
             limit=1,
             exclude_keys=self.exclude_keys,
             flow_run_id=self.flow_run_id,
         )
-        if TYPE_CHECKING:
-            assert inspect.iscoroutine(flow_run_inputs_coro)
-
-        flow_run_inputs = await flow_run_inputs_coro
 
         if flow_run_inputs:
             self.exclude_keys.add(*[i.key for i in flow_run_inputs])
@@ -633,13 +619,9 @@ async def _send_input(
 
     key = f"{key_prefix}-{uuid4()}"
 
-    coro = create_flow_run_input_from_model(
+    await acreate_flow_run_input_from_model(
         key=key, flow_run_id=flow_run_id, model_instance=_run_input, sender=sender
     )
-    if TYPE_CHECKING:
-        assert inspect.iscoroutine(coro)
-
-    await coro
 
 
 @sync_compatible
