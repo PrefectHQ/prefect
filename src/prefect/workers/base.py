@@ -76,6 +76,7 @@ from prefect.states import (
 )
 from prefect.tasks import Task
 from prefect.types import KeyValueLabels
+from prefect.utilities.collections import deep_merge, set_in_dict
 from prefect.utilities.dispatch import get_registry_for_type, register_base_type
 from prefect.utilities.engine import propose_state
 from prefect.utilities.services import (
@@ -190,7 +191,28 @@ class BaseJobConfiguration(BaseModel):
                 # Replace template with defaults
                 base_config["env"] = variables.get("env")
 
-        variables.update(values)
+        # Transform dot-delimited keys (e.g., "env.FOO") to nested structure
+        # Process dot-delimited keys first, then merge non-dot keys on top
+        # so that nested format takes precedence over dot-delimited format
+        transformed_values: dict[str, Any] = {}
+        for key, value in values.items():
+            if "." in key:
+                set_in_dict(transformed_values, key, value)
+
+        for key, value in values.items():
+            if "." not in key:
+                if (
+                    key in transformed_values
+                    and isinstance(transformed_values[key], dict)
+                    and isinstance(value, dict)
+                ):
+                    # Deep merge: nested format values take precedence
+                    transformed_values[key] = deep_merge(transformed_values[key], value)
+                else:
+                    # Non-dot key overwrites any dot-delimited value
+                    transformed_values[key] = value
+
+        variables.update(transformed_values)
 
         # deep merge `env`
         if isinstance(base_config.get("env"), dict) and (
