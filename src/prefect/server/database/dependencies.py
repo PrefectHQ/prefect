@@ -39,6 +39,12 @@ if TYPE_CHECKING:
     from prefect.server.database.interface import PrefectDBInterface
     from prefect.server.database.orm_models import BaseORMConfiguration
     from prefect.server.database.query_components import BaseQueryComponents
+else:
+    # Runtime stub for PrefectDBInterface to avoid circular imports while still
+    # providing a resolvable type annotation for FastAPI's inspect.signature(eval_str=True)
+    class PrefectDBInterface:
+        pass
+
 
 P = ParamSpec("P")
 R = TypeVar("R", infer_variance=True)
@@ -65,7 +71,7 @@ MODELS_DEPENDENCIES: _ModelDependencies = {
 }
 
 
-def provide_database_interface() -> "PrefectDBInterface":
+def provide_database_interface() -> PrefectDBInterface:
     """
     Get the current Prefect REST API database interface.
 
