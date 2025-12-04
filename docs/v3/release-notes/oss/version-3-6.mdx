@@ -2,6 +2,56 @@
 title: 3.6
 ---
 
+## 3.6.5 - Batch Me If You Can
+
+*Released on December 04, 2025*
+
+**Enhancements ➕➕**
+
+* Raise if event is too big by [@jakekaplan](https://github.com/jakekaplan) in [#19531](https://github.com/PrefectHQ/prefect/pull/19531)
+* Support `Path` objects in `result_storage` parameter by [@zzstoatzz](https://github.com/zzstoatzz) in [#19533](https://github.com/PrefectHQ/prefect/pull/19533)
+* Hide "Join the Community" in air-gapped deployments by [@zzstoatzz](https://github.com/zzstoatzz) in [#19540](https://github.com/PrefectHQ/prefect/pull/19540)
+* Parametrize `xreadgroup` batch size in consumer and add `EventPersister` service setting by [@saschwartz](https://github.com/saschwartz) in [#19545](https://github.com/PrefectHQ/prefect/pull/19545)
+* Parametrize `xautoclaim` batch size by [@saschwartz](https://github.com/saschwartz) in [#19557](https://github.com/PrefectHQ/prefect/pull/19557)
+* Parametrize `TaskRunRecorder` and `Trigger` service message read batch size by [@saschwartz](https://github.com/saschwartz) in [#19559](https://github.com/PrefectHQ/prefect/pull/19559)
+* Add Slack GovCloud (slack-gov.com) webhook support to `SlackWebhook` block by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#19565](https://github.com/PrefectHQ/prefect/pull/19565)
+* Support dot-delimited syntax for `job_variables` in workers by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#19619](https://github.com/PrefectHQ/prefect/pull/19619)
+* Add client-side caching for concurrency limits by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#19625](https://github.com/PrefectHQ/prefect/pull/19625)
+
+**Bug Fixes 🐞**
+
+* Support `username:password` auth for self-hosted BitBucket instances by [@zzstoatzz](https://github.com/zzstoatzz) in [#19516](https://github.com/PrefectHQ/prefect/pull/19516)
+* Optimize `/api/task_runs/count` endpoint performance by [@naaa760](https://github.com/naaa760) in [#19548](https://github.com/PrefectHQ/prefect/pull/19548)
+* Fix docker compose file in self hosted docs by [@rodeyfeld](https://github.com/rodeyfeld) in [#19551](https://github.com/PrefectHQ/prefect/pull/19551)
+* Fix performance issues with sync tasks on Windows by [@desertaxle](https://github.com/desertaxle) in [#19595](https://github.com/PrefectHQ/prefect/pull/19595)
+* Fix dead thread hang by [@zzstoatzz](https://github.com/zzstoatzz) in [#19601](https://github.com/PrefectHQ/prefect/pull/19601)
+* Allow Jinja templates in trigger enabled field during YAML loading by [@zzstoatzz](https://github.com/zzstoatzz) in [#19610](https://github.com/PrefectHQ/prefect/pull/19610)
+* Fix compatibility with `fastapi==0.123.7` by [@desertaxle](https://github.com/desertaxle) in [#19626](https://github.com/PrefectHQ/prefect/pull/19626)
+* Allow EC2 task definitions to omit `launchType` for capacity providers by [@zzstoatzz](https://github.com/zzstoatzz) in [#19630](https://github.com/PrefectHQ/prefect/pull/19630)
+
+**Integrations & Dependencies 🤝**
+
+* Update sucrase to remove vulnerable glob dependency by [@zzstoatzz](https://github.com/zzstoatzz) in [#19599](https://github.com/PrefectHQ/prefect/pull/19599)
+
+**Development & Tidiness 🧹**
+
+* Add timeout to worker teardown to prevent test flakes by [@zzstoatzz](https://github.com/zzstoatzz) in [#19465](https://github.com/PrefectHQ/prefect/pull/19465)
+* Update CODEOWNERS by [@desertaxle](https://github.com/desertaxle) in [#19578](https://github.com/PrefectHQ/prefect/pull/19578)
+* Pin `pytest-asyncio` to fix 3.10 client tests by [@desertaxle](https://github.com/desertaxle) in [#19609](https://github.com/PrefectHQ/prefect/pull/19609)
+* Fix flakes in `TestReadTaskRunCountsByState::test_returns_all_state_types` by [@desertaxle](https://github.com/desertaxle) in [#19612](https://github.com/PrefectHQ/prefect/pull/19612)
+
+**Documentation 📓**
+
+* Add per-worker task concurrency example by [@zzstoatzz](https://github.com/zzstoatzz) in [#19541](https://github.com/PrefectHQ/prefect/pull/19541)
+* Improve database maintenance documentation and examples by [@zzstoatzz](https://github.com/zzstoatzz) in [#19604](https://github.com/PrefectHQ/prefect/pull/19604)
+* Fix YAML key for Bitbucket repository by [@desertaxle](https://github.com/desertaxle) in [#19607](https://github.com/PrefectHQ/prefect/pull/19607)
+* Add Google Tag Manager integration to docs by [@zzstoatzz](https://github.com/zzstoatzz) in [#19629](https://github.com/PrefectHQ/prefect/pull/19629)
+
+**Full Changelog**: https://github.com/PrefectHQ/prefect/compare/3.6.4...3.6.5
+
+
+---
+
 ## 3.6.4 - No Deployment Left Unparametrized
 
 *Released on November 21, 2025*
