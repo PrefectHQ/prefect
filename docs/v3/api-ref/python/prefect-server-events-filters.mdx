@@ -15,10 +15,10 @@ Filter by `Automation.created`.
 
 **Methods:**
 
-#### `as_sql_filter` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L56" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `as_sql_filter` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L54" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-as_sql_filter(self, db: 'PrefectDBInterface') -> sa.ColumnElement[bool]
+as_sql_filter(self) -> sa.ColumnElement[bool]
 ```
 
 Generate SQL filter from provided filter parameters. If no filters parameters are available, return a TRUE filter.
@@ -32,10 +32,10 @@ Filter by `Automation.created`.
 
 **Methods:**
 
-#### `as_sql_filter` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L56" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `as_sql_filter` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L54" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-as_sql_filter(self, db: 'PrefectDBInterface') -> sa.ColumnElement[bool]
+as_sql_filter(self) -> sa.ColumnElement[bool]
 ```
 
 Generate SQL filter from provided filter parameters. If no filters parameters are available, return a TRUE filter.
@@ -52,7 +52,7 @@ Filter by `Automation.tags`.
 #### `as_sql_filter` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L79" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-as_sql_filter(self, db: 'PrefectDBInterface') -> sa.ColumnElement[bool]
+as_sql_filter(self) -> sa.ColumnElement[bool]
 ```
 
 ### `AutomationFilter` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/filters.py#L98" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
@@ -62,7 +62,7 @@ as_sql_filter(self, db: 'PrefectDBInterface') -> sa.ColumnElement[bool]
 #### `as_sql_filter` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L79" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-as_sql_filter(self, db: 'PrefectDBInterface') -> sa.ColumnElement[bool]
+as_sql_filter(self) -> sa.ColumnElement[bool]
 ```
 
 ### `EventDataFilter` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/filters.py#L124" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
