@@ -6,8 +6,6 @@ system. After the migration, V1 limits are converted to V2, but the V1 API
 continues to work for backward compatibility.
 """
 
-from __future__ import annotations
-
 import logging
 from datetime import timedelta
 from typing import List, Optional, Sequence
