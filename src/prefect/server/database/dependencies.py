@@ -31,12 +31,12 @@ from prefect.server.database.configurations import (
     AsyncPostgresConfiguration,
     BaseDatabaseConfiguration,
 )
+from prefect.server.database.interface import PrefectDBInterface
 from prefect.server.utilities.database import get_dialect
 from prefect.server.utilities.schemas import PrefectDescriptorBase
 from prefect.settings import PREFECT_API_DATABASE_CONNECTION_URL
 
 if TYPE_CHECKING:
-    from prefect.server.database.interface import PrefectDBInterface
     from prefect.server.database.orm_models import BaseORMConfiguration
     from prefect.server.database.query_components import BaseQueryComponents
 
@@ -65,7 +65,7 @@ MODELS_DEPENDENCIES: _ModelDependencies = {
 }
 
 
-def provide_database_interface() -> "PrefectDBInterface":
+def provide_database_interface() -> PrefectDBInterface:
     """
     Get the current Prefect REST API database interface.
 
