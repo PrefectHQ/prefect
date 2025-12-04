@@ -7,7 +7,7 @@ from datetime import timedelta
 from pathlib import Path
 from typing import List, Optional
 from unittest import mock
-from unittest.mock import AsyncMock, MagicMock, call, patch
+from unittest.mock import AsyncMock, MagicMock, Mock, call, patch
 from uuid import UUID, uuid4
 
 import anyio
@@ -16,6 +16,7 @@ import pytest
 from prefect import Task, flow, tags, task
 from prefect.cache_policies import FLOW_PARAMETERS, INPUTS, TASK_SOURCE
 from prefect.client.orchestration import PrefectClient, SyncPrefectClient
+from prefect.client.schemas import StateDetails
 from prefect.client.schemas.objects import StateType
 from prefect.concurrency.asyncio import concurrency as aconcurrency
 from prefect.concurrency.sync import concurrency
@@ -31,7 +32,7 @@ from prefect.logging import get_run_logger
 from prefect.results import ResultRecord, ResultStore
 from prefect.server.schemas.core import ConcurrencyLimitV2
 from prefect.settings import PREFECT_TASK_DEFAULT_RETRIES, temporary_settings
-from prefect.states import Completed, Failed, Pending, Running, State
+from prefect.states import AwaitingRetry, Completed, Failed, Pending, Running, State
 from prefect.task_engine import (
     AsyncTaskRunEngine,
     SyncTaskRunEngine,
@@ -41,6 +42,7 @@ from prefect.task_engine import (
 from prefect.task_runners import ThreadPoolTaskRunner
 from prefect.testing.utilities import exceptions_equal
 from prefect.transactions import transaction
+from prefect.types._datetime import now
 from prefect.utilities.callables import get_call_parameters
 from prefect.utilities.engine import propose_state
 
@@ -1327,8 +1329,8 @@ class TestTaskRetries:
         events_pipeline,
         monkeypatch,
     ):
-        mock_sleep = AsyncMock()
-        monkeypatch.setattr(anyio, "sleep", mock_sleep)
+        mock_sleep = Mock()
+        monkeypatch.setattr(time, "sleep", mock_sleep)
 
         @task(retries=3, retry_delay_seconds=retry_delay_seconds)
         def flaky_function():
@@ -3435,3 +3437,67 @@ class TestTaskTagConcurrencyWarnings:
             f"but found {len(warning_records)}"
         )
         assert "nonexistent-limit" in warning_records[0].message
+
+
+class TestWaitUntilReadySync:
+    def test_is_noop_when_no_scheduled_time(self):
+        """When there's no scheduled time, wait_until_ready is a no-op."""
+
+        @task
+        def my_task():
+            return 42
+
+        engine = SyncTaskRunEngine(task=my_task)
+        with engine.initialize_run():
+            # Initial state is pending
+            assert engine.state.is_pending()
+            # Call wait_until_ready - should be a no-op since no scheduled_time
+            engine.wait_until_ready()
+            # State should still be pending (transition to running happens elsewhere)
+            assert engine.state.is_pending()
+
+    def test_transitions_to_running_with_past_scheduled_time(self):
+        """When scheduled_time is in the past, transitions to Running immediately."""
+
+        @task
+        def my_task():
+            return 42
+
+        engine = SyncTaskRunEngine(task=my_task)
+        with engine.initialize_run():
+            # Set up a state with a scheduled time in the past
+            scheduled_time = now("UTC") - timedelta(seconds=10)
+            new_state = Pending(
+                state_details=StateDetails(scheduled_time=scheduled_time)
+            )
+            engine.task_run.state = new_state
+
+            start = time.time()
+            engine.wait_until_ready()
+            elapsed = time.time() - start
+
+            # Should not have waited (or very minimal time)
+            assert elapsed < 0.5
+            # State should now be Running
+            assert engine.state.is_running()
+
+    def test_transitions_to_retrying_when_awaiting_retry(self):
+        """When state name is 'AwaitingRetry', transitions to Retrying state."""
+
+        @task
+        def my_task():
+            return 42
+
+        engine = SyncTaskRunEngine(task=my_task)
+        with engine.initialize_run():
+            # Set up an AwaitingRetry state with a scheduled time in the past
+            scheduled_time = now("UTC") - timedelta(seconds=1)
+            new_state = AwaitingRetry(
+                state_details=StateDetails(scheduled_time=scheduled_time)
+            )
+            engine.task_run.state = new_state
+
+            engine.wait_until_ready()
+
+            # State should now be Retrying (not Running)
+            assert engine.state.name == "Retrying"
