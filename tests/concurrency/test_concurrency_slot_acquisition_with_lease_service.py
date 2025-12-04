@@ -11,7 +11,12 @@ from httpx import HTTPStatusError, Request, Response
 
 from prefect.client.orchestration import PrefectClient, get_client
 from prefect.client.schemas.objects import ConcurrencyLeaseHolder
-from prefect.concurrency.services import ConcurrencySlotAcquisitionWithLeaseService
+from prefect.concurrency.services import (
+    ConcurrencySlotAcquisitionWithLeaseService,
+    _create_empty_limits_response,
+    _no_limits_cache,
+    _should_use_cache,
+)
 
 
 class ClientWrapper:
@@ -301,4 +306,192 @@ async def test_serialization_behavior(mocked_client: Any) -> None:
         assert call_order[i]["end"] is not None
         assert call_order[i]["end"] <= len(
             [c for c in call_order[: i + 2] if c["end"] is not None]
+        )
+
+
+class TestShouldUseCache:
+    """Tests for the _should_use_cache helper function."""
+
+    def test_returns_false_when_holder_is_none(self) -> None:
+        """Cache should not be used when holder is None."""
+        assert _should_use_cache(["tag:test"], None) is False
+
+    def test_returns_false_when_holder_type_is_not_task_run(self) -> None:
+        """Cache should not be used when holder type is not 'task_run'."""
+        holder = ConcurrencyLeaseHolder(type="flow_run", id=uuid4())
+        assert _should_use_cache(["tag:test"], holder) is False
+
+    def test_returns_false_when_names_is_empty(self) -> None:
+        """Cache should not be used when names list is empty."""
+        holder = ConcurrencyLeaseHolder(type="task_run", id=uuid4())
+        assert _should_use_cache([], holder) is False
+
+    def test_returns_false_when_names_do_not_start_with_tag(self) -> None:
+        """Cache should not be used when names don't start with 'tag:' prefix."""
+        holder = ConcurrencyLeaseHolder(type="task_run", id=uuid4())
+        assert _should_use_cache(["test-limit"], holder) is False
+        assert _should_use_cache(["concurrency-limit"], holder) is False
+
+    def test_returns_false_when_some_names_do_not_start_with_tag(self) -> None:
+        """Cache should not be used when any name doesn't start with 'tag:' prefix."""
+        holder = ConcurrencyLeaseHolder(type="task_run", id=uuid4())
+        assert _should_use_cache(["tag:test", "other-limit"], holder) is False
+
+    def test_returns_true_for_task_run_with_tag_names(self) -> None:
+        """Cache should be used for task_run holder with tag-prefixed names."""
+        holder = ConcurrencyLeaseHolder(type="task_run", id=uuid4())
+        assert _should_use_cache(["tag:test"], holder) is True
+        assert _should_use_cache(["tag:a", "tag:b", "tag:c"], holder) is True
+
+
+class TestCreateEmptyLimitsResponse:
+    """Tests for the _create_empty_limits_response helper function."""
+
+    def test_returns_200_response(self) -> None:
+        """Response should have 200 status code."""
+        response = _create_empty_limits_response()
+        assert response.status_code == 200
+
+    def test_returns_empty_limits_list(self) -> None:
+        """Response should contain empty limits list."""
+        response = _create_empty_limits_response()
+        data = response.json()
+        assert data["limits"] == []
+
+    def test_returns_valid_lease_id(self) -> None:
+        """Response should contain a valid UUID lease_id."""
+        response = _create_empty_limits_response()
+        data = response.json()
+        assert "lease_id" in data
+        from uuid import UUID
+
+        UUID(data["lease_id"])
+
+    def test_returns_json_content_type(self) -> None:
+        """Response should have JSON content type header."""
+        response = _create_empty_limits_response()
+        assert response.headers["content-type"] == "application/json"
+
+
+class TestCachingBehavior:
+    """Tests for the caching behavior in ConcurrencySlotAcquisitionWithLeaseService."""
+
+    @pytest.fixture(autouse=True)
+    def clear_cache(self) -> None:
+        """Clear the cache before each test."""
+        _no_limits_cache.clear()
+
+    async def test_caches_empty_limits_response_for_task_run_tags(
+        self, mocked_client: Any
+    ) -> None:
+        """Test that empty limits responses are cached for task_run with tag names."""
+        response = Response(200, json={"lease_id": str(uuid4()), "limits": []})
+        mocked_client.client.increment_concurrency_slots_with_lease.return_value = (
+            response
+        )
+
+        limit_names = frozenset(["tag:test-cache"])
+        holder = ConcurrencyLeaseHolder(type="task_run", id=uuid4())
+        service = ConcurrencySlotAcquisitionWithLeaseService.instance(limit_names)
+
+        future1: Future[Response] = service.send(
+            (1, "concurrency", None, None, 60.0, False, holder)
+        )
+        future2: Future[Response] = service.send(
+            (1, "concurrency", None, None, 60.0, False, holder)
+        )
+
+        await service.drain()
+        resp1 = await asyncio.wrap_future(future1)
+        resp2 = await asyncio.wrap_future(future2)
+
+        assert (
+            mocked_client.client.increment_concurrency_slots_with_lease.call_count == 1
+        )
+        assert resp1.status_code == 200
+        assert resp2.status_code == 200
+        assert resp1.json()["limits"] == []
+        assert resp2.json()["limits"] == []
+
+    async def test_does_not_cache_when_limits_exist(self, mocked_client: Any) -> None:
+        """Test that responses with limits are not cached."""
+        response = Response(
+            200,
+            json={
+                "lease_id": str(uuid4()),
+                "limits": [{"id": str(uuid4()), "name": "tag:test", "limit": 10}],
+            },
+        )
+        mocked_client.client.increment_concurrency_slots_with_lease.return_value = (
+            response
+        )
+
+        limit_names = frozenset(["tag:test-with-limits"])
+        holder = ConcurrencyLeaseHolder(type="task_run", id=uuid4())
+        service = ConcurrencySlotAcquisitionWithLeaseService.instance(limit_names)
+
+        future1: Future[Response] = service.send(
+            (1, "concurrency", None, None, 60.0, False, holder)
+        )
+        future2: Future[Response] = service.send(
+            (1, "concurrency", None, None, 60.0, False, holder)
+        )
+
+        await service.drain()
+        await asyncio.wrap_future(future1)
+        await asyncio.wrap_future(future2)
+
+        assert (
+            mocked_client.client.increment_concurrency_slots_with_lease.call_count == 2
+        )
+
+    async def test_does_not_cache_when_holder_is_none(self, mocked_client: Any) -> None:
+        """Test that caching is disabled when holder is None."""
+        response = Response(200, json={"lease_id": str(uuid4()), "limits": []})
+        mocked_client.client.increment_concurrency_slots_with_lease.return_value = (
+            response
+        )
+
+        limit_names = frozenset(["tag:test-no-holder"])
+        service = ConcurrencySlotAcquisitionWithLeaseService.instance(limit_names)
+
+        future1: Future[Response] = service.send(
+            (1, "concurrency", None, None, 60.0, False, None)
+        )
+        future2: Future[Response] = service.send(
+            (1, "concurrency", None, None, 60.0, False, None)
+        )
+
+        await service.drain()
+        await asyncio.wrap_future(future1)
+        await asyncio.wrap_future(future2)
+
+        assert (
+            mocked_client.client.increment_concurrency_slots_with_lease.call_count == 2
+        )
+
+    async def test_does_not_cache_for_non_tag_names(self, mocked_client: Any) -> None:
+        """Test that caching is disabled for non-tag limit names."""
+        response = Response(200, json={"lease_id": str(uuid4()), "limits": []})
+        mocked_client.client.increment_concurrency_slots_with_lease.return_value = (
+            response
+        )
+
+        limit_names = frozenset(["regular-limit"])
+        holder = ConcurrencyLeaseHolder(type="task_run", id=uuid4())
+        service = ConcurrencySlotAcquisitionWithLeaseService.instance(limit_names)
+
+        future1: Future[Response] = service.send(
+            (1, "concurrency", None, None, 60.0, False, holder)
+        )
+        future2: Future[Response] = service.send(
+            (1, "concurrency", None, None, 60.0, False, holder)
+        )
+
+        await service.drain()
+        await asyncio.wrap_future(future1)
+        await asyncio.wrap_future(future2)
+
+        assert (
+            mocked_client.client.increment_concurrency_slots_with_lease.call_count == 2
         )
