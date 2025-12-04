@@ -98,7 +98,6 @@ SUPPORTED_SETTINGS = {
     "PREFECT_API_DATABASE_NAME": {"test_value": "prefect", "legacy": True},
     "PREFECT_API_DATABASE_PASSWORD": {"test_value": "password", "legacy": True},
     "PREFECT_API_DATABASE_PORT": {"test_value": 5432, "legacy": True},
-    "PREFECT_API_DATABASE_SCHEMA": {"test_value": "myschema", "legacy": True},
     "PREFECT_API_DATABASE_TIMEOUT": {"test_value": 10.0, "legacy": True},
     "PREFECT_API_DATABASE_USER": {"test_value": "user", "legacy": True},
     "PREFECT_API_DEFAULT_LIMIT": {"test_value": 100, "legacy": True},
@@ -354,12 +353,14 @@ SUPPORTED_SETTINGS = {
     "PREFECT_SERVER_DATABASE_NAME": {"test_value": "prefect"},
     "PREFECT_SERVER_DATABASE_PASSWORD": {"test_value": "password"},
     "PREFECT_SERVER_DATABASE_PORT": {"test_value": 5432},
-    "PREFECT_SERVER_DATABASE_SCHEMA": {"test_value": "myschema", "legacy": True},
     "PREFECT_SERVER_DATABASE_SQLALCHEMY_CONNECT_ARGS_APPLICATION_NAME": {
         "test_value": "prefect"
     },
     "PREFECT_SERVER_DATABASE_SQLALCHEMY_CONNECT_ARGS_PREPARED_STATEMENT_CACHE_SIZE": {
         "test_value": 1
+    },
+    "PREFECT_SERVER_DATABASE_SQLALCHEMY_CONNECT_ARGS_SEARCH_PATH": {
+        "test_value": "myschema"
     },
     "PREFECT_SERVER_DATABASE_SQLALCHEMY_CONNECT_ARGS_STATEMENT_CACHE_SIZE": {
         "test_value": 1
@@ -1387,6 +1388,19 @@ class TestDatabaseSettings:
         ):
             assert settings.server.database.sqlalchemy_pool_size == 42
             assert settings.server.database.sqlalchemy_max_overflow == 37
+
+    def test_search_path_setting_is_accessible(self, monkeypatch):
+        """Test that the search_path setting can be set and accessed."""
+        monkeypatch.setenv(
+            "PREFECT_SERVER_DATABASE_SQLALCHEMY_CONNECT_ARGS_SEARCH_PATH", "myschema"
+        )
+        settings = Settings()
+        assert settings.server.database.sqlalchemy.connect_args.search_path == "myschema"
+
+    def test_search_path_setting_defaults_to_none(self):
+        """Test that the search_path setting defaults to None."""
+        settings = Settings()
+        assert settings.server.database.sqlalchemy.connect_args.search_path is None
 
 
 class TestTemporarySettings:
