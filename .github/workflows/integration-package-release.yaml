@@ -14,7 +14,7 @@ jobs:
       PACKAGE_VERSION: ${{ steps.package_version.outputs.PACKAGE_VERSION }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           ref: ${{ github.event.inputs.commit }}
           fetch-depth: 0
