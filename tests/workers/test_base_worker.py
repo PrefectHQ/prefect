@@ -1350,6 +1350,147 @@ async def test_base_job_configuration_converts_falsey_values_to_none(falsey_valu
     assert template.command is None
 
 
+async def test_base_job_configuration_transforms_dot_delimited_env_vars():
+    """Test that dot-delimited keys like 'env.FOO' are transformed to nested dicts"""
+    config = await BaseJobConfiguration.from_template_and_values(
+        base_job_template={
+            "job_configuration": {
+                "command": "{{ command }}",
+                "env": "{{ env }}",
+                "labels": "{{ labels }}",
+                "name": "{{ name }}",
+            },
+            "variables": {
+                "properties": {
+                    "env": {
+                        "title": "Environment Variables",
+                        "type": "object",
+                        "additionalProperties": {"type": "string"},
+                    },
+                },
+                "required": [],
+            },
+        },
+        values={"env.EXTRA_PIP_PACKAGES": "s3fs"},
+    )
+    assert config.env == {"EXTRA_PIP_PACKAGES": "s3fs"}
+
+
+async def test_base_job_configuration_transforms_multiple_dot_delimited_keys():
+    """Test that multiple dot-delimited keys are all transformed correctly"""
+    config = await BaseJobConfiguration.from_template_and_values(
+        base_job_template={
+            "job_configuration": {
+                "command": "{{ command }}",
+                "env": "{{ env }}",
+                "labels": "{{ labels }}",
+                "name": "{{ name }}",
+            },
+            "variables": {
+                "properties": {
+                    "env": {
+                        "title": "Environment Variables",
+                        "type": "object",
+                        "additionalProperties": {"type": "string"},
+                    },
+                },
+                "required": [],
+            },
+        },
+        values={
+            "env.FOO": "bar",
+            "env.BAZ": "qux",
+        },
+    )
+    assert config.env == {"FOO": "bar", "BAZ": "qux"}
+
+
+async def test_base_job_configuration_nested_format_takes_precedence_over_dot_delimited():
+    """Test that nested format takes precedence over dot-delimited format for same key"""
+    config = await BaseJobConfiguration.from_template_and_values(
+        base_job_template={
+            "job_configuration": {
+                "command": "{{ command }}",
+                "env": "{{ env }}",
+                "labels": "{{ labels }}",
+                "name": "{{ name }}",
+            },
+            "variables": {
+                "properties": {
+                    "env": {
+                        "title": "Environment Variables",
+                        "type": "object",
+                        "additionalProperties": {"type": "string"},
+                    },
+                },
+                "required": [],
+            },
+        },
+        values={
+            "env.FOO": "from_dot",
+            "env": {"FOO": "from_nested", "BAR": "also_nested"},
+        },
+    )
+    # Nested format should take precedence
+    assert config.env == {"FOO": "from_nested", "BAR": "also_nested"}
+
+
+async def test_base_job_configuration_merges_dot_delimited_with_nested():
+    """Test that dot-delimited and nested formats are merged when keys don't conflict"""
+    config = await BaseJobConfiguration.from_template_and_values(
+        base_job_template={
+            "job_configuration": {
+                "command": "{{ command }}",
+                "env": "{{ env }}",
+                "labels": "{{ labels }}",
+                "name": "{{ name }}",
+            },
+            "variables": {
+                "properties": {
+                    "env": {
+                        "title": "Environment Variables",
+                        "type": "object",
+                        "additionalProperties": {"type": "string"},
+                    },
+                },
+                "required": [],
+            },
+        },
+        values={
+            "env.FOO": "from_dot",
+            "env": {"BAR": "from_nested"},
+        },
+    )
+    # Both should be present, with nested taking precedence for conflicts
+    assert config.env == {"FOO": "from_dot", "BAR": "from_nested"}
+
+
+async def test_base_job_configuration_dot_delimited_with_base_config_env():
+    """Test that dot-delimited env vars merge correctly with base config env"""
+    config = await BaseJobConfiguration.from_template_and_values(
+        base_job_template={
+            "job_configuration": {
+                "command": "{{ command }}",
+                "env": {"BASE_VAR": "base_value"},
+                "labels": "{{ labels }}",
+                "name": "{{ name }}",
+            },
+            "variables": {
+                "properties": {
+                    "env": {
+                        "title": "Environment Variables",
+                        "type": "object",
+                        "additionalProperties": {"type": "string"},
+                    },
+                },
+                "required": [],
+            },
+        },
+        values={"env.EXTRA_PIP_PACKAGES": "s3fs"},
+    )
+    assert config.env == {"BASE_VAR": "base_value", "EXTRA_PIP_PACKAGES": "s3fs"}
+
+
 @pytest.mark.parametrize(
     "field_template_value,expected_final_template",
     [
