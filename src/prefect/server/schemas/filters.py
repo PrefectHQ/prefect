@@ -12,7 +12,6 @@ from pydantic import ConfigDict, Field
 from sqlalchemy.sql.functions import coalesce
 
 import prefect.server.schemas as schemas
-from prefect.server.utilities.database import db_injector
 from prefect.server.utilities.schemas.bases import PrefectBaseModel
 from prefect.server.utilities.text_search_parser import (
     parse_text_search_query,
@@ -52,9 +51,11 @@ class PrefectFilterBaseModel(PrefectBaseModel):
 
     model_config: ClassVar[ConfigDict] = ConfigDict(extra="forbid")
 
-    @db_injector
-    def as_sql_filter(self, db: "PrefectDBInterface") -> sa.ColumnElement[bool]:
+    def as_sql_filter(self) -> sa.ColumnElement[bool]:
         """Generate SQL filter from provided filter parameters. If no filters parameters are available, return a TRUE filter."""
+        from prefect.server.database.dependencies import provide_database_interface
+
+        db = provide_database_interface()
         filters = self._get_filter_list(db)
         if not filters:
             return sa.true()
@@ -75,8 +76,10 @@ class PrefectOperatorFilterBaseModel(PrefectFilterBaseModel):
         description="Operator for combining filter criteria. Defaults to 'and_'.",
     )
 
-    @db_injector
-    def as_sql_filter(self, db: "PrefectDBInterface") -> sa.ColumnElement[bool]:
+    def as_sql_filter(self) -> sa.ColumnElement[bool]:
+        from prefect.server.database.dependencies import provide_database_interface
+
+        db = provide_database_interface()
         filters = self._get_filter_list(db)
         if not filters:
             return sa.true()
