@@ -12,7 +12,7 @@ Schemas for sorting Prefect REST API objects.
 
 ## Classes
 
-### `FlowRunSort` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/sorting.py#L21" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `FlowRunSort` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/sorting.py#L17" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Defines flow run sorting options.
@@ -20,10 +20,10 @@ Defines flow run sorting options.
 
 **Methods:**
 
-#### `as_sql_sort` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/sorting.py#L35" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `as_sql_sort` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/sorting.py#L30" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-as_sql_sort(self, db: 'PrefectDBInterface') -> Iterable[sa.ColumnElement[Any]]
+as_sql_sort(self) -> Iterable[sa.ColumnElement[Any]]
 ```
 
 Return an expression used to sort flow runs
@@ -38,7 +38,7 @@ auto() -> str
 Exposes `enum.auto()` to avoid requiring a second import to use `AutoEnum`
 
 
-### `TaskRunSort` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/sorting.py#L61" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `TaskRunSort` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/sorting.py#L59" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Defines task run sorting options.
@@ -46,10 +46,10 @@ Defines task run sorting options.
 
 **Methods:**
 
-#### `as_sql_sort` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/sorting.py#L73" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `as_sql_sort` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/sorting.py#L70" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-as_sql_sort(self, db: 'PrefectDBInterface') -> Iterable[sa.ColumnElement[Any]]
+as_sql_sort(self) -> Iterable[sa.ColumnElement[Any]]
 ```
 
 Return an expression used to sort task runs
@@ -72,10 +72,10 @@ Defines log sorting options.
 
 **Methods:**
 
-#### `as_sql_sort` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/sorting.py#L96" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `as_sql_sort` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/sorting.py#L95" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-as_sql_sort(self, db: 'PrefectDBInterface') -> Iterable[sa.ColumnElement[Any]]
+as_sql_sort(self) -> Iterable[sa.ColumnElement[Any]]
 ```
 
 Return an expression used to sort task runs
@@ -90,7 +90,7 @@ auto() -> str
 Exposes `enum.auto()` to avoid requiring a second import to use `AutoEnum`
 
 
-### `FlowSort` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/sorting.py#L105" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `FlowSort` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/sorting.py#L107" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Defines flow sorting options.
@@ -98,10 +98,10 @@ Defines flow sorting options.
 
 **Methods:**
 
-#### `as_sql_sort` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/sorting.py#L114" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `as_sql_sort` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/sorting.py#L115" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-as_sql_sort(self, db: 'PrefectDBInterface') -> Iterable[sa.ColumnElement[Any]]
+as_sql_sort(self) -> Iterable[sa.ColumnElement[Any]]
 ```
 
 Return an expression used to sort task runs
@@ -116,7 +116,7 @@ auto() -> str
 Exposes `enum.auto()` to avoid requiring a second import to use `AutoEnum`
 
 
-### `DeploymentSort` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/sorting.py#L125" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `DeploymentSort` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/sorting.py#L129" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Defines deployment sorting options.
@@ -124,10 +124,10 @@ Defines deployment sorting options.
 
 **Methods:**
 
-#### `as_sql_sort` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/sorting.py#L134" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `as_sql_sort` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/sorting.py#L137" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-as_sql_sort(self, db: 'PrefectDBInterface') -> Iterable[sa.ColumnElement[Any]]
+as_sql_sort(self) -> Iterable[sa.ColumnElement[Any]]
 ```
 
 Return an expression used to sort task runs
@@ -142,7 +142,7 @@ auto() -> str
 Exposes `enum.auto()` to avoid requiring a second import to use `AutoEnum`
 
 
-### `ArtifactSort` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/sorting.py#L145" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `ArtifactSort` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/sorting.py#L151" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Defines artifact sorting options.
@@ -150,10 +150,10 @@ Defines artifact sorting options.
 
 **Methods:**
 
-#### `as_sql_sort` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/sorting.py#L155" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `as_sql_sort` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/sorting.py#L160" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-as_sql_sort(self, db: 'PrefectDBInterface') -> Iterable[sa.ColumnElement[Any]]
+as_sql_sort(self) -> Iterable[sa.ColumnElement[Any]]
 ```
 
 Return an expression used to sort task runs
@@ -168,7 +168,7 @@ auto() -> str
 Exposes `enum.auto()` to avoid requiring a second import to use `AutoEnum`
 
 
-### `ArtifactCollectionSort` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/sorting.py#L167" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `ArtifactCollectionSort` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/sorting.py#L175" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Defines artifact collection sorting options.
@@ -176,10 +176,10 @@ Defines artifact collection sorting options.
 
 **Methods:**
 
-#### `as_sql_sort` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/sorting.py#L177" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `as_sql_sort` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/sorting.py#L184" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-as_sql_sort(self, db: 'PrefectDBInterface') -> Iterable[sa.ColumnElement[Any]]
+as_sql_sort(self) -> Iterable[sa.ColumnElement[Any]]
 ```
 
 Return an expression used to sort task runs
@@ -194,7 +194,7 @@ auto() -> str
 Exposes `enum.auto()` to avoid requiring a second import to use `AutoEnum`
 
 
-### `VariableSort` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/sorting.py#L189" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `VariableSort` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/sorting.py#L199" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Defines variables sorting options.
@@ -202,10 +202,10 @@ Defines variables sorting options.
 
 **Methods:**
 
-#### `as_sql_sort` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/sorting.py#L198" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `as_sql_sort` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/sorting.py#L207" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-as_sql_sort(self, db: 'PrefectDBInterface') -> Iterable[sa.ColumnElement[Any]]
+as_sql_sort(self) -> Iterable[sa.ColumnElement[Any]]
 ```
 
 Return an expression used to sort task runs
@@ -220,7 +220,7 @@ auto() -> str
 Exposes `enum.auto()` to avoid requiring a second import to use `AutoEnum`
 
 
-### `BlockDocumentSort` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/sorting.py#L209" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `BlockDocumentSort` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/sorting.py#L221" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Defines block document sorting options.
@@ -228,10 +228,10 @@ Defines block document sorting options.
 
 **Methods:**
 
-#### `as_sql_sort` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/sorting.py#L217" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `as_sql_sort` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/sorting.py#L228" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-as_sql_sort(self, db: 'PrefectDBInterface') -> Iterable[sa.ColumnElement[Any]]
+as_sql_sort(self) -> Iterable[sa.ColumnElement[Any]]
 ```
 
 Return an expression used to sort task runs
