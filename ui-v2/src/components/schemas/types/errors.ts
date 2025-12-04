@@ -3,9 +3,9 @@ import { isRecord } from "../utilities/guards";
 
 export type SchemaValueError = string;
 export type SchemaValuePropertyError =
-	components["schemas"]["SchemaValuePropertyError-Output"];
+	components["schemas"]["SchemaValuePropertyError"];
 export type SchemaValueIndexError =
-	components["schemas"]["SchemaValueIndexError-Output"];
+	components["schemas"]["SchemaValueIndexError"];
 export type SchemaFormError =
 	| SchemaValueError
 	| SchemaValuePropertyError
