@@ -1395,7 +1395,9 @@ class TestDatabaseSettings:
             "PREFECT_SERVER_DATABASE_SQLALCHEMY_CONNECT_ARGS_SEARCH_PATH", "myschema"
         )
         settings = Settings()
-        assert settings.server.database.sqlalchemy.connect_args.search_path == "myschema"
+        assert (
+            settings.server.database.sqlalchemy.connect_args.search_path == "myschema"
+        )
 
     def test_search_path_setting_defaults_to_none(self):
         """Test that the search_path setting defaults to None."""
