@@ -1825,7 +1825,7 @@ class TestClientAPIKey:
     async def test_client_no_auth_header_without_api_key(self, test_app: FastAPI):
         async with PrefectClient(test_app) as client:
             with pytest.raises(
-                httpx.HTTPStatusError, match=str(status.HTTP_403_FORBIDDEN)
+                httpx.HTTPStatusError, match=str(status.HTTP_401_UNAUTHORIZED)
             ):
                 await client._client.get("/check_for_auth_header")
 
