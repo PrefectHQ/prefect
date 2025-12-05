@@ -23764,6 +23764,26 @@
                         "supported_environment_variables": [
                             "PREFECT_SERVER_SERVICES_EVENT_PERSISTER_BATCH_SIZE_DELETE"
                         ]
+                    },
+                    "queue_max_size": {
+                        "type": "integer",
+                        "exclusiveMinimum": 0.0,
+                        "title": "Queue Max Size",
+                        "description": "The maximum number of events that can be queued in memory for persistence. When the queue is full, new events will be dropped.",
+                        "default": 50000,
+                        "supported_environment_variables": [
+                            "PREFECT_SERVER_SERVICES_EVENT_PERSISTER_QUEUE_MAX_SIZE"
+                        ]
+                    },
+                    "max_flush_retries": {
+                        "type": "integer",
+                        "exclusiveMinimum": 0.0,
+                        "title": "Max Flush Retries",
+                        "description": "The maximum number of consecutive flush failures before events are dropped instead of being re-queued.",
+                        "default": 5,
+                        "supported_environment_variables": [
+                            "PREFECT_SERVER_SERVICES_EVENT_PERSISTER_MAX_FLUSH_RETRIES"
+                        ]
                     }
                 },
                 "type": "object",
