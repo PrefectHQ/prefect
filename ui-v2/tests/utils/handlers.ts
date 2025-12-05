@@ -104,6 +104,10 @@ const flowRunHandlers = [
 		]);
 	}),
 
+	http.post(buildApiUrl("/flow_runs/count"), () => {
+		return HttpResponse.json(0);
+	}),
+
 	http.delete(buildApiUrl("/flow_runs/:id"), () => {
 		return HttpResponse.json({ status: 204 });
 	}),
