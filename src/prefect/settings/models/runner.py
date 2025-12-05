@@ -1,4 +1,5 @@
-from typing import ClassVar, Optional
+import warnings
+from typing import Any, ClassVar, Optional
 
 from pydantic import Field
 from pydantic_settings import SettingsConfigDict
@@ -59,13 +60,29 @@ class RunnerSettings(PrefectBaseSettings):
         description="Number of seconds a runner should wait between queries for scheduled work.",
     )
 
-    heartbeat_frequency: Optional[int] = Field(
-        default=None,
-        description="Number of seconds a runner should wait between heartbeats for flow runs.",
-        ge=30,
-    )
-
     server: RunnerServerSettings = Field(
         default_factory=RunnerServerSettings,
         description="Settings for controlling runner server behavior",
     )
+
+    # handle deprecated fields
+
+    def __getattribute__(self, name: str) -> Any:
+        if name == "heartbeat_frequency":
+            from prefect.settings.context import get_current_settings
+
+            warnings.warn(
+                "`runner.heartbeat_frequency` has been moved to `flows.heartbeat_frequency`. "
+                "Use `PREFECT_FLOWS_HEARTBEAT_FREQUENCY` instead of `PREFECT_RUNNER_HEARTBEAT_FREQUENCY`.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            return get_current_settings().flows.heartbeat_frequency
+        return super().__getattribute__(name)
+
+    @property
+    def heartbeat_frequency(self) -> Optional[int]:
+        """Deprecated: Use flows.heartbeat_frequency instead."""
+        # This property exists for type checking purposes.
+        # Actual access is handled by __getattribute__ above.
+        raise NotImplementedError("This should never be called")

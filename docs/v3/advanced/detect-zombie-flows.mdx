@@ -11,8 +11,12 @@ To mitigate this, flow runs triggered by deployments can emit heartbeats to driv
 
 ### Enable flow run heartbeat events
 
-You will need to ensure you're running Prefect version 3.1.8 or greater and set `PREFECT_RUNNER_HEARTBEAT_FREQUENCY`
+You will need to ensure you're running Prefect version 3.1.8 or greater and set `PREFECT_FLOWS_HEARTBEAT_FREQUENCY`
 to an integer greater than 30 to emit flow run heartbeat events.
+
+<Note>
+The legacy environment variable `PREFECT_RUNNER_HEARTBEAT_FREQUENCY` is still supported for backwards compatibility.
+</Note>
 
 
 ### Create the automation
@@ -62,8 +66,8 @@ terminal state event for that same flow run `within` 90 seconds of a heartbeat e
 
 ### Adjusting behavior with settings
 
-If `PREFECT_RUNNER_HEARTBEAT_FREQUENCY` is set to `30`, the automation will trigger only after 3 heartbeats have been missed.
-You can adjust `within` in the trigger definition and `PREFECT_RUNNER_HEARTBEAT_FREQUENCY` to change how quickly the automation
+If `PREFECT_FLOWS_HEARTBEAT_FREQUENCY` is set to `30`, the automation will trigger only after 3 heartbeats have been missed.
+You can adjust `within` in the trigger definition and `PREFECT_FLOWS_HEARTBEAT_FREQUENCY` to change how quickly the automation
 will fire after the server stops receiving flow run heartbeats.
 
 You can also add additional actions to your automation to send a notification when zombie runs are detected.
