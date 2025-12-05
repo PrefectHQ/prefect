@@ -27,7 +27,7 @@ export function SchemaFormInputAnyOf({
 	const values = useRef(new Map<number, unknown>());
 
 	function onSelectedIndexChange(newSelectedIndexValue: string) {
-		const newSelectedIndex = Number.parseInt(newSelectedIndexValue);
+		const newSelectedIndex = Number.parseInt(newSelectedIndexValue, 10);
 
 		if (Number.isNaN(newSelectedIndex)) {
 			throw new Error(`Invalid index: ${newSelectedIndexValue}`);

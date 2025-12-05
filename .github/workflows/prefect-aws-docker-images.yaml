@@ -43,7 +43,7 @@ jobs:
           echo "PREFECT_AWS_VERSION=${{ inputs.prefect_aws_version || github.event.inputs.prefect_aws_version }}" >> $GITHUB_ENV
       
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
