@@ -25,6 +25,12 @@ from sqlalchemy.ext.asyncio import (
 from sqlalchemy.pool import ConnectionPoolEntry
 from typing_extensions import TypeAlias
 
+from prefect._experimental.plugins import (
+    HookSpec,
+    build_manager,
+    call_async_hook,
+    load_entry_point_plugins,
+)
 from prefect._internal.observability import configure_logfire
 from prefect.settings import (
     PREFECT_API_DATABASE_CONNECTION_TIMEOUT,
@@ -274,33 +280,32 @@ class AsyncPostgresConfiguration(BaseDatabaseConfiguration):
             iam_settings = (
                 get_current_settings().server.database.sqlalchemy.connect_args.iam
             )
-            if iam_settings.enabled:
-                url = sa.engine.make_url(self.connection_url)
 
-                def get_iam_token() -> str:
-                    import boto3
+            # Initialize plugin manager
+            pm = build_manager(HookSpec)
+            load_entry_point_plugins(
+                pm,
+                allow=get_current_settings().experiments.plugins.allow,
+                deny=get_current_settings().experiments.plugins.deny,
+                logger=logging.getLogger("prefect.plugins"),
+            )
 
-                    session = boto3.Session()
-                    region = iam_settings.region_name or session.region_name
-                    client = session.client("rds", region_name=region)
-                    token = client.generate_db_auth_token(
-                        DBHostname=url.host,
-                        Port=url.port or 5432,
-                        DBUsername=url.username,
-                        Region=region,
+            # Call get_database_connection_params hook
+            results = await call_async_hook(
+                pm,
+                "get_database_connection_params",
+                connection_url=self.connection_url,
+                settings=get_current_settings(),
+            )
+
+            for _, params, error in results:
+                if error:
+                    # Log error but don't fail, other plugins might succeed
+                    logging.getLogger("prefect.server.database").warning(
+                        "Plugin failed to get database connection params: %s", error
                     )
-                    return token
-
-                # IAM authentication requires SSL
-                if "ssl" not in connect_args:
-                    # Use PROTOCOL_TLS_CLIENT to avoid loading default system certs
-                    # and to avoid DeprecationWarning for PROTOCOL_TLS
-                    ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
-                    ctx.check_hostname = False
-                    ctx.verify_mode = ssl.CERT_NONE
-                    connect_args["ssl"] = ctx
-
-                connect_args["password"] = get_iam_token
+                elif params:
+                    connect_args.update(params)
 
             if connect_args:
                 kwargs["connect_args"] = connect_args
