@@ -569,7 +569,7 @@ function RelativeView({
 		const [quantitySearch = ""] = search.match(/\d+/) ?? [];
 		const [unitSearch = ""] = search.match(/[a-zA-Z]+/) ?? [];
 		const [directionSearch = ""] = search.match(/[+-]+/) ?? [];
-		const parsed = Number.parseInt(quantitySearch);
+		const parsed = Number.parseInt(quantitySearch, 10);
 		const quantity = Number.isNaN(parsed) ? 1 : parsed;
 
 		const spans: Option[] = [

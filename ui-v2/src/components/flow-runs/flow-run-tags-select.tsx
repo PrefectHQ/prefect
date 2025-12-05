@@ -41,7 +41,9 @@ export function FlowRunTagsSelect({
 	const suggestions = useMemo(() => {
 		const all = new Set<string>();
 		(data?.results ?? []).forEach((fr) => {
-			(fr.tags ?? []).forEach((t) => all.add(t));
+			(fr.tags ?? []).forEach((t) => {
+				all.add(t);
+			});
 		});
 		return Array.from(all).sort((a, b) => a.localeCompare(b));
 	}, [data?.results]);
