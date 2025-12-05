@@ -15314,6 +15314,20 @@
                 "properties": {
                     "collision_strategy": {
                         "$ref": "#/components/schemas/ConcurrencyLimitStrategy"
+                    },
+                    "grace_period_seconds": {
+                        "anyOf": [
+                            {
+                                "type": "integer",
+                                "maximum": 86400.0,
+                                "minimum": 60.0
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Grace Period Seconds",
+                        "description": "Grace period in seconds for infrastructure to start before concurrency slots are revoked. If not set, falls back to server setting."
                     }
                 },
                 "type": "object",
