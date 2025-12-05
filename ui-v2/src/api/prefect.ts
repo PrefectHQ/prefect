@@ -5444,6 +5444,11 @@ export interface components {
          */
         ConcurrencyOptions: {
             collision_strategy: components["schemas"]["ConcurrencyLimitStrategy"];
+            /**
+             * Grace Period Seconds
+             * @description Grace period in seconds for infrastructure to start before concurrency slots are revoked. If not set, falls back to server setting.
+             */
+            grace_period_seconds?: number | null;
         };
         /**
          * Constant
@@ -7706,6 +7711,11 @@ export interface components {
          */
         FlowsSettings: {
             /**
+             * Heartbeat Frequency
+             * @description Number of seconds between flow run heartbeats. Heartbeats are used to detect crashed flow runs.
+             */
+            heartbeat_frequency?: number | null;
+            /**
              * Default Retries
              * @description This value sets the default number of retries for all flows.
              * @default 0
@@ -8749,11 +8759,6 @@ export interface components {
              * @default 10
              */
             poll_frequency: number;
-            /**
-             * Heartbeat Frequency
-             * @description Number of seconds a runner should wait between heartbeats for flow runs.
-             */
-            heartbeat_frequency?: number | null;
             server?: components["schemas"]["RunnerServerSettings"];
         };
         /**
