@@ -14,7 +14,7 @@ def get_database_connection_params(
     connection_url: str, settings: Any
 ) -> Mapping[str, Any]:
     iam_settings = settings.server.database.sqlalchemy.connect_args.iam
-    print(f"DEBUG: iam_settings={iam_settings}, enabled={iam_settings.enabled}")
+
     if not iam_settings.enabled:
         return {}
 
