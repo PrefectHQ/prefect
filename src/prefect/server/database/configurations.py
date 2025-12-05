@@ -279,30 +279,31 @@ class AsyncPostgresConfiguration(BaseDatabaseConfiguration):
                 connect_args["ssl"] = pg_ctx
 
             # Initialize plugin manager
-            pm = build_manager(HookSpec)
-            load_entry_point_plugins(
-                pm,
-                allow=get_current_settings().experiments.plugins.allow,
-                deny=get_current_settings().experiments.plugins.deny,
-                logger=logging.getLogger("prefect.plugins"),
-            )
+            if get_current_settings().experiments.plugins.enabled:
+                pm = build_manager(HookSpec)
+                load_entry_point_plugins(
+                    pm,
+                    allow=get_current_settings().experiments.plugins.allow,
+                    deny=get_current_settings().experiments.plugins.deny,
+                    logger=logging.getLogger("prefect.plugins"),
+                )
 
-            # Call get_database_connection_params hook
-            results = await call_async_hook(
-                pm,
-                "get_database_connection_params",
-                connection_url=self.connection_url,
-                settings=get_current_settings(),
-            )
+                # Call get_database_connection_params hook
+                results = await call_async_hook(
+                    pm,
+                    "get_database_connection_params",
+                    connection_url=self.connection_url,
+                    settings=get_current_settings(),
+                )
 
-            for _, params, error in results:
-                if error:
-                    # Log error but don't fail, other plugins might succeed
-                    logging.getLogger("prefect.server.database").warning(
-                        "Plugin failed to get database connection params: %s", error
-                    )
-                elif params:
-                    connect_args.update(params)
+                for _, params, error in results:
+                    if error:
+                        # Log error but don't fail, other plugins might succeed
+                        logging.getLogger("prefect.server.database").warning(
+                            "Plugin failed to get database connection params: %s", error
+                        )
+                    elif params:
+                        connect_args.update(params)
 
             if connect_args:
                 kwargs["connect_args"] = connect_args
