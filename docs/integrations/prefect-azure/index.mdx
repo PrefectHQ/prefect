@@ -78,6 +78,48 @@ custom_blob_storage_download_flow = example_blob_storage_download_flow.with_opti
 )
 ```
 
+### Using Service Principal Authentication
+
+Azure Blob Storage credentials support Service Principal Name (SPN) authentication for secure access to your storage account.
+
+<Accordion title="Example: SPN Authentication">
+
+Create an `AzureBlobStorageCredentials` block with your service principal credentials:
+
+```python
+from prefect_azure import AzureBlobStorageCredentials
+
+credentials = AzureBlobStorageCredentials(
+    account_url="https://myaccount.blob.core.windows.net/",
+    tenant_id="your-tenant-id",
+    client_id="your-client-id",
+    client_secret="your-client-secret"
+)
+credentials.save("my-spn-credentials")
+```
+
+Then reference this block in your `prefect.yaml` deployment steps:
+
+```yaml
+push:
+    - prefect_azure.deployments.steps.push_to_azure_blob_storage:
+        requires: prefect-azure[blob_storage]
+        container: my-container
+        folder: my-folder
+        credentials: "{{ prefect.blocks.azure-blob-storage-credentials.my-spn-credentials }}"
+
+pull:
+    - prefect_azure.deployments.steps.pull_from_azure_blob_storage:
+        requires: prefect-azure[blob_storage]
+        container: "{{ container }}"
+        folder: "{{ folder }}"
+        credentials: "{{ prefect.blocks.azure-blob-storage-credentials.my-spn-credentials }}"
+```
+
+When all three SPN fields (`tenant_id`, `client_id`, `client_secret`) are provided, the credentials will use `ClientSecretCredential` for authentication. If any SPN fields are missing, it will fall back to `DefaultAzureCredential`.
+
+</Accordion>
+
 ### Run flows on Azure Container Instances
 
 Run flows on [Azure Container Instances (ACI)](https://learn.microsoft.com/en-us/azure/container-instances/) to dynamically scale your infrastructure.

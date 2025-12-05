@@ -3,9 +3,10 @@ from pathlib import Path
 from unittest.mock import ANY, MagicMock, call
 
 import pytest
-from azure.identity import DefaultAzureCredential
+from azure.identity import ClientSecretCredential, DefaultAzureCredential
 from azure.storage.blob import ContainerClient
 from prefect_azure.deployments.steps import (
+    _get_azure_credential,
     pull_from_azure_blob_storage,
     push_to_azure_blob_storage,
 )
@@ -22,6 +23,11 @@ def default_azure_credential_mock():
 
 
 @pytest.fixture
+def client_secret_credential_mock():
+    return MagicMock(spec=ClientSecretCredential)
+
+
+@pytest.fixture
 def mock_azure_blob_storage(
     monkeypatch, container_client_mock, default_azure_credential_mock
 ):
@@ -32,6 +38,27 @@ def mock_azure_blob_storage(
     monkeypatch.setattr(
         "prefect_azure.deployments.steps.DefaultAzureCredential",
         default_azure_credential_mock,
+    )
+
+
+@pytest.fixture
+def mock_azure_blob_storage_with_spn(
+    monkeypatch,
+    container_client_mock,
+    default_azure_credential_mock,
+    client_secret_credential_mock,
+):
+    monkeypatch.setattr(
+        "prefect_azure.deployments.steps.ContainerClient",
+        container_client_mock,
+    )
+    monkeypatch.setattr(
+        "prefect_azure.deployments.steps.DefaultAzureCredential",
+        default_azure_credential_mock,
+    )
+    monkeypatch.setattr(
+        "prefect_azure.deployments.steps.ClientSecretCredential",
+        client_secret_credential_mock,
     )
 
 
@@ -449,6 +476,174 @@ class TestPull:
 
         # Assert that the files are downloaded from the root of the container
         mock_context_client.list_blobs.assert_called_once_with(name_starts_with="")
+        mock_context_client.download_blob.assert_called_once_with(blob_mock)
+
+        expected_file = tmp_path / "sample_file.txt"
+        assert expected_file.exists()
+
+
+class TestGetAzureCredential:
+    def test_get_azure_credential_with_all_spn_fields(
+        self, monkeypatch, client_secret_credential_mock
+    ):
+        monkeypatch.setattr(
+            "prefect_azure.deployments.steps.ClientSecretCredential",
+            client_secret_credential_mock,
+        )
+
+        credentials = {
+            "tenant_id": "test-tenant-id",
+            "client_id": "test-client-id",
+            "client_secret": "test-client-secret",
+        }
+
+        result = _get_azure_credential(credentials)
+
+        client_secret_credential_mock.assert_called_once_with(
+            tenant_id="test-tenant-id",
+            client_id="test-client-id",
+            client_secret="test-client-secret",
+        )
+        assert result == client_secret_credential_mock.return_value
+
+    def test_get_azure_credential_with_no_spn_fields(
+        self, monkeypatch, default_azure_credential_mock
+    ):
+        monkeypatch.setattr(
+            "prefect_azure.deployments.steps.DefaultAzureCredential",
+            default_azure_credential_mock,
+        )
+
+        credentials = {}
+
+        result = _get_azure_credential(credentials)
+
+        default_azure_credential_mock.assert_called_once_with()
+        assert result == default_azure_credential_mock.return_value
+
+    def test_get_azure_credential_with_partial_spn_fields(
+        self, monkeypatch, default_azure_credential_mock
+    ):
+        monkeypatch.setattr(
+            "prefect_azure.deployments.steps.DefaultAzureCredential",
+            default_azure_credential_mock,
+        )
+
+        credentials = {
+            "tenant_id": "test-tenant-id",
+            "client_id": "test-client-id",
+        }
+
+        result = _get_azure_credential(credentials)
+
+        default_azure_credential_mock.assert_called_once_with()
+        assert result == default_azure_credential_mock.return_value
+
+
+class TestPushWithSPN:
+    @pytest.mark.usefixtures("mock_azure_blob_storage_with_spn")
+    def test_push_to_azure_blob_storage_with_spn_credentials(
+        self,
+        tmp_files: Path,
+        container_client_mock: MagicMock,
+        client_secret_credential_mock: MagicMock,
+    ):
+        container = "test-container"
+        folder = "test-folder"
+        credentials = {
+            "account_url": "https://fake_account_url.blob.core.windows.net/",
+            "tenant_id": "test-tenant-id",
+            "client_id": "test-client-id",
+            "client_secret": "test-client-secret",
+        }
+
+        os.chdir(tmp_files)
+
+        push_to_azure_blob_storage(container, folder, credentials)
+
+        client_secret_credential_mock.assert_called_once_with(
+            tenant_id="test-tenant-id",
+            client_id="test-client-id",
+            client_secret="test-client-secret",
+        )
+
+        container_client_mock.assert_called_once_with(
+            account_url=credentials["account_url"],
+            container_name=container,
+            credential=client_secret_credential_mock.return_value,
+        )
+
+        upload_blob_mock = (
+            container_client_mock.return_value.__enter__.return_value.upload_blob
+        )
+
+        upload_blob_mock.assert_has_calls(
+            [
+                call(
+                    f"{folder}/testfile1.txt",
+                    ANY,
+                    overwrite=True,
+                ),
+                call(
+                    f"{folder}/testfile2.txt",
+                    ANY,
+                    overwrite=True,
+                ),
+                call(
+                    f"{folder}/testfile3.txt",
+                    ANY,
+                    overwrite=True,
+                ),
+                call(
+                    f"{folder}/testdir2/testfile5.txt",
+                    ANY,
+                    overwrite=True,
+                ),
+            ],
+            any_order=True,
+        )
+
+
+class TestPullWithSPN:
+    @pytest.mark.usefixtures("mock_azure_blob_storage_with_spn")
+    def test_pull_from_azure_blob_storage_with_spn_credentials(
+        self,
+        tmp_path,
+        container_client_mock: MagicMock,
+        client_secret_credential_mock: MagicMock,
+    ):
+        container = "test-container"
+        folder = "test-folder"
+        credentials = {
+            "account_url": "https://fake_account_url.blob.core.windows.net/",
+            "tenant_id": "test-tenant-id",
+            "client_id": "test-client-id",
+            "client_secret": "test-client-secret",
+        }
+
+        os.chdir(tmp_path)
+
+        blob_mock = MagicMock()
+        blob_mock.name = f"{folder}/sample_file.txt"
+
+        mock_context_client = container_client_mock.return_value.__enter__.return_value
+        mock_context_client.list_blobs.return_value = [blob_mock]
+
+        pull_from_azure_blob_storage(container, folder, credentials)
+
+        client_secret_credential_mock.assert_called_once_with(
+            tenant_id="test-tenant-id",
+            client_id="test-client-id",
+            client_secret="test-client-secret",
+        )
+
+        container_client_mock.assert_called_once_with(
+            account_url=credentials["account_url"],
+            container_name=container,
+            credential=client_secret_credential_mock.return_value,
+        )
+
+        mock_context_client.list_blobs.assert_called_once_with(name_starts_with=folder)
         mock_context_client.download_blob.assert_called_once_with(blob_mock)
 
         expected_file = tmp_path / "sample_file.txt"
