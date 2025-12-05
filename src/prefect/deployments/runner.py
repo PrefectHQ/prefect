@@ -116,6 +116,33 @@ if TYPE_CHECKING:
 __all__ = ["RunnerDeployment"]
 
 
+def _extract_concurrency_options(
+    concurrency_limit: Union[int, ConcurrencyLimitConfig, None],
+) -> tuple[Optional[int], Optional[dict[str, Any]]]:
+    """
+    Extract concurrency limit and options from a ConcurrencyLimitConfig or int.
+
+    Args:
+        concurrency_limit: Either an int (just the limit), a ConcurrencyLimitConfig
+            (with limit, collision_strategy, and optional grace_period_seconds),
+            or None.
+
+    Returns:
+        A tuple of (limit, concurrency_options_dict) where concurrency_options_dict
+        is None if concurrency_limit is not a ConcurrencyLimitConfig.
+    """
+    if isinstance(concurrency_limit, ConcurrencyLimitConfig):
+        concurrency_options: dict[str, Any] = {
+            "collision_strategy": concurrency_limit.collision_strategy
+        }
+        if concurrency_limit.grace_period_seconds is not None:
+            concurrency_options["grace_period_seconds"] = (
+                concurrency_limit.grace_period_seconds
+            )
+        return concurrency_limit.limit, concurrency_options
+    return concurrency_limit, None
+
+
 class DeploymentApplyError(RuntimeError):
     """
     Raised when an error occurs while applying a deployment.
@@ -708,13 +735,9 @@ class RunnerDeployment(BaseModel):
 
         job_variables = job_variables or {}
 
-        if isinstance(concurrency_limit, ConcurrencyLimitConfig):
-            concurrency_options = {
-                "collision_strategy": concurrency_limit.collision_strategy
-            }
-            concurrency_limit = concurrency_limit.limit
-        else:
-            concurrency_options = None
+        concurrency_limit, concurrency_options = _extract_concurrency_options(
+            concurrency_limit
+        )
 
         deployment = cls(
             name=name,
@@ -852,13 +875,9 @@ class RunnerDeployment(BaseModel):
             schedule=schedule,
         )
 
-        if isinstance(concurrency_limit, ConcurrencyLimitConfig):
-            concurrency_options = {
-                "collision_strategy": concurrency_limit.collision_strategy
-            }
-            concurrency_limit = concurrency_limit.limit
-        else:
-            concurrency_options = None
+        concurrency_limit, concurrency_options = _extract_concurrency_options(
+            concurrency_limit
+        )
 
         deployment = cls(
             name=name,
@@ -962,13 +981,9 @@ class RunnerDeployment(BaseModel):
             schedule=schedule,
         )
 
-        if isinstance(concurrency_limit, ConcurrencyLimitConfig):
-            concurrency_options = {
-                "collision_strategy": concurrency_limit.collision_strategy
-            }
-            concurrency_limit = concurrency_limit.limit
-        else:
-            concurrency_options = None
+        concurrency_limit, concurrency_options = _extract_concurrency_options(
+            concurrency_limit
+        )
 
         job_variables = job_variables or {}
 
@@ -1088,13 +1103,9 @@ class RunnerDeployment(BaseModel):
             schedule=schedule,
         )
 
-        if isinstance(concurrency_limit, ConcurrencyLimitConfig):
-            concurrency_options = {
-                "collision_strategy": concurrency_limit.collision_strategy
-            }
-            concurrency_limit = concurrency_limit.limit
-        else:
-            concurrency_options = None
+        concurrency_limit, concurrency_options = _extract_concurrency_options(
+            concurrency_limit
+        )
 
         job_variables = job_variables or {}
 
