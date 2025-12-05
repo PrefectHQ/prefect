@@ -107,6 +107,18 @@ class ServerServicesEventPersisterSettings(ServicesBaseSetting):
         ),
     )
 
+    queue_max_size: int = Field(
+        default=50_000,
+        gt=0,
+        description="The maximum number of events that can be queued in memory for persistence. When the queue is full, new events will be dropped.",
+    )
+
+    max_flush_retries: int = Field(
+        default=5,
+        gt=0,
+        description="The maximum number of consecutive flush failures before events are dropped instead of being re-queued.",
+    )
+
 
 class ServerServicesEventLoggerSettings(ServicesBaseSetting):
     """
