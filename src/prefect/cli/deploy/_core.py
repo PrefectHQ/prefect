@@ -327,11 +327,17 @@ async def _run_single_deploy(
         triggers = []
 
     if isinstance(deploy_config.get("concurrency_limit"), dict):
-        deploy_config["concurrency_options"] = {
+        concurrency_options = {
             "collision_strategy": get_from_dict(
                 deploy_config, "concurrency_limit.collision_strategy"
             )
         }
+        grace_period_seconds = get_from_dict(
+            deploy_config, "concurrency_limit.grace_period_seconds"
+        )
+        if grace_period_seconds is not None:
+            concurrency_options["grace_period_seconds"] = grace_period_seconds
+        deploy_config["concurrency_options"] = concurrency_options
         deploy_config["concurrency_limit"] = get_from_dict(
             deploy_config, "concurrency_limit.limit"
         )
