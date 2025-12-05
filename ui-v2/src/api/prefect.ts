@@ -4341,11 +4341,11 @@ export interface components {
              */
             history_end: string;
             /**
-             * History Interval
+             * History Interval Seconds
              * Format: time-delta
              * @description The size of each history interval, in seconds. Must be at least 1 second.
              */
-            history_interval: number;
+            history_interval_seconds: number;
             flows?: components["schemas"]["FlowFilter"] | null;
             flow_runs?: components["schemas"]["FlowRunFilter"] | null;
             task_runs?: components["schemas"]["TaskRunFilter"] | null;
@@ -4972,11 +4972,11 @@ export interface components {
              */
             history_end: string;
             /**
-             * History Interval
+             * History Interval Seconds
              * Format: time-delta
              * @description The size of each history interval, in seconds. Must be at least 1 second.
              */
-            history_interval: number;
+            history_interval_seconds: number;
             flows?: components["schemas"]["FlowFilter"];
             flow_runs?: components["schemas"]["FlowRunFilter"];
             task_runs?: components["schemas"]["TaskRunFilter"];
@@ -5444,6 +5444,11 @@ export interface components {
          */
         ConcurrencyOptions: {
             collision_strategy: components["schemas"]["ConcurrencyLimitStrategy"];
+            /**
+             * Grace Period Seconds
+             * @description Grace period in seconds for infrastructure to start before concurrency slots are revoked. If not set, falls back to server setting.
+             */
+            grace_period_seconds?: number | null;
         };
         /**
          * Constant
@@ -9472,6 +9477,18 @@ export interface components {
              * @default 10000
              */
             batch_size_delete: number;
+            /**
+             * Queue Max Size
+             * @description The maximum number of events that can be queued in memory for persistence. When the queue is full, new events will be dropped.
+             * @default 50000
+             */
+            queue_max_size: number;
+            /**
+             * Max Flush Retries
+             * @description The maximum number of consecutive flush failures before events are dropped instead of being re-queued.
+             * @default 5
+             */
+            max_flush_retries: number;
         };
         /**
          * ServerServicesForemanSettings
