@@ -35,12 +35,43 @@ For more information about using deployment steps, check out out the Prefect [do
 """  # noqa
 
 from pathlib import Path, PurePosixPath
-from typing import Dict, Optional
+from typing import Dict, Optional, Union
 
-from azure.identity import DefaultAzureCredential
+from azure.identity import ClientSecretCredential, DefaultAzureCredential
 from azure.storage.blob import ContainerClient
 
 from prefect.utilities.filesystem import filter_files, relative_path_to_current_platform
+
+
+def _get_azure_credential(
+    credentials: Dict[str, str],
+) -> Union[ClientSecretCredential, DefaultAzureCredential]:
+    """
+    Creates an Azure credential based on the provided credentials dictionary.
+
+    If all service principal fields (tenant_id, client_id, client_secret) are present,
+    uses ClientSecretCredential. Otherwise, uses DefaultAzureCredential for automatic
+    credential discovery.
+
+    Args:
+        credentials: A dictionary containing Azure credentials. May include:
+            - tenant_id, client_id, client_secret: For service principal authentication
+            - If these are not all present, DefaultAzureCredential will be used
+
+    Returns:
+        An Azure credential ready to use with Azure SDK client classes.
+    """
+    tenant_id = credentials.get("tenant_id")
+    client_id = credentials.get("client_id")
+    client_secret = credentials.get("client_secret")
+
+    if tenant_id is not None and client_id is not None and client_secret is not None:
+        return ClientSecretCredential(
+            tenant_id=tenant_id,
+            client_id=client_id,
+            client_secret=client_secret,
+        )
+    return DefaultAzureCredential()
 
 
 def push_to_azure_blob_storage(
@@ -95,7 +126,7 @@ def push_to_azure_blob_storage(
         container_client = ContainerClient(
             account_url=credentials["account_url"],
             container_name=container,
-            credential=DefaultAzureCredential(),
+            credential=_get_azure_credential(credentials),
         )
     else:
         raise ValueError(
@@ -180,7 +211,7 @@ def pull_from_azure_blob_storage(
         container_client = ContainerClient(
             account_url=credentials["account_url"],
             container_name=container,
-            credential=DefaultAzureCredential(),
+            credential=_get_azure_credential(credentials),
         )
     else:
         raise ValueError(
