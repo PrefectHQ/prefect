@@ -99,13 +99,8 @@ export function TaskRunsCard({ filter }: TaskRunsCardProps) {
 
 	return (
 		<Card>
-			<CardHeader>
+			<CardHeader className="flex flex-row items-center justify-between">
 				<CardTitle>Task Runs</CardTitle>
-				{taskRuns.length > 0 && (
-					<span className="text-sm text-muted-foreground">
-						{counts.total} total
-					</span>
-				)}
 			</CardHeader>
 			<CardContent>
 				{taskRuns.length === 0 ? (
@@ -114,37 +109,34 @@ export function TaskRunsCard({ filter }: TaskRunsCardProps) {
 					</div>
 				) : (
 					<div className="space-y-4">
-						<div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-							<div className="space-y-1">
-								<p className="text-sm font-medium text-muted-foreground">
-									Running
+						<div className="flex flex-wrap items-baseline gap-x-6 gap-y-2">
+							<p className="text-3xl font-bold">{counts.total}</p>
+							{counts.running > 0 && (
+								<p className="text-sm">
+									<span className="font-semibold text-blue-600">
+										{counts.running}
+									</span>{" "}
+									<span className="text-muted-foreground">Running</span>
 								</p>
-								<p className="text-2xl font-bold">{counts.running}</p>
-							</div>
-							<div className="space-y-1">
-								<p className="text-sm font-medium text-muted-foreground">
-									Completed
+							)}
+							<p className="text-sm">
+								<span className="font-semibold text-green-600">
+									{counts.completed}
+								</span>{" "}
+								<span className="text-muted-foreground">
+									Completed {counts.completionPercentage.toFixed(1)}%
+								</span>
+							</p>
+							{counts.failed > 0 && (
+								<p className="text-sm">
+									<span className="font-semibold text-red-600">
+										{counts.failed}
+									</span>{" "}
+									<span className="text-muted-foreground">
+										Failed {counts.failurePercentage.toFixed(1)}%
+									</span>
 								</p>
-								<p className="text-2xl font-bold">{counts.completed}</p>
-								<p className="text-xs text-muted-foreground">
-									{counts.completionPercentage.toFixed(1)}%
-								</p>
-							</div>
-							<div className="space-y-1">
-								<p className="text-sm font-medium text-muted-foreground">
-									Failed
-								</p>
-								<p className="text-2xl font-bold">{counts.failed}</p>
-								<p className="text-xs text-muted-foreground">
-									{counts.failurePercentage.toFixed(1)}%
-								</p>
-							</div>
-							<div className="space-y-1">
-								<p className="text-sm font-medium text-muted-foreground">
-									Total
-								</p>
-								<p className="text-2xl font-bold">{counts.total}</p>
-							</div>
+							)}
 						</div>
 						<Suspense fallback={null}>
 							<TaskRunsTrends filter={filter} />

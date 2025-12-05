@@ -7,6 +7,7 @@ import type { components } from "@/api/prefect";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { FlowRunActivityBarChart } from "@/components/ui/flow-run-activity-bar-graph";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Typography } from "@/components/ui/typography";
 import useDebounce from "@/hooks/use-debounce";
 import { FlowRunStateTabs } from "./flow-runs-state-tabs";
 
@@ -177,22 +178,24 @@ export function FlowRunsCard({ filter }: FlowRunsCardProps) {
 	// This prevents showing empty chart on initial render while still being responsive
 	const effectiveNumberOfBars = debouncedNumberOfBars || numberOfBars;
 
+	// Count failed or crashed runs for the message display
+	const failedOrCrashedCount = useMemo(() => {
+		return flowRuns.filter(
+			(run) => run.state_type === "FAILED" || run.state_type === "CRASHED",
+		).length;
+	}, [flowRuns]);
+
 	return (
 		<Card>
-			<CardHeader>
+			<CardHeader className="flex flex-row items-center justify-between">
 				<CardTitle>Flow Runs</CardTitle>
-				<FlowRunStateTabs
-					flowRuns={enrichedFlowRuns}
-					selectedState={selectedState}
-					onStateChange={setSelectedState}
-				/>
 				{flowRuns.length > 0 && (
 					<span className="text-sm text-muted-foreground">
 						{flowRuns.length} total
 					</span>
 				)}
 			</CardHeader>
-			<CardContent>
+			<CardContent className="space-y-4">
 				{flowRuns.length === 0 ? (
 					<div className="my-8 text-center text-sm text-muted-foreground">
 						<p>No flow runs found</p>
@@ -202,16 +205,28 @@ export function FlowRunsCard({ filter }: FlowRunsCardProps) {
 						<Skeleton className="h-24 w-full" />
 					</div>
 				) : (
-					<div className="w-full" ref={chartRef}>
-						<FlowRunActivityBarChart
-							enrichedFlowRuns={enrichedFlowRuns}
-							startDate={startDate}
-							endDate={endDate}
-							numberOfBars={effectiveNumberOfBars}
-							barWidth={BAR_WIDTH}
-							className="h-24 w-full"
+					<>
+						<div className="w-full" ref={chartRef}>
+							<FlowRunActivityBarChart
+								enrichedFlowRuns={enrichedFlowRuns}
+								startDate={startDate}
+								endDate={endDate}
+								numberOfBars={effectiveNumberOfBars}
+								barWidth={BAR_WIDTH}
+								className="h-24 w-full"
+							/>
+						</div>
+						<FlowRunStateTabs
+							flowRuns={enrichedFlowRuns}
+							selectedState={selectedState}
+							onStateChange={setSelectedState}
 						/>
-					</div>
+						{failedOrCrashedCount === 0 && (
+							<Typography variant="bodySmall" className="text-muted-foreground">
+								You currently have 0 failed or crashed runs.
+							</Typography>
+						)}
+					</>
 				)}
 			</CardContent>
 		</Card>

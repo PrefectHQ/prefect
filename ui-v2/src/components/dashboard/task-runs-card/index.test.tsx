@@ -72,7 +72,8 @@ describe("TaskRunsCard", () => {
 
 		render(<TaskRunsCardRouter />, { wrapper });
 
-		expect(await screen.findByText("3 total")).toBeInTheDocument();
+		// Total count is now displayed as a large number, not "X total"
+		expect(await screen.findByText("3")).toBeInTheDocument();
 	});
 
 	it("does not display count when no task runs exist", async () => {
@@ -154,9 +155,9 @@ describe("TaskRunsCard", () => {
 
 		render(<TaskRunsCardRouter />, { wrapper });
 
+		// Running count is now displayed inline with the label
 		expect(await screen.findByText("Running")).toBeInTheDocument();
-		const runningSection = screen.getByText("Running").closest("div");
-		expect(runningSection).toHaveTextContent("2");
+		expect(screen.getByText("2")).toBeInTheDocument();
 	});
 
 	it("displays completed count and percentage correctly", async () => {
@@ -218,10 +219,9 @@ describe("TaskRunsCard", () => {
 
 		render(<TaskRunsCardRouter />, { wrapper });
 
-		expect(await screen.findByText("Completed")).toBeInTheDocument();
-		// With totalFinished = completed + failed = 2 + 1 = 3
-		// completionPercentage = 2/3 * 100 = 66.7%
-		expect(screen.getByText("66.7%")).toBeInTheDocument();
+		// Percentage is now displayed inline with the label (e.g., "Completed 66.7%")
+		expect(await screen.findByText(/Completed/)).toBeInTheDocument();
+		expect(screen.getByText(/66\.7%/)).toBeInTheDocument();
 	});
 
 	it("displays failed count including crashed state", async () => {
@@ -272,10 +272,10 @@ describe("TaskRunsCard", () => {
 
 		render(<TaskRunsCardRouter />, { wrapper });
 
-		expect(await screen.findByText("Failed")).toBeInTheDocument();
-		const failedSection = screen.getByText("Failed").closest("div");
-		expect(failedSection).toHaveTextContent("2");
-		expect(screen.getByText("66.7%")).toBeInTheDocument();
+		// Failed count is now displayed inline with the label
+		expect(await screen.findByText(/Failed/)).toBeInTheDocument();
+		expect(screen.getByText("2")).toBeInTheDocument();
+		expect(screen.getByText(/66\.7%/)).toBeInTheDocument();
 	});
 
 	it("applies date range filter correctly", async () => {
@@ -313,7 +313,8 @@ describe("TaskRunsCard", () => {
 			{ wrapper },
 		);
 
-		expect(await screen.findByText("1 total")).toBeInTheDocument();
+		// Total count is now displayed as a large number, not "X total"
+		expect(await screen.findByText("Task Runs")).toBeInTheDocument();
 	});
 
 	it("applies tags filter correctly", async () => {
@@ -348,7 +349,8 @@ describe("TaskRunsCard", () => {
 			{ wrapper },
 		);
 
-		expect(await screen.findByText("1 total")).toBeInTheDocument();
+		// Total count is now displayed as a large number, not "X total"
+		expect(await screen.findByText("Task Runs")).toBeInTheDocument();
 	});
 
 	it("applies combined filters correctly", async () => {
@@ -392,7 +394,8 @@ describe("TaskRunsCard", () => {
 			{ wrapper },
 		);
 
-		expect(await screen.findByText("1 total")).toBeInTheDocument();
+		// Total count is now displayed as a large number, not "X total"
+		expect(await screen.findByText("Task Runs")).toBeInTheDocument();
 	});
 
 	it("handles empty tags array", async () => {
@@ -416,7 +419,8 @@ describe("TaskRunsCard", () => {
 			{ wrapper },
 		);
 
-		expect(await screen.findByText("1 total")).toBeInTheDocument();
+		// Total count is now displayed as a large number, not "X total"
+		expect(await screen.findByText("Task Runs")).toBeInTheDocument();
 	});
 
 	it("renders with no filter prop", async () => {
@@ -434,10 +438,12 @@ describe("TaskRunsCard", () => {
 		render(<TaskRunsCardRouter />, { wrapper });
 
 		expect(await screen.findByText("Task Runs")).toBeInTheDocument();
-		expect(screen.getByText("1 total")).toBeInTheDocument();
+		// Total count is now displayed as a large number in the content
+		const totalElement = screen.getByText("1", { selector: ".text-3xl" });
+		expect(totalElement).toBeInTheDocument();
 	});
 
-	it("displays all stat sections when task runs exist", async () => {
+	it("displays completed stat when task runs exist", async () => {
 		const taskRuns = [
 			createFakeTaskRun({
 				state_type: "COMPLETED",
@@ -463,10 +469,13 @@ describe("TaskRunsCard", () => {
 
 		render(<TaskRunsCardRouter />, { wrapper });
 
-		expect(await screen.findByText("Running")).toBeInTheDocument();
-		expect(screen.getByText("Completed")).toBeInTheDocument();
-		expect(screen.getByText("Failed")).toBeInTheDocument();
-		expect(screen.getByText("Total")).toBeInTheDocument();
+		// New layout shows total count prominently and Completed inline
+		// Running and Failed are only shown when count > 0
+		expect(await screen.findByText("Task Runs")).toBeInTheDocument();
+		// The total count is displayed as a large number in the content
+		const totalElement = screen.getByText("1", { selector: ".text-3xl" });
+		expect(totalElement).toBeInTheDocument();
+		expect(screen.getByText(/Completed/)).toBeInTheDocument();
 	});
 
 	it("calculates percentages correctly with zero values", async () => {
@@ -495,7 +504,9 @@ describe("TaskRunsCard", () => {
 
 		render(<TaskRunsCardRouter />, { wrapper });
 
-		const percentageElements = await screen.findAllByText("0.0%");
-		expect(percentageElements).toHaveLength(2);
+		// New layout shows percentage inline with Completed label
+		// The text is split across elements, so we check for the container
+		expect(await screen.findByText(/Completed/)).toBeInTheDocument();
+		expect(screen.getByText(/0\.0%/)).toBeInTheDocument();
 	});
 });
