@@ -68,7 +68,12 @@ class SQLAlchemyConnectArgsSettings(PrefectBaseSettings):
 
     search_path: Optional[str] = Field(
         default=None,
-        description="PostgreSQL schema name to set in search_path when using a PostgreSQL database with the Prefect backend.",
+        description=(
+            "PostgreSQL schema name to set in search_path when using a PostgreSQL "
+            "database with the Prefect backend. Note: The public schema should be "
+            "included in the search path (e.g. 'myschema, public') to ensure that "
+            "pg_trgm and other extensions remain available."
+        ),
     )
 
     statement_cache_size: Optional[int] = Field(
