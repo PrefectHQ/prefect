@@ -69,26 +69,23 @@ describe("FlowRunActivityBarChart", () => {
 		["PAUSED", "fill-gray-500"],
 		["RUNNING", "fill-blue-700"],
 		["CRASHED", "fill-orange-600"],
-	])(
-		"renders the bars with expected colors for %s",
-		(stateType, expectedClass) => {
-			const enrichedFlowRun = {
-				...mockFlowRun,
-				state_type: stateType,
-			};
-			render(
-				<FlowRunActivityBarChart
-					{...defaultProps}
-					// @ts-expect-error - Type error from test data not matching schema
-					enrichedFlowRuns={[enrichedFlowRun]}
-				/>,
-			);
-			const bars = screen.getAllByRole("graphics-symbol");
-			expect(
-				within(bars[0]).getByTestId("bar-rect-test-flow-run-1"),
-			).toHaveClass(expectedClass);
-		},
-	);
+	])("renders the bars with expected colors for %s", (stateType, expectedClass) => {
+		const enrichedFlowRun = {
+			...mockFlowRun,
+			state_type: stateType,
+		};
+		render(
+			<FlowRunActivityBarChart
+				{...defaultProps}
+				// @ts-expect-error - Type error from test data not matching schema
+				enrichedFlowRuns={[enrichedFlowRun]}
+			/>,
+		);
+		const bars = screen.getAllByRole("graphics-symbol");
+		expect(within(bars[0]).getByTestId("bar-rect-test-flow-run-1")).toHaveClass(
+			expectedClass,
+		);
+	});
 
 	it("applies custom bar width when provided", () => {
 		const customBarWidth = 12;
