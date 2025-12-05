@@ -82,7 +82,6 @@ dependencies = [
     "semver>=3.0.4",
     "pluggy>=1.6.0",
     "pydocket>=0.13.0",
-    "boto3>=1.40.61",
 ]
 [project.urls]
 Changelog = "https://github.com/PrefectHQ/prefect/releases"

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import sqlite3
 import ssl
 import traceback
@@ -276,10 +277,6 @@ class AsyncPostgresConfiguration(BaseDatabaseConfiguration):
                 pg_ctx.check_hostname = tls_config.check_hostname
                 pg_ctx.verify_mode = ssl.CERT_REQUIRED
                 connect_args["ssl"] = pg_ctx
-
-            iam_settings = (
-                get_current_settings().server.database.sqlalchemy.connect_args.iam
-            )
 
             # Initialize plugin manager
             pm = build_manager(HookSpec)
