@@ -194,14 +194,14 @@ export function FlowRunsCard({ filter }: FlowRunsCardProps) {
 					</span>
 				)}
 			</CardHeader>
-			<CardContent className="space-y-4">
+			<CardContent className="space-y-2">
 				{flowRuns.length === 0 ? (
 					<div className="my-8 text-center text-sm text-muted-foreground">
 						<p>No flow runs found</p>
 					</div>
 				) : isLoadingEnrichment || effectiveNumberOfBars === 0 ? (
 					<div className="w-full" ref={chartRef}>
-						<Skeleton className="h-32 w-full" />
+						<Skeleton className="h-24 w-full" />
 					</div>
 				) : (
 					<>
@@ -212,7 +212,7 @@ export function FlowRunsCard({ filter }: FlowRunsCardProps) {
 								endDate={endDate}
 								numberOfBars={effectiveNumberOfBars}
 								barWidth={BAR_WIDTH}
-								className="h-32 w-full"
+								className="h-24 w-full"
 							/>
 						</div>
 						<FlowRunStateTabs
