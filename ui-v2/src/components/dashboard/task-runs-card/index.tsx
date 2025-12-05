@@ -109,33 +109,32 @@ export function TaskRunsCard({ filter }: TaskRunsCardProps) {
 					</div>
 				) : (
 					<div className="space-y-4">
-						<div className="flex flex-wrap items-baseline gap-x-6 gap-y-2">
-							<p className="text-3xl font-bold">{counts.total}</p>
+						<div className="grid gap-1">
+							<div className="inline-flex items-end gap-1 text-base">
+								<span className="font-semibold">{counts.total}</span>
+								<span className="text-muted-foreground">Total</span>
+							</div>
 							{counts.running > 0 && (
-								<p className="text-sm">
-									<span className="font-semibold text-blue-600">
-										{counts.running}
-									</span>{" "}
+								<div className="inline-flex items-end gap-1 text-sm">
+									<span className="font-semibold">{counts.running}</span>
 									<span className="text-muted-foreground">Running</span>
-								</p>
+								</div>
 							)}
-							<p className="text-sm">
-								<span className="font-semibold text-green-600">
-									{counts.completed}
-								</span>{" "}
+							<div className="inline-flex items-end gap-1 text-sm">
+								<span className="font-semibold">{counts.completed}</span>
+								<span className="text-muted-foreground">Completed</span>
 								<span className="text-muted-foreground">
-									Completed {counts.completionPercentage.toFixed(1)}%
+									{counts.completionPercentage.toFixed(1)}%
 								</span>
-							</p>
+							</div>
 							{counts.failed > 0 && (
-								<p className="text-sm">
-									<span className="font-semibold text-red-600">
-										{counts.failed}
-									</span>{" "}
+								<div className="inline-flex items-end gap-1 text-sm">
+									<span className="font-semibold">{counts.failed}</span>
+									<span className="text-muted-foreground">Failed</span>
 									<span className="text-muted-foreground">
-										Failed {counts.failurePercentage.toFixed(1)}%
+										{counts.failurePercentage.toFixed(1)}%
 									</span>
-								</p>
+								</div>
 							)}
 						</div>
 						<Suspense fallback={null}>

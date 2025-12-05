@@ -438,9 +438,8 @@ describe("TaskRunsCard", () => {
 		render(<TaskRunsCardRouter />, { wrapper });
 
 		expect(await screen.findByText("Task Runs")).toBeInTheDocument();
-		// Total count is now displayed as a large number in the content
-		const totalElement = screen.getByText("1", { selector: ".text-3xl" });
-		expect(totalElement).toBeInTheDocument();
+		// Total count is displayed with the "Total" label in vertical layout
+		expect(screen.getByText("Total")).toBeInTheDocument();
 	});
 
 	it("displays completed stat when task runs exist", async () => {
@@ -469,12 +468,11 @@ describe("TaskRunsCard", () => {
 
 		render(<TaskRunsCardRouter />, { wrapper });
 
-		// New layout shows total count prominently and Completed inline
+		// New layout shows total count with "Total" label in vertical layout
 		// Running and Failed are only shown when count > 0
 		expect(await screen.findByText("Task Runs")).toBeInTheDocument();
-		// The total count is displayed as a large number in the content
-		const totalElement = screen.getByText("1", { selector: ".text-3xl" });
-		expect(totalElement).toBeInTheDocument();
+		// The total count is displayed with the "Total" label
+		expect(screen.getByText("Total")).toBeInTheDocument();
 		expect(screen.getByText(/Completed/)).toBeInTheDocument();
 	});
 

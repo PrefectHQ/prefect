@@ -7,7 +7,6 @@ import type { components } from "@/api/prefect";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { FlowRunActivityBarChart } from "@/components/ui/flow-run-activity-bar-graph";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Typography } from "@/components/ui/typography";
 import useDebounce from "@/hooks/use-debounce";
 import { FlowRunStateTabs } from "./flow-runs-state-tabs";
 
@@ -202,7 +201,7 @@ export function FlowRunsCard({ filter }: FlowRunsCardProps) {
 					</div>
 				) : isLoadingEnrichment || effectiveNumberOfBars === 0 ? (
 					<div className="w-full" ref={chartRef}>
-						<Skeleton className="h-24 w-full" />
+						<Skeleton className="h-32 w-full" />
 					</div>
 				) : (
 					<>
@@ -213,19 +212,15 @@ export function FlowRunsCard({ filter }: FlowRunsCardProps) {
 								endDate={endDate}
 								numberOfBars={effectiveNumberOfBars}
 								barWidth={BAR_WIDTH}
-								className="h-24 w-full"
+								className="h-32 w-full"
 							/>
 						</div>
 						<FlowRunStateTabs
 							flowRuns={enrichedFlowRuns}
 							selectedState={selectedState}
 							onStateChange={setSelectedState}
+							failedOrCrashedCount={failedOrCrashedCount}
 						/>
-						{failedOrCrashedCount === 0 && (
-							<Typography variant="bodySmall" className="text-muted-foreground">
-								You currently have 0 failed or crashed runs.
-							</Typography>
-						)}
 					</>
 				)}
 			</CardContent>
