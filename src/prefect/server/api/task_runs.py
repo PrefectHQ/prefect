@@ -136,13 +136,12 @@ async def task_run_history(
     history_end: DateTime = Body(..., description="The history's end time."),
     # Workaround for the fact that FastAPI does not let us configure ser_json_timedelta
     # to represent timedeltas as floats in JSON.
-    history_interval: float = Body(
+    history_interval_seconds: float = Body(
         ...,
         description=(
             "The size of each history interval, in seconds. Must be at least 1 second."
         ),
         json_schema_extra={"format": "time-delta"},
-        alias="history_interval_seconds",
     ),
     flows: schemas.filters.FlowFilter = None,
     flow_runs: schemas.filters.FlowRunFilter = None,
@@ -153,8 +152,7 @@ async def task_run_history(
     """
     Query for task run history data across a given range and interval.
     """
-    if isinstance(history_interval, float):
-        history_interval = datetime.timedelta(seconds=history_interval)
+    history_interval = datetime.timedelta(seconds=history_interval_seconds)
 
     if history_interval < datetime.timedelta(seconds=1):
         raise HTTPException(
