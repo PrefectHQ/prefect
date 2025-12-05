@@ -27,10 +27,6 @@ from prefect.server.utilities.messaging import (
 from prefect.server.utilities.messaging._consumer_names import (
     generate_unique_consumer_name,
 )
-from prefect.settings import (
-    PREFECT_EVENTS_RETENTION_PERIOD,
-    PREFECT_SERVER_SERVICES_EVENT_PERSISTER_BATCH_SIZE_DELETE,
-)
 from prefect.settings.context import get_current_settings
 from prefect.settings.models.server.services import ServerServicesEventPersisterSettings
 from prefect.types._datetime import now
@@ -166,6 +162,7 @@ async def create_handler(
     queue: asyncio.Queue[ReceivedEvent] = asyncio.Queue(maxsize=queue_max_size)
     flush_lock = asyncio.Lock()
     consecutive_failures = 0
+    settings = get_current_settings()
 
     async def flush() -> None:
         nonlocal consecutive_failures
@@ -183,7 +180,7 @@ async def create_handler(
                     queue_max_size,
                 )
 
-            logger.debug(f"Persisting {queue.qsize()} events...")
+            logger.debug("Persisting %d events...", queue.qsize())
 
             batch: List[ReceivedEvent] = []
 
@@ -217,10 +214,8 @@ async def create_handler(
                         queue.put_nowait(event)
 
     async def trim() -> None:
-        older_than = now("UTC") - PREFECT_EVENTS_RETENTION_PERIOD.value()
-        delete_batch_size = (
-            PREFECT_SERVER_SERVICES_EVENT_PERSISTER_BATCH_SIZE_DELETE.value()
-        )
+        older_than = now("UTC") - settings.server.events.retention_period
+        delete_batch_size = settings.server.services.event_persister.batch_size_delete
         try:
             async with db.session_context() as session:
                 resource_count = await batch_delete(

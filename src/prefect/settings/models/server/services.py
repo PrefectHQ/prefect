@@ -110,21 +110,13 @@ class ServerServicesEventPersisterSettings(ServicesBaseSetting):
     queue_max_size: int = Field(
         default=50_000,
         gt=0,
-        description="The maximum number of events that can be queued for persistence. When the queue is full, new events will be dropped.",
-        validation_alias=AliasChoices(
-            AliasPath("queue_max_size"),
-            "prefect_server_services_event_persister_queue_max_size",
-        ),
+        description="The maximum number of events that can be queued in memory for persistence. When the queue is full, new events will be dropped.",
     )
 
     max_flush_retries: int = Field(
         default=5,
         gt=0,
         description="The maximum number of consecutive flush failures before events are dropped instead of being re-queued.",
-        validation_alias=AliasChoices(
-            AliasPath("max_flush_retries"),
-            "prefect_server_services_event_persister_max_flush_retries",
-        ),
     )
 
 
