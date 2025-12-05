@@ -110,7 +110,29 @@ In this example, we set `push=False` to skip pushing the image to a registry. Th
 In the above example, we didn't specify a Dockerfile. By default, Prefect will generate a Dockerfile for us that copies the flow code into an image and installs
 any additional dependencies.
 
-If you want to write and use your own Dockerfile, you can do so by passing a `dockerfile` parameter to `flow.deploy`.
+If you want to write and use your own Dockerfile, you can do so by using `DockerImage`:
+
+```python
+from prefect import flow
+from prefect.docker import DockerImage
+
+
+@flow(log_prints=True)
+def my_flow(name: str = "world"):
+    print(f"Hello, {name}!")
+
+
+if __name__ == "__main__":
+    my_flow.deploy(
+        name="my-deployment",
+        work_pool_name="my-work-pool",
+        image=DockerImage(
+            name="my-registry.com/my-docker-image:my-tag",
+            dockerfile="Dockerfile",
+        ),
+        push=False,
+    )
+```
 </Note>
 
 ### Trigger a run
