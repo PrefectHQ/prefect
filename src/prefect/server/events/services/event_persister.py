@@ -28,13 +28,11 @@ from prefect.server.utilities.messaging._consumer_names import (
     generate_unique_consumer_name,
 )
 from prefect.settings import (
-    PREFECT_API_SERVICES_EVENT_PERSISTER_BATCH_SIZE,
-    PREFECT_API_SERVICES_EVENT_PERSISTER_FLUSH_INTERVAL,
     PREFECT_EVENTS_RETENTION_PERIOD,
     PREFECT_SERVER_SERVICES_EVENT_PERSISTER_BATCH_SIZE_DELETE,
 )
 from prefect.settings.context import get_current_settings
-from prefect.settings.models.server.services import ServicesBaseSetting
+from prefect.settings.models.server.services import ServerServicesEventPersisterSettings
 from prefect.types._datetime import now
 
 if TYPE_CHECKING:
@@ -86,7 +84,7 @@ class EventPersister(RunInEphemeralServers, Service):
     consumer_task: asyncio.Task[None] | None = None
 
     @classmethod
-    def service_settings(cls) -> ServicesBaseSetting:
+    def service_settings(cls) -> ServerServicesEventPersisterSettings:
         return get_current_settings().server.services.event_persister
 
     def __init__(self):
@@ -112,11 +110,12 @@ class EventPersister(RunInEphemeralServers, Service):
             read_batch_size=self.service_settings().read_batch_size,
         )
 
+        settings = self.service_settings()
         async with create_handler(
-            batch_size=PREFECT_API_SERVICES_EVENT_PERSISTER_BATCH_SIZE.value(),
-            flush_every=timedelta(
-                seconds=PREFECT_API_SERVICES_EVENT_PERSISTER_FLUSH_INTERVAL.value()
-            ),
+            batch_size=settings.batch_size,
+            flush_every=timedelta(seconds=settings.flush_interval),
+            queue_max_size=settings.queue_max_size,
+            max_flush_retries=settings.max_flush_retries,
         ) as handler:
             self.consumer_task = asyncio.create_task(self.consumer.run(handler))
             logger.debug("Event persister started")
@@ -147,33 +146,75 @@ async def create_handler(
     batch_size: int = 20,
     flush_every: timedelta = timedelta(seconds=5),
     trim_every: timedelta = timedelta(minutes=15),
+    queue_max_size: int = 50_000,
+    max_flush_retries: int = 5,
 ) -> AsyncGenerator[MessageHandler, None]:
     """
     Set up a message handler that will accumulate and send events to
     the database every `batch_size` messages, or every `flush_every` interval to flush
-    any remaining messages
+    any remaining messages.
+
+    Args:
+        batch_size: Number of events to accumulate before flushing
+        flush_every: Maximum time between flushes
+        trim_every: How often to trim old events
+        queue_max_size: Maximum events in queue before dropping new events
+        max_flush_retries: Consecutive flush failures before dropping events
     """
     db = provide_database_interface()
 
-    queue: asyncio.Queue[ReceivedEvent] = asyncio.Queue()
+    queue: asyncio.Queue[ReceivedEvent] = asyncio.Queue(maxsize=queue_max_size)
+    flush_lock = asyncio.Lock()
+    consecutive_failures = 0
 
     async def flush() -> None:
-        logger.debug(f"Persisting {queue.qsize()} events...")
+        nonlocal consecutive_failures
 
-        batch: List[ReceivedEvent] = []
+        async with flush_lock:
+            if queue.qsize() == 0:
+                return
 
-        while queue.qsize() > 0:
-            batch.append(await queue.get())
+            # Log warning when queue reaches 80% capacity
+            if queue_max_size > 0 and queue.qsize() > queue_max_size * 0.8:
+                logger.warning(
+                    "Event queue at %d%% capacity (%d/%d)",
+                    int(queue.qsize() / queue_max_size * 100),
+                    queue.qsize(),
+                    queue_max_size,
+                )
 
-        try:
-            async with db.session_context() as session:
-                await write_events(session=session, events=batch)
-                await session.commit()
-                logger.debug("Finished persisting events.")
-        except Exception:
-            logger.debug("Error flushing events, restoring to queue", exc_info=True)
-            for event in batch:
-                queue.put_nowait(event)
+            logger.debug(f"Persisting {queue.qsize()} events...")
+
+            batch: List[ReceivedEvent] = []
+
+            while queue.qsize() > 0:
+                batch.append(await queue.get())
+
+            try:
+                async with db.session_context() as session:
+                    await write_events(session=session, events=batch)
+                    await session.commit()
+                    logger.debug("Finished persisting events.")
+                    consecutive_failures = 0  # Reset on success
+            except Exception:
+                consecutive_failures += 1
+                if consecutive_failures >= max_flush_retries:
+                    logger.error(
+                        "Max flush retries (%d) reached, dropping %d events",
+                        max_flush_retries,
+                        len(batch),
+                        exc_info=True,
+                    )
+                    consecutive_failures = 0
+                else:
+                    logger.debug(
+                        "Error flushing events (attempt %d/%d), restoring to queue",
+                        consecutive_failures,
+                        max_flush_retries,
+                        exc_info=True,
+                    )
+                    for event in batch:
+                        queue.put_nowait(event)
 
     async def trim() -> None:
         older_than = now("UTC") - PREFECT_EVENTS_RETENTION_PERIOD.value()
@@ -236,7 +277,16 @@ async def create_handler(
             event.resource.get("prefect.resource.id"),
         )
 
-        await queue.put(event)
+        try:
+            queue.put_nowait(event)
+        except asyncio.QueueFull:
+            logger.warning(
+                "Event queue full (%d/%d), dropping event id=%s",
+                queue.qsize(),
+                queue_max_size,
+                event.id,
+            )
+            return
 
         if queue.qsize() >= batch_size:
             await flush()
