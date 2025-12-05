@@ -683,6 +683,7 @@ These are fields you can add to a deployment declaration's `concurrency_limit` s
 | ------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `limit`                                    | The maximum number of concurrent flow runs for the deployment.                                                                                                                                                 |
 | `collision_strategy`                       | Configure the behavior for runs once the concurrency limit is reached. Options are `ENQUEUE`, and `CANCEL_NEW`. Defaults to `ENQUEUE`.                                                                                 |
+| `grace_period_seconds`                     | The time in seconds to allow infrastructure to start before the concurrency slot is released. Must be between 60 and 86400 seconds. If not set, falls back to the server setting (default 300 seconds / 5 minutes). |
 
 
 ### Work pool fields

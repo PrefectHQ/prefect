@@ -334,3 +334,50 @@ class TestArtifacts:
         assert artifact.data == result
         assert artifact.type is None
         assert artifact.metadata_ is None
+
+
+class TestConcurrencyOptions:
+    def test_grace_period_seconds_below_minimum(self):
+        """Test that grace_period_seconds below 60 raises ValidationError."""
+        with pytest.raises(
+            ValidationError,
+            match="Input should be greater than or equal to 60",
+        ):
+            schemas.core.ConcurrencyOptions(
+                collision_strategy=schemas.core.ConcurrencyLimitStrategy.ENQUEUE,
+                grace_period_seconds=59,
+            )
+
+    def test_grace_period_seconds_above_maximum(self):
+        """Test that grace_period_seconds above 86400 raises ValidationError."""
+        with pytest.raises(
+            ValidationError,
+            match="Input should be less than or equal to 86400",
+        ):
+            schemas.core.ConcurrencyOptions(
+                collision_strategy=schemas.core.ConcurrencyLimitStrategy.ENQUEUE,
+                grace_period_seconds=86401,
+            )
+
+    def test_grace_period_seconds_at_minimum(self):
+        """Test that grace_period_seconds at minimum (60) is valid."""
+        options = schemas.core.ConcurrencyOptions(
+            collision_strategy=schemas.core.ConcurrencyLimitStrategy.ENQUEUE,
+            grace_period_seconds=60,
+        )
+        assert options.grace_period_seconds == 60
+
+    def test_grace_period_seconds_at_maximum(self):
+        """Test that grace_period_seconds at maximum (86400) is valid."""
+        options = schemas.core.ConcurrencyOptions(
+            collision_strategy=schemas.core.ConcurrencyLimitStrategy.ENQUEUE,
+            grace_period_seconds=86400,
+        )
+        assert options.grace_period_seconds == 86400
+
+    def test_grace_period_seconds_default(self):
+        """Test that grace_period_seconds defaults to None (fall back to server setting)."""
+        options = schemas.core.ConcurrencyOptions(
+            collision_strategy=schemas.core.ConcurrencyLimitStrategy.ENQUEUE
+        )
+        assert options.grace_period_seconds is None

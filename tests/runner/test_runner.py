@@ -2415,6 +2415,43 @@ class TestRunnerDeployment:
             == concurrency_limit_config.collision_strategy
         )
 
+    async def test_from_flow_accepts_concurrency_limit_config_with_grace_period(self):
+        """Test that grace_period_seconds is properly extracted from ConcurrencyLimitConfig."""
+        concurrency_limit_config = ConcurrencyLimitConfig(
+            limit=42, collision_strategy="CANCEL_NEW", grace_period_seconds=120
+        )
+        deployment = RunnerDeployment.from_flow(
+            dummy_flow_1,
+            __file__,
+            concurrency_limit=concurrency_limit_config,
+        )
+        assert deployment.concurrency_limit == concurrency_limit_config.limit
+        assert (
+            deployment.concurrency_options.collision_strategy
+            == concurrency_limit_config.collision_strategy
+        )
+        assert (
+            deployment.concurrency_options.grace_period_seconds
+            == concurrency_limit_config.grace_period_seconds
+        )
+
+    async def test_from_flow_concurrency_limit_config_without_grace_period(self):
+        """Test that grace_period_seconds defaults when not provided in ConcurrencyLimitConfig."""
+        concurrency_limit_config = ConcurrencyLimitConfig(
+            limit=42, collision_strategy="ENQUEUE"
+        )
+        deployment = RunnerDeployment.from_flow(
+            dummy_flow_1,
+            __file__,
+            concurrency_limit=concurrency_limit_config,
+        )
+        assert deployment.concurrency_limit == concurrency_limit_config.limit
+        assert deployment.concurrency_options is not None
+        # When grace_period_seconds is not set in ConcurrencyLimitConfig,
+        # it should not be included in the concurrency_options dict passed to deployment
+        # (the ConcurrencyOptions model defaults to None, server setting is used at runtime)
+        assert deployment.concurrency_options.grace_period_seconds is None
+
     @pytest.mark.parametrize(
         "kwargs",
         [

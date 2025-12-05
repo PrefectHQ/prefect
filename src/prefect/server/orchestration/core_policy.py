@@ -587,14 +587,27 @@ class SecureFlowConcurrencySlots(FlowRunOrchestrationRule):
         if acquired:
             lease_storage = get_concurrency_lease_storage()
             settings = get_current_settings()
+
+            concurrency_options = deployment.concurrency_options
+            grace_period = None
+            if concurrency_options is not None:
+                if isinstance(concurrency_options, dict):
+                    concurrency_options = core.ConcurrencyOptions.model_validate(
+                        concurrency_options
+                    )
+                grace_period = concurrency_options.grace_period_seconds
+            # Fall back to server setting if grace_period_seconds is not explicitly set
+            if grace_period is None:
+                grace_period = (
+                    settings.server.concurrency.initial_deployment_lease_duration
+                )
+
             lease = await lease_storage.create_lease(
                 resource_ids=[deployment.concurrency_limit_id],
                 metadata=ConcurrencyLimitLeaseMetadata(
                     slots=1,
                 ),
-                ttl=datetime.timedelta(
-                    seconds=settings.server.concurrency.initial_deployment_lease_duration
-                ),
+                ttl=datetime.timedelta(seconds=grace_period),
             )
             proposed_state.state_details.deployment_concurrency_lease_id = lease.id
 
