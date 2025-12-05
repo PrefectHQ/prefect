@@ -1,13 +1,16 @@
+import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { zodValidator } from "@tanstack/zod-adapter";
 import { useCallback, useEffect, useMemo } from "react";
 import { z } from "zod";
+import { buildCountFlowRunsQuery } from "@/api/flow-runs";
 import { buildListWorkPoolQueuesQuery } from "@/api/work-pool-queues";
 import {
 	buildFilterWorkPoolsQuery,
 	buildListWorkPoolWorkersQuery,
 } from "@/api/work-pools";
 import {
+	DashboardFlowRunsEmptyState,
 	DashboardWorkPoolsCard,
 	FlowRunsCard,
 	TaskRunsCard,
@@ -54,6 +57,16 @@ export const Route = createFileRoute("/dashboard")({
 	validateSearch: zodValidator(searchParams),
 	component: RouteComponent,
 	loader: async ({ context: { queryClient } }) => {
+		// Prefetch total flow runs count to determine if dashboard is empty
+		const totalFlowRuns = await queryClient.ensureQueryData(
+			buildCountFlowRunsQuery({}, 30_000),
+		);
+
+		// If there are no flow runs, skip prefetching other data
+		if (totalFlowRuns === 0) {
+			return;
+		}
+
 		// Prefetch work pools data for the dashboard
 		const workPools = await queryClient.ensureQueryData(
 			buildFilterWorkPoolsQuery({ offset: 0 }),
@@ -90,6 +103,12 @@ export function RouteComponent() {
 	type DashboardSearch = z.infer<typeof searchParams>;
 	const search = Route.useSearch();
 	const navigate = Route.useNavigate();
+
+	// Check if there are any flow runs at all (unfiltered count)
+	const { data: totalFlowRuns } = useSuspenseQuery(
+		buildCountFlowRunsQuery({}, 30_000),
+	);
+	const isEmpty = totalFlowRuns === 0;
 
 	// Derive UI states with sensible defaults
 	const hideSubflows = search.hideSubflows ?? false;
@@ -286,67 +305,73 @@ export function RouteComponent() {
 									</BreadcrumbList>
 								</Breadcrumb>
 							</div>
-							<div className="flex flex-col w-full max-w-full gap-2 md:w-auto md:inline-flex md:flex-row items-center">
-								{/* Filters */}
-								<div className="flex items-center gap-2 w-full md:w-auto">
-									<div className="pr-2 w-full md:w-auto flex items-center gap-2">
-										<Switch
-											id="hide-subflows"
-											checked={hideSubflows}
-											onCheckedChange={onToggleHideSubflows}
-										/>
-										<Label htmlFor="hide-subflows">Hide subflows</Label>
-									</div>
-									<div className="min-w-0 w-60">
-										<FlowRunTagsSelect
-											value={tags}
-											onChange={onTagsChange}
-											placeholder="All tags"
-										/>
-									</div>
-									<div className="min-w-0">
-										<RichDateRangeSelector
-											value={dateRangeValue}
-											onValueChange={onDateRangeChange}
-											placeholder="Select a time span"
-										/>
+							{!isEmpty && (
+								<div className="flex flex-col w-full max-w-full gap-2 md:w-auto md:inline-flex md:flex-row items-center">
+									{/* Filters */}
+									<div className="flex items-center gap-2 w-full md:w-auto">
+										<div className="pr-2 w-full md:w-auto flex items-center gap-2">
+											<Switch
+												id="hide-subflows"
+												checked={hideSubflows}
+												onCheckedChange={onToggleHideSubflows}
+											/>
+											<Label htmlFor="hide-subflows">Hide subflows</Label>
+										</div>
+										<div className="min-w-0 w-60">
+											<FlowRunTagsSelect
+												value={tags}
+												onChange={onTagsChange}
+												placeholder="All tags"
+											/>
+										</div>
+										<div className="min-w-0">
+											<RichDateRangeSelector
+												value={dateRangeValue}
+												onValueChange={onDateRangeChange}
+												placeholder="Select a time span"
+											/>
+										</div>
 									</div>
 								</div>
-							</div>
+							)}
 						</div>
 					</LayoutWellHeader>
 
-					<div className="grid grid-cols-1 gap-4 items-start xl:grid-cols-2">
-						{/* Main content - Flow Runs Card */}
-						<div className="space-y-4">
-							<FlowRunsCard
-								filter={{
-									startDate: search.from,
-									endDate: search.to,
-									tags: search.tags,
-									hideSubflows: search.hideSubflows,
-								}}
-							/>
-						</div>
+					{isEmpty ? (
+						<DashboardFlowRunsEmptyState />
+					) : (
+						<div className="grid grid-cols-1 gap-4 items-start xl:grid-cols-2">
+							{/* Main content - Flow Runs Card */}
+							<div className="space-y-4">
+								<FlowRunsCard
+									filter={{
+										startDate: search.from,
+										endDate: search.to,
+										tags: search.tags,
+										hideSubflows: search.hideSubflows,
+									}}
+								/>
+							</div>
 
-						{/* Sidebar - Task Runs and Work Pools Cards */}
-						<div className="grid grid-cols-1 gap-4">
-							<TaskRunsCard
-								filter={{
-									startDate: search.from,
-									endDate: search.to,
-									tags: search.tags,
-								}}
-							/>
+							{/* Sidebar - Task Runs and Work Pools Cards */}
+							<div className="grid grid-cols-1 gap-4">
+								<TaskRunsCard
+									filter={{
+										startDate: search.from,
+										endDate: search.to,
+										tags: search.tags,
+									}}
+								/>
 
-							<DashboardWorkPoolsCard
-								filter={{
-									startDate: search.from,
-									endDate: search.to,
-								}}
-							/>
+								<DashboardWorkPoolsCard
+									filter={{
+										startDate: search.from,
+										endDate: search.to,
+									}}
+								/>
+							</div>
 						</div>
-					</div>
+					)}
 				</LayoutWellContent>
 			</LayoutWell>
 		</FlowRunActivityBarGraphTooltipProvider>
