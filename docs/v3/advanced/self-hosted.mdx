@@ -99,6 +99,33 @@ export PREFECT_API_DATABASE_CONNECTION_URL="postgresql+asyncpg://user:password@h
 PostgreSQL version 14.9 or higher is required for multi-server deployments. SQLite does not support the features needed for state synchronization across multiple servers.
 </Warning>
 
+### AWS RDS IAM Authentication
+
+To use AWS IAM authentication for your PostgreSQL database (experimental):
+
+1. **Enable experimental plugins**:
+   ```bash
+   export PREFECT_EXPERIMENTS_PLUGINS_ENABLED=1
+   ```
+
+2. **Install the AWS integration**:
+   ```bash
+   pip install prefect-aws
+   ```
+
+3. **Configure IAM settings**:
+   ```bash
+   export PREFECT_SERVER_DATABASE_SQLALCHEMY_CONNECT_ARGS_IAM_ENABLED=1
+   # Optional: Specify region if different from environment default
+   # export PREFECT_SERVER_DATABASE_SQLALCHEMY_CONNECT_ARGS_IAM_REGION_NAME=us-east-1
+   ```
+
+4. **Ensure your connection URL uses the correct IAM-enabled username**:
+   ```bash
+   export PREFECT_API_DATABASE_CONNECTION_URL="postgresql+asyncpg://iam_user@host:5432/prefect"
+   ```
+   *Note: The password in the URL will be ignored and replaced by the generated IAM token.*
+
 ### Redis setup
 
 Configure Redis as your server's message broker, cache, and lease storage:

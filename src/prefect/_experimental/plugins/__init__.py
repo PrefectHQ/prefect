@@ -26,6 +26,7 @@ from prefect._experimental.plugins.spec import (
     HookContext,
     HookSpec,
     SetupResult,
+    hookimpl,
 )
 from prefect.settings import get_current_settings
 
@@ -37,6 +38,7 @@ __all__ = [
     "SetupSummary",
     "PREFECT_PLUGIN_API_VERSION",
     "register_hook",
+    "hookimpl",
 ]
 
 

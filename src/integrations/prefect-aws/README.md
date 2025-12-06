@@ -104,7 +104,32 @@ AwsSecret(
     aws_credentials=credentials,
 ).save("AWS-SECRET-BLOCK-NAME-PLACEHOLDER")
 
+
 ```
+
+## RDS IAM Authentication (Experimental)
+
+`prefect-aws` includes a plugin to automatically handle authentication for AWS RDS PostgreSQL databases using IAM tokens.
+
+To enable this feature:
+
+1. Enable the experimental plugin system:
+   ```bash
+   export PREFECT_EXPERIMENTS_PLUGINS_ENABLED=1
+   ```
+
+2. Enable the IAM auth hook:
+   ```bash
+   export PREFECT_SERVER_DATABASE_SQLALCHEMY_CONNECT_ARGS_IAM_ENABLED=1
+   ```
+
+3. Configure your database connection URL to use the IAM user:
+   ```bash
+   export PREFECT_API_DATABASE_CONNECTION_URL="postgresql+asyncpg://iam_user@host:5432/prefect"
+   ```
+
+The plugin will automatically generate and inject an IAM authentication token as the password when connecting to the database.
+
 
 
 ## Scale workflows with AWS infrastructure
