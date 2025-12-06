@@ -99,13 +99,8 @@ export function TaskRunsCard({ filter }: TaskRunsCardProps) {
 
 	return (
 		<Card>
-			<CardHeader>
+			<CardHeader className="flex flex-row items-center justify-between">
 				<CardTitle>Task Runs</CardTitle>
-				{taskRuns.length > 0 && (
-					<span className="text-sm text-muted-foreground">
-						{counts.total} total
-					</span>
-				)}
 			</CardHeader>
 			<CardContent>
 				{taskRuns.length === 0 ? (
@@ -114,37 +109,33 @@ export function TaskRunsCard({ filter }: TaskRunsCardProps) {
 					</div>
 				) : (
 					<div className="space-y-4">
-						<div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-							<div className="space-y-1">
-								<p className="text-sm font-medium text-muted-foreground">
-									Running
-								</p>
-								<p className="text-2xl font-bold">{counts.running}</p>
+						<div className="grid gap-1">
+							<div className="inline-flex items-end gap-1 text-base">
+								<span className="font-semibold">{counts.total}</span>
+								<span className="text-muted-foreground">Total</span>
 							</div>
-							<div className="space-y-1">
-								<p className="text-sm font-medium text-muted-foreground">
-									Completed
-								</p>
-								<p className="text-2xl font-bold">{counts.completed}</p>
-								<p className="text-xs text-muted-foreground">
+							{counts.running > 0 && (
+								<div className="inline-flex items-end gap-1 text-sm">
+									<span className="font-semibold">{counts.running}</span>
+									<span className="text-muted-foreground">Running</span>
+								</div>
+							)}
+							<div className="inline-flex items-end gap-1 text-sm">
+								<span className="font-semibold">{counts.completed}</span>
+								<span className="text-muted-foreground">Completed</span>
+								<span className="text-muted-foreground">
 									{counts.completionPercentage.toFixed(1)}%
-								</p>
+								</span>
 							</div>
-							<div className="space-y-1">
-								<p className="text-sm font-medium text-muted-foreground">
-									Failed
-								</p>
-								<p className="text-2xl font-bold">{counts.failed}</p>
-								<p className="text-xs text-muted-foreground">
-									{counts.failurePercentage.toFixed(1)}%
-								</p>
-							</div>
-							<div className="space-y-1">
-								<p className="text-sm font-medium text-muted-foreground">
-									Total
-								</p>
-								<p className="text-2xl font-bold">{counts.total}</p>
-							</div>
+							{counts.failed > 0 && (
+								<div className="inline-flex items-end gap-1 text-sm">
+									<span className="font-semibold">{counts.failed}</span>
+									<span className="text-muted-foreground">Failed</span>
+									<span className="text-muted-foreground">
+										{counts.failurePercentage.toFixed(1)}%
+									</span>
+								</div>
+							)}
 						</div>
 						<Suspense fallback={null}>
 							<TaskRunsTrends filter={filter} />
