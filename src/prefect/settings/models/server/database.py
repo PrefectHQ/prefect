@@ -66,6 +66,16 @@ class SQLAlchemyConnectArgsSettings(PrefectBaseSettings):
         description="Controls the application_name field for connections opened from the connection pool when using a PostgreSQL database with the Prefect backend.",
     )
 
+    search_path: Optional[str] = Field(
+        default=None,
+        description=(
+            "PostgreSQL schema name to set in search_path when using a PostgreSQL "
+            "database with the Prefect backend. Note: The public schema should be "
+            "included in the search path (e.g. 'myschema, public') to ensure that "
+            "pg_trgm and other extensions remain available."
+        ),
+    )
+
     statement_cache_size: Optional[int] = Field(
         default=None,
         description="Controls statement cache size for PostgreSQL connections. Setting this to 0 is required when using PgBouncer in transaction mode. Defaults to None.",
