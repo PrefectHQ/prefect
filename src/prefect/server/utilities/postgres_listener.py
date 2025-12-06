@@ -65,11 +65,17 @@ async def get_pg_notify_connection() -> Connection | None:
     if asyncpg_dsn.database:
         connect_args["database"] = asyncpg_dsn.database
 
-    # Include application_name if configured
+    # Include server_settings if configured
     settings = get_current_settings()
+    server_settings: dict[str, str] = {}
     app_name = settings.server.database.sqlalchemy.connect_args.application_name
     if app_name:
-        connect_args["server_settings"] = {"application_name": app_name}
+        server_settings["application_name"] = app_name
+    search_path = settings.server.database.sqlalchemy.connect_args.search_path
+    if search_path:
+        server_settings["search_path"] = search_path
+    if server_settings:
+        connect_args["server_settings"] = server_settings
 
     try:
         # Note: For production, connection parameters (timeouts, etc.) might need tuning.
