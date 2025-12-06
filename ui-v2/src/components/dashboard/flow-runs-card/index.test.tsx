@@ -67,13 +67,6 @@ describe("FlowRunsCard", () => {
 		const queryOptions = buildFilterFlowRunsQuery({
 			sort: "START_TIME_DESC",
 			offset: 0,
-			flow_runs: {
-				operator: "and_",
-				state: {
-					operator: "and_",
-					type: { any_: ["FAILED"] },
-				},
-			},
 		});
 		queryClient.setQueryData(queryOptions.queryKey, flowRuns);
 
@@ -89,13 +82,6 @@ describe("FlowRunsCard", () => {
 		const queryOptions = buildFilterFlowRunsQuery({
 			sort: "START_TIME_DESC",
 			offset: 0,
-			flow_runs: {
-				operator: "and_",
-				state: {
-					operator: "and_",
-					type: { any_: ["FAILED"] },
-				},
-			},
 		});
 		queryClient.setQueryData(queryOptions.queryKey, []);
 
@@ -112,13 +98,6 @@ describe("FlowRunsCard", () => {
 		const queryOptions = buildFilterFlowRunsQuery({
 			sort: "START_TIME_DESC",
 			offset: 0,
-			flow_runs: {
-				operator: "and_",
-				state: {
-					operator: "and_",
-					type: { any_: ["FAILED"] },
-				},
-			},
 		});
 		queryClient.setQueryData(queryOptions.queryKey, []);
 
@@ -136,13 +115,6 @@ describe("FlowRunsCard", () => {
 		const queryOptions = buildFilterFlowRunsQuery({
 			sort: "START_TIME_DESC",
 			offset: 0,
-			flow_runs: {
-				operator: "and_",
-				state: {
-					operator: "and_",
-					type: { any_: ["FAILED"] },
-				},
-			},
 		});
 		queryClient.setQueryData(queryOptions.queryKey, flowRuns);
 
@@ -176,10 +148,6 @@ describe("FlowRunsCard", () => {
 				start_time: {
 					after_: startDate,
 					before_: endDate,
-				},
-				state: {
-					operator: "and_",
-					type: { any_: ["FAILED"] },
 				},
 			},
 		});
@@ -218,10 +186,6 @@ describe("FlowRunsCard", () => {
 					operator: "and_",
 					all_: ["production", "critical"],
 				},
-				state: {
-					operator: "and_",
-					type: { any_: ["FAILED"] },
-				},
 			},
 		});
 		queryClient.setQueryData(queryOptions.queryKey, flowRuns);
@@ -257,10 +221,6 @@ describe("FlowRunsCard", () => {
 				parent_task_run_id: {
 					operator: "and_",
 					is_null_: true,
-				},
-				state: {
-					operator: "and_",
-					type: { any_: ["FAILED"] },
 				},
 			},
 		});
@@ -310,10 +270,6 @@ describe("FlowRunsCard", () => {
 					operator: "and_",
 					is_null_: true,
 				},
-				state: {
-					operator: "and_",
-					type: { any_: ["FAILED"] },
-				},
 			},
 		});
 		queryClient.setQueryData(queryOptions.queryKey, flowRuns);
@@ -342,13 +298,6 @@ describe("FlowRunsCard", () => {
 		const queryOptions = buildFilterFlowRunsQuery({
 			sort: "START_TIME_DESC",
 			offset: 0,
-			flow_runs: {
-				operator: "and_",
-				state: {
-					operator: "and_",
-					type: { any_: ["FAILED"] },
-				},
-			},
 		});
 		queryClient.setQueryData(queryOptions.queryKey, flowRuns);
 
@@ -379,13 +328,6 @@ describe("FlowRunsCard", () => {
 		const queryOptions = buildFilterFlowRunsQuery({
 			sort: "START_TIME_DESC",
 			offset: 0,
-			flow_runs: {
-				operator: "and_",
-				state: {
-					operator: "and_",
-					type: { any_: ["FAILED"] },
-				},
-			},
 		});
 		queryClient.setQueryData(queryOptions.queryKey, flowRuns);
 
@@ -410,13 +352,6 @@ describe("FlowRunsCard", () => {
 		const queryOptions = buildFilterFlowRunsQuery({
 			sort: "START_TIME_DESC",
 			offset: 0,
-			flow_runs: {
-				operator: "and_",
-				state: {
-					operator: "and_",
-					type: { any_: ["FAILED"] },
-				},
-			},
 		});
 		queryClient.setQueryData(queryOptions.queryKey, flowRuns);
 
