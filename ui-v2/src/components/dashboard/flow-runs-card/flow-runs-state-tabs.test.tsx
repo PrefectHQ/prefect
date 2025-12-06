@@ -12,37 +12,26 @@ describe("FlowRunStateTabs", () => {
 		render(
 			<FlowRunStateTabs
 				flowRuns={flowRuns}
-				selectedState="ALL"
+				selectedStates={["FAILED", "CRASHED"]}
 				onStateChange={onStateChange}
 			/>,
 		);
 
-		expect(screen.getByRole("tab", { name: /All/i })).toBeInTheDocument();
-		expect(screen.getByRole("tab", { name: /Failed/i })).toBeInTheDocument();
-		expect(screen.getByRole("tab", { name: /Running/i })).toBeInTheDocument();
-		expect(screen.getByRole("tab", { name: /Completed/i })).toBeInTheDocument();
-		expect(screen.getByRole("tab", { name: /Scheduled/i })).toBeInTheDocument();
-		expect(screen.getByRole("tab", { name: /Cancelled/i })).toBeInTheDocument();
-	});
-
-	it("displays correct count for ALL state", () => {
-		const flowRuns = [
-			createFakeFlowRun({ state_type: "COMPLETED" }),
-			createFakeFlowRun({ state_type: "FAILED" }),
-			createFakeFlowRun({ state_type: "RUNNING" }),
-		];
-		const onStateChange = vi.fn();
-
-		render(
-			<FlowRunStateTabs
-				flowRuns={flowRuns}
-				selectedState="ALL"
-				onStateChange={onStateChange}
-			/>,
-		);
-
-		const allTab = screen.getByRole("tab", { name: /All/i });
-		expect(allTab).toHaveTextContent("3");
+		expect(
+			screen.getByRole("tab", { name: /failed-crashed runs/i }),
+		).toBeInTheDocument();
+		expect(
+			screen.getByRole("tab", { name: /running-pending-cancelling runs/i }),
+		).toBeInTheDocument();
+		expect(
+			screen.getByRole("tab", { name: /completed runs/i }),
+		).toBeInTheDocument();
+		expect(
+			screen.getByRole("tab", { name: /scheduled-paused runs/i }),
+		).toBeInTheDocument();
+		expect(
+			screen.getByRole("tab", { name: /cancelled runs/i }),
+		).toBeInTheDocument();
 	});
 
 	it("displays correct counts for each state type", () => {
@@ -59,25 +48,26 @@ describe("FlowRunStateTabs", () => {
 		render(
 			<FlowRunStateTabs
 				flowRuns={flowRuns}
-				selectedState="ALL"
+				selectedStates={["FAILED", "CRASHED"]}
 				onStateChange={onStateChange}
 			/>,
 		);
 
-		expect(screen.getByRole("tab", { name: /All/i })).toHaveTextContent("6");
-		expect(screen.getByRole("tab", { name: /Completed/i })).toHaveTextContent(
-			"2",
-		);
-		expect(screen.getByRole("tab", { name: /Failed/i })).toHaveTextContent("1");
-		expect(screen.getByRole("tab", { name: /Running/i })).toHaveTextContent(
-			"1",
-		);
-		expect(screen.getByRole("tab", { name: /Scheduled/i })).toHaveTextContent(
-			"1",
-		);
-		expect(screen.getByRole("tab", { name: /Cancelled/i })).toHaveTextContent(
-			"1",
-		);
+		expect(
+			screen.getByRole("tab", { name: /completed runs/i }),
+		).toHaveTextContent("2");
+		expect(
+			screen.getByRole("tab", { name: /failed-crashed runs/i }),
+		).toHaveTextContent("1");
+		expect(
+			screen.getByRole("tab", { name: /running-pending-cancelling runs/i }),
+		).toHaveTextContent("1");
+		expect(
+			screen.getByRole("tab", { name: /scheduled-paused runs/i }),
+		).toHaveTextContent("1");
+		expect(
+			screen.getByRole("tab", { name: /cancelled runs/i }),
+		).toHaveTextContent("1");
 	});
 
 	it("displays 0 count for states with no flow runs", () => {
@@ -87,21 +77,23 @@ describe("FlowRunStateTabs", () => {
 		render(
 			<FlowRunStateTabs
 				flowRuns={flowRuns}
-				selectedState="ALL"
+				selectedStates={["FAILED", "CRASHED"]}
 				onStateChange={onStateChange}
 			/>,
 		);
 
-		expect(screen.getByRole("tab", { name: /Failed/i })).toHaveTextContent("0");
-		expect(screen.getByRole("tab", { name: /Running/i })).toHaveTextContent(
-			"0",
-		);
-		expect(screen.getByRole("tab", { name: /Scheduled/i })).toHaveTextContent(
-			"0",
-		);
-		expect(screen.getByRole("tab", { name: /Cancelled/i })).toHaveTextContent(
-			"0",
-		);
+		expect(
+			screen.getByRole("tab", { name: /failed-crashed runs/i }),
+		).toHaveTextContent("0");
+		expect(
+			screen.getByRole("tab", { name: /running-pending-cancelling runs/i }),
+		).toHaveTextContent("0");
+		expect(
+			screen.getByRole("tab", { name: /scheduled-paused runs/i }),
+		).toHaveTextContent("0");
+		expect(
+			screen.getByRole("tab", { name: /cancelled runs/i }),
+		).toHaveTextContent("0");
 	});
 
 	it("handles empty flowRuns array", () => {
@@ -110,25 +102,26 @@ describe("FlowRunStateTabs", () => {
 		render(
 			<FlowRunStateTabs
 				flowRuns={[]}
-				selectedState="ALL"
+				selectedStates={["FAILED", "CRASHED"]}
 				onStateChange={onStateChange}
 			/>,
 		);
 
-		expect(screen.getByRole("tab", { name: /All/i })).toHaveTextContent("0");
-		expect(screen.getByRole("tab", { name: /Failed/i })).toHaveTextContent("0");
-		expect(screen.getByRole("tab", { name: /Running/i })).toHaveTextContent(
-			"0",
-		);
-		expect(screen.getByRole("tab", { name: /Completed/i })).toHaveTextContent(
-			"0",
-		);
-		expect(screen.getByRole("tab", { name: /Scheduled/i })).toHaveTextContent(
-			"0",
-		);
-		expect(screen.getByRole("tab", { name: /Cancelled/i })).toHaveTextContent(
-			"0",
-		);
+		expect(
+			screen.getByRole("tab", { name: /failed-crashed runs/i }),
+		).toHaveTextContent("0");
+		expect(
+			screen.getByRole("tab", { name: /running-pending-cancelling runs/i }),
+		).toHaveTextContent("0");
+		expect(
+			screen.getByRole("tab", { name: /completed runs/i }),
+		).toHaveTextContent("0");
+		expect(
+			screen.getByRole("tab", { name: /scheduled-paused runs/i }),
+		).toHaveTextContent("0");
+		expect(
+			screen.getByRole("tab", { name: /cancelled runs/i }),
+		).toHaveTextContent("0");
 	});
 
 	it("calls onStateChange when clicking a tab", async () => {
@@ -139,18 +132,18 @@ describe("FlowRunStateTabs", () => {
 		render(
 			<FlowRunStateTabs
 				flowRuns={flowRuns}
-				selectedState="ALL"
+				selectedStates={["FAILED", "CRASHED"]}
 				onStateChange={onStateChange}
 			/>,
 		);
 
-		const failedTab = screen.getByRole("tab", { name: /Failed/i });
-		await user.click(failedTab);
+		const completedTab = screen.getByRole("tab", { name: /completed runs/i });
+		await user.click(completedTab);
 
-		expect(onStateChange).toHaveBeenCalledWith("FAILED");
+		expect(onStateChange).toHaveBeenCalledWith(["COMPLETED"]);
 	});
 
-	it("calls onStateChange with correct state type for each tab", async () => {
+	it("calls onStateChange with correct state types for each tab", async () => {
 		const user = userEvent.setup();
 		const flowRuns = [createFakeFlowRun()];
 		const onStateChange = vi.fn();
@@ -158,25 +151,30 @@ describe("FlowRunStateTabs", () => {
 		render(
 			<FlowRunStateTabs
 				flowRuns={flowRuns}
-				selectedState="FAILED"
+				selectedStates={["FAILED", "CRASHED"]}
 				onStateChange={onStateChange}
 			/>,
 		);
 
-		await user.click(screen.getByRole("tab", { name: /Running/i }));
-		expect(onStateChange).toHaveBeenLastCalledWith("RUNNING");
+		await user.click(
+			screen.getByRole("tab", { name: /running-pending-cancelling runs/i }),
+		);
+		expect(onStateChange).toHaveBeenLastCalledWith([
+			"RUNNING",
+			"PENDING",
+			"CANCELLING",
+		]);
 
-		await user.click(screen.getByRole("tab", { name: /Completed/i }));
-		expect(onStateChange).toHaveBeenLastCalledWith("COMPLETED");
+		await user.click(screen.getByRole("tab", { name: /completed runs/i }));
+		expect(onStateChange).toHaveBeenLastCalledWith(["COMPLETED"]);
 
-		await user.click(screen.getByRole("tab", { name: /Scheduled/i }));
-		expect(onStateChange).toHaveBeenLastCalledWith("SCHEDULED");
+		await user.click(
+			screen.getByRole("tab", { name: /scheduled-paused runs/i }),
+		);
+		expect(onStateChange).toHaveBeenLastCalledWith(["SCHEDULED", "PAUSED"]);
 
-		await user.click(screen.getByRole("tab", { name: /Cancelled/i }));
-		expect(onStateChange).toHaveBeenLastCalledWith("CANCELLED");
-
-		await user.click(screen.getByRole("tab", { name: /All/i }));
-		expect(onStateChange).toHaveBeenLastCalledWith("ALL");
+		await user.click(screen.getByRole("tab", { name: /cancelled runs/i }));
+		expect(onStateChange).toHaveBeenLastCalledWith(["CANCELLED"]);
 	});
 
 	it("marks the selected tab as active", () => {
@@ -186,29 +184,15 @@ describe("FlowRunStateTabs", () => {
 		render(
 			<FlowRunStateTabs
 				flowRuns={flowRuns}
-				selectedState="FAILED"
+				selectedStates={["FAILED", "CRASHED"]}
 				onStateChange={onStateChange}
 			/>,
 		);
 
-		const failedTab = screen.getByRole("tab", { name: /Failed/i });
+		const failedTab = screen.getByRole("tab", {
+			name: /failed-crashed runs/i,
+		});
 		expect(failedTab).toHaveAttribute("data-state", "active");
-	});
-
-	it("marks ALL tab as active when selectedState is ALL", () => {
-		const flowRuns = [createFakeFlowRun()];
-		const onStateChange = vi.fn();
-
-		render(
-			<FlowRunStateTabs
-				flowRuns={flowRuns}
-				selectedState="ALL"
-				onStateChange={onStateChange}
-			/>,
-		);
-
-		const allTab = screen.getByRole("tab", { name: /All/i });
-		expect(allTab).toHaveAttribute("data-state", "active");
 	});
 
 	it("updates counts when flowRuns prop changes", () => {
@@ -218,14 +202,14 @@ describe("FlowRunStateTabs", () => {
 		const { rerender } = render(
 			<FlowRunStateTabs
 				flowRuns={flowRuns}
-				selectedState="ALL"
+				selectedStates={["FAILED", "CRASHED"]}
 				onStateChange={onStateChange}
 			/>,
 		);
 
-		expect(screen.getByRole("tab", { name: /Completed/i })).toHaveTextContent(
-			"1",
-		);
+		expect(
+			screen.getByRole("tab", { name: /completed runs/i }),
+		).toHaveTextContent("1");
 
 		const newFlowRuns = [
 			createFakeFlowRun({ state_type: "COMPLETED" }),
@@ -236,16 +220,17 @@ describe("FlowRunStateTabs", () => {
 		rerender(
 			<FlowRunStateTabs
 				flowRuns={newFlowRuns}
-				selectedState="ALL"
+				selectedStates={["FAILED", "CRASHED"]}
 				onStateChange={onStateChange}
 			/>,
 		);
 
-		expect(screen.getByRole("tab", { name: /All/i })).toHaveTextContent("3");
-		expect(screen.getByRole("tab", { name: /Completed/i })).toHaveTextContent(
-			"2",
-		);
-		expect(screen.getByRole("tab", { name: /Failed/i })).toHaveTextContent("1");
+		expect(
+			screen.getByRole("tab", { name: /completed runs/i }),
+		).toHaveTextContent("2");
+		expect(
+			screen.getByRole("tab", { name: /failed-crashed runs/i }),
+		).toHaveTextContent("1");
 	});
 
 	it("handles flow runs with null state_type", () => {
@@ -258,15 +243,14 @@ describe("FlowRunStateTabs", () => {
 		render(
 			<FlowRunStateTabs
 				flowRuns={flowRuns}
-				selectedState="ALL"
+				selectedStates={["FAILED", "CRASHED"]}
 				onStateChange={onStateChange}
 			/>,
 		);
 
-		expect(screen.getByRole("tab", { name: /All/i })).toHaveTextContent("2");
-		expect(screen.getByRole("tab", { name: /Completed/i })).toHaveTextContent(
-			"1",
-		);
+		expect(
+			screen.getByRole("tab", { name: /completed runs/i }),
+		).toHaveTextContent("1");
 	});
 
 	it("renders pill indicators for each state tab", () => {
@@ -276,24 +260,22 @@ describe("FlowRunStateTabs", () => {
 		render(
 			<FlowRunStateTabs
 				flowRuns={flowRuns}
-				selectedState="ALL"
+				selectedStates={["FAILED", "CRASHED"]}
 				onStateChange={onStateChange}
 			/>,
 		);
 
-		// Each state tab should be accessible with aria-label
-		expect(screen.getByRole("tab", { name: /all runs/i })).toBeInTheDocument();
 		expect(
-			screen.getByRole("tab", { name: /failed runs/i }),
+			screen.getByRole("tab", { name: /failed-crashed runs/i }),
 		).toBeInTheDocument();
 		expect(
-			screen.getByRole("tab", { name: /running runs/i }),
+			screen.getByRole("tab", { name: /running-pending-cancelling runs/i }),
 		).toBeInTheDocument();
 		expect(
 			screen.getByRole("tab", { name: /completed runs/i }),
 		).toBeInTheDocument();
 		expect(
-			screen.getByRole("tab", { name: /scheduled runs/i }),
+			screen.getByRole("tab", { name: /scheduled-paused runs/i }),
 		).toBeInTheDocument();
 		expect(
 			screen.getByRole("tab", { name: /cancelled runs/i }),
@@ -313,16 +295,17 @@ describe("FlowRunStateTabs", () => {
 		render(
 			<FlowRunStateTabs
 				flowRuns={flowRuns}
-				selectedState="ALL"
+				selectedStates={["FAILED", "CRASHED"]}
 				onStateChange={onStateChange}
 			/>,
 		);
 
-		expect(screen.getByRole("tab", { name: /All/i })).toHaveTextContent("5");
-		expect(screen.getByRole("tab", { name: /Failed/i })).toHaveTextContent("5");
-		expect(screen.getByRole("tab", { name: /Running/i })).toHaveTextContent(
-			"0",
-		);
+		expect(
+			screen.getByRole("tab", { name: /failed-crashed runs/i }),
+		).toHaveTextContent("5");
+		expect(
+			screen.getByRole("tab", { name: /running-pending-cancelling runs/i }),
+		).toHaveTextContent("0");
 	});
 
 	it("handles all possible state types", () => {
@@ -342,26 +325,25 @@ describe("FlowRunStateTabs", () => {
 		render(
 			<FlowRunStateTabs
 				flowRuns={flowRuns}
-				selectedState="ALL"
+				selectedStates={["FAILED", "CRASHED"]}
 				onStateChange={onStateChange}
 			/>,
 		);
 
-		// Should show all 9 flow runs in the ALL tab
-		expect(screen.getByRole("tab", { name: /All/i })).toHaveTextContent("9");
-		// The 5 visible tabs should show their respective counts
-		expect(screen.getByRole("tab", { name: /Completed/i })).toHaveTextContent(
-			"1",
-		);
-		expect(screen.getByRole("tab", { name: /Failed/i })).toHaveTextContent("1");
-		expect(screen.getByRole("tab", { name: /Running/i })).toHaveTextContent(
-			"1",
-		);
-		expect(screen.getByRole("tab", { name: /Scheduled/i })).toHaveTextContent(
-			"1",
-		);
-		expect(screen.getByRole("tab", { name: /Cancelled/i })).toHaveTextContent(
-			"1",
-		);
+		expect(
+			screen.getByRole("tab", { name: /completed runs/i }),
+		).toHaveTextContent("1");
+		expect(
+			screen.getByRole("tab", { name: /failed-crashed runs/i }),
+		).toHaveTextContent("2");
+		expect(
+			screen.getByRole("tab", { name: /running-pending-cancelling runs/i }),
+		).toHaveTextContent("3");
+		expect(
+			screen.getByRole("tab", { name: /scheduled-paused runs/i }),
+		).toHaveTextContent("2");
+		expect(
+			screen.getByRole("tab", { name: /cancelled runs/i }),
+		).toHaveTextContent("1");
 	});
 });

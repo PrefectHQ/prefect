@@ -11,9 +11,10 @@ export const story: StoryObj = { name: "FlowRunStateTabs" };
 export default {
 	title: "Dashboard/FlowRunStateTabs",
 	component: function FlowRunStateTabsStories() {
-		const [selectedState, setSelectedState] = useState<StateType | "ALL">(
-			"ALL",
-		);
+		const [selectedStates, setSelectedStates] = useState<StateType[]>([
+			"FAILED",
+			"CRASHED",
+		]);
 
 		// Create sample flow runs with different states
 		const flowRuns = [
@@ -30,11 +31,14 @@ export default {
 			createFakeFlowRun({ state_type: "CANCELLED" }),
 		];
 
-		// Filter flow runs based on selected state
-		const filteredFlowRuns =
-			selectedState === "ALL"
-				? flowRuns
-				: flowRuns.filter((run) => run.state_type === selectedState);
+		// Filter flow runs based on selected states
+		const filteredFlowRuns = flowRuns.filter((run) =>
+			selectedStates.includes(run.state_type as StateType),
+		);
+
+		const handleStateChange = (states: StateType[]) => {
+			setSelectedStates(states);
+		};
 
 		return (
 			<div className="flex flex-col gap-6 p-6">
@@ -50,8 +54,8 @@ export default {
 
 				<FlowRunStateTabs
 					flowRuns={flowRuns}
-					selectedState={selectedState}
-					onStateChange={setSelectedState}
+					selectedStates={selectedStates}
+					onStateChange={handleStateChange}
 				/>
 
 				<div className="border rounded-lg p-4">
@@ -59,7 +63,7 @@ export default {
 						Filtered Flow Runs ({filteredFlowRuns.length})
 					</h3>
 					<div className="text-xs text-muted-foreground">
-						Selected state: <strong>{selectedState}</strong>
+						Selected states: <strong>{selectedStates.join(", ")}</strong>
 					</div>
 					<div className="mt-4 space-y-2">
 						{filteredFlowRuns.map((run) => (
