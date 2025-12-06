@@ -2,16 +2,15 @@ import { useMemo } from "react";
 import type { FlowRun } from "@/api/flow-runs";
 import type { components } from "@/api/prefect";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { cn } from "@/utils";
 
 type StateType = components["schemas"]["StateType"];
 
-const STATE_TYPES: readonly StateType[] = [
-	"FAILED",
-	"RUNNING",
-	"COMPLETED",
-	"SCHEDULED",
-	"CANCELLED",
+const STATE_TYPES: readonly StateType[][] = [
+	["FAILED", "CRASHED"],
+	["RUNNING", "PENDING", "CANCELLING"],
+	["COMPLETED"],
+	["SCHEDULED", "PAUSED"],
+	["CANCELLED"],
 ] as const;
 
 const STATE_PILL_COLORS: Record<StateType, string> = {
@@ -29,41 +28,33 @@ const STATE_PILL_COLORS: Record<StateType, string> = {
 type FlowRunStateCountPillProps = {
 	states: readonly StateType[];
 	count: number;
-	active: boolean;
 };
 
 const FlowRunStateCountPill = ({
 	states,
 	count,
-	active,
 }: FlowRunStateCountPillProps) => (
-	<div className="flex flex-col items-center gap-1">
+	<>
 		<span className="h-1 w-4 rounded-full grid auto-cols-fr grid-flow-col overflow-hidden">
 			{states.map((state) => (
 				<span key={state} className={STATE_PILL_COLORS[state]} />
 			))}
 		</span>
-		<span
-			className={cn(
-				"text-lg font-bold",
-				active ? "text-foreground" : "text-muted-foreground",
-			)}
-		>
-			{count}
-		</span>
-	</div>
+
+		{count}
+	</>
 );
 
 type FlowRunStateTabsProps = {
 	flowRuns: FlowRun[];
-	selectedState: StateType;
-	onStateChange: (state: StateType) => void;
+	selectedStates: StateType[];
+	onStateChange: (states: StateType[]) => void;
 	failedOrCrashedCount?: number;
 };
 
 export const FlowRunStateTabs = ({
 	flowRuns,
-	selectedState,
+	selectedStates,
 	onStateChange,
 	failedOrCrashedCount,
 }: FlowRunStateTabsProps) => {
@@ -91,14 +82,12 @@ export const FlowRunStateTabs = ({
 	}, [flowRuns]);
 
 	const handleValueChange = (value: string) => {
-		if (STATE_TYPES.includes(value as StateType)) {
-			onStateChange(value as StateType);
-		}
+		onStateChange(value.split("-").map((state) => state as StateType));
 	};
 
 	// Generate state-aware summary message
 	const getSummaryMessage = (): string | null => {
-		if (selectedState === "FAILED" && failedOrCrashedCount === 0) {
+		if (selectedStates.includes("FAILED") && failedOrCrashedCount === 0) {
 			return "You currently have 0 failed or crashed runs.";
 		}
 		return null;
@@ -108,18 +97,18 @@ export const FlowRunStateTabs = ({
 
 	return (
 		<div className="space-y-2">
-			<Tabs value={selectedState} onValueChange={handleValueChange}>
+			<Tabs value={selectedStates.join("-")} onValueChange={handleValueChange}>
 				<TabsList className="flex justify-between w-full">
 					{STATE_TYPES.map((stateType) => (
 						<TabsTrigger
-							key={stateType}
-							value={stateType}
-							aria-label={`${stateType.toLowerCase()} runs`}
+							key={stateType.join("-")}
+							value={stateType.join("-")}
+							aria-label={`${stateType.join("-").toLowerCase()} runs`}
+							className="flex flex-col items-center gap-1"
 						>
 							<FlowRunStateCountPill
-								states={[stateType]}
-								count={counts[stateType]}
-								active={selectedState === stateType}
+								states={stateType}
+								count={stateType.reduce((acc, state) => acc + counts[state], 0)}
 							/>
 						</TabsTrigger>
 					))}

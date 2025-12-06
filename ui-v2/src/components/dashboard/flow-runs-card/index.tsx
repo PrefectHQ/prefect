@@ -27,7 +27,10 @@ const BAR_GAP = 4;
 export function FlowRunsCard({ filter }: FlowRunsCardProps) {
 	const [numberOfBars, setNumberOfBars] = useState<number>(0);
 	const debouncedNumberOfBars = useDebounce(numberOfBars, 150);
-	const [selectedState, setSelectedState] = useState<StateType>("FAILED");
+	const [selectedStates, setSelectedStates] = useState<StateType[]>([
+		"FAILED",
+		"CRASHED",
+	]);
 
 	const chartRef = useCallback((node: HTMLDivElement | null) => {
 		if (!node) return;
@@ -85,10 +88,12 @@ export function FlowRunsCard({ filter }: FlowRunsCardProps) {
 		buildFilterFlowRunsQuery(flowRunsFilter, 30000),
 	);
 
-	// Filter flow runs by selected state for display
+	// Filter flow runs by selected states for display
 	const flowRuns = useMemo(() => {
-		return allFlowRuns.filter((run) => run.state_type === selectedState);
-	}, [allFlowRuns, selectedState]);
+		return allFlowRuns.filter((run) =>
+			selectedStates.includes(run.state_type as StateType),
+		);
+	}, [allFlowRuns, selectedStates]);
 
 	// Extract unique flow and deployment IDs from flow runs
 	const { flowIds, deploymentIds } = useMemo(() => {
@@ -207,8 +212,8 @@ export function FlowRunsCard({ filter }: FlowRunsCardProps) {
 						</div>
 						<FlowRunStateTabs
 							flowRuns={allFlowRuns}
-							selectedState={selectedState}
-							onStateChange={setSelectedState}
+							selectedStates={selectedStates}
+							onStateChange={setSelectedStates}
 							failedOrCrashedCount={failedOrCrashedCount}
 						/>
 					</>
