@@ -449,12 +449,16 @@ class Consumer(_Consumer):
             await handler(redis_stream_message)
             if self.automatically_acknowledge:
                 await redis_stream_message.acknowledge()
+            # Clean up retry tracking on success to prevent memory leak
+            self._retry_counts.pop(msg_id_str, None)
         except StopConsumer as e:
             if not e.ack:
                 await self._on_message_failure(redis_stream_message, msg_id_str)
             else:
                 if self.automatically_acknowledge:
                     await redis_stream_message.acknowledge()
+                # Clean up retry tracking on success to prevent memory leak
+                self._retry_counts.pop(msg_id_str, None)
             raise
         except Exception:
             await self._on_message_failure(redis_stream_message, msg_id_str)
@@ -470,6 +474,8 @@ class Consumer(_Consumer):
             await self._send_to_dlq(msg, current_count)
             # Acknowledge so it's no longer pending
             await msg.acknowledge()
+            # Clean up retry tracking to prevent memory leak
+            self._retry_counts.pop(msg_id_str, None)
         else:
             # Leave it pending. xautoclaim will re-claim it next time.
             pass
