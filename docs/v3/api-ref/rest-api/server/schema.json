@@ -12932,10 +12932,10 @@
                         "title": "History End",
                         "description": "The history's end time."
                     },
-                    "history_interval": {
+                    "history_interval_seconds": {
                         "type": "number",
                         "format": "time-delta",
-                        "title": "History Interval",
+                        "title": "History Interval Seconds",
                         "description": "The size of each history interval, in seconds. Must be at least 1 second."
                     },
                     "flows": {
@@ -13003,7 +13003,7 @@
                 "required": [
                     "history_start",
                     "history_end",
-                    "history_interval"
+                    "history_interval_seconds"
                 ],
                 "title": "Body_flow_run_history_flow_runs_history_post"
             },
@@ -14451,10 +14451,10 @@
                         "title": "History End",
                         "description": "The history's end time."
                     },
-                    "history_interval": {
+                    "history_interval_seconds": {
                         "type": "number",
                         "format": "time-delta",
-                        "title": "History Interval",
+                        "title": "History Interval Seconds",
                         "description": "The size of each history interval, in seconds. Must be at least 1 second."
                     },
                     "flows": {
@@ -14474,7 +14474,7 @@
                 "required": [
                     "history_start",
                     "history_end",
-                    "history_interval"
+                    "history_interval_seconds"
                 ],
                 "title": "Body_task_run_history_task_runs_history_post"
             },

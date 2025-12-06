@@ -51,14 +51,14 @@ Count task runs.
 ### `task_run_history` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/task_runs.py#L134" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-task_run_history(history_start: DateTime = Body(..., description="The history's start time."), history_end: DateTime = Body(..., description="The history's end time."), history_interval: float = Body(..., description='The size of each history interval, in seconds. Must be at least 1 second.', json_schema_extra={'format': 'time-delta'}, alias='history_interval_seconds'), flows: schemas.filters.FlowFilter = None, flow_runs: schemas.filters.FlowRunFilter = None, task_runs: schemas.filters.TaskRunFilter = None, deployments: schemas.filters.DeploymentFilter = None, db: PrefectDBInterface = Depends(provide_database_interface)) -> List[schemas.responses.HistoryResponse]
+task_run_history(history_start: DateTime = Body(..., description="The history's start time."), history_end: DateTime = Body(..., description="The history's end time."), history_interval_seconds: float = Body(..., description='The size of each history interval, in seconds. Must be at least 1 second.', json_schema_extra={'format': 'time-delta'}), flows: schemas.filters.FlowFilter = None, flow_runs: schemas.filters.FlowRunFilter = None, task_runs: schemas.filters.TaskRunFilter = None, deployments: schemas.filters.DeploymentFilter = None, db: PrefectDBInterface = Depends(provide_database_interface)) -> List[schemas.responses.HistoryResponse]
 ```
 
 
 Query for task run history data across a given range and interval.
 
 
-### `read_task_run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/task_runs.py#L180" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `read_task_run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/task_runs.py#L178" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_task_run(task_run_id: UUID = Path(..., description='The task run id', alias='id'), db: PrefectDBInterface = Depends(provide_database_interface)) -> schemas.core.TaskRun
@@ -68,7 +68,7 @@ read_task_run(task_run_id: UUID = Path(..., description='The task run id', alias
 Get a task run by id.
 
 
-### `read_task_runs` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/task_runs.py#L197" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `read_task_runs` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/task_runs.py#L195" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_task_runs(sort: schemas.sorting.TaskRunSort = Body(schemas.sorting.TaskRunSort.ID_DESC), limit: int = dependencies.LimitBody(), offset: int = Body(0, ge=0), flows: Optional[schemas.filters.FlowFilter] = None, flow_runs: Optional[schemas.filters.FlowRunFilter] = None, task_runs: Optional[schemas.filters.TaskRunFilter] = None, deployments: Optional[schemas.filters.DeploymentFilter] = None, db: PrefectDBInterface = Depends(provide_database_interface)) -> List[schemas.core.TaskRun]
@@ -78,7 +78,7 @@ read_task_runs(sort: schemas.sorting.TaskRunSort = Body(schemas.sorting.TaskRunS
 Query for task runs.
 
 
-### `paginate_task_runs` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/task_runs.py#L224" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `paginate_task_runs` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/task_runs.py#L222" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 paginate_task_runs(sort: schemas.sorting.TaskRunSort = Body(schemas.sorting.TaskRunSort.ID_DESC), limit: int = dependencies.LimitBody(), page: int = Body(1, ge=1), flows: Optional[schemas.filters.FlowFilter] = None, flow_runs: Optional[schemas.filters.FlowRunFilter] = None, task_runs: Optional[schemas.filters.TaskRunFilter] = None, deployments: Optional[schemas.filters.DeploymentFilter] = None, db: PrefectDBInterface = Depends(provide_database_interface)) -> TaskRunPaginationResponse
@@ -88,7 +88,7 @@ paginate_task_runs(sort: schemas.sorting.TaskRunSort = Body(schemas.sorting.Task
 Pagination query for task runs.
 
 
-### `delete_task_run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/task_runs.py#L271" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `delete_task_run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/task_runs.py#L269" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 delete_task_run(docket: dependencies.Docket, task_run_id: UUID = Path(..., description='The task run id', alias='id'), db: PrefectDBInterface = Depends(provide_database_interface)) -> None
@@ -98,13 +98,13 @@ delete_task_run(docket: dependencies.Docket, task_run_id: UUID = Path(..., descr
 Delete a task run by id.
 
 
-### `delete_task_run_logs` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/task_runs.py#L288" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `delete_task_run_logs` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/task_runs.py#L286" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 delete_task_run_logs() -> None
 ```
 
-### `set_task_run_state` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/task_runs.py#L304" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `set_task_run_state` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/task_runs.py#L302" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 set_task_run_state(task_run_id: UUID = Path(..., description='The task run id', alias='id'), state: schemas.actions.StateCreate = Body(..., description='The intended state.'), force: bool = Body(False, description='If false, orchestration rules will be applied that may alter or prevent the state transition. If True, orchestration rules are not applied.'), db: PrefectDBInterface = Depends(provide_database_interface), response: Response = None, task_policy: TaskRunOrchestrationPolicy = Depends(orchestration_dependencies.provide_task_policy), orchestration_parameters: Dict[str, Any] = Depends(orchestration_dependencies.provide_task_orchestration_parameters)) -> OrchestrationResult
@@ -114,7 +114,7 @@ set_task_run_state(task_run_id: UUID = Path(..., description='The task run id', 
 Set a task run state, invoking any orchestration rules.
 
 
-### `scheduled_task_subscription` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/task_runs.py#L352" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `scheduled_task_subscription` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/task_runs.py#L350" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 scheduled_task_subscription(websocket: WebSocket) -> None
