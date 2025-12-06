@@ -29,7 +29,9 @@ class EventsPipeline:
         """Process a single event message"""
 
         # TODO: Investigate if we want to include triggers/actions etc.
-        async with task_run_recorder.consumer() as handler:
+        async with task_run_recorder.consumer(
+            write_batch_size=1, flush_every=1
+        ) as handler:
             await handler(message)
 
         async with event_persister.create_handler(batch_size=1) as handler:
