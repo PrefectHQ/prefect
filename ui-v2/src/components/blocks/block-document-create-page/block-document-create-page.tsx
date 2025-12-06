@@ -31,11 +31,11 @@ type BlockDocumentCreatePageProps = {
 };
 
 // Letters, numbers, and dashes only
-const BLOCK_NAME_REGEX = /^[a-zA-Z0-9-]+$/;
+const BLOCK_NAME_REGEX = /^[a-z0-9-_]+$/;
 
 const BlockNameFormSchema = z.object({
 	blockName: z.string().regex(BLOCK_NAME_REGEX, {
-		message: "Name must only contain lowercase letters, numbers, and dashes",
+		message: "Name must only contain lowercase letters, numbers, dashes, and underscores",
 	}),
 });
 
