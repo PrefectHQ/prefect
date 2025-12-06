@@ -11,7 +11,6 @@ import useDebounce from "@/hooks/use-debounce";
 import { FlowRunStateTabs } from "./flow-runs-state-tabs";
 
 type StateType = components["schemas"]["StateType"];
-type TabState = StateType | "ALL";
 
 type FlowRunsCardProps = {
 	filter?: {
@@ -28,7 +27,10 @@ const BAR_GAP = 4;
 export function FlowRunsCard({ filter }: FlowRunsCardProps) {
 	const [numberOfBars, setNumberOfBars] = useState<number>(0);
 	const debouncedNumberOfBars = useDebounce(numberOfBars, 150);
-	const [selectedState, setSelectedState] = useState<TabState>("ALL");
+	const [selectedStates, setSelectedStates] = useState<StateType[]>([
+		"FAILED",
+		"CRASHED",
+	]);
 
 	const chartRef = useCallback((node: HTMLDivElement | null) => {
 		if (!node) return;
@@ -75,30 +77,23 @@ export function FlowRunsCard({ filter }: FlowRunsCardProps) {
 			};
 		}
 
-		// Add state type filtering
-		if (selectedState !== "ALL") {
-			flowRunsFilterObj.state = {
-				operator: "and_" as const,
-				type: { any_: [selectedState] },
-			};
-		}
-
 		if (Object.keys(flowRunsFilterObj).length > 1) {
 			baseFilter.flow_runs = flowRunsFilterObj;
 		}
 
 		return baseFilter;
-	}, [
-		filter?.startDate,
-		filter?.endDate,
-		filter?.tags,
-		filter?.hideSubflows,
-		selectedState,
-	]);
+	}, [filter?.startDate, filter?.endDate, filter?.tags, filter?.hideSubflows]);
 
-	const { data: flowRuns } = useSuspenseQuery(
+	const { data: allFlowRuns } = useSuspenseQuery(
 		buildFilterFlowRunsQuery(flowRunsFilter, 30000),
 	);
+
+	// Filter flow runs by selected states for display
+	const flowRuns = useMemo(() => {
+		return allFlowRuns.filter((run) =>
+			selectedStates.includes(run.state_type as StateType),
+		);
+	}, [allFlowRuns, selectedStates]);
 
 	// Extract unique flow and deployment IDs from flow runs
 	const { flowIds, deploymentIds } = useMemo(() => {
@@ -179,23 +174,23 @@ export function FlowRunsCard({ filter }: FlowRunsCardProps) {
 
 	// Count failed or crashed runs for the message display
 	const failedOrCrashedCount = useMemo(() => {
-		return flowRuns.filter(
+		return allFlowRuns.filter(
 			(run) => run.state_type === "FAILED" || run.state_type === "CRASHED",
 		).length;
-	}, [flowRuns]);
+	}, [allFlowRuns]);
 
 	return (
 		<Card>
 			<CardHeader className="flex flex-row items-center justify-between">
 				<CardTitle>Flow Runs</CardTitle>
-				{flowRuns.length > 0 && (
+				{allFlowRuns.length > 0 && (
 					<span className="text-sm text-muted-foreground">
-						{flowRuns.length} total
+						{allFlowRuns.length} total
 					</span>
 				)}
 			</CardHeader>
 			<CardContent className="space-y-2">
-				{flowRuns.length === 0 ? (
+				{allFlowRuns.length === 0 ? (
 					<div className="my-8 text-center text-sm text-muted-foreground">
 						<p>No flow runs found</p>
 					</div>
@@ -216,9 +211,9 @@ export function FlowRunsCard({ filter }: FlowRunsCardProps) {
 							/>
 						</div>
 						<FlowRunStateTabs
-							flowRuns={enrichedFlowRuns}
-							selectedState={selectedState}
-							onStateChange={setSelectedState}
+							flowRuns={allFlowRuns}
+							selectedStates={selectedStates}
+							onStateChange={setSelectedStates}
 							failedOrCrashedCount={failedOrCrashedCount}
 						/>
 					</>
