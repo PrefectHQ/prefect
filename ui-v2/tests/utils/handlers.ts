@@ -139,6 +139,10 @@ const taskRunHandlers = [
 		return HttpResponse.json([]);
 	}),
 
+	http.post(buildApiUrl("/task_runs/history"), () => {
+		return HttpResponse.json([]);
+	}),
+
 	http.delete(buildApiUrl("/task_runs/:id"), () => {
 		return HttpResponse.json({ status: 204 });
 	}),
