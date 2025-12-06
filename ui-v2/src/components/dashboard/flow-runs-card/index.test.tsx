@@ -58,15 +58,22 @@ describe("FlowRunsCard", () => {
 
 	it("displays total count when flow runs exist", async () => {
 		const flowRuns = [
-			createFakeFlowRun({ name: "Flow Run 1" }),
-			createFakeFlowRun({ name: "Flow Run 2" }),
-			createFakeFlowRun({ name: "Flow Run 3" }),
+			createFakeFlowRun({ name: "Flow Run 1", state_type: "FAILED" }),
+			createFakeFlowRun({ name: "Flow Run 2", state_type: "FAILED" }),
+			createFakeFlowRun({ name: "Flow Run 3", state_type: "FAILED" }),
 		];
 
 		const queryClient = new QueryClient();
 		const queryOptions = buildFilterFlowRunsQuery({
 			sort: "START_TIME_DESC",
 			offset: 0,
+			flow_runs: {
+				operator: "and_",
+				state: {
+					operator: "and_",
+					type: { any_: ["FAILED"] },
+				},
+			},
 		});
 		queryClient.setQueryData(queryOptions.queryKey, flowRuns);
 
@@ -82,6 +89,13 @@ describe("FlowRunsCard", () => {
 		const queryOptions = buildFilterFlowRunsQuery({
 			sort: "START_TIME_DESC",
 			offset: 0,
+			flow_runs: {
+				operator: "and_",
+				state: {
+					operator: "and_",
+					type: { any_: ["FAILED"] },
+				},
+			},
 		});
 		queryClient.setQueryData(queryOptions.queryKey, []);
 
@@ -98,6 +112,13 @@ describe("FlowRunsCard", () => {
 		const queryOptions = buildFilterFlowRunsQuery({
 			sort: "START_TIME_DESC",
 			offset: 0,
+			flow_runs: {
+				operator: "and_",
+				state: {
+					operator: "and_",
+					type: { any_: ["FAILED"] },
+				},
+			},
 		});
 		queryClient.setQueryData(queryOptions.queryKey, []);
 
@@ -109,12 +130,19 @@ describe("FlowRunsCard", () => {
 	});
 
 	it("shows loading skeleton when flow runs exist but chart is loading", async () => {
-		const flowRuns = [createFakeFlowRun()];
+		const flowRuns = [createFakeFlowRun({ state_type: "FAILED" })];
 
 		const queryClient = new QueryClient();
 		const queryOptions = buildFilterFlowRunsQuery({
 			sort: "START_TIME_DESC",
 			offset: 0,
+			flow_runs: {
+				operator: "and_",
+				state: {
+					operator: "and_",
+					type: { any_: ["FAILED"] },
+				},
+			},
 		});
 		queryClient.setQueryData(queryOptions.queryKey, flowRuns);
 
@@ -135,6 +163,7 @@ describe("FlowRunsCard", () => {
 		const flowRuns = [
 			createFakeFlowRun({
 				start_time: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+				state_type: "FAILED",
 			}),
 		];
 
@@ -147,6 +176,10 @@ describe("FlowRunsCard", () => {
 				start_time: {
 					after_: startDate,
 					before_: endDate,
+				},
+				state: {
+					operator: "and_",
+					type: { any_: ["FAILED"] },
 				},
 			},
 		});
@@ -171,6 +204,7 @@ describe("FlowRunsCard", () => {
 		const flowRuns = [
 			createFakeFlowRun({
 				tags: ["production", "critical"],
+				state_type: "FAILED",
 			}),
 		];
 
@@ -183,6 +217,10 @@ describe("FlowRunsCard", () => {
 				tags: {
 					operator: "and_",
 					all_: ["production", "critical"],
+				},
+				state: {
+					operator: "and_",
+					type: { any_: ["FAILED"] },
 				},
 			},
 		});
@@ -206,6 +244,7 @@ describe("FlowRunsCard", () => {
 		const flowRuns = [
 			createFakeFlowRun({
 				parent_task_run_id: null,
+				state_type: "FAILED",
 			}),
 		];
 
@@ -218,6 +257,10 @@ describe("FlowRunsCard", () => {
 				parent_task_run_id: {
 					operator: "and_",
 					is_null_: true,
+				},
+				state: {
+					operator: "and_",
+					type: { any_: ["FAILED"] },
 				},
 			},
 		});
@@ -245,6 +288,7 @@ describe("FlowRunsCard", () => {
 				start_time: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
 				tags: ["production"],
 				parent_task_run_id: null,
+				state_type: "FAILED",
 			}),
 		];
 
@@ -265,6 +309,10 @@ describe("FlowRunsCard", () => {
 				parent_task_run_id: {
 					operator: "and_",
 					is_null_: true,
+				},
+				state: {
+					operator: "and_",
+					type: { any_: ["FAILED"] },
 				},
 			},
 		});
@@ -288,12 +336,19 @@ describe("FlowRunsCard", () => {
 	});
 
 	it("handles empty tags array", async () => {
-		const flowRuns = [createFakeFlowRun()];
+		const flowRuns = [createFakeFlowRun({ state_type: "FAILED" })];
 
 		const queryClient = new QueryClient();
 		const queryOptions = buildFilterFlowRunsQuery({
 			sort: "START_TIME_DESC",
 			offset: 0,
+			flow_runs: {
+				operator: "and_",
+				state: {
+					operator: "and_",
+					type: { any_: ["FAILED"] },
+				},
+			},
 		});
 		queryClient.setQueryData(queryOptions.queryKey, flowRuns);
 
@@ -313,14 +368,24 @@ describe("FlowRunsCard", () => {
 
 	it("handles hideSubflows false", async () => {
 		const flowRuns = [
-			createFakeFlowRun(),
-			createFakeFlowRun({ parent_task_run_id: "some-parent-id" }),
+			createFakeFlowRun({ state_type: "FAILED" }),
+			createFakeFlowRun({
+				parent_task_run_id: "some-parent-id",
+				state_type: "FAILED",
+			}),
 		];
 
 		const queryClient = new QueryClient();
 		const queryOptions = buildFilterFlowRunsQuery({
 			sort: "START_TIME_DESC",
 			offset: 0,
+			flow_runs: {
+				operator: "and_",
+				state: {
+					operator: "and_",
+					type: { any_: ["FAILED"] },
+				},
+			},
 		});
 		queryClient.setQueryData(queryOptions.queryKey, flowRuns);
 
@@ -339,12 +404,19 @@ describe("FlowRunsCard", () => {
 	});
 
 	it("renders with no filter prop", async () => {
-		const flowRuns = [createFakeFlowRun()];
+		const flowRuns = [createFakeFlowRun({ state_type: "FAILED" })];
 
 		const queryClient = new QueryClient();
 		const queryOptions = buildFilterFlowRunsQuery({
 			sort: "START_TIME_DESC",
 			offset: 0,
+			flow_runs: {
+				operator: "and_",
+				state: {
+					operator: "and_",
+					type: { any_: ["FAILED"] },
+				},
+			},
 		});
 		queryClient.setQueryData(queryOptions.queryKey, flowRuns);
 

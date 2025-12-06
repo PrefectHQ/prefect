@@ -12,37 +12,16 @@ describe("FlowRunStateTabs", () => {
 		render(
 			<FlowRunStateTabs
 				flowRuns={flowRuns}
-				selectedState="ALL"
+				selectedState="FAILED"
 				onStateChange={onStateChange}
 			/>,
 		);
 
-		expect(screen.getByRole("tab", { name: /All/i })).toBeInTheDocument();
 		expect(screen.getByRole("tab", { name: /Failed/i })).toBeInTheDocument();
 		expect(screen.getByRole("tab", { name: /Running/i })).toBeInTheDocument();
 		expect(screen.getByRole("tab", { name: /Completed/i })).toBeInTheDocument();
 		expect(screen.getByRole("tab", { name: /Scheduled/i })).toBeInTheDocument();
 		expect(screen.getByRole("tab", { name: /Cancelled/i })).toBeInTheDocument();
-	});
-
-	it("displays correct count for ALL state", () => {
-		const flowRuns = [
-			createFakeFlowRun({ state_type: "COMPLETED" }),
-			createFakeFlowRun({ state_type: "FAILED" }),
-			createFakeFlowRun({ state_type: "RUNNING" }),
-		];
-		const onStateChange = vi.fn();
-
-		render(
-			<FlowRunStateTabs
-				flowRuns={flowRuns}
-				selectedState="ALL"
-				onStateChange={onStateChange}
-			/>,
-		);
-
-		const allTab = screen.getByRole("tab", { name: /All/i });
-		expect(allTab).toHaveTextContent("3");
 	});
 
 	it("displays correct counts for each state type", () => {
@@ -59,12 +38,11 @@ describe("FlowRunStateTabs", () => {
 		render(
 			<FlowRunStateTabs
 				flowRuns={flowRuns}
-				selectedState="ALL"
+				selectedState="FAILED"
 				onStateChange={onStateChange}
 			/>,
 		);
 
-		expect(screen.getByRole("tab", { name: /All/i })).toHaveTextContent("6");
 		expect(screen.getByRole("tab", { name: /Completed/i })).toHaveTextContent(
 			"2",
 		);
@@ -87,7 +65,7 @@ describe("FlowRunStateTabs", () => {
 		render(
 			<FlowRunStateTabs
 				flowRuns={flowRuns}
-				selectedState="ALL"
+				selectedState="FAILED"
 				onStateChange={onStateChange}
 			/>,
 		);
@@ -110,12 +88,11 @@ describe("FlowRunStateTabs", () => {
 		render(
 			<FlowRunStateTabs
 				flowRuns={[]}
-				selectedState="ALL"
+				selectedState="FAILED"
 				onStateChange={onStateChange}
 			/>,
 		);
 
-		expect(screen.getByRole("tab", { name: /All/i })).toHaveTextContent("0");
 		expect(screen.getByRole("tab", { name: /Failed/i })).toHaveTextContent("0");
 		expect(screen.getByRole("tab", { name: /Running/i })).toHaveTextContent(
 			"0",
@@ -139,15 +116,15 @@ describe("FlowRunStateTabs", () => {
 		render(
 			<FlowRunStateTabs
 				flowRuns={flowRuns}
-				selectedState="ALL"
+				selectedState="FAILED"
 				onStateChange={onStateChange}
 			/>,
 		);
 
-		const failedTab = screen.getByRole("tab", { name: /Failed/i });
-		await user.click(failedTab);
+		const completedTab = screen.getByRole("tab", { name: /Completed/i });
+		await user.click(completedTab);
 
-		expect(onStateChange).toHaveBeenCalledWith("FAILED");
+		expect(onStateChange).toHaveBeenCalledWith("COMPLETED");
 	});
 
 	it("calls onStateChange with correct state type for each tab", async () => {
@@ -174,9 +151,6 @@ describe("FlowRunStateTabs", () => {
 
 		await user.click(screen.getByRole("tab", { name: /Cancelled/i }));
 		expect(onStateChange).toHaveBeenLastCalledWith("CANCELLED");
-
-		await user.click(screen.getByRole("tab", { name: /All/i }));
-		expect(onStateChange).toHaveBeenLastCalledWith("ALL");
 	});
 
 	it("marks the selected tab as active", () => {
@@ -195,22 +169,6 @@ describe("FlowRunStateTabs", () => {
 		expect(failedTab).toHaveAttribute("data-state", "active");
 	});
 
-	it("marks ALL tab as active when selectedState is ALL", () => {
-		const flowRuns = [createFakeFlowRun()];
-		const onStateChange = vi.fn();
-
-		render(
-			<FlowRunStateTabs
-				flowRuns={flowRuns}
-				selectedState="ALL"
-				onStateChange={onStateChange}
-			/>,
-		);
-
-		const allTab = screen.getByRole("tab", { name: /All/i });
-		expect(allTab).toHaveAttribute("data-state", "active");
-	});
-
 	it("updates counts when flowRuns prop changes", () => {
 		const flowRuns = [createFakeFlowRun({ state_type: "COMPLETED" })];
 		const onStateChange = vi.fn();
@@ -218,7 +176,7 @@ describe("FlowRunStateTabs", () => {
 		const { rerender } = render(
 			<FlowRunStateTabs
 				flowRuns={flowRuns}
-				selectedState="ALL"
+				selectedState="FAILED"
 				onStateChange={onStateChange}
 			/>,
 		);
@@ -236,12 +194,11 @@ describe("FlowRunStateTabs", () => {
 		rerender(
 			<FlowRunStateTabs
 				flowRuns={newFlowRuns}
-				selectedState="ALL"
+				selectedState="FAILED"
 				onStateChange={onStateChange}
 			/>,
 		);
 
-		expect(screen.getByRole("tab", { name: /All/i })).toHaveTextContent("3");
 		expect(screen.getByRole("tab", { name: /Completed/i })).toHaveTextContent(
 			"2",
 		);
@@ -258,12 +215,11 @@ describe("FlowRunStateTabs", () => {
 		render(
 			<FlowRunStateTabs
 				flowRuns={flowRuns}
-				selectedState="ALL"
+				selectedState="FAILED"
 				onStateChange={onStateChange}
 			/>,
 		);
 
-		expect(screen.getByRole("tab", { name: /All/i })).toHaveTextContent("2");
 		expect(screen.getByRole("tab", { name: /Completed/i })).toHaveTextContent(
 			"1",
 		);
@@ -276,13 +232,12 @@ describe("FlowRunStateTabs", () => {
 		render(
 			<FlowRunStateTabs
 				flowRuns={flowRuns}
-				selectedState="ALL"
+				selectedState="FAILED"
 				onStateChange={onStateChange}
 			/>,
 		);
 
 		// Each state tab should be accessible with aria-label
-		expect(screen.getByRole("tab", { name: /all runs/i })).toBeInTheDocument();
 		expect(
 			screen.getByRole("tab", { name: /failed runs/i }),
 		).toBeInTheDocument();
@@ -313,12 +268,11 @@ describe("FlowRunStateTabs", () => {
 		render(
 			<FlowRunStateTabs
 				flowRuns={flowRuns}
-				selectedState="ALL"
+				selectedState="FAILED"
 				onStateChange={onStateChange}
 			/>,
 		);
 
-		expect(screen.getByRole("tab", { name: /All/i })).toHaveTextContent("5");
 		expect(screen.getByRole("tab", { name: /Failed/i })).toHaveTextContent("5");
 		expect(screen.getByRole("tab", { name: /Running/i })).toHaveTextContent(
 			"0",
@@ -342,13 +296,11 @@ describe("FlowRunStateTabs", () => {
 		render(
 			<FlowRunStateTabs
 				flowRuns={flowRuns}
-				selectedState="ALL"
+				selectedState="FAILED"
 				onStateChange={onStateChange}
 			/>,
 		);
 
-		// Should show all 9 flow runs in the ALL tab
-		expect(screen.getByRole("tab", { name: /All/i })).toHaveTextContent("9");
 		// The 5 visible tabs should show their respective counts
 		expect(screen.getByRole("tab", { name: /Completed/i })).toHaveTextContent(
 			"1",

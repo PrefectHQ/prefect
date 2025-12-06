@@ -5,7 +5,6 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/utils";
 
 type StateType = components["schemas"]["StateType"];
-type TabState = StateType | "ALL";
 
 const STATE_TYPES: readonly StateType[] = [
 	"FAILED",
@@ -14,8 +13,6 @@ const STATE_TYPES: readonly StateType[] = [
 	"SCHEDULED",
 	"CANCELLED",
 ] as const;
-
-const TAB_STATES: readonly TabState[] = ["ALL", ...STATE_TYPES] as const;
 
 const STATE_PILL_COLORS: Record<StateType, string> = {
 	COMPLETED: "bg-green-600",
@@ -59,8 +56,8 @@ const FlowRunStateCountPill = ({
 
 type FlowRunStateTabsProps = {
 	flowRuns: FlowRun[];
-	selectedState: TabState;
-	onStateChange: (state: TabState) => void;
+	selectedState: StateType;
+	onStateChange: (state: StateType) => void;
 	failedOrCrashedCount?: number;
 };
 
@@ -71,8 +68,7 @@ export const FlowRunStateTabs = ({
 	failedOrCrashedCount,
 }: FlowRunStateTabsProps) => {
 	const counts = useMemo(() => {
-		const stateCounts: Record<StateType | "ALL", number> = {
-			ALL: flowRuns.length,
+		const stateCounts: Record<StateType, number> = {
 			FAILED: 0,
 			RUNNING: 0,
 			COMPLETED: 0,
@@ -95,8 +91,8 @@ export const FlowRunStateTabs = ({
 	}, [flowRuns]);
 
 	const handleValueChange = (value: string) => {
-		if (TAB_STATES.includes(value as TabState)) {
-			onStateChange(value as TabState);
+		if (STATE_TYPES.includes(value as StateType)) {
+			onStateChange(value as StateType);
 		}
 	};
 
@@ -114,23 +110,11 @@ export const FlowRunStateTabs = ({
 		<div className="space-y-2">
 			<Tabs value={selectedState} onValueChange={handleValueChange}>
 				<TabsList className="flex justify-between w-full">
-					<TabsTrigger
-						value="ALL"
-						aria-label="All runs"
-						className="bg-transparent shadow-none data-[state=active]:shadow-none border-none"
-					>
-						<FlowRunStateCountPill
-							states={STATE_TYPES}
-							count={counts.ALL}
-							active={selectedState === "ALL"}
-						/>
-					</TabsTrigger>
 					{STATE_TYPES.map((stateType) => (
 						<TabsTrigger
 							key={stateType}
 							value={stateType}
 							aria-label={`${stateType.toLowerCase()} runs`}
-							className="bg-transparent shadow-none data-[state=active]:shadow-none border-none"
 						>
 							<FlowRunStateCountPill
 								states={[stateType]}

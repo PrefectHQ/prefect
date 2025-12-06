@@ -11,7 +11,6 @@ import useDebounce from "@/hooks/use-debounce";
 import { FlowRunStateTabs } from "./flow-runs-state-tabs";
 
 type StateType = components["schemas"]["StateType"];
-type TabState = StateType | "ALL";
 
 type FlowRunsCardProps = {
 	filter?: {
@@ -28,7 +27,7 @@ const BAR_GAP = 4;
 export function FlowRunsCard({ filter }: FlowRunsCardProps) {
 	const [numberOfBars, setNumberOfBars] = useState<number>(0);
 	const debouncedNumberOfBars = useDebounce(numberOfBars, 150);
-	const [selectedState, setSelectedState] = useState<TabState>("ALL");
+	const [selectedState, setSelectedState] = useState<StateType>("FAILED");
 
 	const chartRef = useCallback((node: HTMLDivElement | null) => {
 		if (!node) return;
@@ -76,12 +75,10 @@ export function FlowRunsCard({ filter }: FlowRunsCardProps) {
 		}
 
 		// Add state type filtering
-		if (selectedState !== "ALL") {
-			flowRunsFilterObj.state = {
-				operator: "and_" as const,
-				type: { any_: [selectedState] },
-			};
-		}
+		flowRunsFilterObj.state = {
+			operator: "and_" as const,
+			type: { any_: [selectedState] },
+		};
 
 		if (Object.keys(flowRunsFilterObj).length > 1) {
 			baseFilter.flow_runs = flowRunsFilterObj;

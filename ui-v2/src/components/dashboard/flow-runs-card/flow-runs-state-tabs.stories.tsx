@@ -11,9 +11,7 @@ export const story: StoryObj = { name: "FlowRunStateTabs" };
 export default {
 	title: "Dashboard/FlowRunStateTabs",
 	component: function FlowRunStateTabsStories() {
-		const [selectedState, setSelectedState] = useState<StateType | "ALL">(
-			"ALL",
-		);
+		const [selectedState, setSelectedState] = useState<StateType>("FAILED");
 
 		// Create sample flow runs with different states
 		const flowRuns = [
@@ -31,10 +29,9 @@ export default {
 		];
 
 		// Filter flow runs based on selected state
-		const filteredFlowRuns =
-			selectedState === "ALL"
-				? flowRuns
-				: flowRuns.filter((run) => run.state_type === selectedState);
+		const filteredFlowRuns = flowRuns.filter(
+			(run) => run.state_type === selectedState,
+		);
 
 		return (
 			<div className="flex flex-col gap-6 p-6">
