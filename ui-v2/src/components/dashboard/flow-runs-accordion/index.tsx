@@ -44,6 +44,7 @@ export function FlowRunsAccordion({
 				...baseFilter.flow_runs,
 				operator: "and_",
 				state: {
+					operator: "and_",
 					type: {
 						any_: stateTypes,
 					},

@@ -13,7 +13,7 @@ type FlowRunsAccordionHeaderProps = {
 	/** The flow to display */
 	flow: Flow;
 	/** Filter for flow runs */
-	filter?: FlowRunsFilter;
+	filter: FlowRunsFilter;
 };
 
 /**
@@ -29,7 +29,7 @@ export function FlowRunsAccordionHeader({
 		return {
 			...filter,
 			flows: {
-				...filter?.flows,
+				...(filter.flows ?? {}),
 				operator: "and_",
 				id: { any_: [flow.id] },
 			},

@@ -96,24 +96,14 @@ export function FlowRunsAccordionContent({
 							</div>
 						)}
 						{flowRun.estimated_run_time !== undefined && (
-							<div className="flex items-center gap-1">
-								<Icon id="Clock" className="size-3" />
-								<span>
-									{humanizeDuration(flowRun.estimated_run_time * 1000, {
-										maxDecimalPoints: 0,
-										units: ["h", "m", "s"],
-										round: true,
-									})}
-								</span>
-							</div>
-						)}
-						{flowRun.total_task_run_count !== undefined &&
-							flowRun.total_task_run_count > 0 && (
 								<div className="flex items-center gap-1">
-									<Icon id="Layers" className="size-3" />
+									<Icon id="Clock" className="size-3" />
 									<span>
-										{flowRun.total_task_run_count} Task run
-										{flowRun.total_task_run_count !== 1 ? "s" : ""}
+										{humanizeDuration(flowRun.estimated_run_time * 1000, {
+											maxDecimalPoints: 0,
+											units: ["h", "m", "s"],
+											round: true,
+										})}
 									</span>
 								</div>
 							)}
