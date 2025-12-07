@@ -1,9 +1,10 @@
 import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
-import { useCallback, useMemo, useState } from "react";
+import { Suspense, useCallback, useMemo, useState } from "react";
 import { buildFilterDeploymentsQuery } from "@/api/deployments";
 import { buildFilterFlowRunsQuery, type FlowRunsFilter } from "@/api/flow-runs";
 import { buildListFlowsQuery } from "@/api/flows";
 import type { components } from "@/api/prefect";
+import { FlowRunsAccordion } from "@/components/dashboard/flow-runs-accordion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { FlowRunActivityBarChart } from "@/components/ui/flow-run-activity-bar-graph";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -208,6 +209,12 @@ export function FlowRunsCard({ filter }: FlowRunsCardProps) {
 							onStateChange={setSelectedStates}
 							failedOrCrashedCount={failedOrCrashedCount}
 						/>
+						<Suspense fallback={<Skeleton className="h-32 w-full" />}>
+							<FlowRunsAccordion
+								filter={flowRunsFilter}
+								stateTypes={selectedStates}
+							/>
+						</Suspense>
 					</>
 				)}
 			</CardContent>
