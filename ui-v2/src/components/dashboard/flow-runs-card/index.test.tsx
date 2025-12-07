@@ -93,7 +93,7 @@ describe("FlowRunsCard", () => {
 		expect(screen.queryByText("total")).not.toBeInTheDocument();
 	});
 
-	it("shows empty message when no flow runs", async () => {
+	it("shows chart and state tabs when no flow runs", async () => {
 		const queryClient = new QueryClient();
 		const queryOptions = buildFilterFlowRunsQuery({
 			sort: "START_TIME_DESC",
@@ -105,7 +105,10 @@ describe("FlowRunsCard", () => {
 
 		render(<FlowRunsCardRouter />, { wrapper });
 
-		expect(await screen.findByText("No flow runs found")).toBeInTheDocument();
+		// The card should still render with the title
+		expect(await screen.findByText("Flow Runs")).toBeInTheDocument();
+		// State tabs should be visible with 0 counts
+		expect(screen.getByRole("tablist")).toBeInTheDocument();
 	});
 
 	it("shows loading skeleton when flow runs exist but chart is loading", async () => {
