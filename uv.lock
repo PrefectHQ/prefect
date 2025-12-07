@@ -3873,7 +3873,6 @@ dependencies = [
     { name = "toml" },
     { name = "typer" },
     { name = "typing-extensions" },
-    { name = "uv" },
     { name = "uvicorn" },
     { name = "websockets" },
     { name = "whenever", marker = "python_full_version >= '3.13'" },
@@ -3940,6 +3939,9 @@ snowflake = [
 ]
 sqlalchemy = [
     { name = "prefect-sqlalchemy" },
+]
+uv = [
+    { name = "uv" },
 ]
 
 [package.dev-dependencies]
@@ -4083,12 +4085,12 @@ requires-dist = [
     { name = "toml", specifier = ">=0.10.0" },
     { name = "typer", specifier = ">=0.16.0,<0.20.0" },
     { name = "typing-extensions", specifier = ">=4.10.0,<5.0.0" },
-    { name = "uv", specifier = ">=0.6.0" },
+    { name = "uv", marker = "extra == 'uv'", specifier = ">=0.6.0" },
     { name = "uvicorn", specifier = ">=0.14.0,!=0.29.0" },
     { name = "websockets", specifier = ">=15.0.1,<16.0" },
     { name = "whenever", marker = "python_full_version >= '3.13'", specifier = ">=0.7.3,<0.10.0" },
 ]
-provides-extras = ["aws", "azure", "bitbucket", "dask", "databricks", "dbt", "docker", "email", "gcp", "github", "gitlab", "kubernetes", "otel", "ray", "redis", "shell", "slack", "snowflake", "sqlalchemy"]
+provides-extras = ["aws", "azure", "bitbucket", "dask", "databricks", "dbt", "docker", "email", "gcp", "github", "gitlab", "kubernetes", "otel", "ray", "redis", "shell", "slack", "snowflake", "sqlalchemy", "uv"]
 
 [package.metadata.requires-dev]
 benchmark = [
