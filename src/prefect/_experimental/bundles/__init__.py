@@ -36,16 +36,40 @@ from .execute import execute_bundle_from_file
 
 logger: logging.Logger = get_logger(__name__)
 
+_UV_DEPRECATION_WARNING_EMITTED = False
+
+
+def _emit_uv_deprecation_warning():
+    """Emit a deprecation warning when using system uv without prefect[uv]."""
+    global _UV_DEPRECATION_WARNING_EMITTED
+    if _UV_DEPRECATION_WARNING_EMITTED:
+        return
+    _UV_DEPRECATION_WARNING_EMITTED = True
+    import warnings
+
+    warnings.warn(
+        "Using system 'uv' binary without the 'prefect[uv]' extra installed. "
+        "In a future version of Prefect, you will need to install 'prefect[uv]' "
+        "to use bundle features. Install with: pip install 'prefect[uv]'",
+        DeprecationWarning,
+        stacklevel=4,
+    )
+
 
 def _get_uv_path() -> str:
+    """
+    Get the path to the uv binary.
+
+    First tries to use the uv Python package to find the binary.
+    Falls back to "uv" string (assumes uv is in PATH) with a deprecation warning.
+    """
     try:
         import uv
 
-        uv_path = uv.find_uv_bin()
+        return uv.find_uv_bin()
     except (ImportError, ModuleNotFoundError, FileNotFoundError):
-        uv_path = "uv"
-
-    return uv_path
+        _emit_uv_deprecation_warning()
+        return "uv"
 
 
 class SerializedBundle(TypedDict):
