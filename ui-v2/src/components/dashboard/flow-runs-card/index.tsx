@@ -88,25 +88,18 @@ export function FlowRunsCard({ filter }: FlowRunsCardProps) {
 		buildFilterFlowRunsQuery(flowRunsFilter, 30000),
 	);
 
-	// Filter flow runs by selected states for display
-	const flowRuns = useMemo(() => {
-		return allFlowRuns.filter((run) =>
-			selectedStates.includes(run.state_type as StateType),
-		);
-	}, [allFlowRuns, selectedStates]);
-
-	// Extract unique flow and deployment IDs from flow runs
+	// Extract unique flow and deployment IDs from all flow runs for enrichment
 	const { flowIds, deploymentIds } = useMemo(() => {
-		const flowIds = [...new Set(flowRuns.map((fr) => fr.flow_id))];
+		const flowIds = [...new Set(allFlowRuns.map((fr) => fr.flow_id))];
 		const deploymentIds = [
 			...new Set(
-				flowRuns
+				allFlowRuns
 					.map((fr) => fr.deployment_id)
 					.filter((id): id is string => !!id),
 			),
 		];
 		return { flowIds, deploymentIds };
-	}, [flowRuns]);
+	}, [allFlowRuns]);
 
 	// Fetch flows for enrichment
 	const { data: flows, isLoading: isLoadingFlows } = useQuery(
@@ -134,7 +127,7 @@ export function FlowRunsCard({ filter }: FlowRunsCardProps) {
 
 	// Enrich flow runs with flow and deployment data
 	const enrichedFlowRuns = useMemo(() => {
-		return flowRuns.map((flowRun) => {
+		return allFlowRuns.map((flowRun) => {
 			const flow = flows?.find((f) => f.id === flowRun.flow_id);
 			const deployment = deployments?.find(
 				(d) => d.id === flowRun.deployment_id,
@@ -145,7 +138,7 @@ export function FlowRunsCard({ filter }: FlowRunsCardProps) {
 				deployment,
 			};
 		});
-	}, [flowRuns, flows, deployments]);
+	}, [allFlowRuns, flows, deployments]);
 
 	// Calculate date range from filter or default to last 7 days
 	const { startDate, endDate } = useMemo(() => {
@@ -164,9 +157,12 @@ export function FlowRunsCard({ filter }: FlowRunsCardProps) {
 		return { startDate: start, endDate: end };
 	}, [filter?.startDate, filter?.endDate]);
 
+	// Only show loading state if we have flow runs to enrich
+	const hasFlowRuns = allFlowRuns.length > 0;
 	const isLoadingEnrichment =
-		(isLoadingFlows && flowIds.length > 0) ||
-		(isLoadingDeployments && deploymentIds.length > 0);
+		hasFlowRuns &&
+		((isLoadingFlows && flowIds.length > 0) ||
+			(isLoadingDeployments && deploymentIds.length > 0));
 
 	// Use debounced value if available, otherwise use immediate value
 	// This prevents showing empty chart on initial render while still being responsive
@@ -190,11 +186,7 @@ export function FlowRunsCard({ filter }: FlowRunsCardProps) {
 				)}
 			</CardHeader>
 			<CardContent className="space-y-2">
-				{allFlowRuns.length === 0 ? (
-					<div className="my-8 text-center text-sm text-muted-foreground">
-						<p>No flow runs found</p>
-					</div>
-				) : isLoadingEnrichment || effectiveNumberOfBars === 0 ? (
+				{isLoadingEnrichment || effectiveNumberOfBars === 0 ? (
 					<div className="w-full" ref={chartRef}>
 						<Skeleton className="h-24 w-full" />
 					</div>
