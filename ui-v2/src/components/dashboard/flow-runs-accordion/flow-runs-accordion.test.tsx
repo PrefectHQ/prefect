@@ -11,6 +11,7 @@ import { buildApiUrl, createWrapper, server } from "@tests/utils";
 import { HttpResponse, http } from "msw";
 import { Suspense } from "react";
 import { describe, expect, it } from "vitest";
+import type { FlowRunsFilter } from "@/api/flow-runs";
 import type { Flow } from "@/api/flows";
 import { createFakeFlow, createFakeFlowRun } from "@/mocks";
 import { FlowRunStateTypeEmpty } from "./flow-run-state-type-empty";
@@ -43,7 +44,7 @@ const FlowRunsAccordionHeaderRouter = ({
 	filter,
 }: {
 	flow: Flow;
-	filter: Record<string, unknown>;
+	filter: FlowRunsFilter;
 }) => {
 	const router = createRouterWithComponent(
 		<FlowRunsAccordionHeader flow={flow} filter={filter} />,
@@ -56,7 +57,7 @@ const FlowRunsAccordionContentRouter = ({
 	filter,
 }: {
 	flowId: string;
-	filter?: Record<string, unknown>;
+	filter?: FlowRunsFilter;
 }) => {
 	const router = createRouterWithComponent(
 		<FlowRunsAccordionContent flowId={flowId} filter={filter} />,
@@ -175,9 +176,15 @@ describe("FlowRunsAccordionHeader", () => {
 			}),
 		);
 
-		render(<FlowRunsAccordionHeaderRouter flow={flow} filter={{}} />, {
-			wrapper: createWrapper(),
-		});
+		render(
+			<FlowRunsAccordionHeaderRouter
+				flow={flow}
+				filter={{ sort: "START_TIME_DESC", offset: 0 }}
+			/>,
+			{
+				wrapper: createWrapper(),
+			},
+		);
 
 		await waitFor(() => {
 			const link = screen.getByText("My Test Flow");
@@ -198,9 +205,15 @@ describe("FlowRunsAccordionHeader", () => {
 			}),
 		);
 
-		render(<FlowRunsAccordionHeaderRouter flow={flow} filter={{}} />, {
-			wrapper: createWrapper(),
-		});
+		render(
+			<FlowRunsAccordionHeaderRouter
+				flow={flow}
+				filter={{ sort: "START_TIME_DESC", offset: 0 }}
+			/>,
+			{
+				wrapper: createWrapper(),
+			},
+		);
 
 		await waitFor(() => {
 			expect(screen.getByText("42")).toBeInTheDocument();
@@ -226,9 +239,15 @@ describe("FlowRunsAccordionHeader", () => {
 			}),
 		);
 
-		render(<FlowRunsAccordionHeaderRouter flow={flow} filter={{}} />, {
-			wrapper: createWrapper(),
-		});
+		render(
+			<FlowRunsAccordionHeaderRouter
+				flow={flow}
+				filter={{ sort: "START_TIME_DESC", offset: 0 }}
+			/>,
+			{
+				wrapper: createWrapper(),
+			},
+		);
 
 		await waitFor(() => {
 			expect(screen.getByText(/minutes? ago/i)).toBeInTheDocument();
