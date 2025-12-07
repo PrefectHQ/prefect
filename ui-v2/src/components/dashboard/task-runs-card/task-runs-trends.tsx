@@ -94,7 +94,7 @@ export function TaskRunsTrends({ filter }: TaskRunsTrendsProps) {
 		const baseFilter: TaskRunsHistoryFilter = {
 			history_start: startDate.toISOString(),
 			history_end: endDate.toISOString(),
-			history_interval: historyInterval,
+			history_interval_seconds: historyInterval,
 		};
 
 		if (filter?.tags && filter.tags.length > 0) {

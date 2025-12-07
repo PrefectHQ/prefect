@@ -88,3 +88,57 @@ class TestGetPgNotifyConnection:
                 mock_connect.assert_called_once()
                 call_kwargs = mock_connect.call_args.kwargs
                 assert "server_settings" not in call_kwargs
+
+    async def test_includes_search_path_when_configured(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        """Test that search_path is passed to asyncpg when configured."""
+        monkeypatch.setenv(
+            "PREFECT_SERVER_DATABASE_SQLALCHEMY_CONNECT_ARGS_SEARCH_PATH",
+            "myschema",
+        )
+        with temporary_settings(
+            {PREFECT_API_DATABASE_CONNECTION_URL: "postgresql://user:pass@localhost/db"}
+        ):
+            with mock.patch("asyncpg.connect", new_callable=AsyncMock) as mock_connect:
+                mock_conn = MagicMock()
+                mock_connect.return_value = mock_conn
+
+                conn = await get_pg_notify_connection()
+
+                assert conn == mock_conn
+                mock_connect.assert_called_once()
+                call_kwargs = mock_connect.call_args.kwargs
+                assert "server_settings" in call_kwargs
+                assert call_kwargs["server_settings"]["search_path"] == "myschema"
+
+    async def test_includes_both_application_name_and_search_path_when_configured(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        """Test that both application_name and search_path are passed when configured."""
+        monkeypatch.setenv(
+            "PREFECT_SERVER_DATABASE_SQLALCHEMY_CONNECT_ARGS_APPLICATION_NAME",
+            "test-app-name",
+        )
+        monkeypatch.setenv(
+            "PREFECT_SERVER_DATABASE_SQLALCHEMY_CONNECT_ARGS_SEARCH_PATH",
+            "myschema",
+        )
+        with temporary_settings(
+            {PREFECT_API_DATABASE_CONNECTION_URL: "postgresql://user:pass@localhost/db"}
+        ):
+            with mock.patch("asyncpg.connect", new_callable=AsyncMock) as mock_connect:
+                mock_conn = MagicMock()
+                mock_connect.return_value = mock_conn
+
+                conn = await get_pg_notify_connection()
+
+                assert conn == mock_conn
+                mock_connect.assert_called_once()
+                call_kwargs = mock_connect.call_args.kwargs
+                assert "server_settings" in call_kwargs
+                assert (
+                    call_kwargs["server_settings"]["application_name"]
+                    == "test-app-name"
+                )
+                assert call_kwargs["server_settings"]["search_path"] == "myschema"
