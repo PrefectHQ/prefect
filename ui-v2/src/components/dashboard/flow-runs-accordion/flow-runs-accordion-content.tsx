@@ -7,6 +7,7 @@ import {
 	buildPaginateFlowRunsQuery,
 	type FlowRunsFilter,
 } from "@/api/flow-runs";
+import { stateTypeColors } from "@/components/flow-runs/flow-run-graph/consts";
 import { Icon } from "@/components/ui/icons";
 import {
 	Pagination,
@@ -147,23 +148,8 @@ export function FlowRunsAccordionContent({
 }
 
 function getStateColor(stateType: string | null | undefined): string {
-	switch (stateType) {
-		case "COMPLETED":
-			return "rgb(22 163 74)"; // green-600
-		case "FAILED":
-			return "rgb(220 38 38)"; // red-600
-		case "RUNNING":
-			return "rgb(29 78 216)"; // blue-700
-		case "CANCELLED":
-		case "CANCELLING":
-		case "PAUSED":
-		case "PENDING":
-			return "rgb(31 41 55)"; // gray-800
-		case "CRASHED":
-			return "rgb(234 88 12)"; // orange-600
-		case "SCHEDULED":
-			return "rgb(161 98 7)"; // yellow-700
-		default:
-			return "rgb(107 114 128)"; // gray-500
+	if (stateType && stateType in stateTypeColors) {
+		return stateTypeColors[stateType as keyof typeof stateTypeColors];
 	}
+	return "#6B7280"; // gray-500 fallback
 }
