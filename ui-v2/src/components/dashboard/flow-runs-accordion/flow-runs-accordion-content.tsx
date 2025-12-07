@@ -96,17 +96,17 @@ export function FlowRunsAccordionContent({
 							</div>
 						)}
 						{flowRun.estimated_run_time !== undefined && (
-								<div className="flex items-center gap-1">
-									<Icon id="Clock" className="size-3" />
-									<span>
-										{humanizeDuration(flowRun.estimated_run_time * 1000, {
-											maxDecimalPoints: 0,
-											units: ["h", "m", "s"],
-											round: true,
-										})}
-									</span>
-								</div>
-							)}
+							<div className="flex items-center gap-1">
+								<Icon id="Clock" className="size-3" />
+								<span>
+									{humanizeDuration(flowRun.estimated_run_time * 1000, {
+										maxDecimalPoints: 0,
+										units: ["h", "m", "s"],
+										round: true,
+									})}
+								</span>
+							</div>
+						)}
 					</div>
 				</div>
 			))}
