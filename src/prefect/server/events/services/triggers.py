@@ -9,6 +9,7 @@ from docket import Perpetual
 from prefect.logging import get_logger
 from prefect.server.events import triggers
 from prefect.server.services.base import RunInEphemeralServers, Service
+from prefect.server.services.perpetual_services import perpetual_service
 from prefect.server.utilities.messaging import Consumer, create_consumer
 from prefect.server.utilities.messaging._consumer_names import (
     generate_unique_consumer_name,
@@ -68,6 +69,10 @@ class ReactiveTriggers(RunInEphemeralServers, Service):
         logger.debug("Reactive triggers stopped")
 
 
+@perpetual_service(
+    settings_getter=lambda: get_current_settings().server.services.triggers,
+    run_in_ephemeral=True,
+)
 async def evaluate_proactive_triggers_perpetual(
     perpetual: Perpetual = Perpetual(
         automatic=True,
