@@ -126,6 +126,13 @@ export const FailedRuns: Story = {
 						limit: 3,
 					});
 				}),
+				http.post(buildApiUrl("/ui/flow_runs/count-task-runs"), () => {
+					return HttpResponse.json({
+						"run-1": 5,
+						"run-2": 3,
+						"run-3": 2,
+					});
+				}),
 			],
 		},
 	},
@@ -158,6 +165,12 @@ export const RunningRuns: Story = {
 						limit: 3,
 					});
 				}),
+				http.post(buildApiUrl("/ui/flow_runs/count-task-runs"), () => {
+					return HttpResponse.json({
+						"run-4": 4,
+						"run-5": 1,
+					});
+				}),
 			],
 		},
 	},
@@ -188,6 +201,12 @@ export const LateRuns: Story = {
 						pages: 1,
 						page: 1,
 						limit: 3,
+					});
+				}),
+				http.post(buildApiUrl("/ui/flow_runs/count-task-runs"), () => {
+					return HttpResponse.json({
+						"run-6": 0,
+						"run-7": 0,
 					});
 				}),
 			],
@@ -308,6 +327,13 @@ export const MultipleFlows: Story = {
 						pages: 1,
 						page: 1,
 						limit: 3,
+					});
+				}),
+				http.post(buildApiUrl("/ui/flow_runs/count-task-runs"), () => {
+					return HttpResponse.json({
+						"run-1": 5,
+						"run-2": 3,
+						"run-3": 2,
 					});
 				}),
 			],

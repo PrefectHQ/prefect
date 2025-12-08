@@ -60,7 +60,9 @@ const FlowRunsAccordionContentRouter = ({
 	filter?: FlowRunsFilter;
 }) => {
 	const router = createRouterWithComponent(
-		<FlowRunsAccordionContent flowId={flowId} filter={filter} />,
+		<Suspense fallback={<div>Loading...</div>}>
+			<FlowRunsAccordionContent flowId={flowId} filter={filter} />
+		</Suspense>,
 	);
 	return <RouterProvider router={router} />;
 };
@@ -342,6 +344,14 @@ describe("FlowRunsAccordionContent", () => {
 			flow_id: "flow-1",
 			state_type: "COMPLETED",
 			state_name: "Completed",
+			state: {
+				id: "state-1",
+				type: "COMPLETED",
+				name: "Completed",
+				timestamp: "2024-01-15T10:30:00Z",
+				message: null,
+				state_details: {},
+			},
 			start_time: "2024-01-15T10:30:00Z",
 			estimated_run_time: 120,
 		});
@@ -355,6 +365,9 @@ describe("FlowRunsAccordionContent", () => {
 					page: 1,
 					limit: 3,
 				});
+			}),
+			http.post(buildApiUrl("/ui/flow_runs/count-task-runs"), () => {
+				return HttpResponse.json({ "run-1": 5 });
 			}),
 		);
 
@@ -386,6 +399,9 @@ describe("FlowRunsAccordionContent", () => {
 					page: 1,
 					limit: 3,
 				});
+			}),
+			http.post(buildApiUrl("/ui/flow_runs/count-task-runs"), () => {
+				return HttpResponse.json({ "run-123": 3 });
 			}),
 		);
 
@@ -419,6 +435,9 @@ describe("FlowRunsAccordionContent", () => {
 					limit: 3,
 				});
 			}),
+			http.post(buildApiUrl("/ui/flow_runs/count-task-runs"), () => {
+				return HttpResponse.json({ "run-1": 2, "run-2": 3, "run-3": 1 });
+			}),
 		);
 
 		render(<FlowRunsAccordionContentRouter flowId="flow-1" />, {
@@ -446,6 +465,9 @@ describe("FlowRunsAccordionContent", () => {
 					page: 1,
 					limit: 3,
 				});
+			}),
+			http.post(buildApiUrl("/ui/flow_runs/count-task-runs"), () => {
+				return HttpResponse.json({ "run-1": 0 });
 			}),
 		);
 
@@ -480,6 +502,9 @@ describe("FlowRunsAccordionContent", () => {
 					page: currentPage,
 					limit: 3,
 				});
+			}),
+			http.post(buildApiUrl("/ui/flow_runs/count-task-runs"), () => {
+				return HttpResponse.json({ "run-1": 1, "run-4": 2 });
 			}),
 		);
 
@@ -518,6 +543,9 @@ describe("FlowRunsAccordionContent", () => {
 					limit: 3,
 				});
 			}),
+			http.post(buildApiUrl("/ui/flow_runs/count-task-runs"), () => {
+				return HttpResponse.json({ "run-1": 4 });
+			}),
 		);
 
 		render(<FlowRunsAccordionContentRouter flowId="flow-1" />, {
@@ -528,6 +556,44 @@ describe("FlowRunsAccordionContent", () => {
 			expect(screen.getByText("Timed Run")).toBeInTheDocument();
 		});
 
-		expect(screen.getByText(/1 hour/i)).toBeInTheDocument();
+		// Duration is formatted as "X.XX seconds" by FlowRunDuration component
+		expect(screen.getByText(/seconds/i)).toBeInTheDocument();
+	});
+
+	it("renders parameters and task runs for flow runs", async () => {
+		const flowRun = createFakeFlowRun({
+			id: "run-1",
+			name: "test-run",
+			flow_id: "flow-1",
+			state_type: "COMPLETED",
+			state_name: "Completed",
+			parameters: { key: "value" },
+		});
+
+		server.use(
+			http.post(buildApiUrl("/flow_runs/paginate"), () => {
+				return HttpResponse.json({
+					results: [flowRun],
+					count: 1,
+					pages: 1,
+					page: 1,
+					limit: 3,
+				});
+			}),
+			http.post(buildApiUrl("/ui/flow_runs/count-task-runs"), () => {
+				return HttpResponse.json({ "run-1": 5 });
+			}),
+		);
+
+		render(<FlowRunsAccordionContentRouter flowId="flow-1" />, {
+			wrapper: createWrapper(),
+		});
+
+		await waitFor(() => {
+			expect(screen.getByText("test-run")).toBeInTheDocument();
+		});
+
+		expect(screen.getByText("1 Parameter")).toBeInTheDocument();
+		expect(screen.getByText("5 Task runs")).toBeInTheDocument();
 	});
 });
