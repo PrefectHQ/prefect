@@ -39,12 +39,17 @@ type SetTaskRunStateParams = {
  * detail		=>   ['taskRuns', 'details', id]
  * ```
  */
+export type TaskRunsCountFilter =
+	components["schemas"]["Body_count_task_runs_task_runs_count_post"];
+
 export const queryKeyFactory = {
 	all: () => ["taskRuns"] as const,
 	lists: () => [...queryKeyFactory.all(), "list"] as const,
 	list: (filter: TaskRunsFilter) =>
 		[...queryKeyFactory.lists(), filter] as const,
 	counts: () => [...queryKeyFactory.all(), "count"] as const,
+	count: (filter: TaskRunsCountFilter) =>
+		[...queryKeyFactory.counts(), filter] as const,
 	flowRunsCount: (flowRunIds: Array<string>) => [
 		...queryKeyFactory.counts(),
 		"flow-runs",
@@ -90,6 +95,28 @@ export const buildListTaskRunsQuery = (
 		refetchInterval,
 	});
 };
+
+/**
+ * Builds a query configuration for counting task runs
+ *
+ * @param filter - Filter parameters for the task runs count query.
+ * @returns Query configuration object for use with TanStack Query
+ *
+ * @example
+ * ```ts
+ * const { data: taskRunsCount } = useSuspenseQuery(buildCountTaskRunsQuery());
+ * ```
+ */
+export const buildCountTaskRunsQuery = (filter: TaskRunsCountFilter = {}) =>
+	queryOptions({
+		queryKey: queryKeyFactory.count(filter),
+		queryFn: async () => {
+			const res = await getQueryService().POST("/task_runs/count", {
+				body: filter,
+			});
+			return res.data ?? 0;
+		},
+	});
 
 /**
  * Builds a query configuration for fetching flow runs task count
