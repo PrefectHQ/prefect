@@ -20,18 +20,28 @@ type FlowRunsCardProps = {
 		tags?: string[];
 		hideSubflows?: boolean;
 	};
+	selectedStates?: StateType[];
+	onStateChange?: (states: StateType[]) => void;
 };
 
 const BAR_WIDTH = 8;
 const BAR_GAP = 4;
 
-export function FlowRunsCard({ filter }: FlowRunsCardProps) {
+export function FlowRunsCard({
+	filter,
+	selectedStates: controlledSelectedStates,
+	onStateChange: controlledOnStateChange,
+}: FlowRunsCardProps) {
 	const [numberOfBars, setNumberOfBars] = useState<number>(0);
 	const debouncedNumberOfBars = useDebounce(numberOfBars, 150);
-	const [selectedStates, setSelectedStates] = useState<StateType[]>([
-		"FAILED",
-		"CRASHED",
-	]);
+	const [internalSelectedStates, setInternalSelectedStates] = useState<
+		StateType[]
+	>(["FAILED", "CRASHED"]);
+
+	// Use controlled state if provided, otherwise use internal state
+	const selectedStates = controlledSelectedStates ?? internalSelectedStates;
+	const handleStateChange =
+		controlledOnStateChange ?? setInternalSelectedStates;
 
 	const chartRef = useCallback((node: HTMLDivElement | null) => {
 		if (!node) return;
@@ -206,7 +216,7 @@ export function FlowRunsCard({ filter }: FlowRunsCardProps) {
 						<FlowRunStateTabs
 							flowRuns={allFlowRuns}
 							selectedStates={selectedStates}
-							onStateChange={setSelectedStates}
+							onStateChange={handleStateChange}
 							failedOrCrashedCount={failedOrCrashedCount}
 						/>
 						<Suspense fallback={<Skeleton className="h-32 w-full" />}>

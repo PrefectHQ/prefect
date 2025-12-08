@@ -35,10 +35,23 @@ import {
 } from "@/components/ui/layout-well";
 import { Switch } from "@/components/ui/switch";
 
+// Valid tab values for flow run state filtering
+const FLOW_RUN_STATE_TABS = [
+	"FAILED-CRASHED",
+	"RUNNING-PENDING-CANCELLING",
+	"COMPLETED",
+	"SCHEDULED-PAUSED",
+	"CANCELLED",
+] as const;
+
+type FlowRunStateTab = (typeof FLOW_RUN_STATE_TABS)[number];
+
 // Search params for dashboard filters (flat structure)
 const searchParams = z.object({
 	hideSubflows: z.boolean().optional().catch(false),
 	tags: z.array(z.string()).optional().catch(undefined),
+	// Flow run state tab selection (defaults to FAILED-CRASHED)
+	tab: z.enum(FLOW_RUN_STATE_TABS).optional().catch(undefined),
 	// Derived normalized range for downstream queries
 	from: z.string().datetime().optional().catch(undefined),
 	to: z.string().datetime().optional().catch(undefined),
@@ -175,6 +188,50 @@ export function RouteComponent() {
 				search: (prev) => ({
 					...prev,
 					tags: nextTags.length ? nextTags : undefined,
+				}),
+				replace: true,
+			});
+		},
+		[navigate],
+	);
+
+	// Convert tab string to state types array and vice versa
+	const selectedStates = useMemo(() => {
+		const tab = search.tab ?? "FAILED-CRASHED";
+		return tab.split("-") as Array<
+			| "FAILED"
+			| "CRASHED"
+			| "RUNNING"
+			| "PENDING"
+			| "CANCELLING"
+			| "COMPLETED"
+			| "SCHEDULED"
+			| "PAUSED"
+			| "CANCELLED"
+		>;
+	}, [search.tab]);
+
+	const onTabChange = useCallback(
+		(
+			states: Array<
+				| "FAILED"
+				| "CRASHED"
+				| "RUNNING"
+				| "PENDING"
+				| "CANCELLING"
+				| "COMPLETED"
+				| "SCHEDULED"
+				| "PAUSED"
+				| "CANCELLED"
+			>,
+		) => {
+			const tabValue = states.join("-") as FlowRunStateTab;
+			void navigate({
+				to: ".",
+				search: (prev) => ({
+					...prev,
+					// Only set tab if it's not the default (FAILED-CRASHED)
+					tab: tabValue === "FAILED-CRASHED" ? undefined : tabValue,
 				}),
 				replace: true,
 			});
@@ -350,6 +407,8 @@ export function RouteComponent() {
 										tags: search.tags,
 										hideSubflows: search.hideSubflows,
 									}}
+									selectedStates={selectedStates}
+									onStateChange={onTabChange}
 								/>
 							</div>
 
