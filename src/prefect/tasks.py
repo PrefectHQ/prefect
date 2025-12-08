@@ -513,7 +513,8 @@ class Task(Generic[P, R]):
                 [
                     cache_policy
                     and cache_policy != NO_CACHE
-                    and cache_policy != NotSet,
+                    and cache_policy != NotSet
+                    and cache_policy != DEFAULT,
                     cache_key_fn is not None,
                     result_storage_key is not None,
                     result_storage is not None,
