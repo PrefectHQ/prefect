@@ -1,9 +1,13 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { zodValidator } from "@tanstack/zod-adapter";
-import { useCallback, useEffect, useMemo } from "react";
+import { Suspense, useCallback, useEffect, useMemo } from "react";
 import { z } from "zod";
-import { buildCountFlowRunsQuery } from "@/api/flow-runs";
+import {
+	buildCountFlowRunsQuery,
+	buildFilterFlowRunsQuery,
+	type FlowRunsFilter,
+} from "@/api/flow-runs";
 import { buildListWorkPoolQueuesQuery } from "@/api/work-pool-queues";
 import {
 	buildFilterWorkPoolsQuery,
@@ -33,7 +37,72 @@ import {
 	LayoutWellContent,
 	LayoutWellHeader,
 } from "@/components/ui/layout-well";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
+
+function FlowRunsCardSkeleton() {
+	return (
+		<div className="rounded-lg border bg-card text-card-foreground shadow-sm">
+			<div className="flex flex-row items-center justify-between p-6 pb-2">
+				<Skeleton className="h-6 w-24" />
+				<Skeleton className="h-4 w-16" />
+			</div>
+			<div className="p-6 pt-0 space-y-2">
+				<Skeleton className="h-24 w-full" />
+				<div className="flex justify-between w-full gap-2">
+					{[1, 2, 3, 4, 5].map((i) => (
+						<Skeleton key={i} className="h-10 flex-1" />
+					))}
+				</div>
+				<Skeleton className="h-32 w-full" />
+			</div>
+		</div>
+	);
+}
+
+function TaskRunsCardSkeleton() {
+	return (
+		<div className="rounded-lg border bg-card text-card-foreground shadow-sm">
+			<div className="flex flex-row items-center justify-between p-6 pb-2">
+				<Skeleton className="h-6 w-24" />
+			</div>
+			<div className="p-6 pt-0 space-y-4">
+				<div className="grid gap-1">
+					<Skeleton className="h-5 w-20" />
+					<Skeleton className="h-4 w-32" />
+					<Skeleton className="h-4 w-28" />
+				</div>
+				<Skeleton className="h-16 w-full" />
+			</div>
+		</div>
+	);
+}
+
+function WorkPoolsCardSkeleton() {
+	return (
+		<div className="rounded-lg border bg-card text-card-foreground shadow-sm">
+			<div className="p-6">
+				<Skeleton className="h-6 w-32 mb-4" />
+			</div>
+			<div className="p-6 pt-0 space-y-4">
+				<div className="rounded-xl border p-3 space-y-3">
+					<div className="flex items-center gap-2">
+						<Skeleton className="h-5 w-32" />
+						<Skeleton className="h-5 w-5 rounded-full" />
+					</div>
+					<div className="grid grid-cols-4 gap-2">
+						{[1, 2, 3, 4].map((i) => (
+							<div key={i} className="space-y-1">
+								<Skeleton className="h-3 w-16" />
+								<Skeleton className="h-4 w-12" />
+							</div>
+						))}
+					</div>
+				</div>
+			</div>
+		</div>
+	);
+}
 
 // Valid tab values for flow run state filtering
 const FLOW_RUN_STATE_TABS = [
@@ -66,6 +135,14 @@ const searchParams = z.object({
 	period: z.enum(["Today"]).optional(),
 });
 
+const STATE_TYPE_GROUPS = [
+	["FAILED", "CRASHED"],
+	["RUNNING", "PENDING", "CANCELLING"],
+	["COMPLETED"],
+	["SCHEDULED", "PAUSED"],
+	["CANCELLED"],
+] as const;
+
 export const Route = createFileRoute("/dashboard")({
 	validateSearch: zodValidator(searchParams),
 	component: RouteComponent,
@@ -79,6 +156,35 @@ export const Route = createFileRoute("/dashboard")({
 		if (totalFlowRuns === 0) {
 			return;
 		}
+
+		// Prefetch all flow runs (used by FlowRunsCard for the bar chart and state tabs)
+		void queryClient.prefetchQuery(
+			buildFilterFlowRunsQuery(
+				{
+					sort: "START_TIME_DESC",
+					offset: 0,
+				},
+				30_000,
+			),
+		);
+
+		// Prefetch flow runs for each state type group to minimize loading when switching tabs
+		STATE_TYPE_GROUPS.forEach((stateTypes) => {
+			const filter: FlowRunsFilter = {
+				sort: "START_TIME_DESC",
+				offset: 0,
+				flow_runs: {
+					operator: "and_",
+					state: {
+						operator: "and_",
+						type: {
+							any_: [...stateTypes],
+						},
+					},
+				},
+			};
+			void queryClient.prefetchQuery(buildFilterFlowRunsQuery(filter, 30_000));
+		});
 
 		// Prefetch work pools data for the dashboard
 		const workPools = await queryClient.ensureQueryData(
@@ -400,34 +506,40 @@ export function RouteComponent() {
 						<div className="grid grid-cols-1 gap-4 items-start xl:grid-cols-2">
 							{/* Main content - Flow Runs Card */}
 							<div className="space-y-4">
-								<FlowRunsCard
-									filter={{
-										startDate: search.from,
-										endDate: search.to,
-										tags: search.tags,
-										hideSubflows: search.hideSubflows,
-									}}
-									selectedStates={selectedStates}
-									onStateChange={onTabChange}
-								/>
+								<Suspense fallback={<FlowRunsCardSkeleton />}>
+									<FlowRunsCard
+										filter={{
+											startDate: search.from,
+											endDate: search.to,
+											tags: search.tags,
+											hideSubflows: search.hideSubflows,
+										}}
+										selectedStates={selectedStates}
+										onStateChange={onTabChange}
+									/>
+								</Suspense>
 							</div>
 
 							{/* Sidebar - Task Runs and Work Pools Cards */}
 							<div className="grid grid-cols-1 gap-4">
-								<TaskRunsCard
-									filter={{
-										startDate: search.from,
-										endDate: search.to,
-										tags: search.tags,
-									}}
-								/>
+								<Suspense fallback={<TaskRunsCardSkeleton />}>
+									<TaskRunsCard
+										filter={{
+											startDate: search.from,
+											endDate: search.to,
+											tags: search.tags,
+										}}
+									/>
+								</Suspense>
 
-								<DashboardWorkPoolsCard
-									filter={{
-										startDate: search.from,
-										endDate: search.to,
-									}}
-								/>
+								<Suspense fallback={<WorkPoolsCardSkeleton />}>
+									<DashboardWorkPoolsCard
+										filter={{
+											startDate: search.from,
+											endDate: search.to,
+										}}
+									/>
+								</Suspense>
 							</div>
 						</div>
 					)}
