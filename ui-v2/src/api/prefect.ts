@@ -10132,6 +10132,18 @@ export interface components {
              * @default 1
              */
             read_batch_size: number;
+            /**
+             * Batch Size
+             * @description The number of task runs the task run recorder will attempt to insert in one batch.
+             * @default 1
+             */
+            batch_size: number;
+            /**
+             * Flush Interval
+             * @description The maximum number of seconds between flushes of the task run recorder.
+             * @default 5
+             */
+            flush_interval: number;
         };
         /**
          * ServerServicesTriggersSettings
