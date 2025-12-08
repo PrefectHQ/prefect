@@ -143,10 +143,63 @@ const STATE_TYPE_GROUPS = [
 	["CANCELLED"],
 ] as const;
 
+/**
+ * Builds the base flow runs filter object from search params.
+ * This is used by both the loader (for prefetching) and the component.
+ */
+function buildFlowRunsFilterFromSearch(search: {
+	from?: string;
+	to?: string;
+	tags?: string[];
+	hideSubflows?: boolean;
+}): FlowRunsFilter {
+	const baseFilter: FlowRunsFilter = {
+		sort: "START_TIME_DESC",
+		offset: 0,
+	};
+
+	const flowRunsFilterObj: NonNullable<FlowRunsFilter["flow_runs"]> = {
+		operator: "and_",
+	};
+
+	if (search.from && search.to) {
+		flowRunsFilterObj.start_time = {
+			after_: search.from,
+			before_: search.to,
+		};
+	}
+
+	if (search.tags && search.tags.length > 0) {
+		flowRunsFilterObj.tags = {
+			operator: "and_",
+			all_: search.tags,
+		};
+	}
+
+	if (search.hideSubflows) {
+		flowRunsFilterObj.parent_task_run_id = {
+			operator: "and_",
+			is_null_: true,
+		};
+	}
+
+	if (Object.keys(flowRunsFilterObj).length > 1) {
+		baseFilter.flow_runs = flowRunsFilterObj;
+	}
+
+	return baseFilter;
+}
+
 export const Route = createFileRoute("/dashboard")({
 	validateSearch: zodValidator(searchParams),
 	component: RouteComponent,
-	loader: async ({ context: { queryClient } }) => {
+	loaderDeps: ({ search }) => ({
+		from: search.from,
+		to: search.to,
+		tags: search.tags,
+		hideSubflows: search.hideSubflows,
+	}),
+	loader: async ({ deps, context: { queryClient } }) => {
 		// Prefetch total flow runs count to determine if dashboard is empty
 		const totalFlowRuns = await queryClient.ensureQueryData(
 			buildCountFlowRunsQuery({}, 30_000),
@@ -157,23 +210,20 @@ export const Route = createFileRoute("/dashboard")({
 			return;
 		}
 
+		// Build the base filter from search params (matches what FlowRunsCard uses)
+		const baseFilter = buildFlowRunsFilterFromSearch(deps);
+
 		// Prefetch all flow runs (used by FlowRunsCard for the bar chart and state tabs)
 		void queryClient.prefetchQuery(
-			buildFilterFlowRunsQuery(
-				{
-					sort: "START_TIME_DESC",
-					offset: 0,
-				},
-				30_000,
-			),
+			buildFilterFlowRunsQuery(baseFilter, 30_000),
 		);
 
 		// Prefetch flow runs for each state type group to minimize loading when switching tabs
 		STATE_TYPE_GROUPS.forEach((stateTypes) => {
-			const filter: FlowRunsFilter = {
-				sort: "START_TIME_DESC",
-				offset: 0,
+			const filterWithState: FlowRunsFilter = {
+				...baseFilter,
 				flow_runs: {
+					...baseFilter.flow_runs,
 					operator: "and_",
 					state: {
 						operator: "and_",
@@ -183,7 +233,9 @@ export const Route = createFileRoute("/dashboard")({
 					},
 				},
 			};
-			void queryClient.prefetchQuery(buildFilterFlowRunsQuery(filter, 30_000));
+			void queryClient.prefetchQuery(
+				buildFilterFlowRunsQuery(filterWithState, 30_000),
+			);
 		});
 
 		// Prefetch work pools data for the dashboard
