@@ -71,7 +71,6 @@ class ReactiveTriggers(RunInEphemeralServers, Service):
 
 @perpetual_service(
     settings_getter=lambda: get_current_settings().server.services.triggers,
-    run_in_ephemeral=True,
 )
 async def evaluate_proactive_triggers_perpetual(
     perpetual: Perpetual = Perpetual(

@@ -1,5 +1,8 @@
 """Tests for perpetual services registration and scheduling."""
 
+from prefect.server.events.services.triggers import (
+    evaluate_proactive_triggers_perpetual,
+)
 from prefect.server.services.cancellation_cleanup import (
     monitor_cancelled_flow_runs,
     monitor_subflow_runs,
@@ -46,6 +49,8 @@ def test_all_perpetual_services_registered():
         monitor_expired_leases,
         # Telemetry
         send_telemetry_heartbeat,
+        # Proactive triggers
+        evaluate_proactive_triggers_perpetual,
     }
 
     assert functions == expected
