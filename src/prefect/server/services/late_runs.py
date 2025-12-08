@@ -1,6 +1,8 @@
 """
 The MarkLateRuns service. Responsible for putting flow runs in a Late state if they are not started on time.
 The threshold for a late run can be configured by changing `PREFECT_API_SERVICES_LATE_RUNS_AFTER_SECONDS`.
+
+This service has been converted from a LoopService to docket Perpetual functions.
 """
 
 from __future__ import annotations
@@ -17,10 +19,12 @@ from prefect.server.database import PrefectDBInterface, provide_database_interfa
 from prefect.server.exceptions import ObjectNotFoundError
 from prefect.server.orchestration.core_policy import MarkLateRunsPolicy
 from prefect.server.schemas import states
+from prefect.server.services.perpetual_services import perpetual_service
 from prefect.settings import (
     PREFECT_API_SERVICES_LATE_RUNS_AFTER_SECONDS,
     PREFECT_API_SERVICES_LATE_RUNS_LOOP_SECONDS,
 )
+from prefect.settings.context import get_current_settings
 from prefect.types._datetime import now
 
 
@@ -55,6 +59,9 @@ async def mark_flow_run_late(
 
 
 # Perpetual monitor for late flow runs (find and flood pattern)
+@perpetual_service(
+    settings_getter=lambda: get_current_settings().server.services.late_runs,
+)
 async def monitor_late_runs(
     docket: Docket = CurrentDocket(),
     db: PrefectDBInterface = Depends(provide_database_interface),

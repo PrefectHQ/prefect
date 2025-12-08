@@ -1,3 +1,9 @@
+"""
+The Repossessor service. Responsible for revoking expired concurrency leases.
+
+This service has been converted from a LoopService to docket Perpetual functions.
+"""
+
 from datetime import datetime, timedelta, timezone
 from logging import Logger
 
@@ -12,6 +18,7 @@ from prefect.server.database import (
     provide_database_interface,
 )
 from prefect.server.models.concurrency_limits_v2 import bulk_decrement_active_slots
+from prefect.server.services.perpetual_services import perpetual_service
 from prefect.settings.context import get_current_settings
 
 logger: Logger = get_logger(__name__)
@@ -54,6 +61,9 @@ async def revoke_expired_lease(
 
 
 # Perpetual monitor task for finding expired leases (find and flood pattern)
+@perpetual_service(
+    settings_getter=lambda: get_current_settings().server.services.repossessor,
+)
 async def monitor_expired_leases(
     docket: Docket = CurrentDocket(),
     perpetual: Perpetual = Perpetual(

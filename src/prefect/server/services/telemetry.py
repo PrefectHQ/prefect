@@ -16,7 +16,9 @@ from prefect.logging import get_logger
 from prefect.server.database import PrefectDBInterface, provide_database_interface
 from prefect.server.models import configuration
 from prefect.server.schemas.core import Configuration
+from prefect.server.services.perpetual_services import perpetual_service
 from prefect.settings import PREFECT_DEBUG_MODE
+from prefect.settings.context import get_current_settings
 from prefect.types._datetime import now
 
 logger: "logging.Logger" = get_logger(__name__)
@@ -61,6 +63,11 @@ async def _fetch_or_set_telemetry_session(
     return (session_start_timestamp, session_id)
 
 
+@perpetual_service(
+    enabled_getter=lambda: get_current_settings().server.analytics_enabled,
+    run_in_ephemeral=True,
+    run_in_webserver=True,
+)
 async def send_telemetry_heartbeat(
     db: PrefectDBInterface = Depends(provide_database_interface),
     perpetual: Perpetual = Perpetual(automatic=True, every=timedelta(seconds=600)),

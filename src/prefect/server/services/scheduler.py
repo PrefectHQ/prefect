@@ -1,5 +1,8 @@
 """
 The Scheduler service.
+
+This service schedules flow runs from deployments with active schedules.
+It has been converted from a LoopService to docket Perpetual functions.
 """
 
 from __future__ import annotations
@@ -18,6 +21,7 @@ import prefect.server.models as models
 from prefect.logging import get_logger
 from prefect.server.database import PrefectDBInterface, provide_database_interface
 from prefect.server.schemas.states import StateType
+from prefect.server.services.perpetual_services import perpetual_service
 from prefect.settings import (
     PREFECT_API_SERVICES_SCHEDULER_DEPLOYMENT_BATCH_SIZE,
     PREFECT_API_SERVICES_SCHEDULER_INSERT_BATCH_SIZE,
@@ -168,6 +172,9 @@ async def _collect_flow_runs(
     return runs_to_insert
 
 
+@perpetual_service(
+    settings_getter=lambda: get_current_settings().server.services.scheduler,
+)
 async def schedule_deployments(
     db: PrefectDBInterface = Depends(provide_database_interface),
     perpetual: Perpetual = Perpetual(
@@ -180,8 +187,7 @@ async def schedule_deployments(
 
     Perpetual task that runs according to PREFECT_API_SERVICES_SCHEDULER_LOOP_SECONDS.
     """
-
-    logger.info("schedule_deployments() EXECUTING")
+    logger.debug("Running schedule_deployments")
     deployment_batch_size = PREFECT_API_SERVICES_SCHEDULER_DEPLOYMENT_BATCH_SIZE.value()
     max_runs = PREFECT_API_SERVICES_SCHEDULER_MAX_RUNS.value()
     min_runs = PREFECT_API_SERVICES_SCHEDULER_MIN_RUNS.value()
@@ -232,6 +238,9 @@ async def schedule_deployments(
     logger.info(f"Scheduled {total_inserted_runs} runs.")
 
 
+@perpetual_service(
+    settings_getter=lambda: get_current_settings().server.services.scheduler,
+)
 async def schedule_recent_deployments(
     db: PrefectDBInterface = Depends(provide_database_interface),
     perpetual: Perpetual = Perpetual(
@@ -252,7 +261,6 @@ async def schedule_recent_deployments(
 
     Perpetual task that runs according to recent_deployments_loop_seconds setting.
     """
-
     deployment_batch_size = PREFECT_API_SERVICES_SCHEDULER_DEPLOYMENT_BATCH_SIZE.value()
     max_runs = PREFECT_API_SERVICES_SCHEDULER_MAX_RUNS.value()
     min_runs = PREFECT_API_SERVICES_SCHEDULER_MIN_RUNS.value()

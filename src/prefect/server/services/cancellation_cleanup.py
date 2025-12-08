@@ -1,5 +1,7 @@
 """
 The CancellationCleanup service. Responsible for cancelling tasks and subflows that haven't finished.
+
+This service has been converted from a LoopService to docket Perpetual functions.
 """
 
 import datetime
@@ -12,7 +14,9 @@ from sqlalchemy.sql.expression import or_
 import prefect.server.models as models
 from prefect.server.database import PrefectDBInterface, provide_database_interface
 from prefect.server.schemas import filters, states
+from prefect.server.services.perpetual_services import perpetual_service
 from prefect.settings import PREFECT_API_SERVICES_CANCELLATION_CLEANUP_LOOP_SECONDS
+from prefect.settings.context import get_current_settings
 from prefect.types._datetime import now
 
 NON_TERMINAL_STATES = list(set(states.StateType) - states.TERMINAL_STATES)
@@ -99,6 +103,9 @@ async def cancel_subflow_run(
 
 
 # Perpetual monitor for cancelled flow runs with child tasks (find and flood pattern)
+@perpetual_service(
+    settings_getter=lambda: get_current_settings().server.services.cancellation_cleanup,
+)
 async def monitor_cancelled_flow_runs(
     docket: Docket = CurrentDocket(),
     db: PrefectDBInterface = Depends(provide_database_interface),
@@ -132,6 +139,9 @@ async def monitor_cancelled_flow_runs(
 
 
 # Perpetual monitor for subflow runs that need cancellation (find and flood pattern)
+@perpetual_service(
+    settings_getter=lambda: get_current_settings().server.services.cancellation_cleanup,
+)
 async def monitor_subflow_runs(
     docket: Docket = CurrentDocket(),
     db: PrefectDBInterface = Depends(provide_database_interface),

@@ -1,5 +1,7 @@
 """
 The FailExpiredPauses service. Responsible for putting Paused flow runs in a Failed state if they are not resumed on time.
+
+This service has been converted from a LoopService to docket Perpetual functions.
 """
 
 from datetime import timedelta
@@ -11,7 +13,9 @@ from docket import CurrentDocket, Depends, Docket, Perpetual
 import prefect.server.models as models
 from prefect.server.database import PrefectDBInterface, provide_database_interface
 from prefect.server.schemas import states
+from prefect.server.services.perpetual_services import perpetual_service
 from prefect.settings import PREFECT_API_SERVICES_PAUSE_EXPIRATIONS_LOOP_SECONDS
+from prefect.settings.context import get_current_settings
 from prefect.types._datetime import now
 
 
@@ -48,6 +52,9 @@ async def fail_expired_pause(
 
 
 # Perpetual monitor for expired paused flow runs (find and flood pattern)
+@perpetual_service(
+    settings_getter=lambda: get_current_settings().server.services.pause_expirations,
+)
 async def monitor_expired_pauses(
     docket: Docket = CurrentDocket(),
     db: PrefectDBInterface = Depends(provide_database_interface),

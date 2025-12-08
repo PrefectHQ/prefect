@@ -7,7 +7,7 @@ from abc import ABC, abstractmethod
 from contextlib import asynccontextmanager
 from logging import Logger
 from types import ModuleType
-from typing import Any, AsyncGenerator, NoReturn, Sequence
+from typing import AsyncGenerator, NoReturn, Sequence
 
 from typing_extensions import Self
 
@@ -100,18 +100,13 @@ class Service(ABC):
 
     @classmethod
     @asynccontextmanager
-    async def running(cls, docket: Any | None = None) -> AsyncGenerator[None, None]:
+    async def running(cls) -> AsyncGenerator[None, None]:
         """A context manager that runs enabled services on entry and stops them on
         exit.
-
-        Args:
-            docket: Optional Docket instance for task scheduling
         """
         service_tasks: dict[Service, asyncio.Task[None]] = {}
         for service_class in cls.enabled_services():
             service = service_class()
-            if docket is not None and hasattr(service, "docket"):
-                service.docket = docket  # type: ignore
             service_tasks[service] = asyncio.create_task(service.start())
 
         try:

@@ -4341,11 +4341,11 @@ export interface components {
              */
             history_end: string;
             /**
-             * History Interval
+             * History Interval Seconds
              * Format: time-delta
              * @description The size of each history interval, in seconds. Must be at least 1 second.
              */
-            history_interval: number;
+            history_interval_seconds: number;
             flows?: components["schemas"]["FlowFilter"] | null;
             flow_runs?: components["schemas"]["FlowRunFilter"] | null;
             task_runs?: components["schemas"]["TaskRunFilter"] | null;
@@ -4972,11 +4972,11 @@ export interface components {
              */
             history_end: string;
             /**
-             * History Interval
+             * History Interval Seconds
              * Format: time-delta
              * @description The size of each history interval, in seconds. Must be at least 1 second.
              */
-            history_interval: number;
+            history_interval_seconds: number;
             flows?: components["schemas"]["FlowFilter"];
             flow_runs?: components["schemas"]["FlowRunFilter"];
             task_runs?: components["schemas"]["TaskRunFilter"];
@@ -5185,6 +5185,12 @@ export interface components {
              * @default true
              */
             enable_orchestration_telemetry: boolean;
+            /**
+             * Max Log Size
+             * @description Maximum size in characters for a single log when sending logs to Prefect Cloud.
+             * @default 25000
+             */
+            max_log_size: number;
             /**
              * Ui Url
              * @description The URL of the Prefect Cloud UI. If not set, the client will attempt to infer it.
@@ -5438,6 +5444,11 @@ export interface components {
          */
         ConcurrencyOptions: {
             collision_strategy: components["schemas"]["ConcurrencyLimitStrategy"];
+            /**
+             * Grace Period Seconds
+             * @description Grace period in seconds for infrastructure to start before concurrency slots are revoked. If not set, falls back to server setting.
+             */
+            grace_period_seconds?: number | null;
         };
         /**
          * Constant
@@ -6037,6 +6048,11 @@ export interface components {
              * @description The work queue for the deployment. If no work queue is set, work will not be scheduled.
              */
             work_queue_name?: string | null;
+            /**
+             * Work Queue Id
+             * @description The id of the work pool queue to which this deployment is assigned.
+             */
+            work_queue_id?: string | null;
             /**
              * Last Polled
              * @description The last time the deployment was polled for status updates.
@@ -8413,7 +8429,7 @@ export interface components {
             batch_size: number;
             /**
              * Max Log Size
-             * @description The maximum size in bytes for a single log.
+             * @description The maximum size in characters for a single log. When connected to Prefect Cloud, this value is capped at `PREFECT_CLOUD_MAX_LOG_SIZE` (default 25,000).
              * @default 1000000
              */
             max_log_size: number;
@@ -9011,6 +9027,11 @@ export interface components {
              */
             application_name?: string | null;
             /**
+             * Search Path
+             * @description PostgreSQL schema name to set in search_path when using a PostgreSQL database with the Prefect backend. Note: The public schema should be included in the search path (e.g. 'myschema, public') to ensure that pg_trgm and other extensions remain available.
+             */
+            search_path?: string | null;
+            /**
              * Statement Cache Size
              * @description Controls statement cache size for PostgreSQL connections. Setting this to 0 is required when using PgBouncer in transaction mode. Defaults to None.
              */
@@ -9028,7 +9049,40 @@ export interface components {
          * @description Settings for controlling SQLAlchemy behavior; note that these settings only take effect when
          *     using a PostgreSQL database.
          */
-        SQLAlchemySettings: {
+        "SQLAlchemySettings-Input": {
+            /** @description Settings for controlling SQLAlchemy connection behavior */
+            connect_args?: components["schemas"]["SQLAlchemyConnectArgsSettings"];
+            /**
+             * Pool Size
+             * @description Controls connection pool size of database connection pools from the Prefect backend.
+             * @default 5
+             */
+            pool_size: number;
+            /**
+             * Pool Recycle
+             * @description This setting causes the pool to recycle connections after the given number of seconds has passed; set it to -1 to avoid recycling entirely.
+             * @default 3600
+             */
+            pool_recycle: number;
+            /**
+             * Pool Timeout
+             * @description Number of seconds to wait before giving up on getting a connection from the pool. Defaults to 30 seconds.
+             * @default 30
+             */
+            pool_timeout: number | null;
+            /**
+             * Max Overflow
+             * @description Controls maximum overflow of the connection pool. To prevent overflow, set to -1.
+             * @default 10
+             */
+            max_overflow: number;
+        };
+        /**
+         * SQLAlchemySettings
+         * @description Settings for controlling SQLAlchemy behavior; note that these settings only take effect when
+         *     using a PostgreSQL database.
+         */
+        "SQLAlchemySettings-Output": {
             /** @description Settings for controlling SQLAlchemy connection behavior */
             connect_args?: components["schemas"]["SQLAlchemyConnectArgsSettings"];
             /**
@@ -9398,14 +9452,98 @@ export interface components {
              * @default 300
              */
             initial_deployment_lease_duration: number;
+            /**
+             * Maximum Concurrency Slot Wait Seconds
+             * @description The maximum number of seconds to wait before retrying when a concurrency slot cannot be acquired.
+             * @default 30
+             */
+            maximum_concurrency_slot_wait_seconds: number;
         };
         /**
          * ServerDatabaseSettings
          * @description Settings for controlling server database behavior
          */
-        ServerDatabaseSettings: {
+        "ServerDatabaseSettings-Input": {
             /** @description Settings for controlling SQLAlchemy behavior */
-            sqlalchemy?: components["schemas"]["SQLAlchemySettings"];
+            sqlalchemy?: components["schemas"]["SQLAlchemySettings-Input"];
+            /**
+             * Connection Url
+             * @description
+             *             A database connection URL in a SQLAlchemy-compatible
+             *             format. Prefect currently supports SQLite and Postgres. Note that all
+             *             Prefect database engines must use an async driver - for SQLite, use
+             *             `sqlite+aiosqlite` and for Postgres use `postgresql+asyncpg`.
+             *
+             *             SQLite in-memory databases can be used by providing the url
+             *             `sqlite+aiosqlite:///file::memory:?cache=shared&uri=true&check_same_thread=false`,
+             *             which will allow the database to be accessed by multiple threads. Note
+             *             that in-memory databases can not be accessed from multiple processes and
+             *             should only be used for simple tests.
+             *
+             */
+            connection_url?: string | null;
+            /**
+             * Driver
+             * @description The database driver to use when connecting to the database. If not set, the driver will be inferred from the connection URL.
+             */
+            driver?: ("postgresql+asyncpg" | "sqlite+aiosqlite") | null;
+            /**
+             * Host
+             * @description The database server host.
+             */
+            host?: string | null;
+            /**
+             * Port
+             * @description The database server port.
+             */
+            port?: number | null;
+            /**
+             * User
+             * @description The user to use when connecting to the database.
+             */
+            user?: string | null;
+            /**
+             * Name
+             * @description The name of the Prefect database on the remote server, or the path to the database file for SQLite.
+             */
+            name?: string | null;
+            /**
+             * Password
+             * @description The password to use when connecting to the database. Should be kept secret.
+             */
+            password?: string | null;
+            /**
+             * Echo
+             * @description If `True`, SQLAlchemy will log all SQL issued to the database. Defaults to `False`.
+             * @default false
+             */
+            echo: boolean;
+            /**
+             * Migrate On Start
+             * @description If `True`, the database will be migrated on application startup.
+             * @default true
+             */
+            migrate_on_start: boolean;
+            /**
+             * Timeout
+             * @description A statement timeout, in seconds, applied to all database interactions made by the Prefect backend. Defaults to 10 seconds.
+             * @default 10
+             */
+            timeout: number | null;
+            /**
+             * Connection Timeout
+             * @description A connection timeout, in seconds, applied to database connections. Defaults to `5`.
+             * @default 5
+             */
+            connection_timeout: number | null;
+        };
+        /**
+         * ServerDatabaseSettings
+         * @description Settings for controlling server database behavior
+         */
+        "ServerDatabaseSettings-Output": {
+            /** @description Settings for controlling SQLAlchemy behavior */
+            sqlalchemy?: components["schemas"]["SQLAlchemySettings-Output"];
             /**
              * Connection Url
              * @description
@@ -9485,6 +9623,24 @@ export interface components {
              * @default 30
              */
             concurrency_slot_wait_seconds: number;
+        };
+        /**
+         * ServerDocketSettings
+         * @description Settings for controlling Docket behavior
+         */
+        ServerDocketSettings: {
+            /**
+             * Name
+             * @description The name of the Docket instance.
+             * @default prefect-server
+             */
+            name: string;
+            /**
+             * Url
+             * @description The URL of the Redis server to use for Docket.
+             * @default memory://
+             */
+            url: string;
         };
         /**
          * ServerEphemeralSettings
@@ -9688,6 +9844,12 @@ export interface components {
              */
             batch_size: number;
             /**
+             * Read Batch Size
+             * @description The number of events the event persister will attempt to read from the message broker in one batch.
+             * @default 1
+             */
+            read_batch_size: number;
+            /**
              * Flush Interval
              * @description The maximum number of seconds between flushes of the event persister.
              * @default 5
@@ -9699,6 +9861,18 @@ export interface components {
              * @default 10000
              */
             batch_size_delete: number;
+            /**
+             * Queue Max Size
+             * @description The maximum number of events that can be queued in memory for persistence. When the queue is full, new events will be dropped.
+             * @default 50000
+             */
+            queue_max_size: number;
+            /**
+             * Max Flush Retries
+             * @description The maximum number of consecutive flush failures before events are dropped instead of being re-queued.
+             * @default 5
+             */
+            max_flush_retries: number;
         };
         /**
          * ServerServicesForemanSettings
@@ -9952,6 +10126,12 @@ export interface components {
              * @default true
              */
             enabled: boolean;
+            /**
+             * Read Batch Size
+             * @description The number of task runs the task run recorder will attempt to read from the message broker in one batch.
+             * @default 1
+             */
+            read_batch_size: number;
         };
         /**
          * ServerServicesTriggersSettings
@@ -9964,6 +10144,12 @@ export interface components {
              * @default true
              */
             enabled: boolean;
+            /**
+             * Read Batch Size
+             * @description The number of events the triggers service will attempt to read from the message broker in one batch.
+             * @default 1
+             */
+            read_batch_size: number;
             /**
              * Pg Notify Reconnect Interval Seconds
              * @description
@@ -9989,7 +10175,7 @@ export interface components {
          * ServerSettings
          * @description Settings for controlling server behavior
          */
-        ServerSettings: {
+        "ServerSettings-Input": {
             /**
              * Logging Level
              * @description The default logging level for the Prefect API server.
@@ -10045,9 +10231,90 @@ export interface components {
             api?: components["schemas"]["ServerAPISettings"];
             /** @description Settings for controlling server-side concurrency limit handling */
             concurrency?: components["schemas"]["ServerConcurrencySettings"];
-            database?: components["schemas"]["ServerDatabaseSettings"];
+            database?: components["schemas"]["ServerDatabaseSettings-Input"];
             /** @description Settings for controlling server deployments behavior */
             deployments?: components["schemas"]["ServerDeploymentsSettings"];
+            /** @description Settings for controlling server Docket behavior */
+            docket?: components["schemas"]["ServerDocketSettings"];
+            ephemeral?: components["schemas"]["ServerEphemeralSettings"];
+            /** @description Settings for controlling server events behavior */
+            events?: components["schemas"]["ServerEventsSettings"];
+            /** @description Settings for controlling flow run graph behavior */
+            flow_run_graph?: components["schemas"]["ServerFlowRunGraphSettings"];
+            /** @description Settings for controlling server logs behavior */
+            logs?: components["schemas"]["ServerLogsSettings"];
+            /** @description Settings for controlling server services behavior */
+            services?: components["schemas"]["ServerServicesSettings"];
+            /** @description Settings for controlling server tasks behavior */
+            tasks?: components["schemas"]["ServerTasksSettings"];
+            /** @description Settings for controlling server UI behavior */
+            ui?: components["schemas"]["ServerUISettings"];
+        };
+        /**
+         * ServerSettings
+         * @description Settings for controlling server behavior
+         */
+        "ServerSettings-Output": {
+            /**
+             * Logging Level
+             * @description The default logging level for the Prefect API server.
+             * @default WARNING
+             * @enum {string}
+             */
+            logging_level: "DEBUG" | "INFO" | "WARNING" | "ERROR" | "CRITICAL";
+            /**
+             * Analytics Enabled
+             * @description
+             *             When enabled, Prefect sends anonymous data (e.g. count of flow runs, package version)
+             *             on server startup to help us improve our product.
+             *
+             * @default true
+             */
+            analytics_enabled: boolean;
+            /**
+             * Metrics Enabled
+             * @description Whether or not to enable Prometheus metrics in the API.
+             * @default false
+             */
+            metrics_enabled: boolean;
+            /**
+             * Log Retryable Errors
+             * @description If `True`, log retryable errors in the API and it's services.
+             * @default false
+             */
+            log_retryable_errors: boolean;
+            /**
+             * Register Blocks On Start
+             * @description If set, any block types that have been imported will be registered with the backend on application startup. If not set, block types must be manually registered.
+             * @default true
+             */
+            register_blocks_on_start: boolean;
+            /**
+             * Memoize Block Auto Registration
+             * @description Controls whether or not block auto-registration on start
+             * @default true
+             */
+            memoize_block_auto_registration: boolean;
+            /**
+             * Memo Store Path
+             * Format: path
+             * @description Path to the memo store file. Defaults to $PREFECT_HOME/memo_store.toml
+             */
+            memo_store_path?: string;
+            /**
+             * Deployment Schedule Max Scheduled Runs
+             * @description The maximum number of scheduled runs to create for a deployment.
+             * @default 50
+             */
+            deployment_schedule_max_scheduled_runs: number;
+            api?: components["schemas"]["ServerAPISettings"];
+            /** @description Settings for controlling server-side concurrency limit handling */
+            concurrency?: components["schemas"]["ServerConcurrencySettings"];
+            database?: components["schemas"]["ServerDatabaseSettings-Output"];
+            /** @description Settings for controlling server deployments behavior */
+            deployments?: components["schemas"]["ServerDeploymentsSettings"];
+            /** @description Settings for controlling server Docket behavior */
+            docket?: components["schemas"]["ServerDocketSettings"];
             ephemeral?: components["schemas"]["ServerEphemeralSettings"];
             /** @description Settings for controlling server events behavior */
             events?: components["schemas"]["ServerEventsSettings"];
@@ -10143,7 +10410,68 @@ export interface components {
          * @enum {string}
          */
         SetStateStatus: "ACCEPT" | "REJECT" | "ABORT" | "WAIT";
-        Settings: unknown;
+        /**
+         * Settings
+         * @description Settings for Prefect using Pydantic settings.
+         *
+         *     See https://docs.pydantic.dev/latest/concepts/pydantic_settings
+         */
+        Settings: {
+            /**
+             * Home
+             * Format: path
+             * @description The path to the Prefect home directory. Defaults to ~/.prefect
+             * @default ~/.prefect
+             */
+            home: string;
+            /**
+             * Profiles Path
+             * Format: path
+             * @description The path to a profiles configuration file. Supports \$PREFECT_HOME templating. Defaults to \$PREFECT_HOME/profiles.toml.
+             */
+            profiles_path?: string;
+            /**
+             * Debug Mode
+             * @description If True, enables debug mode which may provide additional logging and debugging features.
+             * @default false
+             */
+            debug_mode: boolean;
+            api?: components["schemas"]["APISettings"];
+            cli?: components["schemas"]["CLISettings"];
+            client?: components["schemas"]["ClientSettings"];
+            cloud?: components["schemas"]["CloudSettings"];
+            deployments?: components["schemas"]["DeploymentsSettings"];
+            /** @description Settings for controlling experimental features */
+            experiments?: components["schemas"]["ExperimentsSettings"];
+            flows?: components["schemas"]["FlowsSettings"];
+            /** @description Settings for internal Prefect machinery */
+            internal?: components["schemas"]["InternalSettings"];
+            logging?: components["schemas"]["LoggingSettings"];
+            results?: components["schemas"]["ResultsSettings"];
+            runner?: components["schemas"]["RunnerSettings"];
+            server?: components["schemas"]["ServerSettings-Output"];
+            /** @description Settings for controlling task behavior */
+            tasks?: components["schemas"]["TasksSettings"];
+            /** @description Settings used during testing */
+            testing?: components["schemas"]["TestingSettings"];
+            /** @description Settings for controlling worker behavior */
+            worker?: components["schemas"]["WorkerSettings"];
+            /**
+             * Ui Url
+             * @description The URL of the Prefect UI. If not set, the client will attempt to infer it.
+             */
+            ui_url?: string | null;
+            /**
+             * Silence Api Url Misconfiguration
+             * @description
+             *             If `True`, disable the warning when a user accidentally misconfigure its `PREFECT_API_URL`
+             *             Sometimes when a user manually set `PREFECT_API_URL` to a custom url,reverse-proxy for example,
+             *             we would like to silence this warning so we will set it to `FALSE`.
+             *
+             * @default false
+             */
+            silence_api_url_misconfiguration: boolean;
+        };
         /** SimpleFlowRun */
         SimpleFlowRun: {
             /**

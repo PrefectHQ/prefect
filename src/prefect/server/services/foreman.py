@@ -18,6 +18,7 @@ from prefect.server.schemas.statuses import (
     WorkerStatus,
     WorkPoolStatus,
 )
+from prefect.server.services.perpetual_services import perpetual_service
 from prefect.settings import (
     PREFECT_API_SERVICES_FOREMAN_DEPLOYMENT_LAST_POLLED_TIMEOUT_SECONDS,
     PREFECT_API_SERVICES_FOREMAN_FALLBACK_HEARTBEAT_INTERVAL_SECONDS,
@@ -25,6 +26,7 @@ from prefect.settings import (
     PREFECT_API_SERVICES_FOREMAN_LOOP_SECONDS,
     PREFECT_API_SERVICES_FOREMAN_WORK_QUEUE_LAST_POLLED_TIMEOUT_SECONDS,
 )
+from prefect.settings.context import get_current_settings
 from prefect.types._datetime import now
 
 
@@ -167,6 +169,9 @@ async def mark_work_queues_not_ready_task(
 
 
 # Perpetual monitor for worker/work pool health (find and flood pattern)
+@perpetual_service(
+    settings_getter=lambda: get_current_settings().server.services.foreman,
+)
 async def monitor_worker_health(
     docket: Docket = CurrentDocket(),
     perpetual: Perpetual = Perpetual(

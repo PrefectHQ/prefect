@@ -693,10 +693,14 @@ def create_app(
             docket = await stack.enter_async_context(
                 Docket(name=settings.server.docket.name, url=settings.server.docket.url)
             )
-            await stack.enter_async_context(background_worker(docket))
+            await stack.enter_async_context(
+                background_worker(
+                    docket, ephemeral=ephemeral, webserver_only=webserver_only
+                )
+            )
             api_app.state.docket = docket
             if Services:
-                await stack.enter_async_context(Services.running(docket=docket))
+                await stack.enter_async_context(Services.running())
             LIFESPAN_RAN_FOR_APP.add(app)
             yield
 
