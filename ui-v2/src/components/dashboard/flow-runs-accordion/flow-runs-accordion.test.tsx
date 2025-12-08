@@ -13,7 +13,7 @@ import { Suspense } from "react";
 import { describe, expect, it } from "vitest";
 import type { FlowRunsFilter } from "@/api/flow-runs";
 import type { Flow } from "@/api/flows";
-import { createFakeFlow, createFakeFlowRun } from "@/mocks";
+import { createFakeFlow, createFakeFlowRun, createFakeState } from "@/mocks";
 import { FlowRunStateTypeEmpty } from "./flow-run-state-type-empty";
 import { FlowRunsAccordionContent } from "./flow-runs-accordion-content";
 import { FlowRunsAccordionHeader } from "./flow-runs-accordion-header";
@@ -344,14 +344,12 @@ describe("FlowRunsAccordionContent", () => {
 			flow_id: "flow-1",
 			state_type: "COMPLETED",
 			state_name: "Completed",
-			state: {
+			state: createFakeState({
 				id: "state-1",
 				type: "COMPLETED",
 				name: "Completed",
 				timestamp: "2024-01-15T10:30:00Z",
-				message: null,
-				state_details: {},
-			},
+			}),
 			start_time: "2024-01-15T10:30:00Z",
 			estimated_run_time: 120,
 		});
