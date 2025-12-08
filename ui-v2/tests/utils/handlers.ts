@@ -104,6 +104,15 @@ const flowRunHandlers = [
 		]);
 	}),
 
+	http.post(buildApiUrl("/flow_runs/paginate"), () => {
+		return HttpResponse.json({
+			results: [],
+			count: 0,
+			page: 1,
+			pages: 0,
+		});
+	}),
+
 	http.post(buildApiUrl("/flow_runs/count"), () => {
 		return HttpResponse.json(0);
 	}),
@@ -128,6 +137,39 @@ const globalConcurrencyLimitsHandlers = [
 	}),
 ];
 
+const savedSearchesHandlers = [
+	http.post(buildApiUrl("/saved_searches/filter"), () => {
+		return HttpResponse.json([]);
+	}),
+
+	http.put(buildApiUrl("/saved_searches/"), () => {
+		return HttpResponse.json(
+			{
+				id: "new-saved-search-id",
+				name: "New Saved Search",
+				filters: [],
+				created: new Date().toISOString(),
+				updated: new Date().toISOString(),
+			},
+			{ status: 201 },
+		);
+	}),
+
+	http.get(buildApiUrl("/saved_searches/:id"), () => {
+		return HttpResponse.json({
+			id: "saved-search-id",
+			name: "Saved Search",
+			filters: [],
+			created: new Date().toISOString(),
+			updated: new Date().toISOString(),
+		});
+	}),
+
+	http.delete(buildApiUrl("/saved_searches/:id"), () => {
+		return new HttpResponse(null, { status: 204 });
+	}),
+];
+
 const settingsHandlers = [
 	http.post(buildApiUrl("/admin/settings"), () => {
 		return HttpResponse.json({});
@@ -137,6 +179,15 @@ const settingsHandlers = [
 const taskRunHandlers = [
 	http.post(buildApiUrl("/task_runs/filter"), () => {
 		return HttpResponse.json([]);
+	}),
+
+	http.post(buildApiUrl("/task_runs/paginate"), () => {
+		return HttpResponse.json({
+			results: [],
+			count: 0,
+			page: 1,
+			pages: 0,
+		});
 	}),
 
 	http.post(buildApiUrl("/task_runs/history"), () => {
@@ -229,6 +280,7 @@ export const handlers = [
 	...flowHandlers,
 	...flowRunHandlers,
 	...globalConcurrencyLimitsHandlers,
+	...savedSearchesHandlers,
 	...settingsHandlers,
 	...taskRunHandlers,
 	...taskRunConcurrencyLimitsHandlers,
