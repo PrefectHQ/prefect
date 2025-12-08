@@ -39,12 +39,17 @@ type SetTaskRunStateParams = {
  * detail		=>   ['taskRuns', 'details', id]
  * ```
  */
+export type TaskRunsCountFilter =
+	components["schemas"]["Body_count_task_runs_task_runs_count_post"];
+
 export const queryKeyFactory = {
 	all: () => ["taskRuns"] as const,
 	lists: () => [...queryKeyFactory.all(), "list"] as const,
 	list: (filter: TaskRunsFilter) =>
 		[...queryKeyFactory.lists(), filter] as const,
 	counts: () => [...queryKeyFactory.all(), "count"] as const,
+	count: (filter: TaskRunsCountFilter) =>
+		[...queryKeyFactory.counts(), filter] as const,
 	flowRunsCount: (flowRunIds: Array<string>) => [
 		...queryKeyFactory.counts(),
 		"flow-runs",
@@ -90,6 +95,38 @@ export const buildListTaskRunsQuery = (
 		refetchInterval,
 	});
 };
+
+/**
+ * Builds a query configuration for counting task runs
+ *
+ * @param filter - Filter parameters for the task runs count query.
+ * @param refetchInterval - Interval for refetching the count (default 30 seconds)
+ * @returns Query configuration object for use with TanStack Query
+ *
+ * @example
+ * ```ts
+ * const { data: taskRunsCount } = useSuspenseQuery(buildCountTaskRunsQuery({
+ *   task_runs: {
+ *     state: { type: { any_: ["COMPLETED"] } }
+ *   }
+ * }));
+ * ```
+ */
+export const buildCountTaskRunsQuery = (
+	filter: TaskRunsCountFilter = {},
+	refetchInterval = 30_000,
+) =>
+	queryOptions({
+		queryKey: queryKeyFactory.count(filter),
+		queryFn: async () => {
+			const res = await getQueryService().POST("/task_runs/count", {
+				body: filter,
+			});
+			return res.data ?? 0;
+		},
+		refetchInterval,
+		staleTime: 1000,
+	});
 
 /**
  * Builds a query configuration for fetching flow runs task count
