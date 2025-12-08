@@ -1399,11 +1399,7 @@ class TestResultPersistence:
 
     @pytest.mark.parametrize(
         "cache_policy",
-        [
-            policy
-            for policy in CachePolicy.__subclasses__()
-            if policy not in (NO_CACHE, DEFAULT)
-        ],
+        [policy for policy in CachePolicy.__subclasses__() if policy != NO_CACHE],
     )
     def test_setting_cache_policy_sets_persist_result_to_true(self, cache_policy):
         @task(cache_policy=cache_policy)
