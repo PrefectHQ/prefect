@@ -66,7 +66,7 @@ export const RunsPage = ({
 				offset: 0,
 				sort: "NAME_ASC",
 			},
-			0,
+			{ enabled: flowIds.length > 0 },
 		),
 	);
 

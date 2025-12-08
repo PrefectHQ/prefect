@@ -34,7 +34,10 @@ const buildPaginationBody = (
 	limit: search?.limit ?? 10,
 	sort: search?.sort ?? "START_TIME_DESC",
 	flow_runs: search?.["hide-subflows"]
-		? { parent_task_run_id: { is_null_: true } }
+		? {
+				operator: "and_",
+				parent_task_run_id: { operator: "and_", is_null_: true },
+			}
 		: undefined,
 });
 
