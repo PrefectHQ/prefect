@@ -195,9 +195,81 @@ export const LateRuns: Story = {
 	},
 };
 
-export const EmptyState: Story = {
+export const EmptyStateFailed: Story = {
 	args: {
-		stateTypes: ["FAILED"],
+		stateTypes: ["FAILED", "CRASHED"],
+	},
+	parameters: {
+		msw: {
+			handlers: [
+				http.post(buildApiUrl("/flow_runs/filter"), () => {
+					return HttpResponse.json([]);
+				}),
+				http.post(buildApiUrl("/flows/filter"), () => {
+					return HttpResponse.json([]);
+				}),
+			],
+		},
+	},
+};
+
+export const EmptyStateRunning: Story = {
+	args: {
+		stateTypes: ["RUNNING", "PENDING", "CANCELLING"],
+	},
+	parameters: {
+		msw: {
+			handlers: [
+				http.post(buildApiUrl("/flow_runs/filter"), () => {
+					return HttpResponse.json([]);
+				}),
+				http.post(buildApiUrl("/flows/filter"), () => {
+					return HttpResponse.json([]);
+				}),
+			],
+		},
+	},
+};
+
+export const EmptyStateCompleted: Story = {
+	args: {
+		stateTypes: ["COMPLETED"],
+	},
+	parameters: {
+		msw: {
+			handlers: [
+				http.post(buildApiUrl("/flow_runs/filter"), () => {
+					return HttpResponse.json([]);
+				}),
+				http.post(buildApiUrl("/flows/filter"), () => {
+					return HttpResponse.json([]);
+				}),
+			],
+		},
+	},
+};
+
+export const EmptyStateLate: Story = {
+	args: {
+		stateTypes: ["SCHEDULED", "PAUSED"],
+	},
+	parameters: {
+		msw: {
+			handlers: [
+				http.post(buildApiUrl("/flow_runs/filter"), () => {
+					return HttpResponse.json([]);
+				}),
+				http.post(buildApiUrl("/flows/filter"), () => {
+					return HttpResponse.json([]);
+				}),
+			],
+		},
+	},
+};
+
+export const EmptyStateCancelled: Story = {
+	args: {
+		stateTypes: ["CANCELLED"],
 	},
 	parameters: {
 		msw: {
