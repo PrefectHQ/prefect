@@ -45,25 +45,39 @@ const transformHistoryToChartData = (
 		let completedCount = 0;
 		let failedCount = 0;
 
-		for (const state of item.states) {
-			if (state.state_type === "COMPLETED") {
-				completedCount += state.count_runs;
-			} else if (
-				state.state_type === "FAILED" ||
-				state.state_type === "CRASHED"
-			) {
-				failedCount += state.count_runs;
+		// eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment
+		const states = item.states;
+		if (Array.isArray(states)) {
+			for (const state of states) {
+				// eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+				// eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+				if (state?.state_type === "COMPLETED") {
+					// eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+					completedCount += typeof state.count_runs === "number" ? state.count_runs : 0;
+				} else if (
+					// eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+					state?.state_type === "FAILED" ||
+					// eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+					state?.state_type === "CRASHED"
+				) {
+					// eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+					failedCount += typeof state.count_runs === "number" ? state.count_runs : 0;
+				}
 			}
 		}
 
 		cumulativeCompleted += completedCount;
 		cumulativeFailed += failedCount;
 
-		chartData.push({
-			timestamp: item.interval_start,
-			completed: cumulativeCompleted,
-			failed: cumulativeFailed,
-		});
+		// eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment
+		const intervalStart = item.interval_start;
+		if (typeof intervalStart === "string") {
+			chartData.push({
+				timestamp: intervalStart,
+				completed: cumulativeCompleted,
+				failed: cumulativeFailed,
+			});
+		}
 	}
 
 	return chartData;

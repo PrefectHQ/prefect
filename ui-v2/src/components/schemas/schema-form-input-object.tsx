@@ -62,10 +62,21 @@ export function SchemaFormInputObject({
 	}
 
 	function getPropertyErrors(key: string): SchemaFormErrors {
+		// eslint-disable-next-line @typescript-eslint/no-unsafe-return
 		return errors
 			.filter(isSchemaValuePropertyError)
-			.filter((error) => error.property === key)
-			.flatMap((error) => error.errors);
+			.filter((error) => {
+				// eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+				return typeof error.property === "string" && error.property === key;
+			})
+			.flatMap((error) => {
+				// eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+				if (error.errors && Array.isArray(error.errors)) {
+					// eslint-disable-next-line @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-member-access
+					return error.errors;
+				}
+				return [];
+			});
 	}
 
 	const properties = useMemo(() => {

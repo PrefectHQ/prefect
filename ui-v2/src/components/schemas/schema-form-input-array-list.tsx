@@ -48,13 +48,24 @@ export function SchemaFormInputArrayList({
 		return property.items ?? { type: "string" };
 	}
 
-	function getErrorsForIndex(index: number) {
+	function getErrorsForIndex(index: number): SchemaFormErrors {
+		// eslint-disable-next-line @typescript-eslint/no-unsafe-return
 		return errors
 			.filter(
-				(error): error is SchemaValueIndexError =>
-					isSchemaValueIndexError(error) && error.index === index,
+				(error): error is SchemaValueIndexError => {
+					if (!isSchemaValueIndexError(error)) return false;
+					// eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+					return typeof error.index === "number" && error.index === index;
+				},
 			)
-			.flatMap((error) => error.errors);
+			.flatMap((error) => {
+				// eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+				if (error.errors && Array.isArray(error.errors)) {
+					// eslint-disable-next-line @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-member-access
+					return error.errors;
+				}
+				return [];
+			});
 	}
 
 	function getFirstForIndex(index: number): boolean {

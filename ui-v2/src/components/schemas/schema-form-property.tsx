@@ -10,8 +10,7 @@ import {
 	isSchemaValueIndexError,
 	isSchemaValuePropertyError,
 	type SchemaFormErrors,
-	type SchemaValueIndexError,
-	type SchemaValuePropertyError,
+	type SchemaFormNestedError,
 } from "./types/errors";
 import { useSchemaFormContext } from "./use-schema-form-context";
 import { isDefined } from "./utilities/guards";
@@ -47,9 +46,9 @@ export function SchemaFormProperty({
 	}, [property.type]);
 
 	const nestedErrors = useMemo(() => {
-		return errors.filter(
-			(error): error is SchemaValuePropertyError | SchemaValueIndexError =>
-				isSchemaValuePropertyError(error) || isSchemaValueIndexError(error),
+		// eslint-disable-next-line @typescript-eslint/no-unsafe-return
+		return errors.filter((error): error is SchemaFormNestedError =>
+			isSchemaValuePropertyError(error) || isSchemaValueIndexError(error),
 		);
 	}, [errors]);
 
