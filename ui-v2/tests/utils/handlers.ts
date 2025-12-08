@@ -139,6 +139,20 @@ const taskRunHandlers = [
 		return HttpResponse.json([]);
 	}),
 
+	http.post(buildApiUrl("/task_runs/paginate"), () => {
+		return HttpResponse.json({
+			results: [],
+			count: 0,
+			limit: 10,
+			pages: 0,
+			page: 1,
+		});
+	}),
+
+	http.post(buildApiUrl("/task_runs/count"), () => {
+		return HttpResponse.json(0);
+	}),
+
 	http.post(buildApiUrl("/task_runs/history"), () => {
 		return HttpResponse.json([]);
 	}),

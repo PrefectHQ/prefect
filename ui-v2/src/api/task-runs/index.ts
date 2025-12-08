@@ -11,6 +11,12 @@ export type TaskRun = components["schemas"]["UITaskRun"];
 export type TaskRunsFilter =
 	components["schemas"]["Body_read_task_runs_task_runs_filter_post"];
 
+export type TaskRunsCountFilter =
+	components["schemas"]["Body_count_task_runs_task_runs_count_post"];
+
+export type TaskRunsPaginateFilter =
+	components["schemas"]["Body_paginate_task_runs_task_runs_paginate_post"];
+
 type SetTaskRunStateBody =
 	components["schemas"]["Body_set_task_run_state_task_runs__id__set_state_post"];
 
@@ -44,7 +50,11 @@ export const queryKeyFactory = {
 	lists: () => [...queryKeyFactory.all(), "list"] as const,
 	list: (filter: TaskRunsFilter) =>
 		[...queryKeyFactory.lists(), filter] as const,
+	paginate: (filter: TaskRunsPaginateFilter) =>
+		[...queryKeyFactory.lists(), "paginate", filter] as const,
 	counts: () => [...queryKeyFactory.all(), "count"] as const,
+	count: (filter: TaskRunsCountFilter) =>
+		[...queryKeyFactory.counts(), filter] as const,
 	flowRunsCount: (flowRunIds: Array<string>) => [
 		...queryKeyFactory.counts(),
 		"flow-runs",
@@ -85,6 +95,75 @@ export const buildListTaskRunsQuery = (
 				body: filter,
 			});
 			return res.data ?? [];
+		},
+		staleTime: 1000,
+		refetchInterval,
+	});
+};
+
+/**
+ * Builds a query configuration for counting task runs
+ *
+ * @param filter - Filter parameters for the task runs count query.
+ * @param refetchInterval - Interval for refetching the count (default 30 seconds)
+ * @returns Query configuration object for use with TanStack Query
+ *
+ * @example
+ * ```ts
+ * const { data: taskRunsCount } = useSuspenseQuery(buildCountTaskRunsQuery({
+ *   task_runs: {
+ *     name: { like_: "my-task-run" }
+ *   }
+ * }));
+ * ```
+ */
+export const buildCountTaskRunsQuery = (
+	filter: TaskRunsCountFilter = {},
+	refetchInterval = 30_000,
+) =>
+	queryOptions({
+		queryKey: queryKeyFactory.count(filter),
+		queryFn: async () => {
+			const res = await getQueryService().POST("/task_runs/count", {
+				body: filter,
+			});
+			return res.data ?? 0;
+		},
+		refetchInterval,
+	});
+
+/**
+ * Builds a query configuration for fetching paginated task runs
+ *
+ * @param filter - Filter parameters for the task runs pagination query.
+ * @returns Query configuration object for use with TanStack Query
+ *
+ * @example
+ * ```ts
+ * const { data } = useSuspenseQuery(buildPaginateTaskRunsQuery({
+ *   page: 1,
+ *   limit: 10,
+ *   sort: "EXPECTED_START_TIME_DESC"
+ * }));
+ * ```
+ */
+export const buildPaginateTaskRunsQuery = (
+	filter: TaskRunsPaginateFilter = {
+		page: 1,
+		sort: "EXPECTED_START_TIME_DESC",
+	},
+	refetchInterval = 30_000,
+) => {
+	return queryOptions({
+		queryKey: queryKeyFactory.paginate(filter),
+		queryFn: async () => {
+			const res = await getQueryService().POST("/task_runs/paginate", {
+				body: filter,
+			});
+			if (!res.data) {
+				throw new Error("'data' expected");
+			}
+			return res.data;
 		},
 		staleTime: 1000,
 		refetchInterval,
