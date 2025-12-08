@@ -124,10 +124,10 @@ def my_flow():
 
 When specifying `result_storage` in `@flow` or `@task` decorators, you have two options:
 
-- **Block instances**: Must call `.save()` first, since decorators execute at import time before a server connection may be available
+- **Block instances**: The block instance must be saved server-side or loaded from a saved block instance before it is provided to the `@task` or `@flow` decorator.
 - **String references**: Use the format `"block-type-slug/block-name"` for deferred resolution at runtime
 
-For testing scenarios (especially with pytest), string references are recommended since they don't require server connectivity at import time.
+For testing scenarios, string references are recommended since they don't require server connectivity at import time.
 
 ```python
 from prefect import flow
