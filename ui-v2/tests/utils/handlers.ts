@@ -104,6 +104,16 @@ const flowRunHandlers = [
 		]);
 	}),
 
+	http.post(buildApiUrl("/flow_runs/paginate"), () => {
+		return HttpResponse.json({
+			results: [],
+			count: 0,
+			limit: 10,
+			pages: 0,
+			page: 1,
+		});
+	}),
+
 	http.post(buildApiUrl("/flow_runs/count"), () => {
 		return HttpResponse.json(0);
 	}),
