@@ -6,6 +6,9 @@ from docket import Docket, Worker
 
 from prefect.server.api.flow_runs import delete_flow_run_logs
 from prefect.server.api.task_runs import delete_task_run_logs
+
+# Import triggers module to ensure evaluate_proactive_triggers_perpetual is registered
+from prefect.server.events.services import triggers  # noqa: F401
 from prefect.server.models.deployments import mark_deployments_ready
 from prefect.server.models.work_queues import mark_work_queues_ready
 
