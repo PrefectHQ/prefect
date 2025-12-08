@@ -97,6 +97,85 @@ describe("FlowRunStateTypeEmpty", () => {
 			screen.getByText("You currently have 0 running or pending runs."),
 		).toBeInTheDocument();
 	});
+
+	it("renders bad terminal image for failed state type", () => {
+		const { container } = render(
+			<FlowRunStateTypeEmpty stateTypes={["FAILED"]} />,
+		);
+
+		const svg = container.querySelector("svg");
+		expect(svg).toBeInTheDocument();
+		expect(svg).toHaveAttribute("viewBox", "0 0 157 128");
+	});
+
+	it("renders bad terminal image for crashed state type", () => {
+		const { container } = render(
+			<FlowRunStateTypeEmpty stateTypes={["CRASHED"]} />,
+		);
+
+		const svg = container.querySelector("svg");
+		expect(svg).toBeInTheDocument();
+		expect(svg).toHaveAttribute("viewBox", "0 0 157 128");
+	});
+
+	it("renders live image for running state type", () => {
+		const { container } = render(
+			<FlowRunStateTypeEmpty stateTypes={["RUNNING"]} />,
+		);
+
+		const svg = container.querySelector("svg");
+		expect(svg).toBeInTheDocument();
+		expect(svg).toHaveAttribute("viewBox", "0 0 129 128");
+	});
+
+	it("renders live image for pending state type", () => {
+		const { container } = render(
+			<FlowRunStateTypeEmpty stateTypes={["PENDING"]} />,
+		);
+
+		const svg = container.querySelector("svg");
+		expect(svg).toBeInTheDocument();
+		expect(svg).toHaveAttribute("viewBox", "0 0 129 128");
+	});
+
+	it("renders good terminal image for completed state type", () => {
+		const { container } = render(
+			<FlowRunStateTypeEmpty stateTypes={["COMPLETED"]} />,
+		);
+
+		const svg = container.querySelector("svg");
+		expect(svg).toBeInTheDocument();
+		expect(svg).toHaveAttribute("viewBox", "0 0 111 110");
+	});
+
+	it("renders awaiting image for scheduled state type", () => {
+		const { container } = render(
+			<FlowRunStateTypeEmpty stateTypes={["SCHEDULED"]} />,
+		);
+
+		const svg = container.querySelector("svg");
+		expect(svg).toBeInTheDocument();
+		expect(svg).toHaveAttribute("viewBox", "0 0 92 128");
+	});
+
+	it("renders awaiting image for paused state type", () => {
+		const { container } = render(
+			<FlowRunStateTypeEmpty stateTypes={["PAUSED"]} />,
+		);
+
+		const svg = container.querySelector("svg");
+		expect(svg).toBeInTheDocument();
+		expect(svg).toHaveAttribute("viewBox", "0 0 92 128");
+	});
+
+	it("renders no image for cancelled state type", () => {
+		const { container } = render(
+			<FlowRunStateTypeEmpty stateTypes={["CANCELLED"]} />,
+		);
+
+		const svg = container.querySelector("svg");
+		expect(svg).not.toBeInTheDocument();
+	});
 });
 
 describe("FlowRunsAccordion", () => {
