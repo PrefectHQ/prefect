@@ -119,7 +119,7 @@ def my_flow():
     other_storage_task()
 ```
 
-<Info>
+<Note>
 **Using result storage with decorators**
 
 When specifying `result_storage` in `@flow` or `@task` decorators, you have two options:
@@ -145,8 +145,6 @@ def my_flow():
 @flow(result_storage="local-file-system/my-storage")  # Resolved at runtime
 def my_flow():
     return "result"
-```
-</Info>
 
 #### Specifying a default filesystem
 
