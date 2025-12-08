@@ -2101,6 +2101,26 @@
                     ],
                     "title": "Read Batch Size",
                     "type": "integer"
+                },
+                "batch_size": {
+                    "default": 1,
+                    "description": "The number of events the task run recorder will attempt to insert in one batch.",
+                    "exclusiveMinimum": 0,
+                    "supported_environment_variables": [
+                        "PREFECT_SERVER_SERVICES_TASK_RUN_RECORDER_BATCH_SIZE"
+                    ],
+                    "title": "Batch Size",
+                    "type": "integer"
+                },
+                "flush_interval": {
+                    "default": 5,
+                    "description": "The maximum number of seconds between flushes of the task run recorder.",
+                    "exclusiveMinimum": 0.0,
+                    "supported_environment_variables": [
+                        "PREFECT_SERVER_SERVICES_TASK_RUN_RECORDER_FLUSH_INTERVAL"
+                    ],
+                    "title": "Flush Interval",
+                    "type": "number"
                 }
             },
             "title": "ServerServicesTaskRunRecorderSettings",
