@@ -7,14 +7,19 @@ import {
 } from "@tanstack/react-router";
 import { render, screen } from "@testing-library/react";
 import { createWrapper } from "@tests/utils";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { buildFilterFlowRunsQuery } from "@/api/flow-runs";
+import type { components } from "@/api/prefect";
 import { createFakeFlowRun } from "@/mocks";
 import { FlowRunsCard } from "./index";
+
+type StateType = components["schemas"]["StateType"];
 
 // Wraps component in test with a Tanstack router provider
 const FlowRunsCardRouter = ({
 	filter,
+	selectedStates,
+	onStateChange,
 }: {
 	filter?: {
 		startDate?: string;
@@ -22,9 +27,17 @@ const FlowRunsCardRouter = ({
 		tags?: string[];
 		hideSubflows?: boolean;
 	};
+	selectedStates?: StateType[];
+	onStateChange?: (states: StateType[]) => void;
 }) => {
 	const rootRoute = createRootRoute({
-		component: () => <FlowRunsCard filter={filter} />,
+		component: () => (
+			<FlowRunsCard
+				filter={filter}
+				selectedStates={selectedStates}
+				onStateChange={onStateChange}
+			/>
+		),
 	});
 
 	const router = createRouter({
@@ -364,5 +377,33 @@ describe("FlowRunsCard", () => {
 
 		expect(await screen.findByText("Flow Runs")).toBeInTheDocument();
 		expect(screen.getByText("1 total")).toBeInTheDocument();
+	});
+
+	it("accepts controlled selectedStates and onStateChange props", async () => {
+		const flowRuns = [
+			createFakeFlowRun({ state_type: "COMPLETED" }),
+			createFakeFlowRun({ state_type: "FAILED" }),
+		];
+		const onStateChange = vi.fn();
+
+		const queryClient = new QueryClient();
+		const queryOptions = buildFilterFlowRunsQuery({
+			sort: "START_TIME_DESC",
+			offset: 0,
+		});
+		queryClient.setQueryData(queryOptions.queryKey, flowRuns);
+
+		const wrapper = createWrapper({ queryClient });
+
+		render(
+			<FlowRunsCardRouter
+				selectedStates={["COMPLETED"]}
+				onStateChange={onStateChange}
+			/>,
+			{ wrapper },
+		);
+
+		expect(await screen.findByText("Flow Runs")).toBeInTheDocument();
+		expect(screen.getByText("2 total")).toBeInTheDocument();
 	});
 });
