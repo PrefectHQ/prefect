@@ -141,6 +141,16 @@ const searchParams = z.object({
 
 type DashboardSearch = z.infer<typeof searchParams>;
 
+/**
+ * Rounds a date to the nearest minute to stabilize query keys.
+ * This prevents cache busting from millisecond differences between renders.
+ */
+function roundToMinute(date: Date): Date {
+	const rounded = new Date(date);
+	rounded.setSeconds(0, 0);
+	return rounded;
+}
+
 function getDateRangeFromSearch(search: DashboardSearch): {
 	from: string;
 	to: string;
@@ -151,7 +161,7 @@ function getDateRangeFromSearch(search: DashboardSearch): {
 
 	switch (search.rangeType) {
 		case "span": {
-			const now = new Date();
+			const now = roundToMinute(new Date());
 			const seconds = search.seconds ?? -86400;
 			const then = new Date(now.getTime() + seconds * 1000);
 			const [a, b] = [now, then].sort((x, y) => x.getTime() - y.getTime());
@@ -180,7 +190,7 @@ function getDateRangeFromSearch(search: DashboardSearch): {
 			break;
 		}
 		case "period": {
-			const now = new Date();
+			const now = roundToMinute(new Date());
 			const start = new Date(now);
 			start.setHours(0, 0, 0, 0);
 			const end = new Date(now);
@@ -189,7 +199,7 @@ function getDateRangeFromSearch(search: DashboardSearch): {
 		}
 	}
 
-	const now = new Date();
+	const now = roundToMinute(new Date());
 	const then = new Date(now.getTime() - 86400 * 1000);
 	return { from: then.toISOString(), to: now.toISOString() };
 }
