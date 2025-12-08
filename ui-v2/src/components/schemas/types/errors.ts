@@ -8,7 +8,9 @@ export type SchemaValueIndexError =
 	components["schemas"]["SchemaValueIndexError"];
 
 // eslint-disable-next-line @typescript-eslint/no-redundant-type-constituents
-export type SchemaFormNestedError = SchemaValuePropertyError | SchemaValueIndexError;
+export type SchemaFormNestedError =
+	| SchemaValuePropertyError
+	| SchemaValueIndexError;
 // eslint-disable-next-line @typescript-eslint/no-redundant-type-constituents
 export type SchemaFormError =
 	| SchemaValueError

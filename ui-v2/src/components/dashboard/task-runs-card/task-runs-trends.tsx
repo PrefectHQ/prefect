@@ -53,7 +53,8 @@ const transformHistoryToChartData = (
 				// eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
 				if (state?.state_type === "COMPLETED") {
 					// eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-					completedCount += typeof state.count_runs === "number" ? state.count_runs : 0;
+					completedCount +=
+						typeof state.count_runs === "number" ? state.count_runs : 0;
 				} else if (
 					// eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
 					state?.state_type === "FAILED" ||
@@ -61,7 +62,8 @@ const transformHistoryToChartData = (
 					state?.state_type === "CRASHED"
 				) {
 					// eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-					failedCount += typeof state.count_runs === "number" ? state.count_runs : 0;
+					failedCount +=
+						typeof state.count_runs === "number" ? state.count_runs : 0;
 				}
 			}
 		}

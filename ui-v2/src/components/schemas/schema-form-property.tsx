@@ -47,8 +47,9 @@ export function SchemaFormProperty({
 
 	const nestedErrors = useMemo(() => {
 		// eslint-disable-next-line @typescript-eslint/no-unsafe-return
-		return errors.filter((error): error is SchemaFormNestedError =>
-			isSchemaValuePropertyError(error) || isSchemaValueIndexError(error),
+		return errors.filter(
+			(error): error is SchemaFormNestedError =>
+				isSchemaValuePropertyError(error) || isSchemaValueIndexError(error),
 		);
 	}, [errors]);
 

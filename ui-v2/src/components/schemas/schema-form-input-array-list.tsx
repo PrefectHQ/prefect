@@ -51,13 +51,11 @@ export function SchemaFormInputArrayList({
 	function getErrorsForIndex(index: number): SchemaFormErrors {
 		// eslint-disable-next-line @typescript-eslint/no-unsafe-return
 		return errors
-			.filter(
-				(error): error is SchemaValueIndexError => {
-					if (!isSchemaValueIndexError(error)) return false;
-					// eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-					return typeof error.index === "number" && error.index === index;
-				},
-			)
+			.filter((error): error is SchemaValueIndexError => {
+				if (!isSchemaValueIndexError(error)) return false;
+				// eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+				return typeof error.index === "number" && error.index === index;
+			})
 			.flatMap((error) => {
 				// eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
 				if (error.errors && Array.isArray(error.errors)) {
