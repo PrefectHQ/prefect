@@ -7,11 +7,11 @@ export type SchemaValuePropertyError =
 export type SchemaValueIndexError =
 	components["schemas"]["SchemaValueIndexError"];
 
-// eslint-disable-next-line @typescript-eslint/no-redundant-type-constituents
 export type SchemaFormNestedError =
+	// eslint-disable-next-line @typescript-eslint/no-redundant-type-constituents
 	| SchemaValuePropertyError
+	// eslint-disable-next-line @typescript-eslint/no-redundant-type-constituents
 	| SchemaValueIndexError;
-// eslint-disable-next-line @typescript-eslint/no-redundant-type-constituents
 export type SchemaFormError =
 	| SchemaValueError
 	// eslint-disable-next-line @typescript-eslint/no-redundant-type-constituents

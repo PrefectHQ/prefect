@@ -50,10 +50,9 @@ const transformHistoryToChartData = (
 		if (Array.isArray(states)) {
 			for (const state of states) {
 				// eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-				// eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
 				if (state?.state_type === "COMPLETED") {
-					// eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
 					completedCount +=
+						// eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
 						typeof state.count_runs === "number" ? state.count_runs : 0;
 				} else if (
 					// eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
@@ -61,8 +60,8 @@ const transformHistoryToChartData = (
 					// eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
 					state?.state_type === "CRASHED"
 				) {
-					// eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
 					failedCount +=
+						// eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
 						typeof state.count_runs === "number" ? state.count_runs : 0;
 				}
 			}
