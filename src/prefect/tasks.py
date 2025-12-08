@@ -494,6 +494,7 @@ class Task(Generic[P, R]):
         self.task_key: str = _generate_task_key(self.fn)
 
         # determine cache and result configuration
+        self._user_cache_policy = cache_policy
         settings = get_current_settings()
         if settings.tasks.default_no_cache and cache_policy is NotSet:
             cache_policy = NO_CACHE
@@ -512,6 +513,7 @@ class Task(Generic[P, R]):
         self.refresh_cache = refresh_cache
 
         # result persistence settings
+        self._user_persist_result = persist_result
         if persist_result is None:
             if any(
                 [
@@ -778,7 +780,7 @@ class Task(Generic[P, R]):
             tags=tags or copy(self.tags),
             cache_policy=cache_policy
             if cache_policy is not NotSet
-            else self.cache_policy,
+            else self._user_cache_policy,
             cache_key_fn=cache_key_fn or self.cache_key_fn,
             cache_expiration=cache_expiration or self.cache_expiration,
             task_run_name=task_run_name
@@ -796,7 +798,9 @@ class Task(Generic[P, R]):
                 else self.retry_jitter_factor
             ),
             persist_result=(
-                persist_result if persist_result is not NotSet else self.persist_result
+                persist_result
+                if persist_result is not NotSet
+                else self._user_persist_result
             ),
             result_storage=(
                 result_storage if result_storage is not NotSet else self.result_storage
@@ -2190,6 +2194,8 @@ class MaterializingTask(Task[P, R]):
             "on_running": "on_running_hooks",
             "on_rollback": "on_rollback_hooks",
             "on_commit": "on_commit_hooks",
+            "persist_result": "_user_persist_result",
+            "cache_policy": "_user_cache_policy",
         }
 
         # Build kwargs for Task constructor

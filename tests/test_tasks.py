@@ -1384,6 +1384,19 @@ class TestResultPersistence:
         assert my_task.persist_result is persist_result
         assert new_task.persist_result is persist_result
 
+    def test_default_cache_policy_does_not_set_persist_result_with_options(self):
+        @task
+        def base():
+            pass
+
+        assert base.cache_policy == DEFAULT
+        assert base.persist_result is None
+
+        new_task = base.with_options(name="something")
+
+        assert new_task.cache_policy == DEFAULT
+        assert new_task.persist_result is None
+
     @pytest.mark.parametrize(
         "cache_policy",
         [policy for policy in CachePolicy.__subclasses__() if policy != NO_CACHE],
