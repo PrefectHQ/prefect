@@ -50,7 +50,9 @@ describe("Runs page", () => {
 				});
 			}),
 			http.post(buildApiUrl("/flows/filter"), () => {
-				return HttpResponse.json([{ id: "flow-1", name: "Test Flow", tags: [] }]);
+				return HttpResponse.json([
+					{ id: "flow-1", name: "Test Flow", tags: [] },
+				]);
 			}),
 			http.post(buildApiUrl("/ui/flow_runs/count-task-runs"), () => {
 				return HttpResponse.json({ "1": 0 });
@@ -88,7 +90,9 @@ describe("Runs page", () => {
 				});
 			}),
 			http.post(buildApiUrl("/flows/filter"), () => {
-				return HttpResponse.json([{ id: "flow-1", name: "Test Flow", tags: [] }]);
+				return HttpResponse.json([
+					{ id: "flow-1", name: "Test Flow", tags: [] },
+				]);
 			}),
 			http.post(buildApiUrl("/ui/flow_runs/count-task-runs"), () => {
 				return HttpResponse.json({ "1": 0 });
@@ -126,7 +130,9 @@ describe("Runs page", () => {
 				});
 			}),
 			http.post(buildApiUrl("/flows/filter"), () => {
-				return HttpResponse.json([{ id: "flow-1", name: "Test Flow", tags: [] }]);
+				return HttpResponse.json([
+					{ id: "flow-1", name: "Test Flow", tags: [] },
+				]);
 			}),
 			http.post(buildApiUrl("/ui/flow_runs/count-task-runs"), () => {
 				return HttpResponse.json({ "1": 0 });
