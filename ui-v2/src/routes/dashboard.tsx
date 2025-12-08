@@ -1,7 +1,7 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { zodValidator } from "@tanstack/zod-adapter";
-import { Suspense, useCallback, useEffect, useMemo } from "react";
+import { Suspense, useCallback, useMemo } from "react";
 import { z } from "zod";
 import {
 	buildCountFlowRunsQuery,
@@ -124,9 +124,13 @@ const searchParams = z.object({
 	// Derived normalized range for downstream queries
 	from: z.string().datetime().optional().catch(undefined),
 	to: z.string().datetime().optional().catch(undefined),
-	// Rich selector flat params
-	rangeType: z.enum(["span", "range", "around", "period"]).optional(),
-	seconds: z.number().optional(), // for span
+	// Rich selector flat params - default to span of last 24 hours
+	rangeType: z
+		.enum(["span", "range", "around", "period"])
+		.optional()
+		.default("span")
+		.catch("span"),
+	seconds: z.number().optional().default(-86400).catch(-86400), // default 24h
 	start: z.string().datetime().optional(), // for range
 	end: z.string().datetime().optional(),
 	aroundDate: z.string().datetime().optional(), // for around
@@ -134,6 +138,100 @@ const searchParams = z.object({
 	aroundUnit: z.enum(["second", "minute", "hour", "day"]).optional(),
 	period: z.enum(["Today"]).optional(),
 });
+
+type DashboardSearch = z.infer<typeof searchParams>;
+
+function getDateRangeFromSearch(search: DashboardSearch): {
+	from: string;
+	to: string;
+} {
+	if (search.from && search.to) {
+		return { from: search.from, to: search.to };
+	}
+
+	switch (search.rangeType) {
+		case "span": {
+			const now = new Date();
+			const seconds = search.seconds ?? -86400;
+			const then = new Date(now.getTime() + seconds * 1000);
+			const [a, b] = [now, then].sort((x, y) => x.getTime() - y.getTime());
+			return { from: a.toISOString(), to: b.toISOString() };
+		}
+		case "range": {
+			if (search.start && search.end) {
+				return { from: search.start, to: search.end };
+			}
+			break;
+		}
+		case "around": {
+			if (search.aroundDate && search.aroundQuantity && search.aroundUnit) {
+				const center = new Date(search.aroundDate);
+				const multiplier = {
+					second: 1,
+					minute: 60,
+					hour: 3600,
+					day: 86400,
+				}[search.aroundUnit];
+				const spanSeconds = search.aroundQuantity * multiplier;
+				const from = new Date(center.getTime() - spanSeconds * 1000);
+				const to = new Date(center.getTime() + spanSeconds * 1000);
+				return { from: from.toISOString(), to: to.toISOString() };
+			}
+			break;
+		}
+		case "period": {
+			const now = new Date();
+			const start = new Date(now);
+			start.setHours(0, 0, 0, 0);
+			const end = new Date(now);
+			end.setHours(23, 59, 59, 999);
+			return { from: start.toISOString(), to: end.toISOString() };
+		}
+	}
+
+	const now = new Date();
+	const then = new Date(now.getTime() - 86400 * 1000);
+	return { from: then.toISOString(), to: now.toISOString() };
+}
+
+function buildFlowRunsFilterFromSearch(
+	search: DashboardSearch,
+): FlowRunsFilter {
+	const { from, to } = getDateRangeFromSearch(search);
+	const { tags, hideSubflows } = search;
+
+	const baseFilter: FlowRunsFilter = {
+		sort: "START_TIME_DESC",
+		offset: 0,
+	};
+
+	const flowRunsFilterObj: NonNullable<FlowRunsFilter["flow_runs"]> = {
+		operator: "and_",
+	};
+
+	flowRunsFilterObj.start_time = {
+		after_: from,
+		before_: to,
+	};
+
+	if (tags && tags.length > 0) {
+		flowRunsFilterObj.tags = {
+			operator: "and_",
+			all_: tags,
+		};
+	}
+
+	if (hideSubflows) {
+		flowRunsFilterObj.parent_task_run_id = {
+			operator: "and_",
+			is_null_: true,
+		};
+	}
+
+	baseFilter.flow_runs = flowRunsFilterObj;
+
+	return baseFilter;
+}
 
 const STATE_TYPE_GROUPS = [
 	["FAILED", "CRASHED"],
@@ -146,7 +244,8 @@ const STATE_TYPE_GROUPS = [
 export const Route = createFileRoute("/dashboard")({
 	validateSearch: zodValidator(searchParams),
 	component: RouteComponent,
-	loader: async ({ context: { queryClient } }) => {
+	loaderDeps: ({ search }) => search,
+	loader: async ({ deps, context: { queryClient } }) => {
 		// Prefetch total flow runs count to determine if dashboard is empty
 		const totalFlowRuns = await queryClient.ensureQueryData(
 			buildCountFlowRunsQuery({}, 30_000),
@@ -157,24 +256,20 @@ export const Route = createFileRoute("/dashboard")({
 			return;
 		}
 
-		// Prefetch all flow runs with basic filter (used by FlowRunsCard)
-		// Note: Components may add date/tag filters, but this prefetch helps with initial load
+		// Build the base filter from search params (matches what FlowRunsCard uses)
+		const baseFilter = buildFlowRunsFilterFromSearch(deps);
+
+		// Prefetch all flow runs (used by FlowRunsCard for the bar chart and state tabs)
 		void queryClient.prefetchQuery(
-			buildFilterFlowRunsQuery(
-				{
-					sort: "START_TIME_DESC",
-					offset: 0,
-				},
-				30_000,
-			),
+			buildFilterFlowRunsQuery(baseFilter, 30_000),
 		);
 
 		// Prefetch flow runs for each state type group to minimize loading when switching tabs
 		STATE_TYPE_GROUPS.forEach((stateTypes) => {
-			const filter: FlowRunsFilter = {
-				sort: "START_TIME_DESC",
-				offset: 0,
+			const filterWithState: FlowRunsFilter = {
+				...baseFilter,
 				flow_runs: {
+					...baseFilter.flow_runs,
 					operator: "and_",
 					state: {
 						operator: "and_",
@@ -184,7 +279,9 @@ export const Route = createFileRoute("/dashboard")({
 					},
 				},
 			};
-			void queryClient.prefetchQuery(buildFilterFlowRunsQuery(filter, 30_000));
+			void queryClient.prefetchQuery(
+				buildFilterFlowRunsQuery(filterWithState, 30_000),
+			);
 		});
 
 		// Prefetch work pools data for the dashboard
@@ -220,7 +317,6 @@ function omitKeys<T extends object, K extends readonly (keyof T)[]>(
 }
 
 export function RouteComponent() {
-	type DashboardSearch = z.infer<typeof searchParams>;
 	const search = Route.useSearch();
 	const navigate = Route.useNavigate();
 
@@ -446,13 +542,8 @@ export function RouteComponent() {
 		[navigate],
 	);
 
-	// Initialize default date range to last 24 hours if unset
-	useEffect(() => {
-		if (!search.rangeType && !search.from && !search.to) {
-			// default to a span of last 24 hours
-			onDateRangeChange({ type: "span", seconds: -86400 });
-		}
-	}, [search.rangeType, search.from, search.to, onDateRangeChange]);
+	// Compute the date range from search params (defaults are set in zod schema)
+	const { from, to } = getDateRangeFromSearch(search);
 
 	return (
 		<FlowRunActivityBarGraphTooltipProvider>
@@ -510,8 +601,8 @@ export function RouteComponent() {
 								<Suspense fallback={<FlowRunsCardSkeleton />}>
 									<FlowRunsCard
 										filter={{
-											startDate: search.from,
-											endDate: search.to,
+											startDate: from,
+											endDate: to,
 											tags: search.tags,
 											hideSubflows: search.hideSubflows,
 										}}
@@ -526,8 +617,8 @@ export function RouteComponent() {
 								<Suspense fallback={<TaskRunsCardSkeleton />}>
 									<TaskRunsCard
 										filter={{
-											startDate: search.from,
-											endDate: search.to,
+											startDate: from,
+											endDate: to,
 											tags: search.tags,
 										}}
 									/>
@@ -536,8 +627,8 @@ export function RouteComponent() {
 								<Suspense fallback={<WorkPoolsCardSkeleton />}>
 									<DashboardWorkPoolsCard
 										filter={{
-											startDate: search.from,
-											endDate: search.to,
+											startDate: from,
+											endDate: to,
 										}}
 									/>
 								</Suspense>
