@@ -18,8 +18,10 @@ FROM node:${NODE_VERSION}-bullseye-slim as ui-builder
 
 WORKDIR /opt/ui
 
+# Install chromium with retry logic to handle transient mirror failures
 RUN apt-get update && \
-    apt-get install --no-install-recommends -y \
+    apt-get -o Acquire::Retries=5 -o Acquire::http::Timeout=30 \
+    install --no-install-recommends -y \
     # Required for arm64 builds
     chromium \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
@@ -44,7 +46,8 @@ FROM python:${BUILD_PYTHON_VERSION}-slim AS python-builder
 WORKDIR /opt/prefect
 
 RUN apt-get update && \
-    apt-get install --no-install-recommends -y \
+    apt-get -o Acquire::Retries=5 -o Acquire::http::Timeout=30 \
+    install --no-install-recommends -y \
     gpg \
     git>=1:2.47.3 \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
@@ -94,7 +97,8 @@ WORKDIR /opt/prefect
 # - build-essential: Required for Python dependencies without wheels
 # - git: Required for retrieving workflows from git sources
 RUN apt-get update && \
-    apt-get install --no-install-recommends -y \
+    apt-get -o Acquire::Retries=5 -o Acquire::http::Timeout=30 \
+    install --no-install-recommends -y \
     tini=0.19.* \
     build-essential \
     git>=1:2.47.3 \
