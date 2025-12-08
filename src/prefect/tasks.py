@@ -343,7 +343,11 @@ class Task(Generic[P, R]):
             indicates that the global default should be used (which is `True` by
             default).
         result_storage: An optional block to use to persist the result of this task.
-            Defaults to the value set in the flow the task is called in.
+            This can be either a saved block instance or a string reference (e.g.,
+            "local-file-system/my-storage"). Block instances must have `.save()` called
+            first since decorators execute at import time. String references are resolved
+            at runtime and recommended for testing scenarios. Defaults to the value set
+            in the flow the task is called in.
         result_storage_key: An optional key to store the result in storage at when persisted.
             Defaults to a unique identifier.
         result_serializer: An optional serializer to use to serialize the result of this
@@ -576,7 +580,8 @@ class Task(Generic[P, R]):
             if getattr(result_storage, "_block_document_id", None) is None:
                 raise TypeError(
                     "Result storage configuration must be persisted server-side."
-                    " Please call `.save()` on your block before passing it in."
+                    " Please call `.save()` on your block before passing it in,"
+                    " or use a string reference like 'local-file-system/my-storage' instead."
                 )
 
         self.result_storage = result_storage
@@ -1992,7 +1997,11 @@ def task(
             indicates that the global default should be used (which is `True` by
             default).
         result_storage: An optional block to use to persist the result of this task.
-            Defaults to the value set in the flow the task is called in.
+            This can be either a saved block instance or a string reference (e.g.,
+            "local-file-system/my-storage"). Block instances must have `.save()` called
+            first since decorators execute at import time. String references are resolved
+            at runtime and recommended for testing scenarios. Defaults to the value set
+            in the flow the task is called in.
         result_storage_key: An optional key to store the result in storage at when persisted.
             Defaults to a unique identifier.
         result_serializer: An optional serializer to use to serialize the result of this

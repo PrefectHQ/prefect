@@ -119,6 +119,35 @@ def my_flow():
     other_storage_task()
 ```
 
+<Warning>
+**Using result storage with decorators**
+
+When specifying `result_storage` in `@flow` or `@task` decorators, you have two options:
+
+- **Block instances**: Must call `.save()` first, since decorators execute at import time before a server connection may be available
+- **String references**: Use the format `"block-type-slug/block-name"` for deferred resolution at runtime
+
+For testing scenarios (especially with pytest), string references are recommended since they don't require server connectivity at import time.
+
+```python
+from prefect import flow
+from prefect.filesystems import LocalFileSystem
+
+# Option 1: Save block first (requires server connection at import time)
+storage = LocalFileSystem(basepath="/tmp/results")
+storage.save("my-storage", overwrite=True)
+
+@flow(result_storage=storage)  # Works because block is saved
+def my_flow():
+    return "result"
+
+# Option 2: Use string reference (recommended for testing)
+@flow(result_storage="local-file-system/my-storage")  # Resolved at runtime
+def my_flow():
+    return "result"
+```
+</Warning>
+
 #### Specifying a default filesystem
 
 Alternatively, you can specify a different filesystem through the `PREFECT_DEFAULT_RESULT_STORAGE_BLOCK` setting.
