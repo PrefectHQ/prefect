@@ -1,14 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
-import { Link } from "@tanstack/react-router";
-import { format, parseISO } from "date-fns";
-import humanizeDuration from "humanize-duration";
-import { useMemo, useState } from "react";
+import { Suspense, useMemo, useState } from "react";
 import {
 	buildPaginateFlowRunsQuery,
 	type FlowRunsFilter,
 } from "@/api/flow-runs";
-import { stateTypeColors } from "@/components/flow-runs/flow-run-graph/consts";
-import { Icon } from "@/components/ui/icons";
+import { FlowRunCard } from "@/components/flow-runs/flow-run-card";
 import {
 	Pagination,
 	PaginationContent,
@@ -16,7 +12,7 @@ import {
 	PaginationNext,
 	PaginationPrevious,
 } from "@/components/ui/pagination";
-import { StateBadge } from "@/components/ui/state-badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Typography } from "@/components/ui/typography";
 
 type FlowRunsAccordionContentProps = {
@@ -64,52 +60,9 @@ export function FlowRunsAccordionContent({
 	return (
 		<div className="space-y-3">
 			{flowRuns.map((flowRun) => (
-				<div
-					key={flowRun.id}
-					className="flex flex-col gap-2 rounded-md border-l-4 bg-muted/30 p-3"
-					style={{
-						borderLeftColor: getStateColor(flowRun.state_type),
-					}}
-				>
-					<div className="flex items-center justify-between">
-						<Link
-							to="/runs/flow-run/$id"
-							params={{ id: flowRun.id }}
-							className="text-sm font-medium text-foreground hover:underline"
-						>
-							{flowRun.name}
-						</Link>
-					</div>
-					<div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-						{flowRun.state_type && (
-							<StateBadge
-								type={flowRun.state_type}
-								name={flowRun.state_name}
-								className="text-xs"
-							/>
-						)}
-						{flowRun.start_time && (
-							<div className="flex items-center gap-1">
-								<Icon id="Calendar" className="size-3" />
-								<span className="font-mono">
-									{format(parseISO(flowRun.start_time), "yyyy/MM/dd pp")}
-								</span>
-							</div>
-						)}
-						{flowRun.estimated_run_time !== undefined && (
-							<div className="flex items-center gap-1">
-								<Icon id="Clock" className="size-3" />
-								<span>
-									{humanizeDuration(flowRun.estimated_run_time * 1000, {
-										maxDecimalPoints: 0,
-										units: ["h", "m", "s"],
-										round: true,
-									})}
-								</span>
-							</div>
-						)}
-					</div>
-				</div>
+				<Suspense key={flowRun.id} fallback={<FlowRunCardSkeleton />}>
+					<FlowRunCard flowRun={flowRun} />
+				</Suspense>
 			))}
 
 			{totalPages > 1 && (
@@ -147,9 +100,18 @@ export function FlowRunsAccordionContent({
 	);
 }
 
-function getStateColor(stateType: string | null | undefined): string {
-	if (stateType && stateType in stateTypeColors) {
-		return stateTypeColors[stateType as keyof typeof stateTypeColors];
-	}
-	return "#6B7280"; // gray-500 fallback
+function FlowRunCardSkeleton() {
+	return (
+		<div className="flex flex-col gap-2 rounded-md border p-4">
+			<div className="flex justify-between items-center">
+				<Skeleton className="h-4 w-32" />
+				<Skeleton className="h-4 w-16" />
+			</div>
+			<div className="flex items-center gap-2">
+				<Skeleton className="h-5 w-20" />
+				<Skeleton className="h-4 w-24" />
+				<Skeleton className="h-4 w-16" />
+			</div>
+		</div>
+	);
 }
