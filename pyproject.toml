@@ -97,8 +97,8 @@ otel = [
     "opentelemetry-test-utils>=0.48b0,<1.0.0",
 ]
 
-# uv extra for faster package installation and bundle features
-uv = ["uv>=0.6.0"]
+# bundles extra for bundle features (requires uv)
+bundles = ["uv>=0.6.0"]
 
 # Infrastructure extras
 aws = ["prefect-aws>=0.5.8"]
