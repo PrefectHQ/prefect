@@ -91,6 +91,10 @@ const flowHandlers = [
 		});
 	}),
 
+	http.post(buildApiUrl("/flows/filter"), () => {
+		return HttpResponse.json([]);
+	}),
+
 	http.post(buildApiUrl("/deployments/count"), () => {
 		return HttpResponse.json(1);
 	}),
@@ -116,6 +120,10 @@ const flowRunHandlers = [
 
 	http.post(buildApiUrl("/flow_runs/count"), () => {
 		return HttpResponse.json(0);
+	}),
+
+	http.post(buildApiUrl("/ui/flow_runs/count-task-runs"), () => {
+		return HttpResponse.json({});
 	}),
 
 	http.delete(buildApiUrl("/flow_runs/:id"), () => {
