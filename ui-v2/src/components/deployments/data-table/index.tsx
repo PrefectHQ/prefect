@@ -245,7 +245,7 @@ export const DeploymentsDataTable = ({
 
 			<DeleteConfirmationDialog {...deleteConfirmationDialogState} />
 			<FlowRunActivityBarGraphTooltipProvider>
-				<DataTable table={table} />
+				<DataTable table={table} tableContainerClassName="overflow-y-visible" />
 			</FlowRunActivityBarGraphTooltipProvider>
 		</div>
 	);

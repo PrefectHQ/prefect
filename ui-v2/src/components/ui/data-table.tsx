@@ -25,11 +25,17 @@ import {
 } from "@/components/ui/table";
 import { cn } from "@/utils";
 
-export function DataTable<TData>({ table }: { table: TanstackTable<TData> }) {
+export function DataTable<TData>({
+	table,
+	tableContainerClassName,
+}: {
+	table: TanstackTable<TData>;
+	tableContainerClassName?: string;
+}) {
 	return (
 		<div className="flex flex-col gap-4">
 			<div className="rounded-md border">
-				<Table>
+				<Table containerClassName={tableContainerClassName}>
 					<TableHeader>
 						{table.getHeaderGroups().map((headerGroup) => (
 							<TableRow key={headerGroup.id}>
