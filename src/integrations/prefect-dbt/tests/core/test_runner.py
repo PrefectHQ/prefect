@@ -625,6 +625,39 @@ class TestPrefectDbtRunnerInvoke:
 
         mock_settings_context_manager.assert_called_once()
 
+    def test_invoke_omits_target_path_for_deps_with_flags_before_command(
+        self, mock_dbt_runner_class, mock_settings_context_manager
+    ):
+        """Test that target_path is not passed to deps when flags appear before command.
+
+        Regression test for https://github.com/PrefectHQ/prefect/issues/19686
+
+        When flags with values appear before the command (e.g., --log-format json deps),
+        the command detection should correctly identify 'deps' as the command, not 'json'.
+        Since 'deps' doesn't support --target-path, it should be omitted.
+        """
+        runner = PrefectDbtRunner()
+        mock_dbt_runner_class.return_value.invoke.return_value = Mock(
+            success=True, result=None
+        )
+
+        runner.invoke(
+            [
+                "--no-use-colors",
+                "--log-format",
+                "json",
+                "deps",
+                "--vars",
+                '{"foo": "bar"}',
+            ]
+        )
+
+        call_args = mock_dbt_runner_class.return_value.invoke.call_args
+        args_list = call_args[0][0]
+        assert "--target-path" not in args_list, (
+            f"--target-path should not be passed to 'deps' command, got: {args_list}"
+        )
+
 
 class TestPrefectDbtRunnerCallbackCreation:
     """Test callback creation functionality."""
