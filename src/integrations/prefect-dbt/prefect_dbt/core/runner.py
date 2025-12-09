@@ -17,7 +17,7 @@ from dbt.artifacts.schemas.results import (
     TestStatus,
 )
 from dbt.artifacts.schemas.run import RunExecutionResult
-from dbt.cli.main import dbtRunner
+from dbt.cli.main import cli, dbtRunner
 from dbt.compilation import Linker
 from dbt.config.runtime import RuntimeConfig
 from dbt.contracts.graph.manifest import Manifest
@@ -1028,8 +1028,6 @@ class PrefectDbtRunner:
 
         # Determine which command is being invoked
         # We need to find a valid dbt command, skipping flag values like "json" in "--log-format json"
-        from dbt.cli.main import cli
-
         command_name = None
         for arg in args_copy:
             if arg.startswith("-"):
