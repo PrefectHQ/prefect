@@ -45,11 +45,12 @@ export const Route = createFileRoute("/runs/")({
 	component: RouteComponent,
 	loaderDeps: ({ search }) => buildPaginationBody(search),
 	loader: async ({ deps, context }) => {
-		const flowRunsCountResult = context.queryClient.ensureQueryData(
+		// Await count queries - these don't change on pagination so won't cause suspense issues
+		const flowRunsCountResult = await context.queryClient.ensureQueryData(
 			buildCountFlowRunsQuery(),
 		);
 
-		const taskRunsCountResult = context.queryClient.ensureQueryData(
+		const taskRunsCountResult = await context.queryClient.ensureQueryData(
 			buildCountTaskRunsQuery(),
 		);
 
