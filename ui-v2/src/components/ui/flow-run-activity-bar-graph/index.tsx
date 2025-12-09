@@ -7,6 +7,7 @@ import { useCallback, useContext, useEffect, useRef, useState } from "react";
 import { Bar, BarChart, Cell, type TooltipContentProps } from "recharts";
 import type { components } from "@/api/prefect";
 import { ChartContainer, ChartTooltip } from "@/components/ui/chart";
+import { cn } from "@/utils";
 import {
 	Card,
 	CardContent,
@@ -220,7 +221,7 @@ export const FlowRunActivityBarChart = ({
 					color: "hsl(210 40% 45%)",
 				},
 			}}
-			className={className}
+			className={cn("relative", className, isTooltipActive && "z-20")}
 		>
 			<BarChart
 				data={data}
