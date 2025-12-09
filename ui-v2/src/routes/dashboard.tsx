@@ -8,7 +8,11 @@ import {
 	buildFilterFlowRunsQuery,
 	type FlowRunsFilter,
 } from "@/api/flow-runs";
-import { buildGetFlowRunsTaskRunsCountQuery } from "@/api/task-runs";
+import {
+	buildCountTaskRunsQuery,
+	buildGetFlowRunsTaskRunsCountQuery,
+	type TaskRunsCountFilter,
+} from "@/api/task-runs";
 import { buildListWorkPoolQueuesQuery } from "@/api/work-pool-queues";
 import {
 	buildFilterWorkPoolsQuery,
@@ -244,6 +248,106 @@ function buildFlowRunsFilterFromSearch(
 	return baseFilter;
 }
 
+/**
+ * Builds task run count filters for prefetching in the loader.
+ * This matches the filter logic in TaskRunsCard component.
+ */
+function buildTaskRunsCountFiltersFromSearch(search: DashboardSearch): {
+	total: TaskRunsCountFilter;
+	completed: TaskRunsCountFilter;
+	failed: TaskRunsCountFilter;
+	running: TaskRunsCountFilter;
+} {
+	const { from, to } = getDateRangeFromSearch(search);
+	const { tags, hideSubflows } = search;
+
+	// Build base task_runs filter (matches TaskRunsCard's buildBaseCountFilter)
+	const taskRunsFilter: NonNullable<TaskRunsCountFilter["task_runs"]> = {
+		operator: "and_",
+		// Exclude subflow task runs by default (matches Vue's getBaseFilter)
+		subflow_runs: {
+			exists_: false,
+		},
+		start_time: {
+			after_: from,
+			before_: to,
+		},
+	};
+
+	// Build flow_runs filter for tags and hideSubflows (matching Vue's dashboard mapping)
+	let flowRunsFilter: NonNullable<TaskRunsCountFilter["flow_runs"]> | undefined;
+	if ((tags && tags.length > 0) || hideSubflows) {
+		flowRunsFilter = {
+			operator: "and_",
+		};
+
+		// Tags filter on flow_runs (matching Vue's flowRuns.tags.anyName)
+		if (tags && tags.length > 0) {
+			flowRunsFilter.tags = {
+				operator: "and_",
+				any_: tags,
+			};
+		}
+
+		// Hide subflows filter (matching Vue's flowRuns.parentTaskRunIdNull)
+		if (hideSubflows) {
+			flowRunsFilter.parent_task_run_id = {
+				operator: "and_",
+				is_null_: true,
+			};
+		}
+	}
+
+	const baseFilter: TaskRunsCountFilter = {
+		task_runs: taskRunsFilter,
+		...(flowRunsFilter && { flow_runs: flowRunsFilter }),
+	};
+
+	// Build filters for each state type (matching Vue's CumulativeTaskRunsCard)
+	return {
+		total: {
+			...baseFilter,
+			task_runs: {
+				...taskRunsFilter,
+				state: {
+					operator: "and_",
+					type: { any_: ["COMPLETED", "FAILED", "CRASHED", "RUNNING"] },
+				},
+			},
+		},
+		completed: {
+			...baseFilter,
+			task_runs: {
+				...taskRunsFilter,
+				state: {
+					operator: "and_",
+					type: { any_: ["COMPLETED"] },
+				},
+			},
+		},
+		failed: {
+			...baseFilter,
+			task_runs: {
+				...taskRunsFilter,
+				state: {
+					operator: "and_",
+					type: { any_: ["FAILED", "CRASHED"] },
+				},
+			},
+		},
+		running: {
+			...baseFilter,
+			task_runs: {
+				...taskRunsFilter,
+				state: {
+					operator: "and_",
+					type: { any_: ["RUNNING"] },
+				},
+			},
+		},
+	};
+}
+
 const STATE_TYPE_GROUPS = [
 	["FAILED", "CRASHED"],
 	["RUNNING", "PENDING", "CANCELLING"],
@@ -311,6 +415,22 @@ export const Route = createFileRoute("/dashboard")({
 					// Swallow errors so a failed prefetch doesn't break the loader
 				});
 		});
+
+		// Prefetch task run count queries (used by TaskRunsCard)
+		// This matches the 4 count queries made by TaskRunsCard component
+		const taskRunsCountFilters = buildTaskRunsCountFiltersFromSearch(deps);
+		void queryClient.prefetchQuery(
+			buildCountTaskRunsQuery(taskRunsCountFilters.total, 30_000),
+		);
+		void queryClient.prefetchQuery(
+			buildCountTaskRunsQuery(taskRunsCountFilters.completed, 30_000),
+		);
+		void queryClient.prefetchQuery(
+			buildCountTaskRunsQuery(taskRunsCountFilters.failed, 30_000),
+		);
+		void queryClient.prefetchQuery(
+			buildCountTaskRunsQuery(taskRunsCountFilters.running, 30_000),
+		);
 
 		// Prefetch work pools data for the dashboard
 		const workPools = await queryClient.ensureQueryData(
@@ -648,6 +768,7 @@ export function RouteComponent() {
 											startDate: from,
 											endDate: to,
 											tags: search.tags,
+											hideSubflows: search.hideSubflows,
 										}}
 									/>
 								</Suspense>

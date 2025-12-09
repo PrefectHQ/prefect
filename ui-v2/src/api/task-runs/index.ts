@@ -100,6 +100,7 @@ export const buildListTaskRunsQuery = (
  * Builds a query configuration for counting task runs
  *
  * @param filter - Filter parameters for the task runs count query.
+ * @param refetchInterval - Optional interval in ms to refetch the count (default: no refetch)
  * @returns Query configuration object for use with TanStack Query
  *
  * @example
@@ -107,7 +108,10 @@ export const buildListTaskRunsQuery = (
  * const { data: taskRunsCount } = useSuspenseQuery(buildCountTaskRunsQuery());
  * ```
  */
-export const buildCountTaskRunsQuery = (filter: TaskRunsCountFilter = {}) =>
+export const buildCountTaskRunsQuery = (
+	filter: TaskRunsCountFilter = {},
+	refetchInterval?: number,
+) =>
 	queryOptions({
 		queryKey: queryKeyFactory.count(filter),
 		queryFn: async () => {
@@ -116,6 +120,8 @@ export const buildCountTaskRunsQuery = (filter: TaskRunsCountFilter = {}) =>
 			});
 			return res.data ?? 0;
 		},
+		staleTime: 1000,
+		refetchInterval,
 	});
 
 /**
