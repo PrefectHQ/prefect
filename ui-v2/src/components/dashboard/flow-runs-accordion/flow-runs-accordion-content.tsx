@@ -82,11 +82,13 @@ export function FlowRunsAccordionContent({
 						.map((run) => run.id)
 						.filter(Boolean);
 
-					if (flowRunIds.length === 0) return;
-
-					void queryClient.prefetchQuery(
-						buildGetFlowRunsTaskRunsCountQuery(flowRunIds),
-					);
+					// Prefetch task run counts for each flow run individually
+					// to match the query key used by FlowRunTaskRuns component
+					flowRunIds.forEach((flowRunId) => {
+						void queryClient.prefetchQuery(
+							buildGetFlowRunsTaskRunsCountQuery([flowRunId]),
+						);
+					});
 				})
 				.catch(() => {
 					// Swallow errors so a failed prefetch doesn't break hover handlers

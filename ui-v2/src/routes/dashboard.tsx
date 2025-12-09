@@ -292,22 +292,24 @@ export const Route = createFileRoute("/dashboard")({
 				},
 			};
 			void queryClient
-				.fetchQuery(buildFilterFlowRunsQuery(filterWithState, 30_000))
-				.then((flowRuns) => {
-					if (!flowRuns || flowRuns.length === 0) return;
-					// Prefetch task run counts for the first 3 flow runs (matches ITEMS_PER_PAGE in accordion)
-					const flowRunIds = flowRuns
-						.slice(0, 3)
-						.map((run) => run.id)
-						.filter(Boolean);
-					if (flowRunIds.length === 0) return;
-					void queryClient.prefetchQuery(
-						buildGetFlowRunsTaskRunsCountQuery(flowRunIds),
-					);
-				})
-				.catch(() => {
-					// Swallow errors so a failed prefetch doesn't break the loader
-				});
+					.fetchQuery(buildFilterFlowRunsQuery(filterWithState, 30_000))
+					.then((flowRuns) => {
+						if (!flowRuns || flowRuns.length === 0) return;
+						// Prefetch task run counts for the first 3 flow runs (matches ITEMS_PER_PAGE in accordion)
+						// Each flow run needs its own prefetch to match the query key used by FlowRunTaskRuns component
+						const flowRunIds = flowRuns
+							.slice(0, 3)
+							.map((run) => run.id)
+							.filter(Boolean);
+						flowRunIds.forEach((flowRunId) => {
+							void queryClient.prefetchQuery(
+								buildGetFlowRunsTaskRunsCountQuery([flowRunId]),
+							);
+						});
+					})
+					.catch(() => {
+						// Swallow errors so a failed prefetch doesn't break the loader
+					});
 		});
 
 		// Prefetch work pools data for the dashboard
