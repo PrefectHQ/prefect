@@ -56,7 +56,6 @@ export const FlowRunStateTabs = ({
 	flowRuns,
 	selectedStates,
 	onStateChange,
-	failedOrCrashedCount,
 }: FlowRunStateTabsProps) => {
 	const counts = useMemo(() => {
 		const stateCounts: Record<StateType, number> = {
@@ -85,16 +84,6 @@ export const FlowRunStateTabs = ({
 		onStateChange(value.split("-").map((state) => state as StateType));
 	};
 
-	// Generate state-aware summary message
-	const getSummaryMessage = (): string | null => {
-		if (selectedStates.includes("FAILED") && failedOrCrashedCount === 0) {
-			return "You currently have 0 failed or crashed runs.";
-		}
-		return null;
-	};
-
-	const summaryMessage = getSummaryMessage();
-
 	return (
 		<div className="space-y-2">
 			<Tabs value={selectedStates.join("-")} onValueChange={handleValueChange}>
@@ -114,9 +103,6 @@ export const FlowRunStateTabs = ({
 					))}
 				</TabsList>
 			</Tabs>
-			{summaryMessage && (
-				<p className="text-sm text-muted-foreground">{summaryMessage}</p>
-			)}
 		</div>
 	);
 };
