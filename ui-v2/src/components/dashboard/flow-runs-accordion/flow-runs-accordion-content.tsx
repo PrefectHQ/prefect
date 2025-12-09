@@ -5,6 +5,7 @@ import {
 	type FlowRunsFilter,
 	type FlowRunsPaginateFilter,
 } from "@/api/flow-runs";
+import { buildGetFlowRunsTaskRunsCountQuery } from "@/api/task-runs";
 import { FlowRunCard } from "@/components/flow-runs/flow-run-card";
 import {
 	Pagination,
@@ -67,25 +68,46 @@ export function FlowRunsAccordionContent({
 	const flowRuns = data?.results ?? [];
 	const totalPages = data?.pages ?? 1;
 
+	// Prefetch a page of flow runs and their task run counts
+	const prefetchPage = useCallback(
+		(targetPage: number) => {
+			const filter = buildFilterForPage(targetPage);
+			const pageQuery = buildPaginateFlowRunsQuery(filter, 30_000);
+
+			void queryClient
+				.fetchQuery(pageQuery)
+				.then((data) => {
+					if (!data) return;
+					const flowRunIds = (data.results ?? [])
+						.map((run) => run.id)
+						.filter(Boolean);
+
+					if (flowRunIds.length === 0) return;
+
+					void queryClient.prefetchQuery(
+						buildGetFlowRunsTaskRunsCountQuery(flowRunIds),
+					);
+				})
+				.catch(() => {
+					// Swallow errors so a failed prefetch doesn't break hover handlers
+				});
+		},
+		[buildFilterForPage, queryClient],
+	);
+
 	// Prefetch next page on hover
 	const prefetchNextPage = useCallback(() => {
 		if (page < totalPages) {
-			const nextPageFilter = buildFilterForPage(page + 1);
-			void queryClient.prefetchQuery(
-				buildPaginateFlowRunsQuery(nextPageFilter, 30_000),
-			);
+			prefetchPage(page + 1);
 		}
-	}, [page, totalPages, buildFilterForPage, queryClient]);
+	}, [page, totalPages, prefetchPage]);
 
 	// Prefetch previous page on hover
 	const prefetchPreviousPage = useCallback(() => {
 		if (page > 1) {
-			const prevPageFilter = buildFilterForPage(page - 1);
-			void queryClient.prefetchQuery(
-				buildPaginateFlowRunsQuery(prevPageFilter, 30_000),
-			);
+			prefetchPage(page - 1);
 		}
-	}, [page, buildFilterForPage, queryClient]);
+	}, [page, prefetchPage]);
 
 	return (
 		<div className="space-y-3">

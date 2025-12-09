@@ -8,6 +8,7 @@ import {
 	buildFilterFlowRunsQuery,
 	type FlowRunsFilter,
 } from "@/api/flow-runs";
+import { buildGetFlowRunsTaskRunsCountQuery } from "@/api/task-runs";
 import { buildListWorkPoolQueuesQuery } from "@/api/work-pool-queues";
 import {
 	buildFilterWorkPoolsQuery,
@@ -275,6 +276,7 @@ export const Route = createFileRoute("/dashboard")({
 		);
 
 		// Prefetch flow runs for each state type group to minimize loading when switching tabs
+		// Also prefetch task run counts for the first 3 runs of each state type (used by FlowRunCard)
 		STATE_TYPE_GROUPS.forEach((stateTypes) => {
 			const filterWithState: FlowRunsFilter = {
 				...baseFilter,
@@ -289,9 +291,23 @@ export const Route = createFileRoute("/dashboard")({
 					},
 				},
 			};
-			void queryClient.prefetchQuery(
-				buildFilterFlowRunsQuery(filterWithState, 30_000),
-			);
+			void queryClient
+				.fetchQuery(buildFilterFlowRunsQuery(filterWithState, 30_000))
+				.then((flowRuns) => {
+					if (!flowRuns || flowRuns.length === 0) return;
+					// Prefetch task run counts for the first 3 flow runs (matches ITEMS_PER_PAGE in accordion)
+					const flowRunIds = flowRuns
+						.slice(0, 3)
+						.map((run) => run.id)
+						.filter(Boolean);
+					if (flowRunIds.length === 0) return;
+					void queryClient.prefetchQuery(
+						buildGetFlowRunsTaskRunsCountQuery(flowRunIds),
+					);
+				})
+				.catch(() => {
+					// Swallow errors so a failed prefetch doesn't break the loader
+				});
 		});
 
 		// Prefetch work pools data for the dashboard
