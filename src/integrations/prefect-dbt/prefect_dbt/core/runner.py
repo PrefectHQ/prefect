@@ -1027,9 +1027,15 @@ class PrefectDbtRunner:
             callbacks = []
 
         # Determine which command is being invoked
+        # We need to find a valid dbt command, skipping flag values like "json" in "--log-format json"
+        from dbt.cli.main import cli
+
         command_name = None
         for arg in args_copy:
-            if not arg.startswith("-"):
+            if arg.startswith("-"):
+                continue
+            # Check if this is a valid dbt command
+            if arg in cli.commands:
                 command_name = arg
                 break
 
@@ -1039,8 +1045,6 @@ class PrefectDbtRunner:
         # Get valid parameters for the command if we can determine it
         valid_params = None
         if command_name:
-            from dbt.cli.main import cli
-
             command = cli.commands.get(command_name)
             if command:
                 valid_params = {p.name for p in command.params}
