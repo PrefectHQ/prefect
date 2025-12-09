@@ -28,7 +28,8 @@ from prefect.server.models.events import work_pool_status_event
 from prefect.server.schemas.statuses import WorkQueueStatus
 from prefect.server.utilities.database import UUID as PrefectUUID
 from prefect.types._datetime import DateTime, now
-
+from prefect.logging import get_logger
+logger = get_logger("prefect.server.models.workers")
 DEFAULT_AGENT_WORK_POOL_NAME = "default-agent-pool"
 
 # -----------------------------------------------------
@@ -256,6 +257,8 @@ async def update_work_pool(
 
         assert wp is not None
         assert current_work_pool is not wp
+        
+        logger.error(f"[DEBUG] ISSUE ENTRY POINT - Work Pool {work_pool_id} updated. Fields: {list(update_data.keys())}")
 
         if "status" in update_data and emit_status_change:
             await emit_status_change(
