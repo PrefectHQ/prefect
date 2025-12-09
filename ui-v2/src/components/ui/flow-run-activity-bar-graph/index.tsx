@@ -235,10 +235,6 @@ export const FlowRunActivityBarChart = ({
 			>
 				<ChartTooltip
 					content={<FlowRunTooltip />}
-					portal={document.body}
-					position={{
-						y: containerHeight ?? 0,
-					}}
 					isAnimationActive={false}
 					allowEscapeViewBox={{ x: true, y: true }}
 					active={isTooltipActive}
