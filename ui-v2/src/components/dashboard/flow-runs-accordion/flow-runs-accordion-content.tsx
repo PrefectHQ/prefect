@@ -1,16 +1,18 @@
-import { useQuery } from "@tanstack/react-query";
-import { Suspense, useMemo, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Suspense, useCallback, useMemo, useState } from "react";
 import {
 	buildPaginateFlowRunsQuery,
 	type FlowRunsFilter,
+	type FlowRunsPaginateFilter,
 } from "@/api/flow-runs";
+import { buildGetFlowRunsTaskRunsCountQuery } from "@/api/task-runs";
 import { FlowRunCard } from "@/components/flow-runs/flow-run-card";
 import {
 	Pagination,
 	PaginationContent,
 	PaginationItem,
-	PaginationNext,
-	PaginationPrevious,
+	PaginationNextButton,
+	PaginationPreviousButton,
 } from "@/components/ui/pagination";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Typography } from "@/components/ui/typography";
@@ -33,21 +35,30 @@ export function FlowRunsAccordionContent({
 	filter,
 }: FlowRunsAccordionContentProps) {
 	const [page, setPage] = useState(1);
+	const queryClient = useQueryClient();
 
 	// Build filter for this specific flow with pagination
-	const paginatedFilter = useMemo(() => {
-		return {
-			...filter,
-			flows: {
-				...filter?.flows,
-				operator: "and_" as const,
-				id: { any_: [flowId] },
-			},
-			page,
-			limit: ITEMS_PER_PAGE,
-			sort: "START_TIME_DESC" as const,
-		};
-	}, [filter, flowId, page]);
+	const buildFilterForPage = useCallback(
+		(targetPage: number): FlowRunsPaginateFilter => {
+			return {
+				...filter,
+				flows: {
+					...filter?.flows,
+					operator: "and_" as const,
+					id: { any_: [flowId] },
+				},
+				page: targetPage,
+				limit: ITEMS_PER_PAGE,
+				sort: "START_TIME_DESC" as const,
+			};
+		},
+		[filter, flowId],
+	);
+
+	const paginatedFilter = useMemo(
+		() => buildFilterForPage(page),
+		[buildFilterForPage, page],
+	);
 
 	// Fetch paginated flow runs
 	const { data } = useQuery(
@@ -56,6 +67,49 @@ export function FlowRunsAccordionContent({
 
 	const flowRuns = data?.results ?? [];
 	const totalPages = data?.pages ?? 1;
+
+	// Prefetch a page of flow runs and their task run counts
+	const prefetchPage = useCallback(
+		(targetPage: number) => {
+			const filter = buildFilterForPage(targetPage);
+			const pageQuery = buildPaginateFlowRunsQuery(filter, 30_000);
+
+			void queryClient
+				.fetchQuery(pageQuery)
+				.then((data) => {
+					if (!data) return;
+					const flowRunIds = (data.results ?? [])
+						.map((run) => run.id)
+						.filter(Boolean);
+
+					// Prefetch task run counts for each flow run individually
+					// to match the query key used by FlowRunTaskRuns component
+					flowRunIds.forEach((flowRunId) => {
+						void queryClient.prefetchQuery(
+							buildGetFlowRunsTaskRunsCountQuery([flowRunId]),
+						);
+					});
+				})
+				.catch(() => {
+					// Swallow errors so a failed prefetch doesn't break hover handlers
+				});
+		},
+		[buildFilterForPage, queryClient],
+	);
+
+	// Prefetch next page on hover
+	const prefetchNextPage = useCallback(() => {
+		if (page < totalPages) {
+			prefetchPage(page + 1);
+		}
+	}, [page, totalPages, prefetchPage]);
+
+	// Prefetch previous page on hover
+	const prefetchPreviousPage = useCallback(() => {
+		if (page > 1) {
+			prefetchPage(page - 1);
+		}
+	}, [page, prefetchPage]);
 
 	return (
 		<div className="space-y-3">
@@ -69,13 +123,10 @@ export function FlowRunsAccordionContent({
 				<Pagination className="justify-start">
 					<PaginationContent>
 						<PaginationItem>
-							<PaginationPrevious
+							<PaginationPreviousButton
 								onClick={() => setPage((p) => Math.max(1, p - 1))}
-								className={
-									page === 1
-										? "pointer-events-none opacity-50"
-										: "cursor-pointer"
-								}
+								onMouseEnter={prefetchPreviousPage}
+								disabled={page === 1}
 							/>
 						</PaginationItem>
 						<PaginationItem>
@@ -84,13 +135,10 @@ export function FlowRunsAccordionContent({
 							</Typography>
 						</PaginationItem>
 						<PaginationItem>
-							<PaginationNext
+							<PaginationNextButton
 								onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-								className={
-									page === totalPages
-										? "pointer-events-none opacity-50"
-										: "cursor-pointer"
-								}
+								onMouseEnter={prefetchNextPage}
+								disabled={page === totalPages}
 							/>
 						</PaginationItem>
 					</PaginationContent>
