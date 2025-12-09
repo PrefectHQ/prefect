@@ -22,7 +22,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 import prefect.server.schemas as schemas
 from prefect._internal.uuid7 import uuid7
-from prefect.logging import get_logger
 from prefect.server.database import PrefectDBInterface, db_injector, orm_models
 from prefect.server.events.clients import PrefectServerEventsClient
 from prefect.server.exceptions import ObjectNotFoundError
@@ -34,7 +33,6 @@ from prefect.server.schemas.statuses import WorkQueueStatus
 from prefect.server.utilities.database import UUID as PrefectUUID
 from prefect.types._datetime import DateTime, now
 
-logger = get_logger("prefect.server.models.workers")
 DEFAULT_AGENT_WORK_POOL_NAME = "default-agent-pool"
 
 # -----------------------------------------------------
