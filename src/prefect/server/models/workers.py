@@ -628,6 +628,11 @@ async def update_work_queue(
 
     update_values = work_queue.model_dump_for_orm(exclude_unset=True)
 
+    current_work_queue = await session.get(db.WorkQueue, work_queue_id)
+    if current_work_queue is None:
+        return False
+    session.expunge(current_work_queue)
+
     if "is_paused" in update_values:
         if (wq := await session.get(db.WorkQueue, work_queue_id)) is None:
             return False
@@ -666,8 +671,45 @@ async def update_work_queue(
     updated = result.rowcount > 0
 
     if updated:
+        updated_work_queue = await session.get(db.WorkQueue, work_queue_id)
+        assert updated_work_queue is not None
+        assert current_work_queue is not updated_work_queue
+        
+        # Fields that should trigger update events (user-updatable fields)
+        WORK_QUEUE_EVENT_FIELDS = {
+            "name",
+            "description",
+            "concurrency_limit",
+            "priority",
+            # Exclude "is_paused" - handled with status
+            # Exclude "last_polled" - usually auto-updated
+            # Exclude "filter" - deprecated
+        }
+        
+        changed_fields = {}
+        for field in update_values.keys():
+            if field not in WORK_QUEUE_EVENT_FIELDS or field == "status":
+                continue
+            
+            old_value = getattr(current_work_queue, field, None)
+            new_value = getattr(updated_work_queue, field, None)
+            
+            if old_value != new_value:
+                changed_fields[field] = {
+                    "old": old_value,
+                    "new": new_value,
+                }
+        
+        if changed_fields:
+            from prefect.server.models.work_queues import emit_work_queue_updated_event
+            await emit_work_queue_updated_event(
+                session=session,
+                work_queue=updated_work_queue,
+                changed_fields=changed_fields,
+            )
+        
+
         if "priority" in update_values or "status" in update_values:
-            updated_work_queue = await session.get(db.WorkQueue, work_queue_id)
             assert updated_work_queue
 
             if "priority" in update_values:
