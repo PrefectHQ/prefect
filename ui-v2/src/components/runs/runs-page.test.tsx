@@ -1,5 +1,5 @@
 import { RouterProvider } from "@tanstack/react-router";
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { buildApiUrl, createWrapper, server } from "@tests/utils";
 import { HttpResponse, http } from "msw";
@@ -211,9 +211,7 @@ describe("Runs page", () => {
 			await renderRunsPage();
 
 			await waitFor(() => {
-				expect(
-					screen.getByPlaceholderText("Search by run name"),
-				).toBeVisible();
+				expect(screen.getByPlaceholderText("Search by run name")).toBeVisible();
 			});
 		});
 
@@ -268,9 +266,7 @@ describe("Runs page", () => {
 			await renderRunsPage();
 
 			await waitFor(() => {
-				expect(
-					screen.getByPlaceholderText("Search by run name"),
-				).toBeVisible();
+				expect(screen.getByPlaceholderText("Search by run name")).toBeVisible();
 			});
 
 			const searchInput = screen.getByPlaceholderText("Search by run name");
