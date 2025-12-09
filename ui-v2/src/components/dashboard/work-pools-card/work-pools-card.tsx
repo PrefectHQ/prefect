@@ -274,7 +274,7 @@ const WorkPoolFlowRunCompleteness = ({
 	// Calculate previous period filter by shifting the time window back
 	const previousPeriodFilter: FlowRunsFilter | null = useMemo(() => {
 		const startTime = filter?.flow_runs?.start_time;
-		if (!startTime?.after_ || !startTime?.before_) {
+		if (!filter || !startTime?.after_ || !startTime?.before_) {
 			return null;
 		}
 
@@ -284,8 +284,10 @@ const WorkPoolFlowRunCompleteness = ({
 
 		return {
 			...filter,
+			sort: filter.sort ?? "ID_DESC",
 			flow_runs: {
-				...filter?.flow_runs,
+				...filter.flow_runs,
+				operator: filter.flow_runs?.operator ?? "and_",
 				start_time: {
 					after_: subSeconds(startDate, timeSpanInSeconds).toISOString(),
 					before_: subSeconds(endDate, timeSpanInSeconds).toISOString(),
