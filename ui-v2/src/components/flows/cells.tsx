@@ -24,7 +24,7 @@ import {
 type Flow = components["schemas"]["Flow"];
 
 export const FlowsTableHeaderCell = ({ content }: { content: string }) => (
-	<Typography variant="bodySmall" className="font-bold text-black m-2">
+	<Typography variant="bodySmall" className="font-bold text-foreground m-2">
 		{content}
 	</Typography>
 );
