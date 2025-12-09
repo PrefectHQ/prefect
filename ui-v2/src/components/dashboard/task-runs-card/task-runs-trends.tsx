@@ -117,6 +117,7 @@ export function TaskRunsTrends({ filter }: TaskRunsTrendsProps) {
 		// Add tags filter on flow_runs (matching Vue's flowRuns.tags.anyName)
 		if (filter?.tags && filter.tags.length > 0) {
 			baseFilter.flow_runs = {
+				operator: "and_",
 				...baseFilter.flow_runs,
 				tags: {
 					operator: "and_",
@@ -128,6 +129,7 @@ export function TaskRunsTrends({ filter }: TaskRunsTrendsProps) {
 		// Add hideSubflows filter (matching Vue's flowRuns.parentTaskRunIdNull)
 		if (filter?.hideSubflows) {
 			baseFilter.flow_runs = {
+				operator: "and_",
 				...baseFilter.flow_runs,
 				parent_task_run_id: {
 					operator: "and_",
