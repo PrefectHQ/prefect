@@ -73,7 +73,7 @@ const Header = ({ artifactKey }: ArtifactsKeyHeaderProps) => (
 					</BreadcrumbItem>
 				</Link>
 				<BreadcrumbSeparator>/</BreadcrumbSeparator>
-				<BreadcrumbItem className="text-xl font-bold text-black">
+				<BreadcrumbItem className="text-xl font-bold text-foreground">
 					{artifactKey}
 				</BreadcrumbItem>
 			</BreadcrumbList>

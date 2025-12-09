@@ -30,7 +30,7 @@ export const ArtifactDetailHeader = ({
 							</Link>
 						</BreadcrumbItem>
 						<BreadcrumbSeparator>/</BreadcrumbSeparator>
-						<BreadcrumbItem className="text-xl font-bold text-black">
+						<BreadcrumbItem className="text-xl font-bold text-foreground">
 							{artifact.id}
 						</BreadcrumbItem>
 					</BreadcrumbList>
@@ -78,7 +78,7 @@ export const ArtifactDetailHeader = ({
 								<BreadcrumbSeparator>/</BreadcrumbSeparator>
 							</>
 						)}
-						<BreadcrumbItem className="text-xl font-bold text-black">
+						<BreadcrumbItem className="text-xl font-bold text-foreground">
 							{artifact.id}
 						</BreadcrumbItem>
 					</BreadcrumbList>

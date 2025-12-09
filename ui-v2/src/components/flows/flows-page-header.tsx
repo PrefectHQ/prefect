@@ -18,7 +18,7 @@ const Header = () => (
 	<div className="flex items-center ">
 		<Breadcrumb>
 			<BreadcrumbList>
-				<BreadcrumbItem className="text-xl font-bold text-black">
+				<BreadcrumbItem className="text-xl font-bold text-foreground">
 					Flows
 				</BreadcrumbItem>
 			</BreadcrumbList>

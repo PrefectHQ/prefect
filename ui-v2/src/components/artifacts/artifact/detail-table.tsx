@@ -39,11 +39,11 @@ export const DetailTable = ({ tableData }: DetailTableProps) => {
 			</div>
 			<div className="rounded-md border">
 				<Table>
-					<TableHeader className="bg-gray-100">
+					<TableHeader className="bg-muted">
 						<TableRow>
 							{headers.map((header) => {
 								return (
-									<TableHead key={header} className="py-2 text-black">
+									<TableHead key={header} className="py-2 text-foreground">
 										{header}
 									</TableHead>
 								);
