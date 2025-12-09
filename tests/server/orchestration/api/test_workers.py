@@ -1503,6 +1503,7 @@ class TestUpdateWorkQueue:
                 }
             ],
         )
+
     async def test_update_work_queue_via_work_pool_emits_updated_event(
         self, client, work_pool
     ):
@@ -1547,6 +1548,7 @@ class TestUpdateWorkQueue:
                 }
             ],
         )
+
 
 class TestUpdateWorkPoolEvents:
     async def test_update_work_pool_emits_updated_event_for_description(
@@ -1652,6 +1654,7 @@ class TestUpdateWorkPoolEvents:
                 },
             },
         )
+
 
 class TestWorkPoolStatus:
     async def test_work_pool_status_with_online_worker(self, client, work_pool):

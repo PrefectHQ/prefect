@@ -565,9 +565,9 @@ class TestUpdateWorkQueue:
         """Test that updating concurrency_limit emits prefect.work-queue.updated event."""
         assert work_queue.concurrency_limit is None
 
-        new_data = schemas.actions.WorkQueueUpdate(
-            concurrency_limit=10
-        ).model_dump(mode="json", exclude_unset=True)
+        new_data = schemas.actions.WorkQueueUpdate(concurrency_limit=10).model_dump(
+            mode="json", exclude_unset=True
+        )
 
         response = await client.patch(
             f"/work_queues/{work_queue.id}",
@@ -647,9 +647,9 @@ class TestUpdateWorkQueue:
         """Test that updating priority emits prefect.work-queue.updated event."""
         original_priority = work_queue.priority
 
-        new_data = schemas.actions.WorkQueueUpdate(
-            priority=5
-        ).model_dump(mode="json", exclude_unset=True)
+        new_data = schemas.actions.WorkQueueUpdate(priority=5).model_dump(
+            mode="json", exclude_unset=True
+        )
 
         response = await client.patch(
             f"/work_queues/{work_queue.id}",
