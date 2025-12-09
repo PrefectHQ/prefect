@@ -1,6 +1,6 @@
 import { useQueries, useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { formatDuration, intervalToDuration, max } from "date-fns";
+import { differenceInSeconds, max, subSeconds } from "date-fns";
 import { useMemo } from "react";
 import {
 	buildAverageLatenessFlowRunsQuery,
@@ -19,10 +19,20 @@ import {
 } from "@/api/work-pools";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { FlowRunActivityBarChart } from "@/components/ui/flow-run-activity-bar-graph";
-import { FormattedDate } from "@/components/ui/formatted-date";
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipProvider,
+	TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { WorkPoolQueueStatusIcon } from "@/components/work-pools/work-pool-queue-status-icon";
 import { WorkPoolStatusIcon } from "@/components/work-pools/work-pool-status-icon";
-import { cn } from "@/utils";
+import { useNow } from "@/hooks/use-now";
+import {
+	cn,
+	formatDateTimeRelative,
+	secondsToApproximateString,
+} from "@/utils";
 
 type DashboardWorkPoolsCardProps = {
 	filter?: {
@@ -170,8 +180,8 @@ const DashboardWorkPoolCardDetail = ({
 	children,
 }: DashboardWorkPoolCardDetailProps) => {
 	return (
-		<div>
-			<dt className="text-xs font-medium text-muted-foreground">{label}</dt>
+		<div className="text-center">
+			<dt className="text-xs text-muted-foreground">{label}</dt>
 			<dd className="mt-1">{children}</dd>
 		</div>
 	);
@@ -182,6 +192,7 @@ type WorkPoolLastPolledProps = {
 };
 
 const WorkPoolLastPolled = ({ workPool }: WorkPoolLastPolledProps) => {
+	const now = useNow({ interval: 1000 });
 	const { data: workers } = useQuery(
 		buildListWorkPoolWorkersQuery(workPool.name),
 	);
@@ -203,7 +214,9 @@ const WorkPoolLastPolled = ({ workPool }: WorkPoolLastPolledProps) => {
 		return <span className="text-sm text-muted-foreground">N/A</span>;
 	}
 
-	return <FormattedDate date={lastWorkerHeartbeat} className="text-sm" />;
+	const relativeTime = formatDateTimeRelative(lastWorkerHeartbeat, now);
+
+	return <span className="text-sm">{relativeTime}</span>;
 };
 
 type WorkPoolQueueStatusArrayProps = {
@@ -258,6 +271,29 @@ const WorkPoolFlowRunCompleteness = ({
 	workPool,
 	filter,
 }: WorkPoolFlowRunCompletenessProps) => {
+	// Calculate previous period filter by shifting the time window back
+	const previousPeriodFilter: FlowRunsFilter | null = useMemo(() => {
+		const startTime = filter?.flow_runs?.start_time;
+		if (!startTime?.after_ || !startTime?.before_) {
+			return null;
+		}
+
+		const startDate = new Date(startTime.after_);
+		const endDate = new Date(startTime.before_);
+		const timeSpanInSeconds = differenceInSeconds(endDate, startDate);
+
+		return {
+			...filter,
+			flow_runs: {
+				...filter?.flow_runs,
+				start_time: {
+					after_: subSeconds(startDate, timeSpanInSeconds).toISOString(),
+					before_: subSeconds(endDate, timeSpanInSeconds).toISOString(),
+				},
+			},
+		};
+	}, [filter]);
+
 	// Build filter for all runs (completed, failed, crashed)
 	const allRunsFilter: FlowRunsCountFilter = useMemo(
 		() => ({
@@ -302,6 +338,55 @@ const WorkPoolFlowRunCompleteness = ({
 		[filter, workPool.id],
 	);
 
+	// Build filters for previous period
+	const previousAllRunsFilter: FlowRunsCountFilter | null = useMemo(
+		() =>
+			previousPeriodFilter
+				? {
+						...previousPeriodFilter,
+						work_pools: {
+							operator: "and_",
+							id: { any_: [workPool.id] },
+						},
+						flow_runs: {
+							operator: "and_",
+							...previousPeriodFilter?.flow_runs,
+							state: {
+								operator: "and_",
+								type: {
+									any_: ["COMPLETED", "FAILED", "CRASHED"],
+								},
+							},
+						},
+					}
+				: null,
+		[previousPeriodFilter, workPool.id],
+	);
+
+	const previousCompletedRunsFilter: FlowRunsCountFilter | null = useMemo(
+		() =>
+			previousPeriodFilter
+				? {
+						...previousPeriodFilter,
+						work_pools: {
+							operator: "and_",
+							id: { any_: [workPool.id] },
+						},
+						flow_runs: {
+							operator: "and_",
+							...previousPeriodFilter?.flow_runs,
+							state: {
+								operator: "and_",
+								type: {
+									any_: ["COMPLETED"],
+								},
+							},
+						},
+					}
+				: null,
+		[previousPeriodFilter, workPool.id],
+	);
+
 	const { data: allRunsCount } = useQuery(
 		buildCountFlowRunsQuery(allRunsFilter, 30000),
 	);
@@ -309,6 +394,19 @@ const WorkPoolFlowRunCompleteness = ({
 	const { data: completedRunsCount } = useQuery(
 		buildCountFlowRunsQuery(completedRunsFilter, 30000),
 	);
+
+	const { data: previousAllRunsCount } = useQuery({
+		...buildCountFlowRunsQuery(previousAllRunsFilter ?? allRunsFilter, 30000),
+		enabled: previousAllRunsFilter !== null,
+	});
+
+	const { data: previousCompletedRunsCount } = useQuery({
+		...buildCountFlowRunsQuery(
+			previousCompletedRunsFilter ?? completedRunsFilter,
+			30000,
+		),
+		enabled: previousCompletedRunsFilter !== null,
+	});
 
 	if (allRunsCount === undefined || completedRunsCount === undefined) {
 		return <span className="text-sm text-muted-foreground">—</span>;
@@ -320,9 +418,53 @@ const WorkPoolFlowRunCompleteness = ({
 
 	const completePercent = Math.round((completedRunsCount / allRunsCount) * 100);
 
+	// Calculate percent change from previous period
+	let percentChange: { change: string; direction: "+" | "-" } | null = null;
+	if (
+		previousAllRunsCount &&
+		previousAllRunsCount > 0 &&
+		previousCompletedRunsCount !== undefined
+	) {
+		const previousCompletePercent = Math.round(
+			(previousCompletedRunsCount / previousAllRunsCount) * 100,
+		);
+		if (previousCompletePercent !== completePercent) {
+			const change = Math.abs(completePercent - previousCompletePercent);
+			percentChange = {
+				change: change.toFixed(1),
+				direction: completePercent > previousCompletePercent ? "+" : "-",
+			};
+		}
+	}
+
 	return (
 		<span className="inline-flex items-center gap-1">
 			<span className="text-sm">{completePercent}%</span>
+			{percentChange && (
+				<TooltipProvider>
+					<Tooltip>
+						<TooltipTrigger asChild>
+							<span
+								className={cn(
+									"cursor-help whitespace-nowrap text-xs",
+									percentChange.direction === "+"
+										? "text-green-600"
+										: "text-red-600",
+								)}
+							>
+								{percentChange.direction}
+								{percentChange.change}
+							</span>
+						</TooltipTrigger>
+						<TooltipContent>
+							<p>
+								{percentChange.direction}
+								{percentChange.change}% change over time period
+							</p>
+						</TooltipContent>
+					</Tooltip>
+				</TooltipProvider>
+			)}
 		</span>
 	);
 };
@@ -381,9 +523,11 @@ type WorkPoolAverageLateTimeProps = {
 
 const WorkPoolAverageLateTime = ({
 	workPool,
+	filter,
 }: WorkPoolAverageLateTimeProps) => {
 	const flowRunsFilter: FlowRunsFilter = useMemo(
 		() => ({
+			...filter,
 			sort: "ID_DESC",
 			offset: 0,
 			work_pools: {
@@ -391,7 +535,7 @@ const WorkPoolAverageLateTime = ({
 				id: { any_: [workPool.id] },
 			},
 		}),
-		[workPool.id],
+		[filter, workPool.id],
 	);
 
 	const { data: lateness } = useQuery(
@@ -402,15 +546,10 @@ const WorkPoolAverageLateTime = ({
 		return null;
 	}
 
-	const duration = intervalToDuration({ start: 0, end: lateness * 1000 });
-	const formattedDuration = formatDuration(duration, {
-		format: ["years", "days", "hours", "minutes", "seconds"],
-		zero: false,
-		delimiter: " ",
-	});
+	const formattedDuration = secondsToApproximateString(Math.round(lateness));
 
 	return (
-		<span className="whitespace-nowrap text-xs">
+		<span className="whitespace-nowrap text-xs text-muted-foreground">
 			({formattedDuration} avg.)
 		</span>
 	);
