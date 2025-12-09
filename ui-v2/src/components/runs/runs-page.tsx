@@ -1,6 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
+import type { Deployment } from "@/api/deployments";
 import type { FlowRun } from "@/api/flow-runs";
+import type { Flow } from "@/api/flows";
 import { buildListFlowsQuery } from "@/api/flows";
+import type { WorkPool } from "@/api/work-pools";
 import type { FlowRunCardData } from "@/components/flow-runs/flow-run-card";
 import {
 	FlowRunsList,
@@ -22,6 +25,8 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Typography } from "@/components/ui/typography";
+import { FlowRunsFilterGroup } from "./flow-runs-filter-group";
+import type { FlowRunsFilters } from "./flow-runs-page";
 
 type RunsPageProps = {
 	tab: "flow-runs" | "task-runs";
@@ -37,6 +42,10 @@ type RunsPageProps = {
 	onSortChange: (sort: SortFilters) => void;
 	hideSubflows: boolean;
 	onHideSubflowsChange: (hideSubflows: boolean) => void;
+	filters: FlowRunsFilters;
+	flows: Flow[];
+	deployments: Deployment[];
+	workPools: WorkPool[];
 };
 
 export const RunsPage = ({
@@ -53,6 +62,10 @@ export const RunsPage = ({
 	onSortChange,
 	hideSubflows,
 	onHideSubflowsChange,
+	filters,
+	flows: filterFlows,
+	deployments,
+	workPools,
 }: RunsPageProps) => {
 	const isEmpty = flowRunsCount === 0 && taskRunsCount === 0;
 
@@ -96,6 +109,12 @@ export const RunsPage = ({
 				</TabsList>
 				<TabsContent value="flow-runs">
 					<div className="flex flex-col gap-4">
+						<FlowRunsFilterGroup
+							flows={filterFlows}
+							deployments={deployments}
+							workPools={workPools}
+							filters={filters}
+						/>
 						<div className="flex items-center justify-between">
 							<FlowRunsRowCount count={flowRunsCount} />
 							<div className="flex items-center gap-4">
