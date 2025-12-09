@@ -195,7 +195,7 @@ export const FlowRunActivityBarChart = ({
 	numberOfBars,
 	className,
 }: FlowRunActivityBarChartProps) => {
-	const [isTooltipActive, setIsTooltipActive] = useIsTooltipActive(chartId);
+	const [, setIsTooltipActive] = useIsTooltipActive(chartId);
 	const containerRef = useRef<HTMLDivElement>(null);
 
 	const buckets = organizeFlowRunsWithGaps(
@@ -234,10 +234,9 @@ export const FlowRunActivityBarChart = ({
 				}}
 			>
 				<ChartTooltip
-					content={<FlowRunTooltip />}
+					content={<FlowRunTooltip chartId={chartId} />}
 					isAnimationActive={false}
 					allowEscapeViewBox={{ x: true, y: true }}
-					active={isTooltipActive}
 					// Allows the tooltip to react to mouse events
 					wrapperStyle={{ pointerEvents: "auto" }}
 				/>
@@ -260,10 +259,19 @@ export const FlowRunActivityBarChart = ({
 
 FlowRunActivityBarChart.displayName = "FlowRunActivityBarChart";
 
-type FlowRunTooltipProps = Partial<TooltipContentProps<number, string>>;
+type FlowRunTooltipProps = Partial<TooltipContentProps<number, string>> & {
+	chartId?: string;
+};
 
-const FlowRunTooltip = ({ payload, active }: FlowRunTooltipProps) => {
+const FlowRunTooltip = ({ payload, active, chartId }: FlowRunTooltipProps) => {
+	const { currentHolder } = useContext(FlowRunActivityBarGraphTooltipContext);
+
 	if (!active || !payload || !payload.length) {
+		return null;
+	}
+
+	// If another chart is the current holder, don't render this tooltip
+	if (currentHolder && chartId && currentHolder !== chartId) {
 		return null;
 	}
 	const firstPayloadItem = payload[0] as { payload?: unknown } | undefined;
