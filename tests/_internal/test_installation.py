@@ -2,20 +2,10 @@ import subprocess
 import sys
 from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
-import pytest
-
-import prefect._internal.installation
 from prefect._internal.installation import ainstall_packages, install_packages
 
 
 class TestInstallPackages:
-    @pytest.fixture(autouse=True)
-    def reset_warning_state(self):
-        """Reset the deprecation warning state before each test."""
-        prefect._internal.installation._DEPRECATION_WARNING_EMITTED = False
-        yield
-        prefect._internal.installation._DEPRECATION_WARNING_EMITTED = False
-
     @patch("prefect._internal.installation.importlib.import_module")
     @patch("subprocess.check_call")
     def test_install_packages_with_uv_available(
@@ -35,7 +25,6 @@ class TestInstallPackages:
             stderr=subprocess.DEVNULL,
         )
 
-    @pytest.mark.filterwarnings("ignore::DeprecationWarning")
     @patch(
         "prefect._internal.installation.importlib.import_module",
         side_effect=ImportError("No module named 'uv'"),
@@ -55,7 +44,6 @@ class TestInstallPackages:
             stderr=subprocess.DEVNULL,
         )
 
-    @pytest.mark.filterwarnings("ignore::DeprecationWarning")
     @patch(
         "prefect._internal.installation.importlib.import_module",
         side_effect=ModuleNotFoundError("No module named 'uv'"),
@@ -75,7 +63,6 @@ class TestInstallPackages:
             stderr=subprocess.DEVNULL,
         )
 
-    @pytest.mark.filterwarnings("ignore::DeprecationWarning")
     @patch("prefect._internal.installation.importlib.import_module")
     @patch("subprocess.check_call")
     def test_install_packages_with_uv_file_not_found_error(
@@ -152,7 +139,6 @@ class TestInstallPackages:
             stderr=sys.stderr,
         )
 
-    @pytest.mark.filterwarnings("ignore::DeprecationWarning")
     @patch(
         "prefect._internal.installation.importlib.import_module",
         side_effect=ImportError("No module named 'uv'"),
@@ -174,13 +160,6 @@ class TestInstallPackages:
 
 
 class TestAinstallPackages:
-    @pytest.fixture(autouse=True)
-    def reset_warning_state(self):
-        """Reset the deprecation warning state before each test."""
-        prefect._internal.installation._DEPRECATION_WARNING_EMITTED = False
-        yield
-        prefect._internal.installation._DEPRECATION_WARNING_EMITTED = False
-
     @patch("prefect._internal.installation.importlib.import_module")
     @patch("prefect.utilities.processutils.run_process", new_callable=AsyncMock)
     async def test_ainstall_packages_with_uv_available(
@@ -199,7 +178,6 @@ class TestAinstallPackages:
             stream_output=False,
         )
 
-    @pytest.mark.filterwarnings("ignore::DeprecationWarning")
     @patch(
         "prefect._internal.installation.importlib.import_module",
         side_effect=ImportError("No module named 'uv'"),
@@ -218,7 +196,6 @@ class TestAinstallPackages:
             stream_output=False,
         )
 
-    @pytest.mark.filterwarnings("ignore::DeprecationWarning")
     @patch(
         "prefect._internal.installation.importlib.import_module",
         side_effect=ModuleNotFoundError("No module named 'uv'"),
@@ -237,7 +214,6 @@ class TestAinstallPackages:
             stream_output=False,
         )
 
-    @pytest.mark.filterwarnings("ignore::DeprecationWarning")
     @patch("prefect._internal.installation.importlib.import_module")
     @patch("prefect.utilities.processutils.run_process", new_callable=AsyncMock)
     async def test_ainstall_packages_with_uv_file_not_found_error(
@@ -310,7 +286,6 @@ class TestAinstallPackages:
             stream_output=True,
         )
 
-    @pytest.mark.filterwarnings("ignore::DeprecationWarning")
     @patch(
         "prefect._internal.installation.importlib.import_module",
         side_effect=ImportError("No module named 'uv'"),

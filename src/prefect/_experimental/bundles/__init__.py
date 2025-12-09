@@ -48,9 +48,9 @@ def _emit_uv_deprecation_warning():
     import warnings
 
     warnings.warn(
-        "Using system 'uv' binary without the 'prefect[uv]' extra installed. "
-        "In a future version of Prefect, you will need to install 'prefect[uv]' "
-        "to use bundle features. Install with: pip install 'prefect[uv]'",
+        "Using system 'uv' binary without the 'prefect[bundles]' extra installed. "
+        "In a future version of Prefect, you will need to install 'prefect[bundles]' "
+        "to use bundle features. Install with: pip install 'prefect[bundles]'",
         DeprecationWarning,
         stacklevel=4,
     )
