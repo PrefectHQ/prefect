@@ -198,8 +198,13 @@ export const FlowRunActivityBarChart = ({
 	const [isTooltipActive, setIsTooltipActive] = useIsTooltipActive(chartId);
 	const containerRef = useRef<HTMLDivElement>(null);
 
+	// Cap flow runs to prevent crash when there are more runs than bars.
+	// The chart can only display one run per bar, so we take the first N runs
+	// (which are typically the most recent due to query sort order).
+	const cappedFlowRuns = enrichedFlowRuns.slice(0, numberOfBars);
+
 	const buckets = organizeFlowRunsWithGaps(
-		enrichedFlowRuns,
+		cappedFlowRuns,
 		startDate,
 		endDate,
 		numberOfBars,
