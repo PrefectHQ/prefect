@@ -1,6 +1,6 @@
 import asyncio
 from contextlib import asynccontextmanager
-from typing import AsyncGenerator
+from typing import Any, AsyncGenerator, Callable
 
 from docket import Docket, Worker
 
@@ -30,6 +30,25 @@ from prefect.server.services.perpetual_services import (
 )
 from prefect.server.services.repossessor import revoke_expired_lease
 
+# Task functions to register with docket for background processing
+task_functions: list[Callable[..., Any]] = [
+    # Simple background tasks
+    mark_work_queues_ready,
+    mark_deployments_ready,
+    delete_task_run_logs,
+    delete_flow_run_logs,
+    # Find-and-flood pattern tasks used by perpetual services
+    mark_flow_run_late,
+    fail_expired_pause,
+    cancel_child_task_runs,
+    cancel_subflow_run,
+    revoke_expired_lease,
+    mark_workers_offline,
+    mark_work_pools_not_ready,
+    mark_deployments_not_ready_task,
+    mark_work_queues_not_ready_task,
+]
+
 
 @asynccontextmanager
 async def background_worker(
@@ -39,22 +58,10 @@ async def background_worker(
 ) -> AsyncGenerator[None, None]:
     worker_task: asyncio.Task[None] | None = None
     try:
-        # Register simple background task functions
-        docket.register(mark_work_queues_ready)
-        docket.register(mark_deployments_ready)
-        docket.register(delete_task_run_logs)
-        docket.register(delete_flow_run_logs)
-
-        # Register task functions used by perpetual services (find-and-flood pattern)
-        docket.register(mark_flow_run_late)
-        docket.register(fail_expired_pause)
-        docket.register(cancel_child_task_runs)
-        docket.register(cancel_subflow_run)
-        docket.register(revoke_expired_lease)
-        docket.register(mark_workers_offline)
-        docket.register(mark_work_pools_not_ready)
-        docket.register(mark_deployments_not_ready_task)
-        docket.register(mark_work_queues_not_ready_task)
+        # Register background task functions
+        docket.register_collection(
+            "prefect.server.api.background_workers:task_functions"
+        )
 
         # Register and schedule enabled perpetual services
         await register_and_schedule_perpetual_services(
