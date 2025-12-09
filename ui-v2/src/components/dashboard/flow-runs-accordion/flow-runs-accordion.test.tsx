@@ -515,7 +515,7 @@ describe("FlowRunsAccordionContent", () => {
 		});
 
 		currentPage = 2;
-		const nextButton = screen.getByRole("link", { name: /next/i });
+		const nextButton = screen.getByRole("button", { name: /next/i });
 		await user.click(nextButton);
 
 		await waitFor(() => {
