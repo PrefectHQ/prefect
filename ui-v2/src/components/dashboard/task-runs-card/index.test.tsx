@@ -8,8 +8,10 @@ import {
 import { render, screen } from "@testing-library/react";
 import { createWrapper } from "@tests/utils";
 import { describe, expect, it } from "vitest";
-import { buildListTaskRunsQuery } from "@/api/task-runs";
-import { createFakeTaskRun } from "@/mocks";
+import {
+	buildCountTaskRunsQuery,
+	type TaskRunsCountFilter,
+} from "@/api/task-runs";
 import { TaskRunsCard } from "./index";
 
 const TaskRunsCardRouter = ({
@@ -19,6 +21,7 @@ const TaskRunsCardRouter = ({
 		startDate?: string;
 		endDate?: string;
 		tags?: string[];
+		hideSubflows?: boolean;
 	};
 }) => {
 	const rootRoute = createRootRoute({
@@ -35,17 +38,154 @@ const TaskRunsCardRouter = ({
 	return <RouterProvider router={router} />;
 };
 
+/**
+ * Helper to build the base filter that matches what TaskRunsCard uses internally.
+ * This ensures test query keys match the component's query keys.
+ */
+function buildTestBaseFilter(filter?: {
+	startDate?: string;
+	endDate?: string;
+	tags?: string[];
+	hideSubflows?: boolean;
+}): {
+	task_runs: NonNullable<TaskRunsCountFilter["task_runs"]>;
+	flow_runs?: NonNullable<TaskRunsCountFilter["flow_runs"]>;
+} {
+	const taskRunsFilter: NonNullable<TaskRunsCountFilter["task_runs"]> = {
+		operator: "and_",
+		subflow_runs: {
+			exists_: false,
+		},
+	};
+
+	if (filter?.startDate && filter?.endDate) {
+		taskRunsFilter.start_time = {
+			after_: filter.startDate,
+			before_: filter.endDate,
+		};
+	}
+
+	const result: {
+		task_runs: NonNullable<TaskRunsCountFilter["task_runs"]>;
+		flow_runs?: NonNullable<TaskRunsCountFilter["flow_runs"]>;
+	} = {
+		task_runs: taskRunsFilter,
+	};
+
+	if ((filter?.tags && filter.tags.length > 0) || filter?.hideSubflows) {
+		const flowRunsFilter: NonNullable<TaskRunsCountFilter["flow_runs"]> = {
+			operator: "and_",
+		};
+
+		if (filter?.tags && filter.tags.length > 0) {
+			flowRunsFilter.tags = {
+				operator: "and_",
+				any_: filter.tags,
+			};
+		}
+
+		if (filter?.hideSubflows) {
+			flowRunsFilter.parent_task_run_id = {
+				operator: "and_",
+				is_null_: true,
+			};
+		}
+
+		result.flow_runs = flowRunsFilter;
+	}
+
+	return result;
+}
+
+/**
+ * Helper to seed all 4 count queries that TaskRunsCard uses.
+ */
+function seedTaskRunsCountQueries(
+	queryClient: QueryClient,
+	counts: { total: number; completed: number; failed: number; running: number },
+	filter?: {
+		startDate?: string;
+		endDate?: string;
+		tags?: string[];
+		hideSubflows?: boolean;
+	},
+) {
+	const baseFilter = buildTestBaseFilter(filter);
+
+	// Seed total count query
+	const totalFilter: TaskRunsCountFilter = {
+		...baseFilter,
+		task_runs: {
+			...baseFilter.task_runs,
+			state: {
+				operator: "and_",
+				type: { any_: ["COMPLETED", "FAILED", "CRASHED", "RUNNING"] },
+			},
+		},
+	};
+	queryClient.setQueryData(
+		buildCountTaskRunsQuery(totalFilter, 30_000).queryKey,
+		counts.total,
+	);
+
+	// Seed completed count query
+	const completedFilter: TaskRunsCountFilter = {
+		...baseFilter,
+		task_runs: {
+			...baseFilter.task_runs,
+			state: {
+				operator: "and_",
+				type: { any_: ["COMPLETED"] },
+			},
+		},
+	};
+	queryClient.setQueryData(
+		buildCountTaskRunsQuery(completedFilter, 30_000).queryKey,
+		counts.completed,
+	);
+
+	// Seed failed count query
+	const failedFilter: TaskRunsCountFilter = {
+		...baseFilter,
+		task_runs: {
+			...baseFilter.task_runs,
+			state: {
+				operator: "and_",
+				type: { any_: ["FAILED", "CRASHED"] },
+			},
+		},
+	};
+	queryClient.setQueryData(
+		buildCountTaskRunsQuery(failedFilter, 30_000).queryKey,
+		counts.failed,
+	);
+
+	// Seed running count query
+	const runningFilter: TaskRunsCountFilter = {
+		...baseFilter,
+		task_runs: {
+			...baseFilter.task_runs,
+			state: {
+				operator: "and_",
+				type: { any_: ["RUNNING"] },
+			},
+		},
+	};
+	queryClient.setQueryData(
+		buildCountTaskRunsQuery(runningFilter, 30_000).queryKey,
+		counts.running,
+	);
+}
+
 describe("TaskRunsCard", () => {
 	it("renders task runs card with title", async () => {
-		const taskRun1 = createFakeTaskRun({ name: "Task Run 1" });
-		const taskRun2 = createFakeTaskRun({ name: "Task Run 2" });
-
 		const queryClient = new QueryClient();
-		const queryOptions = buildListTaskRunsQuery({
-			sort: "ID_DESC",
-			offset: 0,
+		seedTaskRunsCountQueries(queryClient, {
+			total: 2,
+			completed: 2,
+			failed: 0,
+			running: 0,
 		});
-		queryClient.setQueryData(queryOptions.queryKey, [taskRun1, taskRun2]);
 
 		const wrapper = createWrapper({ queryClient });
 
@@ -55,34 +195,33 @@ describe("TaskRunsCard", () => {
 	});
 
 	it("displays total count when task runs exist", async () => {
-		const taskRuns = [
-			createFakeTaskRun({ name: "Task Run 1" }),
-			createFakeTaskRun({ name: "Task Run 2" }),
-			createFakeTaskRun({ name: "Task Run 3" }),
-		];
-
 		const queryClient = new QueryClient();
-		const queryOptions = buildListTaskRunsQuery({
-			sort: "ID_DESC",
-			offset: 0,
+		seedTaskRunsCountQueries(queryClient, {
+			total: 3,
+			completed: 2,
+			failed: 1,
+			running: 0,
 		});
-		queryClient.setQueryData(queryOptions.queryKey, taskRuns);
 
 		const wrapper = createWrapper({ queryClient });
 
 		render(<TaskRunsCardRouter />, { wrapper });
 
-		// Total count is now displayed as a large number, not "X total"
-		expect(await screen.findByText("3")).toBeInTheDocument();
+		// Total count is now displayed as a large number with "Total" label
+		expect(await screen.findByText("Total")).toBeInTheDocument();
+		// Use getAllByText since total and completed might have same value
+		const threeElements = screen.getAllByText("3");
+		expect(threeElements.length).toBeGreaterThanOrEqual(1);
 	});
 
 	it("does not display count when no task runs exist", async () => {
 		const queryClient = new QueryClient();
-		const queryOptions = buildListTaskRunsQuery({
-			sort: "ID_DESC",
-			offset: 0,
+		seedTaskRunsCountQueries(queryClient, {
+			total: 0,
+			completed: 0,
+			failed: 0,
+			running: 0,
 		});
-		queryClient.setQueryData(queryOptions.queryKey, []);
 
 		const wrapper = createWrapper({ queryClient });
 
@@ -94,11 +233,12 @@ describe("TaskRunsCard", () => {
 
 	it("shows empty message when no task runs", async () => {
 		const queryClient = new QueryClient();
-		const queryOptions = buildListTaskRunsQuery({
-			sort: "ID_DESC",
-			offset: 0,
+		seedTaskRunsCountQueries(queryClient, {
+			total: 0,
+			completed: 0,
+			failed: 0,
+			running: 0,
 		});
-		queryClient.setQueryData(queryOptions.queryKey, []);
 
 		const wrapper = createWrapper({ queryClient });
 
@@ -108,48 +248,14 @@ describe("TaskRunsCard", () => {
 	});
 
 	it("displays running count correctly", async () => {
-		const taskRuns = [
-			createFakeTaskRun({
-				state_type: "RUNNING",
-				state: {
-					id: "1",
-					type: "RUNNING",
-					name: "Running",
-					timestamp: new Date().toISOString(),
-					message: "",
-					data: null,
-				},
-			}),
-			createFakeTaskRun({
-				state_type: "RUNNING",
-				state: {
-					id: "2",
-					type: "RUNNING",
-					name: "Running",
-					timestamp: new Date().toISOString(),
-					message: "",
-					data: null,
-				},
-			}),
-			createFakeTaskRun({
-				state_type: "COMPLETED",
-				state: {
-					id: "3",
-					type: "COMPLETED",
-					name: "Completed",
-					timestamp: new Date().toISOString(),
-					message: "",
-					data: null,
-				},
-			}),
-		];
-
 		const queryClient = new QueryClient();
-		const queryOptions = buildListTaskRunsQuery({
-			sort: "ID_DESC",
-			offset: 0,
+		// 2 running, 1 completed = 3 total
+		seedTaskRunsCountQueries(queryClient, {
+			total: 3,
+			completed: 1,
+			failed: 0,
+			running: 2,
 		});
-		queryClient.setQueryData(queryOptions.queryKey, taskRuns);
 
 		const wrapper = createWrapper({ queryClient });
 
@@ -161,59 +267,15 @@ describe("TaskRunsCard", () => {
 	});
 
 	it("displays completed count and percentage correctly", async () => {
-		const taskRuns = [
-			createFakeTaskRun({
-				state_type: "COMPLETED",
-				state: {
-					id: "1",
-					type: "COMPLETED",
-					name: "Completed",
-					timestamp: new Date().toISOString(),
-					message: "",
-					data: null,
-				},
-			}),
-			createFakeTaskRun({
-				state_type: "COMPLETED",
-				state: {
-					id: "2",
-					type: "COMPLETED",
-					name: "Completed",
-					timestamp: new Date().toISOString(),
-					message: "",
-					data: null,
-				},
-			}),
-			createFakeTaskRun({
-				state_type: "RUNNING",
-				state: {
-					id: "3",
-					type: "RUNNING",
-					name: "Running",
-					timestamp: new Date().toISOString(),
-					message: "",
-					data: null,
-				},
-			}),
-			createFakeTaskRun({
-				state_type: "FAILED",
-				state: {
-					id: "4",
-					type: "FAILED",
-					name: "Failed",
-					timestamp: new Date().toISOString(),
-					message: "",
-					data: null,
-				},
-			}),
-		];
-
 		const queryClient = new QueryClient();
-		const queryOptions = buildListTaskRunsQuery({
-			sort: "ID_DESC",
-			offset: 0,
+		// 2 completed, 1 running, 1 failed = 4 total
+		// Percentage is calculated excluding running: 2/(2+1) = 66.7%
+		seedTaskRunsCountQueries(queryClient, {
+			total: 4,
+			completed: 2,
+			failed: 1,
+			running: 1,
 		});
-		queryClient.setQueryData(queryOptions.queryKey, taskRuns);
 
 		const wrapper = createWrapper({ queryClient });
 
@@ -225,48 +287,15 @@ describe("TaskRunsCard", () => {
 	});
 
 	it("displays failed count including crashed state", async () => {
-		const taskRuns = [
-			createFakeTaskRun({
-				state_type: "FAILED",
-				state: {
-					id: "1",
-					type: "FAILED",
-					name: "Failed",
-					timestamp: new Date().toISOString(),
-					message: "",
-					data: null,
-				},
-			}),
-			createFakeTaskRun({
-				state_type: "CRASHED",
-				state: {
-					id: "2",
-					type: "CRASHED",
-					name: "Crashed",
-					timestamp: new Date().toISOString(),
-					message: "",
-					data: null,
-				},
-			}),
-			createFakeTaskRun({
-				state_type: "COMPLETED",
-				state: {
-					id: "3",
-					type: "COMPLETED",
-					name: "Completed",
-					timestamp: new Date().toISOString(),
-					message: "",
-					data: null,
-				},
-			}),
-		];
-
 		const queryClient = new QueryClient();
-		const queryOptions = buildListTaskRunsQuery({
-			sort: "ID_DESC",
-			offset: 0,
+		// 2 failed (including crashed), 1 completed = 3 total
+		// Percentage: 2/(2+1) = 66.7%
+		seedTaskRunsCountQueries(queryClient, {
+			total: 3,
+			completed: 1,
+			failed: 2,
+			running: 0,
 		});
-		queryClient.setQueryData(queryOptions.queryKey, taskRuns);
 
 		const wrapper = createWrapper({ queryClient });
 
@@ -281,25 +310,18 @@ describe("TaskRunsCard", () => {
 	it("applies date range filter correctly", async () => {
 		const startDate = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
 		const endDate = new Date().toISOString();
-		const taskRuns = [
-			createFakeTaskRun({
-				start_time: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-			}),
-		];
 
 		const queryClient = new QueryClient();
-		const queryOptions = buildListTaskRunsQuery({
-			sort: "ID_DESC",
-			offset: 0,
-			task_runs: {
-				operator: "and_",
-				start_time: {
-					after_: startDate,
-					before_: endDate,
-				},
+		seedTaskRunsCountQueries(
+			queryClient,
+			{
+				total: 1,
+				completed: 1,
+				failed: 0,
+				running: 0,
 			},
-		});
-		queryClient.setQueryData(queryOptions.queryKey, taskRuns);
+			{ startDate, endDate },
+		);
 
 		const wrapper = createWrapper({ queryClient });
 
@@ -318,25 +340,17 @@ describe("TaskRunsCard", () => {
 	});
 
 	it("applies tags filter correctly", async () => {
-		const taskRuns = [
-			createFakeTaskRun({
-				tags: ["production", "critical"],
-			}),
-		];
-
 		const queryClient = new QueryClient();
-		const queryOptions = buildListTaskRunsQuery({
-			sort: "ID_DESC",
-			offset: 0,
-			task_runs: {
-				operator: "and_",
-				tags: {
-					operator: "and_",
-					all_: ["production", "critical"],
-				},
+		seedTaskRunsCountQueries(
+			queryClient,
+			{
+				total: 1,
+				completed: 1,
+				failed: 0,
+				running: 0,
 			},
-		});
-		queryClient.setQueryData(queryOptions.queryKey, taskRuns);
+			{ tags: ["production", "critical"] },
+		);
 
 		const wrapper = createWrapper({ queryClient });
 
@@ -356,30 +370,18 @@ describe("TaskRunsCard", () => {
 	it("applies combined filters correctly", async () => {
 		const startDate = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
 		const endDate = new Date().toISOString();
-		const taskRuns = [
-			createFakeTaskRun({
-				start_time: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-				tags: ["production"],
-			}),
-		];
 
 		const queryClient = new QueryClient();
-		const queryOptions = buildListTaskRunsQuery({
-			sort: "ID_DESC",
-			offset: 0,
-			task_runs: {
-				operator: "and_",
-				start_time: {
-					after_: startDate,
-					before_: endDate,
-				},
-				tags: {
-					operator: "and_",
-					all_: ["production"],
-				},
+		seedTaskRunsCountQueries(
+			queryClient,
+			{
+				total: 1,
+				completed: 1,
+				failed: 0,
+				running: 0,
 			},
-		});
-		queryClient.setQueryData(queryOptions.queryKey, taskRuns);
+			{ startDate, endDate, tags: ["production"] },
+		);
 
 		const wrapper = createWrapper({ queryClient });
 
@@ -399,14 +401,13 @@ describe("TaskRunsCard", () => {
 	});
 
 	it("handles empty tags array", async () => {
-		const taskRuns = [createFakeTaskRun()];
-
 		const queryClient = new QueryClient();
-		const queryOptions = buildListTaskRunsQuery({
-			sort: "ID_DESC",
-			offset: 0,
+		seedTaskRunsCountQueries(queryClient, {
+			total: 1,
+			completed: 1,
+			failed: 0,
+			running: 0,
 		});
-		queryClient.setQueryData(queryOptions.queryKey, taskRuns);
 
 		const wrapper = createWrapper({ queryClient });
 
@@ -424,14 +425,13 @@ describe("TaskRunsCard", () => {
 	});
 
 	it("renders with no filter prop", async () => {
-		const taskRuns = [createFakeTaskRun()];
-
 		const queryClient = new QueryClient();
-		const queryOptions = buildListTaskRunsQuery({
-			sort: "ID_DESC",
-			offset: 0,
+		seedTaskRunsCountQueries(queryClient, {
+			total: 1,
+			completed: 1,
+			failed: 0,
+			running: 0,
 		});
-		queryClient.setQueryData(queryOptions.queryKey, taskRuns);
 
 		const wrapper = createWrapper({ queryClient });
 
@@ -443,26 +443,13 @@ describe("TaskRunsCard", () => {
 	});
 
 	it("displays completed stat when task runs exist", async () => {
-		const taskRuns = [
-			createFakeTaskRun({
-				state_type: "COMPLETED",
-				state: {
-					id: "1",
-					type: "COMPLETED",
-					name: "Completed",
-					timestamp: new Date().toISOString(),
-					message: "",
-					data: null,
-				},
-			}),
-		];
-
 		const queryClient = new QueryClient();
-		const queryOptions = buildListTaskRunsQuery({
-			sort: "ID_DESC",
-			offset: 0,
+		seedTaskRunsCountQueries(queryClient, {
+			total: 1,
+			completed: 1,
+			failed: 0,
+			running: 0,
 		});
-		queryClient.setQueryData(queryOptions.queryKey, taskRuns);
 
 		const wrapper = createWrapper({ queryClient });
 
@@ -477,26 +464,16 @@ describe("TaskRunsCard", () => {
 	});
 
 	it("calculates percentages correctly with zero values", async () => {
-		const taskRuns = [
-			createFakeTaskRun({
-				state_type: "RUNNING",
-				state: {
-					id: "1",
-					type: "RUNNING",
-					name: "Running",
-					timestamp: new Date().toISOString(),
-					message: "",
-					data: null,
-				},
-			}),
-		];
-
 		const queryClient = new QueryClient();
-		const queryOptions = buildListTaskRunsQuery({
-			sort: "ID_DESC",
-			offset: 0,
+		// Only running tasks, no completed or failed
+		// percentComparisonTotal = total - running = 1 - 1 = 0
+		// So percentage should be 0.0%
+		seedTaskRunsCountQueries(queryClient, {
+			total: 1,
+			completed: 0,
+			failed: 0,
+			running: 1,
 		});
-		queryClient.setQueryData(queryOptions.queryKey, taskRuns);
 
 		const wrapper = createWrapper({ queryClient });
 
