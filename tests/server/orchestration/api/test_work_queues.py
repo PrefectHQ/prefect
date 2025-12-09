@@ -204,7 +204,12 @@ class TestUpdateWorkQueue:
         events = [
             event for client in AssertingEventsClient.all for event in client.events
         ]
-        assert len(events) == 1
+        # Expect both status event and updated event for concurrency_limit
+        assert len(events) == 2
+        # Verify we have both a status event and an updated event
+        event_types = {event.event for event in events}
+        assert "prefect.work-queue.paused" in event_types
+        assert "prefect.work-queue.updated" in event_types
 
     async def test_update_work_queue_to_paused(
         self,
@@ -312,8 +317,26 @@ class TestUpdateWorkQueue:
         assert work_queue_response.status_code == 200
         assert work_queue_response.json()["status"] == "PAUSED"
 
-        # ensure no events emitted for already paused work queue
-        AssertingEventsClient.assert_emitted_event_count(0)
+        # Since concurrency_limit changed, we should get an updated event
+        # (status didn't change, so no status event)
+        AssertingEventsClient.assert_emitted_event_count(1)
+        AssertingEventsClient.assert_emitted_event_with(
+            event="prefect.work-queue.updated",
+            resource={
+                "prefect.resource.id": f"prefect.work-queue.{paused_work_queue.id}",
+                "prefect.resource.name": paused_work_queue.name,
+                "prefect.resource.role": "work-queue",
+            },
+            payload={
+                "changed_fields": ["concurrency_limit"],
+                "changes": {
+                    "concurrency_limit": {
+                        "old": None,
+                        "new": 3,
+                    }
+                },
+            },
+        )
 
     async def test_update_work_queue_to_unpaused_when_already_unpaused_does_not_emit_event(
         self,
@@ -339,8 +362,26 @@ class TestUpdateWorkQueue:
         assert work_queue_response.status_code == 200
         assert work_queue_response.json()["status"] == "READY"
 
-        # ensure no events emitted for already unpaused work queue
-        AssertingEventsClient.assert_emitted_event_count(0)
+        # Since concurrency_limit changed, we should get an updated event
+        # (status didn't change, so no status event)
+        AssertingEventsClient.assert_emitted_event_count(1)
+        AssertingEventsClient.assert_emitted_event_with(
+            event="prefect.work-queue.updated",
+            resource={
+                "prefect.resource.id": f"prefect.work-queue.{ready_work_queue.id}",
+                "prefect.resource.name": ready_work_queue.name,
+                "prefect.resource.role": "work-queue",
+            },
+            payload={
+                "changed_fields": ["concurrency_limit"],
+                "changes": {
+                    "concurrency_limit": {
+                        "old": None,
+                        "new": 3,
+                    }
+                },
+            },
+        )
 
     async def test_update_work_queue_to_unpaused_with_no_last_polled_sets_not_ready_status(
         self,

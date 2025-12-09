@@ -452,7 +452,14 @@ class TestUpdateWorkPool:
         assert result.is_paused is True
         assert result.concurrency_limit == 5
 
-        assert_status_events(work_pool.name, ["prefect.work-pool.paused"])
+        # Expect both status event and updated event for concurrency_limit
+        found_events = [
+            event for item in AssertingEventsClient.all for event in item.events
+        ]
+        assert len(found_events) == 2
+        event_types = {event.event for event in found_events}
+        assert "prefect.work-pool.paused" in event_types
+        assert "prefect.work-pool.updated" in event_types
 
     async def test_update_work_pool_storage_configuration(self, client, work_pool):
         bundle_upload_step = {
@@ -1194,7 +1201,14 @@ class TestUpdateWorkQueue:
         assert response.json()["concurrency_limit"] == 3
         assert response.json()["status"] == "PAUSED"
 
-        assert_status_events(work_queue_1.name, ["prefect.work-queue.paused"])
+        # Expect both status event and updated event for concurrency_limit
+        found_events = [
+            event for item in AssertingEventsClient.all for event in item.events
+        ]
+        assert len(found_events) == 2
+        event_types = {event.event for event in found_events}
+        assert "prefect.work-queue.paused" in event_types
+        assert "prefect.work-queue.updated" in event_types
 
     async def test_update_work_queue_to_paused_sets_paused_status(
         self,
@@ -1228,7 +1242,14 @@ class TestUpdateWorkQueue:
         assert work_queue_response.status_code == 200
         assert work_queue_response.json()["status"] == "PAUSED"
 
-        assert_status_events(work_queue_1.name, ["prefect.work-queue.paused"])
+        # Expect both status event and updated event for concurrency_limit
+        found_events = [
+            event for item in AssertingEventsClient.all for event in item.events
+        ]
+        assert len(found_events) == 2
+        event_types = {event.event for event in found_events}
+        assert "prefect.work-queue.paused" in event_types
+        assert "prefect.work-queue.updated" in event_types
 
     async def test_update_work_queue_to_paused_when_already_paused_does_not_emit_event(
         self,
@@ -1255,8 +1276,26 @@ class TestUpdateWorkQueue:
         assert work_queue_response.status_code == 200
         assert work_queue_response.json()["status"] == "PAUSED"
 
-        # ensure no events emitted for already paused work queue
-        AssertingEventsClient.assert_emitted_event_count(0)
+        # Since concurrency_limit changed, we should get an updated event
+        # (status didn't change, so no status event)
+        AssertingEventsClient.assert_emitted_event_count(1)
+        AssertingEventsClient.assert_emitted_event_with(
+            event="prefect.work-queue.updated",
+            resource={
+                "prefect.resource.id": f"prefect.work-queue.{paused_work_queue.id}",
+                "prefect.resource.name": paused_work_queue.name,
+                "prefect.resource.role": "work-queue",
+            },
+            payload={
+                "changed_fields": ["concurrency_limit"],
+                "changes": {
+                    "concurrency_limit": {
+                        "old": None,
+                        "new": 3,
+                    }
+                },
+            },
+        )
 
     async def test_update_work_queue_to_unpaused_when_already_unpaused_does_not_emit_event(
         self,
@@ -1283,8 +1322,26 @@ class TestUpdateWorkQueue:
         assert work_queue_response.status_code == 200
         assert work_queue_response.json()["status"] == "READY"
 
-        # ensure no events emitted for already unpaused work queue
-        AssertingEventsClient.assert_emitted_event_count(0)
+        # Since concurrency_limit changed, we should get an updated event
+        # (status didn't change, so no status event)
+        AssertingEventsClient.assert_emitted_event_count(1)
+        AssertingEventsClient.assert_emitted_event_with(
+            event="prefect.work-queue.updated",
+            resource={
+                "prefect.resource.id": f"prefect.work-queue.{ready_work_queue.id}",
+                "prefect.resource.name": ready_work_queue.name,
+                "prefect.resource.role": "work-queue",
+            },
+            payload={
+                "changed_fields": ["concurrency_limit"],
+                "changes": {
+                    "concurrency_limit": {
+                        "old": None,
+                        "new": 3,
+                    }
+                },
+            },
+        )
 
     async def test_update_work_queue_to_unpaused_with_no_last_polled_sets_not_ready_status(
         self,
