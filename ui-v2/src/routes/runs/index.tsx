@@ -8,7 +8,6 @@ import {
 	buildPaginateFlowRunsQuery,
 	type FlowRunsPaginateFilter,
 } from "@/api/flow-runs";
-import { buildListFlowsQuery } from "@/api/flows";
 import { buildCountTaskRunsQuery } from "@/api/task-runs";
 import {
 	type PaginationState,
@@ -54,30 +53,16 @@ export const Route = createFileRoute("/runs/")({
 			buildCountTaskRunsQuery(),
 		);
 
-		const flowRunsPaginateResult = await context.queryClient.ensureQueryData(
+		// Prefetch paginated flow runs without blocking the loader
+		// This allows pagination changes to use placeholderData (keepPreviousData)
+		// instead of triggering a full route-level Suspense fallback
+		void context.queryClient.prefetchQuery(
 			buildPaginateFlowRunsQuery(deps, 30_000),
 		);
-
-		const flowRuns = flowRunsPaginateResult?.results ?? [];
-		const flowIds = [...new Set(flowRuns.map((flowRun) => flowRun.flow_id))];
-
-		if (flowIds.length > 0) {
-			void context.queryClient.prefetchQuery(
-				buildListFlowsQuery({
-					flows: {
-						operator: "and_",
-						id: { any_: flowIds },
-					},
-					offset: 0,
-					sort: "NAME_ASC",
-				}),
-			);
-		}
 
 		return {
 			flowRunsCountResult,
 			taskRunsCountResult,
-			flowRunsPaginateResult,
 		};
 	},
 	wrapInSuspense: true,
