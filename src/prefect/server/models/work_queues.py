@@ -665,6 +665,7 @@ async def emit_work_queue_status_event(
     db: PrefectDBInterface,
     work_queue: orm_models.WorkQueue,
 ) -> None:
+    """Emit an event when work queue fields are updated."""
     async with db.session_context() as session:
         event = await work_queue_status_event(
             session=session,
