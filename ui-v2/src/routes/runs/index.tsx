@@ -1,14 +1,17 @@
 import { useQueryClient, useSuspenseQueries } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { zodValidator } from "@tanstack/zod-adapter";
-import { useCallback, useMemo } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 import { z } from "zod";
 import {
 	buildCountFlowRunsQuery,
 	buildPaginateFlowRunsQuery,
 	type FlowRunsPaginateFilter,
 } from "@/api/flow-runs";
-import { buildCountTaskRunsQuery } from "@/api/task-runs";
+import {
+	buildCountTaskRunsQuery,
+	buildGetFlowRunsTaskRunsCountQuery,
+} from "@/api/task-runs";
 import {
 	type PaginationState,
 	SORT_FILTERS,
@@ -52,6 +55,20 @@ export const Route = createFileRoute("/runs/")({
 		void context.queryClient.prefetchQuery(
 			buildPaginateFlowRunsQuery(deps, 30_000),
 		);
+
+		// Background async chain: prefetch task run counts for each flow run
+		// This prevents suspense when FlowRunCard renders
+		void (async () => {
+			const pageData = await context.queryClient.ensureQueryData(
+				buildPaginateFlowRunsQuery(deps, 30_000),
+			);
+			const flowRunIds = pageData?.results?.map((run) => run.id) ?? [];
+			if (flowRunIds.length > 0) {
+				void context.queryClient.prefetchQuery(
+					buildGetFlowRunsTaskRunsCountQuery(flowRunIds),
+				);
+			}
+		})();
 	},
 	wrapInSuspense: true,
 });
@@ -166,15 +183,35 @@ function RouteComponent() {
 
 	const flowRuns = flowRunsPage?.results ?? [];
 
+	// Prefetch task run counts for the current page's flow runs
+	// This ensures the data is ready when FlowRunCard renders
+	useEffect(() => {
+		const flowRunIds = flowRuns.map((run) => run.id);
+		if (flowRunIds.length > 0) {
+			void queryClient.prefetchQuery(
+				buildGetFlowRunsTaskRunsCountQuery(flowRunIds),
+			);
+		}
+	}, [queryClient, flowRuns]);
+
 	const onPrefetchPage = useCallback(
 		(page: number) => {
 			const filter = buildPaginationBody({
 				...search,
 				page,
 			});
-			void queryClient.prefetchQuery(
-				buildPaginateFlowRunsQuery(filter, 30_000),
-			);
+			// Prefetch the page data, then chain prefetch of task run counts
+			void (async () => {
+				const pageData = await queryClient.ensureQueryData(
+					buildPaginateFlowRunsQuery(filter, 30_000),
+				);
+				const flowRunIds = pageData?.results?.map((run) => run.id) ?? [];
+				if (flowRunIds.length > 0) {
+					void queryClient.prefetchQuery(
+						buildGetFlowRunsTaskRunsCountQuery(flowRunIds),
+					);
+				}
+			})();
 		},
 		[queryClient, search],
 	);
