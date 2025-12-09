@@ -18,6 +18,7 @@ type TaskRunsTrendsProps = {
 		startDate?: string;
 		endDate?: string;
 		tags?: string[];
+		hideSubflows?: boolean;
 	};
 };
 
@@ -97,18 +98,31 @@ export function TaskRunsTrends({ filter }: TaskRunsTrendsProps) {
 			history_interval_seconds: historyInterval,
 		};
 
-		if (filter?.tags && filter.tags.length > 0) {
-			baseFilter.task_runs = {
+		// Add flow_runs filter for tags and hideSubflows (matching Vue's dashboard mapping)
+		if ((filter?.tags && filter.tags.length > 0) || filter?.hideSubflows) {
+			baseFilter.flow_runs = {
 				operator: "and_",
-				tags: {
-					operator: "and_",
-					all_: filter.tags,
-				},
 			};
+
+			// Tags filter on flow_runs (matching Vue's flowRuns.tags.anyName)
+			if (filter?.tags && filter.tags.length > 0) {
+				baseFilter.flow_runs.tags = {
+					operator: "and_",
+					any_: filter.tags,
+				};
+			}
+
+			// Hide subflows filter (matching Vue's flowRuns.parentTaskRunIdNull)
+			if (filter?.hideSubflows) {
+				baseFilter.flow_runs.parent_task_run_id = {
+					operator: "and_",
+					is_null_: true,
+				};
+			}
 		}
 
 		return baseFilter;
-	}, [filter?.startDate, filter?.endDate, filter?.tags]);
+	}, [filter?.startDate, filter?.endDate, filter?.tags, filter?.hideSubflows]);
 
 	const { data: history } = useSuspenseQuery(
 		buildTaskRunsHistoryQuery(historyFilter, 30000),
